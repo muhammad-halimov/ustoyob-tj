@@ -136,6 +136,7 @@ class Ticket
     #[Groups([
         'userTickets:read',
         'appeals:read',
+        'appealsTicket:read',
     ])]
     private ?int $id = null;
 
@@ -143,6 +144,7 @@ class Ticket
     #[Groups([
         'userTickets:read',
         'appeals:read',
+        'appealsTicket:read',
     ])]
     private ?string $title = null;
 

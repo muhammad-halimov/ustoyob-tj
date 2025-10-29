@@ -16,28 +16,13 @@ class AppealRepository extends ServiceEntityRepository
         parent::__construct($registry, Appeal::class);
     }
 
-    //    /**
-    //     * @return Appeal[] Returns an array of Appeal objects
-    //     */
-    //    public function findByExampleField($value): array
-    //    {
-    //        return $this->createQueryBuilder('a')
-    //            ->andWhere('a.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->orderBy('a.id', 'ASC')
-    //            ->setMaxResults(10)
-    //            ->getQuery()
-    //            ->getResult()
-    //        ;
-    //    }
-
-    //    public function findOneBySomeField($value): ?Appeal
-    //    {
-    //        return $this->createQueryBuilder('a')
-    //            ->andWhere('a.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->getQuery()
-    //            ->getOneOrNullResult()
-    //        ;
-    //    }
+    public function findAllByTicketStatus(bool $status): ?array
+    {
+        return $this
+            ->createQueryBuilder('a')
+            ->where("a.ticketAppeal = :status")
+            ->setParameter('status', $status)
+            ->getQuery()
+            ->getResult();
+    }
 }

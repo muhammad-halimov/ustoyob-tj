@@ -8,6 +8,8 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\Controller\Api\Filter\Appeal\TicketAppealFilterController;
+use App\Controller\Api\Filter\Appeal\UserAppealFilterController;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
@@ -21,25 +23,56 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
     operations: [
-        new Get(),
-        new Post(security:
-            "is_granted('ROLE_ADMIN') or
-             is_granted('ROLE_CLIENT') or
-             is_granted('ROLE_MASTER')",
+        new Get(
+            uriTemplate: '/appeals/{id}',
+            requirements: ['id' => '\d+'],
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
         ),
-        new Patch(security:
-            "is_granted('ROLE_ADMIN') or
-             is_granted('ROLE_CLIENT') or
-             is_granted('ROLE_MASTER')",
+        new GetCollection(
+            uriTemplate: '/appeals/tickets',
+            controller: TicketAppealFilterController::class,
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
         ),
-        new Delete(security:
-            "is_granted('ROLE_ADMIN') or
-             is_granted('ROLE_CLIENT') or
-             is_granted('ROLE_MASTER')",
+        new GetCollection(
+            uriTemplate: '/appeals/users',
+            controller: UserAppealFilterController::class,
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        ),
+        new Post(
+            uriTemplate: '/appeals',
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        ),
+        new Patch(
+            uriTemplate: '/appeals/{id}',
+            requirements: ['id' => '\d+'],
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        ),
+        new Delete(
+            uriTemplate: '/appeals/{id}',
+            requirements: ['id' => '\d+'],
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
         )
     ],
     normalizationContext: [
-        'groups' => ['appeals:read'],
+        'groups' => ['appeals:read', 'appealsTicket:read'],
         'skip_null_values' => false,
     ],
     paginationEnabled: false,
@@ -68,18 +101,21 @@ class Appeal
     #[ORM\Column]
     #[Groups([
         'appeals:read',
+        'appealsTicket:read',
     ])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
         'appeals:read',
+        'appealsTicket:read',
     ])]
     private ?string $reason = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups([
         'appeals:read',
+        'appealsTicket:read',
     ])]
     private ?string $description = null;
 
@@ -87,6 +123,7 @@ class Appeal
     #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'appeals:read',
+        'appealsTicket:read',
     ])]
     private ?User $user = null;
 
@@ -94,12 +131,14 @@ class Appeal
     #[ORM\JoinColumn(name: 'ticket_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'appeals:read',
+        'appealsTicket:read',
     ])]
     private ?Ticket $ticket = null;
 
     #[ORM\Column(type: 'boolean', nullable: true)]
     #[Groups([
         'appeals:read',
+        'appealsTicket:read',
     ])]
     private ?bool $ticketAppeal = null;
 

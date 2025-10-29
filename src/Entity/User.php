@@ -159,6 +159,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'userTickets:read',
         'chats:read',
         'appeals:read',
+        'appealsTicket:read',
     ])]
     private ?int $id = null;
 
@@ -172,6 +173,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'userTickets:read',
         'chats:read',
         'appeals:read',
+        'appealsTicket:read',
     ])]
     private ?string $email = null;
 
@@ -185,6 +187,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'userTickets:read',
         'chats:read',
         'appeals:read',
+        'appealsTicket:read',
     ])]
     private ?string $name = null;
 
@@ -198,6 +201,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'userTickets:read',
         'chats:read',
         'appeals:read',
+        'appealsTicket:read',
     ])]
     private ?string $surname = null;
 
