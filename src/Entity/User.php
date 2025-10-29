@@ -8,10 +8,16 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\Controller\Api\Filter\User\ClientUserFilterController;
+use App\Controller\Api\Filter\User\MasterUserFilterController;
 use App\Controller\Api\Filter\User\PersonalUserFilterController;
+use App\Controller\Api\Filter\User\SingleClientUserFilterController;
+use App\Controller\Api\Filter\User\SingleMasterUserFilterController;
 use App\Entity\Chat\Chat;
 use App\Entity\Chat\ChatMessage;
 use App\Entity\Gallery\Gallery;
+use App\Entity\Geography\District;
+use App\Entity\Service\Category;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
@@ -43,7 +49,7 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
             uriTemplate: '/users/me',
             controller: PersonalUserFilterController::class,
             security:
-                "is_granted('ROLE_ADMIN') or
+               "is_granted('ROLE_ADMIN') or
                 is_granted('ROLE_MASTER') or
                 is_granted('ROLE_CLIENT')",
         ),
@@ -52,7 +58,30 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
             requirements: ['id' => '\d+']
         ),
         new GetCollection(
-            uriTemplate: '/users'
+            uriTemplate: '/users/clients',
+            controller: ClientUserFilterController::class,
+        ),
+        new Get(
+            uriTemplate: '/users/clients/{id}',
+            requirements: ['id' => '\d+'],
+            controller: SingleClientUserFilterController::class,
+            security:
+               "is_granted('ROLE_ADMIN') or
+                is_granted('ROLE_MASTER') or
+                is_granted('ROLE_CLIENT')",
+        ),
+        new GetCollection(
+            uriTemplate: '/users/masters',
+            controller: MasterUserFilterController::class,
+        ),
+        new Get(
+            uriTemplate: '/users/masters/{id}',
+            requirements: ['id' => '\d+'],
+            controller: SingleMasterUserFilterController::class,
+            security:
+               "is_granted('ROLE_ADMIN') or
+                is_granted('ROLE_MASTER') or
+                is_granted('ROLE_CLIENT')",
         ),
         new Post(
             uriTemplate: '/users'
@@ -61,7 +90,7 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
             uriTemplate: '/users/{id}',
             requirements: ['id' => '\d+'],
             security:
-                "is_granted('ROLE_ADMIN') or
+               "is_granted('ROLE_ADMIN') or
                 is_granted('ROLE_MASTER') or
                 is_granted('ROLE_CLIENT')",
         ),
@@ -111,6 +140,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->chatMessages = new ArrayCollection();
         $this->galleries = new ArrayCollection();
         $this->tickets = new ArrayCollection();
+        $this->occupation = new ArrayCollection();
+        $this->districts = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -228,6 +259,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     ])]
     private ?string $phone2 = null;
 
+    #[ORM\Column(type: 'boolean', nullable: true)]
+    #[Groups([
+        'masters:read',
+        'clients:read',
+    ])]
+    private ?bool $remotely = null;
+
     /**
      * @var list<string> The user roles
      */
@@ -307,6 +345,24 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(targetEntity: Ticket::class, mappedBy: 'master')]
     #[Ignore]
     private Collection $tickets;
+
+    /**
+     * @var Collection<int, Category>
+     */
+    #[ORM\OneToMany(targetEntity: Category::class, mappedBy: 'user')]
+    #[Groups([
+        'masters:read',
+    ])]
+    private Collection $occupation;
+
+    /**
+     * @var Collection<int, District>
+     */
+    #[ORM\OneToMany(targetEntity: District::class, mappedBy: 'user')]
+    #[Groups([
+        'masters:read',
+    ])]
+    private Collection $districts;
 
     public function getId(): ?int
     {
@@ -438,6 +494,16 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         $this->phone2 = $phone2;
         return $this;
+    }
+
+    public function getRemotely(): ?bool
+    {
+        return $this->remotely;
+    }
+
+    public function setRemotely(?bool $remotely): void
+    {
+        $this->remotely = $remotely;
     }
 
     /**
@@ -754,6 +820,66 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             // set the owning side to null (unless already changed)
             if ($ticket->getMaster() === $this) {
                 $ticket->setMaster(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Category>
+     */
+    public function getOccupation(): Collection
+    {
+        return $this->occupation;
+    }
+
+    public function addOccupation(Category $occupation): static
+    {
+        if (!$this->occupation->contains($occupation)) {
+            $this->occupation->add($occupation);
+            $occupation->setUser($this);
+        }
+
+        return $this;
+    }
+
+    public function removeOccupation(Category $occupation): static
+    {
+        if ($this->occupation->removeElement($occupation)) {
+            // set the owning side to null (unless already changed)
+            if ($occupation->getUser() === $this) {
+                $occupation->setUser(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, District>
+     */
+    public function getDistricts(): Collection
+    {
+        return $this->districts;
+    }
+
+    public function addDistrict(District $district): static
+    {
+        if (!$this->districts->contains($district)) {
+            $this->districts->add($district);
+            $district->setUser($this);
+        }
+
+        return $this;
+    }
+
+    public function removeDistrict(District $district): static
+    {
+        if ($this->districts->removeElement($district)) {
+            // set the owning side to null (unless already changed)
+            if ($district->getUser() === $this) {
+                $district->setUser(null);
             }
         }
 

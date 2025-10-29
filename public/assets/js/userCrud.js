@@ -8,6 +8,9 @@ async function loadAndChangeChoices() {
     const masterOption = document.getElementById('User_roles_1');
     const clientOption = document.getElementById('User_roles_2');
 
+    const occupationDropDown = document.querySelector('.occupation-field');
+    const districtsDropDown = document.querySelector('.districts-field');
+
     const disableDropDown = (dropDown) => {
         dropDown.style.pointerEvents = 'none';
         dropDown.style.opacity = '0.4';
@@ -30,11 +33,15 @@ async function loadAndChangeChoices() {
         } else if(clientOption.checked) {
             disableDropDown(masterOption);
             disableDropDown(adminOption);
+            disableDropDown(occupationDropDown);
+            disableDropDown(districtsDropDown);
         } else {
             // Если ничего не выбрано — отключаем
             enableDropDown(adminOption);
             enableDropDown(clientOption);
             enableDropDown(masterOption);
+            enableDropDown(occupationDropDown);
+            enableDropDown(districtsDropDown);
         }
     };
 
@@ -43,7 +50,5 @@ async function loadAndChangeChoices() {
     masterOption.addEventListener('change', updateDropDowns);
     clientOption.addEventListener('change', updateDropDowns);
 
-    // Автоматически выбираем клиентскую опцию при загрузке
-    clientOption.checked = true;
     updateDropDowns();
 }

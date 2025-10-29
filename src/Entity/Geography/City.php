@@ -60,6 +60,7 @@ class City
         'provinces:read',
         'userTickets:read',
         'districts:read',
+        'masters:read',
     ])]
     private ?int $id = null;
 
@@ -69,6 +70,7 @@ class City
         'provinces:read',
         'userTickets:read',
         'districts:read',
+        'masters:read',
     ])]
     private ?string $title = null;
 
@@ -106,6 +108,7 @@ class City
         'cities:read',
         'districts:read',
         'userTickets:read',
+        'masters:read',
     ])]
     private ?Province $province = null;
 

@@ -11,6 +11,7 @@ use ApiPlatform\Metadata\Post;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
+use App\Entity\User;
 use App\Repository\DistrictRepository;
 use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -61,6 +62,7 @@ class District
         'provinces:read',
         'userTickets:read',
         'cities:read',
+        'masters:read',
     ])]
     private ?int $id = null;
 
@@ -70,6 +72,7 @@ class District
         'provinces:read',
         'userTickets:read',
         'cities:read',
+        'masters:read',
     ])]
     private ?string $title = null;
 
@@ -96,6 +99,7 @@ class District
     #[Groups([
         'districts:read',
         'userTickets:read',
+        'masters:read',
     ])]
     private ?City $city = null;
 
@@ -105,6 +109,9 @@ class District
     #[ORM\OneToMany(targetEntity: Ticket::class, mappedBy: 'address')]
     #[Ignore]
     private Collection $tickets;
+
+    #[ORM\ManyToOne(inversedBy: 'district')]
+    private ?User $user = null;
 
     public function __construct()
     {
@@ -205,6 +212,18 @@ class District
                 $ticket->setAddress(null);
             }
         }
+
+        return $this;
+    }
+
+    public function getUser(): ?User
+    {
+        return $this->user;
+    }
+
+    public function setUser(?User $user): static
+    {
+        $this->user = $user;
 
         return $this;
     }

@@ -10,6 +10,8 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
+use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
@@ -109,6 +111,11 @@ class UserCrudController extends AbstractCrudController
             ->setChoices(User::ROLES)
             ->setColumns(9);
 
+        yield BooleanField::new('remotely', 'Удаленно')
+            ->addCssClass("form-switch")
+            ->hideOnIndex()
+            ->setColumns(12);
+
         yield EmailField::new('email', 'Эл. почта')
             ->setColumns(4)
             ->setRequired(true);
@@ -158,6 +165,20 @@ class UserCrudController extends AbstractCrudController
         yield TelephoneField::new('phone2', 'Телефон 2')
             ->setColumns(4)
             ->setRequired(false);
+
+        yield AssociationField::new('occupation', 'Специальность')
+            ->setColumns(6)
+            ->setFormTypeOptions(['by_reference' => false])
+            ->addCssClass("occupation-field")
+            ->hideOnIndex()
+            ->setRequired(true);
+
+        yield AssociationField::new('districts', 'Районы работ')
+            ->setColumns(6)
+            ->setFormTypeOptions(['by_reference' => false])
+            ->addCssClass("districts-field")
+            ->hideOnIndex()
+            ->setRequired(true);
 
         yield TextEditorField::new('bio', 'О себе')
             ->hideOnIndex()

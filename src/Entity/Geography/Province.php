@@ -66,6 +66,7 @@ class Province
         'userTickets:read',
         'cities:read',
         'districts:read',
+        'masters:read',
     ])]
     private ?int $id = null;
 
@@ -75,6 +76,7 @@ class Province
         'userTickets:read',
         'cities:read',
         'districts:read',
+        'masters:read',
     ])]
     #[SerializedName('title')]
     private ?string $province = null;
