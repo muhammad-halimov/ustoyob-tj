@@ -13,6 +13,7 @@ use App\Entity\Service\Unit;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
 use App\Entity\User\Review;
+use App\Entity\User\Appeal;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminDashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Config\MenuItem;
@@ -54,6 +55,7 @@ class DashboardController extends AbstractDashboardController
             yield MenuItem::linkToCrud('Пользователи', 'fas fa-users', User::class);
             yield MenuItem::linkToCrud('Чаты и сообщения', 'fas fa-comments', Chat::class);
             yield MenuItem::linkToCrud('Отзывы', 'fas fa-star', Review::class);
+            yield MenuItem::linkToCrud('Жалобы', 'fas fa-ban', Appeal::class);
 
         yield MenuItem::section('Доп. настройки');
             yield MenuItem::subMenu('География', 'fas fa-location-dot')->setSubItems([

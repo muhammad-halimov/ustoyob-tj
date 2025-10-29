@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Controller\Admin\User;
+namespace App\Controller\Admin;
 
-use App\Entity\User\Review;
+use App\Entity\User\Appeal;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
@@ -10,33 +10,34 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
-class ReviewCrudController extends AbstractCrudController
+class AppealCrudController extends AbstractCrudController
 {
     public static function getEntityFqcn(): string
     {
-        return Review::class;
+        return Appeal::class;
     }
 
     public function configureAssets(Assets $assets): Assets
     {
         return parent::configureAssets($assets)
-            ->addJsFile("assets/js/reviewCrud.js");
+            ->addJsFile("assets/js/appealCrud.js");
     }
 
     public function configureCrud(Crud $crud): Crud
     {
         return parent::configureCrud($crud)
             ->setEntityPermission('ROLE_ADMIN')
-            ->setEntityLabelInPlural('Отзывы работ')
-            ->setEntityLabelInSingular('отзывы работ')
-            ->setPageTitle(Crud::PAGE_NEW, 'Добавление отзыва')
-            ->setPageTitle(Crud::PAGE_EDIT, 'Изменение отзыва')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация об отзыве");
+            ->setEntityLabelInPlural('Жалобы')
+            ->setEntityLabelInSingular('жалобу')
+            ->setPageTitle(Crud::PAGE_NEW, 'Добавление жалобы')
+            ->setPageTitle(Crud::PAGE_EDIT, 'Изменение жалобы')
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о жалобе");
     }
 
     public function configureActions(Actions $actions): Actions
@@ -64,26 +65,26 @@ class ReviewCrudController extends AbstractCrudController
         yield IdField::new('id')
             ->onlyOnIndex();
 
-        yield BooleanField::new('forReviewer', 'Отзыв рецензенту')
-            ->addCssClass("form-switch")
+        yield BooleanField::new('ticketAppeal', 'Объявление')
             ->setColumns(12);
 
-        yield AssociationField::new('reviewer', 'Рецензент')
+        yield AssociationField::new('user', 'Истец')
             ->setRequired(true)
             ->setColumns(6);
 
-        yield NumberField::new('rating', 'Оценка')
+        yield AssociationField::new('ticket', 'Объявление')
             ->setRequired(true)
-            ->setNumDecimals(1)
+            ->addCssClass('ticket-field')
             ->setColumns(6);
 
-        yield AssociationField::new('user', 'Мастер')
-            ->setRequired(true)
-            ->setColumns(6);
+        yield ChoiceField::new('reason', 'Причина')
+            ->setColumns(6)
+            ->setChoices(Appeal::REASONS)
+            ->setRequired(true);
 
-        yield AssociationField::new('services', 'Услуга')
-            ->setFormTypeOptions(['by_reference' => false])
-            ->addCssClass("services-field")
+        yield AssociationField::new('respondent', 'Ответчик')
+            ->setRequired(true)
+            ->addCssClass('respondent-field')
             ->setColumns(6);
 
         yield TextEditorField::new('description', 'Описание')

@@ -19,6 +19,7 @@ use App\Entity\Service\Unit;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
+use App\Entity\User\Appeal;
 use App\Entity\User\Review;
 use App\Repository\TicketRepository;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -126,6 +127,7 @@ class Ticket
     {
         $this->userTicketImages = new ArrayCollection();
         $this->reviews = new ArrayCollection();
+        $this->appeals = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -133,12 +135,14 @@ class Ticket
     #[ORM\Column]
     #[Groups([
         'userTickets:read',
+        'appeals:read',
     ])]
     private ?int $id = null;
 
     #[ORM\Column(length: 64, nullable: true)]
     #[Groups([
         'userTickets:read',
+        'appeals:read',
     ])]
     private ?string $title = null;
 
@@ -223,6 +227,12 @@ class Ticket
         'userTickets:read',
     ])]
     private ?District $address = null;
+
+    /**
+     * @var Collection<int, Appeal>
+     */
+    #[ORM\OneToMany(targetEntity: Appeal::class, mappedBy: 'ticket')]
+    private Collection $appeals;
 
     public function getId(): ?int
     {
@@ -414,6 +424,36 @@ class Ticket
     public function setAddress(?District $address): static
     {
         $this->address = $address;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Appeal>
+     */
+    public function getAppeals(): Collection
+    {
+        return $this->appeals;
+    }
+
+    public function addAppeal(Appeal $appeal): static
+    {
+        if (!$this->appeals->contains($appeal)) {
+            $this->appeals->add($appeal);
+            $appeal->setTicket($this);
+        }
+
+        return $this;
+    }
+
+    public function removeAppeal(Appeal $appeal): static
+    {
+        if ($this->appeals->removeElement($appeal)) {
+            // set the owning side to null (unless already changed)
+            if ($appeal->getTicket() === $this) {
+                $appeal->setTicket(null);
+            }
+        }
 
         return $this;
     }

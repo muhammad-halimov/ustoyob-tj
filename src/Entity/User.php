@@ -21,6 +21,7 @@ use App\Entity\Service\Category;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
+use App\Entity\User\Appeal;
 use App\Entity\User\Education;
 use App\Entity\User\Review;
 use App\Entity\User\SocialNetwork;
@@ -142,6 +143,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->tickets = new ArrayCollection();
         $this->occupation = new ArrayCollection();
         $this->districts = new ArrayCollection();
+        $this->appeals = new ArrayCollection();
+        $this->appealsRespondent = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -155,6 +158,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'galleries:read',
         'userTickets:read',
         'chats:read',
+        'appeals:read',
     ])]
     private ?int $id = null;
 
@@ -167,6 +171,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'galleries:read',
         'userTickets:read',
         'chats:read',
+        'appeals:read',
     ])]
     private ?string $email = null;
 
@@ -179,6 +184,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'galleries:read',
         'userTickets:read',
         'chats:read',
+        'appeals:read',
     ])]
     private ?string $name = null;
 
@@ -191,6 +197,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'galleries:read',
         'userTickets:read',
         'chats:read',
+        'appeals:read',
     ])]
     private ?string $surname = null;
 
@@ -363,6 +370,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'masters:read',
     ])]
     private Collection $districts;
+
+    /**
+     * @var Collection<int, Appeal>
+     */
+    #[ORM\OneToMany(targetEntity: Appeal::class, mappedBy: 'user')]
+    private Collection $appeals;
+
+    /**
+     * @var Collection<int, Appeal>
+     */
+    #[ORM\OneToMany(targetEntity: Appeal::class, mappedBy: 'respondent')]
+    private Collection $appealsRespondent;
 
     public function getId(): ?int
     {
@@ -880,6 +899,66 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             // set the owning side to null (unless already changed)
             if ($district->getUser() === $this) {
                 $district->setUser(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Appeal>
+     */
+    public function getAppeals(): Collection
+    {
+        return $this->appeals;
+    }
+
+    public function addAppeal(Appeal $appeal): static
+    {
+        if (!$this->appeals->contains($appeal)) {
+            $this->appeals->add($appeal);
+            $appeal->setUser($this);
+        }
+
+        return $this;
+    }
+
+    public function removeAppeal(Appeal $appeal): static
+    {
+        if ($this->appeals->removeElement($appeal)) {
+            // set the owning side to null (unless already changed)
+            if ($appeal->getUser() === $this) {
+                $appeal->setUser(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Appeal>
+     */
+    public function getAppealsRespondent(): Collection
+    {
+        return $this->appealsRespondent;
+    }
+
+    public function addAppealsRespondent(Appeal $appealsRespondent): static
+    {
+        if (!$this->appealsRespondent->contains($appealsRespondent)) {
+            $this->appealsRespondent->add($appealsRespondent);
+            $appealsRespondent->setRespondent($this);
+        }
+
+        return $this;
+    }
+
+    public function removeAppealsRespondent(Appeal $appealsRespondent): static
+    {
+        if ($this->appealsRespondent->removeElement($appealsRespondent)) {
+            // set the owning side to null (unless already changed)
+            if ($appealsRespondent->getRespondent() === $this) {
+                $appealsRespondent->setRespondent(null);
             }
         }
 
