@@ -23,6 +23,7 @@ use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User\Appeal;
 use App\Entity\User\Education;
+use App\Entity\User\Favorite;
 use App\Entity\User\Review;
 use App\Entity\User\SocialNetwork;
 use App\Repository\UserRepository;
@@ -145,6 +146,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->districts = new ArrayCollection();
         $this->appeals = new ArrayCollection();
         $this->appealsRespondent = new ArrayCollection();
+        $this->favorites = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -160,6 +162,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'chats:read',
         'appeals:read',
         'appealsTicket:read',
+        'favorites:read'
     ])]
     private ?int $id = null;
 
@@ -386,6 +389,15 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     #[ORM\OneToMany(targetEntity: Appeal::class, mappedBy: 'respondent')]
     private Collection $appealsRespondent;
+
+    /**
+     * @var Collection<int, Favorite>
+     */
+    #[ORM\OneToMany(targetEntity: Favorite::class, mappedBy: 'user')]
+    private Collection $favorites;
+
+    #[ORM\ManyToOne(inversedBy: 'favoriteMasters')]
+    private ?Favorite $favorite = null;
 
     public function getId(): ?int
     {
@@ -965,6 +977,48 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
                 $appealsRespondent->setRespondent(null);
             }
         }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Favorite>
+     */
+    public function getFavorites(): Collection
+    {
+        return $this->favorites;
+    }
+
+    public function addFavorite(Favorite $favorite): static
+    {
+        if (!$this->favorites->contains($favorite)) {
+            $this->favorites->add($favorite);
+            $favorite->setUser($this);
+        }
+
+        return $this;
+    }
+
+    public function removeFavorite(Favorite $favorite): static
+    {
+        if ($this->favorites->removeElement($favorite)) {
+            // set the owning side to null (unless already changed)
+            if ($favorite->getUser() === $this) {
+                $favorite->setUser(null);
+            }
+        }
+
+        return $this;
+    }
+
+    public function getFavorite(): ?Favorite
+    {
+        return $this->favorite;
+    }
+
+    public function setFavorite(?Favorite $favorite): static
+    {
+        $this->favorite = $favorite;
 
         return $this;
     }
