@@ -397,6 +397,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private Collection $favorites;
 
     #[ORM\ManyToOne(inversedBy: 'favoriteMasters')]
+    #[ORM\JoinColumn(name: 'favorite_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     private ?Favorite $favorite = null;
 
     public function getId(): ?int

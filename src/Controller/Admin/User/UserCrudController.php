@@ -135,6 +135,7 @@ class UserCrudController extends AbstractCrudController
 
         yield NumberField::new('rating', 'Рейтинг')
             ->setNumDecimals(1)
+            ->hideOnIndex()
             ->setColumns(4)
             ->setRequired(false);
 

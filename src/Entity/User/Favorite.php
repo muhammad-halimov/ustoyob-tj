@@ -77,6 +77,7 @@ class Favorite
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'favorites')]
+    #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'favorites:read'
     ])]

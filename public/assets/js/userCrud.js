@@ -8,6 +8,7 @@ async function loadAndChangeChoices() {
     const masterOption = document.getElementById('User_roles_1');
     const clientOption = document.getElementById('User_roles_2');
 
+    const remotelyOption = document.getElementById('User_remotely');
     const occupationDropDown = document.querySelector('.occupation-field');
     const districtsDropDown = document.querySelector('.districts-field');
 
@@ -35,6 +36,7 @@ async function loadAndChangeChoices() {
             disableDropDown(adminOption);
             disableDropDown(occupationDropDown);
             disableDropDown(districtsDropDown);
+            disableDropDown(remotelyOption);
         } else {
             // Если ничего не выбрано — отключаем
             enableDropDown(adminOption);
@@ -42,6 +44,7 @@ async function loadAndChangeChoices() {
             enableDropDown(masterOption);
             enableDropDown(occupationDropDown);
             enableDropDown(districtsDropDown);
+            enableDropDown(remotelyOption);
         }
     };
 
