@@ -1,0 +1,86 @@
+@font-face {
+  font-family: 'Geologica';
+  src: url('/fonts/Geologica-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+body {
+  font-family: Geologica, serif;
+}
+
+// Цветовая палитра
+$colors: (
+        primary: #3366FF,
+        actual-blue: #3A54DA,
+        primary-text-white: #FFFFFF,
+        color-icons: #A6A6A6,
+        color-stroke: #F2F2F5,
+        background-all: #F2F2F5,
+        hover-with-borderBtn: #e0e0e0,
+        text-gray: #4A4A4A,
+
+  // Тексты
+        text-primary: #1A1A1A,
+        text-black: #000000,
+        text-placeholder: #585858,
+
+  // Фон
+        background-primary: #ffffff,
+        background-btn: #3A54DA,
+
+  // Статус
+        status-success: #00C48C,
+        shadow: rgba(0, 2, 4, 0.2),
+        border-btn: #3A54DA,
+);
+
+// Шрифты
+$font-family: Geologica, serif;
+$font-sizes: (
+        xs: 12px,
+        sm: 14px,
+        base: 16px,
+        lg: 18px,
+        xl: 20px,
+        '2xl': 24px,
+        '3xl': 30px
+);
+
+// Breakpoints
+$breakpoints: (
+        mobile: 480px,
+        desktop: 1024px,
+        wide: 1440px
+);
+
+// Spacing
+$spacing: (
+        0: 0,
+        1: 4px,
+        2: 8px,
+        3: 12px,
+        4: 16px,
+        5: 20px,
+        6: 24px,
+        8: 32px,
+        10: 40px,
+        12: 48px
+);
+
+// Border radius
+$border-radius: (
+        sm: 4px,
+        base: 8px,
+        lg: 12px,
+        xl: 16px,
+        full: 50%
+);
+
+@mixin Container {
+  max-width: 1540px;
+  width: 100%;
+  margin: 0 auto;
+
+}

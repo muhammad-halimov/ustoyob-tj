@@ -1,0 +1,23 @@
+@use '../../../../app/styles/variables' as vars;
+@use 'sass:map';
+
+.btn {
+  font-family: vars.$font-family;
+  border: 2px solid map.get(vars.$colors, border-btn);
+  display: block;
+  max-width: 102px;
+  width: 100%;
+  color: map.get(vars.$colors, actual-blue);
+  font-size: 20px;
+  box-sizing: border-box;
+  background: none;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  padding: 10px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  &:hover {
+    background: rgba(64, 103, 249, 0.05);
+  }
+}

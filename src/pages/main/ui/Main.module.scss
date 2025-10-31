@@ -1,0 +1,148 @@
+@use '../../../app/styles/variables' as vars;
+@use 'sass:map';
+
+.main {
+  width: 100%;
+
+  .searchResults {
+    @include vars.Container;
+    margin-top: 20px;
+
+
+    &.withFilters {
+      max-width: calc(100% - 400px);
+      margin-left: auto;
+      margin-right: 0;
+    }
+
+    &.withoutFilters {
+      width: 100%;
+    }
+
+    .resultCard {
+      width: 100%;
+      max-width: 1022px;
+      min-height: 320px;
+      background: map.get(vars.$colors, primary-text-white);
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 16px;
+
+      .resultHeader {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+
+      .description {
+        margin-bottom: 16px;
+        color: map.get(vars.$colors, text-placeholder);
+      }
+
+      .resultDetails {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+
+      .resultFooter {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        .timeAgo {
+          color: map.get(vars.$colors, text-placeholder);
+        }
+      }
+    }
+  }
+
+  .performers {
+    max-width: 1540px;
+    margin: 80px auto;
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 20px;
+
+    .performers_orders,
+    .performers_masters {
+      flex: 1 1 45%;
+      min-width: 600px;
+      padding: 25px 26px;
+      background-color: map.get(vars.$colors, primary-text-white);
+      border-radius: 20px;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      height: auto;
+
+      .performers_orders_welcome {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 100%;
+        flex: 1;
+
+        .performers_orders_title {
+          font-size: 36px;
+          margin-bottom: 20px;
+        }
+
+        .performers_orders_about {
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          max-width: 452px;
+          width: 100%;
+          font-size: 20px;
+        }
+      }
+    }
+
+    img {
+      max-width: 50%;
+      height: auto;
+      border-radius: 20px;
+      object-fit: cover;
+    }
+  }
+
+  .searchMasters {
+    display: flex;
+    @include vars.Container;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 25px;
+
+    .searchMasters_item {
+      flex: 1 1 calc(27% - 15px);
+      max-width: 366px;
+      min-width: 210px;
+      min-height: 261px;
+      background-color: map.get(vars.$colors, primary-text-white);
+      padding: 20px 15.22px;
+      border-radius: 20px;
+      margin-bottom: 20px;
+      text-align: center;
+
+      img {
+        margin-bottom: 12px;
+      }
+
+      .searchMasters_item_welc {
+        margin-bottom: 12px;
+      }
+
+      .searchMasters_item_title {
+        font-weight: 300;
+        font-size: 16px;
+        color: map.get(vars.$colors, text-placeholder);
+        line-height: 100%;
+      }
+    }
+  }
+}

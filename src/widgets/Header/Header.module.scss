@@ -1,0 +1,111 @@
+@use '../../app/styles/variables' as vars;
+@use 'sass:map';
+
+.header {
+  display: block;
+  width: 100%;
+  background-color: map.get(vars.$colors, background-primary);
+
+  .header_top {
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.20);
+  }
+  .headerWrap {
+    max-width: 1540px;
+    display: flex;
+    justify-content: space-between;
+    padding: 20px 0;
+    flex-wrap: wrap;
+    margin: 0 auto;
+    align-items: center;
+
+    .locate {
+      font-family: vars.$font-family;
+      font-size: map.get(vars.$font-sizes, '2xl');
+      color: map.get(vars.$colors, actual-blue);
+      padding-left: 4px;
+      align-items: center;
+      display: flex;
+    }
+
+    .rightPart_lang {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+
+      .rightPart_lang__box {
+        display: flex;
+        align-items: center;
+        font-family: vars.$font-family;
+        font-size: 20px;
+        gap: 8px;
+      }
+
+      .btn {
+        white-space: nowrap;
+      }
+    }
+  }
+
+  .bottomHeader {
+    width: 100%;
+    display: block;
+    .bottomHeader_wrap {
+      max-width: 1540px;
+      display: flex;
+      justify-content: space-between;
+      padding: 20px 0;
+      flex-wrap: wrap;
+      margin: 0 auto;
+      align-items: center;
+      .bottomHeader_nav {
+        display: flex;
+        .bottomHeader_navList {
+          display: flex;
+          list-style-type: none;
+          .bottomHeader_item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            color: map.get(vars.$colors, color-icons);
+            outline: none;
+            &:not(:last-child) {
+              margin-right: 60px;
+            }
+            p {
+              font-family: vars.$font-family;
+              margin-top: 16.5px;
+            }
+            &:hover, :active {
+              color: map.get(vars.$colors, actual-blue);
+              //stroke: map.get(vars.$colors, actual-blue);
+              fill: map.get(vars.$colors, actual-blue);
+            }
+            &:focus {
+              outline: none;
+            }
+            .navLink {
+              text-decoration: none;
+              align-items: center;
+              display: flex;
+              flex-direction: column;
+              color: map.get(vars.$colors, color-icons);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+.bottomHeader_item.active {
+  color: map.get(vars.$colors, actual-blue) !important;
+
+  svg {
+    color: map.get(vars.$colors, actual-blue) !important;
+  }
+
+  p {
+    color: map.get(vars.$colors, actual-blue) !important;
+  }
+}

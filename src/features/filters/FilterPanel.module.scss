@@ -1,0 +1,165 @@
+@use '../../app/styles/variables' as vars;
+@use 'sass:map';
+
+.filters_panel {
+  width: 499px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  padding: 20px;
+  flex-shrink: 0;
+}
+
+.filters_header {
+  margin-bottom: 25px;
+  padding-bottom: 15px;
+
+  h2 {
+    font-size: 32px;
+    font-weight: 400;
+    color: map.get(vars.$colors, text-black);
+    margin: 0;
+  }
+}
+
+.filter_section {
+  margin-bottom: 40px;
+
+  h3 {
+    font-size: 24px;
+    font-weight: 500;
+    margin-bottom: 20px;
+    color: map.get(vars.$colors, text-black);
+  }
+}
+
+.price_inputs {
+  display: flex;
+  gap: 10px;
+  background-color: map.get(vars.$colors, color-stroke);
+  padding: 10px;
+  border-radius: 20px;
+
+  .price_input {
+    flex: 1;
+
+    input {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      font-size: 24px;
+      background: map.get(vars.$colors, primary-text-white);
+
+      &::placeholder {
+        color: map.get(vars.$colors, text-placeholder);
+        letter-spacing: 0.02em;
+      }
+
+      &:focus {
+        outline: none;
+        border-color: map.get(vars.$colors, actual-blue);
+      }
+    }
+  }
+}
+
+.characteristic_list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.characteristic_item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 5px 0;
+  cursor: pointer;
+
+  &:hover {
+    .circle_icon {
+      background: map.get(vars.$colors, text-black);
+      color: map.get(vars.$colors, primary-text-white);
+    }
+  }
+
+  .characteristic_title {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    h3 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 500;
+      color: map.get(vars.$colors, text-black);
+    }
+
+    span {
+      font-size: 20px;
+      color: map.get(vars.$colors, text-black);
+    }
+  }
+}
+
+.circle_icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+  color: map.get(vars.$colors, text-black);
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.filter_actions {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 30px;
+
+  button {
+    flex: 1;
+    padding: 14px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .apply_btn {
+    background: map.get(vars.$colors, actual-blue);
+    color: map.get(vars.$colors, primary-text-white);
+    font-weight: 600;
+    font-size: 20px;
+    letter-spacing: 0.02em;
+    border-radius: 10px;
+    max-width: 141px;
+
+    &:hover {
+      background: darken(map.get(vars.$colors, actual-blue), 10%);
+    }
+  }
+
+  .cancel_btn {
+    background: map.get(vars.$colors, color-stroke);
+    color: map.get(vars.$colors, text-black);
+    font-weight: 600;
+    font-size: 20px;
+    letter-spacing: 0.02em;
+    border-radius: 10px;
+    max-width: 141px;
+
+    &:hover {
+      background: map.get(vars.$colors, hover-with-borderBtn);
+    }
+  }
+}

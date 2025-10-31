@@ -1,0 +1,177 @@
+@use '../../app/styles/variables' as vars;
+@use 'sass:map';
+
+.container {
+  position: relative;
+  max-width: 1549px;
+  margin: 40.45px auto;
+  flex: 1;
+}
+
+.search_with_filters {
+  display: flex;
+  gap: 27px;
+  align-items: flex-start;
+}
+
+.search_content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.search {
+  max-width: 1549px;
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+
+  .title {
+    font-weight: 400;
+    font-size: 36px;
+    margin-bottom: 12px;
+    color: map.get(vars.$colors, text-black);
+  }
+
+  .search_wrap {
+    display: flex;
+    align-items: center;
+    background-color: map.get(vars.$colors, actual-blue);
+    padding: 4px;
+    border-radius: 10px;
+    overflow: hidden;
+
+    .input {
+      flex: 1;
+      border: none;
+      border-radius: 8px;
+      outline: none;
+      padding: 16px 10px;
+      font-size: 24px;
+      color: map.get(vars.$colors, text-placeholder);
+
+      &::placeholder {
+        color: map.get(vars.$colors, text-placeholder);
+        letter-spacing: 0.02em;
+      }
+    }
+
+    .button {
+      background: map.get(vars.$colors, actual-blue);
+      color: #fff;
+      border: none;
+      padding: 10px 45.5px;
+      font-weight: 400;
+      font-size: 24px;
+      cursor: pointer;
+      transition: background 0.2s;
+
+      &:hover {
+        background: map.get(vars.$colors, actual-blue);;
+      }
+    }
+  }
+
+  .filters_btn {
+    margin: 20px auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: 2px solid map.get(vars.$colors, actual-blue);;
+    color: map.get(vars.$colors, actual-blue);;
+    font-size: 20px;
+    padding: 10px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    letter-spacing: 0.02em;
+
+    svg {
+      stroke: map.get(vars.$colors, actual-blue);
+      margin-right: 10px;
+    }
+
+    &:hover {
+      background: rgba(64, 103, 249, 0.05);
+    }
+  }
+}
+
+.searchResults {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+
+  &.hidden {
+    display: none;
+  }
+
+  .resultCard {
+    width: 100%;
+    max-width: 1022px;
+    min-height: 320px;
+    background: map.get(vars.$colors, primary-text-white);
+    border-radius: 20px;
+    padding: 20px;
+    border: 1px solid map.get(vars.$colors, color-stroke);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+
+    .resultHeader {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+
+      h3 {
+        font-size: 24px;
+        font-weight: 500;
+        color: map.get(vars.$colors, text-black);
+        margin: 0;
+      }
+
+      span {
+        font-size: 18px;
+        color: map.get(vars.$colors, actual-blue);
+        font-weight: 500;
+      }
+    }
+
+    .description {
+      margin-bottom: 16px;
+      color: map.get(vars.$colors, text-placeholder);
+      font-size: 16px;
+      line-height: 1.4;
+    }
+
+    .resultDetails {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+
+      span {
+        font-size: 14px;
+        color: map.get(vars.$colors, text-black);
+      }
+    }
+
+    .resultFooter {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+
+      span {
+        font-size: 14px;
+        color: map.get(vars.$colors, text-black);
+      }
+
+      .timeAgo {
+        color: map.get(vars.$colors, text-placeholder);
+      }
+    }
+  }
+}

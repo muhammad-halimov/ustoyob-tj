@@ -1,0 +1,68 @@
+@use '../../app/styles/variables' as vars;
+@use 'sass:map';
+
+.reviews {
+  width: 100%;
+  h3 {
+    font-size: 36px;
+    @include vars.Container;
+    margin-bottom: 40px;
+  }
+  .reviews_wrap {
+    @include vars.Container;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 27px;
+    .reviews_item {
+      background-color: map.get(vars.$colors, background-primary);
+      padding: 20px;
+      border-radius: 20px;
+      width: calc((100% - 54px) / 3);
+      display: flex;
+      flex-direction: column;
+
+      @media (max-width: 1024px) {
+        width: calc((100% - 27px) / 2);
+      }
+
+      @media (max-width: 768px) {
+        width: 100%;
+      }
+
+      .reviews_naming {
+        display: flex;
+        align-items: center;
+        .reviews_naming_title {
+          display: flex;
+          flex-direction: column;
+          margin-left: 12px;
+          h3 {
+            font-size: 24px;
+            margin-bottom: 4px;
+          }
+          .reviews_naming_raiting {
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            svg {
+              margin-right: 8px;
+            }
+          }
+        }
+      }
+      .reviews_about {
+        margin-top: 11px;
+        .reviews_about_title {
+          margin-bottom: 8px;
+        }
+        .reviews_about_more {
+          display: flex;
+          cursor: pointer;
+          justify-content: end;
+          text-align: end;
+        }
+      }
+    }
+
+  }
+}
