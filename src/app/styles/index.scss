@@ -1,0 +1,12 @@
+@use '../../app/styles/variables' as vars;
+@use 'sass:map';
+
+*,::before,::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: map.get(vars.$colors, background-all);
+}
