@@ -36,7 +36,7 @@ class PersonalReviewFilterController extends AbstractController
                 ? $this->json([], 404)
                 : $this->json($data, 200, [],
                     [
-                        'groups' => ['reviews:read'],
+                        'groups' => ['reviews:read', 'reviewsClient:read'],
                         'skip_null_values' => false,
                     ]
                 );

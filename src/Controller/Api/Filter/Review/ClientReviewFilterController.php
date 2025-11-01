@@ -38,7 +38,7 @@ class ClientReviewFilterController extends AbstractController
                 ? $this->json([], 404)
                 : $this->json($data, 200, [],
                     [
-                        'groups' => ['reviews:read'],
+                        'groups' => ['reviewsClient:read'],
                         'skip_null_values' => false,
                     ]
                 );

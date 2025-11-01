@@ -19,7 +19,6 @@ use App\Repository\ReviewRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
-use Symfony\Component\Serializer\Attribute\Ignore;
 
 #[ORM\Entity(repositoryClass: ReviewRepository::class)]
 #[ORM\HasLifecycleCallbacks]
@@ -82,7 +81,7 @@ use Symfony\Component\Serializer\Attribute\Ignore;
         )
     ],
     normalizationContext: [
-        'groups' => ['reviews:read'],
+        'groups' => ['reviews:read', 'reviewsClient:read'],
         'skip_null_values' => false,
     ],
     paginationEnabled: false,
@@ -96,42 +95,50 @@ class Review
     #[ORM\Column]
     #[Groups([
         'reviews:read',
+        'reviewsClient:read',
     ])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'userServiceReviews')]
     #[Groups([
         'reviews:read',
+        'reviewsClient:read',
     ])]
     private ?User $user = null;
 
     #[ORM\ManyToOne(inversedBy: 'userServiceReviews')]
     #[Groups([
         'reviews:read',
+        'reviewsClient:read',
     ])]
     private ?User $reviewer = null;
 
     #[ORM\Column(nullable: true)]
     #[Groups([
         'reviews:read',
+        'reviewsClient:read',
     ])]
     private ?float $rating = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups([
         'reviews:read',
+        'reviewsClient:read',
     ])]
     private ?string $description = null;
 
     #[ORM\Column(type: 'boolean', nullable: true)]
     #[Groups([
         'reviews:read',
+        'reviewsClient:read',
     ])]
     private ?bool $forReviewer = null;
 
     #[ORM\ManyToOne(inversedBy: 'reviews')]
     #[ORM\JoinColumn(name: 'services_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
-    #[Ignore]
+    #[Groups([
+        'reviews:read',
+    ])]
     private ?Ticket $services = null;
 
     public function getId(): ?int

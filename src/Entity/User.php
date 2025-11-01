@@ -157,6 +157,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'clients:read',
         'masterServices:read',
         'reviews:read',
+        'reviewsClient:read',
         'galleries:read',
         'userTickets:read',
         'chats:read',
@@ -172,6 +173,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'clients:read',
         'masterServices:read',
         'reviews:read',
+        'reviewsClient:read',
         'galleries:read',
         'userTickets:read',
         'chats:read',
@@ -186,6 +188,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'clients:read',
         'masterServices:read',
         'reviews:read',
+        'reviewsClient:read',
         'galleries:read',
         'userTickets:read',
         'chats:read',
@@ -200,6 +203,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'clients:read',
         'masterServices:read',
         'reviews:read',
+        'reviewsClient:read',
         'galleries:read',
         'userTickets:read',
         'chats:read',
@@ -229,6 +233,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'clients:read',
         'masterServices:read',
         'reviews:read',
+        'reviewsClient:read',
         'userTickets:read',
     ])]
     private ?float $rating = null;
@@ -250,6 +255,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'clients:read',
         'masterServices:read',
         'reviews:read',
+        'reviewsClient:read',
         'galleries:read',
         'userTickets:read',
     ])]

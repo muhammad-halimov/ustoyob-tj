@@ -137,6 +137,7 @@ class Ticket
         'userTickets:read',
         'appeals:read',
         'appealsTicket:read',
+        'reviews:read',
     ])]
     private ?int $id = null;
 
@@ -145,6 +146,7 @@ class Ticket
         'userTickets:read',
         'appeals:read',
         'appealsTicket:read',
+        'reviews:read',
     ])]
     private ?string $title = null;
 

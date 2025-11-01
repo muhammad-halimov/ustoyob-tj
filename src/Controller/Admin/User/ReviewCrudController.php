@@ -72,13 +72,13 @@ class ReviewCrudController extends AbstractCrudController
             ->setRequired(true)
             ->setColumns(6);
 
+        yield AssociationField::new('user', 'Мастер')
+            ->setRequired(true)
+            ->setColumns(6);
+
         yield NumberField::new('rating', 'Оценка')
             ->setRequired(true)
             ->setNumDecimals(1)
-            ->setColumns(6);
-
-        yield AssociationField::new('user', 'Мастер')
-            ->setRequired(true)
             ->setColumns(6);
 
         yield AssociationField::new('services', 'Услуга')
