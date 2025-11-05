@@ -13,6 +13,7 @@ use App\Controller\Api\Filter\User\MasterUserFilterController;
 use App\Controller\Api\Filter\User\PersonalUserFilterController;
 use App\Controller\Api\Filter\User\SingleClientUserFilterController;
 use App\Controller\Api\Filter\User\SingleMasterUserFilterController;
+use App\Controller\Api\Filter\User\UpdateUserPhotoController;
 use App\Entity\Chat\Chat;
 use App\Entity\Chat\ChatMessage;
 use App\Entity\Gallery\Gallery;
@@ -88,22 +89,32 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
         new Post(
             uriTemplate: '/users'
         ),
-        new Patch(
-            uriTemplate: '/users/{id}',
+        new Post(
+            uriTemplate: '/users/{id}/profile-photo',
             inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
+            controller: UpdateUserPhotoController::class,
             security:
-               "is_granted('ROLE_ADMIN') or
-                is_granted('ROLE_MASTER') or
-                is_granted('ROLE_CLIENT')",
+            "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')",
+            deserialize: false,
+        ),
+        new Patch(
+            uriTemplate: '/users/{id}',
+            requirements: ['id' => '\d+'],
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')",
         ),
         new Delete(
             uriTemplate: '/users/{id}',
             requirements: ['id' => '\d+'],
             security:
                 "is_granted('ROLE_ADMIN') or
-                is_granted('ROLE_MASTER') or
-                is_granted('ROLE_CLIENT')",
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')",
         )
     ],
     normalizationContext: [
