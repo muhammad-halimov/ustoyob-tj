@@ -1,0 +1,303 @@
+@use '../../app/styles/variables' as vars;
+@use 'sass:map';
+
+.chat {
+  display: flex;
+  min-height: 61px;
+  height: 100%;
+  font-family: "Inter", sans-serif;
+  margin-top: 46.5px !important;
+  @include vars.Container;
+}
+
+/* ===== SIDEBAR ===== */
+.sidebar {
+  width: 497px;
+  min-height: 542px;
+  height: 100%;
+  background: map.get(vars.$colors, background-primary);
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
+  padding: 40px 20px;
+}
+
+.searchBar {
+  display: flex;
+  align-items: center;
+  padding: 10px 20px;
+  background-color: map.get(vars.$colors, color-stroke);
+  margin-bottom: 20px;
+  border-radius: 10px;
+
+
+  .searchIcon {
+    margin-right: 14px;
+  }
+
+  .searchInput {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 24px;
+    background: transparent;
+
+    &::placeholder {
+      color: map.get(vars.$colors, text-placeholder);
+    }
+  }
+}
+
+.tabs {
+  display: flex;
+  justify-content: space-around;
+  padding-bottom: 20px;
+
+  .tab {
+    flex: 1;
+    text-align: center;
+    padding: 10px;
+    background: transparent;
+    border: none;
+    font-weight: 500;
+    cursor: pointer;
+    color: map.get(vars.$colors, text-placeholder);
+    transition: color 0.2s;
+    font-size: 20px;
+
+    &.active {
+      color: map.get(vars.$colors, text-black);
+      font-weight: 600;
+      border-bottom: 2px solid #000;
+    }
+  }
+}
+
+.chatList {
+  flex: 1;
+  overflow-y: auto;
+
+  .chatItem {
+    display: flex;
+    align-items: center;
+    padding: 11px 20px;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-bottom: 10px;
+    border-radius: 20px;
+
+    &:hover {
+      background: #D4DDFF;
+      border-radius: 20px;
+    }
+
+    &.selected {
+      background: #D4DDFF;
+      border-radius: 20px;
+    }
+
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: map.get(vars.$colors, color-stroke);
+      margin-right: 12px;
+    }
+
+    .chatInfo {
+      flex: 1;
+
+      .name {
+        font-weight: 300;
+        font-size: 24px;
+        color: map.get(vars.$colors, text-black);
+      }
+
+      .specialty {
+        font-size: 16px;
+        color: map.get(vars.$colors, text-black);
+      }
+
+      .lastMessage {
+        font-size: 16px;
+        color: map.get(vars.$colors, text-black);
+      }
+    }
+
+    .chatMeta {
+      text-align: right;
+      display: flex;
+
+      .star {
+        margin-right: 4px;
+      }
+
+      .time {
+        font-size: 12px;
+        font-weight: 300;
+        color: map.get(vars.$colors, text-black);
+        margin-top: 4px;
+        margin-left: 4px;
+      }
+    }
+  }
+}
+
+/* ===== CHAT AREA ===== */
+.chatArea {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  margin-left: 27px;
+  border-radius: 20px;
+  padding: 40px 20px;
+}
+
+.chatHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 19px 0;
+  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: 80px;
+
+  .headerLeft {
+    display: flex;
+    align-items: center;
+
+    .avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: #ddd;
+      margin-right: 12px;
+    }
+
+    .headerInfo {
+      .name {
+        font-weight: 300;
+        font-size: 24px;
+        margin-bottom: 12px;
+      }
+
+      .order {
+        font-size: 16px;
+        color: #666;
+        font-weight: 300;
+      }
+    }
+  }
+
+  .headerRight {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .star {
+      width: 24px;
+      height: 24px;
+      background: #bbb;
+      border-radius: 2px;
+    }
+
+    .time {
+      font-size: 12px;
+      color: #888;
+    }
+  }
+}
+
+.chatMessages {
+  flex: 1;
+  padding: 16px 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+
+  .date {
+    align-self: center;
+    background: #ddd;
+    color: #fff;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    margin: 8px 0;
+  }
+
+  .message {
+    max-width: 481px;
+    width: 100%;
+    padding: 10px 20px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+
+    .messageName {
+      font-weight: 600;
+      font-size: 20px;
+      margin-bottom: 10px;
+    }
+
+    .messageText {
+      font-size: 16px;
+      margin-bottom: 35px;
+    }
+
+    .messageTime {
+      font-size: 12px;
+      color: #666;
+      align-self: flex-end;
+    }
+
+    &.theirMessage {
+      background: #f1f1f1;
+      align-self: flex-start;
+    }
+
+    &.myMessage {
+      background: #e8edff;
+      align-self: flex-end;
+    }
+  }
+}
+
+.chatInput {
+  display: flex;
+  align-items: center;
+  padding: 10px 20px;
+  background-color: map.get(vars.$colors, color-stroke);
+  margin: 40px 0 0;
+  border-radius: 10px;
+  svg {
+    margin-right: 20px;
+  }
+
+  .searchIcon {
+    margin-right: 8px;
+  }
+
+  .inputField {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 24px;
+    color: #333;
+
+    &::placeholder {
+      color: #aaa;
+    }
+  }
+}
+
+.noChat {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: #888;
+  font-size: 16px;
+}

@@ -5,6 +5,7 @@ import About from "../../../widgets/About/About.tsx";
 import Category from "../../../widgets/Category/Category.tsx";
 import Reviews from "../../../widgets/Reviews/Reviews.tsx";
 import {useState} from "react";
+import Recommendations from "../../../widgets/Recommendations/Recommendations.tsx";
 
 interface SearchResult {
     id: number;
@@ -109,6 +110,7 @@ export default function MainPage() {
                     <About/>
                     <Category/>
                     <Reviews/>
+                    <Recommendations/>
                 </>
             )}
         </div>
