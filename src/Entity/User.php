@@ -86,8 +86,7 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
                 is_granted('ROLE_CLIENT')",
         ),
         new Post(
-            uriTemplate: '/users',
-            inputFormats: ['multipart' => ['multipart/form-data']],
+            uriTemplate: '/users'
         ),
         new Patch(
             uriTemplate: '/users/{id}',
