@@ -90,6 +90,7 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
         ),
         new Patch(
             uriTemplate: '/users/{id}',
+            inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
             security:
                "is_granted('ROLE_ADMIN') or
