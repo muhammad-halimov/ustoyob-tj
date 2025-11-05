@@ -91,14 +91,12 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
         ),
         new Post(
             uriTemplate: '/users/{id}/profile-photo',
-            inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
             controller: UpdateUserPhotoController::class,
             security:
-            "is_granted('ROLE_ADMIN') or
+                "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or
                  is_granted('ROLE_CLIENT')",
-            deserialize: false,
         ),
         new Patch(
             uriTemplate: '/users/{id}',
