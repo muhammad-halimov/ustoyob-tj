@@ -2,8 +2,8 @@
 
 namespace App\Repository;
 
+use App\Entity\Review\Review;
 use App\Entity\User;
-use App\Entity\User\Review;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 

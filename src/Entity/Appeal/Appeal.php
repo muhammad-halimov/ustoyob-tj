@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Entity\User;
+namespace App\Entity\Appeal;
 
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
@@ -15,9 +15,12 @@ use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\User\AppealRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Serializer\Attribute\SerializedName;
 
 #[ORM\Entity(repositoryClass: AppealRepository::class)]
 #[ORM\HasLifecycleCallbacks]
@@ -149,6 +152,21 @@ class Appeal
     ])]
     private ?User $respondent = null;
 
+    /**
+     * @var Collection<int, AppealImage>
+     */
+    #[ORM\OneToMany(targetEntity: AppealImage::class, mappedBy: 'appeals')]
+    #[Groups([
+        'appeals:read',
+    ])]
+    #[SerializedName('images')]
+    private Collection $appealImages;
+
+    public function __construct()
+    {
+        $this->appealImages = new ArrayCollection();
+    }
+
     public function getId(): ?int
     {
         return $this->id;
@@ -220,6 +238,36 @@ class Appeal
     public function setRespondent(?User $respondent): static
     {
         $this->respondent = $respondent;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, AppealImage>
+     */
+    public function getAppealImages(): Collection
+    {
+        return $this->appealImages;
+    }
+
+    public function addAppealImage(AppealImage $appealImage): static
+    {
+        if (!$this->appealImages->contains($appealImage)) {
+            $this->appealImages->add($appealImage);
+            $appealImage->setAppeals($this);
+        }
+
+        return $this;
+    }
+
+    public function removeAppealImage(AppealImage $appealImage): static
+    {
+        if ($this->appealImages->removeElement($appealImage)) {
+            // set the owning side to null (unless already changed)
+            if ($appealImage->getAppeals() === $this) {
+                $appealImage->setAppeals(null);
+            }
+        }
 
         return $this;
     }

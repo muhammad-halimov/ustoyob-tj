@@ -60,8 +60,14 @@ class SocialNetworkCrudController extends AbstractCrudController
             ->setChoices([
                 'facebook' => 'Facebook',
                 'twitter' => 'Twitter',
-                'google' => 'Google',
+                'linkedin' => 'LinkedIn',
                 'instagram' => 'Instagram',
+                'telegram' => 'Telegram',
+                'whatsapp' => 'WhatsApp',
+                'vk' => 'VK',
+                'imo' => 'Imo',
+                'viber' => 'Viber',
+                'google' => 'Google',
                 'youtube' => 'Youtube',
             ])
             ->setColumns(6)

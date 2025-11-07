@@ -3,18 +3,18 @@
 namespace App\Controller\Admin;
 
 use App\Controller\Admin\User\UserCrudController;
+use App\Entity\Appeal\Appeal;
 use App\Entity\Chat\Chat;
 use App\Entity\Gallery\Gallery;
 use App\Entity\Geography\City;
 use App\Entity\Geography\District;
 use App\Entity\Geography\Province;
+use App\Entity\Review\Review;
 use App\Entity\Service\Category;
 use App\Entity\Service\Unit;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
 use App\Entity\User\Occupation;
-use App\Entity\User\Review;
-use App\Entity\User\Appeal;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminDashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Config\MenuItem;

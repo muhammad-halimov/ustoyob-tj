@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Controller\Admin\User;
+namespace App\Controller\Admin\Appeal;
 
-use App\Entity\User\Appeal;
+use App\Entity\Appeal\Appeal;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
@@ -11,6 +11,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
@@ -89,6 +90,12 @@ class AppealCrudController extends AbstractCrudController
         yield TextEditorField::new('description', 'Описание')
             ->setRequired(true)
             ->setColumns(12);
+
+        yield CollectionField::new('appealImages', 'Галерея изображений')
+            ->useEntryCrudForm(AppealImageCrudController::class)
+            ->hideOnIndex()
+            ->setColumns(12)
+            ->setRequired(false);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
             ->onlyOnIndex();

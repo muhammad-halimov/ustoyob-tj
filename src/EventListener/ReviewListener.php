@@ -2,7 +2,7 @@
 
 namespace App\EventListener;
 
-use App\Entity\User\Review;
+use App\Entity\Review\Review;
 use App\Repository\ReviewRepository;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsEntityListener;
 use Doctrine\ORM\EntityManagerInterface;

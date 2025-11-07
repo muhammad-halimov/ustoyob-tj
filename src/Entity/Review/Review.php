@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Entity\User;
+namespace App\Entity\Review;
 
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
@@ -9,16 +9,19 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\Filter\Review\ClientReviewFilterController;
-use App\Controller\Api\Filter\Review\PersonalReviewFilterController;
 use App\Controller\Api\Filter\Review\MasterReviewFilterController;
+use App\Controller\Api\Filter\Review\PersonalReviewFilterController;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\ReviewRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Serializer\Attribute\SerializedName;
 
 #[ORM\Entity(repositoryClass: ReviewRepository::class)]
 #[ORM\HasLifecycleCallbacks]
@@ -141,6 +144,22 @@ class Review
     ])]
     private ?Ticket $services = null;
 
+    /**
+     * @var Collection<int, ReviewImage>
+     */
+    #[ORM\OneToMany(targetEntity: ReviewImage::class, mappedBy: 'reviews')]
+    #[Groups([
+        'reviews:read',
+        'reviewsClient:read',
+    ])]
+    #[SerializedName('images')]
+    private Collection $reviewImages;
+
+    public function __construct()
+    {
+        $this->reviewImages = new ArrayCollection();
+    }
+
     public function getId(): ?int
     {
         return $this->id;
@@ -213,6 +232,36 @@ class Review
     public function setServices(?Ticket $services): static
     {
         $this->services = $services;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, ReviewImage>
+     */
+    public function getReviewImages(): Collection
+    {
+        return $this->reviewImages;
+    }
+
+    public function addReviewImage(ReviewImage $reviewImage): static
+    {
+        if (!$this->reviewImages->contains($reviewImage)) {
+            $this->reviewImages->add($reviewImage);
+            $reviewImage->setReviews($this);
+        }
+
+        return $this;
+    }
+
+    public function removeReviewImage(ReviewImage $reviewImage): static
+    {
+        if ($this->reviewImages->removeElement($reviewImage)) {
+            // set the owning side to null (unless already changed)
+            if ($reviewImage->getReviews() === $this) {
+                $reviewImage->setReviews(null);
+            }
+        }
 
         return $this;
     }
