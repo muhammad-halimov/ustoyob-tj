@@ -19,7 +19,7 @@ interface SearchResult {
     timeAgo: string;
 }
 
-export default function MainPage() {
+export function MainPage() {
     const [showResults, setShowResults] = useState(false);
 
     const masters = [
