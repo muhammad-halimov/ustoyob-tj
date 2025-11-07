@@ -12,6 +12,7 @@ use App\Entity\Service\Category;
 use App\Entity\Service\Unit;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
+use App\Entity\User\Occupation;
 use App\Entity\User\Review;
 use App\Entity\User\Appeal;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminDashboard;
@@ -64,6 +65,7 @@ class DashboardController extends AbstractDashboardController
                 MenuItem::linkToCrud('Город', 'fas fa-city', City::class),
             ]);
             yield MenuItem::linkToCrud('Категории работ', 'fas fa-list', Category::class);
+            yield MenuItem::linkToCrud('Специальности', 'fas fa-user-doctor', Occupation::class);
             yield MenuItem::linkToCrud('Ед. измерения', 'fas fa-gauge', Unit::class);
             yield MenuItem::linkToUrl('API','fas fa-link', '/api')
                 ->setLinkTarget('_blank');

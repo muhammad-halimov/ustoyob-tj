@@ -18,13 +18,13 @@ use App\Entity\Chat\Chat;
 use App\Entity\Chat\ChatMessage;
 use App\Entity\Gallery\Gallery;
 use App\Entity\Geography\District;
-use App\Entity\Service\Category;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User\Appeal;
 use App\Entity\User\Education;
 use App\Entity\User\Favorite;
+use App\Entity\User\Occupation;
 use App\Entity\User\Review;
 use App\Entity\User\SocialNetwork;
 use App\Repository\UserRepository;
@@ -33,11 +33,12 @@ use Deprecated;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
+
+use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\Validator\Constraints as Assert;
 use Vich\UploaderBundle\Mapping\Annotation as Vich;
 
@@ -154,11 +155,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->chatMessages = new ArrayCollection();
         $this->galleries = new ArrayCollection();
         $this->tickets = new ArrayCollection();
-        $this->occupation = new ArrayCollection();
         $this->districts = new ArrayCollection();
         $this->appeals = new ArrayCollection();
         $this->appealsRespondent = new ArrayCollection();
         $this->favorites = new ArrayCollection();
+        $this->occupation = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -379,15 +380,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private Collection $tickets;
 
     /**
-     * @var Collection<int, Category>
-     */
-    #[ORM\OneToMany(targetEntity: Category::class, mappedBy: 'user')]
-    #[Groups([
-        'masters:read',
-    ])]
-    private Collection $occupation;
-
-    /**
      * @var Collection<int, District>
      */
     #[ORM\OneToMany(targetEntity: District::class, mappedBy: 'user')]
@@ -417,6 +409,15 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\ManyToOne(inversedBy: 'favoriteMasters')]
     #[ORM\JoinColumn(name: 'favorite_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     private ?Favorite $favorite = null;
+
+    /**
+     * @var Collection<int, Occupation>
+     */
+    #[ORM\OneToMany(targetEntity: Occupation::class, mappedBy: 'master')]
+    #[Groups([
+        'masters:read',
+    ])]
+    private Collection $occupation;
 
     public function getId(): ?int
     {
@@ -881,36 +882,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * @return Collection<int, Category>
-     */
-    public function getOccupation(): Collection
-    {
-        return $this->occupation;
-    }
-
-    public function addOccupation(Category $occupation): static
-    {
-        if (!$this->occupation->contains($occupation)) {
-            $this->occupation->add($occupation);
-            $occupation->setUser($this);
-        }
-
-        return $this;
-    }
-
-    public function removeOccupation(Category $occupation): static
-    {
-        if ($this->occupation->removeElement($occupation)) {
-            // set the owning side to null (unless already changed)
-            if ($occupation->getUser() === $this) {
-                $occupation->setUser(null);
-            }
-        }
-
-        return $this;
-    }
-
-    /**
      * @return Collection<int, District>
      */
     public function getDistricts(): Collection
@@ -1038,6 +1009,36 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setFavorite(?Favorite $favorite): static
     {
         $this->favorite = $favorite;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Occupation>
+     */
+    public function getOccupation(): Collection
+    {
+        return $this->occupation;
+    }
+
+    public function addOccupation(Occupation $occupation): static
+    {
+        if (!$this->occupation->contains($occupation)) {
+            $this->occupation->add($occupation);
+            $occupation->setMaster($this);
+        }
+
+        return $this;
+    }
+
+    public function removeOccupation(Occupation $occupation): static
+    {
+        if ($this->occupation->removeElement($occupation)) {
+            // set the owning side to null (unless already changed)
+            if ($occupation->getMaster() === $this) {
+                $occupation->setMaster(null);
+            }
+        }
 
         return $this;
     }

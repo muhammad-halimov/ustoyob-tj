@@ -63,7 +63,6 @@ class Category
         'masterServiceCategories:read',
         'masterServices:read',
         'userTickets:read',
-        'masters:read',
     ])]
     private ?int $id = null;
 
@@ -72,7 +71,6 @@ class Category
         'masterServiceCategories:read',
         'masterServices:read',
         'userTickets:read',
-        'masters:read',
     ])]
     private ?string $title = null;
 
