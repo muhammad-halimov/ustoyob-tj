@@ -171,15 +171,13 @@ class UserCrudController extends AbstractCrudController
             ->setColumns(6)
             ->setFormTypeOptions(['by_reference' => false])
             ->addCssClass("occupation-field")
-            ->hideOnIndex()
-            ->setRequired(true);
+            ->hideOnIndex();
 
         yield AssociationField::new('districts', 'Районы работ')
             ->setColumns(6)
             ->setFormTypeOptions(['by_reference' => false])
             ->addCssClass("districts-field")
-            ->hideOnIndex()
-            ->setRequired(true);
+            ->hideOnIndex();
 
         yield TextEditorField::new('bio', 'О себе')
             ->hideOnIndex()
