@@ -42,26 +42,6 @@ interface LoginResponse {
     token: string;
 }
 
-interface RegisterRequest {
-    email: string;
-    name: string;
-    surname: string;
-    patronymic: string;
-    gender: string;
-    phone1?: string;
-    roles: string[];
-    password: string;
-    occupation?: string[];
-}
-
-interface UserResponse {
-    id: string;
-    email: string;
-    name: string;
-    surname: string;
-    roles: string[];
-}
-
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => {
     const [currentState, setCurrentState] = useState<AuthModalStateType>(AuthModalState.WELCOME);
     const [categories, setCategories] = useState<Category[]>([]);
@@ -88,7 +68,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 const response = await fetch(`${API_BASE_URL}/api/categories`);
                 if (response.ok) {
                     const data = await response.json();
-                    // Данные приходят как массив объектов
                     setCategories(data);
                 }
             } catch (error) {
@@ -99,8 +78,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         loadCategories();
     }, []);
 
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const name = e.target.name as keyof FormData;
         const value = e.target.value;
         setFormData(prev => ({
@@ -115,248 +93,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             ...prev,
             role: role
         }));
-    };
-
-    const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsLoading(true);
-        setError('');
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/authentication_token`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    email: formData.email,
-                    password: formData.password
-                })
-            });
-
-            const responseText = await response.text();
-            console.log('Login response status:', response.status);
-            console.log('Login response:', responseText);
-
-            if (!response.ok) {
-                let errorMessage = 'Ошибка авторизации';
-
-                if (response.status === 401) {
-                    errorMessage = 'Неверный email или пароль';
-                } else {
-                    try {
-                        const errorData = JSON.parse(responseText);
-                        errorMessage = errorData.message || errorData.detail || errorMessage;
-                    } catch {
-                        errorMessage = responseText || `HTTP error! status: ${response.status}`;
-                    }
-                }
-
-                throw new Error(errorMessage);
-            }
-
-            let data: LoginResponse;
-            try {
-                data = JSON.parse(responseText);
-            } catch (parseError) {
-                console.error('Error parsing login response:', parseError);
-                throw new Error('Ошибка при обработке ответа сервера');
-            }
-
-            localStorage.setItem('authToken', data.token);
-            localStorage.setItem('userEmail', formData.email);
-
-            if (onLoginSuccess) {
-                onLoginSuccess(data.token, formData.email);
-            }
-
-            onClose();
-            resetForm();
-
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Произошла ошибка при авторизации');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleRegister = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsLoading(true);
-        setError('');
-
-        if (formData.password !== formData.confirmPassword) {
-            setError('Пароли не совпадают');
-            setIsLoading(false);
-            return;
-        }
-
-        if (formData.password.length < 6) {
-            setError('Пароль должен содержать не менее 6 символов');
-            setIsLoading(false);
-            return;
-        }
-
-        const email = formData.phoneOrEmail.includes('@') ? formData.phoneOrEmail : '';
-        const phone = !formData.phoneOrEmail.includes('@') ? formData.phoneOrEmail : '';
-
-        if (!email && !phone) {
-            setError('Укажите email или телефон');
-            setIsLoading(false);
-            return;
-        }
-
-        const requestData: RegisterRequest = {
-            email: email,
-            name: formData.firstName,
-            surname: formData.lastName,
-            patronymic: "",
-            gender: "gender_male",
-            roles: formData.role === 'master' ? ["ROLE_USER"] : ["ROLE_CLIENT"],
-            password: formData.password
-        };
-
-        if (phone) {
-            requestData.phone1 = phone;
-        }
-
-        if (formData.role === 'master' && formData.specialty.trim()) {
-            // Ищем категорию по ID из выбранной специальности
-            const selectedCategoryId = parseInt(formData.specialty);
-            const selectedCategory = categories.find(cat => cat.id === selectedCategoryId);
-
-            if (selectedCategory) {
-                requestData.occupation = [`${API_BASE_URL}/api/categories/${selectedCategoryId}`];
-            } else {
-                // Если категория не найдена, используем первую доступную
-                requestData.occupation = categories.length > 0
-                    ? [`/api/categories/${categories[0].id}`]
-                    : ["/api/categories/1"]; // fallback
-            }
-        }
-
-        console.log('Sending registration request:', requestData);
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/users`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(requestData)
-            });
-
-            const responseText = await response.text();
-            console.log('Registration response status:', response.status);
-            console.log('Registration response:', responseText);
-
-            if (!response.ok) {
-                let errorMessage = 'Ошибка регистрации';
-                try {
-                    const errorData = JSON.parse(responseText);
-                    errorMessage = errorData.message || errorData.detail || errorMessage;
-                } catch {
-                    errorMessage = responseText || `HTTP error! status: ${response.status}`;
-                }
-                throw new Error(errorMessage);
-            }
-
-            let userData: UserResponse;
-            try {
-                userData = JSON.parse(responseText);
-                console.log('User registered successfully:', userData);
-            } catch (parseError) {
-                console.error('Error parsing response:', parseError);
-                throw new Error('Ошибка при обработке ответа сервера');
-            }
-
-            // Автоматический логин после регистрации если есть email
-            if (email) {
-                try {
-                    const loginResponse = await fetch(`${API_BASE_URL}/api/authentication_token`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            email: email,
-                            password: formData.password
-                        })
-                    });
-
-                    if (loginResponse.ok) {
-                        const loginData: LoginResponse = await loginResponse.json();
-                        localStorage.setItem('authToken', loginData.token);
-                        localStorage.setItem('userEmail', email);
-
-                        if (onLoginSuccess) {
-                            onLoginSuccess(loginData.token, email);
-                        }
-                        onClose();
-                        resetForm();
-                    } else {
-                        console.log('Auto-login failed, but registration successful');
-                        setCurrentState(AuthModalState.LOGIN);
-                        setError('Регистрация успешна! Теперь войдите в систему.');
-                    }
-                } catch (loginError) {
-                    console.error('Auto-login error:', loginError);
-                    setCurrentState(AuthModalState.LOGIN);
-                    setError('Регистрация успешна! Теперь войдите в систему.');
-                }
-            } else {
-                // Если регистрация по телефону, переходим на страницу логина
-                setCurrentState(AuthModalState.LOGIN);
-                setError('Регистрация успешна! Теперь войдите в систему.');
-            }
-
-        } catch (err) {
-            console.error('Registration error:', err);
-            setError(err instanceof Error ? err.message : 'Произошла ошибка при регистрации');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleForgotPassword = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsLoading(true);
-        setError('');
-
-        try {
-            // Заглушка для восстановления пароля
-            setCurrentState(AuthModalState.VERIFY_CODE);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Произошла ошибка');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleResetPassword = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsLoading(true);
-        setError('');
-
-        if (formData.newPassword !== formData.confirmPassword) {
-            setError('Пароли не совпадают');
-            setIsLoading(false);
-            return;
-        }
-
-        try {
-            // Заглушка для сброса пароля
-            setCurrentState(AuthModalState.LOGIN);
-            setError('Пароль успешно изменен! Теперь войдите с новым паролем.');
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Произошла ошибка');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
-        e.stopPropagation();
     };
 
     const resetForm = () => {
@@ -381,432 +117,672 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         onClose();
     };
 
-    const renderWelcomeScreen = (): React.ReactElement => {
-        return React.createElement(
-            'div',
-            { className: styles.welcomeScreen },
-            React.createElement('h2', null, 'Войдите, чтобы получить доступ к функциям сервиса'),
-            React.createElement(
-                'div',
-                { className: styles.welcomeButtons },
-                React.createElement(
-                    'button',
-                    {
-                        className: styles.primaryButton,
-                        onClick: () => setCurrentState(AuthModalState.LOGIN),
-                        type: 'button'
-                    },
-                    'Войти'
-                ),
-                React.createElement(
-                    'button',
-                    {
-                        className: styles.secondaryButton,
-                        onClick: () => setCurrentState(AuthModalState.REGISTER),
-                        type: 'button'
-                    },
-                    'Зарегистрироваться'
-                )
-            )
-        );
-    };
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError('');
 
-    const renderLoginScreen = (): React.ReactElement => {
-        return React.createElement(
-            'form',
-            { onSubmit: handleLogin, className: styles.form },
-            React.createElement('h2', null, 'Вход'),
+        try {
+            const loginData = {
+                email: formData.email.trim(),
+                password: formData.password
+            };
 
-            error && React.createElement(
-                'div',
-                { className: styles.error },
-                error
-            ),
+            console.log('Login attempt with:', loginData);
 
-            React.createElement(
-                'div',
-                { className: styles.inputGroup },
-                React.createElement('label', null, 'Email'),
-                React.createElement('input', {
-                    type: 'email',
-                    name: 'email',
-                    value: formData.email,
-                    onChange: handleInputChange,
-                    required: true,
-                    disabled: isLoading
-                })
-            ),
-            React.createElement(
-                'div',
-                { className: styles.inputGroup },
-                React.createElement('label', null, 'Пароль'),
-                React.createElement('input', {
-                    type: 'password',
-                    name: 'password',
-                    value: formData.password,
-                    onChange: handleInputChange,
-                    required: true,
-                    disabled: isLoading
-                })
-            ),
-            React.createElement(
-                'button',
-                {
-                    type: 'submit',
-                    className: styles.primaryButton,
-                    disabled: isLoading
+            const response = await fetch(`${API_BASE_URL}/api/authentication_token`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
                 },
-                isLoading ? 'Вход...' : 'Войти'
-            ),
-            React.createElement(
-                'div',
-                { className: styles.links },
-                React.createElement(
-                    'button',
-                    {
-                        type: 'button',
-                        className: styles.linkButton,
-                        onClick: () => setCurrentState(AuthModalState.REGISTER),
-                        disabled: isLoading
-                    },
-                    'Нет аккаунта? Зарегистрируйтесь!'
-                ),
-                React.createElement(
-                    'button',
-                    {
-                        type: 'button',
-                        className: styles.linkButton,
-                        onClick: () => setCurrentState(AuthModalState.FORGOT_PASSWORD),
-                        disabled: isLoading
-                    },
-                    'Не помню пароль'
-                )
-            )
-        );
-    };
+                body: JSON.stringify(loginData)
+            });
 
-    const renderRegisterScreen = (): React.ReactElement => {
-        return React.createElement(
-            'form',
-            { onSubmit: handleRegister, className: styles.form },
-            React.createElement('h2', null, 'Регистрация'),
+            console.log('Response status:', response.status);
 
-            error && React.createElement(
-                'div',
-                { className: styles.error },
-                error
-            ),
+            const responseText = await response.text();
+            console.log('Raw response:', responseText);
 
-            // Селектор роли
-            React.createElement(
-                'div',
-                { className: styles.roleSelector },
-                React.createElement(
-                    'button',
-                    {
-                        type: 'button',
-                        className: formData.role === 'master' ? styles.roleButtonActive : styles.roleButton,
-                        onClick: () => handleRoleChange('master')
-                    },
-                    'Мастер'
-                ),
-                React.createElement(
-                    'button',
-                    {
-                        type: 'button',
-                        className: formData.role === 'client' ? styles.roleButtonActive : styles.roleButton,
-                        onClick: () => handleRoleChange('client')
-                    },
-                    'Клиент'
-                )
-            ),
+            if (!response.ok) {
+                let errorMessage = 'Ошибка авторизации';
 
-            // Имя и Фамилия
-            React.createElement(
-                'div',
-                { className: styles.nameRow },
-                React.createElement(
-                    'div',
-                    { className: styles.inputGroup },
-                    React.createElement('label', null, 'Имя'),
-                    React.createElement('input', {
-                        type: 'text',
-                        name: 'firstName',
-                        value: formData.firstName,
-                        onChange: handleInputChange,
-                        required: true,
-                        disabled: isLoading,
-                        placeholder: 'Введите имя'
-                    })
-                ),
-                React.createElement(
-                    'div',
-                    { className: styles.inputGroup },
-                    React.createElement('label', null, 'Фамилия'),
-                    React.createElement('input', {
-                        type: 'text',
-                        name: 'lastName',
-                        value: formData.lastName,
-                        onChange: handleInputChange,
-                        required: true,
-                        disabled: isLoading,
-                        placeholder: 'Введите фамилию'
-                    })
-                )
-            ),
+                try {
+                    const errorData = JSON.parse(responseText);
+                    console.log('Parsed error data:', errorData);
 
-            // Специальность только для мастеров
-            formData.role === 'master' && React.createElement(
-                'div',
-                { className: styles.inputGroup },
-                React.createElement('label', null, 'Специальность *'),
-                categories.length > 0
-                    ? React.createElement(
-                        'select',
-                        {
-                            name: 'specialty',
-                            value: formData.specialty,
-                            onChange: (e: React.ChangeEvent<HTMLSelectElement>) =>
-                                setFormData(prev => ({...prev, specialty: e.target.value})),
-                            required: true,
-                            disabled: isLoading
+                    errorMessage = errorData.message || errorData.detail || errorMessage;
+
+                    if (errorData.code) {
+                        errorMessage += ` (Код: ${errorData.code})`;
+                    }
+
+                } catch (parseError) {
+                    console.log('Cannot parse error response as JSON, using raw text');
+                    errorMessage = responseText || `HTTP error! status: ${response.status}`;
+                }
+
+                // ДОБАВЛЯЕМ ПОДСКАЗКИ ДЛЯ ПОЛЬЗОВАТЕЛЯ
+                if (response.status === 401) {
+                    errorMessage += '. Проверьте email и пароль.';
+                }
+
+                throw new Error(errorMessage);
+            }
+
+            try {
+                const data: LoginResponse = JSON.parse(responseText);
+                console.log('Login successful, token received:', data);
+
+                if (!data.token) {
+                    throw new Error('Токен не получен в ответе');
+                }
+
+                // Сохраняем токен
+                localStorage.setItem('authToken', data.token);
+                localStorage.setItem('userEmail', formData.email);
+
+                // Получаем информацию о пользователе с использованием токена
+                try {
+                    const userResponse = await fetch(`${API_BASE_URL}/api/users/me`, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${data.token}`,
+                            'Accept': 'application/json',
                         },
-                        [
-                            React.createElement('option', { key: '', value: '' }, 'Выберите специальность'),
-                            ...categories.map(category =>
-                                React.createElement('option', {
-                                    key: category.id,
-                                    value: category.id
-                                }, category.title)
-                            )
-                        ]
-                    )
-                    : React.createElement(
-                        'select',
-                        {
-                            name: 'specialty',
-                            value: formData.specialty,
-                            onChange: (e: React.ChangeEvent<HTMLSelectElement>) =>
-                                setFormData(prev => ({...prev, specialty: e.target.value})),
-                            required: true,
-                            disabled: true
+                    });
+
+                    if (userResponse.ok) {
+                        const userData = await userResponse.json();
+                        console.log('User data:', userData);
+                        localStorage.setItem('userData', JSON.stringify(userData));
+
+                        // ДОБАВЛЯЕМ: Сохраняем роль пользователя
+                        if (userData.roles && userData.roles.length > 0) {
+                            const userRole = userData.roles[0]; // Берем первую роль
+                            localStorage.setItem('userRole', userRole);
+                            console.log('User role saved:', userRole);
+                        }
+                    } else {
+                        console.warn('Failed to fetch user data, but login successful');
+                    }
+                } catch (userError) {
+                    console.error('Error fetching user data:', userError);
+                }
+
+                if (onLoginSuccess) {
+                    onLoginSuccess(data.token, formData.email);
+                }
+
+                onClose();
+                resetForm();
+
+            } catch (parseError) {
+                throw new Error('Неверный формат ответа от сервера');
+            }
+
+        } catch (err) {
+            console.error('Login error:', err);
+            setError(err instanceof Error ? err.message : 'Произошла ошибка при авторизации');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleRegister = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError('');
+
+        // Валидация
+        if (formData.password !== formData.confirmPassword) {
+            setError('Пароли не совпадают');
+            setIsLoading(false);
+            return;
+        }
+
+        if (formData.password.length < 6) {
+            setError('Пароль должен содержать не менее 6 символов');
+            setIsLoading(false);
+            return;
+        }
+
+        // Для регистрации используем ТОЛЬКО email согласно документации логина
+        const email = formData.phoneOrEmail.includes('@') ? formData.phoneOrEmail : '';
+
+        if (!email) {
+            setError('Для регистрации требуется email. Телефон не поддерживается для входа.');
+            setIsLoading(false);
+            return;
+        }
+
+        // Подготовка данных для регистрации
+        const requestData: any = {
+            email: email,
+            name: formData.firstName,
+            surname: formData.lastName,
+            password: formData.password
+        };
+
+        // Для клиентов используем ROLE_CLIENT, для мастеров ROLE_MASTER
+        if (formData.role === 'master') {
+            requestData.roles = ["ROLE_MASTER"];
+            // Для мастеров добавляем категорию если выбрана
+            if (formData.specialty) {
+                requestData.occupation = [parseInt(formData.specialty)];
+            }
+        } else {
+            requestData.roles = ["ROLE_CLIENT"];
+        }
+
+        console.log('Registration request:', requestData);
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/users`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify(requestData)
+            });
+
+            const responseText = await response.text();
+            console.log('Registration response:', responseText);
+
+            if (!response.ok) {
+                let errorMessage = 'Ошибка регистрации';
+                try {
+                    const errorData = JSON.parse(responseText);
+                    errorMessage = errorData.message || errorData.detail || errorMessage;
+
+                    // Обработка специфических ошибок
+                    if (errorData.violations) {
+                        errorMessage = errorData.violations.map((v: any) => v.message).join(', ');
+                    }
+                } catch {
+                    errorMessage = `HTTP error! status: ${response.status}. Response: ${responseText}`;
+                }
+                throw new Error(errorMessage);
+            }
+
+            console.log('User registered successfully');
+
+            // Автоматический логин после успешной регистрации
+            try {
+                const loginResponse = await fetch(`${API_BASE_URL}/api/authentication_token`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: formData.password
+                    })
+                });
+
+                if (loginResponse.ok) {
+                    const loginData: LoginResponse = await loginResponse.json();
+                    localStorage.setItem('authToken', loginData.token);
+                    localStorage.setItem('userEmail', email);
+
+                    if (onLoginSuccess) {
+                        onLoginSuccess(loginData.token, email);
+                    }
+                    onClose();
+                    resetForm();
+                } else {
+                    // Если авто-логин не удался, переходим на страницу логина
+                    setCurrentState(AuthModalState.LOGIN);
+                    setError('Регистрация успешна! Теперь войдите в систему.');
+                }
+            } catch (loginError) {
+                console.error('Auto-login error:', loginError);
+                setCurrentState(AuthModalState.LOGIN);
+                setError('Регистрация успешна! Теперь войдите в систему.');
+            }
+
+        } catch (err) {
+            console.error('Registration error:', err);
+
+            // Если ошибка связана с occupation, пробуем без него
+            if (err instanceof Error && err.message.includes('occupation')) {
+                console.log('Trying registration without occupation...');
+
+                // Удаляем occupation из данных и пробуем снова
+                const simplifiedData = { ...requestData };
+                delete simplifiedData.occupation;
+
+                try {
+                    const retryResponse = await fetch(`${API_BASE_URL}/api/users`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
                         },
-                        React.createElement('option', { value: '' }, 'Загрузка категорий...')
-                    )
-            ),
+                        body: JSON.stringify(simplifiedData)
+                    });
 
-            // Телефон или почта
-            React.createElement(
-                'div',
-                { className: styles.inputGroup },
-                React.createElement('label', null, 'Телефон или почта *'),
-                React.createElement('input', {
-                    type: 'text',
-                    name: 'phoneOrEmail',
-                    value: formData.phoneOrEmail,
-                    onChange: handleInputChange,
-                    required: true,
-                    disabled: isLoading,
-                    placeholder: '+7 (___) ___-__-__ или example@mail.com'
-                })
-            ),
+                    const retryText = await retryResponse.text();
 
-            React.createElement(
-                'div',
-                { className: styles.inputGroup },
-                React.createElement('label', null, 'Придумайте пароль *'),
-                React.createElement('input', {
-                    type: 'password',
-                    name: 'password',
-                    value: formData.password,
-                    onChange: handleInputChange,
-                    required: true,
-                    disabled: isLoading,
-                    placeholder: 'Не менее 6 символов'
-                })
-            ),
+                    if (retryResponse.ok) {
+                        console.log('User registered successfully without occupation');
 
-            // Подтвердите пароль
-            React.createElement(
-                'div',
-                { className: styles.inputGroup },
-                React.createElement('label', null, 'Подтвердите пароль *'),
-                React.createElement('input', {
-                    type: 'password',
-                    name: 'confirmPassword',
-                    value: formData.confirmPassword,
-                    onChange: handleInputChange,
-                    required: true,
-                    disabled: isLoading,
-                    placeholder: 'Повторите пароль'
-                })
-            ),
+                        // Авто-логин после успешной регистрации
+                        const loginResponse = await fetch(`${API_BASE_URL}/api/authentication_token`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                email: email,
+                                password: formData.password
+                            })
+                        });
 
-            // Кнопка регистрации
-            React.createElement(
-                'button',
-                {
-                    type: 'submit',
-                    className: styles.primaryButton,
-                    disabled: isLoading
-                },
-                isLoading ? 'Регистрация...' : 'Зарегистрироваться'
-            ),
+                        if (loginResponse.ok) {
+                            const loginData: LoginResponse = await loginResponse.json();
+                            localStorage.setItem('authToken', loginData.token);
+                            localStorage.setItem('userEmail', email);
 
-            // Ссылка на вход
-            React.createElement(
-                'div',
-                { className: styles.links },
-                React.createElement(
-                    'button',
-                    {
-                        type: 'button',
-                        className: styles.linkButton,
-                        onClick: () => setCurrentState(AuthModalState.LOGIN),
-                        disabled: isLoading
-                    },
-                    'Уже есть аккаунт? Войдите!'
-                )
-            )
+                            if (onLoginSuccess) {
+                                onLoginSuccess(loginData.token, email);
+                            }
+                            onClose();
+                            resetForm();
+                            return;
+                        }
+
+                        setCurrentState(AuthModalState.LOGIN);
+                        setError('Регистрация успешна! Теперь войдите в систему.');
+                        return;
+                    } else {
+                        throw new Error(`Retry failed: ${retryText}`);
+                    }
+                } catch (retryError) {
+                    console.error('Retry registration error:', retryError);
+                    setError(`Ошибка регистрации: ${retryError instanceof Error ? retryError.message : 'Неизвестная ошибка'}`);
+                }
+            } else {
+                setError(err instanceof Error ? err.message : 'Произошла ошибка при регистрации');
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleForgotPassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError('');
+
+        try {
+            // TODO: Реализовать восстановление пароля когда endpoint будет доступен
+            console.log('Forgot password for:', formData.email);
+            setError('Восстановление пароля временно недоступно');
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Произошла ошибка');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleResetPassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError('');
+
+        if (formData.newPassword !== formData.confirmPassword) {
+            setError('Пароли не совпадают');
+            setIsLoading(false);
+            return;
+        }
+
+        try {
+            // TODO: Реализовать сброс пароля когда endpoint будет доступен
+            console.log('Reset password with code:', formData.code);
+            setError('Сброс пароля временно недоступен');
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Произошла ошибка');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (e.target === e.currentTarget) {
+            handleClose();
+        }
+    };
+
+    const renderWelcomeScreen = () => {
+        return (
+            <div className={styles.welcomeScreen}>
+                <h2>Войдите, чтобы получить доступ к функциям сервиса</h2>
+                <div className={styles.welcomeButtons}>
+                    <button
+                        className={styles.primaryButton}
+                        onClick={() => setCurrentState(AuthModalState.LOGIN)}
+                        type="button"
+                    >
+                        Войти
+                    </button>
+                    <button
+                        className={styles.secondaryButton}
+                        onClick={() => setCurrentState(AuthModalState.REGISTER)}
+                        type="button"
+                    >
+                        Зарегистрироваться
+                    </button>
+                </div>
+            </div>
         );
     };
 
-    const renderForgotPasswordScreen = (): React.ReactElement => {
-        return React.createElement(
-            'form',
-            { onSubmit: handleForgotPassword, className: styles.form },
-            React.createElement('h2', null, 'Восстановление пароля'),
+    const renderLoginScreen = () => {
+        return (
+            <form onSubmit={handleLogin} className={styles.form}>
+                <h2>Вход</h2>
 
-            error && React.createElement(
-                'div',
-                { className: styles.error },
-                error
-            ),
+                {error && <div className={styles.error}>{error}</div>}
 
-            React.createElement(
-                'div',
-                { className: styles.inputGroup },
-                React.createElement('label', null, 'Email'),
-                React.createElement('input', {
-                    type: 'email',
-                    name: 'email',
-                    value: formData.email,
-                    onChange: handleInputChange,
-                    required: true,
-                    disabled: isLoading
-                })
-            ),
-            React.createElement(
-                'button',
-                {
-                    type: 'submit',
-                    className: styles.primaryButton,
-                    disabled: isLoading
-                },
-                isLoading ? 'Отправка...' : 'Получить код'
-            ),
-            React.createElement(
-                'div',
-                { className: styles.links },
-                React.createElement(
-                    'button',
-                    {
-                        type: 'button',
-                        className: styles.linkButton,
-                        onClick: () => setCurrentState(AuthModalState.LOGIN),
-                        disabled: isLoading
-                    },
-                    'Вернуться к входу'
-                )
-            )
+                <div className={styles.inputGroup}>
+                    <label>Email *</label>
+                    <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        required
+                        disabled={isLoading}
+                        placeholder="Введите email"
+                    />
+                </div>
+                <div className={styles.inputGroup}>
+                    <label>Пароль *</label>
+                    <input
+                        type="password"
+                        name="password"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        required
+                        disabled={isLoading}
+                        placeholder="Введите пароль"
+                    />
+                </div>
+                <button
+                    type="submit"
+                    className={styles.primaryButton}
+                    disabled={isLoading}
+                >
+                    {isLoading ? 'Вход...' : 'Войти'}
+                </button>
+                <div className={styles.links}>
+                    <button
+                        type="button"
+                        className={styles.linkButton}
+                        onClick={() => setCurrentState(AuthModalState.REGISTER)}
+                        disabled={isLoading}
+                    >
+                        Нет аккаунта? Зарегистрируйтесь!
+                    </button>
+                    <button
+                        type="button"
+                        className={styles.linkButton}
+                        onClick={() => setCurrentState(AuthModalState.FORGOT_PASSWORD)}
+                        disabled={isLoading}
+                    >
+                        Не помню пароль
+                    </button>
+                </div>
+            </form>
         );
     };
 
-    const renderVerifyCodeScreen = (): React.ReactElement => {
-        return React.createElement(
-            'form',
-            { onSubmit: (e) => e.preventDefault(), className: styles.form },
-            React.createElement('h2', null, 'Введите код'),
-            React.createElement(
-                'div',
-                { className: styles.inputGroup },
-                React.createElement('label', null, 'Код подтверждения'),
-                React.createElement('input', {
-                    type: 'text',
-                    name: 'code',
-                    value: formData.code,
-                    onChange: handleInputChange,
-                    required: true,
-                    disabled: isLoading,
-                    placeholder: 'Введите код из письма'
-                })
-            ),
-            React.createElement(
-                'button',
-                {
-                    type: 'button',
-                    className: styles.primaryButton,
-                    onClick: () => setCurrentState(AuthModalState.NEW_PASSWORD),
-                    disabled: isLoading
-                },
-                'Подтвердить'
-            )
+    const renderRegisterScreen = () => {
+        return (
+            <form onSubmit={handleRegister} className={styles.form}>
+                <h2>Регистрация</h2>
+
+                {error && <div className={styles.error}>{error}</div>}
+
+                <div className={styles.roleSelector}>
+                    <button
+                        type="button"
+                        className={formData.role === 'master' ? styles.roleButtonActive : styles.roleButton}
+                        onClick={() => handleRoleChange('master')}
+                    >
+                        Мастер
+                    </button>
+                    <button
+                        type="button"
+                        className={formData.role === 'client' ? styles.roleButtonActive : styles.roleButton}
+                        onClick={() => handleRoleChange('client')}
+                    >
+                        Клиент
+                    </button>
+                </div>
+
+                <div className={styles.nameRow}>
+                    <div className={styles.inputGroup}>
+                        <label>Имя *</label>
+                        <input
+                            type="text"
+                            name="firstName"
+                            value={formData.firstName}
+                            onChange={handleInputChange}
+                            required
+                            disabled={isLoading}
+                            placeholder="Введите имя"
+                        />
+                    </div>
+                    <div className={styles.inputGroup}>
+                        <label>Фамилия *</label>
+                        <input
+                            type="text"
+                            name="lastName"
+                            value={formData.lastName}
+                            onChange={handleInputChange}
+                            required
+                            disabled={isLoading}
+                            placeholder="Введите фамилию"
+                        />
+                    </div>
+                </div>
+
+                {formData.role === 'master' && (
+                    <div className={styles.inputGroup}>
+                        <label>Специальность *</label>
+                        <select
+                            name="specialty"
+                            value={formData.specialty}
+                            onChange={handleInputChange}
+                            required={formData.role === 'master'}
+                            disabled={isLoading}
+                        >
+                            <option value="">Выберите специальность</option>
+                            {categories.map(category => (
+                                <option key={category.id} value={category.id}>
+                                    {category.title}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                )}
+
+                <div className={styles.inputGroup}>
+                    <label>Email *</label>
+                    <input
+                        type="email"
+                        name="phoneOrEmail"
+                        value={formData.phoneOrEmail}
+                        onChange={handleInputChange}
+                        required
+                        disabled={isLoading}
+                        placeholder="example@mail.com"
+                    />
+                    <div className={styles.hint}>Для входа используется только email</div>
+                </div>
+
+                <div className={styles.inputGroup}>
+                    <label>Придумайте пароль *</label>
+                    <input
+                        type="password"
+                        name="password"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        required
+                        disabled={isLoading}
+                        placeholder="Не менее 6 символов"
+                    />
+                </div>
+
+                <div className={styles.inputGroup}>
+                    <label>Подтвердите пароль *</label>
+                    <input
+                        type="password"
+                        name="confirmPassword"
+                        value={formData.confirmPassword}
+                        onChange={handleInputChange}
+                        required
+                        disabled={isLoading}
+                        placeholder="Повторите пароль"
+                    />
+                </div>
+
+                <button
+                    type="submit"
+                    className={styles.primaryButton}
+                    disabled={isLoading}
+                >
+                    {isLoading ? 'Регистрация...' : 'Зарегистрироваться'}
+                </button>
+
+                <div className={styles.links}>
+                    <button
+                        type="button"
+                        className={styles.linkButton}
+                        onClick={() => setCurrentState(AuthModalState.LOGIN)}
+                        disabled={isLoading}
+                    >
+                        Уже есть аккаунт? Войдите!
+                    </button>
+                </div>
+            </form>
         );
     };
 
-    const renderNewPasswordScreen = (): React.ReactElement => {
-        return React.createElement(
-            'form',
-            { onSubmit: handleResetPassword, className: styles.form },
-            React.createElement('h2', null, 'Придумайте новый пароль'),
+    const renderForgotPasswordScreen = () => {
+        return (
+            <form onSubmit={handleForgotPassword} className={styles.form}>
+                <h2>Восстановление пароля</h2>
 
-            error && React.createElement(
-                'div',
-                { className: styles.error },
-                error
-            ),
+                {error && <div className={styles.error}>{error}</div>}
 
-            React.createElement(
-                'div',
-                { className: styles.inputGroup },
-                React.createElement('label', null, 'Новый пароль'),
-                React.createElement('input', {
-                    type: 'password',
-                    name: 'newPassword',
-                    value: formData.newPassword,
-                    onChange: handleInputChange,
-                    required: true,
-                    disabled: isLoading,
-                    placeholder: 'Введите новый пароль'
-                })
-            ),
-            React.createElement(
-                'div',
-                { className: styles.inputGroup },
-                React.createElement('label', null, 'Повторите пароль'),
-                React.createElement('input', {
-                    type: 'password',
-                    name: 'confirmPassword',
-                    value: formData.confirmPassword,
-                    onChange: handleInputChange,
-                    required: true,
-                    disabled: isLoading,
-                    placeholder: 'Повторите новый пароль'
-                })
-            ),
-            React.createElement(
-                'button',
-                {
-                    type: 'submit',
-                    className: styles.primaryButton,
-                    disabled: isLoading
-                },
-                isLoading ? 'Сохранение...' : 'Подтвердить'
-            )
+                <div className={styles.inputGroup}>
+                    <label>Email</label>
+                    <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        required
+                        disabled={isLoading}
+                    />
+                </div>
+                <button
+                    type="submit"
+                    className={styles.primaryButton}
+                    disabled={isLoading}
+                >
+                    {isLoading ? 'Отправка...' : 'Получить код'}
+                </button>
+                <div className={styles.links}>
+                    <button
+                        type="button"
+                        className={styles.linkButton}
+                        onClick={() => setCurrentState(AuthModalState.LOGIN)}
+                        disabled={isLoading}
+                    >
+                        Вернуться к входу
+                    </button>
+                </div>
+            </form>
         );
     };
 
-    const renderContent = (): React.ReactElement => {
+    const renderVerifyCodeScreen = () => {
+        return (
+            <form onSubmit={(e) => e.preventDefault()} className={styles.form}>
+                <h2>Введите код</h2>
+                <div className={styles.inputGroup}>
+                    <label>Код подтверждения</label>
+                    <input
+                        type="text"
+                        name="code"
+                        value={formData.code}
+                        onChange={handleInputChange}
+                        required
+                        disabled={isLoading}
+                        placeholder="Введите код из письма"
+                    />
+                </div>
+                <button
+                    type="button"
+                    className={styles.primaryButton}
+                    onClick={() => setCurrentState(AuthModalState.NEW_PASSWORD)}
+                    disabled={isLoading}
+                >
+                    Подтвердить
+                </button>
+            </form>
+        );
+    };
+
+    const renderNewPasswordScreen = () => {
+        return (
+            <form onSubmit={handleResetPassword} className={styles.form}>
+                <h2>Придумайте новый пароль</h2>
+
+                {error && <div className={styles.error}>{error}</div>}
+
+                <div className={styles.inputGroup}>
+                    <label>Новый пароль</label>
+                    <input
+                        type="password"
+                        name="newPassword"
+                        value={formData.newPassword}
+                        onChange={handleInputChange}
+                        required
+                        disabled={isLoading}
+                        placeholder="Введите новый пароль"
+                    />
+                </div>
+                <div className={styles.inputGroup}>
+                    <label>Повторите пароль</label>
+                    <input
+                        type="password"
+                        name="confirmPassword"
+                        value={formData.confirmPassword}
+                        onChange={handleInputChange}
+                        required
+                        disabled={isLoading}
+                        placeholder="Повторите новый пароль"
+                    />
+                </div>
+                <button
+                    type="submit"
+                    className={styles.primaryButton}
+                    disabled={isLoading}
+                >
+                    {isLoading ? 'Сохранение...' : 'Подтвердить'}
+                </button>
+            </form>
+        );
+    };
+
+    const renderContent = () => {
         switch (currentState) {
             case AuthModalState.WELCOME:
                 return renderWelcomeScreen();
@@ -829,19 +805,15 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         return null;
     }
 
-    return React.createElement(
-        'div',
-        { className: styles.modalOverlay, onClick: handleClose },
-        React.createElement(
-            'div',
-            { className: styles.modalContent, onClick: handleOverlayClick },
-            React.createElement(
-                'button',
-                { className: styles.closeButton, onClick: handleClose, type: 'button' },
-                '×'
-            ),
-            renderContent()
-        )
+    return (
+        <div className={styles.modalOverlay} onClick={handleOverlayClick}>
+            <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+                <button className={styles.closeButton} onClick={handleClose} type="button">
+                    ×
+                </button>
+                {renderContent()}
+            </div>
+        </div>
     );
 };
 
