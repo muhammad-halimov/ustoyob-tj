@@ -60,9 +60,9 @@ class DashboardController extends AbstractDashboardController
 
         yield MenuItem::section('Доп. настройки');
             yield MenuItem::subMenu('География', 'fas fa-location-dot')->setSubItems([
-                MenuItem::linkToCrud('Область', 'fas fa-map-pin', Province::class),
-                MenuItem::linkToCrud('Район', 'fas fa-building', District::class),
                 MenuItem::linkToCrud('Город', 'fas fa-city', City::class),
+                MenuItem::linkToCrud('Район', 'fas fa-building', District::class),
+                MenuItem::linkToCrud('Область', 'fas fa-map-pin', Province::class),
             ]);
             yield MenuItem::linkToCrud('Категории работ', 'fas fa-list', Category::class);
             yield MenuItem::linkToCrud('Специальности', 'fas fa-user-doctor', Occupation::class);

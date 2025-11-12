@@ -31,6 +31,5 @@ async function loadAndChangeChoices() {
     // Обработчики переключения
     reviewerOption.addEventListener('change', updateDropDowns);
 
-    reviewerOption.checked = true;
     updateDropDowns();
 }

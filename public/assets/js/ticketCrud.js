@@ -35,6 +35,5 @@ async function loadAndChangeChoices() {
     // Обработчики переключения
     serviceOption.addEventListener('change', updateDropDowns);
 
-    serviceOption.checked = true;
     updateDropDowns();
 }

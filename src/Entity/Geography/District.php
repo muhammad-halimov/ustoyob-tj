@@ -51,7 +51,7 @@ class District
 
     public function __toString(): string
     {
-        return "г. $this->city, р. $this->title, {$this->city->getProvince()}" ?? '';
+        return "{$this->city->getProvince()}, г. $this->city, р. $this->title" ?? '';
     }
 
     #[ORM\Id]

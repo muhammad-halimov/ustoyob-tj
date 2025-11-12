@@ -69,6 +69,7 @@ class SocialNetworkCrudController extends AbstractCrudController
                 'viber' => 'Viber',
                 'google' => 'Google',
                 'youtube' => 'Youtube',
+                'site' => 'Site',
             ])
             ->setColumns(6)
             ->setRequired(true);

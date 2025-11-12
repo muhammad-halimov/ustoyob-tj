@@ -69,11 +69,11 @@ class ReviewCrudController extends AbstractCrudController
             ->addCssClass("form-switch")
             ->setColumns(12);
 
-        yield AssociationField::new('reviewer', 'Рецензент')
+        yield AssociationField::new('user', 'Мастер')
             ->setRequired(true)
             ->setColumns(6);
 
-        yield AssociationField::new('user', 'Мастер')
+        yield AssociationField::new('reviewer', 'Рецензент')
             ->setRequired(true)
             ->setColumns(6);
 
@@ -83,7 +83,7 @@ class ReviewCrudController extends AbstractCrudController
             ->setColumns(6);
 
         yield AssociationField::new('services', 'Услуга')
-            ->setFormTypeOptions(['by_reference' => false])
+//            ->setFormTypeOptions(['by_reference' => false])
             ->addCssClass("services-field")
             ->setColumns(6);
 

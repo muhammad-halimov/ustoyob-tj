@@ -109,7 +109,7 @@ class Review
     ])]
     private ?User $user = null;
 
-    #[ORM\ManyToOne(inversedBy: 'userServiceReviews')]
+    #[ORM\ManyToOne(inversedBy: 'clientReview')]
     #[Groups([
         'reviews:read',
         'reviewsClient:read',
@@ -173,18 +173,6 @@ class Review
     public function setUser(?User $user): static
     {
         $this->user = $user;
-
-        return $this;
-    }
-
-    public function getReviewer(): ?User
-    {
-        return $this->reviewer;
-    }
-
-    public function setReviewer(?User $reviewer): static
-    {
-        $this->reviewer = $reviewer;
 
         return $this;
     }
@@ -262,6 +250,18 @@ class Review
                 $reviewImage->setReviews(null);
             }
         }
+
+        return $this;
+    }
+
+    public function getReviewer(): ?User
+    {
+        return $this->reviewer;
+    }
+
+    public function setReviewer(?User $reviewer): static
+    {
+        $this->reviewer = $reviewer;
 
         return $this;
     }

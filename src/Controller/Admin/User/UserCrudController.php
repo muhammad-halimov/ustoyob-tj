@@ -164,6 +164,7 @@ class UserCrudController extends AbstractCrudController
             ->setRequired(false);
 
         yield TelephoneField::new('phone2', 'Телефон 2')
+            ->hideOnIndex()
             ->setColumns(4)
             ->setRequired(false);
 

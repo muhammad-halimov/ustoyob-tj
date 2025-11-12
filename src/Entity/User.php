@@ -1,4 +1,4 @@
-<?php
+<?php /** @noinspection PhpMultipleClassDeclarationsInspection */
 
 namespace App\Entity;
 
@@ -141,6 +141,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function __toString(): string
     {
+        if($this->name && $this->surname) return "$this->name $this->surname ({$this->getEmail()})";
+
         return $this->getEmail();
     }
 
@@ -159,6 +161,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->appealsRespondent = new ArrayCollection();
         $this->favorites = new ArrayCollection();
         $this->occupation = new ArrayCollection();
+        $this->clientReview = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -273,7 +276,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     ])]
     private ?string $image = null;
 
-    #[ORM\Column(length: 15, nullable: true)]
+    #[ORM\Column(length: 20, nullable: true)]
     #[Groups([
         'masters:read',
         'clients:read',
@@ -282,7 +285,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     ])]
     private ?string $phone1 = null;
 
-    #[ORM\Column(length: 15, nullable: true)]
+    #[ORM\Column(length: 20, nullable: true)]
     #[Groups([
         'masters:read',
         'clients:read',
@@ -417,6 +420,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'masters:read',
     ])]
     private Collection $occupation;
+
+    /**
+     * @var Collection<int, Review>
+     */
+    #[ORM\OneToMany(targetEntity: Review::class, mappedBy: 'reviewer')]
+    private Collection $clientReview;
 
     public function getId(): ?int
     {
@@ -1036,6 +1045,36 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             // set the owning side to null (unless already changed)
             if ($occupation->getMaster() === $this) {
                 $occupation->setMaster(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Review>
+     */
+    public function getClientReview(): Collection
+    {
+        return $this->clientReview;
+    }
+
+    public function addClientReview(Review $clientReview): static
+    {
+        if (!$this->clientReview->contains($clientReview)) {
+            $this->clientReview->add($clientReview);
+            $clientReview->setReviewer($this);
+        }
+
+        return $this;
+    }
+
+    public function removeClientReview(Review $clientReview): static
+    {
+        if ($this->clientReview->removeElement($clientReview)) {
+            // set the owning side to null (unless already changed)
+            if ($clientReview->getReviewer() === $this) {
+                $clientReview->setReviewer(null);
             }
         }
 

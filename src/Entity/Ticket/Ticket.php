@@ -120,7 +120,10 @@ class Ticket
 
     public function __toString(): string
     {
-        return $this->title;
+        if (!$this->master) return "$this->title - $this->author";
+        else if (!$this->author) return "$this->title - $this->master";
+
+        return "Ticket #$this->id";
     }
 
     public function __construct()
@@ -198,7 +201,7 @@ class Ticket
     #[SerializedName('ticketImages')]
     private Collection $userTicketImages;
 
-    #[ORM\ManyToOne(inversedBy: 'userTickets')]
+    #[ORM\ManyToOne(cascade: ['all'], inversedBy: 'userTickets')]
     #[ORM\JoinColumn(name: 'unit_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'userTickets:read',

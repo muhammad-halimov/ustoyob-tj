@@ -66,7 +66,6 @@ class DistrictCrudController extends AbstractCrudController
             ->setRequired(true);
 
         yield TextEditorField::new('description', 'Описание')
-            ->setRequired(true)
             ->setColumns(12);
 
         yield VichImageField::new('imageFile', 'Изображение')
