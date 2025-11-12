@@ -44,7 +44,7 @@ function Chat() {
     const [error, setError] = useState<string | null>(null);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const API_BASE_URL = 'http://usto.tj.auto-schule.site';
+    const API_BASE_URL = 'http://usto.tj.auto-schule.ru';
 
     // Загрузка чатов при монтировании компонента
     useEffect(() => {

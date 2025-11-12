@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getAuthToken } from '../../utils/auth';
 import styles from '../profile/ProfilePage.module.scss';
 
 interface Education {
@@ -22,11 +23,100 @@ function EducationPage() {
         endYear: '',
         currentlyStudying: false
     });
+    const [isLoading, setIsLoading] = useState(false);
+    const [userId, setUserId] = useState<string | null>(null);
+    const API_BASE_URL = 'http://usto.tj.auto-schule.ru';
 
-    const handleSave = () => {
-        // Здесь будет логика сохранения в общее состояние или бэкенд
-        console.log('Сохраненное образование:', education);
-        navigate('/profile');
+    // Получаем ID пользователя при загрузке компонента
+    useEffect(() => {
+        const fetchUserId = async () => {
+            try {
+                const token = getAuthToken();
+                if (!token) {
+                    navigate('/');
+                    return;
+                }
+
+                const response = await fetch(`${API_BASE_URL}/api/users/me`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                if (response.ok) {
+                    const userData = await response.json();
+                    setUserId(userData.id.toString());
+                    localStorage.setItem('userId', userData.id.toString());
+                } else {
+                    console.error('Failed to fetch user data');
+                    navigate('/');
+                }
+            } catch (error) {
+                console.error('Error fetching user ID:', error);
+                navigate('/');
+            }
+        };
+
+        fetchUserId();
+    }, [navigate]);
+
+    const handleSave = async () => {
+        if (!education.institution || !userId) {
+            alert('Пожалуйста, заполните учебное заведение');
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            const token = getAuthToken();
+            if (!token) {
+                navigate('/');
+                return;
+            }
+
+            // Подготавливаем данные для API
+            const educationData = {
+                uniTitle: education.institution,
+                faculty: education.faculty || '',
+                beginning: parseInt(education.startYear) || new Date().getFullYear(),
+                ending: education.currentlyStudying ? 0 : parseInt(education.endYear) || new Date().getFullYear(),
+                graduated: !education.currentlyStudying,
+                occupation: []
+            };
+
+            console.log('Sending education data:', educationData);
+
+            // Отправляем PATCH запрос для обновления пользователя
+            const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/merge-patch+json',
+                },
+                body: JSON.stringify({
+                    education: [educationData]
+                })
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Server response:', errorText);
+                throw new Error(`Ошибка при сохранении образования: ${response.status}`);
+            }
+
+            const updatedUser = await response.json();
+            console.log('Пользователь успешно обновлен:', updatedUser);
+
+            navigate('/profile');
+
+        } catch (error) {
+            console.error('Ошибка при сохранении:', error);
+            alert('Произошла ошибка при сохранении данных. Проверьте консоль для подробностей.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleInputChange = (field: keyof Omit<Education, 'id'>, value: string | boolean) => {
@@ -42,38 +132,17 @@ function EducationPage() {
                 <div className={styles.education_form}>
                     <h1>Образование</h1>
                     <div className={styles.form_group}>
-                        <label>Учебное заведение</label>
                         <input
                             type="text"
-                            placeholder="Укажите учебное заведение"
+                            placeholder="Укажите информацию"
                             value={education.institution}
                             onChange={(e) => handleInputChange('institution', e.target.value)}
                         />
-                    </div>
-
-                    <div className={styles.form_group}>
-                        <label>Факультет</label>
-                        <input
-                            type="text"
-                            placeholder="Укажите факультет"
-                            value={education.faculty}
-                            onChange={(e) => handleInputChange('faculty', e.target.value)}
-                        />
-                    </div>
-
-                    <div className={styles.form_group}>
-                        <label>Специальность</label>
-                        <input
-                            type="text"
-                            placeholder="Укажите специальность"
-                            value={education.specialty}
-                            onChange={(e) => handleInputChange('specialty', e.target.value)}
-                        />
+                        <label>Укажите учебное заведение, факультет, специальность</label>
                     </div>
 
                     <div className={styles.year_group}>
                         <div className={styles.form_group}>
-                            <label>Год начала</label>
                             <input
                                 type="text"
                                 placeholder="Год начала"
@@ -83,7 +152,6 @@ function EducationPage() {
                         </div>
 
                         <div className={styles.form_group}>
-                            <label>Год окончания</label>
                             <input
                                 type="text"
                                 placeholder="Год окончания"
@@ -109,13 +177,14 @@ function EducationPage() {
                         <button
                             className={styles.save_button}
                             onClick={handleSave}
-                            disabled={!education.institution || !education.specialty}
+                            disabled={!education.institution || isLoading || !userId}
                         >
-                            Создать
+                            {isLoading ? 'Сохранение...' : 'Создать'}
                         </button>
                         <button
                             className={styles.cancel_button}
                             onClick={() => navigate('/profile')}
+                            disabled={isLoading}
                         >
                             Отмена
                         </button>

@@ -1,6 +1,6 @@
 import styles from './EnterBtn.module.scss';
 import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import AuthModal from "../../../../features/auth/AuthModal.tsx";
 import { removeAuthToken } from '../../../../utils/auth';
 
@@ -13,7 +13,6 @@ type EnterBtnProps = {
 export function EnterBtn({ onClick, isModalOpen, onModalClose }: EnterBtnProps) {
     const [internalModalOpen, setInternalModalOpen] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const location = useLocation();
     const navigate = useNavigate();
 
     const modalOpen = isModalOpen !== undefined ? isModalOpen : internalModalOpen;
@@ -76,10 +75,6 @@ export function EnterBtn({ onClick, isModalOpen, onModalClose }: EnterBtnProps) 
             onModalClose?.();
         }
     };
-
-    if (location.pathname.startsWith('/profile')) {
-        return null;
-    }
 
     return (
         <>

@@ -60,7 +60,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string>('');
 
-    const API_BASE_URL = 'http://usto.tj.auto-schule.site';
+    const API_BASE_URL = 'http://usto.tj.auto-schule.ru';
 
     React.useEffect(() => {
         const loadCategories = async () => {

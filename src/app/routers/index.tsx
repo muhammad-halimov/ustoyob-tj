@@ -6,6 +6,7 @@ import Chat from "../../pages/chats/Chat.tsx";
 import ProfilePage from "../../pages/profile/ProfilePage.tsx";
 import EducationPage from "../../pages/education/EducationPage.tsx";
 import ServicesPage from "../../pages/services/ServicesPage.tsx";
+import CityPage from "../../pages/сityPage/CityPage.tsx";
 
 const router = createBrowserRouter([
     {
@@ -19,7 +20,8 @@ const router = createBrowserRouter([
             { path: 'profile', element: <ProfilePage /> },
             { path: 'profile', element: <ProfilePage /> },
             { path: 'profile/education', element: <EducationPage /> },
-            { path: 'profile/services', element: <ServicesPage /> }
+            { path: 'profile/services', element: <ServicesPage /> },
+            { path: 'profile/city', element: <CityPage /> },
             // { path: 'profile/work-area', element: <WorkAreaPage /> },
     //         { path: 'search', element: <SearchPage /> },
     //         { path: 'create-ad', element: <CreateAdPage /> },

@@ -240,15 +240,13 @@
 
 .about_section {
   margin-top: 40px;
-  padding: 40px;
-  //background-color: map.get(vars.$colors, background-primary);
   border-radius: 20px;
 }
 
 .section_title {
-  font-size: 28px;
-  font-weight: 600;
-  margin-bottom: 30px;
+  font-size: 36px;
+  font-weight: 400;
+  margin: 60px 0 20px 0;
   color: #000;
 }
 
@@ -269,10 +267,15 @@
 }
 
 .section_subtitle {
-  font-size: 20px;
-  font-weight: 600;
+  font-size: 36px;
+  font-weight: 400;
   margin-bottom: 20px;
   color: #000;
+}
+
+.section_subtitle_revievs {
+  font-size: 24px;
+  margin-bottom: 40px;
 }
 
 .section_content {
@@ -608,21 +611,23 @@
 }
 
 .form_group {
-  margin-bottom: 20px;
+  margin: 40px 0 20px 0;
 
   label {
     display: block;
-    margin-bottom: 8px;
+    margin-top: 20px;
     font-weight: 500;
     color: #333;
+    font-size: 24px;
   }
 
   input {
     width: 100%;
     padding: 12px;
-    border: 1px solid #ddd;
+    background-color: #F2F2F5;
+    border: none;
     border-radius: 6px;
-    font-size: 16px;
+    font-size: 24px;
 
     &:focus {
       outline: none;
@@ -637,9 +642,11 @@
 }
 
 .year_group {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  display: flex;
+  gap: 20px;
+  input {
+    max-width: 295px;
+  }
 }
 
 .checkbox_group {
@@ -651,6 +658,7 @@
   align-items: center;
   gap: 8px;
   cursor: pointer;
+  font-size: 24px;
 
   input {
     width: auto;
@@ -902,5 +910,209 @@
   &:focus {
     outline: none;
     border-color: #3A54DA;
+  }
+}
+
+// Стили для секции отзывов
+.reviews_section {
+  margin-top: 40px;
+  border-radius: 20px;
+  background-color: map.get(vars.$colors, background-primary);
+  padding: 40px;
+}
+
+.section_subtitle_revievs {
+  font-size: 24px;
+  margin-bottom: 40px;
+  color: #000;
+}
+
+.reviews_list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 27px;
+}
+
+.review_item {
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 20px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+
+  @media (max-width: 1024px) {
+    width: calc((100% - 27px) / 2);
+  }
+
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+}
+
+.review_header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 11px;
+}
+
+.reviewer_info {
+  display: flex;
+  align-items: center;
+}
+
+.reviewer_avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.reviewer_main_info {
+  display: flex;
+  flex-direction: column;
+  margin-left: 12px;
+}
+
+.reviewer_name {
+  font-size: 24px;
+  font-weight: 600;
+  color: #000;
+  margin-bottom: 4px;
+}
+
+.review_vacation {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.review_rating_main {
+  display: flex;
+  align-items: center;
+  margin-top: 4px;
+
+  svg {
+    margin-right: 8px;
+  }
+}
+
+.rating_value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #000;
+}
+
+.review_details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+.review_worker_date {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.review_worker,
+.review_date {
+  font-size: 14px;
+  color: #666;
+}
+
+.review_rating_secondary {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  color: #666;
+
+  svg {
+    margin: 0 4px;
+  }
+}
+
+.review_text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.review_more {
+  display: flex;
+  cursor: pointer;
+  justify-content: flex-end;
+  text-align: end;
+  color: #3A54DA;
+  font-size: 14px;
+}
+
+.no_reviews {
+  text-align: center;
+  color: #666;
+  font-size: 16px;
+  padding: 40px 0;
+  width: 100%;
+}
+
+.reviews_actions {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-top: 30px;
+}
+
+.show_all_reviews_btn {
+  background: #3A54DA;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 12px 24px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+
+  &:hover {
+    background: #2a44ca;
+  }
+}
+
+.loading {
+  text-align: center;
+  color: #666;
+  padding: 20px 0;
+  width: 100%;
+}
+
+// Стили для ошибок отзывов
+.reviews_error {
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+  text-align: center;
+  width: 100%;
+
+  p {
+    color: #856404;
+    margin-bottom: 12px;
+  }
+}
+
+.retry_button {
+  background: #3A54DA;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+
+  &:hover {
+    background: #2a44ca;
   }
 }
