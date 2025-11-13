@@ -78,7 +78,7 @@ export default function Category() {
                     </div>
                 ))}
                 <div className={styles.category_btn}>
-                    <AdBtn text="Посмотреть все услуги"/>
+                    <AdBtn text="Посмотреть все услуги" alwaysVisible/>
                 </div>
             </div>
         </div>

@@ -18,7 +18,6 @@
   background: white;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid #e0e0e0;
   border-radius: 20px;
   padding: 40px 20px;
 }
@@ -189,6 +188,7 @@
   display: flex;
   flex-direction: column;
   background: white;
+  border-radius: 20px;
 }
 
 .noChat {
@@ -208,6 +208,8 @@
   padding: 20px;
   border-bottom: 1px solid #e0e0e0;
   background: white;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
 
   .headerLeft {
     display: flex;
@@ -595,4 +597,11 @@
 .inputField:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.localBadge {
+  font-size: 10px;
+  color: #666;
+  font-style: italic;
+  margin-top: 4px;
 }

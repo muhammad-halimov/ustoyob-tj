@@ -255,7 +255,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                                 <div key={result.id} className={styles.resultCard}>
                                     <div className={styles.resultHeader}>
                                         <h3>{result.title}</h3>
-                                        <span className={styles.price}>{result.price} {result.unit}</span>
+                                        <span className={styles.price}>{result.price} руб {result.unit}</span>
                                     </div>
                                     <p className={styles.description}>{result.description}</p>
                                     <div className={styles.resultDetails}>
