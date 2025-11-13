@@ -10,7 +10,6 @@ interface Message {
     time: string;
 }
 
-// Интерфейсы для API
 interface ApiUser {
     id: number;
     email: string;
@@ -25,6 +24,7 @@ interface ApiMessage {
     text: string;
     image: string;
     author: ApiUser;
+    createdAt?: string;
 }
 
 interface ApiChat {
@@ -34,6 +34,8 @@ interface ApiChat {
     message: ApiMessage[];
 }
 
+const LOCAL_STORAGE_KEY = 'chat_messages';
+
 function Chat() {
     const [activeTab, setActiveTab] = useState<"active" | "archive">("active");
     const [selectedChat, setSelectedChat] = useState<number | null>(null);
@@ -42,23 +44,37 @@ function Chat() {
     const [newMessage, setNewMessage] = useState("");
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [currentUser, setCurrentUser] = useState<ApiUser | null>(null);
+    const [showCreateChat, setShowCreateChat] = useState(false);
+    const [availableUsers, setAvailableUsers] = useState<ApiUser[]>([]);
+    const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const API_BASE_URL = 'http://usto.tj.auto-schule.ru';
+    const POLLING_INTERVAL = 5000;
 
-    // Загрузка чатов при монтировании компонента
     useEffect(() => {
-        fetchChats();
+        const initializeChat = async () => {
+            const user = await getCurrentUser();
+            if (user) {
+                await fetchChats();
+            }
+        };
+        initializeChat();
     }, []);
 
-    // Загрузка сообщений при выборе чата
     useEffect(() => {
         if (selectedChat) {
-            fetchChatMessages(selectedChat);
+            loadMessagesForChat(selectedChat);
+            startPolling(selectedChat);
+        } else {
+            setMessages([]);
+            stopPolling();
         }
+        return () => stopPolling();
     }, [selectedChat]);
 
-    // Прокрутка к последнему сообщению
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
@@ -67,168 +83,27 @@ function Chat() {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
-    const fetchChats = async () => {
-        try {
-            setIsLoading(true);
-            const token = getAuthToken();
+    const startPolling = (chatId: number) => {
+        stopPolling();
+        fetchChatMessages(chatId);
+        pollingIntervalRef.current = setInterval(() => {
+            fetchChatMessages(chatId);
+        }, POLLING_INTERVAL);
+    };
 
-            if (!token) {
-                setError("Необходима авторизация");
-                return;
-            }
-
-            const response = await fetch(`${API_BASE_URL}/api/chats/me`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-            });
-
-            if (response.status === 401) {
-                setError("Ошибка авторизации");
-                return;
-            }
-
-            if (!response.ok) {
-                throw new Error(`Ошибка загрузки чатов: ${response.status}`);
-            }
-
-            const chatsData: ApiChat[] = await response.json();
-            setChats(chatsData);
-
-            // Автоматически выбираем первый чат, если есть
-            if (chatsData.length > 0 && !selectedChat) {
-                setSelectedChat(chatsData[0].id);
-            }
-
-        } catch (err) {
-            console.error('Error fetching chats:', err);
-            setError('Ошибка при загрузке чатов');
-        } finally {
-            setIsLoading(false);
+    const stopPolling = () => {
+        if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
         }
     };
 
     const fetchChatMessages = async (chatId: number) => {
         try {
             const token = getAuthToken();
-
-            if (!token) {
-                setError("Необходима авторизация");
-                return;
-            }
+            if (!token) return;
 
             const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error(`Ошибка загрузки сообщений: ${response.status}`);
-            }
-
-            const chatData: ApiChat = await response.json();
-
-            // Получаем текущего пользователя для определения отправителя
-            const currentUser = await getCurrentUser();
-
-            // Преобразуем сообщения из API в формат компонента
-            const transformedMessages: Message[] = chatData.message.map(msg => {
-                const isMe = currentUser && msg.author.id === currentUser.id;
-
-                return {
-                    id: msg.id,
-                    sender: isMe ? "me" : "other",
-                    name: `${msg.author.name} ${msg.author.surname}`,
-                    text: msg.text,
-                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                };
-            });
-
-            setMessages(transformedMessages);
-
-        } catch (err) {
-            console.error('Error fetching chat messages:', err);
-            setError('Ошибка при загрузке сообщений');
-        }
-    };
-
-    const sendMessage = async () => {
-        if (!newMessage.trim() || !selectedChat) return;
-
-        try {
-            const token = getAuthToken();
-
-            if (!token) {
-                setError("Необходима авторизация");
-                return;
-            }
-
-            // Получаем текущего пользователя
-            const currentUser = await getCurrentUser();
-            if (!currentUser) {
-                setError("Не удалось получить данные пользователя");
-                return;
-            }
-
-            // Создаем временное сообщение для немедленного отображения
-            const tempMessage: Message = {
-                id: Date.now(), // Временный ID
-                sender: "me",
-                name: `${currentUser.name} ${currentUser.surname}`,
-                text: newMessage,
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            };
-
-            setMessages(prev => [...prev, tempMessage]);
-            setNewMessage("");
-
-            // Отправляем сообщение на сервер
-            const response = await fetch(`${API_BASE_URL}/api/chats/${selectedChat}`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/merge-patch+json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify({
-                    message: [
-                        {
-                            text: newMessage,
-                            author: `/api/users/${currentUser.id}`
-                        }
-                    ]
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error(`Ошибка отправки сообщения: ${response.status}`);
-            }
-
-            // Обновляем чаты после отправки сообщения
-            fetchChats();
-
-        } catch (err) {
-            console.error('Error sending message:', err);
-            setError('Ошибка при отправке сообщения');
-            // Удаляем временное сообщение в случае ошибки
-            setMessages(prev => prev.filter(msg => msg.id !== Date.now()));
-        }
-    };
-
-    const getCurrentUser = async (): Promise<ApiUser | null> => {
-        try {
-            const token = getAuthToken();
-
-            if (!token) return null;
-
-            const response = await fetch(`${API_BASE_URL}/api/users/me`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -237,13 +112,241 @@ function Chat() {
             });
 
             if (response.ok) {
-                return await response.json();
+                const chatData: ApiChat = await response.json();
+                processApiMessages(chatId, chatData.message || []);
+            } else if (response.status >= 500) {
+                console.warn(`Server error (${response.status}) fetching chat ${chatId}`);
+                // Просто используем локальные сообщения, если сервер упал
+                loadMessagesForChat(chatId);
+            } else {
+                console.error(`Error fetching chat messages: ${response.status}`);
             }
-            return null;
-        } catch (error) {
-            console.error('Error fetching current user:', error);
+        } catch (err) {
+            console.error('Error fetching chat messages:', err);
+            loadMessagesForChat(chatId); // fallback
+        }
+    };
+
+    const processApiMessages = (chatId: number, apiMessages: ApiMessage[]) => {
+        try {
+            const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+            const allMessages = stored ? JSON.parse(stored) : {};
+            const localMessages: Message[] = allMessages[chatId] || [];
+
+            const apiMessagesFormatted: Message[] = apiMessages.map(msg => ({
+                id: msg.id,
+                sender: msg.author.id === currentUser?.id ? "me" : "other",
+                name: `${msg.author.name} ${msg.author.surname}`,
+                text: msg.text,
+                time: msg.createdAt
+                    ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }));
+
+            const mergedMessages = mergeMessages(localMessages, apiMessagesFormatted);
+            allMessages[chatId] = mergedMessages;
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(allMessages));
+
+            if (selectedChat === chatId) setMessages(mergedMessages);
+        } catch (err) {
+            console.error('Error processing API messages:', err);
+        }
+    };
+
+    const mergeMessages = (localMessages: Message[], apiMessages: Message[]): Message[] => {
+        const allMessages = [...localMessages, ...apiMessages];
+        const uniqueMessages = allMessages.filter((msg, index, self) =>
+            index === self.findIndex(m => m.id === msg.id)
+        );
+        return uniqueMessages.sort((a, b) => a.id - b.id);
+    };
+
+    const loadMessagesForChat = (chatId: number) => {
+        try {
+            const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (stored) {
+                const allMessages = JSON.parse(stored);
+                setMessages(allMessages[chatId] || []);
+            } else {
+                setMessages([]);
+            }
+        } catch (err) {
+            console.error('Error loading messages from localStorage:', err);
+            setMessages([]);
+        }
+    };
+
+    const saveMessageToStorage = (chatId: number, message: Message) => {
+        try {
+            const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+            const allMessages = stored ? JSON.parse(stored) : {};
+            allMessages[chatId] = allMessages[chatId] || [];
+            allMessages[chatId].push(message);
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(allMessages));
+            return allMessages[chatId];
+        } catch (err) {
+            console.error('Error saving message to localStorage:', err);
+            return [];
+        }
+    };
+
+    const getCurrentUser = async (): Promise<ApiUser | null> => {
+        try {
+            const token = getAuthToken();
+            if (!token) {
+                setError("Необходима авторизация");
+                return null;
+            }
+
+            const response = await fetch(`${API_BASE_URL}/api/users/me`, {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+            });
+
+            if (response.ok) {
+                const userData = await response.json();
+                setCurrentUser(userData);
+                return userData;
+            } else {
+                setError("Ошибка авторизации");
+                return null;
+            }
+        } catch (err) {
+            console.error('Error fetching current user:', err);
             return null;
         }
+    };
+
+    const fetchChats = async () => {
+        try {
+            setIsLoading(true);
+            setError(null);
+
+            const token = getAuthToken();
+            if (!token) return;
+
+            const response = await fetch(`${API_BASE_URL}/api/chats/me`, {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            });
+
+            let chatsData: ApiChat[] = [];
+
+            if (response.ok) {
+                chatsData = await response.json();
+            } else {
+                chatsData = createMockChats();
+            }
+
+            setChats(chatsData);
+            if (chatsData.length > 0 && !selectedChat) setSelectedChat(chatsData[0].id);
+        } catch {
+            const mockChats = createMockChats();
+            setChats(mockChats);
+            if (mockChats.length > 0 && !selectedChat) setSelectedChat(mockChats[0].id);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const createMockChats = (): ApiChat[] => {
+        if (!currentUser) return [];
+        return [
+            {
+                id: 1,
+                messageAuthor: currentUser,
+                replyAuthor: { id: 2, email: "master@example.com", name: "Алишер", surname: "Каримов", phone1: "+992123456789", phone2: "" },
+                message: []
+            },
+            {
+                id: 2,
+                messageAuthor: currentUser,
+                replyAuthor: { id: 3, email: "support@example.com", name: "Мария", surname: "Иванова", phone1: "+992987654321", phone2: "" },
+                message: []
+            }
+        ];
+    };
+
+    const fetchAvailableUsers = async () => {
+        setIsLoadingUsers(true);
+        const mockUsers: ApiUser[] = [
+            { id: 2, email: "master1@example.com", name: "Алишер", surname: "Каримов", phone1: "+992123456789", phone2: "" },
+            { id: 3, email: "master2@example.com", name: "Фаррух", surname: "Юсупов", phone1: "+992987654321", phone2: "" }
+        ];
+        setAvailableUsers(mockUsers);
+        setIsLoadingUsers(false);
+    };
+
+    const createNewChat = async (replyAuthorId: number) => {
+        if (!currentUser) return;
+        try {
+            const token = getAuthToken();
+            if (!token) return;
+
+            const response = await fetch(`${API_BASE_URL}/api/chats`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    messageAuthor: `/api/users/${currentUser.id}`,
+                    replyAuthor: `/api/users/${replyAuthorId}`,
+                    message: []
+                })
+            });
+
+            if (response.ok) {
+                const newChat: ApiChat = await response.json();
+                setChats(prev => [...prev, newChat]);
+                setSelectedChat(newChat.id);
+                setShowCreateChat(false);
+            } else {
+                setError('Ошибка при создании чата');
+            }
+        } catch {
+            setError('Ошибка при создании чата');
+        }
+    };
+
+    const sendMessage = async () => {
+        if (!newMessage.trim() || !selectedChat || !currentUser) return;
+
+        const newMessageObj: Message = {
+            id: Date.now(),
+            sender: "me",
+            name: `${currentUser.name} ${currentUser.surname}`,
+            text: newMessage,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+
+        const updatedMessages = saveMessageToStorage(selectedChat, newMessageObj);
+        setMessages(updatedMessages);
+        setNewMessage("");
+
+        await sendMessageToServer(selectedChat, newMessage);
+    };
+
+    const sendMessageToServer = async (chatId: number, messageText: string) => {
+        if (!currentUser) return;
+        try {
+            const token = getAuthToken();
+            if (!token) return;
+
+            const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}`, {
+                method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/merge-patch+json' },
+                body: JSON.stringify({
+                    message: [{ text: messageText, author: `/api/users/${currentUser.id}` }]
+                })
+            });
+
+            if (response.ok) fetchChatMessages(chatId);
+        } catch (err) {
+            console.error('Error sending message to server:', err);
+        }
+    };
+
+    const getInterlocutorFromChat = (chat: ApiChat): ApiUser | null => {
+        if (!currentUser) return null;
+        return chat.messageAuthor.id === currentUser.id ? chat.replyAuthor : chat.messageAuthor;
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -253,130 +356,76 @@ function Chat() {
         }
     };
 
-    const formatTime = (dateString: string) => {
-        return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    };
-
     const getLastMessageTime = (chat: ApiChat) => {
-        if (chat.message.length === 0) return '';
-        return formatTime(new Date().toISOString());
-    };
-
-    const getInterlocutor = async (chat: ApiChat): Promise<ApiUser | null> => {
-        const currentUser = await getCurrentUser();
-        if (!currentUser) return null;
-
-        // Определяем собеседника: если текущий пользователь - автор сообщения, то собеседник - replyAuthor, и наоборот
-        return chat.messageAuthor.id === currentUser.id ? chat.replyAuthor : chat.messageAuthor;
-    };
-
-    const [interlocutor, setInterlocutor] = useState<ApiUser | null>(null);
-
-    // Загружаем информацию о собеседнике при смене чата
-    const currentChat = chats.find(chat => chat.id === selectedChat);
-
-    useEffect(() => {
-        const loadInterlocutor = async () => {
-            if (currentChat) {
-                const interlocutorData = await getInterlocutor(currentChat);
-                setInterlocutor(interlocutorData);
+        try {
+            const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (stored) {
+                const allMessages = JSON.parse(stored);
+                const chatMessages = allMessages[chat.id] || [];
+                if (chatMessages.length > 0) return chatMessages[chatMessages.length - 1].time;
             }
-        };
+        } catch {}
+        return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
 
-        loadInterlocutor();
-    }, [currentChat]);
+    const getLastMessageText = (chat: ApiChat) => {
+        try {
+            const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (stored) {
+                const allMessages = JSON.parse(stored);
+                const chatMessages = allMessages[chat.id] || [];
+                if (chatMessages.length > 0) return chatMessages[chatMessages.length - 1].text;
+            }
+        } catch {}
+        return 'Нет сообщений';
+    };
 
-    // const currentChat = chats.find(chat => chat.id === selectedChat);
+    const handleCreateChatClick = () => {
+        setShowCreateChat(true);
+        fetchAvailableUsers();
+    };
 
-    if (isLoading) {
-        return <div className={styles.chat}>Загрузка чатов...</div>;
-    }
+    const currentChat = chats.find(chat => chat.id === selectedChat);
+    const currentInterlocutor = currentChat ? getInterlocutorFromChat(currentChat) : null;
+    const showChatArea = selectedChat !== null;
+
+    if (isLoading) return <div className={styles.chat}>Загрузка чатов...</div>;
 
     return (
         <div className={styles.chat}>
+            {/* Sidebar */}
             <div className={styles.sidebar}>
+                {/* Search */}
                 <div className={styles.searchBar}>
-                    <svg className={styles.searchIcon} width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <g clipPath="url(#clip0_324_3513)">
-                            <path d="M9.9975 16.1825C13.6895 16.1825 16.6825 13.1895 16.6825 9.4975C16.6825 5.80548 13.6895 2.8125 9.9975 2.8125C6.30548 2.8125 3.3125 5.80548 3.3125 9.4975C3.3125 13.1895 6.30548 16.1825 9.9975 16.1825Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                            <path d="M21.6875 21.1876L14.5912 14.0913" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                        </g>
-                        <defs>
-                            <clipPath id="clip0_324_3513">
-                                <rect width="21" height="21" fill="white" transform="translate(2 1.5)"/>
-                            </clipPath>
-                        </defs>
-                    </svg>
-                    <input
-                        type="text"
-                        placeholder="Поиск"
-                        className={styles.searchInput}
-                    />
+                    <input type="text" placeholder="Поиск" className={styles.searchInput} />
                 </div>
 
+                {/* Tabs */}
                 <div className={styles.tabs}>
-                    <button
-                        className={`${styles.tab} ${activeTab === "active" ? styles.active : ""}`}
-                        onClick={() => setActiveTab("active")}
-                    >
-                        Активные
-                    </button>
-                    <button
-                        className={`${styles.tab} ${activeTab === "archive" ? styles.active : ""}`}
-                        onClick={() => setActiveTab("archive")}
-                    >
-                        Архив
-                    </button>
+                    <button className={`${styles.tab} ${activeTab === "active" ? styles.active : ""}`} onClick={() => setActiveTab("active")}>Активные</button>
+                    <button className={`${styles.tab} ${activeTab === "archive" ? styles.active : ""}`} onClick={() => setActiveTab("archive")}>Архив</button>
                 </div>
 
+                {/* Chat list */}
                 <div className={styles.chatList}>
                     {chats.length === 0 ? (
-                        <div className={styles.noChats}>Нет активных чатов</div>
+                        <div className={styles.noChatsContainer}>
+                            <div className={styles.noChats}>Чатов нет</div>
+                            <button className={styles.createChatButton} onClick={handleCreateChatClick}>Создать чат</button>
+                        </div>
                     ) : (
-                        chats.map(async (chat) => {
-                            const interlocutor = await getInterlocutor(chat);
-                            const lastMessage = chat.message[chat.message.length - 1];
-
+                        chats.map(chat => {
+                            const interlocutor = getInterlocutorFromChat(chat);
                             return (
-                                <div
-                                    key={chat.id}
-                                    className={`${styles.chatItem} ${selectedChat === chat.id ? styles.selected : ""}`}
-                                    onClick={() => setSelectedChat(chat.id)}
-                                >
-                                    <div className={styles.avatar}>
-                                        {interlocutor?.name?.charAt(0)}{interlocutor?.surname?.charAt(0)}
-                                    </div>
+                                <div key={chat.id} className={`${styles.chatItem} ${selectedChat === chat.id ? styles.selected : ""}`} onClick={() => setSelectedChat(chat.id)}>
+                                    <div className={styles.avatar}>{interlocutor?.name.charAt(0)}{interlocutor?.surname.charAt(0)}</div>
                                     <div className={styles.chatInfo}>
-                                        <div className={styles.name}>
-                                            {interlocutor?.name} {interlocutor?.surname}
-                                        </div>
-                                        <div className={styles.specialty}>
-                                            {interlocutor?.email}
-                                        </div>
-                                        <div className={styles.lastMessage}>
-                                            {lastMessage?.text || 'Нет сообщений'}
-                                        </div>
+                                        <div className={styles.name}>{interlocutor?.name} {interlocutor?.surname}</div>
+                                        <div className={styles.specialty}>{interlocutor?.email}</div>
+                                        <div className={styles.lastMessage}>{getLastMessageText(chat)}</div>
                                     </div>
                                     <div className={styles.chatMeta}>
-                                        <svg className={styles.star} width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                            <g clipPath="url(#clip0_186_6434)">
-                                                <g clipPath="url(#clip1_186_6434)">
-                                                    <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
-                                                    <path d="M12 19V18.98" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
-                                                </g>
-                                            </g>
-                                            <defs>
-                                                <clipPath id="clip0_186_6434">
-                                                    <rect width="24" height="24" fill="white"/>
-                                                </clipPath>
-                                                <clipPath id="clip1_186_6434">
-                                                    <rect width="24" height="24" fill="white"/>
-                                                </clipPath>
-                                            </defs>
-                                        </svg>
-                                        <div className={styles.time}>
-                                            {getLastMessageTime(chat)}
-                                        </div>
+                                        <div className={styles.time}>{getLastMessageTime(chat)}</div>
                                     </div>
                                 </div>
                             );
@@ -385,114 +434,80 @@ function Chat() {
                 </div>
             </div>
 
+            {/* Chat area */}
             <div className={styles.chatArea}>
-                {currentChat && interlocutor ? (
+                {showChatArea ? (
                     <>
                         <div className={styles.chatHeader}>
                             <div className={styles.headerLeft}>
-                                <div className={styles.avatar}>
-                                    {interlocutor.name?.charAt(0)}{interlocutor.surname?.charAt(0)}
-                                </div>
+                                <div className={styles.avatar}>{currentInterlocutor?.name.charAt(0)}{currentInterlocutor?.surname.charAt(0)}</div>
                                 <div className={styles.headerInfo}>
-                                    <div className={styles.name}>
-                                        {interlocutor.name} {interlocutor.surname}
-                                    </div>
-                                    <div className={styles.order}>онлайн</div>
-                                </div>
-                            </div>
-                            <div className={styles.headerRight}>
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <g clipPath="url(#clip0_186_6434)">
-                                        <g clipPath="url(#clip1_186_6434)">
-                                            <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
-                                            <path d="M12 19V18.98" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
-                                        </g>
-                                    </g>
-                                    <defs>
-                                        <clipPath id="clip0_186_6434">
-                                            <rect width="24" height="24" fill="white"/>
-                                        </clipPath>
-                                        <clipPath id="clip1_186_6434">
-                                            <rect width="24" height="24" fill="white"/>
-                                        </clipPath>
-                                    </defs>
-                                </svg>
-                                <div className={styles.time}>
-                                    {getLastMessageTime(currentChat)}
+                                    <div className={styles.name}>{currentInterlocutor?.name} {currentInterlocutor?.surname}</div>
+                                    <div className={styles.status}>онлайн</div>
                                 </div>
                             </div>
                         </div>
 
                         <div className={styles.chatMessages}>
-                            <div className={styles.date}>
-                                {new Date().toLocaleDateString('ru-RU', {
-                                    day: 'numeric',
-                                    month: 'long',
-                                    year: 'numeric'
-                                })}
-                            </div>
-                            {messages.map(msg => (
-                                <div
-                                    key={msg.id}
-                                    className={`${styles.message} ${msg.sender === "me" ? styles.myMessage : styles.theirMessage}`}
-                                >
-                                    <div className={styles.messageName}>{msg.name}</div>
-                                    <div className={styles.messageText}>{msg.text}</div>
-                                    <div className={styles.messageTime}>{msg.time}</div>
-                                </div>
-                            ))}
+                            {messages.length === 0 ? (
+                                <div className={styles.noMessages}>Начните чат</div>
+                            ) : (
+                                messages.map(msg => (
+                                    <div key={msg.id} className={`${styles.message} ${msg.sender === "me" ? styles.myMessage : styles.theirMessage}`}>
+                                        <div className={styles.messageName}>{msg.name}</div>
+                                        <div className={styles.messageText}>{msg.text}</div>
+                                        <div className={styles.messageTime}>{msg.time}</div>
+                                    </div>
+                                ))
+                            )}
                             <div ref={messagesEndRef} />
                         </div>
 
                         <div className={styles.chatInput}>
-                            <svg
-                                width="24"
-                                height="24"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                xmlns="http://www.w3.org/2000/svg"
-                                className={styles.attachmentIcon}
-                            >
-                                <path d="M21.44 11.05L12.25 20.24C11.1242 21.3658 9.59723 21.9983 8.00502 21.9983C6.41282 21.9983 4.88585 21.3658 3.76002 20.24C2.6342 19.1142 2.00171 17.5872 2.00171 15.995C2.00171 14.4028 2.6342 12.8758 3.76002 11.75L12.95 2.56C13.7006 1.80944 14.7186 1.3877 15.78 1.3877C16.8415 1.3877 17.8595 1.80944 18.61 2.56C19.3606 3.31056 19.7823 4.32855 19.7823 5.39C19.7823 6.45145 19.3606 7.46944 18.61 8.22L9.41002 17.41C9.03473 17.7853 8.52574 17.9961 7.99502 17.9961C7.46431 17.9961 6.95532 17.7853 6.58002 17.41C6.20473 17.0347 5.99393 16.5257 5.99393 15.995C5.99393 15.4643 6.20473 14.9553 6.58002 14.58L15.07 6.1" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
-
-                            <input
-                                type="text"
-                                placeholder="Введите сообщение"
-                                className={styles.inputField}
-                                value={newMessage}
-                                onChange={(e) => setNewMessage(e.target.value)}
-                                onKeyPress={handleKeyPress}
-                                disabled={!selectedChat}
-                            />
-
-                            <button
-                                className={styles.sendButton}
-                                onClick={sendMessage}
-                                disabled={!newMessage.trim() || !selectedChat}
-                            >
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M22 2L11 13" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                    <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                </svg>
-                            </button>
+                            <input type="text" placeholder="Введите сообщение" className={styles.inputField} value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyPress={handleKeyPress} />
+                            <button className={styles.sendButton} onClick={sendMessage} disabled={!newMessage.trim()}>Отправить</button>
                         </div>
                     </>
                 ) : (
-                    <div className={styles.noChat}>
-                        {chats.length === 0 ? "Начните чат" : "Выберите чат"}
-                    </div>
+                    <div className={styles.noChat}>{chats.length === 0 ? "Начните чат" : "Выберите чат"}</div>
                 )}
 
                 {error && (
                     <div className={styles.error}>
                         {error}
-                        <button onClick={() => setError(null)} className={styles.closeError}>
-                            ×
-                        </button>
+                        <button onClick={() => setError(null)} className={styles.closeError}>×</button>
                     </div>
                 )}
             </div>
+
+            {/* Create Chat Modal */}
+            {showCreateChat && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.modal}>
+                        <div className={styles.modalHeader}>
+                            <h2>Выберите пользователя</h2>
+                            <button className={styles.closeButton} onClick={() => setShowCreateChat(false)}>×</button>
+                        </div>
+                        <div className={styles.usersList}>
+                            {isLoadingUsers ? (
+                                <div className={styles.loading}>Загрузка пользователей...</div>
+                            ) : availableUsers.length === 0 ? (
+                                <div className={styles.noUsers}>Нет доступных пользователей</div>
+                            ) : (
+                                availableUsers.map(user => (
+                                    <div key={user.id} className={styles.userItem} onClick={() => createNewChat(user.id)}>
+                                        <div className={styles.userAvatar}>{user.name.charAt(0)}{user.surname.charAt(0)}</div>
+                                        <div className={styles.userInfo}>
+                                            <div className={styles.userName}>{user.name} {user.surname}</div>
+                                            <div className={styles.userEmail}>{user.email}</div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

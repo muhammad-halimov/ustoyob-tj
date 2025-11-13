@@ -3,9 +3,10 @@ import { getAuthToken } from "../../../../utils/auth";
 
 interface AdBtnProps {
     text?: string;
+    alwaysVisible?: boolean;
 }
 
-export const AdBtn = ({ text = "Разместить объявление" }: AdBtnProps) => {
+export const AdBtn = ({ text = "Разместить объявление" , alwaysVisible = false}: AdBtnProps) => {
     const isAuthenticated = !!getAuthToken();
 
     // Получаем роль пользователя из localStorage
@@ -16,7 +17,7 @@ export const AdBtn = ({ text = "Разместить объявление" }: Ad
 
     const userRole = getUserRole();
 
-    if (isAuthenticated && userRole === 'ROLE_MASTER') {
+    if (!alwaysVisible && isAuthenticated && userRole === 'ROLE_MASTER') {
         return null;
     }
 

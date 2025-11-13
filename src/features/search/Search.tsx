@@ -1,6 +1,7 @@
 import styles from './Search.module.scss';
-import {useState, useEffect} from "react";
+import { useState, useEffect } from "react";
 import FilterPanel from "../filters/FilterPanel.tsx";
+import { getAuthToken } from "../../utils/auth";
 
 interface SearchProps {
     onSearchResults: (results: SearchResult[]) => void;
@@ -20,73 +21,25 @@ interface SearchResult {
     category: string;
 }
 
-const mockData: SearchResult[] = [
-    {
-        id: 1,
-        title: "Ремонт ванной комнаты",
-        price: 5000,
-        unit: "руб/м²",
-        description: "Полный ремонт ванной комнаты под ключ с заменой сантехники",
-        address: "г. Москва, ул. Ленина, д. 10",
-        date: "15.12.2023",
-        author: "Иван Петров",
-        timeAgo: "2 часа назад",
-        category: "ремонт"
-    },
-    {
-        id: 2,
-        title: "Установка натяжного потолка",
-        price: 1200,
-        unit: "руб/м²",
-        description: "Установка натяжных потолков любой сложности с гарантией",
-        address: "г. Москва, пр. Мира, д. 25",
-        date: "16.12.2023",
-        author: "Сергей Сидоров",
-        timeAgo: "1 час назад",
-        category: "потолки"
-    },
-    {
-        id: 3,
-        title: "Укладка плитки в кухне",
-        price: 2500,
-        unit: "руб/м²",
-        description: "Качественная укладка керамической плитки в кухне",
-        address: "г. Москва, ул. Пушкина, д. 15",
-        date: "14.12.2023",
-        author: "Алексей Ковалев",
-        timeAgo: "5 часов назад",
-        category: "ремонт"
-    },
-    {
-        id: 4,
-        title: "Электромонтажные работы",
-        price: 800,
-        unit: "руб/точка",
-        description: "Полный комплекс электромонтажных работ в квартире",
-        address: "г. Москва, ул. Гагарина, д. 8",
-        date: "13.12.2023",
-        author: "Дмитрий Волков",
-        timeAgo: "1 день назад",
-        category: "электрика"
-    },
-    {
-        id: 5,
-        title: "Покраска стен",
-        price: 400,
-        unit: "руб/м²",
-        description: "Качественная покраска стен с подготовкой поверхности",
-        address: "г. Москва, пр. Вернадского, д. 12",
-        date: "12.12.2023",
-        author: "Михаил Орлов",
-        timeAgo: "2 дня назад",
-        category: "отделка"
-    }
-];
+interface ApiTicket {
+    id: number;
+    title: string;
+    description: string;
+    budget: number;
+    unit: { title: string };
+    address: { title: string; city: { title: string } };
+    createdAt: string;
+    master: { name: string; surname: string };
+    category: { title: string };
+}
 
 interface FilterState {
     minPrice: string;
     maxPrice: string;
+    category: string;
 }
+
+const API_BASE_URL = 'http://usto.tj.auto-schule.ru';
 
 export default function Search({ onSearchResults, onFilterToggle }: SearchProps) {
     const [showFilters, setShowFilters] = useState(false);
@@ -96,52 +49,143 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     const [filters, setFilters] = useState<FilterState>({
         minPrice: '',
         maxPrice: '',
+        category: ''
     });
+    const [isLoading, setIsLoading] = useState(false);
+    const [categories, setCategories] = useState<{ id: number, name: string }[]>([]);
+
+    useEffect(() => {
+        fetchCategories();
+    }, []);
+
+    const fetchCategories = async () => {
+        try {
+            const token = getAuthToken();
+            if (!token) return;
+
+            const response = await fetch(`${API_BASE_URL}/api/categories`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                const categoriesData = await response.json();
+                setCategories(categoriesData);
+            }
+        } catch (error) {
+            console.error('Error fetching categories:', error);
+        }
+    };
+
+    const fetchTickets = async (query: string = '', filterParams: FilterState) => {
+        try {
+            setIsLoading(true);
+            const token = getAuthToken();
+            if (!token) return [];
+
+            const params = new URLSearchParams();
+            if (query.trim()) params.append('title', query);
+            if (filterParams.minPrice) params.append('budget[gt]', filterParams.minPrice);
+            if (filterParams.maxPrice) params.append('budget[lt]', filterParams.maxPrice);
+            if (filterParams.category) params.append('category', filterParams.category);
+
+            const response = await fetch(`${API_BASE_URL}/api/tickets/masters?${params.toString()}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+            const ticketsData: ApiTicket[] = await response.json();
+
+            return ticketsData.map(ticket => ({
+                id: ticket.id,
+                title: ticket.title,
+                price: ticket.budget,
+                unit: ticket.unit?.title || 'руб',
+                description: ticket.description,
+                address: `${ticket.address?.city?.title || ''}, ${ticket.address?.title || ''}`.trim(),
+                date: formatDate(ticket.createdAt),
+                author: ticket.master ? `${ticket.master.name} ${ticket.master.surname}` : 'Неизвестный автор',
+                timeAgo: getTimeAgo(ticket.createdAt),
+                category: ticket.category?.title || 'другое'
+            }));
+        } catch (error) {
+            console.error('Error fetching tickets:', error);
+            return [];
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const formatDate = (dateString: string) => {
+        try {
+            return new Date(dateString).toLocaleDateString('ru-RU');
+        } catch {
+            return new Date().toLocaleDateString('ru-RU');
+        }
+    };
+
+    const getTimeAgo = (dateString: string) => {
+        try {
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+            if (diffInSeconds < 60) return 'только что';
+            if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} ${getRussianWord(Math.floor(diffInSeconds / 60), ['минуту', 'минуты', 'минут'])} назад`;
+            if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} ${getRussianWord(Math.floor(diffInSeconds / 3600), ['час', 'часа', 'часов'])} назад`;
+            return `${Math.floor(diffInSeconds / 86400)} ${getRussianWord(Math.floor(diffInSeconds / 86400), ['день', 'дня', 'дней'])} назад`;
+        } catch {
+            return 'недавно';
+        }
+    };
+
+    const getRussianWord = (number: number, words: [string, string, string]) => {
+        const cases = [2, 0, 1, 1, 1, 2];
+        return words[number % 100 > 4 && number % 100 < 20 ? 2 : cases[number % 10 < 5 ? number % 10 : 5]];
+    };
 
     const handleResetFilters = () => {
-        setFilters({
-            minPrice: '',
-            maxPrice: '',
-        });
+        setFilters({ minPrice: '', maxPrice: '', category: '' });
         setShowResults(false);
         setSearchResults([]);
         onSearchResults([]);
     };
 
-    const handleSearch = () => {
-        if (!searchQuery.trim() && !filters.minPrice && !filters.maxPrice) {
+    const handleSearch = async () => {
+        if (!searchQuery.trim() && !filters.minPrice && !filters.maxPrice && !filters.category) {
             setShowResults(false);
             setSearchResults([]);
             onSearchResults([]);
             return;
         }
 
-        const filteredResults = mockData.filter(item => {
-            const matchesSearch = !searchQuery.trim() ||
-                item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                item.description.toLowerCase().includes(searchQuery.toLowerCase());
-
-            const minPrice = filters.minPrice ? parseInt(filters.minPrice) : 0;
-            const maxPrice = filters.maxPrice ? parseInt(filters.maxPrice) : Infinity;
-            const matchesPrice = item.price >= minPrice && item.price <= maxPrice;
-
-            return matchesSearch && matchesPrice;
-        });
-
-        setSearchResults(filteredResults);
+        const results = await fetchTickets(searchQuery, filters);
+        setSearchResults(results);
         setShowResults(true);
-        onSearchResults(filteredResults);
+        onSearchResults(results);
     };
 
     useEffect(() => {
-        if (searchQuery.trim() || filters.minPrice || filters.maxPrice) {
-            handleSearch();
-        } else {
-            setShowResults(false);
-            setSearchResults([]);
-            onSearchResults([]);
-        }
-    }, [filters, searchQuery]);
+        const debounce = setTimeout(() => {
+            if (searchQuery.trim() || filters.minPrice || filters.maxPrice || filters.category) {
+                handleSearch();
+            } else {
+                setShowResults(false);
+                setSearchResults([]);
+                onSearchResults([]);
+            }
+        }, 500);
+
+        return () => clearTimeout(debounce);
+    }, [searchQuery, filters]);
 
     const handleFilterToggle = (isVisible: boolean) => {
         setShowFilters(isVisible);
@@ -152,13 +196,6 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         setFilters(newFilters);
     };
 
-    // Автоматический поиск при изменении фильтров, если уже есть результаты
-    useEffect(() => {
-        if (showResults && searchQuery.trim()) {
-            handleSearch();
-        }
-    }, [filters]);
-
     return (
         <div className={styles.container}>
             <div className={styles.search_with_filters}>
@@ -168,8 +205,8 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     onFilterChange={handleFilterChange}
                     filters={filters}
                     onResetFilters={handleResetFilters}
+                    categories={categories}
                 />
-
                 <div className={styles.search_content}>
                     <div className={styles.search}>
                         <h2 className={styles.title}>Поиск специалистов</h2>
@@ -182,17 +219,11 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                             />
-                            <button
-                                className={styles.button}
-                                onClick={handleSearch}
-                            >
-                                Найти
+                            <button className={styles.button} onClick={handleSearch} disabled={isLoading}>
+                                {isLoading ? 'Поиск...' : 'Найти'}
                             </button>
                         </div>
-                        <button
-                            className={styles.filters_btn}
-                            onClick={() => handleFilterToggle(!showFilters)}
-                        >
+                        <button className={styles.filters_btn} onClick={() => handleFilterToggle(!showFilters)}>
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <g clipPath="url(#clip0_182_2269)">
                                     <g clipPath="url(#clip1_182_2269)">
@@ -214,29 +245,52 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                         </button>
                     </div>
 
-                    {/* Результаты поиска */}
                     <div className={`${styles.searchResults} ${!showResults ? styles.hidden : ''}`}>
-                        {searchResults.length === 0 ? (
-                            <div className={styles.noResults}>
-                                <p>По вашему запросу ничего не найдено</p>
-                            </div>
+                        {isLoading ? (
+                            <div className={styles.loading}><p>Загрузка...</p></div>
+                        ) : searchResults.length === 0 ? (
+                            <div className={styles.noResults}><p>По вашему запросу ничего не найдено</p></div>
                         ) : (
                             searchResults.map((result) => (
                                 <div key={result.id} className={styles.resultCard}>
                                     <div className={styles.resultHeader}>
                                         <h3>{result.title}</h3>
-                                        <span>{result.price} {result.unit}</span>
+                                        <span className={styles.price}>{result.price} {result.unit}</span>
                                     </div>
                                     <p className={styles.description}>{result.description}</p>
                                     <div className={styles.resultDetails}>
-                                        <span>{result.address}</span>
-                                        <span>{result.date}</span>
+                                        <span className={styles.address}>
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                <circle cx="12" cy="9" r="2.5" stroke="#3A54DA" strokeWidth="2"/>
+                                            </svg>
+                                        {result.address}
+                                        </span>
+                                        <span className={styles.date}>
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M3 8h18M21 6v14H3V6h18zM16 2v4M8 2v4" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                            </svg>
+                                            {result.date}
+                                        </span>
                                     </div>
                                     <div className={styles.resultFooter}>
-                                        <span>{result.author}</span>
+                                        <span className={styles.author}>
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <circle cx="12" cy="7" r="4" stroke="#3A54DA" strokeWidth="2"/>
+                                                <path d="M6 21v-2a6 6 0 0112 0v2" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                            </svg>
+                                            {result.author}
+                                        </span>
                                         <span className={styles.timeAgo}>{result.timeAgo}</span>
+        {/*                                <span className={styles.category}>*/}
+        {/*    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">*/}
+        {/*        <path d="M3 6h18M3 12h18M3 18h18" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>*/}
+        {/*    </svg>*/}
+        {/*                                    {result.category}*/}
+        {/*</span>*/}
                                     </div>
                                 </div>
+
                             ))
                         )}
                     </div>

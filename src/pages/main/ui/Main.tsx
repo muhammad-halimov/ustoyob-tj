@@ -87,7 +87,7 @@ export function MainPage() {
                                         </h2>
                                         {work.title}
                                     </div>
-                                    <AdBtn/>
+                                    <AdBtn alwaysVisible/>
                                 </div>
                                 <img src={work.img} alt="fonTest1"/>
                             </div>

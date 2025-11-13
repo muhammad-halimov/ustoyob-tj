@@ -7,14 +7,16 @@ interface FilterPanelProps {
     onFilterChange: (filters: FilterState) => void;
     filters: FilterState;
     onResetFilters: () => void;
+    categories?: {id: number, name: string}[];
 }
 
 interface FilterState {
     minPrice: string;
     maxPrice: string;
+    category: string;
 }
 
-function FilterPanel({ showFilters, setShowFilters, onFilterChange, filters, onResetFilters }: FilterPanelProps) {
+function FilterPanel({ showFilters, setShowFilters, onFilterChange, filters, onResetFilters, categories }: FilterPanelProps) {
     const [localFilters, setLocalFilters] = useState<FilterState>(filters);
 
     useEffect(() => {
@@ -29,12 +31,25 @@ function FilterPanel({ showFilters, setShowFilters, onFilterChange, filters, onR
         setLocalFilters(newFilters);
     };
 
+    const handleCategoryChange = (value: string) => {
+        const newFilters = {
+            ...localFilters,
+            category: value
+        };
+        setLocalFilters(newFilters);
+    };
+
     const handleApplyFilters = () => {
         onFilterChange(localFilters);
-        setShowFilters(true);
+        setShowFilters(false);
     };
 
     const handleCancel = () => {
+        setLocalFilters({
+            minPrice: '',
+            maxPrice: '',
+            category: ''
+        });
         onResetFilters();
         setShowFilters(false);
     };
@@ -68,6 +83,25 @@ function FilterPanel({ showFilters, setShowFilters, onFilterChange, filters, onR
                             </div>
                         </div>
                     </div>
+
+                    {categories && categories.length > 0 && (
+                        <div className={styles.filter_section}>
+                            <h3>Категория</h3>
+                            <div className={styles.category_select}>
+                                <select
+                                    value={localFilters.category}
+                                    onChange={(e) => handleCategoryChange(e.target.value)}
+                                >
+                                    <option value="">Все категории</option>
+                                    {categories.map(category => (
+                                        <option key={category.id} value={category.id}>
+                                            {category.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    )}
 
                     <div className={styles.filter_section}>
                         <h3>Характеристика</h3>
