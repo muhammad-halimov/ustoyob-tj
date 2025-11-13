@@ -9,6 +9,7 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\Filter\Chat\PersonalChatFilterController;
+use App\Controller\Api\Filter\Chat\PostChatPhotoController;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
@@ -47,6 +48,15 @@ use Symfony\Component\Serializer\Attribute\Groups;
         ),
         new Post(
             uriTemplate: '/chats',
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        ),
+        new Post(
+            uriTemplate: '/chats/{id}/upload-photo',
+            requirements: ['id' => '\d+'],
+            controller: PostChatPhotoController::class,
             security:
                 "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or

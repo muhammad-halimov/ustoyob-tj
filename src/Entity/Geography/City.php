@@ -2,6 +2,7 @@
 
 namespace App\Entity\Geography;
 
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
@@ -18,7 +19,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\Serializer\Attribute\Groups;
-use Symfony\Component\Serializer\Attribute\SerializedName;
+use Symfony\Component\Serializer\Attribute\Ignore;
 use Symfony\Component\Validator\Constraints as Assert;
 use Vich\UploaderBundle\Mapping\Annotation as Vich;
 
@@ -27,14 +28,30 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
 #[Vich\Uploadable]
 #[ApiResource(
     operations: [
-        new Get(),
-        new GetCollection(),
-        new Post(),
-        new Patch(security:
-            "is_granted('ROLE_ADMIN')"
+        new Get(
+            uriTemplate: '/cities/{id}',
+            requirements: ['id' => '\d+'],
         ),
-        new Delete(security:
-            "is_granted('ROLE_ADMIN')"
+        new GetCollection(
+            uriTemplate: '/cities',
+        ),
+        new Post(
+            uriTemplate: '/cities',
+            security: "is_granted('ROLE_ADMIN')"
+        ),
+        new Post(
+            uriTemplate: '/cities/{id}/update-photo',
+            security: "is_granted('ROLE_ADMIN')"
+        ),
+        new Patch(
+            uriTemplate: '/cities/{id}',
+            requirements: ['id' => '\d+'],
+            security: "is_granted('ROLE_ADMIN')"
+        ),
+        new Delete(
+            uriTemplate: '/cities/{id}',
+            requirements: ['id' => '\d+'],
+            security: "is_granted('ROLE_ADMIN')"
         )
     ],
     normalizationContext: [
@@ -50,6 +67,11 @@ class City
     public function __toString(): string
     {
         return $this->title ?? '';
+    }
+
+    public function __construct()
+    {
+        $this->districts = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -90,6 +112,7 @@ class City
         'provinces:read',
         'districts:read',
     ])]
+    #[ApiProperty(writable: false)]
     private ?string $image = null;
 
     /**
@@ -100,6 +123,7 @@ class City
         'cities:read',
         'provinces:read',
     ])]
+    #[Ignore]
     private Collection $districts;
 
     #[ORM\ManyToOne(inversedBy: 'cities')]
@@ -110,12 +134,8 @@ class City
         'userTickets:read',
         'masters:read',
     ])]
+    #[Ignore]
     private ?Province $province = null;
-
-    public function __construct()
-    {
-        $this->districts = new ArrayCollection();
-    }
 
     public function getId(): ?int
     {

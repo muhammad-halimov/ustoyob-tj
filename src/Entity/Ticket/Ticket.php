@@ -2,6 +2,7 @@
 
 namespace App\Entity\Ticket;
 
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
@@ -11,6 +12,7 @@ use ApiPlatform\Metadata\Post;
 use App\Controller\Api\Filter\Ticket\ClientTicketFilterController;
 use App\Controller\Api\Filter\Ticket\MasterTicketFilterController;
 use App\Controller\Api\Filter\Ticket\PersonalTicketFilterController;
+use App\Controller\Api\Filter\Ticket\PostTicketPhotoController;
 use App\Controller\Api\Filter\Ticket\RegularTicketFilterController;
 use App\Controller\Api\Filter\Ticket\ServiceTicketFilterController;
 use App\Entity\Appeal\Appeal;
@@ -86,6 +88,15 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         ),
         new Post(
             uriTemplate: '/tickets',
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        ),
+        new Post(
+            uriTemplate: '/tickets/{id}/upload-photo',
+            requirements: ['id' => '\d+'],
+            controller: PostTicketPhotoController::class,
             security:
                 "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or
@@ -198,7 +209,8 @@ class Ticket
     #[Groups([
         'userTickets:read',
     ])]
-    #[SerializedName('ticketImages')]
+    #[SerializedName('images')]
+    #[ApiProperty(writable: false)]
     private Collection $userTicketImages;
 
     #[ORM\ManyToOne(cascade: ['all'], inversedBy: 'userTickets')]
@@ -239,6 +251,7 @@ class Ticket
      * @var Collection<int, Appeal>
      */
     #[ORM\OneToMany(targetEntity: Appeal::class, mappedBy: 'ticket')]
+    #[Ignore]
     private Collection $appeals;
 
     public function getId(): ?int

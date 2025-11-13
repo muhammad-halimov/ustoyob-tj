@@ -2,6 +2,7 @@
 
 namespace App\Entity\Geography;
 
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
@@ -29,14 +30,26 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
 #[Vich\Uploadable]
 #[ApiResource(
     operations: [
-        new Get(),
-        new GetCollection(),
-        new Post(),
-        new Patch(security:
-            "is_granted('ROLE_ADMIN')"
+        new Get(
+            uriTemplate: '/districts/{id}',
+            requirements: ['id' => '\d+'],
         ),
-        new Delete(security:
-            "is_granted('ROLE_ADMIN')"
+        new GetCollection(
+            uriTemplate: '/districts',
+        ),
+        new Post(
+            uriTemplate: '/districts',
+            security: "is_granted('ROLE_ADMIN')"
+        ),
+        new Patch(
+            uriTemplate: '/districts/{id}',
+            requirements: ['id' => '\d+'],
+            security: "is_granted('ROLE_ADMIN')"
+        ),
+        new Delete(
+            uriTemplate: '/districts/{id}',
+            requirements: ['id' => '\d+'],
+            security: "is_granted('ROLE_ADMIN')"
         )
     ],
     normalizationContext: [
@@ -92,6 +105,7 @@ class District
         'provinces:read',
         'cities:read',
     ])]
+    #[ApiProperty(writable: false)]
     private ?string $image = null;
 
     #[ORM\ManyToOne(inversedBy: 'districts')]

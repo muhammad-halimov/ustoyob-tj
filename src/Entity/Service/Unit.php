@@ -23,14 +23,26 @@ use Symfony\Component\Serializer\Attribute\Ignore;
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
     operations: [
-        new Get(),
-        new GetCollection(),
-        new Post(),
-        new Patch(security:
-            "is_granted('ROLE_ADMIN')"
+        new Get(
+            uriTemplate: '/units/{id}',
+            requirements: ['id' => '\d+'],
         ),
-        new Delete(security:
-            "is_granted('ROLE_ADMIN')"
+        new GetCollection(
+            uriTemplate: '/units',
+        ),
+        new Post(
+            uriTemplate: '/units',
+            security: "is_granted('ROLE_ADMIN')"
+        ),
+        new Patch(
+            uriTemplate: '/units/{id}',
+            requirements: ['id' => '\d+'],
+            security: "is_granted('ROLE_ADMIN')"
+        ),
+        new Delete(
+            uriTemplate: '/units/{id}',
+            requirements: ['id' => '\d+'],
+            security: "is_granted('ROLE_ADMIN')"
         )
     ],
     normalizationContext: [
@@ -45,7 +57,7 @@ class Unit
 
     public function __toString(): string
     {
-        return $this->title;
+        return $this->title ?? "Unit #$this->id";
     }
 
     #[ORM\Id]

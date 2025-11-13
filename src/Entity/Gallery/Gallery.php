@@ -2,6 +2,7 @@
 
 namespace App\Entity\Gallery;
 
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
@@ -10,6 +11,7 @@ use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\Filter\Gallery\MasterGalleryFilterController;
 use App\Controller\Api\Filter\Gallery\PersonalGalleryFilterController;
+use App\Controller\Api\Filter\Gallery\PostGalleryPhotoController;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
@@ -53,7 +55,16 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             uriTemplate: '/galleries',
             security:
                 "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER')"
+                 is_granted('ROLE_MASTER')",
+        ),
+        new Post(
+            uriTemplate: '/galleries/{id}/upload-photo',
+            inputFormats: ['multipart' => ['multipart/form-data']],
+            requirements: ['id' => '\d+'],
+            controller: PostGalleryPhotoController::class,
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER')",
         ),
         new Patch(
             uriTemplate: '/galleries/{id}',
@@ -91,11 +102,12 @@ class Gallery
     /**
      * @var Collection<int, GalleryItem>
      */
-    #[ORM\OneToMany(targetEntity: GalleryItem::class, mappedBy: 'gallery')]
+    #[ORM\OneToMany(targetEntity: GalleryItem::class, mappedBy: 'gallery', cascade: ['all'])]
     #[Groups([
         'galleries:read',
     ])]
     #[SerializedName('images')]
+    #[ApiProperty(writable: false)]
     private Collection $userServiceGalleryItems;
 
     #[ORM\ManyToOne(inversedBy: 'galleries')]

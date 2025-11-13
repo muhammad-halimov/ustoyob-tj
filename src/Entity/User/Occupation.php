@@ -2,12 +2,14 @@
 
 namespace App\Entity\User;
 
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\Controller\Api\Filter\User\UpdateOccupationPhotoController;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
@@ -18,6 +20,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 
 use Symfony\Component\HttpFoundation\File\File;
+use Symfony\Component\Serializer\Attribute\Ignore;
 use Symfony\Component\Validator\Constraints as Assert;
 use Vich\UploaderBundle\Mapping\Annotation as Vich;
 
@@ -35,6 +38,17 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
         ),
         new Post(
             uriTemplate: '/occupations',
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER')"
+        ),
+        new Post(
+            uriTemplate: '/occupations/{id}/update-photo',
+            requirements: ['id' => '\d+'],
+            controller: UpdateOccupationPhotoController::class,
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER')"
         ),
         new Patch(
             uriTemplate: '/occupations/{id}',
@@ -96,14 +110,17 @@ class Occupation
     #[Groups([
         'occupations:read'
     ])]
+    #[ApiProperty(writable: false)]
     private ?string $image = null;
 
     #[ORM\ManyToOne(inversedBy: 'occupation')]
     #[ORM\JoinColumn(name: 'master_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    #[Ignore]
     private ?User $master = null;
 
     #[ORM\ManyToOne(inversedBy: 'occupation')]
     #[ORM\JoinColumn(name: 'education_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    #[Ignore]
     private ?Education $education = null;
 
     public function getId(): ?int

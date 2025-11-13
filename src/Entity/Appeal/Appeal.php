@@ -2,6 +2,7 @@
 
 namespace App\Entity\Appeal;
 
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
@@ -160,6 +161,7 @@ class Appeal
         'appeals:read',
     ])]
     #[SerializedName('images')]
+    #[ApiProperty(writable: false)]
     private Collection $appealImages;
 
     public function __construct()

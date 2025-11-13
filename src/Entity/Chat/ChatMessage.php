@@ -2,6 +2,7 @@
 
 namespace App\Entity\Chat;
 
+use ApiPlatform\Metadata\ApiProperty;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
@@ -24,7 +25,7 @@ class ChatMessage
 
     public function __toString(): string
     {
-        return "Chat Message ID: $this->id";
+        return $this->text ?? "Message #$this->id";
     }
 
     #[ORM\Id]
@@ -48,12 +49,14 @@ class ChatMessage
 
     #[Vich\UploadableField(mapping: 'chat_photos', fileNameProperty: 'image')]
     #[Assert\Image(mimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])]
+    #[ApiProperty(writable: false)]
     private ?File $imageFile = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
         'chats:read',
     ])]
+    #[ApiProperty(writable: false)]
     private ?string $image = null;
 
     #[ORM\ManyToOne(inversedBy: 'chatMessages')]

@@ -2,17 +2,17 @@
 
 namespace App\Controller\Api\Filter\User;
 
-use App\Repository\UserRepository;
+use App\Repository\User\OccupationRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
-class UpdateUserPhotoController extends AbstractController
+class UpdateOccupationPhotoController extends AbstractController
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly UserRepository         $userRepository,
+        private readonly OccupationRepository   $occupationRepository,
     ) {}
 
     public function __invoke(int $id, Request $request): JsonResponse
@@ -20,17 +20,17 @@ class UpdateUserPhotoController extends AbstractController
         $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
 
         if ($imageFile = $request->files->get('imageFile')) {
-            $user = $this->userRepository->find($id);
-            if (!$user) return $this->json(['message' => 'User not found'], 404);
+            $occupation = $this->occupationRepository->find($id);
+            if (!$occupation) return $this->json(['message' => 'Occupation not found'], 404);
 
-            $user->setImageFile($imageFile);
+            $occupation->setImageFile($imageFile);
 
-            $this->entityManager->persist($user);
+            $this->entityManager->persist($occupation);
             $this->entityManager->flush();
 
             return new JsonResponse([
-                'id' => $user->getId(),
-                'image' => $user->getImage(),
+                'id' => $occupation->getId(),
+                'image' => $occupation->getImage(),
                 'message' => 'Photo updated successfully'
             ]);
         }

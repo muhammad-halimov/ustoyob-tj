@@ -1,18 +1,18 @@
 <?php
 
-namespace App\Controller\Api\Filter\User;
+namespace App\Controller\Api\Filter\Geography;
 
-use App\Repository\UserRepository;
+use App\Repository\DistrictRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
-class UpdateUserPhotoController extends AbstractController
+class UpdateDistrictPhotoController extends AbstractController
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly UserRepository         $userRepository,
+        private readonly DistrictRepository     $districtRepository,
     ) {}
 
     public function __invoke(int $id, Request $request): JsonResponse
@@ -20,17 +20,17 @@ class UpdateUserPhotoController extends AbstractController
         $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
 
         if ($imageFile = $request->files->get('imageFile')) {
-            $user = $this->userRepository->find($id);
-            if (!$user) return $this->json(['message' => 'User not found'], 404);
+            $district = $this->districtRepository->find($id);
+            if (!$district) return $this->json(['message' => 'District not found'], 404);
 
-            $user->setImageFile($imageFile);
+            $district->setImageFile($imageFile);
 
-            $this->entityManager->persist($user);
+            $this->entityManager->persist($district);
             $this->entityManager->flush();
 
             return new JsonResponse([
-                'id' => $user->getId(),
-                'image' => $user->getImage(),
+                'id' => $district->getId(),
+                'image' => $district->getImage(),
                 'message' => 'Photo updated successfully'
             ]);
         }

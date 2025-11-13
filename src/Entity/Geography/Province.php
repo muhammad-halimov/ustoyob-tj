@@ -21,14 +21,26 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
     operations: [
-        new Get(),
-        new GetCollection(),
-        new Post(),
-        new Patch(security:
-            "is_granted('ROLE_ADMIN')"
+        new Get(
+            uriTemplate: '/provinces/{id}',
+            requirements: ['id' => '\d+'],
         ),
-        new Delete(security:
-            "is_granted('ROLE_ADMIN')"
+        new GetCollection(
+            uriTemplate: '/provinces',
+        ),
+        new Post(
+            uriTemplate: '/provinces',
+            security: "is_granted('ROLE_ADMIN')"
+        ),
+        new Patch(
+            uriTemplate: '/provinces/{id}',
+            requirements: ['id' => '\d+'],
+            security: "is_granted('ROLE_ADMIN')"
+        ),
+        new Delete(
+            uriTemplate: '/provinces/{id}',
+            requirements: ['id' => '\d+'],
+            security: "is_granted('ROLE_ADMIN')"
         )
     ],
     normalizationContext: [

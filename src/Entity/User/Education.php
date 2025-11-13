@@ -2,6 +2,7 @@
 
 namespace App\Entity\User;
 
+use ApiPlatform\Metadata\ApiProperty;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
@@ -69,9 +70,7 @@ class Education
      * @var Collection<int, Occupation>
      */
     #[ORM\OneToMany(targetEntity: Occupation::class, mappedBy: 'education')]
-    #[Groups([
-        'masters:read',
-    ])]
+    #[ApiProperty(writable: false)]
     private Collection $occupation;
 
     public function __construct()

@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
@@ -98,7 +99,6 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
                 "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or
                  is_granted('ROLE_CLIENT')",
-            deserialize: false,
         ),
         new Patch(
             uriTemplate: '/users/{id}',
@@ -186,14 +186,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups([
         'masters:read',
         'clients:read',
-        'masterServices:read',
-        'reviews:read',
-        'reviewsClient:read',
-        'galleries:read',
-        'userTickets:read',
-        'chats:read',
-        'appeals:read',
-        'appealsTicket:read',
     ])]
     private ?string $email = null;
 
@@ -201,14 +193,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups([
         'masters:read',
         'clients:read',
-        'masterServices:read',
-        'reviews:read',
-        'reviewsClient:read',
-        'galleries:read',
-        'userTickets:read',
-        'chats:read',
-        'appeals:read',
-        'appealsTicket:read',
     ])]
     private ?string $name = null;
 
@@ -216,14 +200,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups([
         'masters:read',
         'clients:read',
-        'masterServices:read',
-        'reviews:read',
-        'reviewsClient:read',
-        'galleries:read',
-        'userTickets:read',
-        'chats:read',
-        'appeals:read',
-        'appealsTicket:read',
     ])]
     private ?string $surname = null;
 
@@ -231,7 +207,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups([
         'masters:read',
         'clients:read',
-        'masterServices:read',
     ])]
     private ?string $patronymic = null;
 
@@ -246,10 +221,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups([
         'masters:read',
         'clients:read',
-        'masterServices:read',
-        'reviews:read',
-        'reviewsClient:read',
-        'userTickets:read',
     ])]
     private ?float $rating = null;
 
@@ -268,11 +239,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups([
         'masters:read',
         'clients:read',
-        'masterServices:read',
-        'reviews:read',
-        'reviewsClient:read',
-        'galleries:read',
-        'userTickets:read',
     ])]
     private ?string $image = null;
 
@@ -280,8 +246,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups([
         'masters:read',
         'clients:read',
-        'masterServices:read',
-        'chats:read',
     ])]
     private ?string $phone1 = null;
 
@@ -289,8 +253,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups([
         'masters:read',
         'clients:read',
-        'masterServices:read',
-        'chats:read',
     ])]
     private ?string $phone2 = null;
 
@@ -394,22 +356,26 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      * @var Collection<int, Appeal>
      */
     #[ORM\OneToMany(targetEntity: Appeal::class, mappedBy: 'user')]
+    #[ApiProperty(writable: false)]
     private Collection $appeals;
 
     /**
      * @var Collection<int, Appeal>
      */
     #[ORM\OneToMany(targetEntity: Appeal::class, mappedBy: 'respondent')]
+    #[ApiProperty(writable: false)]
     private Collection $appealsRespondent;
 
     /**
      * @var Collection<int, Favorite>
      */
     #[ORM\OneToMany(targetEntity: Favorite::class, mappedBy: 'user')]
+    #[ApiProperty(writable: false)]
     private Collection $favorites;
 
     #[ORM\ManyToOne(inversedBy: 'favoriteMasters')]
     #[ORM\JoinColumn(name: 'favorite_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    #[ApiProperty(writable: false)]
     private ?Favorite $favorite = null;
 
     /**
@@ -425,6 +391,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      * @var Collection<int, Review>
      */
     #[ORM\OneToMany(targetEntity: Review::class, mappedBy: 'reviewer')]
+    #[ApiProperty(writable: false)]
     private Collection $clientReview;
 
     public function getId(): ?int

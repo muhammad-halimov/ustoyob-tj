@@ -2,6 +2,7 @@
 
 namespace App\Entity\Service;
 
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
@@ -29,16 +30,39 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
 #[Vich\Uploadable]
 #[ApiResource(
     operations: [
-        new Get(),
-        new GetCollection(),
-        new Post(),
-        new Patch(security:
-            "is_granted('ROLE_ADMIN') or
-             is_granted('ROLE_MASTER')"
+        new Get(
+            uriTemplate: '/categories/{id}',
+            requirements: ['id' => '\d+'],
         ),
-        new Delete(security:
-            "is_granted('ROLE_ADMIN') or
-             is_granted('ROLE_MASTER')"
+        new GetCollection(
+            uriTemplate: '/categories',
+        ),
+        new Post(
+            uriTemplate: '/categories',
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER')"
+        ),
+        new Post(
+            uriTemplate: '/categories/{id}/update-photo',
+            requirements: ['id' => '\d+'],
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER')"
+        ),
+        new Patch(
+            uriTemplate: '/categories/{id}',
+            requirements: ['id' => '\d+'],
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER')"
+        ),
+        new Delete(
+            uriTemplate: '/categories/{id}',
+            requirements: ['id' => '\d+'],
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER')"
         )
     ],
     normalizationContext: [
@@ -54,6 +78,11 @@ class Category
     public function __toString(): string
     {
         return $this->title;
+    }
+
+    public function __construct()
+    {
+        $this->userTickets = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -89,6 +118,7 @@ class Category
     private ?File $imageFile = null;
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[ApiProperty(writable: false)]
     private ?string $image = null;
 
     /**
@@ -99,12 +129,8 @@ class Category
     private Collection $userTickets;
 
     #[ORM\ManyToOne(inversedBy: 'occupation')]
+    #[Ignore]
     private ?User $user = null;
-
-    public function __construct()
-    {
-        $this->userTickets = new ArrayCollection();
-    }
 
     public function getId(): ?int
     {

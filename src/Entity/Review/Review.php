@@ -2,6 +2,7 @@
 
 namespace App\Entity\Review;
 
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
@@ -11,6 +12,7 @@ use ApiPlatform\Metadata\Post;
 use App\Controller\Api\Filter\Review\ClientReviewFilterController;
 use App\Controller\Api\Filter\Review\MasterReviewFilterController;
 use App\Controller\Api\Filter\Review\PersonalReviewFilterController;
+use App\Controller\Api\Filter\Review\PostReviewPhotoController;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
@@ -45,6 +47,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         ),
         new GetCollection(
             uriTemplate: '/reviews/masters/{id}',
+            requirements: ['id' => '\d+'],
             controller: MasterReviewFilterController::class,
             security:
                 "is_granted('ROLE_ADMIN') or
@@ -53,6 +56,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         ),
         new GetCollection(
             uriTemplate: '/reviews/clients/{id}',
+            requirements: ['id' => '\d+'],
             controller: ClientReviewFilterController::class,
             security:
                 "is_granted('ROLE_ADMIN') or
@@ -61,6 +65,15 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         ),
         new Post(
             uriTemplate: '/reviews',
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        ),
+        new Post(
+            uriTemplate: '/reviews/{id}/upload-photo',
+            requirements: ['id' => '\d+'],
+            controller: PostReviewPhotoController::class,
             security:
                 "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or
@@ -153,6 +166,7 @@ class Review
         'reviewsClient:read',
     ])]
     #[SerializedName('images')]
+    #[ApiProperty(writable: false)]
     private Collection $reviewImages;
 
     public function __construct()
