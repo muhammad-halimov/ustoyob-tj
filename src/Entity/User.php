@@ -446,7 +446,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function getBio(): ?string
     {
-        return $this->bio;
+        return strip_tags($this->bio);
     }
 
     public function setBio(?string $bio): User

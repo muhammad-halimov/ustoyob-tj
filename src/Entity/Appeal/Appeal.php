@@ -198,7 +198,7 @@ class Appeal
 
     public function getDescription(): ?string
     {
-        return $this->description;
+        return strip_tags($this->description);
     }
 
     public function setDescription(?string $description): static
