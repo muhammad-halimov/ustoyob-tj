@@ -3,6 +3,13 @@
 namespace App\Entity\Chat;
 
 use ApiPlatform\Metadata\ApiProperty;
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Metadata\Post;
+use App\Controller\Api\Filter\Chat\PostMessageController;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
@@ -12,13 +19,60 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\Serializer\Attribute\Groups;
-use Symfony\Component\Serializer\Attribute\Ignore;
 use Symfony\Component\Validator\Constraints as Assert;
 use Vich\UploaderBundle\Mapping\Annotation as Vich;
 
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Entity(repositoryClass: ChatMessageRepository::class)]
 #[Vich\Uploadable]
+#[ApiResource(
+    operations: [
+        new Get(
+            uriTemplate: '/chat-messages/{id}',
+            requirements: ['id' => '\d+'],
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        ),
+        new GetCollection(
+            uriTemplate: '/chat-messages',
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        ),
+        new Post(
+            uriTemplate: '/chat-messages',
+            controller: PostMessageController::class,
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        ),
+        new Patch(
+            uriTemplate: '/chat-messages/{id}',
+            requirements: ['id' => '\d+'],
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        ),
+        new Delete(
+            uriTemplate: '/chat-messages/{id}',
+            requirements: ['id' => '\d+'],
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        )
+    ],
+    normalizationContext: [
+        'groups' => ['chatMessages:read'],
+        'skip_null_values' => false,
+    ],
+    paginationEnabled: false,
+)]
 class ChatMessage
 {
     use UpdatedAtTrait, CreatedAtTrait;
@@ -33,6 +87,7 @@ class ChatMessage
     #[ORM\Column]
     #[Groups([
         'chats:read',
+        'chatMessages:read'
     ])]
     private ?int $id = null;
 
@@ -40,21 +95,24 @@ class ChatMessage
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups([
         'chats:read',
+        'chatMessages:read'
     ])]
     private ?string $text = null;
 
-    #[ORM\ManyToOne(inversedBy: 'message')]
-    #[Ignore]
-    private ?Chat $userServiceChat = null;
+    #[ORM\ManyToOne(inversedBy: 'messages')]
+    #[Groups([
+        'chatMessages:read'
+    ])]
+    private ?Chat $chat = null;
 
     #[Vich\UploadableField(mapping: 'chat_photos', fileNameProperty: 'image')]
     #[Assert\Image(mimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])]
-    #[ApiProperty(writable: false)]
     private ?File $imageFile = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
         'chats:read',
+        'chatMessages:read'
     ])]
     #[ApiProperty(writable: false)]
     private ?string $image = null;
@@ -63,7 +121,9 @@ class ChatMessage
     #[ORM\JoinColumn(name: 'author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'chats:read',
+        'chatMessages:read'
     ])]
+    #[ApiProperty(writable: false)]
     private ?User $author = null;
 
     public function getId(): ?int
@@ -83,14 +143,14 @@ class ChatMessage
         return $this;
     }
 
-    public function getUserServiceChat(): ?Chat
+    public function getChat(): ?Chat
     {
-        return $this->userServiceChat;
+        return $this->chat;
     }
 
-    public function setUserServiceChat(?Chat $userServiceChat): static
+    public function setChat(?Chat $chat): static
     {
-        $this->userServiceChat = $userServiceChat;
+        $this->chat = $chat;
 
         return $this;
     }

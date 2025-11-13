@@ -19,6 +19,12 @@ class UpdateCategoryPhotoController extends AbstractController
     {
         $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
 
+        $userRoles = $this->getUser()?->getRoles() ?? [];
+        $allowedRoles = ["ROLE_ADMIN", "ROLE_MASTER"];
+
+        if (!array_intersect($allowedRoles, $userRoles))
+            return $this->json(['message' => 'Access denied'], 403);
+
         if ($imageFile = $request->files->get('imageFile')) {
             $category = $this->categoryRepository->find($id);
             if (!$category) return $this->json(['message' => 'Category not found'], 404);

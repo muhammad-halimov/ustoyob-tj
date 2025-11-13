@@ -2,6 +2,7 @@
 
 namespace App\Entity\Chat;
 
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
@@ -9,7 +10,6 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\Filter\Chat\PersonalChatFilterController;
-use App\Controller\Api\Filter\Chat\PostChatPhotoController;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
@@ -53,15 +53,6 @@ use Symfony\Component\Serializer\Attribute\Groups;
                  is_granted('ROLE_MASTER') or
                  is_granted('ROLE_CLIENT')"
         ),
-        new Post(
-            uriTemplate: '/chats/{id}/upload-photo',
-            requirements: ['id' => '\d+'],
-            controller: PostChatPhotoController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
-        ),
         new Patch(
             uriTemplate: '/chats/{id}',
             requirements: ['id' => '\d+'],
@@ -99,6 +90,7 @@ class Chat
     #[ORM\Column]
     #[Groups([
         'chats:read',
+        'chatMessages:read',
     ])]
     private ?int $id = null;
 
@@ -119,15 +111,16 @@ class Chat
     /**
      * @var Collection<int, ChatMessage>
      */
-    #[ORM\OneToMany(targetEntity: ChatMessage::class, mappedBy: 'userServiceChat', cascade: ['all'])]
+    #[ORM\OneToMany(targetEntity: ChatMessage::class, mappedBy: 'chat', cascade: ['all'])]
     #[Groups([
         'chats:read',
     ])]
-    private Collection $message;
+    #[ApiProperty(writable: false)]
+    private Collection $messages;
 
     public function __construct()
     {
-        $this->message = new ArrayCollection();
+        $this->messages = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -162,16 +155,16 @@ class Chat
     /**
      * @return Collection<int, ChatMessage>
      */
-    public function getMessage(): Collection
+    public function getMessages(): Collection
     {
-        return $this->message;
+        return $this->messages;
     }
 
     public function addMessage(ChatMessage $message): static
     {
-        if (!$this->message->contains($message)) {
-            $this->message->add($message);
-            $message->setUserServiceChat($this);
+        if (!$this->messages->contains($message)) {
+            $this->messages->add($message);
+            $message->setChat($this);
         }
 
         return $this;
@@ -179,10 +172,10 @@ class Chat
 
     public function removeMessage(ChatMessage $message): static
     {
-        if ($this->message->removeElement($message)) {
+        if ($this->messages->removeElement($message)) {
             // set the owning side to null (unless already changed)
-            if ($message->getUserServiceChat() === $this) {
-                $message->setUserServiceChat(null);
+            if ($message->getChat() === $this) {
+                $message->setChat(null);
             }
         }
 

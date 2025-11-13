@@ -32,6 +32,12 @@ class ClientReviewFilterController extends AbstractController
             $user = $this->userRepository->find($id);
             if (!$user) return $this->json([], 404);
 
+            $userRoles = $user->getRoles() ?? [];
+            $allowedRoles = ["ROLE_ADMIN", "ROLE_CLIENT", "ROLE_MASTER"];
+
+            if (!array_intersect($allowedRoles, $userRoles))
+                return $this->json(['message' => 'Access denied'], 403);
+
             $data = $this->reviewRepository->findUserReviewsByClientRole($user);
 
             return empty($data)

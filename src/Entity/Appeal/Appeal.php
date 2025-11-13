@@ -9,6 +9,7 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\Controller\Api\Filter\Appeal\PostAppealPhotoController;
 use App\Controller\Api\Filter\Appeal\TicketAppealFilterController;
 use App\Controller\Api\Filter\Appeal\UserAppealFilterController;
 use App\Entity\Ticket\Ticket;
@@ -53,6 +54,15 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         ),
         new Post(
             uriTemplate: '/appeals',
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        ),
+        new Post(
+            uriTemplate: '/appeals/{id}/upload-photo',
+            requirements: ['id' => '\d+'],
+            controller: PostAppealPhotoController::class,
             security:
                 "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or

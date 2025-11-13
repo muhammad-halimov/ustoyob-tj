@@ -9,6 +9,7 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\Controller\Api\Filter\Geography\UpdateCityPhotoController;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Repository\CityRepository;
@@ -41,6 +42,8 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
         ),
         new Post(
             uriTemplate: '/cities/{id}/update-photo',
+            requirements: ['id' => '\d+'],
+            controller: UpdateCityPhotoController::class,
             security: "is_granted('ROLE_ADMIN')"
         ),
         new Patch(

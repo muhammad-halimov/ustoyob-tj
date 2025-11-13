@@ -32,6 +32,12 @@ class MasterGalleryFilterController extends AbstractController
             /** @var User $user */
             $user = $this->userRepository->find($id);
 
+            $userRoles = $user?->getRoles() ?? [];
+            $allowedRoles = ["ROLE_ADMIN", "ROLE_MASTER"];
+
+            if (!array_intersect($allowedRoles, $userRoles))
+                return $this->json(['message' => 'Access denied'], 403);
+
             if (!$user) return $this->json([], 404);
 
             $data = $this->galleryRepository->findUserGalleryById($user);

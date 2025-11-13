@@ -19,18 +19,32 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
     operations: [
-        new Get(),
-        new GetCollection(),
-        new Post(),
-        new Patch(security:
-            "is_granted('ROLE_ADMIN') or
-             is_granted('ROLE_MASTER') or
-             is_granted('ROLE_CLIENT') or"
+        new Get(
+            uriTemplate: '/social-networks/{id}',
+            requirements: ['id' => '\d+'],
         ),
-        new Delete(security:
-            "is_granted('ROLE_ADMIN') or
-             is_granted('ROLE_MASTER') or
-             is_granted('ROLE_CLIENT') or"
+        new GetCollection(
+            uriTemplate: '/social-networks',
+        ),
+        new Post(
+            uriTemplate: '/social-networks',
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER')"
+        ),
+        new Patch(
+            uriTemplate: '/social-networks/{id}',
+            requirements: ['id' => '\d+'],
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER')"
+        ),
+        new Delete(
+            uriTemplate: '/social-networks/{id}',
+            requirements: ['id' => '\d+'],
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER')"
         )
     ],
     normalizationContext: [

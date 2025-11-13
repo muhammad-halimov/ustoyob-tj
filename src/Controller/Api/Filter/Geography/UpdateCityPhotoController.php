@@ -19,6 +19,12 @@ class UpdateCityPhotoController extends AbstractController
     {
         $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
 
+        $userRoles = $this->getUser()?->getRoles() ?? [];
+        $allowedRoles = ["ROLE_ADMIN"];
+
+        if (!array_intersect($allowedRoles, $userRoles))
+            return $this->json(['message' => 'Access denied'], 403);
+
         if ($imageFile = $request->files->get('imageFile')) {
             $city = $this->cityRepository->find($id);
             if (!$city) return $this->json(['message' => 'City not found'], 404);

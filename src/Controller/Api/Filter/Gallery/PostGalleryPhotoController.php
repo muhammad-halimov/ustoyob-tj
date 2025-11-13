@@ -20,6 +20,12 @@ class PostGalleryPhotoController extends AbstractController
     {
         $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
 
+        $userRoles = $this->getUser()?->getRoles() ?? [];
+        $allowedRoles = ["ROLE_ADMIN", "ROLE_MASTER"];
+
+        if (!array_intersect($allowedRoles, $userRoles))
+            return $this->json(['message' => 'Access denied'], 403);
+
         $gallery = $this->galleryRepository->find($id);
         if (!$gallery) return $this->json(['message' => 'Gallery not found'], 404);
 

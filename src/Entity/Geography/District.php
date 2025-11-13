@@ -9,6 +9,7 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\Controller\Api\Filter\Geography\UpdateDistrictPhotoController;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
@@ -39,6 +40,12 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
         ),
         new Post(
             uriTemplate: '/districts',
+            security: "is_granted('ROLE_ADMIN')"
+        ),
+        new Post(
+            uriTemplate: '/districts/{id}/update-photo',
+            requirements: ['id' => '\d+'],
+            controller: UpdateDistrictPhotoController::class,
             security: "is_granted('ROLE_ADMIN')"
         ),
         new Patch(
@@ -125,6 +132,7 @@ class District
     private Collection $tickets;
 
     #[ORM\ManyToOne(inversedBy: 'district')]
+    #[Ignore]
     private ?User $user = null;
 
     public function __construct()

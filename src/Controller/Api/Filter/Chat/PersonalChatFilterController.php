@@ -27,6 +27,12 @@ class PersonalChatFilterController extends AbstractController
     {
         $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
 
+        $userRoles = $this->getUser()?->getRoles() ?? [];
+        $allowedRoles = ["ROLE_ADMIN", "ROLE_CLIENT", "ROLE_MASTER"];
+
+        if (!array_intersect($allowedRoles, $userRoles))
+            return $this->json(['message' => 'Access denied'], 403);
+
         try {
             /** @var User $user */
             $user = $this->security->getUser();

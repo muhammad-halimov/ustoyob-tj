@@ -64,7 +64,7 @@ class ChatCrudController extends AbstractCrudController
             ->setRequired(true)
             ->setColumns(6);
 
-        yield CollectionField::new('message', 'Сообщения')
+        yield CollectionField::new('messages', 'Сообщения')
             ->useEntryCrudForm(ChatMessageCrudController::class)
             ->hideOnIndex()
             ->setColumns(12)

@@ -19,6 +19,12 @@ class UpdateDistrictPhotoController extends AbstractController
     {
         $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
 
+        $userRoles = $this->getUser()?->getRoles() ?? [];
+        $allowedRoles = ["ROLE_ADMIN"];
+
+        if (!array_intersect($allowedRoles, $userRoles))
+            return $this->json(['message' => 'Access denied'], 403);
+
         if ($imageFile = $request->files->get('imageFile')) {
             $district = $this->districtRepository->find($id);
             if (!$district) return $this->json(['message' => 'District not found'], 404);
