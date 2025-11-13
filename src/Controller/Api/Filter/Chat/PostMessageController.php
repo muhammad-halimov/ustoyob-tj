@@ -47,7 +47,7 @@ class PostMessageController extends AbstractController
 
         $chat = $this->chatRepository->find($chatId);
 
-        if ($chat->getMessageAuthor() !== $user && $chat->getReplyAuthor() !== $user)
+        if ($chat->getMessageAuthor() !== $user && $chat->getMessageReplyAuthor() !== $user)
             return $this->json(['message' => "Ownership doesn't match"], 403);
 
         $chatMessage = (new ChatMessage())

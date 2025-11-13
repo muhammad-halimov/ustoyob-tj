@@ -13,7 +13,6 @@ use App\Controller\Api\Filter\Service\UpdateCategoryPhotoController;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
-use App\Entity\User;
 use App\Repository\CategoryRepository;
 use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -79,7 +78,7 @@ class Category
 
     public function __toString(): string
     {
-        return $this->title;
+        return $this->title ?? "Category #$this->id";
     }
 
     public function __construct()
@@ -129,10 +128,6 @@ class Category
     #[ORM\OneToMany(targetEntity: Ticket::class, mappedBy: 'category')]
     #[Ignore]
     private Collection $userTickets;
-
-    #[ORM\ManyToOne(inversedBy: 'occupation')]
-    #[Ignore]
-    private ?User $user = null;
 
     public function getId(): ?int
     {
@@ -216,18 +211,6 @@ class Category
                 $userTicket->setCategory(null);
             }
         }
-
-        return $this;
-    }
-
-    public function getUser(): ?User
-    {
-        return $this->user;
-    }
-
-    public function setUser(?User $user): static
-    {
-        $this->user = $user;
 
         return $this;
     }

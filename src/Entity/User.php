@@ -150,7 +150,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         $this->userSocialNetworks = new ArrayCollection();
         $this->userServiceReviews = new ArrayCollection();
-        $this->userServiceChats = new ArrayCollection();
+        $this->messageAuthor = new ArrayCollection();
         $this->userTickets = new ArrayCollection();
         $this->education = new ArrayCollection();
         $this->chatMessages = new ArrayCollection();
@@ -304,7 +304,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     #[ORM\OneToMany(targetEntity: Chat::class, mappedBy: 'messageAuthor')]
     #[Ignore]
-    private Collection $userServiceChats;
+    private Collection $messageAuthor;
+
+    /**
+     * @var Collection<int, Chat>
+     */
+    #[ORM\OneToMany(targetEntity: Chat::class, mappedBy: 'messageReplyAuthor')]
+    #[Ignore]
+    private Collection $messageReplyAuthor;
 
     /**
      * @var Collection<int, Ticket>
@@ -679,27 +686,57 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /**
      * @return Collection<int, Chat>
      */
-    public function getUserServiceChats(): Collection
+    public function getMessageAuthor(): Collection
     {
-        return $this->userServiceChats;
+        return $this->messageAuthor;
     }
 
-    public function addUserServiceChat(Chat $userServiceChat): static
+    public function addMessageAuthor(Chat $chat): static
     {
-        if (!$this->userServiceChats->contains($userServiceChat)) {
-            $this->userServiceChats->add($userServiceChat);
-            $userServiceChat->setMessageAuthor($this);
+        if (!$this->messageAuthor->contains($chat)) {
+            $this->messageAuthor->add($chat);
+            $chat->setMessageAuthor($this);
         }
 
         return $this;
     }
 
-    public function removeUserServiceChat(Chat $userServiceChat): static
+    public function removeMessageAuthor(Chat $chat): static
     {
-        if ($this->userServiceChats->removeElement($userServiceChat)) {
+        if ($this->messageAuthor->removeElement($chat)) {
             // set the owning side to null (unless already changed)
-            if ($userServiceChat->getMessageAuthor() === $this) {
-                $userServiceChat->setMessageAuthor(null);
+            if ($chat->getMessageAuthor() === $this) {
+                $chat->setMessageAuthor(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Chat>
+     */
+    public function getMessageReplyAuthor(): Collection
+    {
+        return $this->messageReplyAuthor;
+    }
+
+    public function addMessageReplyAuthor(Chat $chat): static
+    {
+        if (!$this->messageReplyAuthor->contains($chat)) {
+            $this->messageReplyAuthor->add($chat);
+            $chat->setMessageReplyAuthor($this);
+        }
+
+        return $this;
+    }
+
+    public function removeMessageReplyAuthor(Chat $chat): static
+    {
+        if ($this->messageReplyAuthor->removeElement($chat)) {
+            // set the owning side to null (unless already changed)
+            if ($chat->getMessageReplyAuthor() === $this) {
+                $chat->setMessageReplyAuthor(null);
             }
         }
 

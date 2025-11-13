@@ -94,19 +94,19 @@ class Chat
     ])]
     private ?int $id = null;
 
-    #[ORM\ManyToOne(inversedBy: 'userServiceChats')]
+    #[ORM\ManyToOne(inversedBy: 'messageAuthor')]
     #[ORM\JoinColumn(name: 'message_author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'chats:read',
     ])]
     private ?User $messageAuthor = null;
 
-    #[ORM\ManyToOne(inversedBy: 'userServiceChats')]
-    #[ORM\JoinColumn(name: 'reply_author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    #[ORM\ManyToOne(inversedBy: 'messageReplyAuthor')]
+    #[ORM\JoinColumn(name: 'message_reply_author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'chats:read',
     ])]
-    private ?User $replyAuthor = null;
+    private ?User $messageReplyAuthor = null;
 
     /**
      * @var Collection<int, ChatMessage>
@@ -140,14 +140,14 @@ class Chat
         return $this;
     }
 
-    public function getReplyAuthor(): ?User
+    public function getMessageReplyAuthor(): ?User
     {
-        return $this->replyAuthor;
+        return $this->messageReplyAuthor;
     }
 
-    public function setReplyAuthor(?User $replyAuthor): static
+    public function setMessageReplyAuthor(?User $messageReplyAuthor): static
     {
-        $this->replyAuthor = $replyAuthor;
+        $this->messageReplyAuthor = $messageReplyAuthor;
 
         return $this;
     }

@@ -131,7 +131,7 @@ class District
     #[Ignore]
     private Collection $tickets;
 
-    #[ORM\ManyToOne(inversedBy: 'district')]
+    #[ORM\ManyToOne(inversedBy: 'districts')]
     #[Ignore]
     private ?User $user = null;
 

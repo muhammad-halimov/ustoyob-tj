@@ -31,7 +31,6 @@ class OccupationCrudController extends AbstractCrudController
             ->setPageTitle(Crud::PAGE_DETAIL, "Информация о специальности");
     }
 
-
     public function configureActions(Actions $actions): Actions
     {
         $actions
