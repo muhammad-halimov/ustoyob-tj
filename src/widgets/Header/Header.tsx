@@ -2,12 +2,59 @@ import styles from "./Header.module.scss";
 import {AdBtn} from "../../shared/ui/button/HeaderButton/AdBtn.tsx";
 import {EnterBtn} from "../../shared/ui/button/HeaderButton/EnterBtn.tsx";
 import {Link, useLocation} from "react-router-dom";
-import { useState } from "react";
+import {useEffect, useState} from "react";
 import { getAuthToken } from "../../utils/auth";
+
+interface City {
+    id: number;
+    title: string;
+    description: string;
+    image: string;
+    districts: District[];
+    province: Province;
+}
+
+interface District {
+    id: number;
+    title: string;
+    image: string;
+}
+
+interface Province {
+    id: number;
+    title: string;
+}
 
 function Header() {
     const location = useLocation();
     const [showAuthModal, setShowAuthModal] = useState(false);
+    const [cities, setCities] = useState<City[]>([]);
+    const [selectedCity, setSelectedCity] = useState<string>(() => {
+        const savedCity = localStorage.getItem('selectedCity');
+        return savedCity || "Местоположение";
+    });
+    const [showCityModal, setShowCityModal] = useState(false);
+    const API_BASE_URL = 'http://usto.tj.auto-schule.ru';
+
+    useEffect(() => {
+        const fetchCities = async () => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/cities`);
+                const data = await response.json();
+                setCities(data);
+            } catch (error) {
+                console.error('Error fetching cities:', error);
+            }
+        };
+
+        fetchCities();
+    }, []);
+
+    const handleCitySelect = (cityTitle: string) => {
+        setSelectedCity(cityTitle);
+        localStorage.setItem('selectedCity', cityTitle);
+        setShowCityModal(false);
+    };
 
     const getActivePage = () => {
         switch (location.pathname) {
@@ -47,7 +94,7 @@ function Header() {
         <header className={styles.header}>
             <div className={styles.header_top}>
                 <div className={styles.headerWrap}>
-                    <div className={styles.locate}>
+                    <div className={styles.locate} onClick={() => setShowCityModal(true)}>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <g clipPath="url(#clip0_324_1115)">
                                 <g clipPath="url(#clip1_324_1115)">
@@ -64,7 +111,7 @@ function Header() {
                                 </clipPath>
                             </defs>
                         </svg>
-                        <span className={styles.locate_title}>Ижевск</span>
+                        <span className={styles.locate_title}>{selectedCity}</span>
                     </div>
                     <div className={styles.rightPart}>
                         <div className={styles.rightPart_lang}>
@@ -259,7 +306,33 @@ function Header() {
                     </nav>
                 </div>
             </div>
+            {showCityModal && (
+                <div className={styles.modalOverlay} onClick={() => setShowCityModal(false)}>
+                    <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+                        <div className={styles.modalHeader}>
+                            <h2>Выберите город</h2>
+                            <button className={styles.closeButton} onClick={() => setShowCityModal(false)}>
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div className={styles.cityList}>
+                            {cities.map(city => (
+                                <div
+                                    key={city.id}
+                                    className={`${styles.cityItem} ${selectedCity === city.title ? styles.selected : ''}`}
+                                    onClick={() => handleCitySelect(city.title)}
+                                >
+                                    {city.title}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
         </header>
+
     );
 }
 
