@@ -10,6 +10,7 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\Filter\Chat\PersonalChatFilterController;
+use App\Controller\Api\Filter\Chat\PostChatPhotoController;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
@@ -43,6 +44,15 @@ use Symfony\Component\Serializer\Attribute\Groups;
             uriTemplate: '/chats',
             security:
                 "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        ),
+        new Post(
+            uriTemplate: '/chats/{id}/upload-photo',
+            requirements: ['id' => '\d+'],
+            controller: PostChatPhotoController::class,
+            security:
+            "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or
                  is_granted('ROLE_CLIENT')"
         ),
@@ -118,9 +128,20 @@ class Chat
     #[ApiProperty(writable: false)]
     private Collection $messages;
 
+    /**
+     * @var Collection<int, ChatImage>
+     */
+    #[ORM\OneToMany(targetEntity: ChatImage::class, mappedBy: 'chats')]
+    #[Groups([
+        'chats:read',
+    ])]
+    #[ApiProperty(writable: false)]
+    private Collection $chatImages;
+
     public function __construct()
     {
         $this->messages = new ArrayCollection();
+        $this->chatImages = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -176,6 +197,36 @@ class Chat
             // set the owning side to null (unless already changed)
             if ($message->getChat() === $this) {
                 $message->setChat(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, ChatImage>
+     */
+    public function getChatImages(): Collection
+    {
+        return $this->chatImages;
+    }
+
+    public function addChatImage(ChatImage $chatImage): static
+    {
+        if (!$this->chatImages->contains($chatImage)) {
+            $this->chatImages->add($chatImage);
+            $chatImage->setChats($this);
+        }
+
+        return $this;
+    }
+
+    public function removeChatImage(ChatImage $chatImage): static
+    {
+        if ($this->chatImages->removeElement($chatImage)) {
+            // set the owning side to null (unless already changed)
+            if ($chatImage->getChats() === $this) {
+                $chatImage->setChats(null);
             }
         }
 

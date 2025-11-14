@@ -22,11 +22,11 @@ class ReviewRepository extends ServiceEntityRepository
         if (in_array('ROLE_CLIENT', $user->getRoles())){
             return $this
                 ->createQueryBuilder('r')
-                ->innerJoin('r.reviewer', 'rev')
-                ->where('r.reviewer = :reviewerId')
-                ->andWhere("r.forReviewer = :status")
+                ->innerJoin('r.client', 'rev')
+                ->where('r.client = :clientId')
+                ->andWhere("r.forClient = :status")
                 ->andWhere("rev.roles LIKE :role")
-                ->setParameter('reviewerId', $user->getId())
+                ->setParameter('clientId', $user->getId())
                 ->setParameter('status', false)
                 ->setParameter('role', '%ROLE_CLIENT%')
                 ->getQuery()
@@ -34,11 +34,11 @@ class ReviewRepository extends ServiceEntityRepository
         } else if(in_array('ROLE_MASTER', $user->getRoles())){
             return $this
                 ->createQueryBuilder('r')
-                ->innerJoin('r.user', 'master')
-                ->where('r.user = :userId')
-                ->andWhere("r.forReviewer = :status")
+                ->innerJoin('r.master', 'master')
+                ->where('r.master = :masterId')
+                ->andWhere("r.forClient = :status")
                 ->andWhere("master.roles LIKE :role")
-                ->setParameter('userId', $user->getId())
+                ->setParameter('masterId', $user->getId())
                 ->setParameter('status', true)
                 ->setParameter('role', '%ROLE_MASTER%')
                 ->getQuery()
@@ -52,11 +52,11 @@ class ReviewRepository extends ServiceEntityRepository
     {
         return $this
             ->createQueryBuilder('r')
-            ->innerJoin('r.reviewer', 'rev')
-            ->where('r.reviewer = :reviewerId')
-            ->andWhere("r.forReviewer = :status")
+            ->innerJoin('r.client', 'rev')
+            ->where('r.client = :clientId')
+            ->andWhere("r.forClient = :status")
             ->andWhere("rev.roles LIKE :role")
-            ->setParameter('reviewerId', $user->getId())
+            ->setParameter('clientId', $user->getId())
             ->setParameter('status', false)
             ->setParameter('role', '%ROLE_CLIENT%')
             ->getQuery()
@@ -67,11 +67,11 @@ class ReviewRepository extends ServiceEntityRepository
     {
         return $this
             ->createQueryBuilder('r')
-            ->innerJoin('r.user', 'master')
-            ->where('r.user = :userId')
-            ->andWhere("r.forReviewer = :status")
+            ->innerJoin('r.master', 'master')
+            ->where('r.master = :masterId')
+            ->andWhere("r.forClient = :status")
             ->andWhere("master.roles LIKE :role")
-            ->setParameter('userId', $user->getId())
+            ->setParameter('masterId', $user->getId())
             ->setParameter('status', true)
             ->setParameter('role', '%ROLE_MASTER%')
             ->getQuery()

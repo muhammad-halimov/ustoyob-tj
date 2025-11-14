@@ -33,7 +33,7 @@ class MasterFixture extends Fixture
         $firdawsi->setGender("gender_male");
 
         $firdawsi->addTicket($this->getReference('service', Ticket::class));
-        $firdawsi->addUserServiceReview($this->getReference('forMaster', Review::class));
+        $firdawsi->addMasterReview($this->getReference('forMaster', Review::class));
 
         $hujandi->setEmail("hujandi@mail.pr");
         $hujandi->setName("Камоли");
@@ -45,7 +45,7 @@ class MasterFixture extends Fixture
         $hujandi->addDistrict($this->getReference('rudaki', District::class));
         $hujandi->setGender("gender_male");
 
-        $hujandi->addUserServiceReview($this->getReference('forClient', Review::class));
+        $hujandi->addClientReview($this->getReference('forClient', Review::class));
 
         foreach ($masters as $master) {
             $manager->persist($master);

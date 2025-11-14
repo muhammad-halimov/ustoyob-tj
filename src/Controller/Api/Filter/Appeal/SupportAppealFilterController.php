@@ -3,35 +3,33 @@
 namespace App\Controller\Api\Filter\Appeal;
 
 use App\Entity\Appeal\Appeal;
+use App\Entity\User;
 use App\Repository\User\AppealRepository;
 use Exception;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 class SupportAppealFilterController extends AbstractController
 {
-    private readonly AppealRepository $appealRepository;
-
     public function __construct(
-        AppealRepository $appealRepository
-    )
-    {
-        $this->appealRepository = $appealRepository;
-    }
+        private readonly AppealRepository $appealRepository,
+        private readonly Security        $security,
+    ){}
 
     public function __invoke(): JsonResponse
     {
         $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
-
-        $userRoles = $this->getUser()?->getRoles() ?? [];
         $allowedRoles = ["ROLE_ADMIN", "ROLE_CLIENT", "ROLE_MASTER"];
+        /** @var User $user */
+        $user = $this->security->getUser();
 
-        if (!array_intersect($allowedRoles, $userRoles))
+        if (!array_intersect($allowedRoles, $user->getRoles()))
             return $this->json(['message' => 'Access denied'], 403);
 
         try {
             /** @var Appeal $appeal */
-            $appeal = $this->appealRepository->findAllByTicketStatus("support");
+            $appeal = $this->appealRepository->findAppealsByStatusAndType(false, $user, "support");
             if (!$appeal) return $this->json([], 404);
 
             return empty($appeal)

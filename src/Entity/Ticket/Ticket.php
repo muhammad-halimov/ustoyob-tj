@@ -158,9 +158,6 @@ class Ticket
     #[ORM\Column(length: 64, nullable: true)]
     #[Groups([
         'userTickets:read',
-        'appeals:read',
-        'appealsTicket:read',
-        'reviews:read',
     ])]
     private ?string $title = null;
 

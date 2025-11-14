@@ -1,20 +1,20 @@
 <?php
 
-namespace App\Controller\Api\Filter\Appeal;
+namespace App\Controller\Api\Filter\Chat;
 
-use App\Entity\Appeal\AppealImage;
-use App\Repository\User\AppealRepository;
+use App\Entity\Chat\ChatImage;
+use App\Repository\Chat\ChatRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
-class PostAppealPhotoController extends AbstractController
+class PostChatPhotoController extends AbstractController
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly AppealRepository       $appealRepository,
+        private readonly ChatRepository         $chatRepository,
         private readonly Security               $security,
     ) {}
 
@@ -29,13 +29,11 @@ class PostAppealPhotoController extends AbstractController
         if (!array_intersect($allowedRoles, $userRoles))
             return $this->json(['message' => 'Access denied'], 403);
 
-        $appeal = $this->appealRepository->find($id);
-        if (!$appeal) return $this->json(['message' => 'Appeal not found'], 404);
+        $chat = $this->chatRepository->find($id);
+        if (!$chat) return $this->json(['message' => 'Chat not found'], 404);
 
-        if ($appeal->getAdministrant() !== $user &&
-            $appeal->getAuthor() !== $user &&
-            $appeal->getRespondent() !== $user
-        ) return $this->json(['message' => "Ownership doesn't match"], 403);
+        if ($chat->getMessageAuthor() !== $user && $chat->getMessageReplyAuthor() !== $user)
+            return $this->json(['message' => "Ownership doesn't match"], 403);
 
         $imageFiles = $request->files->get('imageFile');
         if (!$imageFiles) return $this->json(['message' => 'No files provided'], 400);
@@ -46,11 +44,11 @@ class PostAppealPhotoController extends AbstractController
 
         foreach ($imageFiles as $imageFile) {
             if ($imageFile->isValid()) {
-                $appealImage = (new AppealImage())
+                $chatImage = (new ChatImage())
                     ->setImageFile($imageFile)
                     ->setAuthor($user);
-                $appeal->addAppealImage($appealImage);
-                $this->entityManager->persist($appealImage);
+                $chat->addChatImage($chatImage);
+                $this->entityManager->persist($chatImage);
             }
         }
 

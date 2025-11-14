@@ -120,20 +120,6 @@ class Review
     ])]
     private ?int $id = null;
 
-    #[ORM\ManyToOne(inversedBy: 'masterReviews')]
-    #[Groups([
-        'reviews:read',
-        'reviewsClient:read',
-    ])]
-    private ?User $master = null;
-
-    #[ORM\ManyToOne(inversedBy: 'clientReview')]
-    #[Groups([
-        'reviews:read',
-        'reviewsClient:read',
-    ])]
-    private ?User $reviewer = null;
-
     #[ORM\Column(nullable: true)]
     #[Groups([
         'reviews:read',
@@ -153,7 +139,7 @@ class Review
         'reviews:read',
         'reviewsClient:read',
     ])]
-    private ?bool $forReviewer = null;
+    private ?bool $forClient = null;
 
     #[ORM\ManyToOne(inversedBy: 'reviews')]
     #[ORM\JoinColumn(name: 'services_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
@@ -174,6 +160,20 @@ class Review
     #[ApiProperty(writable: false)]
     private Collection $reviewImages;
 
+    #[ORM\ManyToOne(inversedBy: 'masterReviews')]
+    #[Groups([
+        'reviews:read',
+        'reviewsClient:read',
+    ])]
+    private ?User $master = null;
+
+    #[ORM\ManyToOne(inversedBy: 'clientReviews')]
+    #[Groups([
+        'reviews:read',
+        'reviewsClient:read',
+    ])]
+    private ?User $client = null;
+
     public function __construct()
     {
         $this->reviewImages = new ArrayCollection();
@@ -182,18 +182,6 @@ class Review
     public function getId(): ?int
     {
         return $this->id;
-    }
-
-    public function getMaster(): ?User
-    {
-        return $this->master;
-    }
-
-    public function setMaster(?User $master): static
-    {
-        $this->master = $master;
-
-        return $this;
     }
 
     public function getRating(): ?float
@@ -210,7 +198,7 @@ class Review
 
     public function getDescription(): ?string
     {
-        return $this->description;
+        return strip_tags($this->description);
     }
 
     public function setDescription(?string $description): static
@@ -220,14 +208,14 @@ class Review
         return $this;
     }
 
-    public function getForReviewer(): ?bool
+    public function getForClient(): ?bool
     {
-        return $this->forReviewer;
+        return $this->forClient;
     }
 
-    public function setForReviewer(?bool $forReviewer): Review
+    public function setForClient(?bool $forClient): Review
     {
-        $this->forReviewer = $forReviewer;
+        $this->forClient = $forClient;
         return $this;
     }
 
@@ -273,14 +261,26 @@ class Review
         return $this;
     }
 
-    public function getReviewer(): ?User
+    public function getMaster(): ?User
     {
-        return $this->reviewer;
+        return $this->master;
     }
 
-    public function setReviewer(?User $reviewer): static
+    public function setMaster(?User $master): static
     {
-        $this->reviewer = $reviewer;
+        $this->master = $master;
+
+        return $this;
+    }
+
+    public function getClient(): ?User
+    {
+        return $this->client;
+    }
+
+    public function setClient(?User $client): static
+    {
+        $this->client = $client;
 
         return $this;
     }

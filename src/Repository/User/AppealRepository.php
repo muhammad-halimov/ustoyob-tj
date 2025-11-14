@@ -3,6 +3,7 @@
 namespace App\Repository\User;
 
 use App\Entity\Appeal\Appeal;
+use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -16,22 +17,30 @@ class AppealRepository extends ServiceEntityRepository
         parent::__construct($registry, Appeal::class);
     }
 
-    public function findAllByTicketStatus(bool $status): ?array
-    {
-        return $this
-            ->createQueryBuilder('a')
-            ->where("a.ticketAppeal = :status")
-            ->setParameter('status', $status)
-            ->getQuery()
-            ->getResult();
-    }
-
-    public function findAllByType(string $type): ?array
+    public function findAppealsByStatusAndType(bool $ticketStatus, User $user, string $type): ?array
     {
         return $this
             ->createQueryBuilder('a')
             ->where("a.type = :type")
+            ->andWhere("a.ticketAppeal = :status")
+            ->andWhere("a.author = :user OR a.respondent = :user OR a.administrant = :user")
             ->setParameter('type', $type)
+            ->setParameter('status', $ticketStatus)
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function findTechSupportsByUser(bool $ticketStatus, User $user, string $type): ?array
+    {
+        return $this
+            ->createQueryBuilder('a')
+            ->where("a.type = :type")
+            ->andWhere("a.ticketAppeal = :status")
+            ->andWhere("a.administrant = :user OR a.author = :user")
+            ->setParameter('type', $type)
+            ->setParameter('status', $ticketStatus)
+            ->setParameter('user', $user)
             ->getQuery()
             ->getResult();
     }

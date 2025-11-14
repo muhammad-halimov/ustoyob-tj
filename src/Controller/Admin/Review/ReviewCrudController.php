@@ -65,7 +65,7 @@ class ReviewCrudController extends AbstractCrudController
         yield IdField::new('id')
             ->onlyOnIndex();
 
-        yield BooleanField::new('forReviewer', 'Отзыв рецензенту')
+        yield BooleanField::new('forClient', 'Отзыв клиенту')
             ->addCssClass("form-switch")
             ->setColumns(12);
 
@@ -73,7 +73,7 @@ class ReviewCrudController extends AbstractCrudController
             ->setRequired(true)
             ->setColumns(6);
 
-        yield AssociationField::new('reviewer', 'Рецензент')
+        yield AssociationField::new('client', 'Клиент')
             ->setRequired(true)
             ->setColumns(6);
 

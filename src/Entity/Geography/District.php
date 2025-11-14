@@ -91,10 +91,6 @@ class District
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
         'districts:read',
-        'provinces:read',
-        'userTickets:read',
-        'cities:read',
-        'masters:read',
     ])]
     private ?string $title = null;
 
@@ -111,8 +107,6 @@ class District
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
         'districts:read',
-        'provinces:read',
-        'cities:read',
     ])]
     #[ApiProperty(writable: false)]
     private ?string $image = null;

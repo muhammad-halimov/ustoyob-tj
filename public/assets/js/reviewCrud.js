@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function loadAndChangeChoices() {
-    const reviewerOption = document.getElementById('Review_forReviewer');
+    const reviewerOption = document.getElementById('Review_forClient');
     const serviceDropDown = document.querySelector('.services-field');
 
     const disableDropDown = (dropDown) => {

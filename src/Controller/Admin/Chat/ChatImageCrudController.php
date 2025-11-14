@@ -1,19 +1,19 @@
 <?php
 
-namespace App\Controller\Admin\Appeal;
+namespace App\Controller\Admin\Chat;
 
 use App\Controller\Admin\Field\VichImageField;
-use App\Entity\Appeal\AppealImage;
+use App\Entity\Chat\ChatImage;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 
-class AppealImageCrudController extends AbstractCrudController
+class ChatImageCrudController extends AbstractCrudController
 {
     public static function getEntityFqcn(): string
     {
-        return AppealImage::class;
+        return ChatImage::class;
     }
 
     public function configureFields(string $pageName): iterable

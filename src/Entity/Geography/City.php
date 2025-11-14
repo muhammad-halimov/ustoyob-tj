@@ -92,10 +92,6 @@ class City
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
         'cities:read',
-        'provinces:read',
-        'userTickets:read',
-        'districts:read',
-        'masters:read',
     ])]
     private ?string $title = null;
 
@@ -112,8 +108,6 @@ class City
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
         'cities:read',
-        'provinces:read',
-        'districts:read',
     ])]
     #[ApiProperty(writable: false)]
     private ?string $image = null;
@@ -126,7 +120,7 @@ class City
         'cities:read',
         'provinces:read',
     ])]
-    #[Ignore]
+    #[ApiProperty(writable: false)]
     private Collection $districts;
 
     #[ORM\ManyToOne(inversedBy: 'cities')]

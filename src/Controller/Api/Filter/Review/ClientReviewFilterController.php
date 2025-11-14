@@ -30,7 +30,7 @@ class ClientReviewFilterController extends AbstractController
         try {
             /** @var User $user */
             $user = $this->userRepository->find($id);
-            if (!$user) return $this->json([], 404);
+            if (!$user) return $this->json(['message' => 'User not found'], 404);
 
             $userRoles = $user->getRoles() ?? [];
             $allowedRoles = ["ROLE_ADMIN", "ROLE_CLIENT", "ROLE_MASTER"];

@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Entity\Appeal;
+namespace App\Entity\Chat;
 
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
-use App\Repository\Appeal\AppealImageRepository;
+use App\Repository\Chat\ChatImageRepository;
 use DateTime;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
@@ -16,23 +16,21 @@ use Symfony\Component\HttpFoundation\File\File;
 
 #[ORM\HasLifecycleCallbacks]
 #[Vich\Uploadable]
-#[ORM\Entity(repositoryClass: AppealImageRepository::class)]
-class AppealImage
+#[ORM\Entity(repositoryClass: ChatImageRepository::class)]
+class ChatImage
 {
     use UpdatedAtTrait, CreatedAtTrait;
 
     public function __toString(): string
     {
-        return $this->image ?? "Appeal image #$this->id";
+        return $this->image ?? "Chat image #$this->id";
     }
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
-        'appeals:read',
-        'appealsTicket:read',
-        'appealsSupport:read',
+        'chats:read',
     ])]
     private ?int $id = null;
 
@@ -42,20 +40,16 @@ class AppealImage
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
-        'appeals:read',
-        'appealsTicket:read',
-        'appealsSupport:read',
+        'chats:read',
     ])]
     private ?string $image = null;
 
-    #[ORM\ManyToOne(inversedBy: 'appealImages')]
-    private ?Appeal $appeals = null;
+    #[ORM\ManyToOne(inversedBy: 'chatImages')]
+    private ?Chat $chats = null;
 
-    #[ORM\ManyToOne(inversedBy: 'appealImages')]
+    #[ORM\ManyToOne(inversedBy: 'chatImages')]
     #[Groups([
-        'appeals:read',
-        'appealsTicket:read',
-        'appealsSupport:read',
+        'chats:read',
     ])]
     private ?User $author = null;
 
@@ -91,14 +85,14 @@ class AppealImage
         return $this;
     }
 
-    public function getAppeals(): ?Appeal
+    public function getChats(): ?Chat
     {
-        return $this->appeals;
+        return $this->chats;
     }
 
-    public function setAppeals(?Appeal $appeals): static
+    public function setChats(?Chat $chats): static
     {
-        $this->appeals = $appeals;
+        $this->chats = $chats;
 
         return $this;
     }

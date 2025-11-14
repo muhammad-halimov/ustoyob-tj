@@ -9,6 +9,7 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\Controller\Api\Filter\Appeal\AdminAppealFilterController;
 use App\Controller\Api\Filter\Appeal\PostAppealPhotoController;
 use App\Controller\Api\Filter\Appeal\SupportAppealFilterController;
 use App\Controller\Api\Filter\Appeal\TicketAppealFilterController;
@@ -45,11 +46,27 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
                  is_granted('ROLE_MASTER') or
                  is_granted('ROLE_CLIENT')"
         ),
+        new Get(
+            uriTemplate: '/appeals/complaints/ticket/{id}',
+//            controller: TicketAppealFilterController::class,
+            security:
+            "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        ),
         new GetCollection(
             uriTemplate: '/appeals/complaints/users',
             controller: UserAppealFilterController::class,
             security:
                 "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        ),
+        new Get(
+            uriTemplate: '/appeals/complaints/user/{id}',
+//            controller: UserAppealFilterController::class,
+            security:
+            "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or
                  is_granted('ROLE_CLIENT')"
         ),
@@ -60,6 +77,19 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
                 "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or
                  is_granted('ROLE_CLIENT')"
+        ),
+        new Get(
+            uriTemplate: '/appeals/support/user/{id}',
+//            controller: SupportAppealFilterController::class,
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        ),
+        new Get(
+            uriTemplate: '/appeals/support/admin/{id}',
+            controller: AdminAppealFilterController::class,
+            security: "is_granted('ROLE_ADMIN')"
         ),
         new Post(
             uriTemplate: '/appeals',
@@ -199,7 +229,6 @@ class Appeal
     ])]
     private ?string $status = null;
 
-
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
         'appealsSupport:read',
@@ -222,7 +251,7 @@ class Appeal
     private ?string $description = null;
 
     #[ORM\ManyToOne(inversedBy: 'appeals')]
-    #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    #[ORM\JoinColumn(name: 'author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'appeals:read',
         'appealsTicket:read',
