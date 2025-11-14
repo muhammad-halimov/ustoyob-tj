@@ -1,0 +1,253 @@
+@use '../../app/styles/variables' as vars;
+@use 'sass:map';
+
+.container {
+  max-width: 1284px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+
+.orderCard {
+  background: white;
+  border-radius: 12px;
+  padding: 30px;
+}
+
+.orderHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  //margin-bottom: 20px;
+}
+
+.orderTitle {
+  font-size: 28px;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+  flex: 1;
+}
+
+.category {
+  border-radius: 20px;
+  font-size: 24px;
+  color: map.get(vars.$colors, text-category);
+  margin-top: 10px;
+}
+
+.priceSection {
+  margin-bottom: 30px;
+  margin-top: 40px;
+}
+
+.price {
+  font-size: 24px;
+  font-weight: 700;
+  color: map.get(vars.$colors, text-black);
+}
+
+.section {
+  margin-bottom: 25px;
+
+  h2 {
+    font-size: 24px;
+    font-weight: 400;
+    margin-bottom: 10px;
+    color: map.get(vars.$colors, text-black);
+  }
+}
+
+.description {
+  line-height: 1.6;
+  color: map.get(vars.$colors, text-black);
+  font-size: 20px;
+  font-weight: 400;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid #e9ecef;
+}
+
+.address {
+  border-bottom: 1px solid #e9ecef;
+  padding: 20px 0;
+}
+
+.published {
+  border-bottom: 1px solid #e9ecef;
+  padding: 20px 0;
+}
+
+.address,
+.published {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: map.get(vars.$colors, text-black);
+
+  svg {
+    flex-shrink: 0;
+  }
+}
+
+.photos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.photo {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.authorInfo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  h3 {
+    margin: 0;
+    color: #333;
+  }
+}
+
+.timeAgo {
+  color: #999;
+  font-size: 14px;
+}
+
+.actions {
+  margin-top: 30px;
+}
+
+.checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 25px;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  color: #666;
+
+  input {
+    display: none;
+  }
+
+  .checkmark {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    position: relative;
+
+    &::after {
+      content: '';
+      position: absolute;
+      display: none;
+      left: 6px;
+      top: 2px;
+      width: 5px;
+      height: 10px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+  }
+
+  input:checked + .checkmark {
+    background: #3A54DA;
+    border-color: #3A54DA;
+
+    &::after {
+      display: block;
+    }
+  }
+}
+
+.buttons {
+  display: flex;
+  gap: 15px;
+
+  button {
+    flex: 1;
+    padding: 15px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+}
+
+.respondButton {
+  background: #3A54DA;
+  color: white;
+
+  &:hover {
+    background: #2a44ca;
+  }
+}
+
+.reviewButton {
+  background: #f8f9fa;
+  color: #3A54DA;
+  border: 2px solid #3A54DA !important;
+
+  &:hover {
+    background: #e9ecef;
+  }
+}
+
+.loading,
+.error {
+  text-align: center;
+  padding: 50px;
+  font-size: 18px;
+}
+
+.error {
+  button {
+    margin-top: 15px;
+    padding: 10px 20px;
+    background: #3A54DA;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 15px;
+  }
+
+  .orderCard {
+    padding: 20px;
+  }
+
+  .orderHeader {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .orderTitle {
+    font-size: 24px;
+  }
+
+  .buttons {
+    flex-direction: column;
+  }
+}

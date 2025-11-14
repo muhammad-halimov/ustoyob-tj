@@ -25,6 +25,7 @@
       padding-left: 4px;
       align-items: center;
       display: flex;
+      cursor: pointer;
     }
 
     .rightPart_lang {
@@ -151,13 +152,13 @@
   border: none;
   cursor: pointer;
   padding: 4px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
 
   &:hover {
     background: #f5f5f5;
-    border-radius: 4px;
   }
 }
 

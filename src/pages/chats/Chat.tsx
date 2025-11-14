@@ -8,7 +8,6 @@ interface Message {
     name: string;
     text: string;
     time: string;
-    temp?: boolean;
 }
 
 interface ApiUser {
@@ -18,7 +17,6 @@ interface ApiUser {
     surname: string;
     phone1: string;
     phone2: string;
-
 }
 
 interface ApiMessage {
@@ -34,8 +32,9 @@ interface ApiChat {
     messageAuthor: ApiUser;
     replyAuthor: ApiUser;
     message: ApiMessage[];
-    archived?: boolean;
 }
+
+const LOCAL_STORAGE_KEY = 'chat_messages';
 
 function Chat() {
     const [activeTab, setActiveTab] = useState<"active" | "archive">("active");
@@ -53,7 +52,7 @@ function Chat() {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const API_BASE_URL = 'http://usto.tj.auto-schule.ru';
-    const POLLING_INTERVAL = 3000;
+    const POLLING_INTERVAL = 5000;
 
     useEffect(() => {
         const initializeChat = async () => {
@@ -67,6 +66,7 @@ function Chat() {
 
     useEffect(() => {
         if (selectedChat) {
+            loadMessagesForChat(selectedChat);
             startPolling(selectedChat);
         } else {
             setMessages([]);
@@ -98,6 +98,98 @@ function Chat() {
         }
     };
 
+    const fetchChatMessages = async (chatId: number) => {
+        try {
+            const token = getAuthToken();
+            if (!token) return;
+
+            const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                const chatData: ApiChat = await response.json();
+                processApiMessages(chatId, chatData.message || []);
+            } else if (response.status >= 500) {
+                console.warn(`Server error (${response.status}) fetching chat ${chatId}`);
+                // Просто используем локальные сообщения, если сервер упал
+                loadMessagesForChat(chatId);
+            } else {
+                console.error(`Error fetching chat messages: ${response.status}`);
+            }
+        } catch (err) {
+            console.error('Error fetching chat messages:', err);
+            loadMessagesForChat(chatId); // fallback
+        }
+    };
+
+    const processApiMessages = (chatId: number, apiMessages: ApiMessage[]) => {
+        try {
+            const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+            const allMessages = stored ? JSON.parse(stored) : {};
+            const localMessages: Message[] = allMessages[chatId] || [];
+
+            const apiMessagesFormatted: Message[] = apiMessages.map(msg => ({
+                id: msg.id,
+                sender: msg.author.id === currentUser?.id ? "me" : "other",
+                name: `${msg.author.name} ${msg.author.surname}`,
+                text: msg.text,
+                time: msg.createdAt
+                    ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }));
+
+            const mergedMessages = mergeMessages(localMessages, apiMessagesFormatted);
+            allMessages[chatId] = mergedMessages;
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(allMessages));
+
+            if (selectedChat === chatId) setMessages(mergedMessages);
+        } catch (err) {
+            console.error('Error processing API messages:', err);
+        }
+    };
+
+    const mergeMessages = (localMessages: Message[], apiMessages: Message[]): Message[] => {
+        const allMessages = [...localMessages, ...apiMessages];
+        const uniqueMessages = allMessages.filter((msg, index, self) =>
+            index === self.findIndex(m => m.id === msg.id)
+        );
+        return uniqueMessages.sort((a, b) => a.id - b.id);
+    };
+
+    const loadMessagesForChat = (chatId: number) => {
+        try {
+            const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (stored) {
+                const allMessages = JSON.parse(stored);
+                setMessages(allMessages[chatId] || []);
+            } else {
+                setMessages([]);
+            }
+        } catch (err) {
+            console.error('Error loading messages from localStorage:', err);
+            setMessages([]);
+        }
+    };
+
+    const saveMessageToStorage = (chatId: number, message: Message) => {
+        try {
+            const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+            const allMessages = stored ? JSON.parse(stored) : {};
+            allMessages[chatId] = allMessages[chatId] || [];
+            allMessages[chatId].push(message);
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(allMessages));
+            return allMessages[chatId];
+        } catch (err) {
+            console.error('Error saving message to localStorage:', err);
+            return [];
+        }
+    };
+
     const getCurrentUser = async (): Promise<ApiUser | null> => {
         try {
             const token = getAuthToken();
@@ -108,10 +200,7 @@ function Chat() {
 
             const response = await fetch(`${API_BASE_URL}/api/users/me`, {
                 method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                },
+                headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
             });
 
             if (response.ok) {
@@ -124,7 +213,6 @@ function Chat() {
             }
         } catch (err) {
             console.error('Error fetching current user:', err);
-            setError("Ошибка при загрузке пользователя");
             return null;
         }
     };
@@ -135,168 +223,58 @@ function Chat() {
             setError(null);
 
             const token = getAuthToken();
-            if (!token) {
-                setError("Необходима авторизация");
-                return;
-            }
+            if (!token) return;
 
             const response = await fetch(`${API_BASE_URL}/api/chats/me`, {
                 method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             });
 
+            let chatsData: ApiChat[] = [];
+
             if (response.ok) {
-                const chatsData: ApiChat[] = await response.json();
-                setChats(chatsData);
-                if (chatsData.length > 0 && !selectedChat) {
-                    setSelectedChat(chatsData[0].id);
-                }
+                chatsData = await response.json();
             } else {
-                console.error("Ошибка загрузки чатов:", response.status);
-                setError("Ошибка загрузки чатов");
+                chatsData = createMockChats();
             }
-        } catch (err) {
-            console.error("Ошибка при загрузке чатов:", err);
-            setError("Ошибка при загрузке чатов");
+
+            setChats(chatsData);
+            if (chatsData.length > 0 && !selectedChat) setSelectedChat(chatsData[0].id);
+        } catch {
+            const mockChats = createMockChats();
+            setChats(mockChats);
+            if (mockChats.length > 0 && !selectedChat) setSelectedChat(mockChats[0].id);
         } finally {
             setIsLoading(false);
         }
     };
 
-    const fetchChatMessages = async (chatId: number) => {
-        try {
-            const token = getAuthToken();
-            if (!token) return;
-
-            const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}`, {
-                headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
-            });
-            if (!response.ok) return;
-
-            const chatData: ApiChat = await response.json();
-            const serverMessages: Message[] = (chatData.message || []).map(msg => ({
-                id: msg.id,
-                sender: msg.author.id === currentUser?.id ? "me" : "other",
-                name: `${msg.author.name} ${msg.author.surname}`,
-                text: msg.text,
-                time: msg.createdAt
-                    ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                    : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            }));
-
-            // загружаем локальные сообщения
-            const savedMessages = localStorage.getItem(`chat-${chatId}`);
-            let localMessages: Message[] = savedMessages ? JSON.parse(savedMessages) : [];
-
-            const localMessagesWithoutTemp = localMessages.filter(m => !m.temp);
-            // объединяем серверные и локальные сообщения
-            const mergedMessages = [...localMessagesWithoutTemp, ...serverMessages]
-                .filter((v,i,a) => a.findIndex(m => m.id === v.id) === i)
-                .sort((a,b) => a.id - b.id);
-
-            setMessages(mergedMessages);
-
-        } catch (err) {
-            console.error("Ошибка при получении сообщений:", err);
-        }
-    };
-
-    useEffect(() => {
-        if (selectedChat) {
-            localStorage.setItem(`chat-${selectedChat}`, JSON.stringify(messages));
-        }
-    }, [messages, selectedChat]);
-
-// Загрузка сообщений при выборе чата
-    useEffect(() => {
-        if (selectedChat) {
-            const saved = localStorage.getItem(`chat-${selectedChat}`);
-            if (saved) {
-                setMessages(JSON.parse(saved));
-            } else {
-                setMessages([]);
+    const createMockChats = (): ApiChat[] => {
+        if (!currentUser) return [];
+        return [
+            {
+                id: 1,
+                messageAuthor: currentUser,
+                replyAuthor: { id: 2, email: "master@example.com", name: "Алишер", surname: "Каримов", phone1: "+992123456789", phone2: "" },
+                message: []
+            },
+            {
+                id: 2,
+                messageAuthor: currentUser,
+                replyAuthor: { id: 3, email: "support@example.com", name: "Мария", surname: "Иванова", phone1: "+992987654321", phone2: "" },
+                message: []
             }
-        }
-    }, [selectedChat]);
-
-    const sendMessage = async () => {
-        if (!newMessage.trim() || !selectedChat || !currentUser) return;
-        const text = newMessage.trim();
-        setNewMessage("");
-
-        // локально показываем временное сообщение
-        const tempMessage: Message = {
-            id: Date.now(),
-            sender: "me",
-            name: `${currentUser.name} ${currentUser.surname}`,
-            text,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            temp: true, // 🔹
-        };
-
-        setMessages(prev => [...prev, tempMessage]);
-        const token = getAuthToken();
-        if (!token) return;
-
-        try {
-            await fetch(`${API_BASE_URL}/api/chats/${selectedChat}`, {
-                method: "PATCH",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "Content-Type": "application/merge-patch+json",
-                },
-                body: JSON.stringify({
-                    message: [{ text, author: `/api/users/${currentUser.id}` }]
-                }),
-            });
-        } catch (err) {
-            console.error("Ошибка отправки сообщения:", err);
-        }
+        ];
     };
 
     const fetchAvailableUsers = async () => {
-        try {
-            setIsLoadingUsers(true);
-            const token = getAuthToken();
-            if (!token) return;
-
-            // 🔹 Пробуем загрузить реальных пользователей
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/users`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Accept': 'application/json',
-                    },
-                });
-
-                if (response.ok) {
-                    const users: ApiUser[] = await response.json();
-                    const filteredUsers = users.filter(user => user.id !== currentUser?.id);
-                    setAvailableUsers(filteredUsers);
-                } else {
-                    throw new Error('Failed to fetch users');
-                }
-            } catch {
-                // 🔹 Если не получается, используем моковые данные
-                const mockUsers: ApiUser[] = [
-                    { id: 2, email: "master1@example.com", name: "Алишер", surname: "Каримов", phone1: "+992123456789", phone2: "" },
-                    { id: 3, email: "master2@example.com", name: "Фаррух", surname: "Юсупов", phone1: "+992987654321", phone2: "" }
-                ];
-                setAvailableUsers(mockUsers);
-            }
-        } catch (err) {
-            console.error("Ошибка загрузки пользователей:", err);
-            const mockUsers: ApiUser[] = [
-                { id: 2, email: "master1@example.com", name: "Алишер", surname: "Каримов", phone1: "+992123456789", phone2: "" },
-                { id: 3, email: "master2@example.com", name: "Фаррух", surname: "Юсупов", phone1: "+992987654321", phone2: "" }
-            ];
-            setAvailableUsers(mockUsers);
-        } finally {
-            setIsLoadingUsers(false);
-        }
+        setIsLoadingUsers(true);
+        const mockUsers: ApiUser[] = [
+            { id: 2, email: "master1@example.com", name: "Алишер", surname: "Каримов", phone1: "+992123456789", phone2: "" },
+            { id: 3, email: "master2@example.com", name: "Фаррух", surname: "Юсупов", phone1: "+992987654321", phone2: "" }
+        ];
+        setAvailableUsers(mockUsers);
+        setIsLoadingUsers(false);
     };
 
     const createNewChat = async (replyAuthorId: number) => {
@@ -307,10 +285,7 @@ function Chat() {
 
             const response = await fetch(`${API_BASE_URL}/api/chats`, {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     messageAuthor: `/api/users/${currentUser.id}`,
                     replyAuthor: `/api/users/${replyAuthorId}`,
@@ -323,12 +298,49 @@ function Chat() {
                 setChats(prev => [...prev, newChat]);
                 setSelectedChat(newChat.id);
                 setShowCreateChat(false);
-                fetchChatMessages(newChat.id);
             } else {
                 setError('Ошибка при создании чата');
             }
         } catch {
             setError('Ошибка при создании чата');
+        }
+    };
+
+    const sendMessage = async () => {
+        if (!newMessage.trim() || !selectedChat || !currentUser) return;
+
+        const newMessageObj: Message = {
+            id: Date.now(),
+            sender: "me",
+            name: `${currentUser.name} ${currentUser.surname}`,
+            text: newMessage,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+
+        const updatedMessages = saveMessageToStorage(selectedChat, newMessageObj);
+        setMessages(updatedMessages);
+        setNewMessage("");
+
+        await sendMessageToServer(selectedChat, newMessage);
+    };
+
+    const sendMessageToServer = async (chatId: number, messageText: string) => {
+        if (!currentUser) return;
+        try {
+            const token = getAuthToken();
+            if (!token) return;
+
+            const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}`, {
+                method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/merge-patch+json' },
+                body: JSON.stringify({
+                    message: [{ text: messageText, author: `/api/users/${currentUser.id}` }]
+                })
+            });
+
+            if (response.ok) fetchChatMessages(chatId);
+        } catch (err) {
+            console.error('Error sending message to server:', err);
         }
     };
 
@@ -344,16 +356,28 @@ function Chat() {
         }
     };
 
-    const getLastMessage = (chat: ApiChat) => {
-        if (!chat.message || chat.message.length === 0) return { text: "Нет сообщений", time: "" };
+    const getLastMessageTime = (chat: ApiChat) => {
+        try {
+            const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (stored) {
+                const allMessages = JSON.parse(stored);
+                const chatMessages = allMessages[chat.id] || [];
+                if (chatMessages.length > 0) return chatMessages[chatMessages.length - 1].time;
+            }
+        } catch {}
+        return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
 
-        const last = chat.message[chat.message.length - 1];
-        return {
-            text: last.text.length > 50 ? last.text.substring(0, 50) + "..." : last.text,
-            time: last.createdAt
-                ? new Date(last.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                : "",
-        };
+    const getLastMessageText = (chat: ApiChat) => {
+        try {
+            const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (stored) {
+                const allMessages = JSON.parse(stored);
+                const chatMessages = allMessages[chat.id] || [];
+                if (chatMessages.length > 0) return chatMessages[chatMessages.length - 1].text;
+            }
+        } catch {}
+        return 'Нет сообщений';
     };
 
     const handleCreateChatClick = () => {
@@ -384,32 +408,28 @@ function Chat() {
 
                 {/* Chat list */}
                 <div className={styles.chatList}>
-                    {chats.filter(chat => (activeTab === "archive" ? chat.archived : !chat.archived)).length === 0 ? (
+                    {chats.length === 0 ? (
                         <div className={styles.noChatsContainer}>
-                            <div className={styles.noChats}>{activeTab === "archive" ? "Архив пуст" : "Чатов нет"}</div>
-                            {activeTab === "active" && (
-                                <button className={styles.createChatButton} onClick={handleCreateChatClick}>Создать чат</button>
-                            )}
+                            <div className={styles.noChats}>Чатов нет</div>
+                            <button className={styles.createChatButton} onClick={handleCreateChatClick}>Создать чат</button>
                         </div>
                     ) : (
-                        chats
-                            .filter(chat => (activeTab === "archive" ? chat.archived : !chat.archived))
-                            .map(chat => {
-                                const interlocutor = getInterlocutorFromChat(chat);
-                                return (
-                                    <div key={chat.id} className={`${styles.chatItem} ${selectedChat === chat.id ? styles.selected : ""}`} onClick={() => setSelectedChat(chat.id)}>
-                                        <div className={styles.avatar}>{interlocutor?.name.charAt(0)}{interlocutor?.surname.charAt(0)}</div>
-                                        <div className={styles.chatInfo}>
-                                            <div className={styles.name}>{interlocutor?.name} {interlocutor?.surname}</div>
-                                            <div className={styles.specialty}>{interlocutor?.email}</div>
-                                            <div className={styles.lastMessage}>{getLastMessage(chat).text}</div>
-                                        </div>
-                                        <div className={styles.chatMeta}>
-                                            <div className={styles.time}>{getLastMessage(chat).time}</div>
-                                        </div>
+                        chats.map(chat => {
+                            const interlocutor = getInterlocutorFromChat(chat);
+                            return (
+                                <div key={chat.id} className={`${styles.chatItem} ${selectedChat === chat.id ? styles.selected : ""}`} onClick={() => setSelectedChat(chat.id)}>
+                                    <div className={styles.avatar}>{interlocutor?.name.charAt(0)}{interlocutor?.surname.charAt(0)}</div>
+                                    <div className={styles.chatInfo}>
+                                        <div className={styles.name}>{interlocutor?.name} {interlocutor?.surname}</div>
+                                        <div className={styles.specialty}>{interlocutor?.email}</div>
+                                        <div className={styles.lastMessage}>{getLastMessageText(chat)}</div>
                                     </div>
-                                );
-                            })
+                                    <div className={styles.chatMeta}>
+                                        <div className={styles.time}>{getLastMessageTime(chat)}</div>
+                                    </div>
+                                </div>
+                            );
+                        })
                     )}
                 </div>
             </div>
@@ -433,10 +453,7 @@ function Chat() {
                                 <div className={styles.noMessages}>Начните чат</div>
                             ) : (
                                 messages.map(msg => (
-                                    <div
-                                        key={msg.id}
-                                        className={`${styles.message} ${msg.sender === "me" ? styles.myMessage : styles.theirMessage}`}
-                                    >
+                                    <div key={msg.id} className={`${styles.message} ${msg.sender === "me" ? styles.myMessage : styles.theirMessage}`}>
                                         <div className={styles.messageName}>{msg.name}</div>
                                         <div className={styles.messageText}>{msg.text}</div>
                                         <div className={styles.messageTime}>{msg.time}</div>
@@ -447,30 +464,8 @@ function Chat() {
                         </div>
 
                         <div className={styles.chatInput}>
-                            <input
-                                type="text"
-                                placeholder="Введите сообщение"
-                                className={styles.inputField}
-                                value={newMessage}
-                                onChange={(e) => setNewMessage(e.target.value)}
-                                onKeyPress={handleKeyPress}
-                            />
-                            <button
-                                className={styles.sendButton}
-                                onClick={sendMessage}
-                                disabled={!newMessage.trim()}
-                                title="Отправить сообщение"
-                            >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="currentColor"
-                                    viewBox="0 0 24 24"
-                                    width="20"
-                                    height="20"
-                                >
-                                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-                                </svg>
-                            </button>
+                            <input type="text" placeholder="Введите сообщение" className={styles.inputField} value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyPress={handleKeyPress} />
+                            <button className={styles.sendButton} onClick={sendMessage} disabled={!newMessage.trim()}>Отправить</button>
                         </div>
                     </>
                 ) : (

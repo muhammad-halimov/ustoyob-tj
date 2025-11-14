@@ -127,35 +127,55 @@
       margin-bottom: 12px;
 
       h3 {
-        font-size: 24px;
-        font-weight: 500;
+        font-size: 32px;
+        font-weight: 400;
         color: map.get(vars.$colors, text-black);
         margin: 0;
       }
 
-      span {
-        font-size: 18px;
-        color: map.get(vars.$colors, actual-blue);
+      .price {
+        font-size: 20px;
+        color: map.get(vars.$colors, text-black);
         font-weight: 500;
+        background-color: map.get(vars.$colors, background-btn2);
+        padding: 10px 20px;
+        border-radius: 10px;
       }
     }
 
     .description {
-      margin-bottom: 16px;
-      color: map.get(vars.$colors, text-placeholder);
-      font-size: 16px;
+      margin-bottom: 20px;
+      color: map.get(vars.$colors, text-black);
+      font-size: 24px;
       line-height: 1.4;
     }
 
     .resultDetails {
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      margin-bottom: 16px;
+      gap: 10px;
+      margin-bottom: 20px;
+      .address svg {
+        margin-right: 16px;
+      }
+      .date svg {
+        margin-right: 16px;
+      }
 
       span {
-        font-size: 14px;
+        font-size: 24px;
         color: map.get(vars.$colors, text-black);
+      }
+
+      .category {
+        max-width: 200px;
+        text-align: center;
+        font-size: 18px;
+        color: map.get(vars.$colors, text-black);
+        font-weight: 500;
+        background-color: map.get(vars.$colors, background-btn2);
+        padding: 10px 20px;
+        border-radius: 10px;
       }
     }
 
@@ -164,14 +184,201 @@
       justify-content: space-between;
       align-items: center;
 
+      .author svg {
+        margin-right: 16px;
+      }
+
       span {
-        font-size: 14px;
-        color: map.get(vars.$colors, text-black);
+        font-size: 24px;
+        color: map.get(vars.$colors, text-who);
       }
 
       .timeAgo {
         color: map.get(vars.$colors, text-placeholder);
       }
     }
+  }
+}
+
+// Стили для выпадающего списка категорий
+.category_select {
+  position: relative;
+  margin-top: 8px;
+
+  select {
+    width: 100%;
+    padding: 16px 20px;
+    font-size: 20px;
+    color: map.get(vars.$colors, text-black);
+    background: map.get(vars.$colors, primary-text-white);
+    border: 2px solid map.get(vars.$colors, color-stroke);
+    border-radius: 10px;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    transition: all 0.2s ease;
+
+    &:focus {
+      border-color: map.get(vars.$colors, actual-blue);
+      box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.1);
+    }
+
+    &:hover {
+      border-color: map.get(vars.$colors, actual-blue);
+    }
+
+    option {
+      padding: 12px 20px;
+      font-size: 18px;
+      color: map.get(vars.$colors, text-black);
+      background: map.get(vars.$colors, primary-text-white);
+
+      &:hover {
+        background: map.get(vars.$colors, actual-blue);
+        color: white;
+      }
+    }
+  }
+
+  // Кастомная стрелка для select
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 20px;
+    transform: translateY(-50%);
+    width: 12px;
+    height: 12px;
+    border-right: 2px solid map.get(vars.$colors, actual-blue);
+    border-bottom: 2px solid map.get(vars.$colors, actual-blue);
+    transform: translateY(-50%) rotate(45deg);
+    pointer-events: none;
+    transition: transform 0.2s ease;
+  }
+
+  &:hover::after {
+    transform: translateY(-50%) rotate(225deg);
+  }
+}
+
+// Стили для секции фильтров категорий
+.filter_section {
+  margin-bottom: 24px;
+
+  h3 {
+    font-size: 24px;
+    font-weight: 400;
+    color: map.get(vars.$colors, text-black);
+    margin-bottom: 12px;
+    letter-spacing: 0.02em;
+  }
+}
+
+// Стили для активных фильтров (если еще не добавили)
+.activeFilters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+  padding: 12px 16px;
+  background: map.get(vars.$colors, background-btn2);
+  border-radius: 10px;
+  font-size: 18px;
+
+  span:first-child {
+    font-weight: 500;
+    color: map.get(vars.$colors, text-black);
+  }
+}
+
+.filterTag {
+  background: map.get(vars.$colors, actual-blue);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.clearFiltersBtn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+
+  &:hover {
+    background: #c82333;
+  }
+}
+
+// Стили для ценовых инпутов (если нужно)
+.price_inputs {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+
+  .price_input {
+    flex: 1;
+
+    input {
+      width: 100%;
+      padding: 16px 20px;
+      font-size: 20px;
+      color: map.get(vars.$colors, text-black);
+      background: map.get(vars.$colors, primary-text-white);
+      border: 2px solid map.get(vars.$colors, color-stroke);
+      border-radius: 10px;
+      outline: none;
+      transition: all 0.2s ease;
+
+      &::placeholder {
+        color: map.get(vars.$colors, text-placeholder);
+      }
+
+      &:focus {
+        border-color: map.get(vars.$colors, actual-blue);
+        box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.1);
+      }
+
+      &:hover {
+        border-color: map.get(vars.$colors, actual-blue);
+      }
+    }
+  }
+}
+
+// Медиа-запросы для адаптивности
+@media (max-width: 768px) {
+  .category_select {
+    select {
+      font-size: 18px;
+      padding: 14px 16px;
+    }
+  }
+
+  .price_inputs {
+    flex-direction: column;
+    gap: 8px;
+
+    .price_input input {
+      font-size: 18px;
+      padding: 14px 16px;
+    }
+  }
+
+  .activeFilters {
+    font-size: 16px;
+    padding: 10px 12px;
+  }
+
+  .filterTag,
+  .clearFiltersBtn {
+    font-size: 14px;
+    padding: 6px 12px;
   }
 }
