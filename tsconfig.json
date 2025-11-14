@@ -2,6 +2,11 @@
   "compilerOptions": {
     "types": ["node"],
   },
+  "include": [
+    "src",
+    "src/**/*",
+    "src/types/asset-types.d.ts"
+  ],
   "files": [],
   "references": [
     { "path": "./tsconfig.app.json" },

@@ -145,7 +145,7 @@
     max-width: 141px;
 
     &:hover {
-      background: darken(map.get(vars.$colors, actual-blue), 10%);
+      background: map.get(vars.$colors, actual-blue);
     }
   }
 
