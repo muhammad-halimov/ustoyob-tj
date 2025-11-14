@@ -25,4 +25,14 @@ class AppealRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    public function findAllByType(string $type): ?array
+    {
+        return $this
+            ->createQueryBuilder('a')
+            ->where("a.type = :type")
+            ->setParameter('type', $type)
+            ->getQuery()
+            ->getResult();
+    }
 }

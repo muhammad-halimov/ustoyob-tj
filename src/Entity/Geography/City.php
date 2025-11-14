@@ -69,7 +69,7 @@ class City
 
     public function __toString(): string
     {
-        return $this->title ?? '';
+        return $this->title ?? "City #$this->id";
     }
 
     public function __construct()

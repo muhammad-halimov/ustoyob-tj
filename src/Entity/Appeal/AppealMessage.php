@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Entity\Chat;
+namespace App\Entity\Appeal;
 
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
@@ -9,23 +9,21 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\Filter\Chat\PostMessageController;
+use App\Controller\Api\Filter\Appeal\PostAppealMessageController;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
-use App\Repository\Chat\ChatMessageRepository;
+use App\Repository\Appeal\AppealMessageRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
-use Vich\UploaderBundle\Mapping\Annotation as Vich;
 
+#[ORM\Entity(repositoryClass: AppealMessageRepository::class)]
 #[ORM\HasLifecycleCallbacks]
-#[ORM\Entity(repositoryClass: ChatMessageRepository::class)]
-#[Vich\Uploadable]
 #[ApiResource(
     operations: [
         new Get(
-            uriTemplate: '/chat-messages/{id}',
+            uriTemplate: '/appeal-messages/{id}',
             requirements: ['id' => '\d+'],
             security:
                 "is_granted('ROLE_ADMIN') or
@@ -33,22 +31,22 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
                  is_granted('ROLE_CLIENT')"
         ),
         new GetCollection(
-            uriTemplate: '/chat-messages',
+            uriTemplate: '/appeal-messages',
             security:
                 "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or
                  is_granted('ROLE_CLIENT')"
         ),
         new Post(
-            uriTemplate: '/chat-messages',
-            controller: PostMessageController::class,
+            uriTemplate: '/appeal-messages',
+            controller: PostAppealMessageController::class,
             security:
                 "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or
                  is_granted('ROLE_CLIENT')"
         ),
         new Patch(
-            uriTemplate: '/chat-messages/{id}',
+            uriTemplate: '/appeal-messages/{id}',
             requirements: ['id' => '\d+'],
             security:
                 "is_granted('ROLE_ADMIN') or
@@ -56,7 +54,7 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
                  is_granted('ROLE_CLIENT')"
         ),
         new Delete(
-            uriTemplate: '/chat-messages/{id}',
+            uriTemplate: '/appeal-messages/{id}',
             requirements: ['id' => '\d+'],
             security:
                 "is_granted('ROLE_ADMIN') or
@@ -65,48 +63,47 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
         )
     ],
     normalizationContext: [
-        'groups' => ['chatMessages:read'],
+        'groups' => ['appealMessages:read'],
         'skip_null_values' => false,
     ],
     paginationEnabled: false,
 )]
-class ChatMessage
+class AppealMessage
 {
     use UpdatedAtTrait, CreatedAtTrait;
 
     public function __toString(): string
     {
-        return $this->text ?? "Message #$this->id";
+        return $this->text ?? "Appeal message #$this->id";
     }
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
-        'chats:read',
-        'chatMessages:read'
+        'appealMessages:read',
+        'appealsSupport:read',
     ])]
     private ?int $id = null;
 
-
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups([
-        'chats:read',
-        'chatMessages:read'
+        'appealMessages:read',
+        'appealsSupport:read',
     ])]
     private ?string $text = null;
 
-    #[ORM\ManyToOne(inversedBy: 'messages')]
+    #[ORM\ManyToOne(inversedBy: 'appealMessages')]
+    #[ORM\JoinColumn(name: 'appeal_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
-        'chatMessages:read'
+        'appealMessages:read',
     ])]
-    private ?Chat $chat = null;
+    private ?Appeal $appeal = null;
 
-    #[ORM\ManyToOne(inversedBy: 'chatMessages')]
-    #[ORM\JoinColumn(name: 'author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    #[ORM\ManyToOne(inversedBy: 'appealMessages')]
     #[Groups([
-        'chats:read',
-        'chatMessages:read'
+        'appealMessages:read',
+        'appealsSupport:read',
     ])]
     #[ApiProperty(writable: false)]
     private ?User $author = null;
@@ -114,6 +111,18 @@ class ChatMessage
     public function getId(): ?int
     {
         return $this->id;
+    }
+
+    public function getAuthor(): ?User
+    {
+        return $this->author;
+    }
+
+    public function setAuthor(?User $author): static
+    {
+        $this->author = $author;
+
+        return $this;
     }
 
     public function getText(): ?string
@@ -128,26 +137,14 @@ class ChatMessage
         return $this;
     }
 
-    public function getChat(): ?Chat
+    public function getAppeal(): ?Appeal
     {
-        return $this->chat;
+        return $this->appeal;
     }
 
-    public function setChat(?Chat $chat): static
+    public function setAppeal(?Appeal $appeal): static
     {
-        $this->chat = $chat;
-
-        return $this;
-    }
-
-    public function getAuthor(): ?User
-    {
-        return $this->author;
-    }
-
-    public function setAuthor(?User $author): static
-    {
-        $this->author = $author;
+        $this->appeal = $appeal;
 
         return $this;
     }

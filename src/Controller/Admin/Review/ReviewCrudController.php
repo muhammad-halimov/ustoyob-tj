@@ -69,7 +69,7 @@ class ReviewCrudController extends AbstractCrudController
             ->addCssClass("form-switch")
             ->setColumns(12);
 
-        yield AssociationField::new('user', 'Мастер')
+        yield AssociationField::new('master', 'Мастер')
             ->setRequired(true)
             ->setColumns(6);
 

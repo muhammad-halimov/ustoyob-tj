@@ -15,6 +15,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
 class AppealCrudController extends AbstractCrudController
 {
@@ -33,11 +34,11 @@ class AppealCrudController extends AbstractCrudController
     {
         return parent::configureCrud($crud)
             ->setEntityPermission('ROLE_ADMIN')
-            ->setEntityLabelInPlural('Жалобы')
-            ->setEntityLabelInSingular('жалобу')
-            ->setPageTitle(Crud::PAGE_NEW, 'Добавление жалобы')
-            ->setPageTitle(Crud::PAGE_EDIT, 'Изменение жалобы')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о жалобе");
+            ->setEntityLabelInPlural('ТП / Жалобы')
+            ->setEntityLabelInSingular('талон / жалобу')
+            ->setPageTitle(Crud::PAGE_NEW, 'Добавление талона / жалобы')
+            ->setPageTitle(Crud::PAGE_EDIT, 'Изменение талона / жалобы')
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о талоне / жалобе");
     }
 
     public function configureActions(Actions $actions): Actions
@@ -65,31 +66,71 @@ class AppealCrudController extends AbstractCrudController
         yield IdField::new('id')
             ->onlyOnIndex();
 
-        yield BooleanField::new('ticketAppeal', 'Объявление')
+        yield ChoiceField::new('type', 'Тип')
+            ->setRequired(true)
+            ->renderExpanded()
+            ->addCssClass("form-switch")
+            ->setChoices(Appeal::TYPES)
             ->setColumns(12);
 
-        yield AssociationField::new('user', 'Истец')
+        yield BooleanField::new('ticketAppeal', 'Жалоба на объявление')
+            ->hideOnIndex()
+            ->setColumns(12);
+
+        yield TextField::new('title', 'Заголовок')
+            ->setRequired(true)
+            ->setColumns(6);
+
+        yield ChoiceField::new('supportReason', 'Категория талона')
+            ->setColumns(6)
+            ->setChoices(Appeal::SUPPORT)
+            ->addCssClass('support-field')
+            ->setRequired(true);
+
+        yield ChoiceField::new('status', 'Статус')
+            ->setColumns(3)
+            ->setChoices(Appeal::STATUSES)
+            ->addCssClass('status-field')
+            ->setRequired(true);
+
+        yield ChoiceField::new('priority', 'Приоритет')
+            ->setColumns(3)
+            ->setChoices(Appeal::PRIORITIES)
+            ->addCssClass('priority-field')
+            ->setRequired(true);
+
+        yield AssociationField::new('administrant', 'Исполнитель')
+            ->hideOnIndex()
+            ->setRequired(true)
+            ->addCssClass('administrant-field')
+            ->setColumns(6);
+
+        yield TextEditorField::new('description', 'Описание')
+            ->hideOnIndex()
+            ->setRequired(true)
+            ->setColumns(12);
+
+        yield AssociationField::new('author', 'Истец / Автор')
             ->setRequired(true)
             ->setColumns(6);
 
         yield AssociationField::new('ticket', 'Объявление')
+            ->hideOnIndex()
             ->setRequired(true)
             ->addCssClass('ticket-field')
             ->setColumns(6);
 
-        yield ChoiceField::new('reason', 'Причина')
+        yield ChoiceField::new('compliantReason', 'Причина жалобы')
             ->setColumns(6)
-            ->setChoices(Appeal::REASONS)
+            ->setChoices(Appeal::COMPLAINTS)
+            ->addCssClass('compliant-field')
             ->setRequired(true);
 
         yield AssociationField::new('respondent', 'Ответчик')
+            ->hideOnIndex()
             ->setRequired(true)
             ->addCssClass('respondent-field')
             ->setColumns(6);
-
-        yield TextEditorField::new('description', 'Описание')
-            ->setRequired(true)
-            ->setColumns(12);
 
         yield CollectionField::new('appealImages', 'Галерея изображений')
             ->useEntryCrudForm(AppealImageCrudController::class)
@@ -97,10 +138,18 @@ class AppealCrudController extends AbstractCrudController
             ->setColumns(12)
             ->setRequired(false);
 
+        yield CollectionField::new('appealMessages', 'Сообщения')
+            ->addCssClass('messages-field')
+            ->useEntryCrudForm(AppealMessageCrudController::class)
+            ->hideOnIndex()
+            ->setColumns(12)
+            ->setRequired(false);
+
         yield DateTimeField::new('updatedAt', 'Обновлено')
-            ->onlyOnIndex();
+            ->hideOnForm()
+            ->hideOnIndex();
 
         yield DateTimeField::new('createdAt', 'Создано')
-            ->onlyOnIndex();
+            ->hideOnForm();
     }
 }

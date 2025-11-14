@@ -106,6 +106,11 @@ class Review
 {
     use UpdatedAtTrait, CreatedAtTrait;
 
+    public function __toString(): string
+    {
+        return $this->description[15] ?? "Review #$this->id";
+    }
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -115,12 +120,12 @@ class Review
     ])]
     private ?int $id = null;
 
-    #[ORM\ManyToOne(inversedBy: 'userServiceReviews')]
+    #[ORM\ManyToOne(inversedBy: 'masterReviews')]
     #[Groups([
         'reviews:read',
         'reviewsClient:read',
     ])]
-    private ?User $user = null;
+    private ?User $master = null;
 
     #[ORM\ManyToOne(inversedBy: 'clientReview')]
     #[Groups([
@@ -179,14 +184,14 @@ class Review
         return $this->id;
     }
 
-    public function getUser(): ?User
+    public function getMaster(): ?User
     {
-        return $this->user;
+        return $this->master;
     }
 
-    public function setUser(?User $user): static
+    public function setMaster(?User $master): static
     {
-        $this->user = $user;
+        $this->master = $master;
 
         return $this;
     }

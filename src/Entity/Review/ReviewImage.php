@@ -20,6 +20,11 @@ class ReviewImage
 {
     use UpdatedAtTrait, CreatedAtTrait;
 
+    public function __toString(): string
+    {
+        return $this->image ?? "Review Image #$this->id";
+    }
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]

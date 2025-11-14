@@ -2,13 +2,10 @@
 
 namespace App\Entity\User;
 
-use ApiPlatform\Metadata\ApiProperty;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\User\EducationRepository;
-use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
@@ -21,7 +18,10 @@ class Education
 
     public function __toString(): string
     {
-        return $this->uniTitle;
+        if ($this->beginning && $this->ending)
+            return "$this->uniTitle, $this->beginning - $this->ending";
+
+        return $this->uniTitle ?? "Education #$this->id";
     }
 
     #[ORM\Id]
@@ -66,17 +66,9 @@ class Education
     #[Ignore]
     private ?User $user = null;
 
-    /**
-     * @var Collection<int, Occupation>
-     */
-    #[ORM\OneToMany(targetEntity: Occupation::class, mappedBy: 'education')]
-    #[ApiProperty(writable: false)]
-    private Collection $occupation;
-
-    public function __construct()
-    {
-        $this->occupation = new ArrayCollection();
-    }
+    #[ORM\ManyToOne(inversedBy: 'education')]
+    #[Ignore]
+    private ?Occupation $occupation = null;
 
     public function getId(): ?int
     {
@@ -152,32 +144,14 @@ class Education
         return $this;
     }
 
-    /**
-     * @return Collection<int, Occupation>
-     */
-    public function getOccupation(): Collection
+    public function getOccupation(): ?Occupation
     {
         return $this->occupation;
     }
 
-    public function addOccupation(Occupation $occupation): static
+    public function setOccupation(?Occupation $occupation): static
     {
-        if (!$this->occupation->contains($occupation)) {
-            $this->occupation->add($occupation);
-            $occupation->setEducation($this);
-        }
-
-        return $this;
-    }
-
-    public function removeOccupation(Occupation $occupation): static
-    {
-        if ($this->occupation->removeElement($occupation)) {
-            // set the owning side to null (unless already changed)
-            if ($occupation->getEducation() === $this) {
-                $occupation->setEducation(null);
-            }
-        }
+        $this->occupation = $occupation;
 
         return $this;
     }

@@ -2,22 +2,22 @@
 
 namespace App\Repository;
 
-use App\Entity\Gallery\GalleryItem;
+use App\Entity\Gallery\GalleryImage;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
- * @extends ServiceEntityRepository<GalleryItem>
+ * @extends ServiceEntityRepository<GalleryImage>
  */
-class GalleryItemRepository extends ServiceEntityRepository
+class GalleryImageRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {
-        parent::__construct($registry, GalleryItem::class);
+        parent::__construct($registry, GalleryImage::class);
     }
 
     //    /**
-    //     * @return GalleryItem[] Returns an array of GalleryItem objects
+    //     * @return GalleryImage[] Returns an array of GalleryImage objects
     //     */
     //    public function findByExampleField($value): array
     //    {
@@ -31,7 +31,7 @@ class GalleryItemRepository extends ServiceEntityRepository
     //        ;
     //    }
 
-    //    public function findOneBySomeField($value): ?GalleryItem
+    //    public function findOneBySomeField($value): ?GalleryImage
     //    {
     //        return $this->createQueryBuilder('u')
     //            ->andWhere('u.exampleField = :val')

@@ -20,11 +20,18 @@ class AppealImage
 {
     use UpdatedAtTrait, CreatedAtTrait;
 
+    public function __toString(): string
+    {
+        return $this->image ?? "Appeal image #$this->id";
+    }
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
         'appeals:read',
+        'appealsTicket:read',
+        'appealsSupport:read',
     ])]
     private ?int $id = null;
 
@@ -35,6 +42,8 @@ class AppealImage
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
         'appeals:read',
+        'appealsTicket:read',
+        'appealsSupport:read',
     ])]
     private ?string $image = null;
 

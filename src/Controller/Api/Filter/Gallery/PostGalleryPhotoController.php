@@ -2,7 +2,7 @@
 
 namespace App\Controller\Api\Filter\Gallery;
 
-use App\Entity\Gallery\GalleryItem;
+use App\Entity\Gallery\GalleryImage;
 use App\Repository\GalleryRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -38,7 +38,7 @@ class PostGalleryPhotoController extends AbstractController
 
         foreach ($imageFiles as $imageFile) {
             if ($imageFile->isValid()) {
-                $galleryItem = (new GalleryItem())->setImageFile($imageFile);
+                $galleryItem = (new GalleryImage())->setImageFile($imageFile);
                 $gallery->addUserServiceGalleryItem($galleryItem);
                 $this->entityManager->persist($galleryItem);
             }

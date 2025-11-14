@@ -55,7 +55,7 @@ class Province
 
     public function __toString(): string
     {
-        return $this->province ?? "";
+        return $this->province ?? "Province #$this->id";
     }
 
     public function __construct()

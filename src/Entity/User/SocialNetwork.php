@@ -59,7 +59,7 @@ class SocialNetwork
 
     public function __toString(): string
     {
-        return $this->network;
+        return $this->network ?? "Social Network #$this->id";
     }
 
     #[ORM\Id]

@@ -3,16 +3,16 @@
 namespace App\Controller\Admin\Gallery;
 
 use App\Controller\Admin\Field\VichImageField;
-use App\Entity\Gallery\GalleryItem;
+use App\Entity\Gallery\GalleryImage;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 
-class GalleryItemCrudController extends AbstractCrudController
+class GalleryImageCrudController extends AbstractCrudController
 {
     public static function getEntityFqcn(): string
     {
-        return GalleryItem::class;
+        return GalleryImage::class;
     }
 
     public function configureFields(string $pageName): iterable

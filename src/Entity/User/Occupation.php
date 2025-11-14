@@ -15,6 +15,8 @@ use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\User\OccupationRepository;
 use DateTime;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
@@ -77,7 +79,7 @@ class Occupation
 
     public function __toString(): string
     {
-        return $this->title ?? "Occupation ID: $this->id";
+        return $this->title ?? "Occupation #$this->id";
     }
 
     #[ORM\Id]
@@ -118,10 +120,17 @@ class Occupation
     #[Ignore]
     private ?User $master = null;
 
-    #[ORM\ManyToOne(inversedBy: 'occupation')]
-    #[ORM\JoinColumn(name: 'education_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    /**
+     * @var Collection<int, Education>
+     */
+    #[ORM\OneToMany(targetEntity: Education::class, mappedBy: 'occupation')]
     #[Ignore]
-    private ?Education $education = null;
+    private Collection $education;
+
+    public function __construct()
+    {
+        $this->education = new ArrayCollection();
+    }
 
     public function getId(): ?int
     {
@@ -164,18 +173,6 @@ class Occupation
         return $this;
     }
 
-    public function getEducation(): ?Education
-    {
-        return $this->education;
-    }
-
-    public function setEducation(?Education $education): static
-    {
-        $this->education = $education;
-
-        return $this;
-    }
-
     public function getImage(): ?string
     {
         return $this->image;
@@ -198,6 +195,36 @@ class Occupation
         $this->imageFile = $imageFile;
         if (null !== $imageFile) {
             $this->updatedAt = new DateTime();
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Education>
+     */
+    public function getEducation(): Collection
+    {
+        return $this->education;
+    }
+
+    public function addEducation(Education $education): static
+    {
+        if (!$this->education->contains($education)) {
+            $this->education->add($education);
+            $education->setOccupation($this);
+        }
+
+        return $this;
+    }
+
+    public function removeEducation(Education $education): static
+    {
+        if ($this->education->removeElement($education)) {
+            // set the owning side to null (unless already changed)
+            if ($education->getOccupation() === $this) {
+                $education->setOccupation(null);
+            }
         }
 
         return $this;

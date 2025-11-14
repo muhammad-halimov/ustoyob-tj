@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Controller\Admin\Chat;
+namespace App\Controller\Admin\Appeal;
 
-use App\Entity\Chat\ChatMessage;
+use App\Entity\Appeal\AppealMessage;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
@@ -12,22 +12,22 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
-class ChatMessageCrudController extends AbstractCrudController
+class AppealMessageCrudController extends AbstractCrudController
 {
     public static function getEntityFqcn(): string
     {
-        return ChatMessage::class;
+        return AppealMessage::class;
     }
 
     public function configureCrud(Crud $crud): Crud
     {
         return parent::configureCrud($crud)
             ->setEntityPermission('ROLE_ADMIN')
-            ->setEntityLabelInPlural('Сообщения чата')
-            ->setEntityLabelInSingular('сообщение чата')
-            ->setPageTitle(Crud::PAGE_NEW, 'Добавление сообщении чата')
-            ->setPageTitle(Crud::PAGE_EDIT, 'Изменение сообщении чата')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о сообщении чата");
+            ->setEntityLabelInPlural('Сообщения ТП')
+            ->setEntityLabelInSingular('сообщение тп')
+            ->setPageTitle(Crud::PAGE_NEW, 'Добавление сообщении тп')
+            ->setPageTitle(Crud::PAGE_EDIT, 'Изменение сообщении тп')
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о сообщении тп");
     }
 
 

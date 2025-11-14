@@ -43,7 +43,7 @@ class DashboardController extends AbstractDashboardController
     public function configureDashboard(): Dashboard
     {
         return Dashboard::new()
-            ->setTitle('USTO.TJ');
+            ->setTitle('USTOYOB.TJ');
     }
 
     public function configureMenuItems(): iterable
@@ -56,7 +56,7 @@ class DashboardController extends AbstractDashboardController
             yield MenuItem::linkToCrud('Пользователи', 'fas fa-users', User::class);
             yield MenuItem::linkToCrud('Чаты и сообщения', 'fas fa-comments', Chat::class);
             yield MenuItem::linkToCrud('Отзывы', 'fas fa-star', Review::class);
-            yield MenuItem::linkToCrud('Жалобы', 'fas fa-ban', Appeal::class);
+            yield MenuItem::linkToCrud('ТП / Жалобы', 'fas fa-headset', Appeal::class);
 
         yield MenuItem::section('Доп. настройки');
             yield MenuItem::subMenu('География', 'fas fa-location-dot')->setSubItems([

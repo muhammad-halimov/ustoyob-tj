@@ -91,6 +91,11 @@ class Gallery
 {
     use UpdatedAtTrait, CreatedAtTrait;
 
+    public function __toString(): string
+    {
+        return "Gallery #$this->id";
+    }
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -100,9 +105,9 @@ class Gallery
     private ?int $id = null;
 
     /**
-     * @var Collection<int, GalleryItem>
+     * @var Collection<int, GalleryImage>
      */
-    #[ORM\OneToMany(targetEntity: GalleryItem::class, mappedBy: 'gallery', cascade: ['all'])]
+    #[ORM\OneToMany(targetEntity: GalleryImage::class, mappedBy: 'gallery', cascade: ['all'])]
     #[Groups([
         'galleries:read',
     ])]
@@ -127,14 +132,14 @@ class Gallery
     }
 
     /**
-     * @return Collection<int, GalleryItem>
+     * @return Collection<int, GalleryImage>
      */
     public function getUserServiceGalleryItems(): Collection
     {
         return $this->userServiceGalleryItems;
     }
 
-    public function addUserServiceGalleryItem(GalleryItem $userServiceGalleryItem): static
+    public function addUserServiceGalleryItem(GalleryImage $userServiceGalleryItem): static
     {
         if (!$this->userServiceGalleryItems->contains($userServiceGalleryItem)) {
             $this->userServiceGalleryItems->add($userServiceGalleryItem);
@@ -144,7 +149,7 @@ class Gallery
         return $this;
     }
 
-    public function removeUserServiceGalleryItem(GalleryItem $userServiceGalleryItem): static
+    public function removeUserServiceGalleryItem(GalleryImage $userServiceGalleryItem): static
     {
         if ($this->userServiceGalleryItems->removeElement($userServiceGalleryItem)) {
             // set the owning side to null (unless already changed)

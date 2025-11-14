@@ -21,6 +21,11 @@ class TicketImage
 {
     use UpdatedAtTrait, CreatedAtTrait;
 
+    public function __toString(): string
+    {
+        return $this->image ?? "Ticket Image #$this->id";
+    }
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]

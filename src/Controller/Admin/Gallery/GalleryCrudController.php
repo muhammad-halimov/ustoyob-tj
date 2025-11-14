@@ -60,7 +60,7 @@ class GalleryCrudController extends AbstractCrudController
             ->setColumns(12);
 
         yield CollectionField::new('userServiceGalleryItems', 'Галерея изображений')
-            ->useEntryCrudForm(GalleryItemCrudController::class)
+            ->useEntryCrudForm(GalleryImageCrudController::class)
             ->hideOnIndex()
             ->setColumns(12)
             ->setRequired(false);

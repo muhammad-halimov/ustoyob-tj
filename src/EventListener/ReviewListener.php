@@ -64,7 +64,7 @@ class ReviewListener
     private function recalculateUserRating(Review $review): void
     {
         // Определяем для кого отзыв: для рецензента (клиента) или для мастера
-        $targetUser = $review->getForReviewer() ? $review->getReviewer() : $review->getUser();
+        $targetUser = $review->getForReviewer() ? $review->getReviewer() : $review->getMaster();
 
         if (!$targetUser) return;
 

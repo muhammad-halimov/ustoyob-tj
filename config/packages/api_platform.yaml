@@ -3,7 +3,7 @@ api_platform:
         enabled: false
 
     # The title of the API.
-    title: 'API USTOTJ'
+    title: 'API USTOYOB.TJ'
 
     # The description of the API.
     description: 'API description'

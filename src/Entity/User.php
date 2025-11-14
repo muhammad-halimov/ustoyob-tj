@@ -16,6 +16,7 @@ use App\Controller\Api\Filter\User\SingleClientUserFilterController;
 use App\Controller\Api\Filter\User\SingleMasterUserFilterController;
 use App\Controller\Api\Filter\User\UpdateUserPhotoController;
 use App\Entity\Appeal\Appeal;
+use App\Entity\Appeal\AppealMessage;
 use App\Entity\Chat\Chat;
 use App\Entity\Chat\ChatMessage;
 use App\Entity\Gallery\Gallery;
@@ -149,7 +150,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function __construct()
     {
         $this->userSocialNetworks = new ArrayCollection();
-        $this->userServiceReviews = new ArrayCollection();
+        $this->masterReviews = new ArrayCollection();
         $this->messageAuthor = new ArrayCollection();
         $this->userTickets = new ArrayCollection();
         $this->education = new ArrayCollection();
@@ -162,6 +163,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->favorites = new ArrayCollection();
         $this->occupation = new ArrayCollection();
         $this->clientReview = new ArrayCollection();
+        $this->administrantAppeals = new ArrayCollection();
+        $this->appealMessages = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -176,9 +179,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'galleries:read',
         'userTickets:read',
         'chats:read',
+        'chatMessages:read',
         'appeals:read',
         'appealsTicket:read',
-        'favorites:read'
+        'appealsSupport:read',
+        'favorites:read',
     ])]
     private ?int $id = null;
 
@@ -295,9 +300,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /**
      * @var Collection<int, Review>
      */
-    #[ORM\OneToMany(targetEntity: Review::class, mappedBy: 'user')]
+    #[ORM\OneToMany(targetEntity: Review::class, mappedBy: 'master')]
     #[Ignore]
-    private Collection $userServiceReviews;
+    private Collection $masterReviews;
 
     /**
      * @var Collection<int, Chat>
@@ -362,7 +367,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /**
      * @var Collection<int, Appeal>
      */
-    #[ORM\OneToMany(targetEntity: Appeal::class, mappedBy: 'user')]
+    #[ORM\OneToMany(targetEntity: Appeal::class, mappedBy: 'author')]
     #[ApiProperty(writable: false)]
     private Collection $appeals;
 
@@ -400,6 +405,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(targetEntity: Review::class, mappedBy: 'reviewer')]
     #[ApiProperty(writable: false)]
     private Collection $clientReview;
+
+    /**
+     * @var Collection<int, Appeal>
+     */
+    #[ORM\OneToMany(targetEntity: Appeal::class, mappedBy: 'administrant')]
+    private Collection $administrantAppeals;
+
+    /**
+     * @var Collection<int, AppealMessage>
+     */
+    #[ORM\OneToMany(targetEntity: AppealMessage::class, mappedBy: 'author')]
+    private Collection $appealMessages;
 
     public function getId(): ?int
     {
@@ -656,27 +673,27 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /**
      * @return Collection<int, Review>
      */
-    public function getUserServiceReviews(): Collection
+    public function getMasterReviews(): Collection
     {
-        return $this->userServiceReviews;
+        return $this->masterReviews;
     }
 
-    public function addUserServiceReview(Review $userServiceReview): static
+    public function addMasterReviews(Review $review): static
     {
-        if (!$this->userServiceReviews->contains($userServiceReview)) {
-            $this->userServiceReviews->add($userServiceReview);
-            $userServiceReview->setUser($this);
+        if (!$this->masterReviews->contains($review)) {
+            $this->masterReviews->add($review);
+            $review->setMaster($this);
         }
 
         return $this;
     }
 
-    public function removeUserServiceReview(Review $userServiceReview): static
+    public function removeMasterReviews(Review $review): static
     {
-        if ($this->userServiceReviews->removeElement($userServiceReview)) {
+        if ($this->masterReviews->removeElement($review)) {
             // set the owning side to null (unless already changed)
-            if ($userServiceReview->getUser() === $this) {
-                $userServiceReview->setUser(null);
+            if ($review->getMaster() === $this) {
+                $review->setMaster(null);
             }
         }
 
@@ -935,7 +952,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         if (!$this->appeals->contains($appeal)) {
             $this->appeals->add($appeal);
-            $appeal->setUser($this);
+            $appeal->setAuthor($this);
         }
 
         return $this;
@@ -945,8 +962,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         if ($this->appeals->removeElement($appeal)) {
             // set the owning side to null (unless already changed)
-            if ($appeal->getUser() === $this) {
-                $appeal->setUser(null);
+            if ($appeal->getAuthor() === $this) {
+                $appeal->setAuthor(null);
             }
         }
 
@@ -1079,6 +1096,66 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             // set the owning side to null (unless already changed)
             if ($clientReview->getReviewer() === $this) {
                 $clientReview->setReviewer(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Appeal>
+     */
+    public function getAdministrantAppeals(): Collection
+    {
+        return $this->administrantAppeals;
+    }
+
+    public function addAdministrantAppeal(Appeal $administrantAppeal): static
+    {
+        if (!$this->administrantAppeals->contains($administrantAppeal)) {
+            $this->administrantAppeals->add($administrantAppeal);
+            $administrantAppeal->setAdministrant($this);
+        }
+
+        return $this;
+    }
+
+    public function removeAdministrantAppeal(Appeal $administrantAppeal): static
+    {
+        if ($this->administrantAppeals->removeElement($administrantAppeal)) {
+            // set the owning side to null (unless already changed)
+            if ($administrantAppeal->getAdministrant() === $this) {
+                $administrantAppeal->setAdministrant(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, AppealMessage>
+     */
+    public function getAppealMessages(): Collection
+    {
+        return $this->appealMessages;
+    }
+
+    public function addAppealMessage(AppealMessage $appealMessage): static
+    {
+        if (!$this->appealMessages->contains($appealMessage)) {
+            $this->appealMessages->add($appealMessage);
+            $appealMessage->setAuthor($this);
+        }
+
+        return $this;
+    }
+
+    public function removeAppealMessage(AppealMessage $appealMessage): static
+    {
+        if ($this->appealMessages->removeElement($appealMessage)) {
+            // set the owning side to null (unless already changed)
+            if ($appealMessage->getAuthor() === $this) {
+                $appealMessage->setAuthor(null);
             }
         }
 

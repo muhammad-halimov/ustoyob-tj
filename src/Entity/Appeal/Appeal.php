@@ -10,6 +10,7 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\Filter\Appeal\PostAppealPhotoController;
+use App\Controller\Api\Filter\Appeal\SupportAppealFilterController;
 use App\Controller\Api\Filter\Appeal\TicketAppealFilterController;
 use App\Controller\Api\Filter\Appeal\UserAppealFilterController;
 use App\Entity\Ticket\Ticket;
@@ -37,7 +38,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
                  is_granted('ROLE_CLIENT')"
         ),
         new GetCollection(
-            uriTemplate: '/appeals/tickets',
+            uriTemplate: '/appeals/complaints/tickets',
             controller: TicketAppealFilterController::class,
             security:
                 "is_granted('ROLE_ADMIN') or
@@ -45,8 +46,16 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
                  is_granted('ROLE_CLIENT')"
         ),
         new GetCollection(
-            uriTemplate: '/appeals/users',
+            uriTemplate: '/appeals/complaints/users',
             controller: UserAppealFilterController::class,
+            security:
+                "is_granted('ROLE_ADMIN') or
+                 is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')"
+        ),
+        new GetCollection(
+            uriTemplate: '/appeals/support',
+            controller: SupportAppealFilterController::class,
             security:
                 "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or
@@ -86,7 +95,11 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         )
     ],
     normalizationContext: [
-        'groups' => ['appeals:read', 'appealsTicket:read'],
+        'groups' => [
+            'appeals:read',
+            'appealsTicket:read',
+            'appealsSupport:read',
+        ],
         'skip_null_values' => false,
     ],
     paginationEnabled: false,
@@ -97,17 +110,48 @@ class Appeal
 
     public function __toString(): string
     {
-        return $this->reason ?? "Пустой заголовок жалобы";
+        return $this->compliantReason ?? "Пустой заголовок жалобы";
     }
 
-    public const REASONS = [
+    public const COMPLAINTS = [
         'Опоздание/Отсутствие' => 'lateness',
-        'Плохое качество' => 'bad quality',
-        'Повреждения имущества' => 'property damage',
+        'Плохое качество' => 'bad_quality',
+        'Повреждения имущества' => 'property_damage',
         'Завышение стоимости' => 'overpricing',
         'Непрофессионализм' => 'unprofessionalism',
         'Мошенничество' => 'fraud',
-        'Расизм/Нацизм' => 'racism or nazism',
+        'Расизм/Нацизм' => 'racism_or_nazism',
+        'Другое' => 'other',
+    ];
+
+    public const SUPPORT = [
+        'Проблемы с аккаунтом' => 'account',
+        'Проблемы с объявлениями' => 'ticket',
+        'Вопросы по работе платформы' => 'platform',
+        'Технические проблемы' => 'issues',
+        'Юридические вопросы' => 'law',
+        'Предложения и фидбек' => 'feedback',
+        'Экстренный' => 'urgent',
+        'Другое' => 'other',
+    ];
+
+    public const TYPES = [
+        'Жалоба' => 'complaint',
+        'Тех. поддержка' => 'support',
+    ];
+
+    public const STATUSES = [
+        'Новый' => 'new',
+        'В прогрессе' => 'in_progress',
+        'Решено' => 'resolved',
+        'Закрыто' => 'closed',
+    ];
+
+    public const PRIORITIES = [
+        'Низкий' => 'low',
+        'Средний' => 'normal',
+        'Высокий' => 'high',
+        'Экстренный' => 'urgent',
     ];
 
     #[ORM\Id]
@@ -116,6 +160,7 @@ class Appeal
     #[Groups([
         'appeals:read',
         'appealsTicket:read',
+        'appealsSupport:read',
     ])]
     private ?int $id = null;
 
@@ -123,13 +168,56 @@ class Appeal
     #[Groups([
         'appeals:read',
         'appealsTicket:read',
+        'appealsSupport:read',
     ])]
-    private ?string $reason = null;
+    private ?string $title = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    #[Groups([
+        'appeals:read',
+        'appealsTicket:read',
+    ])]
+    private ?string $compliantReason = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    #[Groups([
+        'appealsSupport:read',
+    ])]
+    private ?string $supportReason = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    #[Groups([
+        'appeals:read',
+        'appealsTicket:read',
+        'appealsSupport:read',
+    ])]
+    private ?string $type = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    #[Groups([
+        'appealsSupport:read',
+    ])]
+    private ?string $status = null;
+
+
+    #[ORM\Column(length: 255, nullable: true)]
+    #[Groups([
+        'appealsSupport:read',
+    ])]
+    private ?string $priority = null;
+
+    #[ORM\ManyToOne(inversedBy: 'administrantAppeals')]
+    #[ORM\JoinColumn(name: 'administrant_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    #[Groups([
+        'appealsSupport:read',
+    ])]
+    private ?User $administrant = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups([
         'appeals:read',
         'appealsTicket:read',
+        'appealsSupport:read',
     ])]
     private ?string $description = null;
 
@@ -138,8 +226,9 @@ class Appeal
     #[Groups([
         'appeals:read',
         'appealsTicket:read',
+        'appealsSupport:read',
     ])]
-    private ?User $user = null;
+    private ?User $author = null;
 
     #[ORM\ManyToOne(inversedBy: 'appeals')]
     #[ORM\JoinColumn(name: 'ticket_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
@@ -166,17 +255,30 @@ class Appeal
     /**
      * @var Collection<int, AppealImage>
      */
-    #[ORM\OneToMany(targetEntity: AppealImage::class, mappedBy: 'appeals')]
+    #[ORM\OneToMany(targetEntity: AppealImage::class, mappedBy: 'appeals', cascade: ['all'])]
     #[Groups([
         'appeals:read',
+        'appealsTicket:read',
+        'appealsSupport:read',
     ])]
     #[SerializedName('images')]
     #[ApiProperty(writable: false)]
     private Collection $appealImages;
 
+    /**
+     * @var Collection<int, AppealMessage>
+     */
+    #[ORM\OneToMany(targetEntity: AppealMessage::class, mappedBy: 'appeal', cascade: ['persist', 'remove'])]
+    #[Groups([
+        'appealsSupport:read',
+    ])]
+    #[SerializedName('messages')]
+    private Collection $appealMessages;
+
     public function __construct()
     {
         $this->appealImages = new ArrayCollection();
+        $this->appealMessages = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -184,14 +286,14 @@ class Appeal
         return $this->id;
     }
 
-    public function getReason(): ?string
+    public function getCompliantReason(): ?string
     {
-        return $this->reason;
+        return $this->compliantReason;
     }
 
-    public function setReason(?string $reason): static
+    public function setCompliantReason(?string $compliantReason): static
     {
-        $this->reason = $reason;
+        $this->compliantReason = $compliantReason;
 
         return $this;
     }
@@ -208,14 +310,14 @@ class Appeal
         return $this;
     }
 
-    public function getUser(): ?User
+    public function getAuthor(): ?User
     {
-        return $this->user;
+        return $this->author;
     }
 
-    public function setUser(?User $user): static
+    public function setAuthor(?User $author): static
     {
-        $this->user = $user;
+        $this->author = $author;
 
         return $this;
     }
@@ -278,6 +380,98 @@ class Appeal
             // set the owning side to null (unless already changed)
             if ($appealImage->getAppeals() === $this) {
                 $appealImage->setAppeals(null);
+            }
+        }
+
+        return $this;
+    }
+
+    public function getTitle(): ?string
+    {
+        return $this->title;
+    }
+
+    public function setTitle(?string $title): void
+    {
+        $this->title = $title;
+    }
+
+    public function getType(): ?string
+    {
+        return $this->type;
+    }
+
+    public function setType(?string $type): void
+    {
+        $this->type = $type;
+    }
+
+    public function getSupportReason(): ?string
+    {
+        return $this->supportReason;
+    }
+
+    public function setSupportReason(?string $supportReason): void
+    {
+        $this->supportReason = $supportReason;
+    }
+
+    public function getStatus(): ?string
+    {
+        return $this->status;
+    }
+
+    public function setStatus(?string $status): void
+    {
+        $this->status = $status;
+    }
+
+    public function getPriority(): ?string
+    {
+        return $this->priority;
+    }
+
+    public function setPriority(?string $priority): void
+    {
+        $this->priority = $priority;
+    }
+
+    public function getAdministrant(): ?User
+    {
+        return $this->administrant;
+    }
+
+    public function setAdministrant(?User $administrant): static
+    {
+        $this->administrant = $administrant;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, AppealMessage>
+     */
+    public function getAppealMessages(): Collection
+    {
+        return $this->appealMessages;
+    }
+
+    public function addAppealMessage(AppealMessage $appealMessage): static
+    {
+        if (!$this->appealMessages->contains($appealMessage)) {
+            $this->appealMessages->add($appealMessage);
+            $appealMessage->setAppeal($this);
+        }
+
+        return $this;
+    }
+
+    public function removeAppealMessage(AppealMessage $appealMessage): static
+    {
+        if ($this->appealMessages->removeElement($appealMessage)) {
+            // set the owning side to null (unless already changed)
+            if ($appealMessage->getAppeal() === $this) {
+                $appealMessage->setAppeal(null);
             }
         }
 

@@ -4,7 +4,7 @@ namespace App\Entity\Gallery;
 
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
-use App\Repository\GalleryItemRepository;
+use App\Repository\GalleryImageRepository;
 use DateTime;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\HttpFoundation\File\File;
@@ -13,12 +13,17 @@ use Symfony\Component\Serializer\Attribute\Ignore;
 use Symfony\Component\Validator\Constraints as Assert;
 use Vich\UploaderBundle\Mapping\Annotation as Vich;
 
-#[ORM\Entity(repositoryClass: GalleryItemRepository::class)]
+#[ORM\Entity(repositoryClass: GalleryImageRepository::class)]
 #[ORM\HasLifecycleCallbacks]
 #[Vich\Uploadable]
-class GalleryItem
+class GalleryImage
 {
     use UpdatedAtTrait, CreatedAtTrait;
+
+    public function __toString(): string
+    {
+        return $this->image ?? "Gallery Image #$this->id";
+    }
 
     #[ORM\Id]
     #[ORM\GeneratedValue]

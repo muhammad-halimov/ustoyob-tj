@@ -1,21 +1,21 @@
 <?php
 
-namespace App\Controller\Api\Filter\Chat;
+namespace App\Controller\Api\Filter\Appeal;
 
-use App\Entity\Chat\ChatMessage;
+use App\Entity\Appeal\AppealMessage;
 use App\Entity\User;
-use App\Repository\Chat\ChatRepository;
+use App\Repository\User\AppealRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
-class PostMessageController extends AbstractController
+class PostAppealMessageController extends AbstractController
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly ChatRepository         $chatRepository,
+        private readonly AppealRepository       $appealRepository,
         private readonly Security               $security,
     ){}
 
@@ -30,34 +30,34 @@ class PostMessageController extends AbstractController
 
         $data = json_decode($request->getContent(), true);
         $text = $data['text'];
-        $chatParam = $data['chat'];
+        $appealParam = $data['appeal'];
 
         // Извлекаем ID из строки "/api/chats/1" или просто "1"
-        $chatId = (preg_match('#/api/chats/(\d+)#', $chatParam, $c) ? $c[1] : $chatParam);
-        $chat = $this->chatRepository->find($chatId);
+        $appealId = (preg_match('#/api/appeals/(\d+)#', $appealParam, $a) ? $a[1] : $appealParam);
+        $appeal = $this->appealRepository->find($appealId);
 
         if (!array_intersect($allowedRoles, $userRoles))
             return $this->json(['message' => 'Access denied'], 403);
 
-        if(!$text || !$chatParam || !$chat)
-            return $this->json(['message' => "Empty message text/chat OR Chat doesn't exist"], 400);
+        if(!$text || !$appealParam || !$appeal)
+            return $this->json(['message' => "Empty message text/appeal OR Appeal doesn't exist"], 400);
 
-        if ($chat->getMessageAuthor() !== $user && $chat->getMessageReplyAuthor() !== $user)
+        if ($appeal->getAdministrant() !== $user && $appeal->getAuthor() !== $user)
             return $this->json(['message' => "Ownership doesn't match"], 403);
 
-        $chatMessage = (new ChatMessage())
+        $appealMessage = (new AppealMessage())
             ->setText($text)
-            ->setChat($chat)
+            ->setAppeal($appeal)
             ->setAuthor($user);
 
-        $chat->addMessage($chatMessage);
+        $appeal->addAppealMessage($appealMessage);
 
-        $this->entityManager->persist($chatMessage);
+        $this->entityManager->persist($appealMessage);
         $this->entityManager->flush();
 
         return new JsonResponse([
-            'chatId' => $chat->getId(),
-            'chatMessageId' => $chatMessage->getId(),
+            'appealId' => $appeal->getId(),
+            'appealMessageId' => $appealMessage->getId(),
             'message' => 'Message uploaded successfully'
         ]);
     }

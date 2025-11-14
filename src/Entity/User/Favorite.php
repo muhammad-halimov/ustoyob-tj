@@ -68,6 +68,11 @@ class Favorite
         $this->favoriteMasters = new ArrayCollection();
     }
 
+    public function __toString(): string
+    {
+        return "Favorite #$this->id";
+    }
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
