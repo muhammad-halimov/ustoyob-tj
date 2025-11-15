@@ -16,6 +16,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Serializer\Attribute\SerializedName;
 
 #[ORM\Entity(repositoryClass: FavoriteRepository::class)]
 #[ORM\HasLifecycleCallbacks]
@@ -44,11 +45,11 @@ use Symfony\Component\Serializer\Attribute\Groups;
                  is_granted('ROLE_MASTER') or
                  is_granted('ROLE_CLIENT')"
         ),
-        new Delete(
+        new Delete( #TODO Удалить из массива, не саму фаворитку
             uriTemplate: '/favorites/{id}',
             requirements: ['id' => '\d+'],
             security:
-                "is_granted('ROLE_ADMIN') or
+            "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or
                  is_granted('ROLE_CLIENT')"
         ),
@@ -95,6 +96,7 @@ class Favorite
     #[Groups([
         'favorites:read'
     ])]
+    #[SerializedName('masters')]
     private Collection $favoriteMasters;
 
     public function getId(): ?int

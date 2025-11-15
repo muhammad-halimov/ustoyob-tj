@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controller\Api\Filter\Appeal;
+namespace App\Controller\Api\Filter\Appeal\Support;
 
 use App\Entity\Appeal\AppealMessage;
 use App\Entity\User;
@@ -28,6 +28,9 @@ class PostAppealMessageController extends AbstractController
         $user = $this->security->getUser();
         $userRoles = $user->getRoles() ?? [];
 
+        if (!array_intersect($allowedRoles, $userRoles))
+            return $this->json(['message' => 'Access denied'], 403);
+
         $data = json_decode($request->getContent(), true);
         $text = $data['text'];
         $appealParam = $data['appeal'];
@@ -36,11 +39,10 @@ class PostAppealMessageController extends AbstractController
         $appealId = (preg_match('#/api/appeals/(\d+)#', $appealParam, $a) ? $a[1] : $appealParam);
         $appeal = $this->appealRepository->find($appealId);
 
-        if (!array_intersect($allowedRoles, $userRoles))
-            return $this->json(['message' => 'Access denied'], 403);
-
-        if(!$text || !$appealParam || !$appeal)
-            return $this->json(['message' => "Empty message text/appeal OR Appeal doesn't exist"], 400);
+        if(!$text || !$appealParam || !$appeal || $appeal->getType() !== "support")
+            return $this->json(['message' =>
+                "Empty message text/appeal OR Appeal doesn't exist OR Incorrect appeal type."
+            ], 400);
 
         if ($appeal->getAdministrant() !== $user && $appeal->getAuthor() !== $user)
             return $this->json(['message' => "Ownership doesn't match"], 403);

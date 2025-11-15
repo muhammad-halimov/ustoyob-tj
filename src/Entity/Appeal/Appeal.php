@@ -5,15 +5,14 @@ namespace App\Entity\Appeal;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
-use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\Filter\Appeal\AdminAppealFilterController;
+use App\Controller\Api\Filter\Appeal\Compliant\TicketComplaintFilterController;
+use App\Controller\Api\Filter\Appeal\Compliant\UserComplaintFilterController;
 use App\Controller\Api\Filter\Appeal\PostAppealPhotoController;
-use App\Controller\Api\Filter\Appeal\SupportAppealFilterController;
-use App\Controller\Api\Filter\Appeal\TicketAppealFilterController;
-use App\Controller\Api\Filter\Appeal\UserAppealFilterController;
+use App\Controller\Api\Filter\Appeal\Support\AdminSupportFilterController;
+use App\Controller\Api\Filter\Appeal\Support\UserSupportFilterController;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
@@ -30,65 +29,33 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
     operations: [
-        new Get(
-            uriTemplate: '/appeals/{id}',
-            requirements: ['id' => '\d+'],
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
-        ),
         new GetCollection(
-            uriTemplate: '/appeals/complaints/tickets',
-            controller: TicketAppealFilterController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
-        ),
-        new Get(
             uriTemplate: '/appeals/complaints/ticket/{id}',
-//            controller: TicketAppealFilterController::class,
+            controller: TicketComplaintFilterController::class,
             security:
             "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or
                  is_granted('ROLE_CLIENT')"
         ),
         new GetCollection(
-            uriTemplate: '/appeals/complaints/users',
-            controller: UserAppealFilterController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
-        ),
-        new Get(
             uriTemplate: '/appeals/complaints/user/{id}',
-//            controller: UserAppealFilterController::class,
+            controller: UserComplaintFilterController::class,
             security:
             "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or
                  is_granted('ROLE_CLIENT')"
         ),
         new GetCollection(
-            uriTemplate: '/appeals/support',
-            controller: SupportAppealFilterController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
-        ),
-        new Get(
             uriTemplate: '/appeals/support/user/{id}',
-//            controller: SupportAppealFilterController::class,
+            controller: UserSupportFilterController::class,
             security:
                 "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or
                  is_granted('ROLE_CLIENT')"
         ),
-        new Get(
+        new GetCollection(
             uriTemplate: '/appeals/support/admin/{id}',
-            controller: AdminAppealFilterController::class,
+            controller: AdminSupportFilterController::class,
             security: "is_granted('ROLE_ADMIN')"
         ),
         new Post(
@@ -141,6 +108,12 @@ class Appeal
     public function __toString(): string
     {
         return $this->compliantReason ?? "Пустой заголовок жалобы";
+    }
+
+    public function __construct()
+    {
+        $this->appealImages = new ArrayCollection();
+        $this->appealMessages = new ArrayCollection();
     }
 
     public const COMPLAINTS = [
@@ -242,14 +215,6 @@ class Appeal
     ])]
     private ?User $administrant = null;
 
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    #[Groups([
-        'appeals:read',
-        'appealsTicket:read',
-        'appealsSupport:read',
-    ])]
-    private ?string $description = null;
-
     #[ORM\ManyToOne(inversedBy: 'appeals')]
     #[ORM\JoinColumn(name: 'author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
@@ -258,6 +223,21 @@ class Appeal
         'appealsSupport:read',
     ])]
     private ?User $author = null;
+
+    #[ORM\ManyToOne(inversedBy: 'appealsRespondent')]
+    #[ORM\JoinColumn(name: 'respondent_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    #[Groups([
+        'appeals:read',
+    ])]
+    private ?User $respondent = null;
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups([
+        'appeals:read',
+        'appealsTicket:read',
+        'appealsSupport:read',
+    ])]
+    private ?string $description = null;
 
     #[ORM\ManyToOne(inversedBy: 'appeals')]
     #[ORM\JoinColumn(name: 'ticket_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
@@ -273,13 +253,6 @@ class Appeal
         'appealsTicket:read',
     ])]
     private ?bool $ticketAppeal = null;
-
-    #[ORM\ManyToOne(inversedBy: 'appealsRespondent')]
-    #[ORM\JoinColumn(name: 'respondent_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
-    #[Groups([
-        'appeals:read',
-    ])]
-    private ?User $respondent = null;
 
     /**
      * @var Collection<int, AppealImage>
@@ -302,13 +275,8 @@ class Appeal
         'appealsSupport:read',
     ])]
     #[SerializedName('messages')]
+    #[ApiProperty(writable: false)]
     private Collection $appealMessages;
-
-    public function __construct()
-    {
-        $this->appealImages = new ArrayCollection();
-        $this->appealMessages = new ArrayCollection();
-    }
 
     public function getId(): ?int
     {

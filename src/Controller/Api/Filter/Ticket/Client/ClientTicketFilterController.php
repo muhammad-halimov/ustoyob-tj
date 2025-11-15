@@ -1,21 +1,25 @@
 <?php
 
-namespace App\Controller\Api\Filter\User;
+namespace App\Controller\Api\Filter\Ticket\Client;
 
 use App\Entity\User;
+use App\Repository\TicketRepository;
 use App\Repository\UserRepository;
 use Exception;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
-class SingleClientUserFilterController extends AbstractController
+class ClientTicketFilterController extends AbstractController
 {
+    private readonly TicketRepository $ticketRepository;
     private readonly UserRepository $userRepository;
 
     public function __construct(
+        TicketRepository  $ticketRepository,
         UserRepository    $userRepository
     )
     {
+        $this->ticketRepository = $ticketRepository;
         $this->userRepository = $userRepository;
     }
 
@@ -25,14 +29,22 @@ class SingleClientUserFilterController extends AbstractController
 
         try {
             /** @var User $user */
-            $user = $this->userRepository->findOneByRole("ROLE_CLIENT", $id);
+            $user = $this->userRepository->find($id);
             if (!$user) return $this->json([], 404);
 
-            return empty($user)
+            $userRoles = $user?->getRoles() ?? [];
+            $allowedRoles = ["ROLE_ADMIN", "ROLE_CLIENT", "ROLE_MASTER"];
+
+            if (!array_intersect($allowedRoles, $userRoles))
+                return $this->json(['message' => 'Access denied'], 403);
+
+            $data = $this->ticketRepository->findUserTicketsByClientRole($user);
+
+            return empty($data)
                 ? $this->json([], 404)
-                : $this->json($user, 200, [],
+                : $this->json($data, 200, [],
                     [
-                        'groups' => ['clients:read'],
+                        'groups' => ['userTickets:read'],
                         'skip_null_values' => false,
                     ]
                 );

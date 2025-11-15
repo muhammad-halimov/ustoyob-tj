@@ -32,7 +32,7 @@ class PostChatPhotoController extends AbstractController
         $chat = $this->chatRepository->find($id);
         if (!$chat) return $this->json(['message' => 'Chat not found'], 404);
 
-        if ($chat->getMessageAuthor() !== $user && $chat->getMessageReplyAuthor() !== $user)
+        if ($chat->getAuthor() !== $user && $chat->getReplyAuthor() !== $user)
             return $this->json(['message' => "Ownership doesn't match"], 403);
 
         $imageFiles = $request->files->get('imageFile');

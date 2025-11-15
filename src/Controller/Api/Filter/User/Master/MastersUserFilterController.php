@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controller\Api\Filter\User;
+namespace App\Controller\Api\Filter\User\Master;
 
 use App\Entity\User;
 use App\Repository\UserRepository;
@@ -8,7 +8,7 @@ use Exception;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
-class SingleMasterUserFilterController extends AbstractController
+class MastersUserFilterController extends AbstractController
 {
     private readonly UserRepository $userRepository;
 
@@ -19,13 +19,11 @@ class SingleMasterUserFilterController extends AbstractController
         $this->userRepository = $userRepository;
     }
 
-    public function __invoke(int $id): JsonResponse
+    public function __invoke(): JsonResponse
     {
-        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
-
         try {
             /** @var User $user */
-            $user = $this->userRepository->findOneByRole("ROLE_MASTER", $id);
+            $user = $this->userRepository->findAllByRole("ROLE_MASTER");
             if (!$user) return $this->json([], 404);
 
             return empty($user)

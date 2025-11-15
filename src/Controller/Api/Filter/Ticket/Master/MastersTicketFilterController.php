@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Controller\Api\Filter\Ticket;
+namespace App\Controller\Api\Filter\Ticket\Master;
 
 use App\Repository\TicketRepository;
 use Exception;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
-class RegularTicketFilterController extends AbstractController
+class MastersTicketFilterController extends AbstractController
 {
     private readonly TicketRepository $ticketRepository;
 
@@ -29,7 +29,7 @@ class RegularTicketFilterController extends AbstractController
             return $this->json(['message' => 'Access denied'], 403);
 
         try {
-            $data = $this->ticketRepository->findUserTicketsByStatus(false);
+            $data = $this->ticketRepository->findUserTicketsByStatus(true);
 
             return empty($data)
                 ? $this->json([], 404)

@@ -5,16 +5,15 @@ namespace App\Entity\Ticket;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
-use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\Filter\Ticket\ClientTicketFilterController;
-use App\Controller\Api\Filter\Ticket\MasterTicketFilterController;
+use App\Controller\Api\Filter\Ticket\Client\ClientTicketFilterController;
+use App\Controller\Api\Filter\Ticket\Client\ClientsTicketFilterController;
+use App\Controller\Api\Filter\Ticket\Master\MasterTicketFilterController;
+use App\Controller\Api\Filter\Ticket\Master\MastersTicketFilterController;
 use App\Controller\Api\Filter\Ticket\PersonalTicketFilterController;
 use App\Controller\Api\Filter\Ticket\PostTicketPhotoController;
-use App\Controller\Api\Filter\Ticket\RegularTicketFilterController;
-use App\Controller\Api\Filter\Ticket\ServiceTicketFilterController;
 use App\Entity\Appeal\Appeal;
 use App\Entity\Geography\District;
 use App\Entity\Review\Review;
@@ -36,14 +35,6 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
     operations: [
-        new Get(
-            uriTemplate: '/tickets/{id}',
-            requirements: ['id' => '\d+'],
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
-        ),
         new GetCollection(
             uriTemplate: '/tickets/me',
             controller: PersonalTicketFilterController::class,
@@ -54,7 +45,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         ),
         new GetCollection(
             uriTemplate: '/tickets/masters',
-            controller: ServiceTicketFilterController::class,
+            controller: MastersTicketFilterController::class,
             security:
                 "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or
@@ -71,7 +62,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         ),
         new GetCollection(
             uriTemplate: '/tickets/clients',
-            controller: RegularTicketFilterController::class,
+            controller: ClientsTicketFilterController::class,
             security:
                 "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controller\Api\Filter\User;
+namespace App\Controller\Api\Filter\User\Client;
 
 use App\Entity\User;
 use App\Repository\UserRepository;
@@ -8,7 +8,7 @@ use Exception;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
-class ClientUserFilterController extends AbstractController
+class ClientsUserFilterController extends AbstractController
 {
     private readonly UserRepository $userRepository;
 

@@ -21,7 +21,7 @@ class ChatRepository extends ServiceEntityRepository
     {
         return $this
             ->createQueryBuilder('c')
-            ->where('c.messageAuthor = :userId')
+            ->where('c.author = :userId')
             ->orWhere('c.replyAuthor = :userId')
             ->setParameter('userId', $user->getId())
             ->getQuery()

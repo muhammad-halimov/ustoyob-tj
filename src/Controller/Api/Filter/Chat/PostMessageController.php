@@ -42,7 +42,7 @@ class PostMessageController extends AbstractController
         if(!$text || !$chatParam || !$chat)
             return $this->json(['message' => "Empty message text/chat OR Chat doesn't exist"], 400);
 
-        if ($chat->getMessageAuthor() !== $user && $chat->getMessageReplyAuthor() !== $user)
+        if ($chat->getAuthor() !== $user && $chat->getReplyAuthor() !== $user)
             return $this->json(['message' => "Ownership doesn't match"], 403);
 
         $chatMessage = (new ChatMessage())

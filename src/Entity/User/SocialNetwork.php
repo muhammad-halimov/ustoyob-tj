@@ -2,57 +2,16 @@
 
 namespace App\Entity\User;
 
-use ApiPlatform\Metadata\ApiResource;
-use ApiPlatform\Metadata\Delete;
-use ApiPlatform\Metadata\Get;
-use ApiPlatform\Metadata\GetCollection;
-use ApiPlatform\Metadata\Patch;
-use ApiPlatform\Metadata\Post;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\SocialNetworkRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Serializer\Attribute\Ignore;
 
 #[ORM\Entity(repositoryClass: SocialNetworkRepository::class)]
 #[ORM\HasLifecycleCallbacks]
-#[ApiResource(
-    operations: [
-        new Get(
-            uriTemplate: '/social-networks/{id}',
-            requirements: ['id' => '\d+'],
-        ),
-        new GetCollection(
-            uriTemplate: '/social-networks',
-        ),
-        new Post(
-            uriTemplate: '/social-networks',
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER')"
-        ),
-        new Patch(
-            uriTemplate: '/social-networks/{id}',
-            requirements: ['id' => '\d+'],
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER')"
-        ),
-        new Delete(
-            uriTemplate: '/social-networks/{id}',
-            requirements: ['id' => '\d+'],
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER')"
-        )
-    ],
-    normalizationContext: [
-        'groups' => ['social:read'],
-        'skip_null_values' => false,
-    ],
-    paginationEnabled: false,
-)]
 class SocialNetwork
 {
     use UpdatedAtTrait, CreatedAtTrait;
@@ -61,6 +20,22 @@ class SocialNetwork
     {
         return $this->network ?? "Social Network #$this->id";
     }
+
+    const NETWORKS = [
+        'Instagram' => 'instagram',
+        'Telegram' => 'telegram',
+        'WhatsApp' => 'whatsapp',
+        'Facebook' => 'facebook',
+        'VK' => 'vk',
+        'Youtube' => 'youtube',
+        'Site' => 'site',
+        'Viber' => 'viber',
+        'Imo' => 'imo',
+        'Twitter' => 'twitter',
+        'LinkedIn' => 'linkedin',
+        'Google' => 'google',
+        'WeChat' => 'wechat',
+    ];
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -72,7 +47,8 @@ class SocialNetwork
     ])]
     private ?int $id = null;
 
-    #[ORM\ManyToOne(inversedBy: 'userSocialNetworks')]
+    #[ORM\ManyToOne(inversedBy: 'socialNetworks')]
+    #[Ignore]
     private ?User $user = null;
 
     #[ORM\Column(length: 32, nullable: true)]

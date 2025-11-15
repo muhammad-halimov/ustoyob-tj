@@ -34,6 +34,15 @@ class ChatImage
     ])]
     private ?int $id = null;
 
+    #[ORM\ManyToOne(inversedBy: 'chatImages')]
+    private ?Chat $chats = null;
+
+    #[ORM\ManyToOne(inversedBy: 'chatImages')]
+    #[Groups([
+        'chats:read',
+    ])]
+    private ?User $author = null;
+
     #[Vich\UploadableField(mapping: 'appeal_photos', fileNameProperty: 'image')]
     #[Assert\Image(mimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])]
     private ?File $imageFile = null;
@@ -43,15 +52,6 @@ class ChatImage
         'chats:read',
     ])]
     private ?string $image = null;
-
-    #[ORM\ManyToOne(inversedBy: 'chatImages')]
-    private ?Chat $chats = null;
-
-    #[ORM\ManyToOne(inversedBy: 'chatImages')]
-    #[Groups([
-        'chats:read',
-    ])]
-    private ?User $author = null;
 
     public function getId(): ?int
     {

@@ -9,11 +9,11 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\Filter\User\ClientUserFilterController;
-use App\Controller\Api\Filter\User\MasterUserFilterController;
+use App\Controller\Api\Filter\User\Client\ClientsUserFilterController;
+use App\Controller\Api\Filter\User\Client\ClientUserFilterController;
+use App\Controller\Api\Filter\User\Master\MastersUserFilterController;
+use App\Controller\Api\Filter\User\Master\MasterUserFilterController;
 use App\Controller\Api\Filter\User\PersonalUserFilterController;
-use App\Controller\Api\Filter\User\SingleClientUserFilterController;
-use App\Controller\Api\Filter\User\SingleMasterUserFilterController;
 use App\Controller\Api\Filter\User\UpdateUserPhotoController;
 use App\Entity\Appeal\Appeal;
 use App\Entity\Appeal\AppealImage;
@@ -60,41 +60,32 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
                 is_granted('ROLE_MASTER') or
                 is_granted('ROLE_CLIENT')",
         ),
-        new Get(
-            uriTemplate: '/users/{id}',
-            requirements: ['id' => '\d+']
-        ),
         new GetCollection(
             uriTemplate: '/users/clients',
-            controller: ClientUserFilterController::class,
+            controller: ClientsUserFilterController::class,
         ),
         new Get(
             uriTemplate: '/users/clients/{id}',
             requirements: ['id' => '\d+'],
-            controller: SingleClientUserFilterController::class,
-            security:
-               "is_granted('ROLE_ADMIN') or
-                is_granted('ROLE_MASTER') or
-                is_granted('ROLE_CLIENT')",
+            controller: ClientUserFilterController::class,
         ),
         new GetCollection(
             uriTemplate: '/users/masters',
-            controller: MasterUserFilterController::class,
+            controller: MastersUserFilterController::class,
+        ),
+        new GetCollection(
+            uriTemplate: '/users/social-networks',
         ),
         new Get(
             uriTemplate: '/users/masters/{id}',
             requirements: ['id' => '\d+'],
-            controller: SingleMasterUserFilterController::class,
-            security:
-               "is_granted('ROLE_ADMIN') or
-                is_granted('ROLE_MASTER') or
-                is_granted('ROLE_CLIENT')",
+            controller: MasterUserFilterController::class,
         ),
         new Post(
             uriTemplate: '/users'
         ),
         new Post(
-            uriTemplate: '/users/{id}/profile-photo',
+            uriTemplate: '/users/{id}/update-photo',
             inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
             controller: UpdateUserPhotoController::class,
@@ -151,7 +142,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function __construct()
     {
-        $this->userSocialNetworks = new ArrayCollection();
+        $this->socialNetworks = new ArrayCollection();
         $this->messageAuthor = new ArrayCollection();
         $this->userTickets = new ArrayCollection();
         $this->education = new ArrayCollection();
@@ -299,19 +290,19 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'masters:read',
         'clients:read',
     ])]
-    private Collection $userSocialNetworks;
+    private Collection $socialNetworks;
 
     /**
      * @var Collection<int, Chat>
      */
-    #[ORM\OneToMany(targetEntity: Chat::class, mappedBy: 'messageAuthor')]
+    #[ORM\OneToMany(targetEntity: Chat::class, mappedBy: 'author')]
     #[Ignore]
     private Collection $messageAuthor;
 
     /**
      * @var Collection<int, Chat>
      */
-    #[ORM\OneToMany(targetEntity: Chat::class, mappedBy: 'messageReplyAuthor')]
+    #[ORM\OneToMany(targetEntity: Chat::class, mappedBy: 'replyAuthor')]
     #[Ignore]
     private Collection $messageReplyAuthor;
 
@@ -400,36 +391,42 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      * @var Collection<int, Appeal>
      */
     #[ORM\OneToMany(targetEntity: Appeal::class, mappedBy: 'administrant')]
+    #[Ignore]
     private Collection $administrantAppeals;
 
     /**
      * @var Collection<int, AppealMessage>
      */
     #[ORM\OneToMany(targetEntity: AppealMessage::class, mappedBy: 'author')]
+    #[Ignore]
     private Collection $appealMessages;
 
     /**
      * @var Collection<int, ChatImage>
      */
     #[ORM\OneToMany(targetEntity: ChatImage::class, mappedBy: 'author')]
+    #[Ignore]
     private Collection $chatImages;
 
     /**
      * @var Collection<int, AppealImage>
      */
     #[ORM\OneToMany(targetEntity: AppealImage::class, mappedBy: 'author')]
+    #[Ignore]
     private Collection $appealImages;
 
     /**
      * @var Collection<int, Review>
      */
     #[ORM\OneToMany(targetEntity: Review::class, mappedBy: 'master')]
+    #[Ignore]
     private Collection $masterReviews;
 
     /**
      * @var Collection<int, Review>
      */
     #[ORM\OneToMany(targetEntity: Review::class, mappedBy: 'client')]
+    #[Ignore]
     private Collection $clientReviews;
 
     public function getId(): ?int
@@ -657,27 +654,27 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /**
      * @return Collection<int, SocialNetwork>
      */
-    public function getUserSocialNetworks(): Collection
+    public function getSocialNetworks(): Collection
     {
-        return $this->userSocialNetworks;
+        return $this->socialNetworks;
     }
 
-    public function addUserSocialNetwork(SocialNetwork $userSocialNetwork): static
+    public function addSocialNetwork(SocialNetwork $socialNetwork): static
     {
-        if (!$this->userSocialNetworks->contains($userSocialNetwork)) {
-            $this->userSocialNetworks->add($userSocialNetwork);
-            $userSocialNetwork->setUser($this);
+        if (!$this->socialNetworks->contains($socialNetwork)) {
+            $this->socialNetworks->add($socialNetwork);
+            $socialNetwork->setUser($this);
         }
 
         return $this;
     }
 
-    public function removeUserSocialNetwork(SocialNetwork $userSocialNetwork): static
+    public function removeSocialNetwork(SocialNetwork $socialNetwork): static
     {
-        if ($this->userSocialNetworks->removeElement($userSocialNetwork)) {
+        if ($this->socialNetworks->removeElement($socialNetwork)) {
             // set the owning side to null (unless already changed)
-            if ($userSocialNetwork->getUser() === $this) {
-                $userSocialNetwork->setUser(null);
+            if ($socialNetwork->getUser() === $this) {
+                $socialNetwork->setUser(null);
             }
         }
 
@@ -696,7 +693,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         if (!$this->messageAuthor->contains($chat)) {
             $this->messageAuthor->add($chat);
-            $chat->setMessageAuthor($this);
+            $chat->setAuthor($this);
         }
 
         return $this;
@@ -706,8 +703,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         if ($this->messageAuthor->removeElement($chat)) {
             // set the owning side to null (unless already changed)
-            if ($chat->getMessageAuthor() === $this) {
-                $chat->setMessageAuthor(null);
+            if ($chat->getAuthor() === $this) {
+                $chat->setAuthor(null);
             }
         }
 
@@ -726,7 +723,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         if (!$this->messageReplyAuthor->contains($chat)) {
             $this->messageReplyAuthor->add($chat);
-            $chat->setMessageReplyAuthor($this);
+            $chat->setReplyAuthor($this);
         }
 
         return $this;
@@ -736,8 +733,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         if ($this->messageReplyAuthor->removeElement($chat)) {
             // set the owning side to null (unless already changed)
-            if ($chat->getMessageReplyAuthor() === $this) {
-                $chat->setMessageReplyAuthor(null);
+            if ($chat->getReplyAuthor() === $this) {
+                $chat->setReplyAuthor(null);
             }
         }
 

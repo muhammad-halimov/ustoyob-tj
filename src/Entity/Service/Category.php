@@ -2,14 +2,10 @@
 
 namespace App\Entity\Service;
 
-use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
-use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
-use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\Filter\Service\UpdateCategoryPhotoController;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
@@ -39,28 +35,6 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
         ),
         new Post(
             uriTemplate: '/categories',
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER')"
-        ),
-        new Post(
-            uriTemplate: '/categories/{id}/update-photo',
-            requirements: ['id' => '\d+'],
-            controller: UpdateCategoryPhotoController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER')"
-        ),
-        new Patch(
-            uriTemplate: '/categories/{id}',
-            requirements: ['id' => '\d+'],
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER')"
-        ),
-        new Delete(
-            uriTemplate: '/categories/{id}',
-            requirements: ['id' => '\d+'],
             security:
                 "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER')"
@@ -112,14 +86,13 @@ class Category
 
     #[Vich\UploadableField(mapping: 'service_category_photos', fileNameProperty: 'image')]
     #[Assert\Image(mimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])]
+    private ?File $imageFile = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
         'masterServiceCategories:read',
         'masterServices:read',
     ])]
-    private ?File $imageFile = null;
-
-    #[ORM\Column(length: 255, nullable: true)]
-    #[ApiProperty(writable: false)]
     private ?string $image = null;
 
     /**

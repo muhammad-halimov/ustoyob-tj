@@ -56,11 +56,11 @@ class ChatCrudController extends AbstractCrudController
         yield IdField::new('id')
             ->onlyOnIndex();
 
-        yield AssociationField::new('messageAuthor', 'Автор')
+        yield AssociationField::new('author', 'Автор')
             ->setRequired(true)
             ->setColumns(6);
 
-        yield AssociationField::new('messageReplyAuthor', 'Ответчик')
+        yield AssociationField::new('replyAuthor', 'Ответчик')
             ->setRequired(true)
             ->setColumns(6);
 

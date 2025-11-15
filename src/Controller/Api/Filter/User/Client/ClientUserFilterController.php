@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controller\Api\Filter\User;
+namespace App\Controller\Api\Filter\User\Client;
 
 use App\Entity\User;
 use App\Repository\UserRepository;
@@ -8,7 +8,7 @@ use Exception;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
-class MasterUserFilterController extends AbstractController
+class ClientUserFilterController extends AbstractController
 {
     private readonly UserRepository $userRepository;
 
@@ -19,18 +19,18 @@ class MasterUserFilterController extends AbstractController
         $this->userRepository = $userRepository;
     }
 
-    public function __invoke(): JsonResponse
+    public function __invoke(int $id): JsonResponse
     {
         try {
             /** @var User $user */
-            $user = $this->userRepository->findAllByRole("ROLE_MASTER");
+            $user = $this->userRepository->findOneByRole("ROLE_CLIENT", $id);
             if (!$user) return $this->json([], 404);
 
             return empty($user)
                 ? $this->json([], 404)
                 : $this->json($user, 200, [],
                     [
-                        'groups' => ['masters:read'],
+                        'groups' => ['clients:read'],
                         'skip_null_values' => false,
                     ]
                 );

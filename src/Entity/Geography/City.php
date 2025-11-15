@@ -4,12 +4,8 @@ namespace App\Entity\Geography;
 
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
-use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
-use ApiPlatform\Metadata\Patch;
-use ApiPlatform\Metadata\Post;
-use App\Controller\Api\Filter\Geography\UpdateCityPhotoController;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Repository\CityRepository;
@@ -36,26 +32,6 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
         new GetCollection(
             uriTemplate: '/cities',
         ),
-        new Post(
-            uriTemplate: '/cities',
-            security: "is_granted('ROLE_ADMIN')"
-        ),
-        new Post(
-            uriTemplate: '/cities/{id}/update-photo',
-            requirements: ['id' => '\d+'],
-            controller: UpdateCityPhotoController::class,
-            security: "is_granted('ROLE_ADMIN')"
-        ),
-        new Patch(
-            uriTemplate: '/cities/{id}',
-            requirements: ['id' => '\d+'],
-            security: "is_granted('ROLE_ADMIN')"
-        ),
-        new Delete(
-            uriTemplate: '/cities/{id}',
-            requirements: ['id' => '\d+'],
-            security: "is_granted('ROLE_ADMIN')"
-        )
     ],
     normalizationContext: [
         'groups' => ['cities:read'],

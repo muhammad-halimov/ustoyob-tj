@@ -57,20 +57,7 @@ class SocialNetworkCrudController extends AbstractCrudController
             ->onlyOnIndex();
 
         yield ChoiceField::new('network', 'Соц. сеть')
-            ->setChoices([
-                'facebook' => 'Facebook',
-                'twitter' => 'Twitter',
-                'linkedin' => 'LinkedIn',
-                'instagram' => 'Instagram',
-                'telegram' => 'Telegram',
-                'whatsapp' => 'WhatsApp',
-                'vk' => 'VK',
-                'imo' => 'Imo',
-                'viber' => 'Viber',
-                'google' => 'Google',
-                'youtube' => 'Youtube',
-                'site' => 'Site',
-            ])
+            ->setChoices(SocialNetwork::NETWORKS)
             ->setColumns(6)
             ->setRequired(true);
 

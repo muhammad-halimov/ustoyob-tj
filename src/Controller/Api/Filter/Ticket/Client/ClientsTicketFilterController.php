@@ -1,44 +1,35 @@
 <?php
 
-namespace App\Controller\Api\Filter\Ticket;
+namespace App\Controller\Api\Filter\Ticket\Client;
 
-use App\Entity\User;
 use App\Repository\TicketRepository;
-use App\Repository\UserRepository;
 use Exception;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
-class MasterTicketFilterController extends AbstractController
+class ClientsTicketFilterController extends AbstractController
 {
     private readonly TicketRepository $ticketRepository;
-    private readonly UserRepository $userRepository;
 
     public function __construct(
-        TicketRepository  $ticketRepository,
-        UserRepository    $userRepository
+        TicketRepository  $ticketRepository
     )
     {
         $this->ticketRepository = $ticketRepository;
-        $this->userRepository = $userRepository;
     }
 
-    public function __invoke(int $id): JsonResponse
+    public function __invoke(): JsonResponse
     {
         $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
 
+        $userRoles = $this->getUser()?->getRoles() ?? [];
+        $allowedRoles = ["ROLE_ADMIN", "ROLE_CLIENT", "ROLE_MASTER"];
+
+        if (!array_intersect($allowedRoles, $userRoles))
+            return $this->json(['message' => 'Access denied'], 403);
+
         try {
-            /** @var User $user */
-            $user = $this->userRepository->find($id);
-            if (!$user) return $this->json([], 404);
-
-            $userRoles = $user->getRoles() ?? [];
-            $allowedRoles = ["ROLE_ADMIN", "ROLE_CLIENT", "ROLE_MASTER"];
-
-            if (!array_intersect($allowedRoles, $userRoles))
-                return $this->json(['message' => 'Access denied'], 403);
-
-            $data = $this->ticketRepository->findUserTicketsByMasterRole($user);
+            $data = $this->ticketRepository->findUserTicketsByStatus(false);
 
             return empty($data)
                 ? $this->json([], 404)

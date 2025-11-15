@@ -4,12 +4,8 @@ namespace App\Entity\Geography;
 
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
-use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
-use ApiPlatform\Metadata\Patch;
-use ApiPlatform\Metadata\Post;
-use App\Controller\Api\Filter\Geography\UpdateDistrictPhotoController;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
@@ -38,26 +34,6 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
         new GetCollection(
             uriTemplate: '/districts',
         ),
-        new Post(
-            uriTemplate: '/districts',
-            security: "is_granted('ROLE_ADMIN')"
-        ),
-        new Post(
-            uriTemplate: '/districts/{id}/update-photo',
-            requirements: ['id' => '\d+'],
-            controller: UpdateDistrictPhotoController::class,
-            security: "is_granted('ROLE_ADMIN')"
-        ),
-        new Patch(
-            uriTemplate: '/districts/{id}',
-            requirements: ['id' => '\d+'],
-            security: "is_granted('ROLE_ADMIN')"
-        ),
-        new Delete(
-            uriTemplate: '/districts/{id}',
-            requirements: ['id' => '\d+'],
-            security: "is_granted('ROLE_ADMIN')"
-        )
     ],
     normalizationContext: [
         'groups' => ['districts:read'],

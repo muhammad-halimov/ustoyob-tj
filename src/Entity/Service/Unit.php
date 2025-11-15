@@ -3,10 +3,8 @@
 namespace App\Entity\Service;
 
 use ApiPlatform\Metadata\ApiResource;
-use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
-use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Traits\CreatedAtTrait;
@@ -30,20 +28,6 @@ use Symfony\Component\Serializer\Attribute\Ignore;
         new GetCollection(
             uriTemplate: '/units',
         ),
-        new Post(
-            uriTemplate: '/units',
-            security: "is_granted('ROLE_ADMIN')"
-        ),
-        new Patch(
-            uriTemplate: '/units/{id}',
-            requirements: ['id' => '\d+'],
-            security: "is_granted('ROLE_ADMIN')"
-        ),
-        new Delete(
-            uriTemplate: '/units/{id}',
-            requirements: ['id' => '\d+'],
-            security: "is_granted('ROLE_ADMIN')"
-        )
     ],
     normalizationContext: [
         'groups' => ['masterServiceUnits:read'],

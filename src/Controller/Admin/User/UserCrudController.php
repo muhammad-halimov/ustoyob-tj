@@ -185,7 +185,7 @@ class UserCrudController extends AbstractCrudController
             ->setColumns(12)
             ->setRequired(false);
 
-        yield CollectionField::new('userSocialNetworks', 'Соц. сети')
+        yield CollectionField::new('socialNetworks', 'Соц. сети')
             ->useEntryCrudForm(SocialNetworkCrudController::class)
             ->hideOnIndex()
             ->setColumns(12)

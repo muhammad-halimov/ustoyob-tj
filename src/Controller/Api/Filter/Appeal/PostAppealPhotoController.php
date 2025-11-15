@@ -3,6 +3,7 @@
 namespace App\Controller\Api\Filter\Appeal;
 
 use App\Entity\Appeal\AppealImage;
+use App\Entity\User;
 use App\Repository\User\AppealRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -21,6 +22,7 @@ class PostAppealPhotoController extends AbstractController
     public function __invoke(int $id, Request $request): JsonResponse
     {
         $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
+        /** @var User $user */
         $user = $this->security->getUser();
 
         $userRoles = $user?->getRoles() ?? [];

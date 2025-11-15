@@ -19,6 +19,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Serializer\Attribute\SerializedName;
 
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Entity(repositoryClass: ChatRepository::class)]
@@ -35,13 +36,6 @@ use Symfony\Component\Serializer\Attribute\Groups;
         new GetCollection(
             uriTemplate: '/chats/me',
             controller: PersonalChatFilterController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
-        ),
-        new GetCollection(
-            uriTemplate: '/chats',
             security:
                 "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or
@@ -105,18 +99,18 @@ class Chat
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'messageAuthor')]
-    #[ORM\JoinColumn(name: 'message_author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    #[ORM\JoinColumn(name: 'author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'chats:read',
     ])]
-    private ?User $messageAuthor = null;
+    private ?User $author = null;
 
     #[ORM\ManyToOne(inversedBy: 'messageReplyAuthor')]
-    #[ORM\JoinColumn(name: 'message_reply_author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    #[ORM\JoinColumn(name: 'reply_author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'chats:read',
     ])]
-    private ?User $messageReplyAuthor = null;
+    private ?User $replyAuthor = null;
 
     /**
      * @var Collection<int, ChatMessage>
@@ -135,6 +129,7 @@ class Chat
     #[Groups([
         'chats:read',
     ])]
+    #[SerializedName('images')]
     #[ApiProperty(writable: false)]
     private Collection $chatImages;
 
@@ -149,26 +144,26 @@ class Chat
         return $this->id;
     }
 
-    public function getMessageAuthor(): ?User
+    public function getAuthor(): ?User
     {
-        return $this->messageAuthor;
+        return $this->author;
     }
 
-    public function setMessageAuthor(?User $messageAuthor): static
+    public function setAuthor(?User $author): static
     {
-        $this->messageAuthor = $messageAuthor;
+        $this->author = $author;
 
         return $this;
     }
 
-    public function getMessageReplyAuthor(): ?User
+    public function getReplyAuthor(): ?User
     {
-        return $this->messageReplyAuthor;
+        return $this->replyAuthor;
     }
 
-    public function setMessageReplyAuthor(?User $messageReplyAuthor): static
+    public function setReplyAuthor(?User $replyAuthor): static
     {
-        $this->messageReplyAuthor = $messageReplyAuthor;
+        $this->replyAuthor = $replyAuthor;
 
         return $this;
     }
