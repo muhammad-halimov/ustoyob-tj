@@ -25,8 +25,6 @@ class ClientReviewFilterController extends AbstractController
 
     public function __invoke(int $id): JsonResponse
     {
-        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
-
         try {
             /** @var User $user */
             $user = $this->userRepository->find($id);
@@ -38,7 +36,7 @@ class ClientReviewFilterController extends AbstractController
             if (!array_intersect($allowedRoles, $userRoles))
                 return $this->json(['message' => 'Access denied'], 403);
 
-            $data = $this->reviewRepository->findUserReviewsByClientRole($user);
+            $data = $this->reviewRepository->findClientReviews($user);
 
             return empty($data)
                 ? $this->json([], 404)

@@ -48,31 +48,31 @@ class ReviewRepository extends ServiceEntityRepository
         return [];
     }
 
-    public function findUserReviewsByClientRole(User $user): array
+    public function findClientReviews(User $user): array
     {
         return $this
             ->createQueryBuilder('r')
-            ->innerJoin('r.client', 'rev')
-            ->where('r.client = :clientId')
-            ->andWhere("r.forClient = :status")
-            ->andWhere("rev.roles LIKE :role")
-            ->setParameter('clientId', $user->getId())
-            ->setParameter('status', false)
+            ->innerJoin('r.client', 'client')
+            ->where('r.client = :user')
+            ->andWhere("r.forClient = :forClient")
+            ->andWhere("client.roles LIKE :role")
+            ->setParameter('user', $user)
+            ->setParameter('forClient', true)
             ->setParameter('role', '%ROLE_CLIENT%')
             ->getQuery()
             ->getResult();
     }
 
-    public function findUserReviewsByMasterRole(User $user): array
+    public function findMasterReviews(User $user): array
     {
         return $this
             ->createQueryBuilder('r')
             ->innerJoin('r.master', 'master')
-            ->where('r.master = :masterId')
-            ->andWhere("r.forClient = :status")
+            ->where('r.master = :user')
+            ->andWhere("r.forClient = :forClient")
             ->andWhere("master.roles LIKE :role")
-            ->setParameter('masterId', $user->getId())
-            ->setParameter('status', true)
+            ->setParameter('user', $user)
+            ->setParameter('forClient', false)
             ->setParameter('role', '%ROLE_MASTER%')
             ->getQuery()
             ->getResult();

@@ -5,7 +5,6 @@ namespace App\Entity\Review;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
-use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
@@ -29,14 +28,6 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
     operations: [
-        new Get(
-            uriTemplate: '/reviews/{id}',
-            requirements: ['id' => '\d+'],
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
-        ),
         new GetCollection(
             uriTemplate: '/reviews/me',
             controller: PersonalReviewFilterController::class,
@@ -49,19 +40,11 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             uriTemplate: '/reviews/masters/{id}',
             requirements: ['id' => '\d+'],
             controller: MasterReviewFilterController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
         ),
         new GetCollection(
             uriTemplate: '/reviews/clients/{id}',
             requirements: ['id' => '\d+'],
             controller: ClientReviewFilterController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
         ),
         new Post(
             uriTemplate: '/reviews',

@@ -45,36 +45,20 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         new GetCollection(
             uriTemplate: '/tickets/masters',
             controller: MastersTicketFilterController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
         ),
         new GetCollection(
             uriTemplate: '/tickets/masters/{id}',
             requirements: ['id' => '\d+'],
             controller: MasterTicketFilterController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
         ),
         new GetCollection(
             uriTemplate: '/tickets/clients',
             controller: ClientsTicketFilterController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
         ),
         new GetCollection(
             uriTemplate: '/tickets/clients/{id}',
             requirements: ['id' => '\d+'],
             controller: ClientTicketFilterController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
         ),
         new Post(
             uriTemplate: '/tickets',
