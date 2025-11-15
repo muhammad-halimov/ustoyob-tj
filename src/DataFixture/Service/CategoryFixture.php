@@ -2,7 +2,7 @@
 
 namespace App\DataFixture\Service;
 
-use App\Entity\Service\Category;
+use App\Entity\Ticket\Category;
 use App\Entity\Ticket\Ticket;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;

@@ -2,7 +2,7 @@
 
 namespace App\Repository;
 
-use App\Entity\Service\Unit;
+use App\Entity\Ticket\Unit;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 

@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Controller\Admin\Service;
+namespace App\Controller\Admin\Ticket;
 
 use App\Controller\Admin\Field\VichImageField;
-use App\Entity\Service\Category;
+use App\Entity\Ticket\Category;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;

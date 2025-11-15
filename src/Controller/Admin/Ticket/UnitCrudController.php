@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Controller\Admin\Service;
+namespace App\Controller\Admin\Ticket;
 
-use App\Entity\Service\Unit;
+use App\Entity\Ticket\Unit;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;

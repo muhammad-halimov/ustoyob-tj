@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Entity\Service;
+namespace App\Entity\Ticket;
 
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
-use App\Entity\Ticket\Ticket;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Repository\CategoryRepository;
@@ -93,6 +93,7 @@ class Category
         'masterServiceCategories:read',
         'masterServices:read',
     ])]
+    #[ApiProperty(writable: false)]
     private ?string $image = null;
 
     /**

@@ -2,8 +2,8 @@
 
 namespace App\DataFixture\Service;
 
-use App\Entity\Service\Unit;
 use App\Entity\Ticket\Ticket;
+use App\Entity\Ticket\Unit;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
 
