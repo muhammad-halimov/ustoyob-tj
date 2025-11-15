@@ -103,13 +103,17 @@ class District
     #[Ignore]
     private Collection $tickets;
 
-    #[ORM\ManyToOne(inversedBy: 'districts')]
+    /**
+     * @var Collection<int, User>
+     */
+    #[ORM\ManyToMany(targetEntity: User::class, inversedBy: 'districts')]
     #[Ignore]
-    private ?User $user = null;
+    private Collection $user;
 
     public function __construct()
     {
         $this->tickets = new ArrayCollection();
+        $this->user = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -210,14 +214,26 @@ class District
         return $this;
     }
 
-    public function getUser(): ?User
+    /**
+     * @return Collection<int, User>
+     */
+    public function getUser(): Collection
     {
         return $this->user;
     }
 
-    public function setUser(?User $user): static
+    public function addUser(User $user): static
     {
-        $this->user = $user;
+        if (!$this->user->contains($user)) {
+            $this->user->add($user);
+        }
+
+        return $this;
+    }
+
+    public function removeUser(User $user): static
+    {
+        $this->user->removeElement($user);
 
         return $this;
     }

@@ -83,11 +83,6 @@ class Occupation
     #[ApiProperty(writable: false)]
     private ?string $image = null;
 
-    #[ORM\ManyToOne(inversedBy: 'occupation')]
-    #[ORM\JoinColumn(name: 'master_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
-    #[Ignore]
-    private ?User $master = null;
-
     /**
      * @var Collection<int, Education>
      */
@@ -95,9 +90,17 @@ class Occupation
     #[Ignore]
     private Collection $education;
 
+    /**
+     * @var Collection<int, User>
+     */
+    #[ORM\ManyToMany(targetEntity: User::class, inversedBy: 'occupation')]
+    #[Ignore]
+    private Collection $master;
+
     public function __construct()
     {
         $this->education = new ArrayCollection();
+        $this->master = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -125,18 +128,6 @@ class Occupation
     public function setDescription(?string $description): static
     {
         $this->description = $description;
-
-        return $this;
-    }
-
-    public function getMaster(): ?User
-    {
-        return $this->master;
-    }
-
-    public function setMaster(?User $master): static
-    {
-        $this->master = $master;
 
         return $this;
     }
@@ -194,6 +185,30 @@ class Occupation
                 $education->setOccupation(null);
             }
         }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, User>
+     */
+    public function getMaster(): Collection
+    {
+        return $this->master;
+    }
+
+    public function addMaster(User $master): static
+    {
+        if (!$this->master->contains($master)) {
+            $this->master->add($master);
+        }
+
+        return $this;
+    }
+
+    public function removeMaster(User $master): static
+    {
+        $this->master->removeElement($master);
 
         return $this;
     }

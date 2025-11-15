@@ -11,9 +11,11 @@ use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\Filter\User\Client\ClientsUserFilterController;
 use App\Controller\Api\Filter\User\Client\ClientUserFilterController;
+use App\Controller\Api\Filter\User\DeleteUserController;
 use App\Controller\Api\Filter\User\Master\MastersUserFilterController;
 use App\Controller\Api\Filter\User\Master\MasterUserFilterController;
 use App\Controller\Api\Filter\User\PersonalUserFilterController;
+use App\Controller\Api\Filter\User\SocialNetworkController;
 use App\Controller\Api\Filter\User\UpdateUserPhotoController;
 use App\Entity\Appeal\Appeal;
 use App\Entity\Appeal\AppealImage;
@@ -75,6 +77,7 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
         ),
         new GetCollection(
             uriTemplate: '/users/social-networks',
+            controller: SocialNetworkController::class,
         ),
         new Get(
             uriTemplate: '/users/masters/{id}',
@@ -105,6 +108,7 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
         new Delete(
             uriTemplate: '/users/{id}',
             requirements: ['id' => '\d+'],
+            controller: DeleteUserController::class,
             security:
                 "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or
@@ -149,17 +153,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->chatMessages = new ArrayCollection();
         $this->galleries = new ArrayCollection();
         $this->tickets = new ArrayCollection();
-        $this->districts = new ArrayCollection();
         $this->appeals = new ArrayCollection();
         $this->appealsRespondent = new ArrayCollection();
         $this->favorites = new ArrayCollection();
-        $this->occupation = new ArrayCollection();
         $this->administrantAppeals = new ArrayCollection();
         $this->appealMessages = new ArrayCollection();
         $this->chatImages = new ArrayCollection();
         $this->appealImages = new ArrayCollection();
         $this->masterReviews = new ArrayCollection();
         $this->clientReviews = new ArrayCollection();
+        $this->districts = new ArrayCollection();
+        $this->occupation = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -240,6 +244,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'masters:read',
         'clients:read',
     ])]
+    #[ApiProperty(writable: false)]
     private ?string $image = null;
 
     #[ORM\Column(length: 20, nullable: true)]
@@ -344,15 +349,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private Collection $tickets;
 
     /**
-     * @var Collection<int, District>
-     */
-    #[ORM\OneToMany(targetEntity: District::class, mappedBy: 'user')]
-    #[Groups([
-        'masters:read',
-    ])]
-    private Collection $districts;
-
-    /**
      * @var Collection<int, Appeal>
      */
     #[ORM\OneToMany(targetEntity: Appeal::class, mappedBy: 'author')]
@@ -375,17 +371,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     #[ORM\ManyToOne(inversedBy: 'favoriteMasters')]
     #[ORM\JoinColumn(name: 'favorite_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
-    #[ApiProperty(writable: false)]
+    #[Ignore]
     private ?Favorite $favorite = null;
-
-    /**
-     * @var Collection<int, Occupation>
-     */
-    #[ORM\OneToMany(targetEntity: Occupation::class, mappedBy: 'master')]
-    #[Groups([
-        'masters:read',
-    ])]
-    private Collection $occupation;
 
     /**
      * @var Collection<int, Appeal>
@@ -428,6 +415,29 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(targetEntity: Review::class, mappedBy: 'client')]
     #[Ignore]
     private Collection $clientReviews;
+
+    /**
+     * @var Collection<int, District>
+     */
+    #[ORM\ManyToMany(targetEntity: District::class, mappedBy: 'user')]
+    #[Groups([
+        'masters:read',
+    ])]
+    private Collection $districts;
+
+    /**
+     * @var Collection<int, Occupation>
+     */
+    #[ORM\ManyToMany(targetEntity: Occupation::class, mappedBy: 'master')]
+    #[Groups([
+        'masters:read',
+    ])]
+    private Collection $occupation;
+
+    #[ORM\ManyToOne(inversedBy: 'favoriteClients')]
+    #[ORM\JoinColumn(name: 'client_favorites_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    #[Ignore]
+    private ?Favorite $clientFavorites = null;
 
     public function getId(): ?int
     {
@@ -892,36 +902,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * @return Collection<int, District>
-     */
-    public function getDistricts(): Collection
-    {
-        return $this->districts;
-    }
-
-    public function addDistrict(District $district): static
-    {
-        if (!$this->districts->contains($district)) {
-            $this->districts->add($district);
-            $district->setUser($this);
-        }
-
-        return $this;
-    }
-
-    public function removeDistrict(District $district): static
-    {
-        if ($this->districts->removeElement($district)) {
-            // set the owning side to null (unless already changed)
-            if ($district->getUser() === $this) {
-                $district->setUser(null);
-            }
-        }
-
-        return $this;
-    }
-
-    /**
      * @return Collection<int, Appeal>
      */
     public function getAppeals(): Collection
@@ -1019,36 +999,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setFavorite(?Favorite $favorite): static
     {
         $this->favorite = $favorite;
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, Occupation>
-     */
-    public function getOccupation(): Collection
-    {
-        return $this->occupation;
-    }
-
-    public function addOccupation(Occupation $occupation): static
-    {
-        if (!$this->occupation->contains($occupation)) {
-            $this->occupation->add($occupation);
-            $occupation->setMaster($this);
-        }
-
-        return $this;
-    }
-
-    public function removeOccupation(Occupation $occupation): static
-    {
-        if ($this->occupation->removeElement($occupation)) {
-            // set the owning side to null (unless already changed)
-            if ($occupation->getMaster() === $this) {
-                $occupation->setMaster(null);
-            }
-        }
 
         return $this;
     }
@@ -1229,6 +1179,72 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
                 $clientReview->setClient(null);
             }
         }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, District>
+     */
+    public function getDistricts(): Collection
+    {
+        return $this->districts;
+    }
+
+    public function addDistrict(District $district): static
+    {
+        if (!$this->districts->contains($district)) {
+            $this->districts->add($district);
+            $district->addUser($this);
+        }
+
+        return $this;
+    }
+
+    public function removeDistrict(District $district): static
+    {
+        if ($this->districts->removeElement($district)) {
+            $district->removeUser($this);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Occupation>
+     */
+    public function getOccupation(): Collection
+    {
+        return $this->occupation;
+    }
+
+    public function addOccupation(Occupation $occupation): static
+    {
+        if (!$this->occupation->contains($occupation)) {
+            $this->occupation->add($occupation);
+            $occupation->addMaster($this);
+        }
+
+        return $this;
+    }
+
+    public function removeOccupation(Occupation $occupation): static
+    {
+        if ($this->occupation->removeElement($occupation)) {
+            $occupation->removeMaster($this);
+        }
+
+        return $this;
+    }
+
+    public function getClientFavorites(): ?Favorite
+    {
+        return $this->clientFavorites;
+    }
+
+    public function setClientFavorites(?Favorite $clientFavorites): static
+    {
+        $this->clientFavorites = $clientFavorites;
 
         return $this;
     }

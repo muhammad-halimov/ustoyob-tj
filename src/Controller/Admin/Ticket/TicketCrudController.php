@@ -76,6 +76,10 @@ class TicketCrudController extends AbstractCrudController
             ->addCssClass("form-switch")
             ->setColumns(12);
 
+        yield TextField::new('title', 'Название')
+            ->setColumns(4)
+            ->setRequired(true);
+
         yield AssociationField::new('category', 'Категория')
             ->hideOnIndex()
             ->setRequired(true)
@@ -84,10 +88,6 @@ class TicketCrudController extends AbstractCrudController
         yield AssociationField::new('address', 'Адрес')
             ->setRequired(true)
             ->setColumns(3);
-
-        yield TextField::new('title', 'Название')
-            ->setColumns(4)
-            ->setRequired(true);
 
         yield NumberField::new('budget', 'Бюджет')
             ->setRequired(true)

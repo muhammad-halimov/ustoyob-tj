@@ -2,6 +2,7 @@
 
 namespace App\Entity\User;
 
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
@@ -22,7 +23,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
     operations: [
-        new Get(
+        new Get( #TODO Выборка из массива, по роли
             uriTemplate: '/favorites/me',
             controller: PersonalFavoriteFilterController::class,
             security:
@@ -67,6 +68,7 @@ class Favorite
     public function __construct()
     {
         $this->favoriteMasters = new ArrayCollection();
+        $this->favoriteClients = new ArrayCollection();
     }
 
     public function __toString(): string
@@ -87,6 +89,7 @@ class Favorite
     #[Groups([
         'favorites:read'
     ])]
+    #[ApiProperty(writable: false)]
     private ?User $user = null;
 
     /**
@@ -98,6 +101,16 @@ class Favorite
     ])]
     #[SerializedName('masters')]
     private Collection $favoriteMasters;
+
+    /**
+     * @var Collection<int, User>
+     */
+    #[ORM\OneToMany(targetEntity: User::class, mappedBy: 'clientFavorites')]
+    #[Groups([
+        'favorites:read'
+    ])]
+    #[SerializedName('clients')]
+    private Collection $favoriteClients;
 
     public function getId(): ?int
     {
@@ -140,6 +153,36 @@ class Favorite
             // set the owning side to null (unless already changed)
             if ($favoriteMaster->getFavorite() === $this) {
                 $favoriteMaster->setFavorite(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, User>
+     */
+    public function getFavoriteClients(): Collection
+    {
+        return $this->favoriteClients;
+    }
+
+    public function addFavoriteClient(User $favoriteClient): static
+    {
+        if (!$this->favoriteClients->contains($favoriteClient)) {
+            $this->favoriteClients->add($favoriteClient);
+            $favoriteClient->setClientFavorites($this);
+        }
+
+        return $this;
+    }
+
+    public function removeFavoriteClient(User $favoriteClient): static
+    {
+        if ($this->favoriteClients->removeElement($favoriteClient)) {
+            // set the owning side to null (unless already changed)
+            if ($favoriteClient->getClientFavorites() === $this) {
+                $favoriteClient->setClientFavorites(null);
             }
         }
 

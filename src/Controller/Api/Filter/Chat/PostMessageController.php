@@ -26,7 +26,6 @@ class PostMessageController extends AbstractController
 
         /** @var User $user */
         $user = $this->security->getUser();
-        $userRoles = $user->getRoles() ?? [];
 
         $data = json_decode($request->getContent(), true);
         $text = $data['text'];
@@ -36,7 +35,7 @@ class PostMessageController extends AbstractController
         $chatId = (preg_match('#/api/chats/(\d+)#', $chatParam, $c) ? $c[1] : $chatParam);
         $chat = $this->chatRepository->find($chatId);
 
-        if (!array_intersect($allowedRoles, $userRoles))
+        if (!array_intersect($allowedRoles, $user->getRoles()))
             return $this->json(['message' => 'Access denied'], 403);
 
         if(!$text || !$chatParam || !$chat)

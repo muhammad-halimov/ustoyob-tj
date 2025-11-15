@@ -144,6 +144,7 @@ class Review
     private Collection $reviewImages;
 
     #[ORM\ManyToOne(inversedBy: 'masterReviews')]
+    #[ORM\JoinColumn(name: 'master_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'reviews:read',
         'reviewsClient:read',
@@ -151,6 +152,7 @@ class Review
     private ?User $master = null;
 
     #[ORM\ManyToOne(inversedBy: 'clientReviews')]
+    #[ORM\JoinColumn(name: 'client_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'reviews:read',
         'reviewsClient:read',

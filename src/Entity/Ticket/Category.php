@@ -86,6 +86,7 @@ class Category
 
     #[Vich\UploadableField(mapping: 'service_category_photos', fileNameProperty: 'image')]
     #[Assert\Image(mimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])]
+    #[ApiProperty(writable: false)]
     private ?File $imageFile = null;
 
     #[ORM\Column(length: 255, nullable: true)]

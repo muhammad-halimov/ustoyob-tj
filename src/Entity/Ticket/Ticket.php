@@ -84,7 +84,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
                  is_granted('ROLE_MASTER') or
                  is_granted('ROLE_CLIENT')"
         ),
-        new Delete(
+        new Delete( # TODO: Двойное удаление с ролями
             uriTemplate: '/tickets/{id}',
             requirements: ['id' => '\d+'],
             security:
@@ -105,10 +105,10 @@ class Ticket
 
     public function __toString(): string
     {
-        if (!$this->master) return "$this->title - $this->author";
-        else if (!$this->author) return "$this->title - $this->master";
-
-        return "Ticket #$this->id";
+        if (!$this->author && !$this->master) return $this->title;
+        elseif(!$this->master) return "$this->title - $this->author";
+        elseif(!$this->author) return "$this->title - $this->master";
+        else return $this->title ?? "Ticket #$this->id";
     }
 
     public function __construct()
