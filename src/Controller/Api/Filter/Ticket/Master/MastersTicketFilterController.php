@@ -9,14 +9,9 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 
 class MastersTicketFilterController extends AbstractController
 {
-    private readonly TicketRepository $ticketRepository;
-
     public function __construct(
-        TicketRepository  $ticketRepository
-    )
-    {
-        $this->ticketRepository = $ticketRepository;
-    }
+        private readonly TicketRepository $ticketRepository
+    ){}
 
     public function __invoke(): JsonResponse
     {
