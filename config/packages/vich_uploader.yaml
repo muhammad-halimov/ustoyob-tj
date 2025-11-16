@@ -7,17 +7,22 @@ vich_uploader:
             upload_destination: '%kernel.project_dir%/public/images/profile_photos'
             namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
 
-        service_category_photos:
+        gallery_photos:
+            uri_prefix: /images/gallery_photos
+            upload_destination: '%kernel.project_dir%/public/images/gallery_photos'
+            namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
+
+        category_photos:
             uri_prefix: /images/service_category_photos
             upload_destination: '%kernel.project_dir%/public/images/service_category_photos'
             namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
 
-        service_district_photos:
+        district_photos:
             uri_prefix: /images/service_district_photos
             upload_destination: '%kernel.project_dir%/public/images/service_district_photos'
             namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
 
-        service_city_photos:
+        city_photos:
             uri_prefix: /images/service_city_photos
             upload_destination: '%kernel.project_dir%/public/images/service_city_photos'
             namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
@@ -27,14 +32,9 @@ vich_uploader:
             upload_destination: '%kernel.project_dir%/public/images/chat_photos'
             namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
 
-        user_ticket_photos:
-            uri_prefix: /images/user_ticket_photos
-            upload_destination: '%kernel.project_dir%/public/images/user_ticket_photos'
-            namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
-
-        user_service_photos:
-            uri_prefix: /images/user_service_photos
-            upload_destination: '%kernel.project_dir%/public/images/user_service_photos'
+        ticket_photos:
+            uri_prefix: /images/ticket_photos
+            upload_destination: '%kernel.project_dir%/public/images/ticket_photos'
             namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
 
         occupation_photos:

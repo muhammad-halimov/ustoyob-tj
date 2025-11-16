@@ -77,7 +77,7 @@ class City
     ])]
     private ?string $description = null;
 
-    #[Vich\UploadableField(mapping: 'service_city_photos', fileNameProperty: 'image')]
+    #[Vich\UploadableField(mapping: 'city_photos', fileNameProperty: 'image')]
     #[Assert\Image(mimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])]
     private ?File $imageFile = null;
 

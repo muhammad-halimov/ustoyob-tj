@@ -37,7 +37,7 @@ class TicketImage
     #[ORM\ManyToOne(inversedBy: 'userTickets')]
     private ?User $author = null;
 
-    #[Vich\UploadableField(mapping: 'user_ticket_photos', fileNameProperty: 'image')]
+    #[Vich\UploadableField(mapping: 'ticket_photos', fileNameProperty: 'image')]
     #[Assert\Image(mimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])]
     private ?File $imageFile = null;
 

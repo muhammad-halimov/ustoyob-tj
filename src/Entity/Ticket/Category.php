@@ -84,7 +84,7 @@ class Category
     ])]
     private ?string $description = null;
 
-    #[Vich\UploadableField(mapping: 'service_category_photos', fileNameProperty: 'image')]
+    #[Vich\UploadableField(mapping: 'category_photos', fileNameProperty: 'image')]
     #[Assert\Image(mimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])]
     #[ApiProperty(writable: false)]
     private ?File $imageFile = null;

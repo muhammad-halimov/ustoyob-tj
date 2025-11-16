@@ -76,7 +76,7 @@ class District
     ])]
     private ?string $description = null;
 
-    #[Vich\UploadableField(mapping: 'service_district_photos', fileNameProperty: 'image')]
+    #[Vich\UploadableField(mapping: 'district_photos', fileNameProperty: 'image')]
     #[Assert\Image(mimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])]
     private ?File $imageFile = null;
 

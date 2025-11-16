@@ -33,7 +33,7 @@ class GalleryImage
     ])]
     private ?int $id = null;
 
-    #[Vich\UploadableField(mapping: 'service_category_photos', fileNameProperty: 'image')]
+    #[Vich\UploadableField(mapping: 'gallery_photos', fileNameProperty: 'image')]
     #[Assert\Image(mimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])]
     private ?File $imageFile = null;
 
