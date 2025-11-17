@@ -68,10 +68,6 @@ class Province
     #[ORM\Column(length: 64, nullable: true)]
     #[Groups([
         'provinces:read',
-        'userTickets:read',
-        'cities:read',
-        'districts:read',
-        'masters:read',
     ])]
     #[SerializedName('title')]
     private ?string $province = null;

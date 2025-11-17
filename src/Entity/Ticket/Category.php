@@ -41,7 +41,7 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
         )
     ],
     normalizationContext: [
-        'groups' => ['masterServiceCategories:read'],
+        'groups' => ['categories:read'],
         'skip_null_values' => false,
     ],
     paginationEnabled: false,
@@ -64,23 +64,20 @@ class Category
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
-        'masterServiceCategories:read',
-        'masterServices:read',
+        'categories:read',
         'userTickets:read',
     ])]
     private ?int $id = null;
 
     #[ORM\Column(length: 64, nullable: true)]
     #[Groups([
-        'masterServiceCategories:read',
-        'masterServices:read',
-        'userTickets:read',
+        'categories:read',
     ])]
     private ?string $title = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups([
-        'masterServiceCategories:read',
+        'categories:read',
     ])]
     private ?string $description = null;
 
@@ -91,8 +88,7 @@ class Category
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
-        'masterServiceCategories:read',
-        'masterServices:read',
+        'categories:read',
     ])]
     #[ApiProperty(writable: false)]
     private ?string $image = null;

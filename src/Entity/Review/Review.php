@@ -129,6 +129,7 @@ class Review
     #[Groups([
         'reviews:read',
     ])]
+    #[SerializedName('ticket')]
     private ?Ticket $services = null;
 
     /**

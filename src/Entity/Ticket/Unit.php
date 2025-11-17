@@ -28,7 +28,7 @@ use Symfony\Component\Serializer\Attribute\Ignore;
         ),
     ],
     normalizationContext: [
-        'groups' => ['masterServiceUnits:read'],
+        'groups' => ['units:read'],
         'skip_null_values' => false,
     ],
     paginationEnabled: false,
@@ -46,23 +46,21 @@ class Unit
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
-        'masterServices:read',
-        'masterServiceUnits:read',
+        'units:read',
         'userTickets:read',
     ])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
-        'masterServices:read',
-        'masterServiceUnits:read',
+        'units:read',
         'userTickets:read',
     ])]
     private ?string $title = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups([
-        'masterServiceUnits:read',
+        'units:read',
     ])]
     private ?string $description = null;
 

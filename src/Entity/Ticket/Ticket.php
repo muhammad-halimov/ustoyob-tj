@@ -92,7 +92,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         ),
     ],
     normalizationContext: [
-        'groups' => ['userTickets:read'],
+        'groups' => ['userTickets:read', 'masterTickets:read', 'clientTickets:read'],
         'skip_null_values' => false,
     ],
     paginationEnabled: false,
