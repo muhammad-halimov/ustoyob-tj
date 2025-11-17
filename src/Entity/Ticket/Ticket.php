@@ -214,6 +214,7 @@ class Ticket
     #[Groups([
         'userTickets:read',
     ])]
+    #[SerializedName('district')]
     private ?District $address = null;
 
     /**
