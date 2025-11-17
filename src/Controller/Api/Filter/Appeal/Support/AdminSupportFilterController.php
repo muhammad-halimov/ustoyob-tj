@@ -6,7 +6,6 @@ use App\Entity\Appeal\Appeal;
 use App\Entity\User;
 use App\Repository\User\AppealRepository;
 use App\Repository\UserRepository;
-use Exception;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -22,33 +21,23 @@ class AdminSupportFilterController extends AbstractController
     public function __invoke(int $id): JsonResponse
     {
         $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
-        $allowedRoles = ["ROLE_ADMIN"];
+
         /** @var User $bearerUser */
         $bearerUser = $this->security->getUser();
         /** @var User $user */
         $user = $this->userRepository->find($id);
 
-        if (!array_intersect($allowedRoles, $bearerUser->getRoles()))
+        if (!in_array("ROLE_ADMIN", $bearerUser->getRoles()))
             return $this->json(['message' => 'Access denied'], 403);
 
-        try {
-            /** @var Appeal $appeal */
-            $appeal = $this->appealRepository->findTechSupportsByAdmin(false, $user, "support");
-            if (!$appeal) return $this->json([], 404);
+        if (!$user)
+            return $this->json(['message' => 'User not found'], 404);
 
-            return empty($appeal)
-                ? $this->json([], 404)
-                : $this->json($appeal, 200, [],
-                    [
-                        'groups' => ['appealsSupport:read'],
-                        'skip_null_values' => false,
-                    ]
-                );
-        } catch (Exception $e) {
-            return $this->json([
-                'error' => $e->getMessage(),
-                'trace' => $e->getTrace()
-            ], 500);
-        }
+        /** @var Appeal $appeal */
+        $appeal = $this->appealRepository->findTechSupportsByAdmin(false, $user, "support");
+
+        return empty($appeal)
+            ? $this->json(['message' => 'Resource not found'], 404)
+            : $this->json($appeal, context: ['groups' => ['appealsSupport:read']]);
     }
 }

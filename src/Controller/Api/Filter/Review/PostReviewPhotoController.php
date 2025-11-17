@@ -2,7 +2,9 @@
 
 namespace App\Controller\Api\Filter\Review;
 
+use App\Entity\Review\Review;
 use App\Entity\Review\ReviewImage;
+use App\Entity\User;
 use App\Repository\ReviewRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -23,22 +25,25 @@ class PostReviewPhotoController extends AbstractController
         $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
         $allowedRoles = ["ROLE_ADMIN", "ROLE_CLIENT", "ROLE_MASTER"];
 
+        /** @var User $user */
         $user = $this->security->getUser();
+        /** @var Review $review */
         $review = $this->reviewRepository->find($id);
         $imageFiles = $request->files->get('imageFile');
 
-        if (!array_intersect($allowedRoles, $user?->getRoles()))
+        if (!array_intersect($allowedRoles, $user->getRoles()))
             return $this->json(['message' => 'Access denied'], 403);
 
-        if (!$review) return $this->json(['message' => 'Review not found'], 404);
-        if (!$imageFiles) return $this->json(['message' => 'No files provided'], 400);
+        if (!$review)
+            return $this->json(['message' => 'Review not found'], 404);
+
+        if (!$imageFiles)
+            return $this->json(['message' => 'No files provided'], 400);
 
         if ($review->getClient() !== $user && $review->getMaster() !== $user)
             return $this->json(['message' => "Ownership doesn't match"], 400);
 
-        $imageFiles = is_array($imageFiles) ?
-            $imageFiles :
-            [$imageFiles];
+        $imageFiles = is_array($imageFiles) ? $imageFiles : [$imageFiles];
 
         foreach ($imageFiles as $imageFile) {
             if ($imageFile->isValid()) {

@@ -7,6 +7,7 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\Controller\Api\Filter\Appeal\DeleteAppealMessageController;
 use App\Controller\Api\Filter\Appeal\Support\PostAppealMessageController;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
@@ -39,6 +40,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
         new Delete(
             uriTemplate: '/appeal-messages/{id}',
             requirements: ['id' => '\d+'],
+            controller: DeleteAppealMessageController::class,
             security:
                 "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or

@@ -2,6 +2,7 @@
 
 namespace App\Controller\Api\Filter\Chat;
 
+use App\Entity\Chat\Chat;
 use App\Entity\Chat\ChatMessage;
 use App\Entity\User;
 use App\Repository\Chat\ChatRepository;
@@ -27,19 +28,27 @@ class PostMessageController extends AbstractController
         /** @var User $user */
         $user = $this->security->getUser();
 
-        $data = json_decode($request->getContent(), true);
-        $text = $data['text'];
-        $chatParam = $data['chat'];
-
-        // Извлекаем ID из строки "/api/chats/1" или просто "1"
-        $chatId = (preg_match('#/api/chats/(\d+)#', $chatParam, $c) ? $c[1] : $chatParam);
-        $chat = $this->chatRepository->find($chatId);
-
         if (!array_intersect($allowedRoles, $user->getRoles()))
             return $this->json(['message' => 'Access denied'], 403);
 
-        if(!$text || !$chatParam || !$chat)
-            return $this->json(['message' => "Empty message text/chat OR Chat doesn't exist"], 400);
+        $data = json_decode($request->getContent(), true);
+        $chatParam = $data['chat'];
+        $text = $data['text'];
+
+        // Извлекаем ID из строки "/api/chats/1" или просто "1"
+        $chatId = (preg_match('#/api/chats/(\d+)#', $chatParam, $c) ? $c[1] : $chatParam);
+        /** @var Chat $chat */
+        $chat = $this->chatRepository->find($chatId);
+
+        if(!$chat)
+            return $this->json(['message' => "Chat not found"], 404);
+
+        if(!$chatParam)
+            return $this->json(['message' => "Wrong chat format"], 400);
+
+        if(!$text)
+            return $this->json(['message' => "Empty message text"], 400);
+
 
         if ($chat->getAuthor() !== $user && $chat->getReplyAuthor() !== $user)
             return $this->json(['message' => "Ownership doesn't match"], 403);
@@ -54,10 +63,9 @@ class PostMessageController extends AbstractController
         $this->entityManager->persist($chatMessage);
         $this->entityManager->flush();
 
-        return new JsonResponse([
-            'chatId' => $chat->getId(),
-            'chatMessageId' => $chatMessage->getId(),
-            'message' => 'Message uploaded successfully'
+        return $this->json([
+            'chat' => ['id' => $chat->getId()],
+            'message' => ['id' => $chatMessage->getId()],
         ]);
     }
 }

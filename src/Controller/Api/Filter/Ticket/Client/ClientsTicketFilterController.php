@@ -3,47 +3,21 @@
 namespace App\Controller\Api\Filter\Ticket\Client;
 
 use App\Repository\TicketRepository;
-use Exception;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 class ClientsTicketFilterController extends AbstractController
 {
-    private readonly TicketRepository $ticketRepository;
-
     public function __construct(
-        TicketRepository  $ticketRepository
-    )
-    {
-        $this->ticketRepository = $ticketRepository;
-    }
+        private readonly TicketRepository $ticketRepository
+    ){}
 
     public function __invoke(): JsonResponse
     {
-        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
+        $data = $this->ticketRepository->findUserTicketsByStatus(false);
 
-        $userRoles = $this->getUser()?->getRoles() ?? [];
-        $allowedRoles = ["ROLE_ADMIN", "ROLE_CLIENT", "ROLE_MASTER"];
-
-        if (!array_intersect($allowedRoles, $userRoles))
-            return $this->json(['message' => 'Access denied'], 403);
-
-        try {
-            $data = $this->ticketRepository->findUserTicketsByStatus(false);
-
-            return empty($data)
-                ? $this->json([], 404)
-                : $this->json($data, 200, [],
-                    [
-                        'groups' => ['userTickets:read'],
-                        'skip_null_values' => false,
-                    ]
-                );
-        } catch (Exception $e) {
-            return $this->json([
-                'error' => $e->getMessage(),
-                'trace' => $e->getTrace()
-            ], 500);
-        }
+        return empty($data)
+            ? $this->json(['message' => 'Resource not found'], 404)
+            : $this->json($data, context: ['groups' => ['userTickets:read']]);
     }
 }

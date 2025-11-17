@@ -17,12 +17,12 @@ class FavoriteRepository extends ServiceEntityRepository
         parent::__construct($registry, Favorite::class);
     }
 
-    public function findUserFavoriteMastersById(User $user): array
+    public function findUserFavoriteMasters(User $user): array
     {
         return $this
             ->createQueryBuilder('f')
-            ->where('f.user = :userId')
-            ->setParameter('userId', $user->getId())
+            ->where('f.user = :user')
+            ->setParameter('user', $user)
             ->getQuery()
             ->getResult();
     }

@@ -14,9 +14,9 @@ use App\Controller\Api\Filter\User\Client\ClientUserFilterController;
 use App\Controller\Api\Filter\User\DeleteUserController;
 use App\Controller\Api\Filter\User\Master\MastersUserFilterController;
 use App\Controller\Api\Filter\User\Master\MasterUserFilterController;
-use App\Controller\Api\Filter\User\PersonalUserFilterController;
+use App\Controller\Api\Filter\User\Personal\PersonalUserFilterController;
+use App\Controller\Api\Filter\User\Personal\UpdateUserPhotoController;
 use App\Controller\Api\Filter\User\SocialNetworkController;
-use App\Controller\Api\Filter\User\UpdateUserPhotoController;
 use App\Entity\Appeal\Appeal;
 use App\Entity\Appeal\AppealImage;
 use App\Entity\Appeal\AppealMessage;
@@ -86,6 +86,12 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
         ),
         new Post(
             uriTemplate: '/users'
+        ),
+        new Post(
+            uriTemplate: '/users/grant-role',
+            security:
+                "is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')",
         ),
         new Post(
             uriTemplate: '/users/{id}/update-photo',
@@ -276,6 +282,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'masters:read',
         'clients:read',
     ])]
+    #[ApiProperty(writable: false)]
     private array $roles = [];
 
     /**

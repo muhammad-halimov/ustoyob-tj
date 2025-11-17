@@ -2,6 +2,7 @@
 
 namespace App\Controller\Api\Filter\Appeal\Support;
 
+use App\Entity\Appeal\Appeal;
 use App\Entity\Appeal\AppealMessage;
 use App\Entity\User;
 use App\Repository\User\AppealRepository;
@@ -26,9 +27,8 @@ class PostAppealMessageController extends AbstractController
 
         /** @var User $user */
         $user = $this->security->getUser();
-        $userRoles = $user->getRoles() ?? [];
 
-        if (!array_intersect($allowedRoles, $userRoles))
+        if (!array_intersect($allowedRoles, $user->getRoles()))
             return $this->json(['message' => 'Access denied'], 403);
 
         $data = json_decode($request->getContent(), true);
@@ -37,12 +37,20 @@ class PostAppealMessageController extends AbstractController
 
         // Извлекаем ID из строки "/api/chats/1" или просто "1"
         $appealId = (preg_match('#/api/appeals/(\d+)#', $appealParam, $a) ? $a[1] : $appealParam);
+        /** @var Appeal $appeal */
         $appeal = $this->appealRepository->find($appealId);
 
-        if(!$text || !$appealParam || !$appeal || $appeal->getType() !== "support")
-            return $this->json(['message' =>
-                "Empty message text/appeal OR Appeal doesn't exist OR Incorrect appeal type."
-            ], 400);
+        if (!$text)
+            return $this->json(['message' => "Empty text"], 404);
+
+        if (!$appealParam)
+            return $this->json(['message' => "Wrong appeal format"], 404);
+
+        if (!$appeal)
+            return $this->json(['message' => "Appeal not found"], 404);
+
+        if ($appeal->getType() !== 'support')
+            return $this->json(['message' => "Appeal not found"], 404);
 
         if ($appeal->getAdministrant() !== $user && $appeal->getAuthor() !== $user)
             return $this->json(['message' => "Ownership doesn't match"], 403);
@@ -57,10 +65,9 @@ class PostAppealMessageController extends AbstractController
         $this->entityManager->persist($appealMessage);
         $this->entityManager->flush();
 
-        return new JsonResponse([
-            'appealId' => $appeal->getId(),
-            'appealMessageId' => $appealMessage->getId(),
-            'message' => 'Message uploaded successfully'
+        return $this->json([
+            'appeal' => ['id' => $appeal->getId()],
+            'message' => ['id' => $appealMessage->getId()],
         ]);
     }
 }

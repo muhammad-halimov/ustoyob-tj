@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controller\Api\Filter\User;
+namespace App\Controller\Api\Filter\User\Personal;
 
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;

@@ -4,7 +4,6 @@ namespace App\Entity\Appeal;
 
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
-use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
@@ -33,7 +32,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             uriTemplate: '/appeals/complaints/ticket/{id}',
             controller: TicketComplaintFilterController::class,
             security:
-            "is_granted('ROLE_ADMIN') or
+                "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or
                  is_granted('ROLE_CLIENT')"
         ),
@@ -41,7 +40,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             uriTemplate: '/appeals/complaints/user/{id}',
             controller: UserComplaintFilterController::class,
             security:
-            "is_granted('ROLE_ADMIN') or
+                "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or
                  is_granted('ROLE_CLIENT')"
         ),
@@ -82,14 +81,6 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
                  is_granted('ROLE_MASTER') or
                  is_granted('ROLE_CLIENT')"
         ),
-        new Delete(
-            uriTemplate: '/appeals/{id}',
-            requirements: ['id' => '\d+'],
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
-        )
     ],
     normalizationContext: [
         'groups' => [

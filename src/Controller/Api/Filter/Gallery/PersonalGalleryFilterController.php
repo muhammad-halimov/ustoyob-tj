@@ -11,47 +11,26 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 
 class PersonalGalleryFilterController extends AbstractController
 {
-    private readonly Security $security;
-    private readonly GalleryRepository $galleryRepository;
-
     public function __construct(
-        Security          $security,
-        GalleryRepository $galleryRepository
-    )
-    {
-        $this->security = $security;
-        $this->galleryRepository = $galleryRepository;
-    }
+        private readonly GalleryRepository $galleryRepository,
+        private readonly Security          $security,
+    ){}
 
     public function __invoke(): JsonResponse
     {
         $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
+        $allowedRoles = ["ROLE_ADMIN", "ROLE_MASTER"];
 
-        try {
-            /** @var User $user */
-            $user = $this->security->getUser();
+        /** @var User $user */
+        $user = $this->security->getUser();
 
-            $userRoles = $user?->getRoles() ?? [];
-            $allowedRoles = ["ROLE_ADMIN", "ROLE_MASTER"];
+        if (!array_intersect($allowedRoles, $user->getRoles()))
+            return $this->json(['message' => 'Access denied'], 403);
 
-            if (!array_intersect($allowedRoles, $userRoles))
-                return $this->json(['message' => 'Access denied'], 403);
+        $data = $this->galleryRepository->findUserGalleryById($user);
 
-            $data = $this->galleryRepository->findUserGalleryById($user);
-
-            return empty($data)
-                ? $this->json([], 404)
-                : $this->json($data, 200, [],
-                    [
-                        'groups' => ['galleries:read'],
-                        'skip_null_values' => false,
-                    ]
-                );
-        } catch (Exception $e) {
-            return $this->json([
-                'error' => $e->getMessage(),
-                'trace' => $e->getTrace()
-            ], 500);
-        }
+        return empty($data)
+            ? $this->json(['message' => 'Resource not found'], 404)
+            : $this->json($data, context: ['groups' => ['galleries:read']]);
     }
 }

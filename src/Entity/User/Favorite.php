@@ -8,7 +8,10 @@ use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\Filter\User\PersonalFavoriteFilterController;
+use App\Controller\Api\Filter\User\Favorite\DeleteFavoriteController;
+use App\Controller\Api\Filter\User\Favorite\PatchFavoriteController;
+use App\Controller\Api\Filter\User\Favorite\PersonalFavoriteFilterController;
+use App\Controller\Api\Filter\User\Favorite\PostFavoriteController;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
@@ -23,7 +26,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
     operations: [
-        new Get( #TODO Выборка из массива, по роли
+        new Get(
             uriTemplate: '/favorites/me',
             controller: PersonalFavoriteFilterController::class,
             security:
@@ -33,6 +36,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         ),
         new Post(
             uriTemplate: '/favorites',
+            controller: PostFavoriteController::class,
             security:
                 "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or
@@ -41,16 +45,18 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         new Patch(
             uriTemplate: '/favorites/{id}',
             requirements: ['id' => '\d+'],
+            controller: PatchFavoriteController::class,
             security:
                 "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or
                  is_granted('ROLE_CLIENT')"
         ),
-        new Delete( #TODO Удалить из массива, не саму фаворитку
+        new Delete(
             uriTemplate: '/favorites/{id}',
             requirements: ['id' => '\d+'],
+            controller: DeleteFavoriteController::class,
             security:
-            "is_granted('ROLE_ADMIN') or
+                "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or
                  is_granted('ROLE_CLIENT')"
         ),

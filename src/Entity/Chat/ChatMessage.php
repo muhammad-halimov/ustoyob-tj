@@ -7,6 +7,7 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\Controller\Api\Filter\Chat\DeleteChatMessageController;
 use App\Controller\Api\Filter\Chat\PostMessageController;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
@@ -41,6 +42,7 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
         new Delete(
             uriTemplate: '/chat-messages/{id}',
             requirements: ['id' => '\d+'],
+            controller: DeleteChatMessageController::class,
             security:
                 "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or

@@ -25,14 +25,9 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 class UserCrudController extends AbstractCrudController
 {
-    private UserPasswordHasherInterface $passwordEncoder;
-
     public function __construct(
-        UserPasswordHasherInterface $passwordEncoder,
-    )
-    {
-        $this->passwordEncoder = $passwordEncoder;
-    }
+        private readonly UserPasswordHasherInterface $passwordEncoder
+    ){}
 
 
     public static function getEntityFqcn(): string

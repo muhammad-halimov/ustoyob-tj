@@ -1,18 +1,18 @@
 <?php
 
-namespace App\Controller\Api\Filter\Review;
+namespace App\Controller\Api\Filter\User\Favorite;
 
 use App\Entity\User;
-use App\Repository\ReviewRepository;
+use App\Repository\User\FavoriteRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
-class PersonalReviewFilterController extends AbstractController
+class PersonalFavoriteFilterController extends AbstractController
 {
     public function __construct(
-        private readonly ReviewRepository $reviewRepository,
-        private readonly Security         $security,
+        private readonly FavoriteRepository $favoriteRepository,
+        private readonly Security           $security,
     ){}
 
     public function __invoke(): JsonResponse
@@ -26,10 +26,10 @@ class PersonalReviewFilterController extends AbstractController
         if (!array_intersect($allowedRoles, $user->getRoles()))
             return $this->json(['message' => 'Access denied'], 403);
 
-        $data = $this->reviewRepository->findUserReviewsById($user);
+        $data = $this->favoriteRepository->findUserFavoriteMasters($user);
 
         return empty($data)
             ? $this->json(['message' => 'Resource not found'], 404)
-            : $this->json($data, context: ['groups' => ['reviews:read', 'reviewsClient:read']]);
+            : $this->json($data, context: ['groups' => ['favorites:read']]);
     }
 }

@@ -10,35 +10,20 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 
 class MastersUserFilterController extends AbstractController
 {
-    private readonly UserRepository $userRepository;
-
     public function __construct(
-        UserRepository    $userRepository
-    )
-    {
-        $this->userRepository = $userRepository;
-    }
+        private readonly UserRepository $userRepository
+    ){}
 
     public function __invoke(): JsonResponse
     {
-        try {
-            /** @var User $user */
-            $user = $this->userRepository->findAllByRole("ROLE_MASTER");
-            if (!$user) return $this->json([], 404);
+        /** @var User $user */
+        $user = $this->userRepository->findAllByRole("ROLE_MASTER");
 
-            return empty($user)
-                ? $this->json([], 404)
-                : $this->json($user, 200, [],
-                    [
-                        'groups' => ['masters:read'],
-                        'skip_null_values' => false,
-                    ]
-                );
-        } catch (Exception $e) {
-            return $this->json([
-                'error' => $e->getMessage(),
-                'trace' => $e->getTrace()
-            ], 500);
-        }
+        if (!$user)
+            return $this->json(['message' => 'User not found'], 404);
+
+        return empty($user)
+            ? $this->json(['message' => 'Resource not found'], 404)
+            : $this->json($user, context: ['groups' => ['masters:read']]);
     }
 }

@@ -6,6 +6,7 @@ use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\Filter\Gallery\MasterGalleryFilterController;
 use App\Controller\Api\Filter\Gallery\PersonalGalleryFilterController;
@@ -54,13 +55,9 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
                 "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER')",
         ),
-        new Delete(
-            uriTemplate: '/galleries/{gallery_id}/photos/{photo_id}',
-//            controller:
-            requirements: [
-                'gallery_id' => '\d+',
-                'photo_id' => '\d+',
-            ],
+        new Patch(
+            uriTemplate: '/galleries/{id}',
+            requirements: ['id' => '\d+'],
             security:
                 "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER')"
