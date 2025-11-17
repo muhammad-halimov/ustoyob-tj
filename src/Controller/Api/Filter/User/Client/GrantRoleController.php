@@ -1,0 +1,48 @@
+<?php
+
+namespace App\Controller\Api\Filter\User\Client;
+
+use App\Entity\User;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
+
+class GrantRoleController extends AbstractController
+{
+    public function __construct(
+        private readonly EntityManagerInterface $entityManager,
+        private readonly Security               $security,
+    ){}
+
+    public function __invoke(Request $request): JsonResponse
+    {
+        $this->denyAccessUnlessGranted("IS_AUTHENTICATED_FULLY");
+
+        /** @var User $user */
+        $user = $this->security->getUser();
+        $data = json_decode($request->getContent(), true);
+        $roleParam = $data['role'];
+
+        if (in_array('ROLE_ADMIN', $user->getRoles()))
+            return $this->json(['message' => "You're admin"], 403);
+
+        if (!in_array("ROLE_CLIENT", $user->getRoles()) && in_array("ROLE_MASTER", $user->getRoles()))
+            return $this->json(['message' => "You're master"], 403);
+
+        if (!in_array("ROLE_MASTER", $user->getRoles()) && in_array("ROLE_CLIENT", $user->getRoles()))
+            return $this->json(['message' => "You're client"], 403);
+
+        if ($roleParam == 'master')
+            $user->setRoles(['ROLE_MASTER']);
+        elseif ($roleParam == 'client')
+            $user->setRoles(['ROLE_CLIENT']);
+        else return $this->json(['message' => "Wrong role provided"], 404);
+
+        $this->entityManager->persist($user);
+        $this->entityManager->flush();
+
+        return $this->json(['message' => "Granted $roleParam role"]);
+    }
+}

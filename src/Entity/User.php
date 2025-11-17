@@ -11,6 +11,7 @@ use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\Filter\User\Client\ClientsUserFilterController;
 use App\Controller\Api\Filter\User\Client\ClientUserFilterController;
+use App\Controller\Api\Filter\User\Client\GrantRoleController;
 use App\Controller\Api\Filter\User\DeleteUserController;
 use App\Controller\Api\Filter\User\Master\MastersUserFilterController;
 use App\Controller\Api\Filter\User\Master\MasterUserFilterController;
@@ -88,12 +89,8 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
             uriTemplate: '/users'
         ),
         new Post(
-            uriTemplate: '/users/grant-role/client/{id}',
-            security: "is_granted('ROLE_CLIENT')",
-        ),
-        new Post(
-            uriTemplate: '/users/grant-role/master/{id}',
-            security: "is_granted('ROLE_MASTER')",
+            uriTemplate: '/users/grant-role/',
+            controller: GrantRoleController::class,
         ),
         new Post(
             uriTemplate: '/users/{id}/update-photo',
@@ -110,8 +107,9 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
             requirements: ['id' => '\d+'],
             security:
                 "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')",
+                 ((is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')) and
+                 object == user)",
         ),
         new Delete(
             uriTemplate: '/users/{id}',
