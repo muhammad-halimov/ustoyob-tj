@@ -196,6 +196,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups([
         'masters:read',
         'clients:read',
+        'masterServices:read',
+        'reviews:read',
+        'reviewsClient:read',
+        'galleries:read',
+        'userTickets:read',
+        'chats:read',
+        'chatMessages:read',
+        'appeals:read',
+        'appealsTicket:read',
+        'appealsSupport:read',
+        'favorites:read',
     ])]
     private ?string $email = null;
 
@@ -203,6 +214,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups([
         'masters:read',
         'clients:read',
+        'masterServices:read',
+        'reviews:read',
+        'reviewsClient:read',
+        'galleries:read',
+        'userTickets:read',
+        'chats:read',
+        'chatMessages:read',
+        'appeals:read',
+        'appealsTicket:read',
+        'appealsSupport:read',
+        'favorites:read',
     ])]
     private ?string $name = null;
 
@@ -210,6 +232,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups([
         'masters:read',
         'clients:read',
+        'masterServices:read',
+        'reviews:read',
+        'reviewsClient:read',
+        'galleries:read',
+        'userTickets:read',
+        'chats:read',
+        'chatMessages:read',
+        'appeals:read',
+        'appealsTicket:read',
+        'appealsSupport:read',
+        'favorites:read',
     ])]
     private ?string $surname = null;
 
@@ -249,6 +282,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups([
         'masters:read',
         'clients:read',
+        'masterServices:read',
+        'reviews:read',
+        'reviewsClient:read',
+        'galleries:read',
+        'userTickets:read',
+        'chats:read',
+        'chatMessages:read',
+        'appeals:read',
+        'appealsTicket:read',
+        'appealsSupport:read',
+        'favorites:read',
     ])]
     #[ApiProperty(writable: false)]
     private ?string $image = null;

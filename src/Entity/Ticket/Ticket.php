@@ -130,6 +130,9 @@ class Ticket
     #[ORM\Column(length: 64, nullable: true)]
     #[Groups([
         'userTickets:read',
+        'appeals:read',
+        'appealsTicket:read',
+        'reviews:read',
     ])]
     private ?string $title = null;
 
@@ -168,6 +171,9 @@ class Ticket
     #[ORM\JoinColumn(name: 'author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'userTickets:read',
+        'appeals:read',
+        'appealsTicket:read',
+        'reviews:read',
     ])]
     private ?User $author = null;
 
@@ -200,6 +206,9 @@ class Ticket
     #[ORM\JoinColumn(name: 'master_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'userTickets:read',
+        'appeals:read',
+        'appealsTicket:read',
+        'reviews:read',
     ])]
     private ?User $master = null;
 

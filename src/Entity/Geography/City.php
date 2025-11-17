@@ -67,6 +67,10 @@ class City
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
         'cities:read',
+        'provinces:read',
+        'userTickets:read',
+        'districts:read',
+        'masters:read',
     ])]
     private ?string $title = null;
 
@@ -83,6 +87,10 @@ class City
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
         'cities:read',
+        'provinces:read',
+        'userTickets:read',
+        'districts:read',
+        'masters:read',
     ])]
     #[ApiProperty(writable: false)]
     private ?string $image = null;
@@ -102,8 +110,8 @@ class City
     #[ORM\JoinColumn(name: 'province_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'cities:read',
-        'districts:read',
         'userTickets:read',
+        'districts:read',
         'masters:read',
     ])]
     private ?Province $province = null;

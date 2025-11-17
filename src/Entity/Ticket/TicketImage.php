@@ -4,7 +4,6 @@ namespace App\Entity\Ticket;
 
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
-use App\Entity\User;
 use App\Repository\TicketImageRepository;
 use DateTime;
 use Doctrine\ORM\Mapping as ORM;
@@ -33,9 +32,6 @@ class TicketImage
         'userTickets:read',
     ])]
     private ?int $id = null;
-
-    #[ORM\ManyToOne(inversedBy: 'userTickets')]
-    private ?User $author = null;
 
     #[Vich\UploadableField(mapping: 'ticket_photos', fileNameProperty: 'image')]
     #[Assert\Image(mimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])]
