@@ -13,10 +13,9 @@ use App\Controller\Api\Filter\Appeal\PostAppealPhotoController;
 use App\Controller\Api\Filter\Appeal\Support\AdminSupportFilterController;
 use App\Controller\Api\Filter\Appeal\Support\UserSupportFilterController;
 use App\Entity\Ticket\Ticket;
-use App\Entity\Traits\CreatedAtTrait;
-use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\User\AppealRepository;
+use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
@@ -94,8 +93,6 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 )]
 class Appeal
 {
-    use UpdatedAtTrait, CreatedAtTrait;
-
     public function __toString(): string
     {
         return $this->compliantReason ?? "Пустой заголовок жалобы";
@@ -268,6 +265,22 @@ class Appeal
     #[SerializedName('messages')]
     #[ApiProperty(writable: false)]
     private Collection $appealMessages;
+
+    #[ORM\Column(type: 'datetime', nullable: false)]
+    #[Groups([
+        'appeals:read',
+        'appealsTicket:read',
+        'appealsSupport:read',
+    ])]
+    protected DateTime $createdAt;
+
+    #[ORM\Column(type: 'datetime', nullable: false)]
+    #[Groups([
+        'appeals:read',
+        'appealsTicket:read',
+        'appealsSupport:read',
+    ])]
+    protected DateTime $updatedAt;
 
     public function getId(): ?int
     {
@@ -464,5 +477,28 @@ class Appeal
         }
 
         return $this;
+    }
+
+    public function getCreatedAt(): DateTime
+    {
+        return $this->createdAt;
+    }
+
+    #[ORM\PrePersist]
+    public function setCreatedAt(): void
+    {
+        $this->createdAt = new DateTime();
+    }
+
+    public function getUpdatedAt(): DateTime
+    {
+        return $this->updatedAt;
+    }
+
+    #[ORM\PreUpdate]
+    #[ORM\PrePersist]
+    public function setUpdatedAt(): void
+    {
+        $this->updatedAt = new DateTime();
     }
 }

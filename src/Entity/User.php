@@ -88,10 +88,12 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
             uriTemplate: '/users'
         ),
         new Post(
-            uriTemplate: '/users/grant-role',
-            security:
-                "is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')",
+            uriTemplate: '/users/grant-role/client/{id}',
+            security: "is_granted('ROLE_CLIENT')",
+        ),
+        new Post(
+            uriTemplate: '/users/grant-role/master/{id}',
+            security: "is_granted('ROLE_MASTER')",
         ),
         new Post(
             uriTemplate: '/users/{id}/update-photo',

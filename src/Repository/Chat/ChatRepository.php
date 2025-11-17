@@ -17,13 +17,23 @@ class ChatRepository extends ServiceEntityRepository
         parent::__construct($registry, Chat::class);
     }
 
-    public function findUserChatsById(User $user): array
+    public function findUserChats(User $user): array
     {
         return $this
             ->createQueryBuilder('c')
-            ->where('c.author = :userId')
-            ->orWhere('c.replyAuthor = :userId')
-            ->setParameter('userId', $user->getId())
+            ->where('c.author = :user OR c.replyAuthor = :user')
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function findDuplicateChats(User $author, User $replyAuthor): array
+    {
+        return $this
+            ->createQueryBuilder('c')
+            ->where('c.author = :author AND c.replyAuthor = :replyAuthor')
+            ->setParameter('author', $author)
+            ->setParameter('replyAuthor', $replyAuthor)
             ->getQuery()
             ->getResult();
     }

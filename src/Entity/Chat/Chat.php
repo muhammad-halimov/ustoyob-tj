@@ -8,12 +8,14 @@ use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\Filter\Chat\PersonalChatFilterController;
-use App\Controller\Api\Filter\Chat\PostChatPhotoController;
-use App\Entity\Traits\CreatedAtTrait;
-use App\Entity\Traits\UpdatedAtTrait;
+use App\Controller\Api\Filter\Chat\Chat\ChatFilterController;
+use App\Controller\Api\Filter\Chat\Chat\DeleteChatController;
+use App\Controller\Api\Filter\Chat\Chat\PersonalChatFilterController;
+use App\Controller\Api\Filter\Chat\Chat\PostChatController;
+use App\Controller\Api\Filter\Chat\Chat\PostChatPhotoController;
 use App\Entity\User;
 use App\Repository\Chat\ChatRepository;
+use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
@@ -27,6 +29,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         new Get(
             uriTemplate: '/chats/{id}',
             requirements: ['id' => '\d+'],
+            controller: ChatFilterController::class,
             security:
                 "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or
@@ -51,6 +54,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         ),
         new Post(
             uriTemplate: '/chats',
+            controller: PostChatController::class,
             security:
                 "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or
@@ -59,6 +63,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         new Delete(
             uriTemplate: '/chats/{id}',
             requirements: ['id' => '\d+'],
+            controller: DeleteChatController::class,
             security:
                 "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or
@@ -73,8 +78,6 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 )]
 class Chat
 {
-    use UpdatedAtTrait, CreatedAtTrait;
-
     public function __toString(): string
     {
         return "Chat ID: $this->id";
@@ -94,6 +97,7 @@ class Chat
     #[Groups([
         'chats:read',
     ])]
+    #[ApiProperty(writable: false)]
     private ?User $author = null;
 
     #[ORM\ManyToOne(inversedBy: 'messageReplyAuthor')]
@@ -123,6 +127,18 @@ class Chat
     #[SerializedName('images')]
     #[ApiProperty(writable: false)]
     private Collection $chatImages;
+
+    #[ORM\Column(type: 'datetime', nullable: false)]
+    #[Groups([
+        'chats:read',
+    ])]
+    protected DateTime $createdAt;
+
+    #[ORM\Column(type: 'datetime', nullable: false)]
+    #[Groups([
+        'chats:read',
+    ])]
+    protected DateTime $updatedAt;
 
     public function __construct()
     {
@@ -217,5 +233,28 @@ class Chat
         }
 
         return $this;
+    }
+
+    public function getCreatedAt(): DateTime
+    {
+        return $this->createdAt;
+    }
+
+    #[ORM\PrePersist]
+    public function setCreatedAt(): void
+    {
+        $this->createdAt = new DateTime();
+    }
+
+    public function getUpdatedAt(): DateTime
+    {
+        return $this->updatedAt;
+    }
+
+    #[ORM\PreUpdate]
+    #[ORM\PrePersist]
+    public function setUpdatedAt(): void
+    {
+        $this->updatedAt = new DateTime();
     }
 }

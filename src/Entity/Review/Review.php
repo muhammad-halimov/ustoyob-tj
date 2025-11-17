@@ -13,10 +13,9 @@ use App\Controller\Api\Filter\Review\MasterReviewFilterController;
 use App\Controller\Api\Filter\Review\PersonalReviewFilterController;
 use App\Controller\Api\Filter\Review\PostReviewPhotoController;
 use App\Entity\Ticket\Ticket;
-use App\Entity\Traits\CreatedAtTrait;
-use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\ReviewRepository;
+use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
@@ -87,8 +86,6 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 )]
 class Review
 {
-    use UpdatedAtTrait, CreatedAtTrait;
-
     public function __toString(): string
     {
         return $this->description[15] ?? "Review #$this->id";
@@ -159,6 +156,20 @@ class Review
         'reviewsClient:read',
     ])]
     private ?User $client = null;
+
+    #[ORM\Column(type: 'datetime', nullable: false)]
+    #[Groups([
+        'reviews:read',
+        'reviewsClient:read',
+    ])]
+    protected DateTime $createdAt;
+
+    #[ORM\Column(type: 'datetime', nullable: false)]
+    #[Groups([
+        'reviews:read',
+        'reviewsClient:read',
+    ])]
+    protected DateTime $updatedAt;
 
     public function __construct()
     {
@@ -269,5 +280,28 @@ class Review
         $this->client = $client;
 
         return $this;
+    }
+
+    public function getCreatedAt(): DateTime
+    {
+        return $this->createdAt;
+    }
+
+    #[ORM\PrePersist]
+    public function setCreatedAt(): void
+    {
+        $this->createdAt = new DateTime();
+    }
+
+    public function getUpdatedAt(): DateTime
+    {
+        return $this->updatedAt;
+    }
+
+    #[ORM\PreUpdate]
+    #[ORM\PrePersist]
+    public function setUpdatedAt(): void
+    {
+        $this->updatedAt = new DateTime();
     }
 }

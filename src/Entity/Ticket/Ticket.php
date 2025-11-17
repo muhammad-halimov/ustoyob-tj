@@ -17,11 +17,10 @@ use App\Controller\Api\Filter\Ticket\PostTicketPhotoController;
 use App\Entity\Appeal\Appeal;
 use App\Entity\Geography\District;
 use App\Entity\Review\Review;
-use App\Entity\Traits\CreatedAtTrait;
-use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
 use App\Entity\User\Favorite;
 use App\Repository\TicketRepository;
+use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
@@ -100,8 +99,6 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 )]
 class Ticket
 {
-    use UpdatedAtTrait, CreatedAtTrait;
-
     public function __toString(): string
     {
         if (!$this->author && !$this->master) return $this->title;
@@ -252,6 +249,22 @@ class Ticket
      */
     #[ORM\ManyToMany(targetEntity: Favorite::class, mappedBy: 'tickets')]
     private Collection $favorites;
+
+    #[ORM\Column(type: 'datetime', nullable: false)]
+    #[Groups([
+        'userTickets:read',
+        'appeals:read',
+        'appealsTicket:read',
+    ])]
+    protected DateTime $createdAt;
+
+    #[ORM\Column(type: 'datetime', nullable: false)]
+    #[Groups([
+        'userTickets:read',
+        'appeals:read',
+        'appealsTicket:read',
+    ])]
+    protected DateTime $updatedAt;
 
     public function getId(): ?int
     {
@@ -502,5 +515,28 @@ class Ticket
         }
 
         return $this;
+    }
+
+    public function getCreatedAt(): DateTime
+    {
+        return $this->createdAt;
+    }
+
+    #[ORM\PrePersist]
+    public function setCreatedAt(): void
+    {
+        $this->createdAt = new DateTime();
+    }
+
+    public function getUpdatedAt(): DateTime
+    {
+        return $this->updatedAt;
+    }
+
+    #[ORM\PreUpdate]
+    #[ORM\PrePersist]
+    public function setUpdatedAt(): void
+    {
+        $this->updatedAt = new DateTime();
     }
 }

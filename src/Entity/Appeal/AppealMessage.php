@@ -9,10 +9,9 @@ use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\Filter\Appeal\DeleteAppealMessageController;
 use App\Controller\Api\Filter\Appeal\Support\PostAppealMessageController;
-use App\Entity\Traits\CreatedAtTrait;
-use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\Appeal\AppealMessageRepository;
+use DateTime;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
@@ -55,8 +54,6 @@ use Symfony\Component\Serializer\Attribute\Groups;
 )]
 class AppealMessage
 {
-    use UpdatedAtTrait, CreatedAtTrait;
-
     public function __toString(): string
     {
         return $this->text ?? "Appeal message #$this->id";
@@ -92,6 +89,20 @@ class AppealMessage
     ])]
     #[ApiProperty(writable: false)]
     private ?User $author = null;
+
+    #[ORM\Column(type: 'datetime', nullable: false)]
+    #[Groups([
+        'appealMessages:read',
+        'appealsSupport:read',
+    ])]
+    protected DateTime $createdAt;
+
+    #[ORM\Column(type: 'datetime', nullable: false)]
+    #[Groups([
+        'appealMessages:read',
+        'appealsSupport:read',
+    ])]
+    protected DateTime $updatedAt;
 
     public function getId(): ?int
     {
@@ -132,5 +143,28 @@ class AppealMessage
         $this->appeal = $appeal;
 
         return $this;
+    }
+
+    public function getCreatedAt(): DateTime
+    {
+        return $this->createdAt;
+    }
+
+    #[ORM\PrePersist]
+    public function setCreatedAt(): void
+    {
+        $this->createdAt = new DateTime();
+    }
+
+    public function getUpdatedAt(): DateTime
+    {
+        return $this->updatedAt;
+    }
+
+    #[ORM\PreUpdate]
+    #[ORM\PrePersist]
+    public function setUpdatedAt(): void
+    {
+        $this->updatedAt = new DateTime();
     }
 }

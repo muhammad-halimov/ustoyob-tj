@@ -7,12 +7,11 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\Filter\Chat\DeleteChatMessageController;
-use App\Controller\Api\Filter\Chat\PostMessageController;
-use App\Entity\Traits\CreatedAtTrait;
-use App\Entity\Traits\UpdatedAtTrait;
+use App\Controller\Api\Filter\Chat\Message\DeleteChatMessageController;
+use App\Controller\Api\Filter\Chat\Message\PostMessageController;
 use App\Entity\User;
 use App\Repository\Chat\ChatMessageRepository;
+use DateTime;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
@@ -57,8 +56,6 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
 )]
 class ChatMessage
 {
-    use UpdatedAtTrait, CreatedAtTrait;
-
     public function __toString(): string
     {
         return $this->text ?? "Message #$this->id";
@@ -95,6 +92,20 @@ class ChatMessage
     ])]
     #[ApiProperty(writable: false)]
     private ?User $author = null;
+
+    #[ORM\Column(type: 'datetime', nullable: false)]
+    #[Groups([
+        'chats:read',
+        'chatMessages:read'
+    ])]
+    protected DateTime $createdAt;
+
+    #[ORM\Column(type: 'datetime', nullable: false)]
+    #[Groups([
+        'chats:read',
+        'chatMessages:read'
+    ])]
+    protected DateTime $updatedAt;
 
     public function getId(): ?int
     {
@@ -135,5 +146,28 @@ class ChatMessage
         $this->author = $author;
 
         return $this;
+    }
+
+    public function getCreatedAt(): DateTime
+    {
+        return $this->createdAt;
+    }
+
+    #[ORM\PrePersist]
+    public function setCreatedAt(): void
+    {
+        $this->createdAt = new DateTime();
+    }
+
+    public function getUpdatedAt(): DateTime
+    {
+        return $this->updatedAt;
+    }
+
+    #[ORM\PreUpdate]
+    #[ORM\PrePersist]
+    public function setUpdatedAt(): void
+    {
+        $this->updatedAt = new DateTime();
     }
 }
