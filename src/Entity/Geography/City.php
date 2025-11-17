@@ -16,7 +16,6 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\Serializer\Attribute\Groups;
-use Symfony\Component\Serializer\Attribute\Ignore;
 use Symfony\Component\Validator\Constraints as Assert;
 use Vich\UploaderBundle\Mapping\Annotation as Vich;
 
@@ -107,7 +106,6 @@ class City
         'userTickets:read',
         'masters:read',
     ])]
-    #[Ignore]
     private ?Province $province = null;
 
     public function getId(): ?int
