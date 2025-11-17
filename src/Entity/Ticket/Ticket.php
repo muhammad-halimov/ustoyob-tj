@@ -20,6 +20,7 @@ use App\Entity\Review\Review;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
+use App\Entity\User\Favorite;
 use App\Repository\TicketRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -114,6 +115,7 @@ class Ticket
         $this->userTicketImages = new ArrayCollection();
         $this->reviews = new ArrayCollection();
         $this->appeals = new ArrayCollection();
+        $this->favorites = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -124,6 +126,7 @@ class Ticket
         'appeals:read',
         'appealsTicket:read',
         'reviews:read',
+        'favorites:read'
     ])]
     private ?int $id = null;
 
@@ -133,6 +136,7 @@ class Ticket
         'appeals:read',
         'appealsTicket:read',
         'reviews:read',
+        'favorites:read'
     ])]
     private ?string $title = null;
 
@@ -157,6 +161,10 @@ class Ticket
     #[ORM\Column(type: 'boolean', nullable: true)]
     #[Groups([
         'userTickets:read',
+        'appeals:read',
+        'appealsTicket:read',
+        'reviews:read',
+        'favorites:read'
     ])]
     private ?bool $active = null;
 
@@ -174,6 +182,7 @@ class Ticket
         'appeals:read',
         'appealsTicket:read',
         'reviews:read',
+        'favorites:read'
     ])]
     private ?User $author = null;
 
@@ -209,12 +218,17 @@ class Ticket
         'appeals:read',
         'appealsTicket:read',
         'reviews:read',
+        'favorites:read'
     ])]
     private ?User $master = null;
 
     #[ORM\Column(type: 'boolean', nullable: true)]
     #[Groups([
         'userTickets:read',
+        'appeals:read',
+        'appealsTicket:read',
+        'reviews:read',
+        'favorites:read'
     ])]
     private ?bool $service = null;
 
@@ -232,6 +246,12 @@ class Ticket
     #[ORM\OneToMany(targetEntity: Appeal::class, mappedBy: 'ticket')]
     #[Ignore]
     private Collection $appeals;
+
+    /**
+     * @var Collection<int, Favorite>
+     */
+    #[ORM\ManyToMany(targetEntity: Favorite::class, mappedBy: 'tickets')]
+    private Collection $favorites;
 
     public function getId(): ?int
     {
@@ -452,6 +472,33 @@ class Ticket
             if ($appeal->getTicket() === $this) {
                 $appeal->setTicket(null);
             }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Favorite>
+     */
+    public function getFavorites(): Collection
+    {
+        return $this->favorites;
+    }
+
+    public function addFavorite(Favorite $favorite): static
+    {
+        if (!$this->favorites->contains($favorite)) {
+            $this->favorites->add($favorite);
+            $favorite->addTicket($this);
+        }
+
+        return $this;
+    }
+
+    public function removeFavorite(Favorite $favorite): static
+    {
+        if ($this->favorites->removeElement($favorite)) {
+            $favorite->removeTicket($this);
         }
 
         return $this;

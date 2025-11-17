@@ -3,6 +3,7 @@
 namespace App\Controller\Api\Filter\User\Favorite;
 
 use App\Entity\User;
+use App\Entity\User\Favorite;
 use App\Repository\User\FavoriteRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -26,10 +27,11 @@ class PersonalFavoriteFilterController extends AbstractController
         if (!array_intersect($allowedRoles, $user->getRoles()))
             return $this->json(['message' => 'Access denied'], 403);
 
-        $data = $this->favoriteRepository->findUserFavoriteMasters($user);
+        /** @var Favorite $favorite */
+        $favorite = $this->favoriteRepository->findUserFavoriteMasters($user)[0] ?? null;
 
-        return empty($data)
+        return empty($favorite)
             ? $this->json(['message' => 'Resource not found'], 404)
-            : $this->json($data, context: ['groups' => ['favorites:read']]);
+            : $this->json($favorite, context: ['groups' => ['favorites:read']]);
     }
 }

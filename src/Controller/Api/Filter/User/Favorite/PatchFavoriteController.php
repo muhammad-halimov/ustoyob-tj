@@ -4,6 +4,7 @@ namespace App\Controller\Api\Filter\User\Favorite;
 
 use App\Entity\User;
 use App\Entity\User\Favorite;
+use App\Repository\TicketRepository;
 use App\Repository\User\FavoriteRepository;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -17,6 +18,7 @@ class PatchFavoriteController extends AbstractController
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly FavoriteRepository     $favoriteRepository,
+        private readonly TicketRepository       $ticketRepository,
         private readonly UserRepository         $userRepository,
         private readonly Security               $security,
     ){}
@@ -44,9 +46,11 @@ class PatchFavoriteController extends AbstractController
 
         $clientsParam = $data['clients'];
         $mastersParam = $data['masters'];
+        $ticketParam = $data['tickets'];
 
         $masters = [];
         $clients = [];
+        $tickets = [];
 
         foreach (array_unique($mastersParam) as $master) {
             // Извлекаем ID из строки "/api/users/1" или просто "1"
@@ -70,11 +74,24 @@ class PatchFavoriteController extends AbstractController
             $clients[] = $user;
         }
 
-        $favorite->getFavoriteMasters()->clear();
-        $favorite->getFavoriteClients()->clear();
+        foreach (array_unique($ticketParam) as $ticket) {
+            // Извлекаем ID из строки "/api/users/1" или просто "1"
+            $ticketId = (preg_match('#/api/tickets/(\d+)#', $ticket, $t) ? $t[1] : $ticket);
+            $ticketInternal = $this->ticketRepository->find($ticketId);
 
-        foreach ($masters as $master) $favorite->addFavoriteMaster($master);
-        foreach ($clients as $client) $favorite->addFavoriteClient($client);
+            if (!$ticketInternal)
+                return $this->json(['message' => "Ticket #$ticketId not found"], 404);
+
+            $tickets[] = $ticketInternal;
+        }
+
+        $favorite->getMasters()->clear();
+        $favorite->getClients()->clear();
+        $favorite->getTickets()->clear();
+
+        foreach ($masters as $master) $favorite->addMaster($master);
+        foreach ($clients as $client) $favorite->addClient($client);
+        foreach ($tickets as $ticket) $favorite->addTicket($ticket);
 
         $this->entityManager->persist($favorite);
         $this->entityManager->flush();
@@ -82,8 +99,9 @@ class PatchFavoriteController extends AbstractController
         return $this->json([
             'id' => $favorite->getId(),
             'user' => ['id' => $favorite->getUser()->getId()],
-            'masters' => array_map(fn($user) => ['id' => $user->getId()], $favorite->getFavoriteMasters()->toArray()),
-            'clients' => array_map(fn($user) => ['id' => $user->getId()], $favorite->getFavoriteClients()->toArray()),
+            'tickets' => array_map(fn($ticket) => ['id' => $ticket->getId()], $favorite->getTickets()->toArray()),
+            'clients' => array_map(fn($user) => ['id' => $user->getId()], $favorite->getClients()->toArray()),
+            'masters' => array_map(fn($user) => ['id' => $user->getId()], $favorite->getMasters()->toArray()),
         ]);
     }
 }

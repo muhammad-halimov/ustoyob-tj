@@ -12,6 +12,7 @@ use App\Controller\Api\Filter\User\Favorite\DeleteFavoriteController;
 use App\Controller\Api\Filter\User\Favorite\PatchFavoriteController;
 use App\Controller\Api\Filter\User\Favorite\PersonalFavoriteFilterController;
 use App\Controller\Api\Filter\User\Favorite\PostFavoriteController;
+use App\Entity\Ticket\Ticket;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
@@ -20,7 +21,6 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
-use Symfony\Component\Serializer\Attribute\SerializedName;
 
 #[ORM\Entity(repositoryClass: FavoriteRepository::class)]
 #[ORM\HasLifecycleCallbacks]
@@ -73,8 +73,9 @@ class Favorite
 
     public function __construct()
     {
-        $this->favoriteMasters = new ArrayCollection();
-        $this->favoriteClients = new ArrayCollection();
+        $this->tickets = new ArrayCollection();
+        $this->clients = new ArrayCollection();
+        $this->masters = new ArrayCollection();
     }
 
     public function __toString(): string
@@ -99,24 +100,33 @@ class Favorite
     private ?User $user = null;
 
     /**
-     * @var Collection<int, User>
+     * @var Collection<int, Ticket>
      */
-    #[ORM\OneToMany(targetEntity: User::class, mappedBy: 'favorite')]
+    #[ORM\ManyToMany(targetEntity: Ticket::class, inversedBy: 'favorites')]
     #[Groups([
         'favorites:read'
     ])]
-    #[SerializedName('masters')]
-    private Collection $favoriteMasters;
+    private Collection $tickets;
 
     /**
      * @var Collection<int, User>
      */
-    #[ORM\OneToMany(targetEntity: User::class, mappedBy: 'clientFavorites')]
+    #[ORM\ManyToMany(targetEntity: User::class, inversedBy: 'clientsFavorites')]
+    #[ORM\JoinTable(name: 'favorite_client')]
     #[Groups([
         'favorites:read'
     ])]
-    #[SerializedName('clients')]
-    private Collection $favoriteClients;
+    private Collection $clients;
+
+    /**
+     * @var Collection<int, User>
+     */
+    #[ORM\ManyToMany(targetEntity: User::class, inversedBy: 'mastersFavorites')]
+    #[ORM\JoinTable(name: 'favorite_master')]
+    #[Groups([
+        'favorites:read'
+    ])]
+    private Collection $masters;
 
     public function getId(): ?int
     {
@@ -136,31 +146,25 @@ class Favorite
     }
 
     /**
-     * @return Collection<int, User>
+     * @return Collection<int, Ticket>
      */
-    public function getFavoriteMasters(): Collection
+    public function getTickets(): Collection
     {
-        return $this->favoriteMasters;
+        return $this->tickets;
     }
 
-    public function addFavoriteMaster(User $favoriteMaster): static
+    public function addTicket(Ticket $ticket): static
     {
-        if (!$this->favoriteMasters->contains($favoriteMaster)) {
-            $this->favoriteMasters->add($favoriteMaster);
-            $favoriteMaster->setFavorite($this);
+        if (!$this->tickets->contains($ticket)) {
+            $this->tickets->add($ticket);
         }
 
         return $this;
     }
 
-    public function removeFavoriteMaster(User $favoriteMaster): static
+    public function removeTicket(Ticket $ticket): static
     {
-        if ($this->favoriteMasters->removeElement($favoriteMaster)) {
-            // set the owning side to null (unless already changed)
-            if ($favoriteMaster->getFavorite() === $this) {
-                $favoriteMaster->setFavorite(null);
-            }
-        }
+        $this->tickets->removeElement($ticket);
 
         return $this;
     }
@@ -168,29 +172,47 @@ class Favorite
     /**
      * @return Collection<int, User>
      */
-    public function getFavoriteClients(): Collection
+    public function getClients(): Collection
     {
-        return $this->favoriteClients;
+        return $this->clients;
     }
 
-    public function addFavoriteClient(User $favoriteClient): static
+    public function addClient(User $client): static
     {
-        if (!$this->favoriteClients->contains($favoriteClient)) {
-            $this->favoriteClients->add($favoriteClient);
-            $favoriteClient->setClientFavorites($this);
+        if (!$this->clients->contains($client)) {
+            $this->clients->add($client);
         }
 
         return $this;
     }
 
-    public function removeFavoriteClient(User $favoriteClient): static
+    public function removeClient(User $client): static
     {
-        if ($this->favoriteClients->removeElement($favoriteClient)) {
-            // set the owning side to null (unless already changed)
-            if ($favoriteClient->getClientFavorites() === $this) {
-                $favoriteClient->setClientFavorites(null);
-            }
+        $this->clients->removeElement($client);
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, User>
+     */
+    public function getMasters(): Collection
+    {
+        return $this->masters;
+    }
+
+    public function addMaster(User $master): static
+    {
+        if (!$this->masters->contains($master)) {
+            $this->masters->add($master);
         }
+
+        return $this;
+    }
+
+    public function removeMaster(User $master): static
+    {
+        $this->masters->removeElement($master);
 
         return $this;
     }

@@ -170,6 +170,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->clientReviews = new ArrayCollection();
         $this->districts = new ArrayCollection();
         $this->occupation = new ArrayCollection();
+        $this->clientsFavorites = new ArrayCollection();
+        $this->mastersFavorites = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -420,11 +422,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ApiProperty(writable: false)]
     private Collection $favorites;
 
-    #[ORM\ManyToOne(inversedBy: 'favoriteMasters')]
-    #[ORM\JoinColumn(name: 'favorite_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
-    #[Ignore]
-    private ?Favorite $favorite = null;
-
     /**
      * @var Collection<int, Appeal>
      */
@@ -485,10 +482,19 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     ])]
     private Collection $occupation;
 
-    #[ORM\ManyToOne(inversedBy: 'favoriteClients')]
-    #[ORM\JoinColumn(name: 'client_favorites_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    /**
+     * @var Collection<int, Favorite>
+     */
+    #[ORM\ManyToMany(targetEntity: Favorite::class, mappedBy: 'clients')]
     #[Ignore]
-    private ?Favorite $clientFavorites = null;
+    private Collection $clientsFavorites;
+
+    /**
+     * @var Collection<int, Favorite>
+     */
+    #[ORM\ManyToMany(targetEntity: Favorite::class, mappedBy: 'masters')]
+    #[Ignore]
+    private Collection $mastersFavorites;
 
     public function getId(): ?int
     {
@@ -1042,18 +1048,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    public function getFavorite(): ?Favorite
-    {
-        return $this->favorite;
-    }
-
-    public function setFavorite(?Favorite $favorite): static
-    {
-        $this->favorite = $favorite;
-
-        return $this;
-    }
-
     /**
      * @return Collection<int, Appeal>
      */
@@ -1288,14 +1282,56 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    public function getClientFavorites(): ?Favorite
+    /**
+     * @return Collection<int, Favorite>
+     */
+    public function getClientsFavorites(): Collection
     {
-        return $this->clientFavorites;
+        return $this->clientsFavorites;
     }
 
-    public function setClientFavorites(?Favorite $clientFavorites): static
+    public function addClientsFavorite(Favorite $clientsFavorite): static
     {
-        $this->clientFavorites = $clientFavorites;
+        if (!$this->clientsFavorites->contains($clientsFavorite)) {
+            $this->clientsFavorites->add($clientsFavorite);
+            $clientsFavorite->addClient($this);
+        }
+
+        return $this;
+    }
+
+    public function removeClientsFavorite(Favorite $clientsFavorite): static
+    {
+        if ($this->clientsFavorites->removeElement($clientsFavorite)) {
+            $clientsFavorite->removeClient($this);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Favorite>
+     */
+    public function getMastersFavorites(): Collection
+    {
+        return $this->mastersFavorites;
+    }
+
+    public function addMastersFavorite(Favorite $mastersFavorite): static
+    {
+        if (!$this->mastersFavorites->contains($mastersFavorite)) {
+            $this->mastersFavorites->add($mastersFavorite);
+            $mastersFavorite->addMaster($this);
+        }
+
+        return $this;
+    }
+
+    public function removeMastersFavorite(Favorite $mastersFavorite): static
+    {
+        if ($this->mastersFavorites->removeElement($mastersFavorite)) {
+            $mastersFavorite->removeMaster($this);
+        }
 
         return $this;
     }
