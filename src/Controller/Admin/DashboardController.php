@@ -24,7 +24,7 @@ use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use Symfony\Component\HttpFoundation\Response;
 
-#[AdminDashboard(routePath: '/admin', routeName: 'admin')]
+#[AdminDashboard(routePath: '/', routeName: 'admin')]
 class DashboardController extends AbstractDashboardController
 {
     /**
