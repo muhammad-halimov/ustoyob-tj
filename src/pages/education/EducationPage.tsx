@@ -25,7 +25,7 @@ function EducationPage() {
     });
     const [isLoading, setIsLoading] = useState(false);
     const [userId, setUserId] = useState<string | null>(null);
-    const API_BASE_URL = 'http://usto.tj.auto-schule.ru';
+    const API_BASE_URL = 'https://admin.ustoyob.tj';
 
     // Получаем ID пользователя при загрузке компонента
     useEffect(() => {

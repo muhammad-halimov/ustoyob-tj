@@ -60,7 +60,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string>('');
 
-    const API_BASE_URL = 'http://usto.tj.auto-schule.ru';
+    const API_BASE_URL = 'https://admin.ustoyob.tj';
 
     React.useEffect(() => {
         const loadCategories = async () => {
@@ -214,6 +214,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     onLoginSuccess(data.token, formData.email);
                 }
 
+
+                window.location.reload();
                 onClose();
                 resetForm();
 
@@ -330,6 +332,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     if (onLoginSuccess) {
                         onLoginSuccess(loginData.token, email);
                     }
+                    window.location.reload();
                     onClose();
                     resetForm();
                 } else {
@@ -461,6 +464,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             <div className={styles.welcomeScreen}>
                 <h2>Войдите, чтобы получить доступ к функциям сервиса</h2>
                 <div className={styles.welcomeButtons}>
+                    <img className={styles.enterPic} src="./enter_pic.png" alt="enter" width='280'/>
                     <button
                         className={styles.primaryButton}
                         onClick={() => setCurrentState(AuthModalState.LOGIN)}
@@ -486,9 +490,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 <h2>Вход</h2>
 
                 {error && <div className={styles.error}>{error}</div>}
-
                 <div className={styles.inputGroup}>
-                    <label>Email *</label>
                     <input
                         type="email"
                         name="email"
@@ -500,7 +502,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     />
                 </div>
                 <div className={styles.inputGroup}>
-                    <label>Пароль *</label>
                     <input
                         type="password"
                         name="password"
@@ -518,15 +519,37 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 >
                     {isLoading ? 'Вход...' : 'Войти'}
                 </button>
-                <div className={styles.links}>
-                    <button
-                        type="button"
-                        className={styles.linkButton}
-                        onClick={() => setCurrentState(AuthModalState.REGISTER)}
-                        disabled={isLoading}
+
+                <div className={styles.socialTitle}>Войти с помощью</div>
+
+                <div className={styles.socialButtons}>
+                    <a
+                        className={styles.facebookButton}
+                        // disabled={isLoading}
                     >
-                        Нет аккаунта? Зарегистрируйтесь!
-                    </button>
+                        <img src="./facebook.png" alt="Facebook" />
+                    </a>
+
+                    <a
+                        className={styles.googleButton}
+                        // disabled={isLoading}
+                    >
+                        <img src="./google.png" alt="Google" />
+                    </a>
+                </div>
+
+                <div className={styles.links}>
+                    <div className={styles.registerPrompt}>
+                        <span className={styles.promptText}>Нет аккаунта? </span>
+                        <button
+                            type="button"
+                            className={styles.linkButton}
+                            onClick={() => setCurrentState(AuthModalState.REGISTER)}
+                            disabled={isLoading}
+                        >
+                            Зарегистрируйтесь!
+                        </button>
+                    </div>
                     <button
                         type="button"
                         className={styles.linkButton}
@@ -553,20 +576,19 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         className={formData.role === 'master' ? styles.roleButtonActive : styles.roleButton}
                         onClick={() => handleRoleChange('master')}
                     >
-                        Мастер
+                        Я специалист
                     </button>
                     <button
                         type="button"
                         className={formData.role === 'client' ? styles.roleButtonActive : styles.roleButton}
                         onClick={() => handleRoleChange('client')}
                     >
-                        Клиент
+                        Я ищу специалиста
                     </button>
                 </div>
 
                 <div className={styles.nameRow}>
                     <div className={styles.inputGroup}>
-                        <label>Имя *</label>
                         <input
                             type="text"
                             name="firstName"
@@ -578,7 +600,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         />
                     </div>
                     <div className={styles.inputGroup}>
-                        <label>Фамилия *</label>
                         <input
                             type="text"
                             name="lastName"
@@ -593,26 +614,26 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
                 {formData.role === 'master' && (
                     <div className={styles.inputGroup}>
-                        <label>Специальность *</label>
-                        <select
-                            name="specialty"
-                            value={formData.specialty}
-                            onChange={handleInputChange}
-                            required={formData.role === 'master'}
-                            disabled={isLoading}
-                        >
-                            <option value="">Выберите специальность</option>
-                            {categories.map(category => (
-                                <option key={category.id} value={category.id}>
-                                    {category.title}
-                                </option>
-                            ))}
-                        </select>
+                        <div className={styles.selectWrapper}>
+                            <select
+                                name="specialty"
+                                value={formData.specialty}
+                                onChange={handleInputChange}
+                                required={formData.role === 'master'}
+                                disabled={isLoading}
+                            >
+                                <option value="">Выберите специальность</option>
+                                {categories.map(category => (
+                                    <option key={category.id} value={category.id}>
+                                        {category.title}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
                 )}
 
                 <div className={styles.inputGroup}>
-                    <label>Email *</label>
                     <input
                         type="email"
                         name="phoneOrEmail"
@@ -622,11 +643,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         disabled={isLoading}
                         placeholder="example@mail.com"
                     />
-                    <div className={styles.hint}>Для входа используется только email</div>
                 </div>
 
                 <div className={styles.inputGroup}>
-                    <label>Придумайте пароль *</label>
                     <input
                         type="password"
                         name="password"
@@ -634,12 +653,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         onChange={handleInputChange}
                         required
                         disabled={isLoading}
-                        placeholder="Не менее 6 символов"
+                        placeholder="Придумайте пароль (Минимум 6 символов)"
                     />
                 </div>
 
                 <div className={styles.inputGroup}>
-                    <label>Подтвердите пароль *</label>
                     <input
                         type="password"
                         name="confirmPassword"
@@ -656,8 +674,24 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     className={styles.primaryButton}
                     disabled={isLoading}
                 >
-                    {isLoading ? 'Регистрация...' : 'Зарегистрироваться'}
+                    {isLoading ? 'Регистрация...' : 'Войти'}
                 </button>
+
+                <div className={styles.socialButtons}>
+                    <a
+                        className={styles.facebookButton}
+                        // disabled={isLoading}
+                    >
+                        <img src="./facebook.png" alt="Facebook" />
+                    </a>
+
+                    <a
+                        className={styles.googleButton}
+                        // disabled={isLoading}
+                    >
+                        <img src="./google.png" alt="Google" />
+                    </a>
+                </div>
 
                 <div className={styles.links}>
                     <button
@@ -681,7 +715,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 {error && <div className={styles.error}>{error}</div>}
 
                 <div className={styles.inputGroup}>
-                    <label>Email</label>
                     <input
                         type="email"
                         name="email"
@@ -689,6 +722,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         onChange={handleInputChange}
                         required
                         disabled={isLoading}
+                        placeholder="Почта"
                     />
                 </div>
                 <button
@@ -698,16 +732,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 >
                     {isLoading ? 'Отправка...' : 'Получить код'}
                 </button>
-                <div className={styles.links}>
-                    <button
-                        type="button"
-                        className={styles.linkButton}
-                        onClick={() => setCurrentState(AuthModalState.LOGIN)}
-                        disabled={isLoading}
-                    >
-                        Вернуться к входу
-                    </button>
-                </div>
             </form>
         );
     };
@@ -807,7 +831,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
     return (
         <div className={styles.modalOverlay} onClick={handleOverlayClick}>
-            <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div
+                className={`${styles.modalContent} ${styles[`modal_${currentState}`]}`}
+                onClick={(e) => e.stopPropagation()}
+            >
                 <button className={styles.closeButton} onClick={handleClose} type="button">
                     ×
                 </button>

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { getAuthToken } from "../../utils/auth";
 import styles from "./Chat.module.scss";
+import { useSearchParams } from 'react-router-dom';
+import { IoSend } from "react-icons/io5";
 
 interface Message {
     id: number;
@@ -17,6 +19,9 @@ interface ApiUser {
     surname: string;
     phone1: string;
     phone2: string;
+    image?: string;
+    isOnline?: boolean; // Добавляем поле для статуса онлайн
+    lastSeen?: string; // Время последней активности
 }
 
 interface ApiMessage {
@@ -29,12 +34,13 @@ interface ApiMessage {
 
 interface ApiChat {
     id: number;
-    messageAuthor: ApiUser;
+    author: ApiUser;
     replyAuthor: ApiUser;
-    message: ApiMessage[];
+    messages: ApiMessage[];
+    images: any[];
+    createdAt?: string;
+    updatedAt?: string;
 }
-
-const LOCAL_STORAGE_KEY = 'chat_messages';
 
 function Chat() {
     const [activeTab, setActiveTab] = useState<"active" | "archive">("active");
@@ -48,11 +54,16 @@ function Chat() {
     const [showCreateChat, setShowCreateChat] = useState(false);
     const [availableUsers, setAvailableUsers] = useState<ApiUser[]>([]);
     const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+    const [onlineStatuses, setOnlineStatuses] = useState<{[key: number]: boolean}>({});
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-    const API_BASE_URL = 'http://usto.tj.auto-schule.ru';
+    const statusPollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const API_BASE_URL = 'https://admin.ustoyob.tj';
     const POLLING_INTERVAL = 5000;
+
+    const [searchParams] = useSearchParams();
+    const chatIdFromUrl = searchParams.get('chatId');
 
     useEffect(() => {
         const initializeChat = async () => {
@@ -66,7 +77,6 @@ function Chat() {
 
     useEffect(() => {
         if (selectedChat) {
-            loadMessagesForChat(selectedChat);
             startPolling(selectedChat);
         } else {
             setMessages([]);
@@ -79,6 +89,78 @@ function Chat() {
         scrollToBottom();
     }, [messages]);
 
+    useEffect(() => {
+        if (chatIdFromUrl) {
+            const chatId = parseInt(chatIdFromUrl);
+            setSelectedChat(chatId);
+            if (!chats.find(chat => chat.id === chatId)) {
+                fetchChatById(chatId);
+            }
+        }
+    }, [chatIdFromUrl, chats]);
+
+    // Запускаем проверку статусов онлайн при наличии чатов
+    useEffect(() => {
+        if (chats.length > 0) {
+        }
+        return () => stopStatusPolling();
+    }, [chats]);
+
+    const getInterlocutorFromChat = (chat: ApiChat | undefined): ApiUser | null => {
+        if (!chat || !currentUser) return null;
+
+        if (!chat.author || !chat.replyAuthor) {
+            console.error('Invalid chat structure:', chat);
+            return null;
+        }
+
+        if (!chat.author.id || !chat.replyAuthor.id) {
+            console.error('Chat authors missing ID:', chat);
+            return null;
+        }
+
+        return chat.author.id === currentUser.id ? chat.replyAuthor : chat.author;
+    };
+
+    // Функция для проверки существующего чата с пользователем
+    const findExistingChat = (replyAuthorId: number): number | null => {
+        if (!currentUser) return null;
+
+        const existingChat = chats.find(chat =>
+            (chat.author.id === currentUser.id && chat.replyAuthor.id === replyAuthorId) ||
+            (chat.author.id === replyAuthorId && chat.replyAuthor.id === currentUser.id)
+        );
+
+        return existingChat ? existingChat.id : null;
+    };
+
+    const fetchChatById = async (chatId: number) => {
+        try {
+            const token = getAuthToken();
+            if (!token) return;
+
+            const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                const chatData = await response.json();
+                setChats(prev => {
+                    const exists = prev.find(chat => chat.id === chatId);
+                    if (!exists) {
+                        return [...prev, chatData];
+                    }
+                    return prev;
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching chat by ID:', error);
+        }
+    };
+
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
@@ -86,6 +168,7 @@ function Chat() {
     const startPolling = (chatId: number) => {
         stopPolling();
         fetchChatMessages(chatId);
+
         pollingIntervalRef.current = setInterval(() => {
             fetchChatMessages(chatId);
         }, POLLING_INTERVAL);
@@ -96,6 +179,59 @@ function Chat() {
             clearInterval(pollingIntervalRef.current);
             pollingIntervalRef.current = null;
         }
+    };
+
+    const stopStatusPolling = () => {
+        if (statusPollingIntervalRef.current) {
+            clearInterval(statusPollingIntervalRef.current);
+            statusPollingIntervalRef.current = null;
+        }
+    };
+
+    // const checkUserOnlineStatus = async (userId: number) => {
+    //     try {
+    //         const token = getAuthToken();
+    //         if (!token) return;
+    //
+    //         // Здесь нужно использовать ваш реальный endpoint для проверки статуса
+    //         // Предположим, что есть endpoint /api/users/{id}/status
+    //         const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
+    //             headers: {
+    //                 'Authorization': `Bearer ${token}`,
+    //                 'Accept': 'application/json',
+    //             },
+    //         });
+    //
+    //         if (response.ok) {
+    //             const userData = await response.json();
+    //             // Предположим, что в ответе есть поле isOnline
+    //             const isOnline = userData.isOnline || false;
+    //
+    //             setOnlineStatuses(prev => ({
+    //                 ...prev,
+    //                 [userId]: isOnline
+    //             }));
+    //         }
+    //     } catch (error) {
+    //         console.error(`Error checking status for user ${userId}:`, error);
+    //     }
+    // };
+
+    const getOnlineStatus = (userId: number): boolean => {
+        return onlineStatuses[userId] || false;
+    };
+
+    const getLastSeenTime = (user: ApiUser): string => {
+        if (!user.lastSeen) return '';
+
+        const lastSeen = new Date(user.lastSeen);
+        const now = new Date();
+        const diffInMinutes = Math.floor((now.getTime() - lastSeen.getTime()) / (1000 * 60));
+
+        if (diffInMinutes < 1) return 'только что';
+        if (diffInMinutes < 60) return `${diffInMinutes} мин назад`;
+        if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} ч назад`;
+        return `${Math.floor(diffInMinutes / 1440)} дн назад`;
     };
 
     const fetchChatMessages = async (chatId: number) => {
@@ -113,81 +249,54 @@ function Chat() {
 
             if (response.ok) {
                 const chatData: ApiChat = await response.json();
-                processApiMessages(chatId, chatData.message || []);
+                processApiMessages(chatId, chatData.messages || []);
+
+                // Обновляем информацию о собеседнике при получении новых сообщений
+                const interlocutor = getInterlocutorFromChat(chatData);
+                if (interlocutor) {
+                    // await checkUserOnlineStatus(interlocutor.id);
+                }
             } else if (response.status >= 500) {
                 console.warn(`Server error (${response.status}) fetching chat ${chatId}`);
-                // Просто используем локальные сообщения, если сервер упал
-                loadMessagesForChat(chatId);
             } else {
                 console.error(`Error fetching chat messages: ${response.status}`);
             }
         } catch (err) {
             console.error('Error fetching chat messages:', err);
-            loadMessagesForChat(chatId); // fallback
         }
     };
 
     const processApiMessages = (chatId: number, apiMessages: ApiMessage[]) => {
-        try {
-            const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-            const allMessages = stored ? JSON.parse(stored) : {};
-            const localMessages: Message[] = allMessages[chatId] || [];
+        const formatted: Message[] = apiMessages.map(msg => ({
+            id: msg.id,
+            sender: msg.author.id === currentUser?.id ? "me" : "other",
+            name: `${msg.author.name} ${msg.author.surname}`,
+            text: msg.text,
+            time: msg.createdAt
+                ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : ""
+        }));
 
-            const apiMessagesFormatted: Message[] = apiMessages.map(msg => ({
-                id: msg.id,
-                sender: msg.author.id === currentUser?.id ? "me" : "other",
-                name: `${msg.author.name} ${msg.author.surname}`,
-                text: msg.text,
-                time: msg.createdAt
-                    ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                    : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            }));
+        // Автоматически определяем онлайн статус по последнему сообщению
+        if (apiMessages.length > 0) {
+            const lastMessage = apiMessages[apiMessages.length - 1];
+            const interlocutorId = lastMessage.author.id === currentUser?.id
+                ? getInterlocutorFromChat(chats.find(c => c.id === chatId))?.id
+                : lastMessage.author.id;
 
-            const mergedMessages = mergeMessages(localMessages, apiMessagesFormatted);
-            allMessages[chatId] = mergedMessages;
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(allMessages));
+            if (interlocutorId) {
+                // Если сообщение было отправлено менее 2 минут назад - считаем онлайн
+                const messageTime = new Date(lastMessage.createdAt || '').getTime();
+                const isOnline = Date.now() - messageTime < 2 * 60 * 1000; // 2 минуты
 
-            if (selectedChat === chatId) setMessages(mergedMessages);
-        } catch (err) {
-            console.error('Error processing API messages:', err);
-        }
-    };
-
-    const mergeMessages = (localMessages: Message[], apiMessages: Message[]): Message[] => {
-        const allMessages = [...localMessages, ...apiMessages];
-        const uniqueMessages = allMessages.filter((msg, index, self) =>
-            index === self.findIndex(m => m.id === msg.id)
-        );
-        return uniqueMessages.sort((a, b) => a.id - b.id);
-    };
-
-    const loadMessagesForChat = (chatId: number) => {
-        try {
-            const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-            if (stored) {
-                const allMessages = JSON.parse(stored);
-                setMessages(allMessages[chatId] || []);
-            } else {
-                setMessages([]);
+                setOnlineStatuses(prev => ({
+                    ...prev,
+                    [interlocutorId]: isOnline
+                }));
             }
-        } catch (err) {
-            console.error('Error loading messages from localStorage:', err);
-            setMessages([]);
         }
-    };
 
-    const saveMessageToStorage = (chatId: number, message: Message) => {
-        try {
-            const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-            const allMessages = stored ? JSON.parse(stored) : {};
-            allMessages[chatId] = allMessages[chatId] || [];
-            allMessages[chatId].push(message);
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(allMessages));
-            return allMessages[chatId];
-        } catch (err) {
-            console.error('Error saving message to localStorage:', err);
-            return [];
-        }
+        if (selectedChat === chatId) setMessages(formatted);
     };
 
     const getCurrentUser = async (): Promise<ApiUser | null> => {
@@ -227,23 +336,36 @@ function Chat() {
 
             const response = await fetch(`${API_BASE_URL}/api/chats/me`, {
                 method: 'GET',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
             });
 
             let chatsData: ApiChat[] = [];
 
             if (response.ok) {
                 chatsData = await response.json();
+                if (!Array.isArray(chatsData)) {
+                    console.error('Invalid chats data format:', chatsData);
+                    chatsData = [];
+                }
             } else {
+                console.warn('Failed to fetch chats, using mock data');
                 chatsData = createMockChats();
             }
 
             setChats(chatsData);
-            if (chatsData.length > 0 && !selectedChat) setSelectedChat(chatsData[0].id);
-        } catch {
+            if (chatsData.length > 0 && !selectedChat) {
+                setSelectedChat(chatsData[0].id);
+            }
+        } catch (error) {
+            console.error('Error fetching chats:', error);
             const mockChats = createMockChats();
             setChats(mockChats);
-            if (mockChats.length > 0 && !selectedChat) setSelectedChat(mockChats[0].id);
+            if (mockChats.length > 0 && !selectedChat) {
+                setSelectedChat(mockChats[0].id);
+            }
         } finally {
             setIsLoading(false);
         }
@@ -254,42 +376,130 @@ function Chat() {
         return [
             {
                 id: 1,
-                messageAuthor: currentUser,
-                replyAuthor: { id: 2, email: "master@example.com", name: "Алишер", surname: "Каримов", phone1: "+992123456789", phone2: "" },
-                message: []
+                author: currentUser,
+                replyAuthor: {
+                    id: 2,
+                    email: "master@example.com",
+                    name: "Алишер",
+                    surname: "Каримов",
+                    phone1: "+992123456789",
+                    phone2: "",
+                    isOnline: true
+                },
+                messages: [],
+                images: []
             },
             {
                 id: 2,
-                messageAuthor: currentUser,
-                replyAuthor: { id: 3, email: "support@example.com", name: "Мария", surname: "Иванова", phone1: "+992987654321", phone2: "" },
-                message: []
+                author: currentUser,
+                replyAuthor: {
+                    id: 3,
+                    email: "support@example.com",
+                    name: "Мария",
+                    surname: "Иванова",
+                    phone1: "+992987654321",
+                    phone2: "",
+                    isOnline: false,
+                    lastSeen: new Date(Date.now() - 15 * 60 * 1000).toISOString() // 15 минут назад
+                },
+                messages: [],
+                images: []
             }
         ];
     };
 
     const fetchAvailableUsers = async () => {
         setIsLoadingUsers(true);
-        const mockUsers: ApiUser[] = [
-            { id: 2, email: "master1@example.com", name: "Алишер", surname: "Каримов", phone1: "+992123456789", phone2: "" },
-            { id: 3, email: "master2@example.com", name: "Фаррух", surname: "Юсупов", phone1: "+992987654321", phone2: "" }
-        ];
-        setAvailableUsers(mockUsers);
-        setIsLoadingUsers(false);
+        try {
+            const token = getAuthToken();
+            if (!token) return;
+
+            // Запрашиваем реальных пользователей вместо моковых данных
+            const response = await fetch(`${API_BASE_URL}/api/users`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                const usersData = await response.json();
+                setAvailableUsers(usersData);
+            } else {
+                // Fallback на моковые данные
+                const mockUsers: ApiUser[] = [
+                    {
+                        id: 2,
+                        email: "master1@example.com",
+                        name: "Алишер",
+                        surname: "Каримов",
+                        phone1: "+992123456789",
+                        phone2: "",
+                        isOnline: true
+                    },
+                    {
+                        id: 3,
+                        email: "master2@example.com",
+                        name: "Фаррух",
+                        surname: "Юсупов",
+                        phone1: "+992987654321",
+                        phone2: "",
+                        isOnline: false
+                    }
+                ];
+                setAvailableUsers(mockUsers);
+            }
+        } catch (error) {
+            console.error('Error fetching available users:', error);
+            const mockUsers: ApiUser[] = [
+                {
+                    id: 2,
+                    email: "master1@example.com",
+                    name: "Алишер",
+                    surname: "Каримов",
+                    phone1: "+992123456789",
+                    phone2: "",
+                    isOnline: true
+                },
+                {
+                    id: 3,
+                    email: "master2@example.com",
+                    name: "Фаррух",
+                    surname: "Юсупов",
+                    phone1: "+992987654321",
+                    phone2: "",
+                    isOnline: false
+                }
+            ];
+            setAvailableUsers(mockUsers);
+        } finally {
+            setIsLoadingUsers(false);
+        }
     };
 
     const createNewChat = async (replyAuthorId: number) => {
         if (!currentUser) return;
+
+        // Проверяем существующий чат
+        const existingChatId = findExistingChat(replyAuthorId);
+        if (existingChatId) {
+            setSelectedChat(existingChatId);
+            setShowCreateChat(false);
+            return;
+        }
+
         try {
             const token = getAuthToken();
             if (!token) return;
 
             const response = await fetch(`${API_BASE_URL}/api/chats`, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify({
-                    messageAuthor: `/api/users/${currentUser.id}`,
-                    replyAuthor: `/api/users/${replyAuthorId}`,
-                    message: []
+                    replyAuthor: `/api/users/${replyAuthorId}`
                 })
             });
 
@@ -299,9 +509,12 @@ function Chat() {
                 setSelectedChat(newChat.id);
                 setShowCreateChat(false);
             } else {
+                const errorText = await response.text();
+                console.error('Error creating chat:', errorText);
                 setError('Ошибка при создании чата');
             }
-        } catch {
+        } catch (error) {
+            console.error('Error creating chat:', error);
             setError('Ошибка при создании чата');
         }
     };
@@ -317,8 +530,8 @@ function Chat() {
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
 
-        const updatedMessages = saveMessageToStorage(selectedChat, newMessageObj);
-        setMessages(updatedMessages);
+        // Локально добавляем сообщение
+        setMessages(prev => [...prev, newMessageObj]);
         setNewMessage("");
 
         await sendMessageToServer(selectedChat, newMessage);
@@ -330,23 +543,32 @@ function Chat() {
             const token = getAuthToken();
             if (!token) return;
 
-            const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}`, {
-                method: 'PATCH',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/merge-patch+json' },
+            const response = await fetch(`${API_BASE_URL}/api/chat-messages`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify({
-                    message: [{ text: messageText, author: `/api/users/${currentUser.id}` }]
+                    text: messageText,
+                    chat: `/api/chats/${chatId}`
                 })
             });
 
-            if (response.ok) fetchChatMessages(chatId);
-        } catch (err) {
-            console.error('Error sending message to server:', err);
-        }
-    };
+            if (response.ok) {
+                console.log('Сообщение успешно отправлено');
+                const newMessageData = await response.json();
+                console.log('Новое сообщение создано:', newMessageData);
 
-    const getInterlocutorFromChat = (chat: ApiChat): ApiUser | null => {
-        if (!currentUser) return null;
-        return chat.messageAuthor.id === currentUser.id ? chat.replyAuthor : chat.messageAuthor;
+                // Обновляем чат чтобы получить обновленные сообщения
+                fetchChatMessages(chatId);
+            } else {
+                const errorText = await response.text();
+                console.error('Ошибка отправки сообщения:', response.status, errorText);
+            }
+        } catch (err) {
+            console.error('Ошибка отправки сообщения на сервер:', err);
+        }
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -357,27 +579,14 @@ function Chat() {
     };
 
     const getLastMessageTime = (chat: ApiChat) => {
-        try {
-            const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-            if (stored) {
-                const allMessages = JSON.parse(stored);
-                const chatMessages = allMessages[chat.id] || [];
-                if (chatMessages.length > 0) return chatMessages[chatMessages.length - 1].time;
-            }
-        } catch {}
-        return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const msg = chat.messages?.[chat.messages.length - 1];
+        if (!msg?.createdAt) return "";
+        return new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 
     const getLastMessageText = (chat: ApiChat) => {
-        try {
-            const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-            if (stored) {
-                const allMessages = JSON.parse(stored);
-                const chatMessages = allMessages[chat.id] || [];
-                if (chatMessages.length > 0) return chatMessages[chatMessages.length - 1].text;
-            }
-        } catch {}
-        return 'Нет сообщений';
+        const msg = chat.messages?.[chat.messages.length - 1];
+        return msg?.text || 'Нет сообщений';
     };
 
     const handleCreateChatClick = () => {
@@ -387,7 +596,12 @@ function Chat() {
 
     const currentChat = chats.find(chat => chat.id === selectedChat);
     const currentInterlocutor = currentChat ? getInterlocutorFromChat(currentChat) : null;
-    const showChatArea = selectedChat !== null;
+    const showChatArea = selectedChat !== null && currentInterlocutor !== null;
+
+    // Получаем статус текущего собеседника
+    const currentInterlocutorStatus = currentInterlocutor
+        ? getOnlineStatus(currentInterlocutor.id)
+        : false;
 
     if (isLoading) return <div className={styles.chat}>Загрузка чатов...</div>;
 
@@ -395,18 +609,15 @@ function Chat() {
         <div className={styles.chat}>
             {/* Sidebar */}
             <div className={styles.sidebar}>
-                {/* Search */}
                 <div className={styles.searchBar}>
                     <input type="text" placeholder="Поиск" className={styles.searchInput} />
                 </div>
 
-                {/* Tabs */}
                 <div className={styles.tabs}>
                     <button className={`${styles.tab} ${activeTab === "active" ? styles.active : ""}`} onClick={() => setActiveTab("active")}>Активные</button>
                     <button className={`${styles.tab} ${activeTab === "archive" ? styles.active : ""}`} onClick={() => setActiveTab("archive")}>Архив</button>
                 </div>
 
-                {/* Chat list */}
                 <div className={styles.chatList}>
                     {chats.length === 0 ? (
                         <div className={styles.noChatsContainer}>
@@ -416,16 +627,36 @@ function Chat() {
                     ) : (
                         chats.map(chat => {
                             const interlocutor = getInterlocutorFromChat(chat);
+                            if (!interlocutor) {
+                                console.warn('No interlocutor found for chat:', chat);
+                                return null;
+                            }
+
+                            const isOnline = getOnlineStatus(interlocutor.id);
+
                             return (
                                 <div key={chat.id} className={`${styles.chatItem} ${selectedChat === chat.id ? styles.selected : ""}`} onClick={() => setSelectedChat(chat.id)}>
-                                    <div className={styles.avatar}>{interlocutor?.name.charAt(0)}{interlocutor?.surname.charAt(0)}</div>
+                                    <div className={styles.avatar}>
+                                        {interlocutor.image ? (
+                                            <img
+                                                src={interlocutor.image}
+                                                className={styles.avatarImage}
+                                            />
+                                        ) : (
+                                            `${interlocutor.name?.charAt(0) || ''}${interlocutor.surname?.charAt(0) || ''}`
+                                        )}
+                                        <div className={`${styles.onlineIndicator} ${isOnline ? styles.online : styles.offline}`} />
+                                    </div>
                                     <div className={styles.chatInfo}>
-                                        <div className={styles.name}>{interlocutor?.name} {interlocutor?.surname}</div>
-                                        <div className={styles.specialty}>{interlocutor?.email}</div>
+                                        <div className={styles.name}>{interlocutor.name} {interlocutor.surname}</div>
+                                        <div className={styles.specialty}>{interlocutor.email}</div>
                                         <div className={styles.lastMessage}>{getLastMessageText(chat)}</div>
                                     </div>
                                     <div className={styles.chatMeta}>
                                         <div className={styles.time}>{getLastMessageTime(chat)}</div>
+                                        {!isOnline && interlocutor.lastSeen && (
+                                            <div className={styles.lastSeen}>{getLastSeenTime(interlocutor)}</div>
+                                        )}
                                     </div>
                                 </div>
                             );
@@ -436,14 +667,24 @@ function Chat() {
 
             {/* Chat area */}
             <div className={styles.chatArea}>
-                {showChatArea ? (
+                {showChatArea && currentInterlocutor ? (
                     <>
                         <div className={styles.chatHeader}>
                             <div className={styles.headerLeft}>
-                                <div className={styles.avatar}>{currentInterlocutor?.name.charAt(0)}{currentInterlocutor?.surname.charAt(0)}</div>
+                                <div className={styles.avatar}>
+                                    {currentInterlocutor.name?.charAt(0)}{currentInterlocutor.surname?.charAt(0)}
+                                    <div className={`${styles.onlineIndicator} ${currentInterlocutorStatus ? styles.online : styles.offline}`} />
+                                </div>
                                 <div className={styles.headerInfo}>
-                                    <div className={styles.name}>{currentInterlocutor?.name} {currentInterlocutor?.surname}</div>
-                                    <div className={styles.status}>онлайн</div>
+                                    <div className={styles.name}>
+                                        {currentInterlocutor.name} {currentInterlocutor.surname}
+                                    </div>
+                                    <div className={`${styles.status} ${currentInterlocutorStatus ? styles.online : styles.offline}`}>
+                                        {currentInterlocutorStatus ? 'онлайн' : 'оффлайн'}
+                                        {!currentInterlocutorStatus && currentInterlocutor.lastSeen && (
+                                            <span className={styles.lastSeen}> • {getLastSeenTime(currentInterlocutor)}</span>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -464,12 +705,27 @@ function Chat() {
                         </div>
 
                         <div className={styles.chatInput}>
-                            <input type="text" placeholder="Введите сообщение" className={styles.inputField} value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyPress={handleKeyPress} />
-                            <button className={styles.sendButton} onClick={sendMessage} disabled={!newMessage.trim()}>Отправить</button>
+                            <input
+                                type="text"
+                                placeholder="Введите сообщение"
+                                className={styles.inputField}
+                                value={newMessage}
+                                onChange={(e) => setNewMessage(e.target.value)}
+                                onKeyPress={handleKeyPress}
+                            />
+                            <button
+                                className={styles.sendButton}
+                                onClick={sendMessage}
+                                disabled={!newMessage.trim()}
+                            >
+                                <IoSend />
+                            </button>
                         </div>
                     </>
                 ) : (
-                    <div className={styles.noChat}>{chats.length === 0 ? "Начните чат" : "Выберите чат"}</div>
+                    <div className={styles.noChat}>
+                        {chats.length === 0 ? "Начните чат" : "Выберите чат"}
+                    </div>
                 )}
 
                 {error && (
@@ -496,10 +752,16 @@ function Chat() {
                             ) : (
                                 availableUsers.map(user => (
                                     <div key={user.id} className={styles.userItem} onClick={() => createNewChat(user.id)}>
-                                        <div className={styles.userAvatar}>{user.name.charAt(0)}{user.surname.charAt(0)}</div>
+                                        <div className={styles.userAvatar}>
+                                            {user.name.charAt(0)}{user.surname.charAt(0)}
+                                            <div className={`${styles.onlineIndicator} ${user.isOnline ? styles.online : styles.offline}`} />
+                                        </div>
                                         <div className={styles.userInfo}>
                                             <div className={styles.userName}>{user.name} {user.surname}</div>
                                             <div className={styles.userEmail}>{user.email}</div>
+                                            <div className={styles.userStatus}>
+                                                {user.isOnline ? 'онлайн' : 'оффлайн'}
+                                            </div>
                                         </div>
                                     </div>
                                 ))

@@ -6,7 +6,7 @@
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
+  z-index: 900;
   padding: 20px;
   flex-shrink: 0;
 }
@@ -195,7 +195,7 @@
       padding: 12px 20px;
       font-size: 18px;
       color: map.get(vars.$colors, text-black);
-      background: map.get(vars.$colors, primary-text-white);
+      //background: map.get(vars.$colors, primary-text-white);
 
       &:hover {
         background: map.get(vars.$colors, actual-blue);

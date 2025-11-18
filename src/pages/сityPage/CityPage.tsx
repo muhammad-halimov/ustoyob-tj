@@ -9,34 +9,183 @@ interface City {
     description: string;
     image: string;
     districts: District[];
-    province: Province;
 }
 
 interface District {
     id: number;
     title: string;
+    description: string;
     image: string;
+    city: {
+        id: number;
+        title?: string;
+    };
 }
 
 interface Province {
     id: number;
     title: string;
+    description: string;
+    cities: { id: number }[];
 }
 
 function CityPage() {
     const navigate = useNavigate();
     const [cities, setCities] = useState<City[]>([]);
+    const [provinces, setProvinces] = useState<Province[]>([]);
+    const [districts, setDistricts] = useState<District[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [remoteWork, setRemoteWork] = useState(false);
-    const [selectedCity, setSelectedCity] = useState<string>('');
-    const [selectedDistrict, setSelectedDistrict] = useState<District | null>(null);
     const [manualAddress, setManualAddress] = useState<string>('');
-    const API_BASE_URL = 'http://usto.tj.auto-schule.ru';
+    const API_BASE_URL = 'https://admin.ustoyob.tj';
+
+    const [selectedProvinceId, setSelectedProvinceId] = useState<number | null>(null);
+    const [selectedCityId, setSelectedCityId] = useState<number | null>(null);
+    const [selectedDistrictId, setSelectedDistrictId] = useState<number | null>(null);
 
     useEffect(() => {
         fetchUserData();
+        fetchProvinces();
         fetchCities();
+        fetchDistricts();
     }, []);
+
+    // Получаем ID городов выбранной области
+    const cityIdsInSelectedProvince = selectedProvinceId
+        ? provinces.find(p => p.id === selectedProvinceId)?.cities?.map(c => c.id) || []
+        : [];
+
+    // Получаем полную информацию о городах выбранной области
+    const citiesInSelectedProvince = cities.filter(city =>
+        cityIdsInSelectedProvince.includes(city.id)
+    );
+
+    // Получаем районы выбранного города
+    const districtsInSelectedCity = selectedCityId
+        ? districts.filter(district => {
+            const districtCityId = typeof district.city === 'object' ? district.city.id : district.city;
+            return districtCityId === selectedCityId;
+        })
+        : [];
+
+    // Эффект для обработки изменений выбранных ID
+    useEffect(() => {
+        if (selectedProvinceId) {
+            const province = provinces.find(p => p.id === selectedProvinceId) || null;
+            setSelectedCityId(null);
+            setSelectedDistrictId(null);
+
+            if (province) {
+                setManualAddress(province.title);
+            }
+        }
+    }, [selectedProvinceId, provinces]);
+
+    useEffect(() => {
+        if (selectedCityId) {
+            const city = cities.find(c => c.id === selectedCityId) || null;
+            setSelectedDistrictId(null);
+
+            if (city) {
+                const address = `${city.title}`;
+                setManualAddress(address);
+            }
+        }
+    }, [selectedCityId, cities]);
+
+    useEffect(() => {
+        if (selectedDistrictId) {
+            const district = districts.find(d => d.id === selectedDistrictId) || null;
+
+            if (district) {
+                // Формируем полный адрес: район + город
+                const cityName = typeof district.city === 'object' && district.city.title
+                    ? district.city.title
+                    : cities.find(c => c.id === (typeof district.city === 'object' ? district.city.id : district.city))?.title || '';
+
+                const fullAddress = cityName ? `${district.title}, ${cityName}` : district.title;
+                setManualAddress(fullAddress);
+            }
+        }
+    }, [selectedDistrictId, districts, cities]);
+
+    const fetchProvinces = async () => {
+        try {
+            setIsLoading(true);
+            const token = getAuthToken();
+            if (!token) return;
+
+            const response = await fetch(`${API_BASE_URL}/api/provinces`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                const provincesData = await response.json();
+                console.log('Provinces loaded:', provincesData);
+                setProvinces(provincesData);
+            } else {
+                console.error('Failed to fetch provinces:', response.status);
+            }
+        } catch (error) {
+            console.error('Error fetching provinces:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const fetchCities = async () => {
+        try {
+            const token = getAuthToken();
+            if (!token) return;
+
+            const response = await fetch(`${API_BASE_URL}/api/cities`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                const citiesData = await response.json();
+                console.log('Cities loaded:', citiesData);
+                setCities(citiesData);
+            } else {
+                console.error('Failed to fetch cities:', response.status);
+            }
+        } catch (error) {
+            console.error('Error fetching cities:', error);
+        }
+    };
+
+    const fetchDistricts = async () => {
+        try {
+            const token = getAuthToken();
+            if (!token) return;
+
+            const response = await fetch(`${API_BASE_URL}/api/districts`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                const districtsData = await response.json();
+                console.log('Districts loaded:', districtsData);
+                setDistricts(districtsData);
+            } else {
+                console.error('Failed to fetch districts:', response.status);
+            }
+        } catch (error) {
+            console.error('Error fetching districts:', error);
+        }
+    };
 
     const fetchUserData = async () => {
         try {
@@ -56,16 +205,45 @@ function CityPage() {
 
             if (response.ok) {
                 const userData = await response.json();
-                // значение удаленной работы из профиля
+                console.log('User data:', userData);
                 setRemoteWork(userData.remotely || false);
 
-                // Если есть сохраненные районы, заполняем поле адреса
+                // Восстанавливаем выбранные данные из профиля
                 if (userData.districts && userData.districts.length > 0) {
                     const district = userData.districts[0];
-                    if (district.title) {
-                        setManualAddress(district.title);
-                        setSelectedCity(district.city?.title || '');
-                        setSelectedDistrict(district);
+                    console.log('User district:', district);
+
+                    if (district && typeof district === 'object') {
+                        // Устанавливаем адрес
+                        if (district.title) {
+                            // Формируем полный адрес из данных района
+                            const cityName = district.city && typeof district.city === 'object'
+                                ? district.city.title
+                                : '';
+
+                            const fullAddress = cityName ? `${district.title}, ${cityName}` : district.title;
+                            setManualAddress(fullAddress);
+                        }
+
+                        // Восстанавливаем ID
+                        if (district.id) {
+                            setSelectedDistrictId(district.id);
+                        }
+
+                        // Восстанавливаем город
+                        if (district.city) {
+                            const cityId = typeof district.city === 'object' ? district.city.id : district.city;
+                            setSelectedCityId(cityId);
+
+                            // Восстанавливаем область через город
+                            if (typeof district.city === 'object' && district.city.id) {
+                                // Нужно найти к какой области принадлежит город
+                                const cityWithProvince = await fetchCityWithProvince(district.city.id, token);
+                                if (cityWithProvince && cityWithProvince.province) {
+                                    setSelectedProvinceId(cityWithProvince.province.id);
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -74,17 +252,10 @@ function CityPage() {
         }
     };
 
-    const fetchCities = async () => {
+    // Функция для получения города с информацией об области
+    const fetchCityWithProvince = async (cityId: number, token: string) => {
         try {
-            setIsLoading(true);
-            const token = getAuthToken();
-
-            if (!token) {
-                navigate('/');
-                return;
-            }
-
-            const response = await fetch(`${API_BASE_URL}/api/cities`, {
+            const response = await fetch(`${API_BASE_URL}/api/cities/${cityId}`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -92,45 +263,45 @@ function CityPage() {
                 },
             });
 
-            if (!response.ok) {
-                throw new Error('Failed to fetch cities');
+            if (response.ok) {
+                return await response.json();
             }
-
-            const citiesData = await response.json();
-            setCities(citiesData);
         } catch (error) {
-            console.error('Error fetching cities:', error);
-        } finally {
-            setIsLoading(false);
+            console.error('Error fetching city:', error);
+        }
+        return null;
+    };
+
+    // Обработчики выбора
+    const handleProvinceSelect = (provinceId: number) => {
+        console.log('Province selected:', provinceId);
+        setSelectedProvinceId(provinceId);
+    };
+
+    const handleCitySelect = (cityId: number) => {
+        console.log('City selected:', cityId);
+        setSelectedCityId(cityId);
+
+        const city = cities.find(c => c.id === cityId);
+        if (city) {
+            const address = `${city.title}`;
+            setManualAddress(address);
         }
     };
 
-    const handleCitySelect = async (city: City) => {
-        setSelectedCity(city.title);
-        setSelectedDistrict(null);
-
-        setManualAddress(city.title);
-
-        // Если у города есть районы, выбираем первый район по умолчанию
-        if (city.districts && city.districts.length > 0) {
-            setSelectedDistrict(city.districts[0]);
-            setManualAddress(`${city.districts[0].title}, ${city.title}`);
-        }
-    };
-
-    const handleDistrictSelect = (district: District) => {
-        setSelectedDistrict(district);
-        setManualAddress(`${district.title}, ${selectedCity}`);
+    const handleDistrictSelect = (districtId: number) => {
+        console.log('District selected:', districtId);
+        setSelectedDistrictId(districtId);
     };
 
     const handleManualAddressChange = (e: ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
         setManualAddress(value);
 
-        // Сбрасываем выбранный город и район при ручном вводе
         if (value === '') {
-            setSelectedCity('');
-            setSelectedDistrict(null);
+            setSelectedProvinceId(null);
+            setSelectedCityId(null);
+            setSelectedDistrictId(null);
         }
     };
 
@@ -159,29 +330,26 @@ function CityPage() {
                 const userData = await userResponse.json();
                 const userId = userData.id;
 
-                // Подготавливаем данные для отправки
                 const updateData: any = {
                     remotely: remoteWork
                 };
 
-                // Если выбран район, отправляем его IRI
-                if (selectedDistrict) {
-                    updateData.districts = [`/api/districts/${selectedDistrict.id}`];
-                    console.log('Saving district:', selectedDistrict.title);
-                } else if (selectedCity) {
-                    // Если выбран только город, ищем его в базе и берем первый район
-                    const city = cities.find(c => c.title === selectedCity);
-                    if (city && city.districts && city.districts.length > 0) {
-                        updateData.districts = [`/api/districts/${city.districts[0].id}`];
-                        console.log('Saving first district of city:', city.districts[0].title);
-                    } else {
-                        // Если районов нет, не сохраняем в districts
-                        console.log('No districts found for city, skipping district assignment');
+                // СОХРАНЯЕМ РАЙОН В ФОРМАТЕ IRI
+                if (selectedDistrictId) {
+                    updateData.districts = [`/api/districts/${selectedDistrictId}`];
+                    console.log('Saving district IRI:', `/api/districts/${selectedDistrictId}`);
+                } else if (selectedCityId) {
+                    // Если выбран город, берем первый район этого города
+                    const cityDistricts = districts.filter(d => {
+                        const districtCityId = typeof d.city === 'object' ? d.city.id : d.city;
+                        return districtCityId === selectedCityId;
+                    });
+                    if (cityDistricts.length > 0) {
+                        updateData.districts = [`/api/districts/${cityDistricts[0].id}`];
+                        console.log('Saving first district of city:', `/api/districts/${cityDistricts[0].id}`);
                     }
-                } else {
-                    // Если ручной ввод, не сохраняем в districts
-                    console.log('Manual address input, skipping district assignment');
                 }
+                // Если только ручной ввод - не сохраняем districts
 
                 console.log('Sending update data:', updateData);
 
@@ -195,77 +363,17 @@ function CityPage() {
                 });
 
                 if (updateResponse.ok) {
-                    console.log('Address updated successfully in districts');
+                    console.log('Address updated successfully');
+                    alert('Адрес успешно сохранен!');
                     navigate('/profile');
                 } else {
                     const errorText = await updateResponse.text();
-                    console.error('Failed to update address in districts:', errorText);
-
-                    // Пробуем альтернативный способ с правильным форматом IRI
-                    await saveAddressWithFullIRI();
-                }
-            }
-        } catch (error) {
-            console.error('Error saving address:', error);
-            // Альтернативный способ
-            await saveAddressWithFullIRI();
-        }
-    };
-
-    // Альтернативный способ сохранения с полным
-    const saveAddressWithFullIRI = async () => {
-        try {
-            const token = getAuthToken();
-            if (!token) return;
-
-            const userResponse = await fetch(`${API_BASE_URL}/api/users/me`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (userResponse.ok) {
-                const userData = await userResponse.json();
-                const userId = userData.id;
-
-                const updateData: any = {
-                    remotely: remoteWork
-                };
-
-                // Используем полный IRI для districts
-                if (selectedDistrict) {
-                    updateData.districts = [`${API_BASE_URL}/api/districts/${selectedDistrict.id}`];
-                } else if (selectedCity) {
-                    const city = cities.find(c => c.title === selectedCity);
-                    if (city && city.districts && city.districts.length > 0) {
-                        updateData.districts = [`${API_BASE_URL}/api/districts/${city.districts[0].id}`];
-                    }
-                }
-
-                console.log('Trying alternative save with full IRI:', updateData);
-
-                const updateResponse = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/merge-patch+json',
-                    },
-                    body: JSON.stringify(updateData),
-                });
-
-                if (updateResponse.ok) {
-                    console.log('Address saved successfully with full IRI');
-                    navigate('/profile');
-                } else {
-                    const errorText = await updateResponse.text();
-                    console.error('Alternative save failed:', errorText);
+                    console.error('Failed to update address:', errorText);
                     alert('Ошибка при сохранении адреса');
                 }
             }
         } catch (error) {
-            console.error('Error in alternative save:', error);
+            console.error('Error saving address:', error);
             alert('Ошибка при сохранении адреса');
         }
     };
@@ -273,16 +381,13 @@ function CityPage() {
     const handleRemoteWorkToggle = () => {
         const newRemoteWork = !remoteWork;
         setRemoteWork(newRemoteWork);
-
         saveRemoteWorkSetting(newRemoteWork);
     };
 
     const saveRemoteWorkSetting = async (newRemoteWork: boolean) => {
         try {
             const token = getAuthToken();
-            if (!token) {
-                return;
-            }
+            if (!token) return;
 
             const userResponse = await fetch(`${API_BASE_URL}/api/users/me`, {
                 method: 'GET',
@@ -307,9 +412,7 @@ function CityPage() {
                     }),
                 });
 
-                if (updateResponse.ok) {
-                    console.log('Remote work setting updated successfully');
-                } else {
+                if (!updateResponse.ok) {
                     console.error('Failed to update remote work setting');
                 }
             }
@@ -318,8 +421,11 @@ function CityPage() {
         }
     };
 
-    // Получаем выбранный город для отображения районов
-    const selectedCityData = cities.find(city => city.title === selectedCity);
+    console.log('Selected province ID:', selectedProvinceId);
+    console.log('Selected city ID:', selectedCityId);
+    console.log('Selected district ID:', selectedDistrictId);
+    console.log('Cities in province:', citiesInSelectedProvince);
+    console.log('Districts in city:', districtsInSelectedCity);
 
     return (
         <div className={styles.profile}>
@@ -337,7 +443,7 @@ function CityPage() {
                                 <label>Точный адрес</label>
                                 <input
                                     type="text"
-                                    placeholder="район, город"
+                                    placeholder="район, город, область"
                                     className={styles.address_field}
                                     value={manualAddress}
                                     onChange={handleManualAddressChange}
@@ -372,50 +478,81 @@ function CityPage() {
                     </div>
                 </div>
 
-                <div className={styles.city_list_section}>
-                    <h3>Выберите город</h3>
-                    <div className={styles.city_list_page}>
+                {/* Шаг 1: Выбор области */}
+                <div className={styles.province_section}>
+                    <h3>Выберите область</h3>
+                    <div className={styles.province_list}>
                         {isLoading ? (
-                            <div className={styles.loading}>Загрузка городов...</div>
-                        ) : cities.length > 0 ? (
-                            <div className={styles.city_grid}>
-                                {cities.map(city => (
+                            <div className={styles.loading}>Загрузка областей...</div>
+                        ) : provinces.length > 0 ? (
+                            <div className={styles.province_grid}>
+                                {provinces.map(province => (
                                     <button
-                                        key={city.id}
-                                        className={`${styles.city_card} ${
-                                            selectedCity === city.title ? styles.city_card_selected : ''
+                                        key={province.id}
+                                        className={`${styles.province_card} ${
+                                            selectedProvinceId === province.id ? styles.province_card_selected : ''
                                         }`}
-                                        onClick={() => handleCitySelect(city)}
+                                        onClick={() => handleProvinceSelect(province.id)}
                                     >
-                                        {city.title}
+                                        {province.title}
                                     </button>
                                 ))}
                             </div>
                         ) : (
-                            <div className={styles.no_cities}>Города не найдены</div>
+                            <div className={styles.no_data}>Области не найдены</div>
                         )}
                     </div>
+                </div>
 
-                    {/* Секция выбора района */}
-                    {selectedCityData && selectedCityData.districts && selectedCityData.districts.length > 0 && (
-                        <div className={styles.district_section}>
-                            <h3>Выберите район в {selectedCity}</h3>
-                            <div className={styles.district_grid}>
-                                {selectedCityData.districts.map(district => (
+                {/* Шаг 2: Выбор города (только после выбора области) */}
+                {selectedProvinceId && (
+                    <div className={styles.city_list_section}>
+                        <h3>Выберите город в {provinces.find(p => p.id === selectedProvinceId)?.title}</h3>
+                        <div className={styles.city_list_page}>
+                            {citiesInSelectedProvince.length > 0 ? (
+                                <div className={styles.city_grid}>
+                                    {citiesInSelectedProvince.map(city => (
+                                        <button
+                                            key={city.id}
+                                            className={`${styles.city_card} ${
+                                                selectedCityId === city.id ? styles.city_card_selected : ''
+                                            }`}
+                                            onClick={() => handleCitySelect(city.id)}
+                                        >
+                                            <div className={styles.city_name}>{city.title}</div>
+                                        </button>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className={styles.no_data}>Города не найдены в выбранной области</div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Шаг 3: Выбор района (только после выбора города) */}
+                {selectedCityId && (
+                    <div className={styles.district_section}>
+                        <h3>Выберите район в {cities.find(c => c.id === selectedCityId)?.title}</h3>
+                        <div className={styles.district_grid}>
+                            {districtsInSelectedCity.length > 0 ? (
+                                districtsInSelectedCity.map(district => (
                                     <button
                                         key={district.id}
                                         className={`${styles.district_card} ${
-                                            selectedDistrict?.id === district.id ? styles.district_card_selected : ''
+                                            selectedDistrictId === district.id ? styles.district_card_selected : ''
                                         }`}
-                                        onClick={() => handleDistrictSelect(district)}
+                                        onClick={() => handleDistrictSelect(district.id)}
                                     >
-                                        {district.title}
+                                        <div className={styles.district_name}>{district.title}</div>
                                     </button>
-                                ))}
-                            </div>
+                                ))
+                            ) : (
+                                <div className={styles.no_data}>Районы не найдены в выбранном городе</div>
+                            )}
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
             </div>
         </div>
     );

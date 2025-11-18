@@ -1,7 +1,7 @@
 import styles from "./Header.module.scss";
 import {AdBtn} from "../../shared/ui/button/HeaderButton/AdBtn.tsx";
 import {EnterBtn} from "../../shared/ui/button/HeaderButton/EnterBtn.tsx";
-import {Link, useLocation} from "react-router-dom";
+import {Link, useLocation, useNavigate} from "react-router-dom";
 import {useEffect, useState} from "react";
 import { getAuthToken } from "../../utils/auth";
 
@@ -27,6 +27,7 @@ interface Province {
 
 function Header() {
     const location = useLocation();
+    const navigate = useNavigate();
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [cities, setCities] = useState<City[]>([]);
     const [selectedCity, setSelectedCity] = useState<string>(() => {
@@ -34,7 +35,7 @@ function Header() {
         return savedCity || "Местоположение";
     });
     const [showCityModal, setShowCityModal] = useState(false);
-    const API_BASE_URL = 'http://usto.tj.auto-schule.ru';
+    const API_BASE_URL = 'https://admin.ustoyob.tj';
 
     useEffect(() => {
         const fetchCities = async () => {
@@ -88,6 +89,11 @@ function Header() {
 
     const closeAuthModal = () => {
         setShowAuthModal(false);
+        window.location.reload()
+    };
+
+    const handleAdBtnClick = () => {
+        navigate('/orders');
     };
 
     return (
@@ -151,7 +157,7 @@ function Header() {
                                     <path d="M0.707031 0.707031L8.35703 8.35703L16.007 0.707031" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
                                 </svg>
                             </div>
-                            <AdBtn/>
+                            <AdBtn onClick={() => handleAdBtnClick()} />
                             <EnterBtn
                                 isModalOpen={showAuthModal}
                                 onModalClose={closeAuthModal}

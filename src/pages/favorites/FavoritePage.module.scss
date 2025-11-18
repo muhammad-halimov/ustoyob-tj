@@ -22,6 +22,7 @@
     border-radius: 20px;
     padding: 40px;
     background: map.get(vars.$colors, background-primary);
+    margin-bottom: 32px;
 
     &_title {
       display: flex;
@@ -185,4 +186,17 @@
       }
     }
   }
+}
+
+.emptyState {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+  font-size: 16px;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  font-size: 16px;
 }

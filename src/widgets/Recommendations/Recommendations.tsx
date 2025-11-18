@@ -1,10 +1,13 @@
 import styles from './Recommendations.module.scss'
 
+const recommendations = [];
+
 function Recommendations() {
     return (
         <div className={styles.recommendation}>
             <div className={styles.recommendation_wrap}>
                 <h3>Может понравится</h3>
+                {recommendations.length > 0 ? (
                 <div className={styles.recommendation_item}>
                     <div className={styles.recommendation_item_title}>
                         <h4>Название работы</h4>
@@ -106,8 +109,10 @@ function Recommendations() {
                         <span className={styles.recommendation_item_time}>0 времени назад</span>
                     </div>
                 </div>
+                ) : (
+                    <p className={styles.devMode}>Рекомендации в разработке</p>
+                )}
             </div>
-
 
         </div>
     );

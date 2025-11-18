@@ -312,3 +312,81 @@
     font-size: 12px;
   }
 }
+
+.province_section {
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #e0e0e0;
+
+  h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 16px 0;
+    color: #333;
+  }
+}
+
+.province_grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.province_card {
+  padding: 16px 12px;
+  background-color: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+
+  &:hover {
+    background-color: #e9ecef;
+    border-color: #3A54DA;
+  }
+}
+
+.province_card_selected {
+  background-color: #3A54DA;
+  color: white;
+  border-color: #3A54DA;
+}
+
+.city_name {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.city_province {
+  font-size: 12px;
+  color: #666;
+  opacity: 0.8;
+}
+
+.district_name {
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.district_province {
+  font-size: 11px;
+  color: #666;
+  opacity: 0.7;
+}
+
+// Адаптивность
+@media (max-width: 768px) {
+  .province_grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
+  }
+
+  .province_card {
+    padding: 12px 8px;
+    font-size: 13px;
+  }
+}

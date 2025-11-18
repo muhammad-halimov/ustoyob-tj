@@ -16,6 +16,17 @@ interface ProfileData {
     services: Service[];
 }
 
+// interface Gallery {
+//     id: number;
+//     images: {
+//         id: number;
+//         image: string;
+//     }[];
+//     user: {
+//         id: number;
+//     };
+// }
+
 interface Education {
     id: string;
     institution: string;
@@ -89,12 +100,14 @@ function MasterProfilePage() {
     });
     const [reviews, setReviews] = useState<Review[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(false);
-    const [reviewsError, setReviewsError] = useState<string | null>(null);
+    // const [reviewsError, setReviewsError] = useState<string | null>(null);
+    const [usersCache, setUsersCache] = useState<Map<number, any>>(new Map());
 
-    const API_BASE_URL = 'http://usto.tj.auto-schule.ru';
+    const API_BASE_URL = 'https://admin.ustoyob.tj';
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const workExampleInputRef = useRef<HTMLInputElement>(null);
+    const [visibleCount, setVisibleCount] = useState(2);
 
     // Проверка аутентификации при загрузке компонента
     useEffect(() => {
@@ -110,9 +123,70 @@ function MasterProfilePage() {
     // Загружаем отзывы после загрузки данных пользователя
     useEffect(() => {
         if (profileData?.id) {
+            fetchUserGallery();
             fetchReviews();
         }
     }, [profileData?.id]);
+
+    const handleShowMore = () => {
+        setVisibleCount(reviews.length);
+    };
+
+    // Функция для получения данных пользователя по ID (как в Search)
+    const fetchUser = async (userId: number, userType: 'master' | 'client'): Promise<any> => {
+        try {
+            // Проверяем кэш
+            if (usersCache.has(userId)) {
+                return usersCache.get(userId) || null;
+            }
+
+            const token = getAuthToken();
+            if (!token) {
+                console.log('No token available for fetching user data');
+                return null;
+            }
+
+            // Определяем endpoint в зависимости от типа пользователя
+            let endpoint = '';
+            if (userType === 'master') {
+                endpoint = `/api/users/masters`;  // Получаем ВСЕХ мастеров
+            } else if (userType === 'client') {
+                endpoint = `/api/users/clients`;  // Получаем ВСЕХ клиентов
+            }
+
+            console.log(`Fetching ${userType} data from: ${endpoint} for user ID: ${userId}`);
+
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                console.warn(`Failed to fetch ${userType} data:`, response.status);
+                return null;
+            }
+
+            const usersData = await response.json();
+            console.log(`Fetched all ${userType}s:`, usersData);
+
+            // Ищем пользователя по ID в массиве
+            const userData = usersData.find((user: any) => user.id === userId) || null;
+
+            if (userData) {
+                setUsersCache(prev => new Map(prev).set(userId, userData));
+            }
+
+            return userData;
+
+        } catch (error) {
+            console.error(`Error fetching ${userType} data:`, error);
+            return null;
+        }
+    };
 
     // Функция для проверки доступности изображения
     const checkImageExists = (url: string): Promise<boolean> => {
@@ -123,6 +197,7 @@ function MasterProfilePage() {
             img.src = url;
         });
     };
+
 
     const fetchUserData = async () => {
         try {
@@ -160,9 +235,55 @@ function MasterProfilePage() {
 
             const userData = await response.json();
             console.log('User data received:', userData);
+            console.log('User districts:', userData.districts);
 
             // Получаем URL аватара с приоритетами
             const avatarUrl = await getAvatarUrl(userData);
+
+            // ФОРМИРУЕМ СТРОКУ С РАЙОНОМ РАБОТЫ ИЗ ДАННЫХ districts
+            let workArea = '';
+
+            if (userData.districts && userData.districts.length > 0) {
+                const district = userData.districts[0];
+                console.log('First district:', district);
+
+                if (district && district.city && district.city.id) {
+                    try {
+                        // Получаем данные города по ID
+                        const cityResponse = await fetch(`${API_BASE_URL}/api/cities/${district.city.id}`, {
+                            method: 'GET',
+                            headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json',
+                            },
+                        });
+
+                        if (cityResponse.ok) {
+                            const cityData = await cityResponse.json();
+                            console.log('City data:', cityData);
+
+                            // Используем название города как район работы
+                            workArea = cityData.title || '';
+
+                            // Если есть название района, добавляем его
+                            if (district.title) {
+                                workArea = `${district.title}, ${workArea}`;
+                            }
+                        } else {
+                            console.error('Failed to fetch city data:', cityResponse.status);
+                            workArea = district.title || 'Город не указан';
+                        }
+                    } catch (error) {
+                        console.error('Error fetching city data:', error);
+                        workArea = district.title || 'Город не указан';
+                    }
+                } else if (district.title) {
+                    // Если есть только название района без города
+                    workArea = district.title;
+                }
+            }
+
+            console.log('Final work area:', workArea);
 
             // Трансформируем данные из формата сервера в наш формат
             const transformedData: ProfileData = {
@@ -176,20 +297,19 @@ function MasterProfilePage() {
                 avatar: avatarUrl,
                 education: transformEducation(userData.education || []),
                 workExamples: [],
-                workArea: userData.districts?.map((d: any) => d.title).join(', ') || '',
+                workArea: workArea, // Используем сформированный адрес
                 services: []
             };
 
             setProfileData(transformedData);
+
         } catch (error) {
             console.error('Error fetching user data:', error);
-            // Если ошибка аутентификации, перенаправляем на логин
             if (error instanceof Error && error.message.includes('401')) {
                 removeAuthToken();
                 navigate('/login');
                 return;
             }
-            // Если другие ошибки, создаем пустые данные
             setProfileData({
                 id: '',
                 fullName: 'Фамилия Имя Отчество',
@@ -251,11 +371,57 @@ function MasterProfilePage() {
         }
     };
 
+
+// Функция для получения правильной информации о пользователе
+    const getUserInfo = async (userId: number, userType: 'master' | 'client') => {
+        console.log(`Getting user info for ${userType} ID:`, userId);
+
+        if (!userId) {
+            console.log('No user ID provided');
+            return {
+                id: 0,
+                email: '',
+                name: userType === 'master' ? 'Мастер' : 'Клиент',
+                surname: '',
+                rating: 0,
+                image: ''
+            };
+        }
+
+        const userData = await fetchUser(userId, userType);
+
+        if (userData) {
+            // Получаем URL аватара для клиента/мастера
+            const avatarUrl = await getAvatarUrl(userData, userType);
+
+            const userInfo = {
+                id: userData.id,
+                email: userData.email || '',
+                name: userData.name || '',
+                surname: userData.surname || '',
+                rating: userData.rating || 0,
+                image: avatarUrl || ''  // Используем полученный URL аватара
+            };
+            console.log(`User info for ${userType}:`, userInfo);
+            return userInfo;
+        }
+
+        console.log(`Using fallback for ${userType} ID:`, userId);
+        // Fallback данные
+        return {
+            id: userId,
+            email: '',
+            name: userType === 'master' ? 'Мастер' : 'Клиент',
+            surname: '',
+            rating: 0,
+            image: ''
+        };
+    };
+
     // Функция для получения отзывов
     const fetchReviews = async () => {
         try {
             setReviewsLoading(true);
-            setReviewsError(null);
             const token = getAuthToken();
 
             if (!token) {
@@ -263,19 +429,311 @@ function MasterProfilePage() {
                 return;
             }
 
-            // Пробуем разные endpoints для получения отзывов
+            if (!profileData?.id) {
+                console.log('No profile data ID available');
+                return;
+            }
+
+            console.log('Fetching reviews for master ID:', profileData.id);
+
+            // Используем правильный endpoint для отзывов мастера
+            const endpoint = `/api/reviews/masters/${profileData.id}`;
+
+            console.log(`Trying endpoint: ${endpoint}`);
+
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+            });
+
+            console.log(`Response status: ${response.status}`);
+            console.log(`Response ok: ${response.ok}`);
+
+            if (response.status === 401) {
+                console.log('Unauthorized, redirecting to login');
+                removeAuthToken();
+                navigate('/login');
+                return;
+            }
+
+            if (response.status === 404) {
+                console.log('No reviews found for this master');
+                setReviews([]);
+                return;
+            }
+
+            if (!response.ok) {
+                console.error(`Failed to fetch reviews: ${response.status} ${response.statusText}`);
+                setReviews([]);
+                return;
+            }
+
+            const reviewsData = await response.json();
+            console.log('Raw reviews data:', reviewsData);
+
+            // Обрабатываем разные форматы ответа
+            let reviewsArray: any[] = [];
+
+            if (Array.isArray(reviewsData)) {
+                reviewsArray = reviewsData;
+            } else if (reviewsData && typeof reviewsData === 'object') {
+                // Если это объект с hydra:member (API Platform)
+                if (reviewsData['hydra:member'] && Array.isArray(reviewsData['hydra:member'])) {
+                    reviewsArray = reviewsData['hydra:member'];
+                } else if (reviewsData.id) {
+                    // Если это один отзыв
+                    reviewsArray = [reviewsData];
+                }
+            }
+
+            console.log(`Processing ${reviewsArray.length} reviews`);
+
+            if (reviewsArray.length > 0) {
+                // Преобразуем данные отзывов в нашу структуру
+                const transformedReviews = await Promise.all(
+                    reviewsArray.map(async (review) => {
+                        console.log('Processing review:', review);
+
+                        // Получаем данные мастера и клиента из отзыва
+                        const masterId = review.master?.id;
+                        const clientId = review.client?.id;
+
+                        console.log('Master ID from review:', masterId);
+                        console.log('Client ID from review:', clientId);
+
+                        // Получаем данные мастера и клиента
+                        const [masterData, clientData] = await Promise.all([
+                            masterId ? getUserInfo(masterId, 'master') : Promise.resolve(null),
+                            clientId ? getUserInfo(clientId, 'client') : Promise.resolve(null)
+                        ]);
+
+                        console.log('Master data:', masterData);
+                        console.log('Client data:', clientData);
+
+                        // Определяем user и reviewer
+                        const user = masterData || {
+                            id: parseInt(profileData.id),
+                            email: '',
+                            name: profileData.fullName.split(' ')[1] || 'Мастер',
+                            surname: profileData.fullName.split(' ')[0] || '',
+                            rating: profileData.rating,
+                            image: profileData.avatar || ''
+                        };
+
+                        const reviewer = clientData || {
+                            id: 0,
+                            email: '',
+                            name: 'Клиент',
+                            surname: '',
+                            rating: 0,
+                            image: ''
+                        };
+
+                        const transformedReview: Review = {
+                            id: review.id,
+                            rating: review.rating || 0,
+                            description: review.description || '',
+                            forReviewer: review.forClient || false,
+                            services: review.services || { id: 0, title: 'Услуга' },
+                            images: review.images || [],
+                            user: user,
+                            reviewer: reviewer,
+                            vacation: profileData.specialty, // специальность мастера
+                            worker: clientData ?
+                                `${clientData.name || 'Клиент'} ${clientData.surname || ''}`.trim() :
+                                'Клиент', // ФИО клиента
+                            date: review.createdAt ?
+                                new Date(review.createdAt).toLocaleDateString('ru-RU') :
+                                getFormattedDate()
+                        };
+
+                        console.log('Transformed review:', transformedReview);
+                        return transformedReview;
+                    })
+                );
+
+                console.log('All transformed reviews:', transformedReviews);
+                setReviews(transformedReviews);
+
+                // Рассчитываем рейтинг только из отзывов, где пользователь - получатель отзыва
+                const userReviews = transformedReviews.filter(r => r.user.id === parseInt(profileData.id));
+                const newRating = calculateAverageRating(userReviews);
+
+                console.log('User reviews for rating calculation:', userReviews);
+                console.log('Calculated new rating from', userReviews.length, 'reviews:', newRating);
+
+                // Обновляем счетчик отзывов и рейтинг в profileData
+                setProfileData(prev => prev ? {
+                    ...prev,
+                    reviews: userReviews.length,
+                    rating: newRating
+                } : null);
+
+                // Отправляем обновленный рейтинг на сервер
+                if (userReviews.length > 0) {
+                    await updateUserRating(newRating);
+                }
+
+            } else {
+                console.log('No reviews data found');
+                setReviews([]);
+
+                // Обновляем счетчик отзывов
+                setProfileData(prev => prev ? {
+                    ...prev,
+                    reviews: 0
+                } : null);
+            }
+
+        } catch (error) {
+            console.error('Error fetching reviews:', error);
+            setReviews([]);
+
+            // Обновляем счетчик отзывов
+            setProfileData(prev => prev ? {
+                ...prev,
+                reviews: 0
+            } : null);
+        } finally {
+            setReviewsLoading(false);
+        }
+    };
+
+    // Функция для загрузки фото в портфолио
+    const handleWorkExampleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            alert('Пожалуйста, выберите изображение');
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Размер файла не должен превышать 5MB');
+            return;
+        }
+
+        setIsLoading(true);
+
+        try {
+            const token = getAuthToken();
+            if (!token) {
+                navigate("/");
+                return;
+            }
+
+            // Получаем ID текущего авторизованного пользователя
+            const currentUserId = await getCurrentUserId(token);
+            if (!currentUserId) {
+                alert('Не удалось определить ID пользователя');
+                return;
+            }
+
+            console.log('Current user ID:', currentUserId);
+
+            // Сначала получаем ID галереи пользователя
+            let galleryId = await getUserGalleryId(token, currentUserId);
+
+            if (!galleryId) {
+                // Если галереи нет, создаем новую
+                console.log('Gallery not found, creating new gallery...');
+                galleryId = await createUserGallery(token);
+
+                if (!galleryId) {
+                    alert('Не удалось создать галерею');
+                    return;
+                }
+
+                console.log('New gallery created with ID:', galleryId);
+            } else {
+                console.log('Using existing gallery ID:', galleryId);
+            }
+
+            // Создаем FormData для загрузки фото
+            const formData = new FormData();
+            formData.append("imageFile", file);
+
+            console.log('Uploading portfolio photo to gallery:', galleryId);
+            console.log('FormData entries:');
+            for (let [key, value] of formData.entries()) {
+                console.log(key, value);
+            }
+
+            // ИСПРАВЛЕННЫЙ ENDPOINT - используем upload-photo
+            const response = await fetch(`${API_BASE_URL}/api/galleries/${galleryId}/upload-photo`, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    // Не устанавливаем Content-Type - браузер сам установит с boundary для multipart/form-data
+                },
+                body: formData,
+            });
+
+            const responseText = await response.text();
+            console.log('Portfolio photo upload response status:', response.status);
+            console.log('Portfolio photo upload response text:', responseText);
+
+            if (!response.ok) {
+                console.error(`Ошибка при загрузке (${response.status}):`, responseText);
+
+                if (response.status === 400) {
+                    alert("Неверные данные для загрузки фото");
+                } else if (response.status === 403) {
+                    alert("Нет прав для загрузки фото в галерею");
+                } else if (response.status === 422) {
+                    alert("Ошибка валидации данных фото");
+                } else {
+                    alert(`Ошибка при загрузке фото в портфолио (${response.status})`);
+                }
+                return;
+            }
+
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (e) {
+                console.error('Error parsing response as JSON:', e);
+                // Если ответ не JSON, но статус 201, считаем успешным
+                if (response.status === 201) {
+                    result = { success: true };
+                } else {
+                    throw new Error('Invalid response format');
+                }
+            }
+
+            console.log("Фото успешно загружено в портфолио:", result);
+
+            // После успешной загрузки обновляем галерею
+            await fetchUserGallery();
+
+            alert("Фото успешно добавлено в портфолио!");
+
+        } catch (error) {
+            console.error("Ошибка при загрузке фото в портфолио:", error);
+            alert("Ошибка при загрузке фото в портфолио");
+        } finally {
+            setIsLoading(false);
+            if (workExampleInputRef.current) workExampleInputRef.current.value = "";
+        }
+    };
+
+// Функция для получения ID галереи пользователя
+    const getUserGalleryId = async (token: string, userId: number): Promise<number | null> => {
+        try {
+            // Пробуем получить галерею через разные endpoints
             const endpoints = [
-                `/api/reviews/masters/${profileData?.id}`,
-                '/api/reviews/me',
-                `/api/reviews/clients/${profileData?.id}`
+                `/api/galleries/master/${userId}`, // Основной endpoint
+                '/api/galleries/me'
             ];
 
-            let reviewsData: Review[] = [];
-
-            // Пробуем каждый endpoint пока не найдем рабочий
             for (const endpoint of endpoints) {
                 try {
-                    console.log(`Trying endpoint: ${endpoint}`);
+                    console.log(`Trying gallery endpoint: ${endpoint}`);
                     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
                         method: 'GET',
                         headers: {
@@ -284,180 +742,396 @@ function MasterProfilePage() {
                         },
                     });
 
+                    console.log(`Response status for ${endpoint}: ${response.status}`);
+
                     if (response.ok) {
-                        reviewsData = await response.json();
-                        console.log(`Successfully loaded reviews from ${endpoint}:`, reviewsData);
-                        break; // Выходим из цикла если успешно
+                        const galleriesData = await response.json();
+                        console.log(`Gallery data from ${endpoint}:`, galleriesData);
+
+                        // Обрабатываем разные форматы ответа
+                        let galleryArray: any[] = [];
+
+                        if (Array.isArray(galleriesData)) {
+                            galleryArray = galleriesData;
+                        } else if (galleriesData && typeof galleriesData === 'object') {
+                            if (galleriesData['hydra:member'] && Array.isArray(galleriesData['hydra:member'])) {
+                                galleryArray = galleriesData['hydra:member'];
+                            } else if (galleriesData.id) {
+                                galleryArray = [galleriesData];
+                            }
+                        }
+
+                        if (galleryArray.length > 0) {
+                            // Берем первую галерею
+                            const galleryId = galleryArray[0].id;
+                            console.log('Found gallery ID:', galleryId);
+                            return galleryId;
+                        }
+                    } else if (response.status === 404) {
+                        console.log(`Gallery not found at ${endpoint}`);
+                        continue;
                     } else {
                         console.warn(`Failed to fetch from ${endpoint}:`, response.status);
                     }
                 } catch (error) {
                     console.warn(`Error fetching from ${endpoint}:`, error);
-                    continue; // Продолжаем пробовать следующий endpoint
+                    continue;
                 }
             }
 
-            if (reviewsData.length > 0) {
-                // Обогащаем данные отзывов недостающими полями
-                const enrichedReviews = reviewsData.map(review => ({
-                    ...review,
-                    vacation: profileData?.specialty || 'специалист профессия',
-                    worker: `${review.user.name} ${review.user.surname}`.trim(),
-                    date: getFormattedDate(),
-                }));
-
-                setReviews(enrichedReviews);
-
-                // Рассчитываем новый рейтинг
-                const newRating = calculateAverageRating(enrichedReviews);
-
-                // Обновляем счетчик отзывов и рейтинг в profileData
-                setProfileData(prev => prev ? {
-                    ...prev,
-                    reviews: enrichedReviews.length,
-                    rating: newRating
-                } : null);
-
-                // Отправляем обновленный рейтинг на сервер
-                await updateUserRating(newRating);
-
-            } else {
-                setReviewsError('Не удалось загрузить отзывы. Возможно, у вас еще нет отзывов.');
-                console.log('No reviews data found from any endpoint');
-
-                // Используем mock данные для демонстрации с правильной структурой
-                const mockReviews: Review[] = [
-                    {
-                        id: 1,
-                        user: {
-                            id: 1,
-                            email: "client@example.com",
-                            name: "Иван",
-                            surname: "Петров",
-                            rating: 4.8,
-                            image: ""
-                        },
-                        reviewer: {
-                            id: parseInt(profileData?.id || '0'),
-                            email: "master@example.com",
-                            name: profileData?.fullName.split(' ')[1] || "Мастер",
-                            surname: profileData?.fullName.split(' ')[0] || "",
-                            rating: profileData?.rating || 0,
-                            image: profileData?.avatar || ""
-                        },
-                        rating: 4.8,
-                        description: "Текст отзыва",
-                        forReviewer: true,
-                        services: {
-                            id: 1,
-                            title: "Ремонт техники"
-                        },
-                        images: [],
-                        vacation: profileData?.specialty || "специалист профессия",
-                        worker: "Иван Петров",
-                        date: "12.12.2023, Москва"
-                    },
-                    {
-                        id: 2,
-                        user: {
-                            id: 2,
-                            email: "client2@example.com",
-                            name: "Мария",
-                            surname: "Сидорова",
-                            rating: 4.9,
-                            image: ""
-                        },
-                        reviewer: {
-                            id: parseInt(profileData?.id || '0'),
-                            email: "master@example.com",
-                            name: profileData?.fullName.split(' ')[1] || "Мастер",
-                            surname: profileData?.fullName.split(' ')[0] || "",
-                            rating: profileData?.rating || 0,
-                            image: profileData?.avatar || ""
-                        },
-                        rating: 4.8,
-                        description: "Текст отзыва",
-                        forReviewer: true,
-                        services: {
-                            id: 2,
-                            title: "Консультация"
-                        },
-                        images: [],
-                        vacation: profileData?.specialty || "специалист профессия",
-                        worker: "Мария Сидорова",
-                        date: "15.12.2023, Санкт-Петербург"
-                    }
-                ];
-
-                setReviews(mockReviews);
-
-                // Рассчитываем рейтинг для mock данных
-                const newRating = calculateAverageRating(mockReviews);
-
-                setProfileData(prev => prev ? {
-                    ...prev,
-                    reviews: mockReviews.length,
-                    rating: newRating
-                } : null);
-
-                // Отправляем обновленный рейтинг на сервер
-                await updateUserRating(newRating);
-            }
-
+            console.log('No gallery found for user');
+            return null;
         } catch (error) {
-            console.error('Error fetching reviews:', error);
-            setReviewsError('Произошла ошибка при загрузке отзывов');
-
-            // Fallback: используем mock данные
-            const mockReviews: Review[] = [
-                {
-                    id: 1,
-                    user: {
-                        id: 1,
-                        email: "client@example.com",
-                        name: "Иван",
-                        surname: "Петров",
-                        rating: 4.8,
-                        image: ""
-                    },
-                    reviewer: {
-                        id: parseInt(profileData?.id || '0'),
-                        email: "master@example.com",
-                        name: profileData?.fullName.split(' ')[1] || "Мастер",
-                        surname: profileData?.fullName.split(' ')[0] || "",
-                        rating: profileData?.rating || 0,
-                        image: profileData?.avatar || ""
-                    },
-                    rating: 4.8,
-                    description: "Текст отзыва",
-                    forReviewer: true,
-                    services: {
-                        id: 1,
-                        title: "Основная услуга"
-                    },
-                    images: [],
-                    vacation: profileData?.specialty || "специалист профессия",
-                    worker: "Иван Петров",
-                    date: "12.12.2023, Москва"
-                }
-            ];
-
-            setReviews(mockReviews);
-
-            const newRating = calculateAverageRating(mockReviews);
-
-            setProfileData(prev => prev ? {
-                ...prev,
-                reviews: mockReviews.length,
-                rating: newRating
-            } : null);
-
-            await updateUserRating(newRating);
-        } finally {
-            setReviewsLoading(false);
+            console.error('Error getting user gallery ID:', error);
+            return null;
         }
     };
 
+    // Функция для удаления фото из портфолио
+    const handleDeleteWorkExample = async (workExampleId: string) => {
+        if (!profileData?.id) return;
+
+        if (!confirm('Вы уверены, что хотите удалить это фото из портфолио?')) {
+            return;
+        }
+
+        setIsLoading(true);
+
+        try {
+            const token = getAuthToken();
+            if (!token) {
+                navigate("/");
+                return;
+            }
+
+            // Получаем ID текущего авторизованного пользователя
+            const currentUserId = await getCurrentUserId(token);
+            if (!currentUserId) {
+                alert('Не удалось определить ID пользователя');
+                return;
+            }
+
+            // Получаем ID галереи
+            const galleryId = await getUserGalleryId(token, currentUserId);
+            if (!galleryId) {
+                alert('Галерея не найдена');
+                return;
+            }
+
+            console.log('Deleting work example from gallery:', { galleryId, workExampleId });
+
+            // Вариант 1: Получаем текущую галерею и обновляем массив images
+            const galleryResponse = await fetch(`${API_BASE_URL}/api/galleries/${galleryId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!galleryResponse.ok) {
+                throw new Error('Не удалось получить данные галереи');
+            }
+
+            const galleryData = await galleryResponse.json();
+            console.log('Current gallery data:', galleryData);
+
+            // Фильтруем изображения, удаляя нужное
+            const updatedImages = galleryData.images.filter((img: any) =>
+                img.id.toString() !== workExampleId
+            );
+
+            console.log('Updated images array:', updatedImages);
+
+            // Обновляем галерею через PATCH
+            const updateResponse = await fetch(`${API_BASE_URL}/api/galleries/${galleryId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/merge-patch+json',
+                },
+                body: JSON.stringify({
+                    images: updatedImages
+                }),
+            });
+
+            if (!updateResponse.ok) {
+                const errorText = await updateResponse.text();
+                console.error('PATCH update failed:', errorText);
+
+                // Вариант 2: Пробуем через PUT
+                console.log('Trying PUT method...');
+                const putResponse = await fetch(`${API_BASE_URL}/api/galleries/${galleryId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        ...galleryData,
+                        images: updatedImages
+                    }),
+                });
+
+                if (!putResponse.ok) {
+                    throw new Error('Не удалось удалить фото из галереи');
+                }
+            }
+
+            // Обновляем локальное состояние
+            setProfileData(prev => {
+                if (!prev) return null;
+
+                return {
+                    ...prev,
+                    workExamples: prev.workExamples.filter(work => work.id !== workExampleId)
+                };
+            });
+
+            console.log('Фото успешно удалено из портфолио');
+
+            // Обновляем галерею для синхронизации
+            await fetchUserGallery();
+
+            alert('Фото успешно удалено из портфолио!');
+
+        } catch (error) {
+            console.error('Error deleting work example:', error);
+            alert('Ошибка при удалении фото. Пожалуйста, попробуйте еще раз.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const getCurrentUserId = async (token: string): Promise<number | null> => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/users/me`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                const userData = await response.json();
+                console.log('Current user data:', userData);
+                return userData.id;
+            }
+            return null;
+        } catch (error) {
+            console.error('Error getting current user ID:', error);
+            return null;
+        }
+    };
+
+
+    // Функция для создания галереи
+    const createUserGallery = async (token: string): Promise<number | null> => {
+        try {
+            // Получаем ID текущего авторизованного пользователя
+            const currentUserId = await getCurrentUserId(token);
+            if (!currentUserId) {
+                console.error('Cannot get current user ID');
+                alert('Не удалось определить ID пользователя');
+                return null;
+            }
+
+            console.log('Creating gallery for user ID:', currentUserId);
+
+            // ИСПРАВЛЕННЫЙ ФОРМАТ ДАННЫХ - согласно API документации
+            const requestBody = {
+                user: `/api/users/masters/${currentUserId}`,  // Строка IRI
+                images: []  // Пустой массив изображений при создании
+            };
+
+            console.log('Creating gallery with data:', requestBody);
+
+            const response = await fetch(`${API_BASE_URL}/api/galleries`, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(requestBody),
+            });
+
+            const responseText = await response.text();
+            console.log('Create gallery response status:', response.status);
+            console.log('Create gallery response text:', responseText);
+
+            if (!response.ok) {
+                console.error('Failed to create gallery:', responseText);
+
+                if (response.status === 400) {
+                    alert("Неверные данные для создания галереи");
+                } else if (response.status === 403) {
+                    alert("Нет прав для создания галереи");
+                } else if (response.status === 422) {
+                    alert("Ошибка валидации данных галереи");
+                }
+
+                return null;
+            }
+
+            let galleryData;
+            try {
+                galleryData = JSON.parse(responseText);
+            } catch (e) {
+                console.error('Error parsing gallery response:', e);
+                return null;
+            }
+
+            console.log('Gallery created successfully:', galleryData);
+            return galleryData.id;
+        } catch (error) {
+            console.error('Error creating gallery:', error);
+            alert("Ошибка при создании галереи");
+            return null;
+        }
+    };
+
+    // Функция для получения правильного URL изображения
+    const getImageUrl = (imagePath: string): string => {
+        if (!imagePath) return "./fonTest6.png";
+
+        if (imagePath.startsWith("http")) return imagePath;
+        if (imagePath.startsWith("/")) return `${API_BASE_URL}${imagePath}`;
+
+        const galleryPhotoUrl = `${API_BASE_URL}/images/gallery_photos/${imagePath}`;
+
+        return galleryPhotoUrl; // Всегда возвращаем основной путь для галереи
+    };
+
+// Функция для загрузки существующей галереи пользователя
+    const fetchUserGallery = async () => {
+        try {
+            const token = getAuthToken();
+            if (!token) return;
+
+            // Получаем ID текущего авторизованного пользователя
+            const currentUserId = await getCurrentUserId(token);
+            if (!currentUserId) {
+                console.log('Cannot get current user ID for fetching gallery');
+                return;
+            }
+
+            console.log('Fetching user gallery for master ID:', currentUserId);
+
+            // Пробуем разные endpoints для получения галереи
+            const endpoints = [
+                `/api/galleries/master/${currentUserId}`, // Основной endpoint
+                '/api/galleries/me'
+            ];
+
+            let galleriesData = null;
+
+            for (const endpoint of endpoints) {
+                try {
+                    console.log(`Trying gallery endpoint: ${endpoint}`);
+                    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json',
+                        },
+                    });
+
+                    console.log(`Response status for ${endpoint}: ${response.status}`);
+
+                    if (response.ok) {
+                        galleriesData = await response.json();
+                        console.log(`Gallery data from ${endpoint}:`, galleriesData);
+                        break;
+                    } else if (response.status === 404) {
+                        console.log(`Gallery not found at ${endpoint}`);
+                        continue;
+                    } else {
+                        console.warn(`Failed to fetch from ${endpoint}:`, response.status);
+                    }
+                } catch (error) {
+                    console.warn(`Error fetching from ${endpoint}:`, error);
+                    continue;
+                }
+            }
+
+            if (galleriesData) {
+                // Обрабатываем разные форматы ответа
+                let galleryArray: any[] = [];
+
+                if (Array.isArray(galleriesData)) {
+                    galleryArray = galleriesData;
+                } else if (galleriesData && typeof galleriesData === 'object') {
+                    if (galleriesData['hydra:member'] && Array.isArray(galleriesData['hydra:member'])) {
+                        galleryArray = galleriesData['hydra:member'];
+                    } else if (galleriesData.id) {
+                        // Если это одна галерея
+                        galleryArray = [galleriesData];
+                    }
+                }
+
+                console.log('Processed gallery array:', galleryArray);
+
+                if (galleryArray.length > 0) {
+                    // Берем первую галерею (предполагаем, что у пользователя одна галерея)
+                    const userGallery = galleryArray[0];
+                    console.log('Using gallery:', userGallery);
+
+                    // ИСПРАВЛЕНИЕ: Получаем изображения из правильного поля
+                    const galleryItems = userGallery.images || [];
+                    console.log('Gallery images found:', galleryItems);
+
+                    // Преобразуем данные галереи в workExamples
+                    if (galleryItems.length > 0) {
+                        const workExamplesLocal = await Promise.all(
+                            galleryItems.map(async (image: any) => {
+                                const imagePath = image.image;
+                                const imageUrl = getImageUrl(imagePath);
+                                const exists = await checkImageExists(imageUrl);
+
+                                return {
+                                    id: image.id?.toString() || Date.now().toString(),
+                                    image: exists ? imageUrl : "./fonTest6.png",
+                                    title: "Пример работы"
+                                };
+                            })
+                        );
+
+                        console.log("Work examples updated:", workExamplesLocal);
+
+                        setProfileData(prev => prev ? {
+                            ...prev,
+                            workExamples: workExamplesLocal
+                        } : null);
+                    } else {
+                        console.log('No images in gallery');
+                        setProfileData(prev => prev ? {
+                            ...prev,
+                            workExamples: []
+                        } : null);
+                    }
+                } else {
+                    console.log('No gallery data found');
+                    setProfileData(prev => prev ? {
+                        ...prev,
+                        workExamples: []
+                    } : null);
+                }
+            } else {
+                console.log('No gallery found for user');
+                setProfileData(prev => prev ? {
+                    ...prev,
+                    workExamples: []
+                } : null);
+            }
+        } catch (error) {
+            console.error('Error fetching user gallery:', error);
+            setProfileData(prev => prev ? {
+                ...prev,
+                workExamples: []
+            } : null);
+        }
+    };
 
 
     const getFormattedDate = (): string => {
@@ -472,35 +1146,52 @@ function MasterProfilePage() {
     };
 
     // Функция для получения URL аватара с приоритетами
-    const getAvatarUrl = async (userData: any): Promise<string | null> => {
+    const getAvatarUrl = async (userData: any, userType: 'master' | 'client' = 'master'): Promise<string | null> => {
         if (!userData) return null;
 
-        console.log('Getting avatar URL for user:', userData.id);
+        console.log(`Getting avatar URL for ${userType}:`, userData.id);
+        console.log(`${userType} image data:`, userData.image);
 
-        // 1. ПРИОРИТЕТ: Серверное фото (основной источник)
+        // Серверное фото (основной источник)
         if (userData.image) {
+            // Для клиентов и мастеров могут быть разные пути
             const serverUrl = `${API_BASE_URL}/images/profile_photos/${userData.image}`;
-            console.log('Checking server avatar:', serverUrl);
+            console.log(`Checking server avatar for ${userType}:`, serverUrl);
 
             if (await checkImageExists(serverUrl)) {
-                console.log('Using server avatar');
+                console.log(`Using server avatar for ${userType}`);
                 return serverUrl;
             }
-        }
 
-        // 2. ФАЛЛБЭК: Фото из папки public/uploads/avatars (если существует)
-        if (userData.image) {
-            const localFilePath = `/uploads/avatars/${userData.image}`;
-            console.log('Checking local file path:', localFilePath);
+            // Также пробуем альтернативный путь
+            const alternativeUrl = `${API_BASE_URL}/${userData.image}`;
+            console.log(`Checking alternative avatar URL for ${userType}:`, alternativeUrl);
 
-            if (await checkImageExists(localFilePath)) {
-                console.log('Using local file avatar');
-                return localFilePath;
+            if (await checkImageExists(alternativeUrl)) {
+                console.log(`Using alternative avatar URL for ${userType}`);
+                return alternativeUrl;
+            }
+
+            // Дополнительные пути для клиентов
+            if (userType === 'client') {
+                const clientPaths = [
+                    `${API_BASE_URL}/uploads/profile_photos/${userData.image}`,
+                    `${API_BASE_URL}/uploads/clients/${userData.image}`,
+                    `${API_BASE_URL}/images/clients/${userData.image}`
+                ];
+
+                for (const path of clientPaths) {
+                    console.log(`Checking client avatar path:`, path);
+                    if (await checkImageExists(path)) {
+                        console.log(`Using client avatar from:`, path);
+                        return path;
+                    }
+                }
             }
         }
 
-        // 3. ЗАГЛУШКА: Если ничего не найдено
-        console.log('No avatar found, using placeholder');
+        // Если ничего не найдено
+        console.log(`No avatar found for ${userType}, using placeholder`);
         return null;
     };
 
@@ -538,11 +1229,33 @@ function MasterProfilePage() {
             }
 
             if (updatedData.specialty !== undefined) {
-                // Для специальности нужно отправлять ID occupations
-                // Пока оставляем как есть, нужно будет доработать
-                apiData.occupation = updatedData.specialty.split(',').map((title: string) => ({
-                    title: title.trim()
-                }));
+                // Для специальности нужно получать существующие occupation или создавать новые
+                // Сначала получим список всех доступных occupation
+                const occupations = await fetchOccupations(token);
+                if (occupations) {
+                    // Разделяем специальности по запятым и ищем соответствующие occupation
+                    const specialtyTitles = updatedData.specialty.split(',').map(title => title.trim());
+                    const occupationIris = [];
+
+                    for (const title of specialtyTitles) {
+                        if (title) {
+                            // Ищем существующую occupation
+                            let existingOccupation = occupations.find(occ => occ.title === title);
+
+                            if (!existingOccupation) {
+                                // Если occupation не существует, создаем новую
+                                existingOccupation = await createOccupation(token, title);
+                            }
+
+                            if (existingOccupation) {
+                                // Добавляем IRI существующей или созданной occupation
+                                occupationIris.push(`/api/occupations/${existingOccupation.id}`);
+                            }
+                        }
+                    }
+
+                    apiData.occupation = occupationIris;
+                }
             }
 
             console.log('Sending update data:', apiData);
@@ -565,6 +1278,14 @@ function MasterProfilePage() {
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('Update failed:', errorText);
+
+                // Если ошибка связана с occupation, попробуем альтернативный подход
+                if (errorText.includes('occupation')) {
+                    console.log('Trying alternative approach for occupation update');
+                    // await updateUserDataAlternative(updatedData);
+                    return;
+                }
+
                 throw new Error(`Failed to update user data: ${response.status}`);
             }
 
@@ -580,6 +1301,54 @@ function MasterProfilePage() {
         } catch (error) {
             console.error('Error updating user data:', error);
             alert('Ошибка при обновлении данных');
+        }
+    };
+
+
+    // Функция для получения списка occupation
+    const fetchOccupations = async (token: string): Promise<any[] | null> => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/occupations`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                const occupations = await response.json();
+                console.log('Fetched occupations:', occupations);
+                return occupations;
+            }
+            return null;
+        } catch (error) {
+            console.error('Error fetching occupations:', error);
+            return null;
+        }
+    };
+
+// Функция для создания новой occupation
+    const createOccupation = async (token: string, title: string): Promise<any | null> => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/occupations`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ title }),
+            });
+
+            if (response.ok) {
+                const newOccupation = await response.json();
+                console.log('Created new occupation:', newOccupation);
+                return newOccupation;
+            }
+            return null;
+        } catch (error) {
+            console.error('Error creating occupation:', error);
+            return null;
         }
     };
 
@@ -739,7 +1508,7 @@ function MasterProfilePage() {
         fileInputRef.current?.click();
     };
 
-    // ИСПРАВЛЕННАЯ ФУНКЦИЯ: Загрузка фото профиля через POST-запрос
+    // Загрузка фото профиля
     const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file || !profileData?.id) return;
@@ -763,39 +1532,77 @@ function MasterProfilePage() {
                 return;
             }
 
+            // Создаем FormData и добавляем все необходимые поля согласно API
             const formData = new FormData();
-            formData.append("imageFile", file); // Ключевой параметр
+            formData.append("imageFile", file); // Файл изображения
 
-            const response = await fetch(`${API_BASE_URL}/api/users/${profileData.id}/profile-photo`, {
+            // Добавляем остальные обязательные поля пользователя
+            // (это нужно, так как endpoint обновляет весь ресурс User)
+            if (profileData) {
+                formData.append("email", "user@example.com"); // Замените на реальный email
+                formData.append("name", profileData.fullName.split(' ')[1] || "");
+                formData.append("surname", profileData.fullName.split(' ')[0] || "");
+                formData.append("patronymic", profileData.fullName.split(' ').slice(2).join(' ') || "");
+                formData.append("password", "current-password"); // Требуется API
+                formData.append("roles", "ROLE_USER"); // Роли пользователя
+            }
+
+            console.log('Uploading profile photo with FormData:');
+            for (let [key, value] of formData.entries()) {
+                console.log(key, value);
+            }
+
+            const response = await fetch(`${API_BASE_URL}/api/users/${profileData.id}/update-photo`, {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${token}`,
+                    // Не устанавливаем Content-Type - браузер сам установит с boundary для multipart/form-data
                 },
                 body: formData,
             });
 
-            const text = await response.text();
-            console.log('Photo upload response:', text);
+            const responseText = await response.text();
+            console.log('Photo upload response status:', response.status);
+            console.log('Photo upload response text:', responseText);
 
             if (!response.ok) {
-                console.error(`Ошибка при загрузке (${response.status}):`, text);
-                alert(`Ошибка при загрузке фото (${response.status})`);
+                console.error(`Ошибка при загрузке (${response.status}):`, responseText);
+
+                if (response.status === 400) {
+                    alert("Неверные данные для загрузки фото");
+                } else if (response.status === 403) {
+                    alert("Нет прав для изменения фото профиля");
+                } else if (response.status === 422) {
+                    alert("Ошибка валидации данных");
+                } else {
+                    alert(`Ошибка при загрузке фото (${response.status})`);
+                }
                 return;
             }
 
-            const result = JSON.parse(text);
-            console.log("Фото успешно загружено:", result);
-
-            if (result.image) {
-                // Обновляем аватар с сервера
-                const newAvatarUrl = `${API_BASE_URL}/images/profile_photos/${result.image}`;
-                setProfileData(prev => prev ? { ...prev, avatar: newAvatarUrl } : null);
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (e) {
+                console.error('Error parsing response as JSON:', e);
+                // Если ответ не JSON, но статус 201, считаем успешным
+                if (response.status === 201) {
+                    result = { success: true };
+                } else {
+                    throw new Error('Invalid response format');
+                }
             }
 
-            alert("Фото успешно обновлено!");
+            console.log("Фото успешно загружено:", result);
+
+            // После успешной загрузки обновляем данные пользователя
+            await fetchUserData();
+
+            alert("Фото профиля успешно обновлено!");
+
         } catch (error) {
             console.error("Ошибка при загрузке фото:", error);
-            alert("Ошибка при загрузке фото");
+            alert("Ошибка при загрузке фото профиля");
         } finally {
             setIsLoading(false);
             if (fileInputRef.current) fileInputRef.current.value = "";
@@ -836,36 +1643,6 @@ function MasterProfilePage() {
         img.src = "./fonTest6.png";
     };
 
-    const handleWorkExampleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file || !profileData) return;
-
-        if (!file.type.startsWith('image/')) {
-            alert('Пожалуйста, выберите изображение');
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            const newWorkExample: WorkExample = {
-                id: Date.now().toString(),
-                image: e.target?.result as string,
-                title: 'Пример работы'
-            };
-
-            const updatedWorkExamples = [...profileData.workExamples, newWorkExample];
-            const updatedData = {
-                ...profileData,
-                workExamples: updatedWorkExamples
-            };
-
-            setProfileData(updatedData);
-
-            // Сохраняем на сервер
-            await updateUserData({ workExamples: updatedWorkExamples });
-        };
-        reader.readAsDataURL(file);
-    };
 
     // Функция для получения полного имени пользователя из отзыва
     const getReviewerName = (review: Review) => {
@@ -875,24 +1652,69 @@ function MasterProfilePage() {
     // Функция для получения URL аватара ревьюера
     const getReviewerAvatarUrl = (review: Review) => {
         if (review.reviewer.image) {
-            return `${API_BASE_URL}/images/profile_photos/${review.reviewer.image}`;
+            console.log('Reviewer image from data:', review.reviewer.image);
+
+            // Пробуем разные пути к изображению для клиентов
+            const possiblePaths = [
+                review.reviewer.image, // Прямой URL из данных
+                `${API_BASE_URL}/images/profile_photos/${review.reviewer.image}`,
+                `${API_BASE_URL}/uploads/profile_photos/${review.reviewer.image}`,
+                `${API_BASE_URL}/uploads/clients/${review.reviewer.image}`,
+                `${API_BASE_URL}/images/clients/${review.reviewer.image}`,
+                `${API_BASE_URL}/${review.reviewer.image}`
+            ];
+
+            // Проверяем каждый путь
+            for (const path of possiblePaths) {
+                if (path && path !== "./fonTest6.png") {
+                    console.log('Trying reviewer avatar path:', path);
+                    return path;
+                }
+            }
         }
+
+        console.log('Using default avatar for reviewer');
         return "./fonTest6.png";
     };
 
     const calculateAverageRating = (reviews: Review[]): number => {
         if (reviews.length === 0) return 0;
 
-        const sum = reviews.reduce((total, review) => total + review.rating, 0);
-        const average = sum / reviews.length;
+        // Фильтруем только валидные рейтинги
+        const validReviews = reviews.filter(review =>
+            review.rating && review.rating > 0 && review.rating <= 5
+        );
+
+        if (validReviews.length === 0) return 0;
+
+        const sum = validReviews.reduce((total, review) => total + review.rating, 0);
+        const average = sum / validReviews.length;
 
         // Округляем до одного знака после запятой
         return Math.round(average * 10) / 10;
     };
 
     // Функция для повторной загрузки отзывов
-    const handleRetryLoadReviews = () => {
-        fetchReviews();
+    // const handleRetryLoadReviews = () => {
+    //     fetchReviews();
+    // };
+
+
+    // Функция для принудительного обновления изображения (обход кеша)
+    const getImageUrlWithCacheBust = (url: string): string => {
+        if (!url || url === "./fonTest6.png") return url;
+        const timestamp = new Date().getTime();
+        const separator = url.includes('?') ? '&' : '?';
+        return `${url}${separator}t=${timestamp}`;
+    };
+
+
+    const getMasterName = (review: Review) => {
+        return `${review.user.name} ${review.user.surname}`.trim();
+    };
+
+    const getClientName = (review: Review) => {
+        return `${review.reviewer.name} ${review.reviewer.surname}`.trim();
     };
 
     if (isLoading) {
@@ -1211,19 +2033,67 @@ function MasterProfilePage() {
                                 <div className={styles.work_examples_grid}>
                                     {profileData.workExamples.map(work => (
                                         <div key={work.id} className={styles.work_example}>
-                                            <img src={work.image} alt={work.title} />
+                                            <img
+                                                src={getImageUrlWithCacheBust(work.image)}
+                                                alt={work.title}
+                                                onError={(e) => {
+                                                    console.log('Image load error for:', work.image);
+                                                    const img = e.currentTarget;
+
+                                                    // Пробуем альтернативные пути в правильном порядке
+                                                    const alternativePaths = [
+                                                        `${API_BASE_URL}/uploads/gallery_images/${work.image.split('/').pop() || work.image}`,
+                                                        "./fonTest6.png"
+                                                    ];
+
+                                                    let currentIndex = 0;
+                                                    const tryNextSource = () => {
+                                                        if (currentIndex < alternativePaths.length) {
+                                                            const nextSource = alternativePaths[currentIndex];
+                                                            currentIndex++;
+                                                            console.log('Trying alternative path:', nextSource);
+
+                                                            // Создаем новое изображение для проверки
+                                                            const testImg = new Image();
+                                                            testImg.onload = () => {
+                                                                console.log('Alternative image loaded successfully:', nextSource);
+                                                                img.src = nextSource;
+                                                            };
+                                                            testImg.onerror = () => {
+                                                                console.log('Alternative image failed:', nextSource);
+                                                                tryNextSource();
+                                                            };
+                                                            testImg.src = nextSource;
+                                                        } else {
+                                                            console.log('All alternative paths failed, using placeholder');
+                                                            img.src = "./fonTest6.png";
+                                                        }
+                                                    };
+
+                                                    tryNextSource();
+                                                }}
+                                                onLoad={() => console.log('Portfolio image loaded successfully:', work.image)}
+                                            />
+                                            <button
+                                                className={styles.delete_work_button}
+                                                onClick={() => handleDeleteWorkExample(work.id)}
+                                                title="Удалить фото"
+                                            >
+                                                ×
+                                            </button>
                                         </div>
                                     ))}
                                     <button
                                         className={styles.add_work_button}
                                         onClick={() => workExampleInputRef.current?.click()}
+                                        title="Добавить фото в портфолио"
                                     >
                                         +
                                     </button>
                                 </div>
                             ) : (
                                 <div className={styles.empty_state}>
-                                    <span>Добавить фото</span>
+                                    <span>Добавить фото в портфолио</span>
                                     <button
                                         className={styles.add_button}
                                         onClick={() => workExampleInputRef.current?.click()}
@@ -1307,23 +2177,23 @@ function MasterProfilePage() {
                         Отзывы
                     </p>
 
-                    {reviewsError && (
-                        <div className={styles.reviews_error}>
-                            <p>{reviewsError}</p>
-                            <button
-                                className={styles.retry_button}
-                                onClick={handleRetryLoadReviews}
-                            >
-                                Попробовать снова
-                            </button>
-                        </div>
-                    )}
+                    {/*{reviewsError && (*/}
+                    {/*    <div className={styles.reviews_error}>*/}
+                    {/*        <p>{reviewsError}</p>*/}
+                    {/*        <button*/}
+                    {/*            className={styles.retry_button}*/}
+                    {/*            onClick={handleRetryLoadReviews}*/}
+                    {/*        >*/}
+                    {/*            Попробовать снова*/}
+                    {/*        </button>*/}
+                    {/*    </div>*/}
+                    {/*)}*/}
 
                     <div className={styles.reviews_list}>
                         {reviewsLoading ? (
                             <div className={styles.loading}>Загрузка отзывов...</div>
                         ) : reviews.length > 0 ? (
-                            reviews.map((review) => (
+                            reviews.slice(0, visibleCount).map((review) => (
                                 <div key={review.id} className={styles.review_item}>
                                     <div className={styles.review_header}>
                                         <div className={styles.reviewer_info}>
@@ -1336,9 +2206,15 @@ function MasterProfilePage() {
                                                 }}
                                             />
                                             <div className={styles.reviewer_main_info}>
-                                                <div className={styles.reviewer_name}>{getReviewerName(review)}</div>
+                                                {/* Имя клиента который оставил отзыв */}
+                                                <div className={styles.reviewer_name}>{getClientName(review)}</div>
+
+                                                {/* Специальность мастера (из profileData) */}
                                                 <div className={styles.review_vacation}>{review.vacation}</div>
-                                                <span className={styles.review_worker}>{review.worker}</span>
+
+                                                {/* ФИО клиента (worker) */}
+                                                <span className={styles.review_worker}>{getMasterName(review)}</span>
+
                                                 <div className={styles.review_rating_main}>
                                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                         <g clipPath="url(#clip0_324_2272)">
@@ -1356,6 +2232,7 @@ function MasterProfilePage() {
                                                             </clipPath>
                                                         </defs>
                                                     </svg>
+
                                                     <span className={styles.rating_value}>{review.rating}</span>
                                                 </div>
                                             </div>
@@ -1404,9 +2281,12 @@ function MasterProfilePage() {
                         )}
                     </div>
 
-                    {reviews.length > 2 && (
+                    {reviews.length > visibleCount && (
                         <div className={styles.reviews_actions}>
-                            <button className={styles.show_all_reviews_btn}>
+                            <button
+                                className={styles.show_all_reviews_btn}
+                                onClick={handleShowMore}
+                            >
                                 Показать все отзывы
                             </button>
                         </div>

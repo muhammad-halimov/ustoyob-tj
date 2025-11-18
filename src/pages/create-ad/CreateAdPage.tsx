@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import styles from '../create-ad/CreateAdPage.module.scss';
-import { getAuthToken } from '../../utils/auth';
+import styles from './CreateAdPage.module.scss';
+import { getAuthToken, getUserRole } from '../../utils/auth';
+import uspeh from '../../../public/uspeh.png';
 
 interface Category {
     id: number;
@@ -32,7 +33,7 @@ interface Unit {
     title: string;
 }
 
-const ServicePage = () => {
+const CreateAdPage = () => {
     const navigate = useNavigate();
     const [categories, setCategories] = useState<Category[]>([]);
     const [units, setUnits] = useState<Unit[]>([]);
@@ -43,6 +44,7 @@ const ServicePage = () => {
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [districts, setDistricts] = useState<District[]>([]);
+    // const [userRole, setUserRole] = useState<'client' | 'master' | null>(null);
     const [selectedProvince, setSelectedProvince] = useState<number | null>(null);
     const [selectedCity, setSelectedCity] = useState<number | null>(null);
 
@@ -57,6 +59,9 @@ const ServicePage = () => {
     const API_BASE_URL = 'https://admin.ustoyob.tj';
 
     useEffect(() => {
+        const role = getUserRole();
+        // setUserRole(role);
+        console.log('User role:', role);
         fetchCategories();
         fetchDistricts();
         fetchUnits();
@@ -141,6 +146,12 @@ const ServicePage = () => {
             return;
         }
 
+        const role = getUserRole();
+        if (!role) {
+            alert('Не удалось определить роль пользователя');
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
@@ -158,12 +169,11 @@ const ServicePage = () => {
 
             const userData = await userResponse.json();
 
-            // ИСПОЛЬЗУЕМ ENDPOINT ДЛЯ МАСТЕРОВ
-            const endpoint = '/api/tickets/masters';
+            const endpoint = role === 'master' ? '/api/tickets/masters' : '/api/tickets/clients';
 
-            console.log('Using endpoint for masters:', endpoint);
+            console.log('Using endpoint:', endpoint);
 
-            // СОЗДАЕМ ДАННЫЕ ДЛЯ УСЛУГИ МАСТЕРА
+            // СОЗДАЕМ ПРАВИЛЬНЫЕ IRI В ФОРМАТЕ КАК В ДОКУМЕНТАЦИИ
             const ticketData = {
                 title: formData.title.trim(),
                 description: formData.description.trim(),
@@ -173,14 +183,14 @@ const ServicePage = () => {
                 category: `/api/categories/${selectedCategory}`,
                 district: `/api/districts/${selectedDistrict}`,
                 author: `/api/users/${userData.id}`,
-                service: true, // Услуга от мастера
+                service: role === 'master', // true для мастеров, false для клиентов
                 unit: selectedUnit ? `/api/units/${selectedUnit}` : null,
-                master: `/api/users/${userData.id}` // Мастер - это автор услуги
+                master: role === 'master' ? `/api/users/${userData.id}` : null
             };
 
-            console.log('Sending service data:', ticketData);
+            console.log('Sending correct IRI format:', ticketData);
 
-            // Отправляем запрос на создание услуги
+            // Отправляем запрос
             const response = await fetch(`${API_BASE_URL}${endpoint}`, {
                 method: 'POST',
                 headers: {
@@ -195,11 +205,11 @@ const ServicePage = () => {
 
             if (response.ok) {
                 const ticketDataResponse = await response.json();
-                console.log('Service created successfully:', ticketDataResponse);
+                console.log('Ticket created successfully:', ticketDataResponse);
 
-                // Загрузка изображений для услуги
+                // Если есть изображения, загружаем их через отдельный endpoint
                 if (images.length > 0) {
-                    console.log('Uploading service images...');
+                    console.log('Uploading images...');
                     for (const image of images) {
                         const imageFormData = new FormData();
                         imageFormData.append('file', image);
@@ -214,13 +224,13 @@ const ServicePage = () => {
                             });
 
                             if (imageResponse.ok) {
-                                console.log('Service image uploaded successfully');
+                                console.log('Image uploaded successfully');
                             } else {
                                 const imageErrorText = await imageResponse.text();
-                                console.warn('Failed to upload service image:', imageErrorText);
+                                console.warn('Failed to upload image:', imageErrorText);
                             }
                         } catch (imageError) {
-                            console.error('Error uploading service image:', imageError);
+                            console.error('Error uploading image:', imageError);
                         }
                     }
                 }
@@ -241,6 +251,7 @@ const ServicePage = () => {
                 setSelectedProvince(null);
                 setSelectedCity(null);
             } else {
+                // Детальный анализ ошибки
                 const errorText = await response.text();
                 console.error('Error response text:', errorText);
 
@@ -249,6 +260,7 @@ const ServicePage = () => {
                     const errorData = JSON.parse(errorText);
                     errorMessage = errorData.detail || errorData.message || errorData.title || JSON.stringify(errorData);
 
+                    // Обработка ошибок валидации
                     if (errorData.violations) {
                         const violationMessages = errorData.violations.map((v: any) =>
                             `Поле "${v.propertyPath}": ${v.message}`
@@ -259,7 +271,7 @@ const ServicePage = () => {
                     errorMessage = errorText || `HTTP error! status: ${response.status}`;
                 }
 
-                alert('Ошибка при создании услуги: ' + errorMessage);
+                alert('Ошибка при создании объявления: ' + errorMessage);
             }
         } catch (error) {
             console.error('Error:', error);
@@ -271,7 +283,7 @@ const ServicePage = () => {
                 errorMessage = error;
             }
 
-            alert('Ошибка при создании услуги: ' + errorMessage);
+            alert('Ошибка при создании объявления: ' + errorMessage);
         } finally {
             setIsSubmitting(false);
         }
@@ -281,7 +293,6 @@ const ServicePage = () => {
         setShowSuccessModal(false);
         navigate('/');
     };
-
     const selectedDistrictInfo = districts.find(d => d.id === selectedDistrict);
 
     return (
@@ -289,6 +300,11 @@ const ServicePage = () => {
             <div className={styles.container}>
                 <div className={styles.header}>
                     <h1>Заполните заявку с деталями</h1>
+                    {/*{userRole && (*/}
+                    {/*    <div className={styles.roleInfo}>*/}
+                    {/*        Создание объявления как: <strong>{userRole === 'master' ? 'Мастер' : 'Клиент'}</strong>*/}
+                    {/*    </div>*/}
+                    {/*)}*/}
                 </div>
 
                 <form onSubmit={handleSubmit} className={styles.form}>
@@ -423,7 +439,7 @@ const ServicePage = () => {
                                         value={selectedUnit || ''}
                                         onChange={(e) => setSelectedUnit(Number(e.target.value))}
                                     >
-                                        <option value="">ед.изм.</option>
+                                        <option value="">Ед. изм.</option>
                                         {units.map(unit => (
                                             <option key={unit.id} value={unit.id}>
                                                 {unit.title}
@@ -477,18 +493,18 @@ const ServicePage = () => {
 
                     <div className={styles.divider} />
 
-                    {/* Описание услуги */}
+                    {/* Описание */}
                     <div className={styles.section}>
-                        <h2>Описание услуги</h2>
+                        <h2>Есть пожелания?</h2>
                         <div className={styles.descriptionSection}>
                             <div className={styles.descriptionLabel}>
-                                Подробно опишите вашу услугу, условия работы, опыт и квалификацию.
+                                Укажите важные детали, которые нужно знать заказчику.
                             </div>
                             <textarea
                                 name="description"
                                 value={formData.description}
                                 onChange={handleInputChange}
-                                placeholder="Опишите детали вашей услуги, ваш опыт, условия работы..."
+                                placeholder="Опишите детали вашей услуги..."
                                 rows={4}
                                 className={styles.descriptionTextarea}
                                 required
@@ -507,7 +523,7 @@ const ServicePage = () => {
                                 name="notice"
                                 value={formData.notice}
                                 onChange={handleInputChange}
-                                placeholder="Дополнительная информация о услуге..."
+                                placeholder="Дополнительная информация..."
                                 rows={2}
                                 className={styles.descriptionTextarea}
                             />
@@ -521,7 +537,7 @@ const ServicePage = () => {
                             className={styles.submitButton}
                             disabled={isSubmitting}
                         >
-                            {isSubmitting ? 'Публикация...' : 'Создать услугу'}
+                            {isSubmitting ? 'Публикация...' : 'Разместить объявление'}
                         </button>
                     </div>
                 </form>
@@ -531,9 +547,9 @@ const ServicePage = () => {
             {showSuccessModal && (
                 <div className={styles.modalOverlay} onClick={handleSuccessClose}>
                     <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-                        <h2 className={styles.successTitle}>Услуга успешно создана!</h2>
+                        <h2 className={styles.successTitle}>Предложение успешно опубликовано!</h2>
                         <div className={styles.successIcon}>
-                            <img src="./uspeh.png" alt="uspeh"/>
+                            <img src={uspeh} alt="uspeh"/>
                         </div>
 
                         <button
@@ -549,4 +565,4 @@ const ServicePage = () => {
     );
 };
 
-export default ServicePage;
+export default CreateAdPage;

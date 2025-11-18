@@ -60,9 +60,9 @@
 }
 
 .reviews_section h2 {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 600;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
   color: #000;
 }
 
@@ -80,7 +80,7 @@
 }
 
 .section_subtitle {
-  font-size: 16px;
+  font-size: 20px;
   color: #666;
   margin-bottom: 25px;
 }
@@ -93,10 +93,10 @@
 }
 
 .review_item {
-  padding: 25px;
-  border: 1px solid #eee;
+  //padding: 25px;
+  //border: 1px solid #eee;
   border-radius: 12px;
-  background: #f9f9f9;
+  //background: #f9f9f9;
 }
 
 .review_header {
@@ -180,9 +180,9 @@
 }
 
 .personal_data_section h2 {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 600;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
   color: #000;
 }
 
@@ -196,16 +196,30 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  background-color: #F2F2F5;
+  padding: 10px 20px;
+  border-radius: 10px;
 }
 
-.data_item label {
-  font-size: 16px;
+.data_item_sex {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background-color: #F2F2F5;
+  padding: 10px 20px;
+  border-radius: 10px;
+  width: 15%;
+}
+
+.data_label {
+  font-size: 20px;
   font-weight: 600;
   color: #000;
 }
 
 .data_value {
-  font-size: 18px;
+  font-size: 20px;
+  font-weight: 500;
   color: #333;
   padding: 8px 0;
 }
@@ -486,4 +500,221 @@
   color: #666;
   font-size: 16px;
   font-style: italic;
+}
+
+// Reviews Section - новые стили как в MasterProfilePage
+.reviews_section {
+  margin-top: 40px;
+}
+
+.section_title {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #1a1a1a;
+}
+
+.section_subtitle {
+  font-size: 20px;
+  color: #666;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.reviews_list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+
+.review_header {
+  margin-bottom: 16px;
+}
+
+.reviewer_info {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.reviewer_avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #f0f0f0;
+}
+
+.reviewer_main_info {
+  flex: 1;
+}
+
+.reviewer_name {
+  font-size: 36px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 4px;
+}
+
+.review_vacation {
+  font-size: 20px;
+  color: #000000;
+  margin-bottom: 4px;
+}
+
+.review_worker {
+  font-size: 20px;
+  color: #000000;
+  font-weight: 500;
+}
+
+.review_rating_main {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+
+  svg {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+.rating_value {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.review_details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  //border-bottom: 1px solid #f0f0f0;
+}
+
+.review_worker_date {
+  display: flex;
+  flex-direction: column;
+  //align-items: center;
+  gap: 8px;
+}
+
+.review_date {
+  font-size: 16px;
+  color: #666;
+}
+
+.review_rating_secondary {
+  display: flex;
+  //flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 20px;
+  color: #666;
+
+  svg {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+.review_text {
+  font-size: 20px;
+  line-height: 1.5;
+  color: #1a1a1a;
+  margin-bottom: 12px;
+}
+
+.review_images {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.review_image {
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid #e8e8e8;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+  font-size: 16px;
+}
+
+.no_reviews {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+  font-size: 16px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 1px dashed #e8e8e8;
+}
+
+.reviews_actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+  gap: 12px;
+}
+
+.leave_review_btn,
+.show_all_reviews_btn {
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.leave_review_btn {
+  background: #3A54DA;
+  color: white;
+  border: none;
+
+  &:hover {
+    background: #2a44ca;
+  }
+}
+
+.show_all_reviews_btn {
+  background: transparent;
+  color: #3A54DA;
+  border: 1px solid #3A54DA;
+
+  &:hover {
+    background: #f8f9ff;
+  }
+}
+
+// Адаптивность
+@media (max-width: 768px) {
+  .review_details {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .review_rating_secondary {
+    align-self: flex-end;
+  }
+
+  .reviewer_info {
+    align-items: center;
+  }
+
+  .review_images {
+    justify-content: center;
+  }
 }

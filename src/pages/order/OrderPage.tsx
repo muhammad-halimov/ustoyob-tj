@@ -1,7 +1,41 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { getAuthToken } from '../../utils/auth';
+import { getAuthToken, getUserRole } from '../../utils/auth';
 import styles from './OrderPage.module.scss';
+
+interface ApiTicket {
+    id: number;
+    title: string;
+    description: string;
+    budget: number;
+    unit: { id: number; title: string };
+    address: {
+        id: number;
+        title?: string;
+        city?: {
+            id: number;
+            title?: string;
+        };
+    } | null;
+    district?: {
+        id: number;
+        title?: string;
+        city?: {
+            id: number;
+            title?: string;
+        };
+    } | null;
+    createdAt: string;
+    master: { id: number; name?: string; surname?: string; image?: string } | null;
+    author: { id: number; name?: string; surname?: string; image?: string };
+    category: { id: number; title: string };
+    notice?: string;
+    images?: { id: number; image: string }[];
+    ticketImages?: { id: number; image: string }[];
+    active: boolean;
+    service: boolean;
+}
+
 
 interface Order {
     id: number;
@@ -12,14 +46,26 @@ interface Order {
     address: string;
     date: string;
     author: string;
+    authorId: number;
     timeAgo: string;
     category: string;
     additionalComments?: string;
     photos?: string[];
     notice?: string;
+    rating: number;
+    authorImage?: string;
 }
 
-const API_BASE_URL = 'http://usto.tj.auto-schule.ru';
+interface City {
+    id: number;
+    title: string;
+    description: string;
+    image: string | null;
+    districts: { id: number }[];
+}
+
+
+const API_BASE_URL = 'https://admin.ustoyob.tj';
 
 export default function OrderPage() {
     const { id } = useParams<{ id: string }>();
@@ -27,44 +73,545 @@ export default function OrderPage() {
     const [order, setOrder] = useState<Order | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [selectedOptions, setSelectedOptions] = useState({
-        rating: false,
-        review: false,
-        documents: false
-    });
+    // const [cities, setCities] = useState<City[]>([]);
+
+    const [isLiked, setIsLiked] = useState(false);
+    const [isLikeLoading, setIsLikeLoading] = useState(false);
+    const [favoriteId, setFavoriteId] = useState<number | null>(null);
+    const [rating, setRating] = useState<number>(0);
+
+    const [showReviewModal, setShowReviewModal] = useState(false);
+    const [reviewText, setReviewText] = useState('');
+    const [selectedStars, setSelectedStars] = useState(0);
+    const [reviewPhotos, setReviewPhotos] = useState<File[]>([]);
 
     useEffect(() => {
-        if (id) {
-            fetchOrder(parseInt(id));
+        if (order) {
+            checkFavoriteStatus();
         }
+    }, [order]);
+
+    useEffect(() => {
+        const role = getUserRole();
+        const loadData = async () => {
+            await fetchCities();
+            if (id) {
+                await fetchOrder(parseInt(id), role);
+            }
+        };
+
+        loadData();
     }, [id]);
 
-    const fetchAuthor = async (authorId: number) => {
+    const handleStarClick = (starCount: number) => {
+        setSelectedStars(starCount);
+    };
+
+    const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            const files = Array.from(e.target.files);
+            setReviewPhotos(prev => [...prev, ...files]);
+        }
+    };
+
+    const removePhoto = (index: number) => {
+        setReviewPhotos(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleSubmitReview = async () => {
+        if (!reviewText.trim()) {
+            alert('Пожалуйста, напишите комментарий');
+            return;
+        }
+
+        if (selectedStars === 0) {
+            alert('Пожалуйста, поставьте оценку');
+            return;
+        }
+
+        try {
+            const token = getAuthToken();
+            if (!token) {
+                alert('Необходима авторизация');
+                return;
+            }
+
+            // Определяем, кто оставляет отзыв и для кого
+            const userRole = getUserRole();
+            const currentUserId = await getCurrentUserId();
+
+            if (!currentUserId || !order) return;
+
+            // Определяем для кого отзыв (forClient)
+            // Если мастер оставляет отзыв для клиента - forClient: true
+            // Если клиент оставляет отзыв для мастера - forClient: false
+            const forClient = userRole === 'master';
+
+            // Определяем master и client
+            let masterIri = '';
+            let clientIri = '';
+
+            if (userRole === 'master') {
+                // Мастер оставляет отзыв для клиента
+                masterIri = `/api/users/${currentUserId}`;
+                clientIri = `/api/users/${order.authorId}`;
+            } else if (userRole === 'client') {
+                // Клиент оставляет отзыв для мастера
+                clientIri = `/api/users/${currentUserId}`;
+                masterIri = `/api/users/${order.authorId}`;
+            }
+
+            // Создаем отзыв
+            const reviewData = {
+                rating: selectedStars,
+                description: reviewText,
+                forClient: forClient,
+                ticket: `/api/tickets/${order.id}`,
+                master: masterIri,
+                client: clientIri
+            };
+
+            console.log('Sending review:', reviewData);
+
+            const response = await fetch(`${API_BASE_URL}/api/reviews`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(reviewData)
+            });
+
+            if (response.ok) {
+                const reviewResponse = await response.json();
+                console.log('Review created:', reviewResponse);
+
+                // Загружаем фото если есть
+                if (reviewPhotos.length > 0) {
+                    await uploadReviewPhotos(reviewResponse.id, reviewPhotos, token);
+                }
+
+                // Закрываем модалку и сбрасываем состояние
+                handleCloseModal();
+                alert('Отзыв успешно отправлен!');
+
+            } else {
+                const errorText = await response.text();
+                console.error('Error creating review:', errorText);
+                alert('Ошибка при отправке отзыва');
+            }
+
+        } catch (error) {
+            console.error('Error submitting review:', error);
+            alert('Ошибка при отправке отзыва');
+        }
+    };
+
+    const uploadReviewPhotos = async (reviewId: number, photos: File[], token: string) => {
+        try {
+            for (const photo of photos) {
+                const formData = new FormData();
+                formData.append('image', photo);
+
+                const response = await fetch(`${API_BASE_URL}/api/reviews/${reviewId}/upload-photo`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    console.error('Error uploading photo for review:', reviewId);
+                }
+            }
+        } catch (error) {
+            console.error('Error uploading review photos:', error);
+        }
+    };
+
+    const getCurrentUserId = async (): Promise<number | null> => {
         try {
             const token = getAuthToken();
             if (!token) return null;
 
-            const res = await fetch(`${API_BASE_URL}/api/users/${authorId}`, {
-                headers: { Authorization: `Bearer ${token}` }
+            const response = await fetch(`${API_BASE_URL}/api/users/me`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json',
+                },
             });
 
-            if (!res.ok) return null;
-            return await res.json(); // вернёт объект с name и surname
-        } catch {
+            if (response.ok) {
+                const userData = await response.json();
+                return userData.id;
+            }
+            return null;
+        } catch (error) {
+            console.error('Error getting current user ID:', error);
             return null;
         }
     };
 
-    const fetchOrder = async (orderId: number) => {
+    const handleCloseModal = () => {
+        setShowReviewModal(false);
+        setReviewText('');
+        setSelectedStars(0);
+        setReviewPhotos([]);
+    };
+
+
+    const checkFavoriteStatus = async () => {
+        const token = getAuthToken();
+        if (!token || !order) return;
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/favorites/me`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const favorite = await response.json();
+                const userRole = getUserRole();
+
+                console.log('Favorite data:', favorite);
+
+                if (userRole === 'client') {
+                    // Клиент проверяет, есть ли мастер в избранном
+                    const isMasterInFavorites = favorite.masters?.some((m: { id: number }) => m.id === order.authorId);
+                    setIsLiked(!!isMasterInFavorites);
+                    if (isMasterInFavorites) setFavoriteId(favorite.id);
+                } else if (userRole === 'master') {
+                    // Мастер проверяет, есть ли клиент в избранном
+                    const isClientInFavorites = favorite.clients?.some((c: { id: number }) => c.id === order.authorId);
+                    setIsLiked(!!isClientInFavorites);
+                    if (isClientInFavorites) setFavoriteId(favorite.id);
+                }
+            } else if (response.status === 404) {
+                // У пользователя нет избранного
+                setIsLiked(false);
+                setFavoriteId(null);
+            }
+        } catch (error) {
+            console.error('Error checking favorite status:', error);
+        }
+    };
+
+    const handleLikeClick = async () => {
+        const token = getAuthToken();
+        if (!token) {
+            alert('Пожалуйста, войдите в систему чтобы добавить в избранное');
+            return;
+        }
+
+        if (isLiked && favoriteId) {
+            await handleUnlike();
+            return;
+        }
+
+        setIsLikeLoading(true);
+        try {
+            const userRole = getUserRole();
+            const userIdToAdd = order?.authorId;
+
+            if (!userIdToAdd) {
+                console.error('No user ID to add to favorites');
+                return;
+            }
+
+            // Сначала получаем текущий список избранного
+            const currentFavoritesResponse = await fetch(`${API_BASE_URL}/api/favorites/me`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            let existingFavoriteId: number | null = null;
+            let existingMasters: string[] = [];
+            let existingClients: string[] = [];
+            let existingTickets: string[] = [];
+
+            if (currentFavoritesResponse.ok) {
+                const currentFavorite = await currentFavoritesResponse.json();
+                existingFavoriteId = currentFavorite.id;
+                existingMasters = currentFavorite.masters?.map((master: any) => `/api/users/${master.id}`) || [];
+                existingClients = currentFavorite.clients?.map((client: any) => `/api/users/${client.id}`) || [];
+                existingTickets = currentFavorite.tickets?.map((ticket: any) => `/api/tickets/${ticket.id}`) || [];
+            }
+
+            const favoriteIdToUse = existingFavoriteId;
+            const userIri = `/api/users/${userIdToAdd}`;
+
+            if (favoriteIdToUse) {
+                // Обновляем существующее избранное
+                const updateData: any = {
+                    masters: [...existingMasters],
+                    clients: [...existingClients],
+                    tickets: [...existingTickets]
+                };
+
+                if (userRole === 'client') {
+                    // Клиент добавляет мастера
+                    if (!existingMasters.includes(userIri)) {
+                        updateData.masters.push(userIri);
+                    }
+                } else if (userRole === 'master') {
+                    // Мастер добавляет клиента
+                    if (!existingClients.includes(userIri)) {
+                        updateData.clients.push(userIri);
+                    }
+                }
+
+                console.log('Updating favorite with data:', updateData);
+
+                const patchResponse = await fetch(`${API_BASE_URL}/api/favorites/${favoriteIdToUse}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/merge-patch+json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(updateData)
+                });
+
+                if (patchResponse.ok) {
+                    setIsLiked(true);
+                    setFavoriteId(favoriteIdToUse);
+                    console.log('Successfully added to favorites');
+                } else {
+                    const errorText = await patchResponse.text();
+                    console.error('Failed to update favorite:', errorText);
+                }
+            } else {
+                // Создаем новое избранное
+                const createData: any = {
+                    masters: [],
+                    clients: [],
+                    tickets: []
+                };
+
+                if (userRole === 'client') {
+                    createData.masters = [userIri];
+                } else if (userRole === 'master') {
+                    createData.clients = [userIri];
+                }
+
+                console.log('Creating new favorite with data:', createData);
+
+                const createResponse = await fetch(`${API_BASE_URL}/api/favorites`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(createData)
+                });
+
+                if (createResponse.ok) {
+                    const newFavorite = await createResponse.json();
+                    setIsLiked(true);
+                    setFavoriteId(newFavorite.id);
+                    console.log('Successfully created favorite');
+                } else {
+                    const errorText = await createResponse.text();
+                    console.error('Failed to create favorite:', errorText);
+                }
+            }
+
+        } catch (error) {
+            console.error('Error adding to favorites:', error);
+        } finally {
+            setIsLikeLoading(false);
+        }
+    };
+
+    const handleUnlike = async () => {
+        if (!favoriteId) return;
+
+        setIsLikeLoading(true);
+        try {
+            const token = getAuthToken();
+            const userRole = getUserRole();
+            const userIdToRemove = order?.authorId;
+
+            if (!userIdToRemove) return;
+
+            const currentFavoritesResponse = await fetch(`${API_BASE_URL}/api/favorites/me`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!currentFavoritesResponse.ok) return;
+
+            const currentFavorite = await currentFavoritesResponse.json();
+
+            // Получаем актуальные массивы
+            const newMasters = currentFavorite.masters?.map((m: any) => `/api/users/${m.id}`) || [];
+            const newClients = currentFavorite.clients?.map((c: any) => `/api/users/${c.id}`) || [];
+            const newTickets = currentFavorite.tickets?.map((t: any) => `/api/tickets/${t.id}`) || [];
+
+            // Удаляем пользователя по роли
+            if (userRole === 'client') {
+                const removeIri = `/api/users/${userIdToRemove}`;
+                const index = newMasters.indexOf(removeIri);
+                if (index !== -1) newMasters.splice(index, 1);
+            } else if (userRole === 'master') {
+                const removeIri = `/api/users/${userIdToRemove}`;
+                const index = newClients.indexOf(removeIri);
+                if (index !== -1) newClients.splice(index, 1);
+            }
+
+            const updateData = {
+                masters: newMasters,
+                clients: newClients,
+                tickets: newTickets
+            };
+
+            console.log("PATCH UNLIKE:", updateData);
+
+            // Отправляем PATCH с полным объектом
+            const patchResponse = await fetch(`${API_BASE_URL}/api/favorites/${currentFavorite.id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/merge-patch+json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(updateData)
+            });
+
+            if (patchResponse.ok) {
+                setIsLiked(false);
+                setFavoriteId(null);
+            } else {
+                console.error("PATCH error:", await patchResponse.text());
+            }
+
+        } catch (error) {
+            console.error('Error removing from favorites:', error);
+        } finally {
+            setIsLikeLoading(false);
+        }
+    };
+
+
+    const fetchCities = async (): Promise<City[]> => {
+        try {
+            const token = getAuthToken();
+            if (!token) return [];
+
+            const response = await fetch(`${API_BASE_URL}/api/cities`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) return [];
+
+            const citiesData: City[] = await response.json();
+            // setCities(citiesData);
+            return citiesData;
+        } catch (error) {
+            console.error('Error fetching cities:', error);
+            return [];
+        }
+    };
+
+    const getFullAddress = (ticketData: ApiTicket): string => {
+        console.log('getFullAddress input:', ticketData); // Отладка
+
+        // Получаем город из district
+        const districtCityName = ticketData.district?.city?.title || '';
+        const addressTitle = ticketData.address?.title || '';
+
+        console.log('districtCityName:', districtCityName, 'addressTitle:', addressTitle); // Отладка
+
+        // Если есть и город из district и конкретный адрес
+        if (districtCityName && addressTitle) {
+            return `${districtCityName}, ${addressTitle}`;
+        }
+
+        // Если есть только город из district
+        if (districtCityName) {
+            return districtCityName;
+        }
+
+        // Если есть только адрес
+        if (addressTitle) {
+            return addressTitle;
+        }
+
+        // Если ничего нет, попробуем получить город из address (на всякий случай)
+        const addressCityName = ticketData.address?.city?.title || '';
+        if (addressCityName) {
+            return addressCityName;
+        }
+
+        console.log('No valid address data found'); // Отладка
+        return 'Адрес не указан';
+    };
+
+    const formatProfileImageUrl = (imagePath: string): string => {
+        if (!imagePath) return '';
+
+        // Если путь начинается с /images/profile_photos/, добавляем базовый URL
+        if (imagePath.startsWith('/images/profile_photos/')) {
+            return `${API_BASE_URL}${imagePath}`;
+        }
+        // Если уже полный URL, оставляем как есть
+        else if (imagePath.startsWith('http')) {
+            return imagePath;
+        }
+        // Если просто имя файла, формируем полный путь
+        else {
+            return `${API_BASE_URL}/images/profile_photos/${imagePath}`;
+        }
+    };
+
+    const formatTicketImageUrl = (imagePath: string): string => {
+        if (!imagePath) return '';
+
+        console.log('Formatting ticket image path:', imagePath); // Для отладки
+
+        // Если путь начинается с /images/ticket_photos/, добавляем базовый URL
+        if (imagePath.startsWith('/images/ticket_photos/')) {
+            return `${API_BASE_URL}${imagePath}`;
+        }
+        // Если уже полный URL, оставляем как есть
+        else if (imagePath.startsWith('http')) {
+            return imagePath;
+        }
+        // Если просто имя файла, формируем полный путь
+        else {
+            return `${API_BASE_URL}/images/ticket_photos/${imagePath}`;
+        }
+    };
+
+    const fetchOrder = async (orderId: number, role: string | null) => {
         try {
             setIsLoading(true);
+            setError(null);
+
             const token = getAuthToken();
             if (!token) {
                 setError('Требуется авторизация');
                 return;
             }
 
-            const response = await fetch(`${API_BASE_URL}/api/tickets/${orderId}`, {
+            let endpoint = '';
+            if (role === 'master') endpoint = `/api/tickets/clients/${orderId}`;
+            else if (role === 'client') endpoint = `/api/tickets/masters/${orderId}`;
+            else {
+                setError('Роль пользователя не определена');
+                return;
+            }
+
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -72,36 +619,98 @@ export default function OrderPage() {
                 },
             });
 
-            if (!response.ok) throw new Error(`Ошибка загрузки: ${response.status}`);
-
-            const ticketData = await response.json();
-
-            let authorName = 'Неизвестный автор';
-            if (ticketData.author && typeof ticketData.author === 'number') {
-                const authorData = await fetchAuthor(ticketData.author);
-                if (authorData) {
-                    authorName = `${authorData.name} ${authorData.surname}`;
-                }
-            } else if (ticketData.author?.name) {
-                authorName = `${ticketData.author.name} ${ticketData.author.surname}`;
+            if (!response.ok) {
+                if (response.status === 404) setError('Заказ не найден');
+                else throw new Error(`HTTP error! status: ${response.status}`);
+                return;
             }
+
+            const responseData = await response.json();
+            let ticketData: ApiTicket;
+
+            if (Array.isArray(responseData)) {
+                if (responseData.length === 0) {
+                    setError('Заказ не найден');
+                    return;
+                }
+                ticketData = responseData[0];
+            } else ticketData = responseData;
+
+            // console.log('ticketData:', ticketData);
+            // console.log("district city:", ticketData.district?.city?.title ?? "нет города");
+            // console.log('ticketData.address:', ticketData.address);
+            // console.log('ticketData.district:', ticketData.district);
+
+
+            let authorId = 0;
+            let authorImage = '';
+
+            if (role === 'master' && ticketData.author) {
+                authorId = ticketData.author.id;
+                // Пробуем получить фото из ticketData.author
+                if (ticketData.author.image) {
+                    authorImage = formatProfileImageUrl(ticketData.author.image);
+                }
+            } else if (role === 'client' && ticketData.master) {
+                authorId = ticketData.master.id;
+                // Пробуем получить фото из ticketData.master
+                if (ticketData.master.image) {
+                    authorImage = formatProfileImageUrl(ticketData.master.image);
+                }
+            }
+
+            const { name: authorName, rating: authorRating, image: fetchedImage } = await fetchUserInfo(authorId, role);
+            setRating(authorRating);
+
+            if (!authorImage && fetchedImage) {
+                authorImage = fetchedImage;
+            }
+
+            const fullAddress = getFullAddress(ticketData);
+
+            const photos: string[] = [];
+            if (ticketData.images?.length) {
+                photos.push(...ticketData.images.map(img => {
+                    const imageUrl = img.image.startsWith('http') ? img.image : formatTicketImageUrl(img.image);
+                    console.log('Processed image URL:', imageUrl); // Для отладки
+                    return imageUrl;
+                }));
+            }
+
+            // Обрабатываем ticketImages (если есть)
+            if (ticketData.ticketImages?.length) {
+                photos.push(...ticketData.ticketImages.map(img => {
+                    const imageUrl = img.image.startsWith('http') ? img.image : formatTicketImageUrl(img.image);
+                    console.log('Processed ticketImage URL:', imageUrl); // Для отладки
+                    return imageUrl;
+                }));
+            }
+
+            console.log('All processed photos:', photos);
 
             const orderData: Order = {
                 id: ticketData.id,
-                title: ticketData.title,
-                price: ticketData.budget,
+                title: ticketData.title || 'Без названия',
+                price: ticketData.budget || 0,
                 unit: ticketData.unit?.title || 'руб',
-                description: ticketData.description,
-                address: `${ticketData.address?.city?.title || ''}, ${ticketData.address?.title || ''}`.trim(),
+                description: ticketData.description || 'Описание отсутствует',
+                address: fullAddress,
                 date: formatDate(ticketData.createdAt),
-                author: authorName,
+                author: authorName || 'Неизвестный автор',
+                authorId: authorId,
                 timeAgo: getTimeAgo(ticketData.createdAt),
                 category: ticketData.category?.title || 'другое',
                 additionalComments: ticketData.notice,
-                photos: ticketData.ticketImages?.map((img: any) => img.image) || []
+                photos: photos.length > 0 ? photos : undefined,
+                notice: ticketData.notice,
+                rating: authorRating,
+                authorImage: authorImage || undefined,
             };
 
+            console.log('Order data with image:', orderData);
+
             setOrder(orderData);
+
         } catch (error) {
             console.error('Error fetching order:', error);
             setError('Не удалось загрузить данные заказа');
@@ -110,20 +719,77 @@ export default function OrderPage() {
         }
     };
 
+    const fetchUserInfo = async (userId: number, role: string | null): Promise<{ name: string; rating: number; image: string }> => {
+        try {
+            const token = getAuthToken();
+            if (!token) return { name: 'Пользователь', rating: 0, image: '' };
+
+            let endpoint = '';
+            if (role === 'master') endpoint = `/api/users/clients/${userId}`;
+            else if (role === 'client') endpoint = `/api/users/masters/${userId}`;
+            else return { name: 'Пользователь', rating: 0, image: '' };
+
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) return { name: 'Пользователь', rating: 0, image: '' };
+
+            const userArray = await response.json();
+            const userData = Array.isArray(userArray) ? userArray[0] : userArray;
+
+            const name = `${userData.name || ''} ${userData.surname || ''}`.trim() || 'Пользователь';
+            const rating = userData.rating || 0;
+
+            // ОБРАБОТКА ФОТО ПРОФИЛЯ
+            let image = '';
+            if (userData.image) {
+                // Если путь начинается с /images/profile_photos/, добавляем базовый URL
+                if (userData.image.startsWith('/images/profile_photos/')) {
+                    image = `${API_BASE_URL}${userData.image}`;
+                }
+                // Если уже полный URL, оставляем как есть
+                else if (userData.image.startsWith('http')) {
+                    image = userData.image;
+                }
+                // Если просто имя файла, формируем полный путь
+                else {
+                    image = `${API_BASE_URL}/images/profile_photos/${userData.image}`;
+                }
+            }
+
+            console.log('User image path:', userData.image); // Для отладки
+            console.log('Full image URL:', image); // Для отладки
+
+            return { name, rating, image };
+        } catch (error) {
+            console.error('Error fetching user info:', error);
+            return { name: 'Пользователь', rating: 0, image: '' };
+        }
+    };
+
     const formatDate = (dateString: string) => {
         try {
-            return new Date(dateString).toLocaleDateString('ru-RU');
+            if (!dateString) return 'Дата не указана';
+            return new Date(dateString).toLocaleDateString('ru-RU', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            });
         } catch {
-            return new Date().toLocaleDateString('ru-RU');
+            return 'Дата не указана';
         }
     };
 
     const getTimeAgo = (dateString: string) => {
         try {
+            if (!dateString) return 'недавно';
             const date = new Date(dateString);
             const now = new Date();
             const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
             if (diffInSeconds < 60) return 'только что';
             if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} ${getRussianWord(Math.floor(diffInSeconds / 60), ['минуту', 'минуты', 'минут'])} назад`;
             if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} ${getRussianWord(Math.floor(diffInSeconds / 3600), ['час', 'часа', 'часов'])} назад`;
@@ -138,69 +804,105 @@ export default function OrderPage() {
         return words[number % 100 > 4 && number % 100 < 20 ? 2 : cases[number % 10 < 5 ? number % 10 : 5]];
     };
 
-    const handleOptionChange = (option: keyof typeof selectedOptions) => {
-        setSelectedOptions(prev => ({
-            ...prev,
-            [option]: !prev[option]
-        }));
-    };
-
-    const handleRespond = () => {
-        // Логика для отклика на заказ
-        console.log('Отклик на заказ:', order?.id);
-        alert('Отклик отправлен!');
-    };
+    // const handleRespond = () => {
+    //     alert('Отклик отправлен!');
+    // };
 
     const handleLeaveReview = () => {
-        // Логика для оставления отзыва
-        console.log('Оставить отзыв на заказ:', order?.id);
-        alert('Переход к оставлению отзыва');
+        setShowReviewModal(true);
     };
 
-    if (isLoading) {
-        return <div className={styles.loading}>Загрузка...</div>;
-    }
+    const createChatWithAuthor = async (authorId: number) => {
+        const token = getAuthToken();
+        if (!token) {
+            alert('Пожалуйста, войдите в систему');
+            return null;
+        }
 
-    if (error) {
-        return (
-            <div className={styles.error}>
-                <p>{error}</p>
-                <button onClick={() => navigate(-1)}>Назад</button>
-            </div>
-        );
-    }
+        try {
+            // Получаем информацию о текущем пользователе
+            const userResponse = await fetch(`${API_BASE_URL}/api/users/me`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json',
+                },
+            });
 
-    if (!order) {
-        return (
-            <div className={styles.error}>
-                <p>Заказ не найден</p>
-                <button onClick={() => navigate(-1)}>Назад</button>
-            </div>
-        );
-    }
+            if (!userResponse.ok) {
+                throw new Error('Не удалось получить информацию о пользователе');
+            }
+
+            // const currentUser = await userResponse.json();
+
+            // Создаем чат
+            const chatResponse = await fetch(`${API_BASE_URL}/api/chats`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    // author: `/api/users/${currentUser.id}`,
+                    replyAuthor: `/api/users/${authorId}`
+                })
+            });
+
+            if (chatResponse.ok) {
+                const chatData = await chatResponse.json();
+                console.log('Chat created successfully:', chatData);
+                return chatData;
+            } else {
+                const errorText = await chatResponse.text();
+                console.error('Error creating chat:', errorText);
+                return null;
+            }
+        } catch (error) {
+            console.error('Error creating chat:', error);
+            return null;
+        }
+    };
+
+    const handleRespondClick = async (authorId: number) => {
+        const chat = await createChatWithAuthor(authorId);
+        if (chat) {
+            // Переходим в чат с созданным chat.id
+            navigate(`/chats?chatId=${chat.id}`);
+        } else {
+            alert('Не удалось создать чат');
+        }
+    };
+
+    if (isLoading) return <div className={styles.loading}>Загрузка...</div>;
+    if (error) return (
+        <div className={styles.error}>
+            <p>{error}</p>
+            <button onClick={() => navigate(-1)}>Назад</button>
+        </div>
+    );
+    if (!order) return (
+        <div className={styles.error}>
+            <p>Заказ не найден</p>
+            <button onClick={() => navigate(-1)}>Назад</button>
+        </div>
+    );
 
     return (
         <div className={styles.container}>
             <div className={styles.orderCard}>
-                {/* Заголовок и категория */}
                 <div className={styles.orderHeader}>
                     <h1 className={styles.orderTitle}>{order.title}</h1>
                 </div>
                 <span className={styles.category}>{order.category}</span>
-                {/* Цена */}
                 <div className={styles.priceSection}>
                     <span className={styles.price}>{order.price} {order.unit}</span>
                 </div>
 
-                {/* Описание */}
                 <section className={styles.section}>
-                    <h2>Описание</h2>
+                    <h2 className={styles.section_about}>Описание</h2>
                     <p className={styles.description}>{order.description}</p>
                 </section>
 
-                {/* Адрес и дата публикации */}
                 <section className={styles.section}>
-                    <h2>Адрес</h2>
                     <div className={styles.address}>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                             <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="#3A54DA" strokeWidth="2"/>
@@ -212,26 +914,19 @@ export default function OrderPage() {
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                             <path d="M3 8h18M21 6v14H3V6h18zM16 2v4M8 2v4" stroke="#3A54DA" strokeWidth="2"/>
                         </svg>
-                        Опубликовано {order.date}
+                        Опубликовано {order.date} ({order.timeAgo})
                     </div>
                 </section>
 
-
-                {/* Дополнительные комментарии */}
                 <section className={styles.section}>
-                    <h2>Дополнительные комментарии</h2>
+                    <h2 className={styles.section_more}>Дополнительные комментарии</h2>
                     <div className={styles.commentsContent}>
-                        {order.additionalComments ? (
-                            <p>{order.additionalComments}</p>
-                        ) : (
-                            <p className={styles.noComments}>Комментарии от заказчика (при наличии)</p>
-                        )}
+                        <p>{order.additionalComments || 'Комментарии от заказчика (при наличии)'}</p>
                     </div>
                 </section>
 
-                {/* Приложенные фото */}
                 <section className={styles.section}>
-                    <h2>Приложенные фото</h2>
+                    <h2 className={styles.section_more}>Приложенные фото</h2>
                     <div className={styles.photosContent}>
                         {order.photos && order.photos.length > 0 ? (
                             <div className={styles.photos}>
@@ -248,67 +943,259 @@ export default function OrderPage() {
                                 ))}
                             </div>
                         ) : (
-                            <p className={styles.noPhotos}>к данному заказу (при наличии)</p>
+                            <p>к данному заказу (при наличии)</p>
                         )}
                     </div>
                 </section>
 
-                {/* ФИО автора */}
                 <section className={styles.section}>
-                    <div className={styles.authorSection}>
-                        <h2>ФИО</h2>
-                        <div className={styles.authorInfo}>
-                            <h3>{order.author}</h3>
-                            <span className={styles.timeAgo}>{order.timeAgo}</span>
+                    <div className={styles.section_photo}>
+                        <img src={order.authorImage} alt=""/>
+                        <div className={styles.authorSection}>
+                            <div className={styles.authorInfo}>
+                                <h3>{order.author}</h3>
+                            </div>
+                            <p>{order.title}</p>
                         </div>
                     </div>
                 </section>
 
-                {/* Чекбоксы и кнопки действий */}
-                <section className={styles.actions}>
-                    <div className={styles.checkboxesSection}>
-                        <h2>наличие заказа</h2>
-                        <div className={styles.checkboxes}>
-                            <label className={styles.checkbox}>
-                                <input
-                                    type="checkbox"
-                                    checked={selectedOptions.rating}
-                                    onChange={() => handleOptionChange('rating')}
-                                />
-                                <span className={styles.checkmark}></span>
-                                Рейтинг
-                            </label>
-                            <label className={styles.checkbox}>
-                                <input
-                                    type="checkbox"
-                                    checked={selectedOptions.review}
-                                    onChange={() => handleOptionChange('review')}
-                                />
-                                <span className={styles.checkmark}></span>
-                                Отзыв
-                            </label>
-                            <label className={styles.checkbox}>
-                                <input
-                                    type="checkbox"
-                                    checked={selectedOptions.documents}
-                                    onChange={() => handleOptionChange('documents')}
-                                />
-                                <span className={styles.checkmark}></span>
-                                Проверка документов
-                            </label>
+                <section className={styles.rate}>
+                    <div className={styles.rate_wrap}>
+                        <div className={styles.rate_item}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <g clipPath="url(#clip0_324_2272)">
+                                    <g clipPath="url(#clip1_324_2272)">
+                                        <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                        <path d="M12 19V18.98" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
+                                    </g>
+                                </g>
+                                <defs>
+                                    <clipPath id="clip0_324_2272">
+                                        <rect width="24" height="24" fill="white"/>
+                                    </clipPath>
+                                    <clipPath id="clip1_324_2272">
+                                        <rect width="24" height="24" fill="white"/>
+                                    </clipPath>
+                                </defs>
+                            </svg>
+                            <p>{rating}</p>
+                        </div>
+                        <div className={styles.rate_item}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <g clipPath="url(#clip0_214_6840)">
+                                    <path d="M12 1.48047C6.2 1.48047 1.5 5.75047 1.5 11.0005C1.52866 13.0157 2.23294 14.9631 3.5 16.5305L2.5 21.5305L9.16 20.2005C10.1031 20.4504 11.0744 20.5781 12.05 20.5805C17.85 20.5805 22.55 16.3005 22.55 11.0305C22.55 5.76047 17.8 1.48047 12 1.48047Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                </g>
+                                <defs>
+                                    <clipPath id="clip0_214_6840">
+                                        <rect width="24" height="24" fill="white"/>
+                                    </clipPath>
+                                </defs>
+                            </svg>
+                            <p>Отзыв</p>
+                        </div>
+                        <div className={styles.rate_item}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <g clipPath="url(#clip0_214_6844)">
+                                    <g clipPath="url(#clip1_214_6844)">
+                                        <path d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                        <path d="M6.27002 11.9997L10.09 15.8197L17.73 8.17969" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                    </g>
+                                </g>
+                                <defs>
+                                    <clipPath id="clip0_214_6844">
+                                        <rect width="24" height="24" fill="white"/>
+                                    </clipPath>
+                                    <clipPath id="clip1_214_6844">
+                                        <rect width="24" height="24" fill="white"/>
+                                    </clipPath>
+                                </defs>
+                            </svg>
+                            <p>Диплом об образовании</p>
                         </div>
                     </div>
 
                     <div className={styles.actionButtons}>
-                        <button className={styles.respondButton} onClick={handleRespond}>
-                            Откликнуться
-                        </button>
+                        <div className={styles.topRow}>
+                            <div
+                                className={`${styles.favoriteButton} ${isLikeLoading ? styles.loading : ''}`}
+                                onClick={handleLikeClick}
+                                title={isLiked ? "Удалить из избранного" : "Добавить в избранное"}
+                            >
+                                <svg width="64" height="44" viewBox="0 0 64 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <rect
+                                        x="1"
+                                        y="1"
+                                        width="62"
+                                        height="42"
+                                        rx="9"
+                                        stroke="#3A54DA"
+                                        strokeWidth="2"
+                                        fill={isLiked ? "#3A54DA" : "none"}
+                                    />
+                                    <g clipPath="url(#clip0_214_6848)">
+                                        <path
+                                            d="M36.77 12.4502C35.7961 12.4711 34.8444 12.7448 34.0081 13.2444C33.1719 13.7441 32.4799 14.4525 32 15.3002C31.5201 14.4525 30.8281 13.7441 29.9919 13.2444C29.1556 12.7448 28.2039 12.4711 27.23 12.4502C24.06 12.4502 21.5 15.3002 21.5 18.8202C21.5 25.1802 32 31.5502 32 31.5502C32 31.5502 42.5 25.1802 42.5 18.8202C42.5 15.3002 39.94 12.4502 36.77 12.4502Z"
+                                            stroke={isLiked ? "white" : "#3A54DA"}
+                                            strokeWidth="2"
+                                            strokeMiterlimit="10"
+                                            fill={isLiked ? "white" : "none"}
+                                        />
+                                    </g>
+                                    <defs>
+                                        <clipPath id="clip0_214_6848">
+                                            <rect width="24" height="24" fill="white" transform="translate(20 10)"/>
+                                        </clipPath>
+                                    </defs>
+                                </svg>
+                            </div>
+
+                            <button className={styles.respondButton} onClick={() => order?.authorId && handleRespondClick(order.authorId)}>
+                                Откликнуться
+                            </button>
+                        </div>
+
                         <button className={styles.reviewButton} onClick={handleLeaveReview}>
                             Оставить отзыв
                         </button>
                     </div>
                 </section>
             </div>
+
+            {/* Модальное окно отзыва */}
+            {showReviewModal && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.reviewModal}>
+                        <div className={styles.modalHeader}>
+                            <h2>Оставьте отзыв о работе</h2>
+                        </div>
+
+                        <div className={styles.modalContent}>
+                            {/* Поле для комментария */}
+                            <div className={styles.commentSection}>
+                                <textarea
+                                    value={reviewText}
+                                    onChange={(e) => setReviewText(e.target.value)}
+                                    placeholder="Расскажите о вашем опыте работы..."
+                                    className={styles.commentTextarea}
+                                />
+                            </div>
+
+                            {/* Загрузка фото */}
+                            <div className={styles.photoSection}>
+                                <label>Приложите фото</label>
+                                <div className={styles.photoUploadContainer}>
+                                    {/* Превью загруженных фото */}
+                                    <div className={styles.photoPreviews}>
+                                        {reviewPhotos.map((photo, index) => (
+                                            <div key={index} className={styles.photoPreview}>
+                                                <img
+                                                    src={URL.createObjectURL(photo)}
+                                                    alt={`Preview ${index + 1}`}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removePhoto(index)}
+                                                    className={styles.removePhoto}
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                        ))}
+
+                                        {/* Кнопка добавления фото (всегда справа) */}
+                                        <div className={styles.photoUpload}>
+                                            <input
+                                                type="file"
+                                                id="review-photos"
+                                                multiple
+                                                accept="image/*"
+                                                onChange={handlePhotoUpload}
+                                                className={styles.fileInput}
+                                            />
+                                            <label htmlFor="review-photos" className={styles.photoUploadButton}>
+                                                +
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Рейтинг звездами */}
+                            <div className={styles.ratingSection}>
+                                <label>Поставьте оценку</label>
+                                <div className={styles.stars}>
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                        <button
+                                            key={star}
+                                            type="button"
+                                            className={`${styles.star} ${star <= selectedStars ? styles.active : ''}`}
+                                            onClick={() => handleStarClick(star)}
+                                        >
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                                <g clipPath="url(#clip0_248_13358)">
+                                                    <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10"/>
+                                                    <path d="M12 19V18.98" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10"/>
+                                                </g>
+                                                <defs>
+                                                    <clipPath id="clip0_248_13358">
+                                                        <rect width="24" height="24" fill="white"/>
+                                                    </clipPath>
+                                                </defs>
+                                            </svg>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Кнопки модалки */}
+                        <div className={styles.modalActions}>
+                            <button
+                                className={styles.closeButton}
+                                onClick={handleCloseModal}
+                            >
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <g clipPath="url(#clip0_551_2371)">
+                                        <g clipPath="url(#clip1_551_2371)">
+                                            <path d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z" stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
+                                            <path d="M16.7705 7.22998L7.23047 16.77" stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
+                                            <path d="M7.23047 7.22998L16.7705 16.77" stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
+                                        </g>
+                                    </g>
+                                    <defs>
+                                        <clipPath id="clip0_551_2371">
+                                            <rect width="24" height="24" fill="white"/>
+                                        </clipPath>
+                                        <clipPath id="clip1_551_2371">
+                                            <rect width="24" height="24" fill="white"/>
+                                        </clipPath>
+                                    </defs>
+                                </svg>
+                                Закрыть
+                            </button>
+                            <button
+                                className={styles.submitButton}
+                                onClick={handleSubmitReview}
+                            >
+                                Отправить
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <g clipPath="url(#clip0_551_2758)">
+                                        <path d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z" stroke="white" strokeWidth="2" stroke-miterlimit="10"/>
+                                        <path d="M6.26953 12H17.7295" stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
+                                        <path d="M12.96 7.22998L17.73 12L12.96 16.77" stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
+                                    </g>
+                                    <defs>
+                                        <clipPath id="clip0_551_2758">
+                                            <rect width="24" height="24" fill="white"/>
+                                        </clipPath>
+                                    </defs>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

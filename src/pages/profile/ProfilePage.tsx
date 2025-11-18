@@ -9,7 +9,7 @@ function ProfilePage() {
     const navigate = useNavigate();
     const [userRole, setUserRole] = useState<'client' | 'master'>('master');
     const [isLoading, setIsLoading] = useState(true);
-    const API_BASE_URL = 'http://usto.tj.auto-schule.ru';
+    const API_BASE_URL = 'https://admin.ustoyob.tj';
 
     useEffect(() => {
         checkUserRole();

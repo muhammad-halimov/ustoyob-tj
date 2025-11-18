@@ -5,12 +5,30 @@ import styles from './ClientProfilePage.module.scss';
 
 interface Review {
     id: number;
-    specialistName: string;
-    profession: string;
-    location: string;
+    master: {
+        id: number;
+        name?: string;
+        surname?: string;
+        patronymic?: string;
+        profession?: string;
+        specialization?: string;
+        image?: string;
+    };
+    reviewer: {
+        id: number;
+    };
     rating: number;
-    text: string;
-    date: string;
+    description: string;
+    forReviewer: boolean;
+    services: {
+        id: number;
+        title: string;
+    };
+    images: Array<{
+        id: number;
+        image: string;
+    }>;
+    createdAt?: string;
 }
 
 interface UserData {
@@ -31,12 +49,12 @@ function ClientProfilePage() {
     const navigate = useNavigate();
     const [userData, setUserData] = useState<UserData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [reviewsLoading, setReviewsLoading] = useState(false);
     const [editingField, setEditingField] = useState<'fullName' | 'gender' | 'phone' | 'email' | null>(null);
     const [tempValue, setTempValue] = useState('');
     const [editingFieldHeader, setEditingFieldHeader] = useState(false);
     const [tempValueHeader, setTempValueHeader] = useState('');
-    const API_BASE_URL = 'http://usto.tj.auto-schule.ru';
-
+    const API_BASE_URL = 'https://admin.ustoyob.tj';
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -70,6 +88,83 @@ function ClientProfilePage() {
         }
     };
 
+    // Функция для загрузки отзывов клиента
+    const fetchClientReviews = async (userId: number) => {
+        try {
+            setReviewsLoading(true);
+            const token = getAuthToken();
+
+            if (!token) {
+                console.error('No auth token available');
+                return [];
+            }
+
+            console.log('Fetching reviews for client ID:', userId);
+
+            const response = await fetch(`${API_BASE_URL}/api/reviews/clients/${userId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                if (response.status === 403) {
+                    console.log('Access forbidden to reviews endpoint');
+                    return [];
+                }
+                if (response.status === 404) {
+                    console.log('Reviews endpoint not found, trying alternative...');
+                    return await tryAlternativeReviewEndpoint(userId, token);
+                }
+                throw new Error(`Failed to fetch reviews: ${response.status}`);
+            }
+
+            const reviewsData: Review[] = await response.json();
+            console.log('Raw reviews data from API:', reviewsData);
+
+            return reviewsData;
+        } catch (error) {
+            console.error('Error fetching client reviews:', error);
+            return [];
+        } finally {
+            setReviewsLoading(false);
+        }
+    };
+
+    const tryAlternativeReviewEndpoint = async (userId: number, token: string) => {
+        const alternativeEndpoints = [
+            `${API_BASE_URL}/api/users/${userId}/reviews?forClient=true`,
+            `${API_BASE_URL}/api/reviews?forReviewer=false&reviewer.id=${userId}`,
+            `${API_BASE_URL}/api/reviews?client=${userId}`,
+        ];
+
+        for (const endpoint of alternativeEndpoints) {
+            try {
+                console.log('Trying alternative endpoint:', endpoint);
+                const response = await fetch(endpoint, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Success with endpoint:', endpoint);
+                    return data;
+                }
+            } catch (error) {
+                console.log('Failed with endpoint:', endpoint, error);
+                continue;
+            }
+        }
+
+        return [];
+    };
+
     useEffect(() => {
         fetchUserData();
     }, []);
@@ -78,9 +173,29 @@ function ClientProfilePage() {
     const checkImageExists = (url: string): Promise<boolean> => {
         return new Promise((resolve) => {
             const img = new Image();
-            img.onload = () => resolve(true);
-            img.onerror = () => resolve(false);
+            const timer = setTimeout(() => {
+                img.onload = img.onerror = null;
+                resolve(false);
+            }, 5000); // 5 секунд таймаут
+
+            img.onload = () => {
+                clearTimeout(timer);
+                console.log('Image exists:', url);
+                resolve(true);
+            };
+            img.onerror = () => {
+                clearTimeout(timer);
+                console.log('Image does not exist:', url);
+                resolve(false);
+            };
             img.src = url;
+
+            // Добавляем cache busting для избежания кэширования
+            if (url.includes('?')) {
+                img.src = url + '&t=' + Date.now();
+            } else {
+                img.src = url + '?t=' + Date.now();
+            }
         });
     };
 
@@ -94,7 +209,8 @@ function ClientProfilePage() {
                 return;
             }
 
-            const response = await fetch(`${API_BASE_URL}/api/users/me`, {
+            // Загружаем основные данные пользователя
+            const userResponse = await fetch(`${API_BASE_URL}/api/users/me`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -102,32 +218,40 @@ function ClientProfilePage() {
                 },
             });
 
-            if (!response.ok) {
+            if (!userResponse.ok) {
                 throw new Error('Failed to fetch user data');
             }
 
-            const data = await response.json();
-            console.log('Raw user data from API:', data);
+            const userDataFromApi = await userResponse.json();
+            console.log('Raw user data from API:', userDataFromApi);
 
             // Получаем URL аватара с приоритетами
-            const avatarUrl = await getAvatarUrl(data);
+            const avatarUrl = await getAvatarUrl(userDataFromApi);
 
-            // Правильно преобразуем данные API в формат для отображения
+            // Создаем базовый объект пользователя
             const userData: UserData = {
-                id: data.id,
-                firstName: data.name || '', // name = имя
-                lastName: data.surname || '', // surname = фамилия
-                middleName: data.patronymic || '',
-                gender: data.gender || 'gender_male',
-                phone: data.phone1 || '+0 000 000 00 00',
-                email: data.email || 'адрес емаил',
-                rating: data.rating || 4.48,
-                isVerified: data.isVerified || true,
+                id: userDataFromApi.id,
+                firstName: userDataFromApi.name || '',
+                lastName: userDataFromApi.surname || '',
+                middleName: userDataFromApi.patronymic || '',
+                gender: userDataFromApi.gender || 'gender_male',
+                phone: userDataFromApi.phone1 || '+0 000 000 00 00',
+                email: userDataFromApi.email || 'адрес емаил',
+                rating: userDataFromApi.rating || 4.48,
+                isVerified: userDataFromApi.isVerified || true,
                 avatar: avatarUrl,
-                reviews: data.reviews || [] // Используем реальные данные
+                reviews: []
             };
 
+            // Загружаем отзывы для этого клиента
+            console.log('Fetching reviews for user ID:', userDataFromApi.id);
+            const reviews = await fetchClientReviews(userDataFromApi.id);
+
+            // Обновляем данные пользователя с отзывами
+            userData.reviews = reviews;
+
             setUserData(userData);
+            console.log('Final user data with reviews:', userData);
         } catch (error) {
             console.error('Error fetching user data:', error);
         } finally {
@@ -141,7 +265,7 @@ function ClientProfilePage() {
 
         console.log('Getting avatar URL for user:', userData.id);
 
-        // 1. ПРИОРИТЕТ: Серверное фото (основной источник)
+        // Проверяем server image first
         if (userData.image) {
             const serverUrl = `${API_BASE_URL}/images/profile_photos/${userData.image}`;
             console.log('Checking server avatar:', serverUrl);
@@ -150,27 +274,23 @@ function ClientProfilePage() {
                 console.log('Using server avatar');
                 return serverUrl;
             }
-        }
 
-        // // 2. РЕЗЕРВ: Локальное фото из localStorage (только как запасной вариант)
-        // const localAvatar = localStorage.getItem(`user_avatar_${userData.id}`);
-        // if (localAvatar) {
-        //     console.log('Using local avatar from localStorage as fallback');
-        //     return localAvatar;
-        // }
+            // Если основной URL не работает, пробуем альтернативные пути
+            const alternativePaths = [
+                `${API_BASE_URL}/uploads/profile_photos/${userData.image}`,
+                `${API_BASE_URL}/api/images/profile_photos/${userData.image}`,
+                userData.image.startsWith('http') ? userData.image : null
+            ].filter(Boolean) as string[];
 
-        // 3. ФАЛЛБЭК: Фото из папки public/uploads/avatars (если существует)
-        if (userData.image) {
-            const localFilePath = `/uploads/avatars/${userData.image}`;
-            console.log('Checking local file path:', localFilePath);
-
-            if (await checkImageExists(localFilePath)) {
-                console.log('Using local file avatar');
-                return localFilePath;
+            for (const path of alternativePaths) {
+                console.log('Trying alternative path:', path);
+                if (await checkImageExists(path)) {
+                    console.log('Using alternative avatar path');
+                    return path;
+                }
             }
         }
 
-        // 4. ЗАГЛУШКА: Если ничего не найдено
         console.log('No avatar found, using placeholder');
         return null;
     };
@@ -185,14 +305,13 @@ function ClientProfilePage() {
                 return;
             }
 
-            // Подготавливаем данные для отправки в формате API
             const apiData: any = {};
 
             if (field === 'fullName') {
                 const nameParts = value.split(' ');
-                apiData.surname = nameParts[0] || ''; // Фамилия
-                apiData.name = nameParts[1] || ''; // Имя
-                apiData.patronymic = nameParts.slice(2).join(' ') || ''; // Отчество
+                apiData.surname = nameParts[0] || '';
+                apiData.name = nameParts[1] || '';
+                apiData.patronymic = nameParts.slice(2).join(' ') || '';
             } else if (field === 'gender') {
                 apiData.gender = value;
             } else if (field === 'phone') {
@@ -221,14 +340,13 @@ function ClientProfilePage() {
             const updatedUser = await response.json();
             console.log('User data updated successfully:', updatedUser);
 
-            // Обновляем локальное состояние
             if (field === 'fullName') {
                 const nameParts = value.split(' ');
                 setUserData(prev => prev ? {
                     ...prev,
-                    lastName: nameParts[0] || '', // Фамилия
-                    firstName: nameParts[1] || '', // Имя
-                    middleName: nameParts.slice(2).join(' ') || '' // Отчество
+                    lastName: nameParts[0] || '',
+                    firstName: nameParts[1] || '',
+                    middleName: nameParts.slice(2).join(' ') || ''
                 } : null);
             } else if (field === 'gender') {
                 setUserData(prev => prev ? { ...prev, gender: value } : null);
@@ -270,9 +388,8 @@ function ClientProfilePage() {
         }
 
         const trimmedValue = tempValue.trim();
-
-        // Проверяем, изменилось ли значение
         let hasChanged = false;
+
         if (editingField === 'fullName') {
             hasChanged = trimmedValue !== getFullName();
         } else if (editingField === 'gender') {
@@ -298,6 +415,162 @@ function ClientProfilePage() {
             setEditingField(null);
             setTempValue('');
         }
+    };
+
+    // Функция для получения URL аватара специалиста
+    const getReviewerAvatarUrl = (review: Review) => {
+        if (review.master?.image) {
+            console.log('Master image from data:', review.master.image);
+
+            const possiblePaths = [
+                review.master.image,
+                `${API_BASE_URL}/images/profile_photos/${review.master.image}`,
+                `${API_BASE_URL}/uploads/profile_photos/${review.master.image}`,
+                `${API_BASE_URL}/uploads/masters/${review.master.image}`,
+                `${API_BASE_URL}/images/masters/${review.master.image}`,
+                `${API_BASE_URL}/${review.master.image}`
+            ];
+
+            for (const path of possiblePaths) {
+                if (path && path !== "./fonTest6.png") {
+                    console.log('Trying master avatar path:', path);
+                    return path;
+                }
+            }
+        }
+
+        console.log('Using default avatar for master');
+        return "./fonTest5.png";
+    };
+
+    // Функция для получения полного имени специалиста
+    const getReviewerName = (review: Review) => {
+        return `${review.master?.surname || ''} ${review.master?.name || ''} ${review.master?.patronymic || ''}`.trim() || 'Специалист';
+    };
+
+    // Функция для получения профессии специалиста
+    const getReviewerProfession = (review: Review) => {
+        return review.master?.profession || review.master?.specialization || 'Специалист';
+    };
+
+    // Функция для форматирования даты
+    const formatReviewDate = (dateString?: string) => {
+        if (!dateString) return getFormattedDate();
+        try {
+            return new Date(dateString).toLocaleDateString('ru-RU');
+        } catch {
+            return getFormattedDate();
+        }
+    };
+
+    const getFormattedDate = (): string => {
+        const now = new Date();
+        const day = now.getDate().toString().padStart(2, '0');
+        const month = (now.getMonth() + 1).toString().padStart(2, '0');
+        const year = now.getFullYear();
+        return `${day}.${month}.${year}`;
+    };
+
+    // Функция для рендера отзывов в правильном формате
+    const renderReviews = () => {
+        if (reviewsLoading) {
+            return <div className={styles.loading}>Загрузка отзывов...</div>;
+        }
+
+        if (!userData?.reviews || userData.reviews.length === 0) {
+            return <div className={styles.no_reviews}>Пока нет отзывов от специалистов</div>;
+        }
+
+        return userData.reviews.map((review) => {
+            const reviewerName = getReviewerName(review);
+            const reviewerProfession = getReviewerProfession(review);
+            const reviewDate = formatReviewDate(review.createdAt);
+
+            return (
+                <div key={review.id} className={styles.review_item}>
+                    <div className={styles.review_header}>
+                        <div className={styles.reviewer_info}>
+                            <img
+                                src={getReviewerAvatarUrl(review)}
+                                alt={reviewerName}
+                                className={styles.reviewer_avatar}
+                                onError={(e) => {
+                                    e.currentTarget.src = "./fonTest5.png";
+                                }}
+                            />
+                            <div className={styles.reviewer_main_info}>
+                                <div className={styles.reviewer_name}>{reviewerName}</div>
+                                <div className={styles.review_vacation}><span className={styles.review_worker}>{getFullName()}</span> {reviewerProfession}</div>
+                                <div className={styles.review_rating_main}>
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <g clipPath="url(#clip0_324_2272)">
+                                            <g clipPath="url(#clip1_324_2272)">
+                                                <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
+                                                <path d="M12 19V18.98" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
+                                            </g>
+                                        </g>
+                                        <defs>
+                                            <clipPath id="clip0_324_2272">
+                                                <rect width="24" height="24" fill="white"/>
+                                            </clipPath>
+                                            <clipPath id="clip1_324_2272">
+                                                <rect width="24" height="24" fill="white"/>
+                                            </clipPath>
+                                        </defs>
+                                    </svg>
+                                    <span className={styles.rating_value}>{review.rating}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className={styles.review_details}>
+                        <div className={styles.review_worker_date}>
+                            <span className={styles.review_date}>{reviewDate}</span>
+                            <div className={styles.review_rating_secondary}>
+                                <span>Поставил </span>
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <g clipPath="url(#clip0_324_2272)">
+                                        <g clipPath="url(#clip1_324_2272)">
+                                            <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
+                                            <path d="M12 19V18.98" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
+                                        </g>
+                                    </g>
+                                    <defs>
+                                        <clipPath id="clip0_324_2272">
+                                            <rect width="24" height="24" fill="white"/>
+                                        </clipPath>
+                                        <clipPath id="clip1_324_2272">
+                                            <rect width="24" height="24" fill="white"/>
+                                        </clipPath>
+                                    </defs>
+                                </svg>
+                                <span className={styles.rating_value}>{review.rating}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {review.description && (
+                        <div className={styles.review_text}>
+                            {review.description.replace(/<[^>]*>/g, '')}
+                        </div>
+                    )}
+
+                    {review.images && review.images.length > 0 && (
+                        <div className={styles.review_images}>
+                            {review.images.map((image) => (
+                                <img
+                                    key={image.id}
+                                    src={`${API_BASE_URL}${image.image}`}
+                                    alt="Отзыв"
+                                    className={styles.review_image}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        });
     };
 
     const handleAvatarClick = () => {
@@ -328,30 +601,64 @@ function ClientProfilePage() {
             }
 
             const formData = new FormData();
-            formData.append("imageFile", file); // 👈 КЛЮЧЕВОЙ МОМЕНТ
+            formData.append("imageFile", file);
 
-            const response = await fetch(`${API_BASE_URL}/api/users/${userData.id}/profile-photo`, {
+            console.log('Uploading photo for user ID:', userData.id);
+            console.log('File details:', {
+                name: file.name,
+                type: file.type,
+                size: file.size
+            });
+
+            // Используем правильный endpoint согласно API документации
+            const response = await fetch(`${API_BASE_URL}/api/users/${userData.id}/update-photo`, {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${token}`,
+                    // Не устанавливаем Content-Type - браузер сам установит multipart/form-data с boundary
                 },
                 body: formData,
             });
 
-            const text = await response.text();
+            console.log('Upload response status:', response.status);
 
             if (!response.ok) {
-                console.error(`Ошибка при загрузке (${response.status}):`, text);
-                alert(`Ошибка при загрузке фото (${response.status})`);
+                const errorText = await response.text();
+                console.error('Upload failed:', errorText);
+
+                if (response.status === 400) {
+                    alert("Неверный формат файла");
+                } else if (response.status === 403) {
+                    alert("Нет прав для изменения фото");
+                } else if (response.status === 422) {
+                    alert("Ошибка валидации данных");
+                } else {
+                    alert(`Ошибка при загрузке фото (${response.status})`);
+                }
                 return;
             }
 
-            const result = JSON.parse(text);
+            const result = await response.json();
             console.log("Фото успешно загружено:", result);
 
+            // Обновляем URL аватара
             if (result.image) {
                 const newAvatarUrl = `${API_BASE_URL}/images/profile_photos/${result.image}`;
-                setUserData(prev => prev ? { ...prev, avatar: newAvatarUrl } : null);
+                console.log('New avatar URL:', newAvatarUrl);
+
+                // Проверяем, доступно ли новое изображение
+                if (await checkImageExists(newAvatarUrl)) {
+                    setUserData(prev => prev ? { ...prev, avatar: newAvatarUrl } : null);
+                    console.log('Avatar updated successfully');
+                } else {
+                    console.log('New avatar image not accessible yet, using placeholder');
+                    // Можно добавить задержку и повторную проверку
+                    setTimeout(async () => {
+                        if (await checkImageExists(newAvatarUrl)) {
+                            setUserData(prev => prev ? { ...prev, avatar: newAvatarUrl } : null);
+                        }
+                    }, 2000);
+                }
             }
 
             alert("Фото успешно обновлено!");
@@ -364,7 +671,6 @@ function ClientProfilePage() {
         }
     };
 
-    // Улучшенный обработчик ошибок загрузки изображения
     const handleImageError = async (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
         console.log('Image loading error, trying fallback sources');
         const img = e.currentTarget;
@@ -398,7 +704,6 @@ function ClientProfilePage() {
 
         img.src = "./fonTest6.png";
     };
-
 
     const getGenderDisplay = (gender: string) => {
         const genderMap: { [key: string]: string } = {
@@ -560,8 +865,22 @@ function ClientProfilePage() {
                                                 className={styles.edit_icon}
                                                 onClick={handleHeaderEditStart}
                                             >
-                                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                                                    {/* Иконка карандаша */}
+                                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <g clipPath="url(#clip0_188_2958)">
+                                                        <g clipPath="url(#clip1_188_2958)">
+                                                            <path d="M7.2302 20.59L2.4502 21.59L3.4502 16.81L17.8902 2.29001C18.1407 2.03889 18.4385 1.83982 18.7663 1.70424C19.0941 1.56865 19.4455 1.49925 19.8002 1.50001C20.5163 1.50001 21.203 1.78447 21.7094 2.29082C22.2157 2.79717 22.5002 3.48392 22.5002 4.20001C22.501 4.55474 22.4315 4.90611 22.296 5.23391C22.1604 5.56171 21.9613 5.85945 21.7102 6.11001L7.2302 20.59Z" stroke="#3A54DA" stroke-width="2" stroke-miterlimit="10"/>
+                                                            <path d="M0.549805 22.5H23.4498" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                                            <path d="M19.6403 8.17986L15.8203 4.35986" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                                        </g>
+                                                    </g>
+                                                    <defs>
+                                                        <clipPath id="clip0_188_2958">
+                                                            <rect width="24" height="24" fill="white"/>
+                                                        </clipPath>
+                                                        <clipPath id="clip1_188_2958">
+                                                            <rect width="24" height="24" fill="white"/>
+                                                        </clipPath>
+                                                    </defs>
                                                 </svg>
                                             </button>
                                         </div>
@@ -612,7 +931,7 @@ function ClientProfilePage() {
                             </div>
                         </div>
 
-                        <div className={styles.data_item}>
+                        <div className={styles.data_item_sex}>
                             <div className={styles.data_label}>Пол</div>
                             {renderEditableField('gender', 'Пол', userData.gender)}
                         </div>
@@ -621,7 +940,7 @@ function ClientProfilePage() {
                             <div className={styles.data_label}>номер телефона</div>
                             {renderEditableField('phone', 'Номер телефона', userData.phone)}
                             <p className={styles.data_hint}>
-                                Не показываем номер монстром без вашего одобрения
+                                Не показываем номер мастерам без вашего одобрения
                             </p>
                         </div>
 
@@ -642,43 +961,13 @@ function ClientProfilePage() {
                     </p>
 
                     <div className={styles.reviews_list}>
-                        {userData.reviews.length > 0 ? (
-                            userData.reviews.map((review) => (
-                                <div key={review.id} className={styles.review_item}>
-                                    <div className={styles.review_header}>
-                                        <div className={styles.specialist_main_info}>
-                                            <div className={styles.specialist_name}>{review.specialistName}</div>
-                                            <div className={styles.specialist_profession}>{review.profession}</div>
-                                        </div>
-                                        <div className={styles.review_rating}>
-                                            <span className={styles.rating_icon}>☑</span>
-                                            <span className={styles.rating_value}>{review.rating}</span>
-                                        </div>
-                                    </div>
-
-                                    <div className={styles.review_location}>{review.location}</div>
-                                    <div className={styles.review_rating_secondary}>
-                                        Поставил <span className={styles.rating_icon}>☑</span> {review.rating}
-                                    </div>
-
-                                    {review.text && (
-                                        <div className={styles.review_text}>
-                                            {review.text}
-                                        </div>
-                                    )}
-                                </div>
-                            ))
-                        ) : (
-                            <div className={styles.no_reviews}>
-                                Пока нет отзывов от специалистов
-                            </div>
-                        )}
+                        {renderReviews()}
                     </div>
 
                     <div className={styles.reviews_actions}>
-                        <button className={styles.leave_review_btn}>
-                            Оставить отзыв
-                        </button>
+                        {/*<button className={styles.leave_review_btn}>*/}
+                        {/*    Оставить отзыв*/}
+                        {/*</button>*/}
                         {userData.reviews.length > 2 && (
                             <button className={styles.show_all_reviews_btn}>
                                 Показать все отзывы

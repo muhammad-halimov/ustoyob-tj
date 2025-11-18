@@ -4,9 +4,14 @@ import { getAuthToken } from "../../../../utils/auth";
 interface AdBtnProps {
     text?: string;
     alwaysVisible?: boolean;
+    onClick?: () => void; // Добавляем onClick
 }
 
-export const AdBtn = ({ text = "Разместить объявление" , alwaysVisible = false}: AdBtnProps) => {
+export const AdBtn = ({
+                          text = "Разместить объявление",
+                          alwaysVisible = false,
+                          onClick
+                      }: AdBtnProps) => {
     const isAuthenticated = !!getAuthToken();
 
     // Получаем роль пользователя из localStorage
@@ -22,7 +27,7 @@ export const AdBtn = ({ text = "Разместить объявление" , alw
     }
 
     return (
-        <button className={styles.btn}>
+        <button className={styles.btn} onClick={onClick}>
             {text}
         </button>
     );

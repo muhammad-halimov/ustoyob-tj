@@ -1,0 +1,46 @@
+.container {
+  max-width: 1284px;
+  margin: 40px auto;
+  border-radius: 10px;
+  .create_order {
+    font-size: 24px;
+    text-decoration: none;
+    color: black;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: white;
+    padding: 40px;
+  }
+  h3 {
+    margin: 40px 0 20px 0;
+    font-size: 32px;
+  }
+
+  .order_history {
+
+    .order_item {
+      background-color: white;
+      padding: 40px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      .order_item_title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        p {
+          font-size: 32px;
+          font-weight: 400;
+        }
+        span {
+          font-size: 24px;
+          color: #585858;
+        }
+      }
+      .order_item_status span{
+        font-size: 24px;
+      }
+    }
+  }
+}

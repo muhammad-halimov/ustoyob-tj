@@ -27,10 +27,21 @@ interface ApiTicket {
     budget: number;
     unit: { title: string };
     address: { title: string; city: { title: string } };
+    district?: {
+        id: number;
+        title?: string;
+        city?: {
+            id: number;
+            title?: string;
+        };
+    };
     createdAt: string;
     master: { id: number } | null;
     author: { id: number } | null;
-    category: { title: string };
+    category: {
+        id: number;
+        title: string
+    };
 }
 
 interface SearchProps {
@@ -47,8 +58,10 @@ interface SearchResult {
     address: string;
     date: string;
     author: string;
+    authorId?: number;
     timeAgo: string;
     category: string;
+    type: 'client' | 'master';
 }
 
 interface FilterState {
@@ -57,7 +70,7 @@ interface FilterState {
     category: string;
 }
 
-const API_BASE_URL = 'http://usto.tj.auto-schule.ru';
+const API_BASE_URL = 'https://admin.ustoyob.tj';
 
 export default function Search({ onSearchResults, onFilterToggle }: SearchProps) {
     const [showFilters, setShowFilters] = useState(false);
@@ -75,22 +88,45 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     const [usersCache, setUsersCache] = useState<Map<number, User>>(new Map());
     const navigate = useNavigate();
 
+
     useEffect(() => {
         const role = getUserRole();
+        console.log('Detected user role:', role);
         setUserRole(role);
         fetchCategories();
     }, []);
 
+    // useEffect(() => {
+    //     if (filters.minPrice || filters.maxPrice || filters.category || searchQuery) {
+    //         // handleSearch();
+    //     }
+    // }, [filters]);
+
     useEffect(() => {
-        console.log('Filters changed:', filters);
-        if (userRole && (filters.minPrice || filters.maxPrice || filters.category)) {
-            console.log('Auto-searching due to filter change');
-            handleSearch();
-        }
+        const debounce = setTimeout(() => {
+            console.log('Filters changed, triggering search:', { filters, searchQuery, userRole });
+
+            if (filters.minPrice || filters.maxPrice || filters.category || searchQuery.trim()) {
+                console.log('Calling handleSearch from filters effect');
+                handleSearch();
+            } else {
+                console.log('Clearing results - no search criteria in filters');
+                setShowResults(false);
+                setSearchResults([]);
+                onSearchResults([]);
+            }
+        }, 500);
+
+        return () => clearTimeout(debounce);
     }, [filters]);
 
-    const handleCardClick = (orderId: number) => {
-        navigate(`/order/${orderId}`);
+    const handleCardClick = (authorId?: number) => {
+        if (!authorId) {
+            console.log('No author ID available');
+            return;
+        }
+        console.log('Navigating to user profile:', authorId);
+        navigate(`/order/${authorId}`);
     };
 
     const fetchCategories = async () => {
@@ -108,15 +144,21 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
             if (response.ok) {
                 const categoriesData = await response.json();
-                setCategories(categoriesData);
+                // Убедимся, что данные имеют правильную структуру
+                const formatted = categoriesData.map((cat: any) => ({
+                    id: cat.id,
+                    name: cat.title
+                }));
+                setCategories(formatted);
+                console.log('Fetched categories:', formatted);
             }
         } catch (error) {
             console.error('Error fetching categories:', error);
         }
     };
 
-    // Функция для получения данных пользователя по author.id
-    const fetchUser = async (userId: number): Promise<User | null> => {
+    // Функция для получения данных пользователя
+    const fetchUser = async (userId: number, userType: 'client' | 'master'): Promise<User | null> => {
         try {
             // Проверяем кэш
             if (usersCache.has(userId)) {
@@ -126,19 +168,14 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             const token = getAuthToken();
             if (!token) return null;
 
-            // Определяем endpoint в зависимости от роли текущего пользователя
             let endpoint = '';
-            if (userRole === 'client') {
-                // Если текущий пользователь - клиент, ищем мастера
+            if (userType === 'master') {
                 endpoint = `/api/users/masters`;
-            } else if (userRole === 'master') {
-                // Если текущий пользователь - мастер, ищем клиента
+            } else if (userType === 'client') {
                 endpoint = `/api/users/clients`;
-            } else {
-                return null;
             }
 
-            console.log(`Fetching users from: ${endpoint} for user ID: ${userId}`);
+            console.log(`Fetching ${userType} users from: ${endpoint} for user ID: ${userId}`);
 
             const response = await fetch(`${API_BASE_URL}${endpoint}`, {
                 method: 'GET',
@@ -149,12 +186,12 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             });
 
             if (!response.ok) {
-                console.error(`Failed to fetch users: ${response.status}`);
+                console.error(`Failed to fetch ${userType} users: ${response.status}`);
                 return null;
             }
 
             const usersData: User[] = await response.json();
-            console.log(`Fetched all users:`, usersData);
+            console.log(`Fetched ${userType} users:`, usersData);
 
             // Ищем пользователя по ID в массиве
             const userData = usersData.find(user => user.id === userId) || null;
@@ -165,31 +202,29 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
             return userData;
         } catch (error) {
-            console.error(`Error fetching user ${userId}:`, error);
+            console.error(`Error fetching ${userType} user ${userId}:`, error);
             return null;
         }
     };
 
-    // Функция для получения имени пользователя в зависимости от роли
-    const getUserName = async (ticket: ApiTicket): Promise<string> => {
-        console.log('Getting user name for ticket:', ticket);
+    // Функция для получения имени пользователя
+    const getUserName = async (ticket: ApiTicket, ticketType: 'client' | 'master'): Promise<string> => {
+        console.log('Getting user name for ticket:', ticket, 'type:', ticketType);
 
         let userId: number | null = null;
+        let userType: 'client' | 'master' = 'client';
 
-        // Определяем, чье имя нам нужно получить
-        if (userRole === 'client') {
-            // Если текущий пользователь - клиент, показываем имя мастера
-            userId = ticket.master?.id || null;
-            console.log('Client role: fetching master name for ID:', userId);
-        } else if (userRole === 'master') {
-            // Если текущий пользователь - мастер, показываем имя клиента (автора)
+        if (ticketType === 'client') {
             userId = ticket.author?.id || null;
-            console.log('Master role: fetching client name for ID:', userId);
+            userType = 'client';
+        } else if (ticketType === 'master') {
+            userId = ticket.master?.id || null;
+            userType = 'master';
         }
 
         if (userId) {
-            console.log('Fetching user data for user ID:', userId);
-            const user = await fetchUser(userId);
+            console.log('Fetching user data for user ID:', userId, 'type:', userType);
+            const user = await fetchUser(userId, userType);
 
             if (user?.name && user?.surname) {
                 return `${user.name} ${user.surname}`.trim();
@@ -201,70 +236,100 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             return 'Пользователь не найден';
         }
 
-        return userRole === 'client' ? 'Мастер не назначен' : 'Клиент не указан';
+        return ticketType === 'client' ? 'Клиент не указан' : 'Мастер не назначен';
     };
 
-    const fetchTickets = async (query: string = '', filterParams: FilterState) => {
+    // Функция для получения всех тикетов (и от клиентов, и от мастеров)
+    const fetchAllTickets = async (query: string = '', filterParams: FilterState) => {
         try {
             setIsLoading(true);
             const token = getAuthToken();
-            if (!token) return [];
+
+            // ИЗМЕНЕНИЕ: Разрешаем запросы без токена для неавторизованных пользователей
+            if (!token) {
+                console.log('No token available, making unauthenticated requests');
+                // Для неавторизованных можно попробовать сделать запросы без токена
+                // или использовать другой подход
+            }
 
             const params = new URLSearchParams();
 
-            // Добавляем параметры поиска только если есть запрос
             if (query.trim()) {
                 params.append('title', query.trim());
-                console.log('Adding search query:', query.trim());
             }
 
-            // Добавляем фильтры бюджета
             if (filterParams.minPrice) {
                 params.append('minBudget', filterParams.minPrice);
-                console.log('Adding min budget filter:', filterParams.minPrice);
             }
             if (filterParams.maxPrice) {
                 params.append('maxBudget', filterParams.maxPrice);
-                console.log('Adding max budget filter:', filterParams.maxPrice);
             }
 
-            // Добавляем фильтр категории
+            // ВАЖНО: передаем ID категории в параметрах API
             if (filterParams.category) {
-                params.append('category', filterParams.category);
-                console.log('Adding category filter:', filterParams.category);
+                params.append('category.id', filterParams.category);
             }
 
-            console.log('Final API params:', params.toString());
+            console.log('Fetching all tickets with params:', params.toString());
 
-            let endpoint = '';
-            if (userRole === 'client') {
-                endpoint = '/api/tickets/masters';
-            } else if (userRole === 'master') {
-                endpoint = '/api/tickets/clients';
-            } else {
-                console.error('Unknown user role');
-                return [];
+            // Создаем базовые заголовки
+            const headers: HeadersInit = {
+                'Content-Type': 'application/json',
+            };
+
+            // Добавляем токен если есть
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
             }
 
-            console.log('API URL:', `${API_BASE_URL}${endpoint}?${params.toString()}`);
-
-            const response = await fetch(`${API_BASE_URL}${endpoint}?${params.toString()}`, {
+            // Получаем тикеты от клиентов
+            const clientResponse = await fetch(`${API_BASE_URL}/api/tickets/clients?${params.toString()}`, {
                 method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
+                headers: headers,
             });
 
-            console.log('Response status:', response.status);
+            // Получаем тикеты от мастеров
+            const masterResponse = await fetch(`${API_BASE_URL}/api/tickets/masters?${params.toString()}`, {
+                method: 'GET',
+                headers: headers,
+            });
 
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            console.log('Client response status:', clientResponse.status);
+            console.log('Master response status:', masterResponse.status);
 
-            const ticketsData: ApiTicket[] = await response.json();
-            console.log('Received tickets data:', ticketsData);
+            // Обрабатываем ответы - если 401, просто продолжаем с пустыми данными
+            let clientTickets: ApiTicket[] = [];
+            let masterTickets: ApiTicket[] = [];
 
-            // Если есть поисковый запрос, дополнительно фильтруем на клиенте
-            let filteredData = ticketsData;
+            if (clientResponse.ok) {
+                clientTickets = await clientResponse.json();
+            } else if (clientResponse.status === 401) {
+                console.log('Client tickets: Unauthorized, returning empty array');
+            } else {
+                console.error('Client tickets error:', clientResponse.status);
+            }
+
+            if (masterResponse.ok) {
+                masterTickets = await masterResponse.json();
+            } else if (masterResponse.status === 401) {
+                console.log('Master tickets: Unauthorized, returning empty array');
+            } else {
+                console.error('Master tickets error:', masterResponse.status);
+            }
+
+            console.log('Received client tickets:', clientTickets.length);
+            console.log('Received master tickets:', masterTickets.length);
+
+            // Объединяем все тикеты
+            const allTickets = [
+                ...clientTickets.map(ticket => ({ ...ticket, type: 'client' as const })),
+                ...masterTickets.map(ticket => ({ ...ticket, type: 'master' as const }))
+            ];
+
+            console.log('All tickets combined:', allTickets.length);
+
+            // Дополнительная фильтрация на клиенте
+            let filteredData = allTickets;
 
             if (query.trim()) {
                 const searchTerm = query.trim().toLowerCase();
@@ -273,36 +338,46 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     ticket.description.toLowerCase().includes(searchTerm) ||
                     (ticket.category?.title && ticket.category.title.toLowerCase().includes(searchTerm))
                 );
-                console.log(`Filtered by search query "${query}":`, filteredData);
             }
 
-            // Дополнительная фильтрация по бюджету на клиенте (на случай если API не до конца работает)
             if (filterParams.minPrice) {
                 const minPrice = parseInt(filterParams.minPrice);
                 filteredData = filteredData.filter(ticket => ticket.budget >= minPrice);
-                console.log(`Filtered by min price ${minPrice}:`, filteredData);
             }
 
             if (filterParams.maxPrice) {
                 const maxPrice = parseInt(filterParams.maxPrice);
                 filteredData = filteredData.filter(ticket => ticket.budget <= maxPrice);
-                console.log(`Filtered by max price ${maxPrice}:`, filteredData);
             }
 
             // Фильтрация по категории на клиенте
             if (filterParams.category) {
                 filteredData = filteredData.filter(ticket =>
-                    ticket.category?.title === filterParams.category
+                    ticket.category?.id.toString() === filterParams.category
                 );
-                console.log(`Filtered by category ${filterParams.category}:`, filteredData);
             }
 
+            console.log('Filtered tickets:', filteredData.length);
+
             // Создаем массив промисов для получения имен пользователей
-            console.log('Starting to fetch user names...');
             const ticketsWithUsers = await Promise.all(
                 filteredData.map(async (ticket) => {
-                    const userName = await getUserName(ticket);
-                    console.log(`User name for ticket ${ticket.id}:`, userName);
+                    // Для неавторизованных пользователей используем базовую информацию
+                    let userName = 'Пользователь';
+                    let authorId: number | undefined = undefined;
+
+                    if (ticket.type === 'client') {
+                        authorId = ticket.author?.id || undefined;
+                        userName = ticket.author?.id ? 'Клиент' : 'Клиент не указан';
+                    } else if (ticket.type === 'master') {
+                        authorId = ticket.master?.id || undefined;
+                        userName = ticket.master?.id ? 'Мастер' : 'Мастер не назначен';
+                    }
+
+                    // Форматируем дату
+                    const formattedDate = ticket.createdAt
+                        ? new Date(ticket.createdAt).toLocaleDateString('ru-RU')
+                        : 'Дата не указана';
 
                     return {
                         id: ticket.id,
@@ -310,16 +385,18 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                         price: ticket.budget,
                         unit: ticket.unit?.title || 'руб',
                         description: ticket.description,
-                        address: `${ticket.address?.city?.title || ''}, ${ticket.address?.title || ''}`.trim(),
-                        date: 'Даты нет в ендпоинте',
+                        address: getFormattedAddress(ticket),
+                        date: formattedDate,
                         author: userName,
-                        timeAgo: 'дата будет после как появится',
-                        category: ticket.category?.title || 'другое'
+                        authorId,
+                        timeAgo: getTimeAgo(ticket.createdAt),
+                        category: ticket.category?.title || 'другое',
+                        type: ticket.type
                     };
                 })
             );
 
-            console.log('Final tickets with users:', ticketsWithUsers);
+            console.log('Final tickets with users:', ticketsWithUsers.length);
             return ticketsWithUsers;
         } catch (error) {
             console.error('Error fetching tickets:', error);
@@ -329,42 +406,256 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         }
     };
 
+    // Функция для получения тикетов в зависимости от роли
+    const fetchTicketsByRole = async (query: string = '', filterParams: FilterState) => {
+        console.log('Fetching tickets for role:', userRole);
+        console.log('Filter params:', filterParams);
 
-    const handleSearch = async () => {
-        if (!userRole) {
-            console.error('User role not defined');
-            return;
+        // Если пользователь не авторизован - показываем все тикеты
+        if (userRole === null) {
+            console.log('User not authenticated - showing all tickets');
+            return await fetchAllTickets(query, filterParams);
         }
 
+        try {
+            setIsLoading(true);
+            const token = getAuthToken();
+            if (!token) return [];
+
+            const params = new URLSearchParams();
+
+            if (query.trim()) {
+                params.append('title', query.trim());
+            }
+
+            if (filterParams.minPrice) {
+                params.append('minBudget', filterParams.minPrice);
+            }
+            if (filterParams.maxPrice) {
+                params.append('maxBudget', filterParams.maxPrice);
+            }
+
+            // ВАЖНО: передаем ID категории в параметрах API
+            if (filterParams.category) {
+                params.append('category.id', filterParams.category);
+            }
+
+            let endpoint = '';
+            let ticketType: 'client' | 'master' = 'client';
+
+            // Определяем endpoint и тип тикета в зависимости от роли
+            if (userRole === 'client') {
+                // Клиент видит тикеты от мастеров (услуги)
+                endpoint = '/api/tickets/masters';
+                ticketType = 'master';
+            } else if (userRole === 'master') {
+                // Мастер видит тикеты от клиентов (заказы)
+                endpoint = '/api/tickets/clients';
+                ticketType = 'client';
+            }
+
+            console.log('API URL:', `${API_BASE_URL}${endpoint}?${params.toString()}`);
+            console.log('Ticket type for this role:', ticketType);
+
+            const response = await fetch(`${API_BASE_URL}${endpoint}?${params.toString()}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+            const ticketsData: ApiTicket[] = await response.json();
+            console.log(`Received ${ticketType} tickets:`, ticketsData.length);
+
+            let filteredData = ticketsData;
+
+            // Дополнительная фильтрация на клиенте (на всякий случай)
+            if (query.trim()) {
+                const searchTerm = query.trim().toLowerCase();
+                filteredData = filteredData.filter(ticket =>
+                    ticket.title.toLowerCase().includes(searchTerm) ||
+                    ticket.description.toLowerCase().includes(searchTerm) ||
+                    (ticket.category?.title && ticket.category.title.toLowerCase().includes(searchTerm))
+                );
+            }
+
+            if (filterParams.minPrice) {
+                const minPrice = parseInt(filterParams.minPrice);
+                filteredData = filteredData.filter(ticket => ticket.budget >= minPrice);
+            }
+
+            if (filterParams.maxPrice) {
+                const maxPrice = parseInt(filterParams.maxPrice);
+                filteredData = filteredData.filter(ticket => ticket.budget <= maxPrice);
+            }
+
+            // Фильтрация по категории на клиенте (дублирующая, но для надежности)
+            if (filterParams.category) {
+                filteredData = filteredData.filter(ticket =>
+                    ticket.category?.id.toString() === filterParams.category
+                );
+            }
+
+            console.log('Filtered tickets:', filteredData.length);
+
+            const ticketsWithUsers = await Promise.all(
+                filteredData.map(async (ticket) => {
+                    const userName = await getUserName(ticket, ticketType);
+                    let authorId: number | undefined = undefined;
+
+                    // Определяем authorId в зависимости от типа тикета
+                    if (ticketType === 'client') {
+                        authorId = ticket.author?.id || undefined;
+                    } else if (ticketType === 'master') {
+                        authorId = ticket.master?.id || undefined;
+                    }
+
+                    // Форматируем дату
+                    const formattedDate = ticket.createdAt
+                        ? new Date(ticket.createdAt).toLocaleDateString('ru-RU')
+                        : 'Дата не указана';
+
+                    return {
+                        id: ticket.id,
+                        title: ticket.title,
+                        price: ticket.budget,
+                        unit: ticket.unit?.title || 'руб',
+                        description: ticket.description,
+                        address: getFormattedAddress(ticket),
+                        date: formattedDate,
+                        author: userName,
+                        authorId,
+                        timeAgo: getTimeAgo(ticket.createdAt),
+                        category: ticket.category?.title || 'другое',
+                        type: ticketType
+                    };
+                })
+            );
+
+            return ticketsWithUsers;
+        } catch (error) {
+            console.error('Error fetching tickets:', error);
+            return [];
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Функция для форматирования адреса без лишних запятых
+    const getFormattedAddress = (ticket: ApiTicket): string => {
+        const districtTitle = ticket.district?.title || '';
+        const districtCity = ticket.district?.city?.title || '';
+        const addressTitle = ticket.address?.title || '';
+        const addressCity = ticket.address?.city?.title || '';
+
+        const city = districtCity || addressCity;
+        const district = districtTitle;
+
+        console.log('Full address data:', {
+            districtTitle,
+            districtCity,
+            addressCity,
+            addressTitle
+        });
+
+        if (district && city && addressTitle) {
+            return `${district}, ${city}, ${addressTitle}`;
+        }
+        if (district && city) {
+            return `${district}, ${city}`;
+        }
+        if (city && addressTitle) {
+            return `${city}, ${addressTitle}`;
+        }
+        if (city) {
+            return city;
+        }
+        if (district) {
+            return district;
+        }
+        if (addressTitle) {
+            return addressTitle;
+        }
+        return 'Адрес не указан';
+    };
+
+    // Функция для форматирования времени (сколько времени прошло)
+    const getTimeAgo = (dateString: string): string => {
+        if (!dateString) return 'давно';
+
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const diffMins = Math.floor(diffMs / (1000 * 60));
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+        if (diffMins < 60) {
+            return `${diffMins} мин назад`;
+        } else if (diffHours < 24) {
+            return `${diffHours} ч назад`;
+        } else {
+            return `${diffDays} дн назад`;
+        }
+    };
+
+    const handleSearch = async () => {
+        console.log('Starting search with:', {
+            searchQuery,
+            filters,
+            userRole,
+            hasQuery: !!searchQuery.trim(),
+            hasFilters: !!(filters.minPrice || filters.maxPrice || filters.category)
+        });
+
+        // Если нет поискового запроса и фильтров - очищаем результаты
         if (!searchQuery.trim() && !filters.minPrice && !filters.maxPrice && !filters.category) {
+            console.log('Clearing results - no search criteria');
             setShowResults(false);
             setSearchResults([]);
             onSearchResults([]);
             return;
         }
 
-        console.log('Starting search with:', { searchQuery, filters, userRole });
-        const results = await fetchTickets(searchQuery, filters);
-        console.log('Search results:', results);
-        setSearchResults(results);
-        setShowResults(true);
-        onSearchResults(results);
+        try {
+            const results = await fetchTicketsByRole(searchQuery, filters);
+            console.log('Search completed. Results:', results.length);
+
+            // Логируем типы тикетов для отладки
+            if (results.length > 0) {
+                const clientTickets = results.filter(r => r.type === 'client').length;
+                const masterTickets = results.filter(r => r.type === 'master').length;
+                console.log(`Ticket types - Clients: ${clientTickets}, Masters: ${masterTickets}`);
+            }
+
+            setSearchResults(results);
+            setShowResults(true);
+            onSearchResults(results);
+        } catch (error) {
+            console.error('Error in handleSearch:', error);
+            setSearchResults([]);
+            setShowResults(false);
+            onSearchResults([]);
+        }
     };
 
     useEffect(() => {
         const debounce = setTimeout(() => {
-            console.log('Search triggered:', { searchQuery, filters, userRole });
-
-            if (!userRole) {
-                console.log('No user role defined');
-                return;
-            }
+            console.log('Search triggered by query change:', {
+                searchQuery,
+                filters,
+                userRole,
+                hasContent: !!(searchQuery.trim() || filters.minPrice || filters.maxPrice || filters.category)
+            });
 
             if (searchQuery.trim() || filters.minPrice || filters.maxPrice || filters.category) {
-                console.log('Calling handleSearch');
+                console.log('Calling handleSearch from query effect');
                 handleSearch();
             } else {
-                console.log('Clearing results - no search criteria');
+                console.log('Clearing results - no search criteria in query');
                 setShowResults(false);
                 setSearchResults([]);
                 onSearchResults([]);
@@ -372,17 +663,30 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         }, 500);
 
         return () => clearTimeout(debounce);
-    }, [searchQuery, filters, userRole]);
+    }, [searchQuery, userRole]);
 
     const handleFilterToggle = (isVisible: boolean) => {
         setShowFilters(isVisible);
         onFilterToggle(isVisible);
     };
 
-    const handleFilterChange = (newFilters: FilterState) => {
-        console.log('New filters from FilterPanel:', newFilters);
-        setFilters(newFilters);
-    };
+    // const handleFilterChange = async (filters: FilterState) => {
+    //     try {
+    //         const res = await fetch('https://admin.ustoyob.tj/api/tickets/clients', {
+    //             method: 'POST', // API ожидает фильтры в body
+    //             headers: { 'Content-Type': 'application/json' },
+    //             body: JSON.stringify({
+    //                 category: filters.category || null,
+    //                 minPrice: filters.minPrice || null,
+    //                 maxPrice: filters.maxPrice || null,
+    //             }),
+    //         });
+    //         const data = await res.json();
+    //         setTickets(data);
+    //     } catch (err) {
+    //         console.error(err);
+    //     }
+    // };
 
     const handleResetFilters = () => {
         console.log('Resetting filters');
@@ -392,13 +696,42 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         onSearchResults([]);
     };
 
+    // Функция для отображения типа тикета
+    const getTicketTypeLabel = (type: 'client' | 'master') => {
+        return type === 'client' ? 'Заказ от клиента' : 'Услуга от мастера';
+    };
+
+    // Функция для получения заголовка поиска
+    const getSearchTitle = () => {
+        if (userRole === 'client') {
+            return 'Поиск специалистов';
+        } else if (userRole === 'master') {
+            return 'Поиск заказов';
+        } else {
+            return 'Поиск услуг и заказов';
+        }
+    };
+
+    // Функция для получения плейсхолдера
+    const getSearchPlaceholder = () => {
+        if (userRole === 'client') {
+            return "Что хотите найти";
+        } else if (userRole === 'master') {
+            return "Какую услугу ищете";
+        } else {
+            return "Что ищете";
+        }
+    };
+
     return (
         <div className={styles.container}>
             <div className={styles.search_with_filters}>
                 <FilterPanel
                     showFilters={showFilters}
                     setShowFilters={setShowFilters}
-                    onFilterChange={handleFilterChange}
+                    onFilterChange={(newFilters) => {
+                        setFilters(newFilters);
+                    }}
                     filters={filters}
                     onResetFilters={handleResetFilters}
                     categories={categories}
@@ -406,12 +739,12 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 <div className={styles.search_content}>
                     <div className={styles.search}>
                         <h2 className={styles.title}>
-                            {userRole === 'client' ? 'Поиск специалистов' : 'Поиск заказов'}
+                            {getSearchTitle()}
                         </h2>
                         <div className={styles.search_wrap}>
                             <input
                                 type="text"
-                                placeholder={userRole === 'client' ? "Что хотите найти" : "Какую услугу ищете"}
+                                placeholder={getSearchPlaceholder()}
                                 className={styles.input}
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -421,19 +754,6 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                                 {isLoading ? 'Поиск...' : 'Найти'}
                             </button>
                         </div>
-
-                        {/* Отладочная информация */}
-                        {/*<div style={{*/}
-                        {/*    padding: '10px',*/}
-                        {/*    background: '#f5f5f5',*/}
-                        {/*    margin: '10px 0',*/}
-                        {/*    borderRadius: '8px',*/}
-                        {/*    fontSize: '14px'*/}
-                        {/*}}>*/}
-                        {/*    <strong>Отладка:</strong> Роль: {userRole || 'не определена'} |*/}
-                        {/*    Результаты: {searchResults.length} |*/}
-                        {/*    Загрузка: {isLoading ? 'да' : 'нет'}*/}
-                        {/*</div>*/}
 
                         <button className={styles.filters_btn} onClick={() => handleFilterToggle(!showFilters)}>
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -466,12 +786,18 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                             searchResults.map((result) => (
                                 <div key={result.id}
                                      className={styles.resultCard}
-                                     onClick={() => handleCardClick(result.id)}
+                                     onClick={() => handleCardClick(result.authorId)}
                                      style={{ cursor: 'pointer' }}
                                 >
+                                    {/* Показываем метку типа тикета только для неавторизованных пользователей */}
+                                    {userRole === null && (
+                                        <div className={styles.ticketType}>
+                                            {getTicketTypeLabel(result.type)}
+                                        </div>
+                                    )}
                                     <div className={styles.resultHeader}>
                                         <h3>{result.title}</h3>
-                                        <span className={styles.price}>{result.price} руб {result.unit}</span>
+                                        <span className={styles.price}>{result.price} {result.unit}</span>
                                     </div>
                                     <p className={styles.description}>{result.description}</p>
                                     <div className={styles.resultDetails}>
