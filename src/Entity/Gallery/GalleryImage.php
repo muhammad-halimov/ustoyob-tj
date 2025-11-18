@@ -2,6 +2,7 @@
 
 namespace App\Entity\Gallery;
 
+use ApiPlatform\Metadata\ApiProperty;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Repository\GalleryImageRepository;
@@ -35,6 +36,7 @@ class GalleryImage
 
     #[Vich\UploadableField(mapping: 'gallery_photos', fileNameProperty: 'image')]
     #[Assert\Image(mimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])]
+    #[ApiProperty(writable: false)]
     private ?File $imageFile = null;
 
     #[ORM\Column(length: 255, nullable: true)]

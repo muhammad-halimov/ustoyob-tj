@@ -27,7 +27,7 @@ class ChatRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    public function findDuplicateChats(User $author, User $replyAuthor): array
+    public function findChatsByAuthors(User $author, User $replyAuthor): array
     {
         return $this
             ->createQueryBuilder('c')

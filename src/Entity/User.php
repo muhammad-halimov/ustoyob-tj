@@ -12,7 +12,6 @@ use ApiPlatform\Metadata\Post;
 use App\Controller\Api\Filter\User\Client\ClientsUserFilterController;
 use App\Controller\Api\Filter\User\Client\ClientUserFilterController;
 use App\Controller\Api\Filter\User\Client\GrantRoleController;
-use App\Controller\Api\Filter\User\DeleteUserController;
 use App\Controller\Api\Filter\User\Master\MastersUserFilterController;
 use App\Controller\Api\Filter\User\Master\MasterUserFilterController;
 use App\Controller\Api\Filter\User\Personal\PersonalUserFilterController;
@@ -114,11 +113,11 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
         new Delete(
             uriTemplate: '/users/{id}',
             requirements: ['id' => '\d+'],
-            controller: DeleteUserController::class,
             security:
                 "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')",
+                 ((is_granted('ROLE_MASTER') or
+                 is_granted('ROLE_CLIENT')) and
+                 object == user)",
         )
     ],
     normalizationContext: [

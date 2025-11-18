@@ -10,6 +10,7 @@ use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\Filter\Gallery\MasterGalleryFilterController;
 use App\Controller\Api\Filter\Gallery\PersonalGalleryFilterController;
+use App\Controller\Api\Filter\Gallery\PostGalleryController;
 use App\Controller\Api\Filter\Gallery\PostGalleryPhotoController;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
@@ -42,6 +43,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         ),
         new Post(
             uriTemplate: '/galleries',
+            controller: PostGalleryController::class,
             security:
                 "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER')",
@@ -59,15 +61,19 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             uriTemplate: '/galleries/{id}',
             requirements: ['id' => '\d+'],
             security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER')"
+                "is_granted('ROLE_ADMIN')
+                            or
+                 (is_granted('ROLE_MASTER') and
+                 object.getUser() == user)",
         ),
         new Delete(
             uriTemplate: '/galleries/{id}',
             requirements: ['id' => '\d+'],
             security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER')"
+                "is_granted('ROLE_ADMIN')
+                            or
+                 (is_granted('ROLE_MASTER') and
+                 object.getUser() == user)",
         ),
     ],
     normalizationContext: [
@@ -101,13 +107,13 @@ class Gallery
         'galleries:read',
     ])]
     #[SerializedName('images')]
-    #[ApiProperty(writable: false)]
     private Collection $userServiceGalleryItems;
 
     #[ORM\ManyToOne(inversedBy: 'galleries')]
     #[Groups([
         'galleries:read',
     ])]
+    #[ApiProperty(writable: false)]
     private ?User $user = null;
 
     public function __construct()

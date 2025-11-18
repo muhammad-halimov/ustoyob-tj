@@ -2,7 +2,6 @@
 
 namespace App\Entity\Review;
 
-use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\GetCollection;
@@ -65,17 +64,29 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             uriTemplate: '/reviews/{id}',
             requirements: ['id' => '\d+'],
             security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
+                "is_granted('ROLE_ADMIN')
+                            or
+                 (is_granted('ROLE_MASTER') and
+                 object.getMaster() == user and
+                 object.getForClient() == true)
+                            or
+                 (is_granted('ROLE_CLIENT') and
+                 object.getClient() == user and
+                 object.getForClient() == false)",
         ),
         new Delete(
             uriTemplate: '/reviews/{id}',
             requirements: ['id' => '\d+'],
             security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
+                "is_granted('ROLE_ADMIN')
+                            or
+                 (is_granted('ROLE_MASTER') and
+                 object.getMaster() == user and
+                 object.getForClient() == true)
+                            or
+                 (is_granted('ROLE_CLIENT') and
+                 object.getClient() == user and
+                 object.getForClient() == false)",
         )
     ],
     normalizationContext: [
@@ -138,7 +149,6 @@ class Review
         'reviewsClient:read',
     ])]
     #[SerializedName('images')]
-    #[ApiProperty(writable: false)]
     private Collection $reviewImages;
 
     #[ORM\ManyToOne(inversedBy: 'masterReviews')]

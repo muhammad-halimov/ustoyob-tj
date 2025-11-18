@@ -29,7 +29,7 @@ class MasterGalleryFilterController extends AbstractController
         if (!array_intersect($allowedRoles, $user->getRoles()))
             return $this->json(['message' => 'Access denied'], 403);
 
-        $data = $this->galleryRepository->findUserGalleryById($user);
+        $data = $this->galleryRepository->findUserGallery($user);
 
         return empty($data)
             ? $this->json(['message' => 'Resource not found'], 404)

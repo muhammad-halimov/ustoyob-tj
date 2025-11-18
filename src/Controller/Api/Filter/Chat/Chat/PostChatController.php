@@ -44,7 +44,7 @@ class PostChatController extends AbstractController
         if ($replyAuthor === $bearerUser)
             return $this->json(['message' => 'You cannot post a chat with yourself'], 403);
 
-        if ($this->chatRepository->findDuplicateChats($bearerUser, $replyAuthor))
+        if ($this->chatRepository->findChatsByAuthors($bearerUser, $replyAuthor))
             return $this->json(['message' => 'You cannot post a chat twice with same user'], 403);
 
         $this->entityManager
