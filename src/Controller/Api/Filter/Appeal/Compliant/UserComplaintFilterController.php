@@ -21,21 +21,20 @@ class UserComplaintFilterController extends AbstractController
     public function __invoke(int $id): JsonResponse
     {
         $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
-        $allowedRoles = ["ROLE_ADMIN", "ROLE_CLIENT", "ROLE_MASTER"];
 
         /** @var User $bearerUser */
         $bearerUser = $this->security->getUser();
         /** @var User $user */
         $user = $this->userRepository->find($id);
 
-        if (!array_intersect($allowedRoles, $bearerUser->getRoles()))
+        if (!in_array("ROLE_ADMIN", $bearerUser->getRoles()))
             return $this->json(['message' => 'Access denied'], 403);
 
         if (!$user)
             return $this->json(['message' => 'User not found'], 404);
 
         /** @var Appeal $appeal */
-        $appeal = $this->appealRepository->findUserComplaintsById(false, $user, "complaint");
+        $appeal = $this->appealRepository->findUserComplaints(false, $user, "complaint");
 
         return empty($appeal)
             ? $this->json(['message' => 'Resource not found'], 404)

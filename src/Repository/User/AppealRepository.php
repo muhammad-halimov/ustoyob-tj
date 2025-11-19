@@ -18,7 +18,7 @@ class AppealRepository extends ServiceEntityRepository
         parent::__construct($registry, Appeal::class);
     }
 
-    public function findTicketComplaintsById(bool $ticketStatus, Ticket $ticket, string $type): ?array
+    public function findTicketComplaints(bool $ticketStatus, Ticket $ticket, string $type): ?array
     {
         return $this
             ->createQueryBuilder('a')
@@ -32,7 +32,7 @@ class AppealRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    public function findUserComplaintsById(bool $ticketStatus, User $user, string $type): ?array
+    public function findUserComplaints(bool $ticketStatus, User $user, string $type): ?array
     {
         return $this
             ->createQueryBuilder('a')

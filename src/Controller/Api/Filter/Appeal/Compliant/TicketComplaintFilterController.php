@@ -22,21 +22,20 @@ class TicketComplaintFilterController extends AbstractController
     public function __invoke(int $id): JsonResponse
     {
         $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
-        $allowedRoles = ["ROLE_ADMIN", "ROLE_CLIENT", "ROLE_MASTER"];
 
         /** @var User $user */
         $user = $this->security->getUser();
         /** @var Ticket $ticket */
         $ticket = $this->ticketRepository->find($id);
 
+        if (!in_array("ROLE_ADMIN", $user->getRoles()))
+            return $this->json(['message' => 'Access denied'], 403);
+
         if (!$ticket)
             return $this->json(['message' => 'Ticket not found'], 404);
 
-        if (!array_intersect($allowedRoles, $user->getRoles()))
-            return $this->json(['message' => 'Access denied'], 403);
-
         /** @var Appeal $appeals */
-        $appeals = $this->appealRepository->findTicketComplaintsById(true, $ticket, 'complaint');
+        $appeals = $this->appealRepository->findTicketComplaints(true, $ticket, 'complaint');
 
         return empty($appeals)
             ? $this->json(['message' => 'Resource not found'], 404)

@@ -28,11 +28,11 @@ class UserSupportFilterController extends AbstractController
         /** @var User $user */
         $user = $this->userRepository->find($id);
 
-        if (!$user)
-            return $this->json(['message' => 'User not found'], 404);
-
         if (!array_intersect($allowedRoles, $bearerUser->getRoles()))
             return $this->json(['message' => 'Access denied'], 403);
+
+        if (!$user)
+            return $this->json(['message' => 'User not found'], 404);
 
         /** @var Appeal $appeal */
         $appeal = $this->appealRepository->findTechSupportsByClient(false, $user, "support");

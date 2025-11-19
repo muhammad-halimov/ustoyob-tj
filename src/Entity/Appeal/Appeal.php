@@ -7,10 +7,14 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\Controller\Api\CRUD\Appeal\PatchSupportAppealController;
 use App\Controller\Api\CRUD\Appeal\PostAppealPhotoController;
+use App\Controller\Api\CRUD\Appeal\PostAppealConntroller;
+use App\Controller\Api\Filter\Appeal\Compliant\ComplaintsFilterController;
 use App\Controller\Api\Filter\Appeal\Compliant\TicketComplaintFilterController;
 use App\Controller\Api\Filter\Appeal\Compliant\UserComplaintFilterController;
 use App\Controller\Api\Filter\Appeal\Support\AdminSupportFilterController;
+use App\Controller\Api\Filter\Appeal\Support\SupportFilterController;
 use App\Controller\Api\Filter\Appeal\Support\UserSupportFilterController;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
@@ -58,33 +62,25 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         ),
         new GetCollection(
             uriTemplate: '/appeals/support/reasons',
+            controller: SupportFilterController::class,
         ),
         new GetCollection(
             uriTemplate: '/appeals/complaints/reasons',
+            controller: ComplaintsFilterController::class,
         ),
         new Post(
             uriTemplate: '/appeals',
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
+            controller: PostAppealConntroller::class,
         ),
         new Post(
             uriTemplate: '/appeals/{id}/upload-photo',
             requirements: ['id' => '\d+'],
             controller: PostAppealPhotoController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
         ),
         new Patch(
             uriTemplate: '/appeals/{id}',
             requirements: ['id' => '\d+'],
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
+            controller: PatchSupportAppealController::class,
         ),
     ],
     normalizationContext: [
@@ -93,7 +89,6 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             'appealsTicket:read',
             'appealsSupport:read',
         ],
-        'skip_null_values' => false,
     ],
     paginationEnabled: false,
 )]
@@ -101,7 +96,7 @@ class Appeal
 {
     public function __toString(): string
     {
-        return $this->compliantReason ?? "Пустой заголовок жалобы";
+        return $this->complaintReason ?? "Пустой заголовок жалобы";
     }
 
     public function __construct()
@@ -139,6 +134,7 @@ class Appeal
 
     public const STATUSES = [
         'Новый' => 'new',
+        'Заново открыто' => 'renewed',
         'В прогрессе' => 'in_progress',
         'Решено' => 'resolved',
         'Закрыто' => 'closed',
@@ -167,6 +163,14 @@ class Appeal
         'appealsTicket:read',
         'appealsSupport:read',
     ])]
+    private ?string $type = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    #[Groups([
+        'appeals:read',
+        'appealsTicket:read',
+        'appealsSupport:read',
+    ])]
     private ?string $title = null;
 
     #[ORM\Column(length: 255, nullable: true)]
@@ -174,21 +178,13 @@ class Appeal
         'appeals:read',
         'appealsTicket:read',
     ])]
-    private ?string $compliantReason = null;
+    private ?string $complaintReason = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
         'appealsSupport:read',
     ])]
     private ?string $supportReason = null;
-
-    #[ORM\Column(length: 255, nullable: true)]
-    #[Groups([
-        'appeals:read',
-        'appealsTicket:read',
-        'appealsSupport:read',
-    ])]
-    private ?string $type = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
@@ -293,14 +289,14 @@ class Appeal
         return $this->id;
     }
 
-    public function getCompliantReason(): ?string
+    public function getComplaintReason(): ?string
     {
-        return $this->compliantReason;
+        return $this->complaintReason;
     }
 
-    public function setCompliantReason(?string $compliantReason): static
+    public function setComplaintReason(?string $complaintReason): static
     {
-        $this->compliantReason = $compliantReason;
+        $this->complaintReason = $complaintReason;
 
         return $this;
     }
@@ -346,9 +342,10 @@ class Appeal
         return $this->ticketAppeal;
     }
 
-    public function setTicketAppeal(?bool $ticketAppeal): void
+    public function setTicketAppeal(?bool $ticketAppeal): static
     {
         $this->ticketAppeal = $ticketAppeal;
+        return $this;
     }
 
     public function getRespondent(): ?User
@@ -398,9 +395,10 @@ class Appeal
         return $this->title;
     }
 
-    public function setTitle(?string $title): void
+    public function setTitle(?string $title): static
     {
         $this->title = $title;
+        return $this;
     }
 
     public function getType(): ?string
@@ -408,9 +406,10 @@ class Appeal
         return $this->type;
     }
 
-    public function setType(?string $type): void
+    public function setType(?string $type): static
     {
         $this->type = $type;
+        return $this;
     }
 
     public function getSupportReason(): ?string
@@ -418,9 +417,10 @@ class Appeal
         return $this->supportReason;
     }
 
-    public function setSupportReason(?string $supportReason): void
+    public function setSupportReason(?string $supportReason): static
     {
         $this->supportReason = $supportReason;
+        return $this;
     }
 
     public function getStatus(): ?string
@@ -428,9 +428,10 @@ class Appeal
         return $this->status;
     }
 
-    public function setStatus(?string $status): void
+    public function setStatus(?string $status): static
     {
         $this->status = $status;
+        return $this;
     }
 
     public function getPriority(): ?string
@@ -438,9 +439,10 @@ class Appeal
         return $this->priority;
     }
 
-    public function setPriority(?string $priority): void
+    public function setPriority(?string $priority): static
     {
         $this->priority = $priority;
+        return $this;
     }
 
     public function getAdministrant(): ?User

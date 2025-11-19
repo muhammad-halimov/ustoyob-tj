@@ -35,96 +35,124 @@ class PatchTicketController extends AbstractController
 
         /** @var User $bearerUser */
         $bearerUser = $this->security->getUser();
+        /** @var Ticket $ticketEntity */
+        $ticketEntity = $this->ticketRepository->find($id);
 
         if (!array_intersect($allowedRoles, $bearerUser->getRoles()))
             return $this->json(['message' => 'Access denied'], 403);
 
-        /** @var Ticket $ticketEntity */
-        $ticketEntity = $this->ticketRepository->find($id);
-
         if (!$ticketEntity)
             return $this->json(['message' => 'Ticket not found'], 404);
 
+        // Проверка владельца
+        if (in_array("ROLE_CLIENT", $bearerUser->getRoles()) && $ticketEntity->getAuthor() !== $bearerUser)
+            return $this->json(['message' => 'Access denied'], 403);
+
+        if (in_array("ROLE_MASTER", $bearerUser->getRoles()) && $ticketEntity->getMaster() !== $bearerUser)
+            return $this->json(['message' => 'Access denied'], 403);
+
         $data = json_decode($request->getContent(), true);
 
-        $titleParam = $data['title'];
-        $descriptionParam = $data['description'];
-        $noticeParam = $data['notice'];
-        $budgetParam = $data['budget'];
-        $activeParam = (bool)$data['active'];
-        $categoryParam = $data['category'];
-        $unitParam = $data['unit'];
-        $districtParam = $data['district'];
+        $titleParam = $data['title'] ?? null;
+        $descriptionParam = $data['description'] ?? null;
+        $noticeParam = $data['notice'] ?? null;
+        $budgetParam = $data['budget'] ?? null;
+        $activeParam = isset($data['active']) ? (bool)$data['active'] : null;
+        $categoryParam = $data['category'] ?? null;
+        $unitParam = $data['unit'] ?? null;
+        $districtParam = $data['district'] ?? null;
 
-        // Извлекаем ID только если параметры переданы
-        $categoryId = preg_match('#/api/categories/(\d+)#', $categoryParam, $c) ? $c[1] : $categoryParam;
-        $districtId = preg_match('#/api/districts/(\d+)#', $districtParam, $d) ? $d[1] : $districtParam;
-        $unitId = preg_match('#/api/units/(\d+)#', $unitParam, $u) ? $u[1] : $unitParam;
+        // Проверка, что хотя бы одно поле передано
+        if (is_null($titleParam) && is_null($descriptionParam) && is_null($noticeParam) &&
+            is_null($budgetParam) && is_null($activeParam) && is_null($categoryParam) &&
+            is_null($unitParam) && is_null($districtParam))
+            return $this->json(['message' => 'At least one field must be provided'], 400);
 
-        // Загружаем сущности только если ID переданы
-        /** @var Category $category */
-        $category = $this->categoryRepository->find($categoryId);
+        // Обновляем title (если передан)
+        if (!is_null($titleParam)) {
+            $ticketEntity->setTitle($titleParam);
+        }
 
-        if (!$category)
-            return $this->json(['message' => 'Category not found'], 404);
+        // Обновляем description (если передан)
+        if (!is_null($descriptionParam)) {
+            $ticketEntity->setDescription($descriptionParam);
+        }
 
-        /** @var Unit $unit */
-        $unit = $this->unitRepository->find($unitId);
+        // Обновляем notice (если передан)
+        if (!is_null($noticeParam)) {
+            $ticketEntity->setNotice($noticeParam);
+        }
 
-        if (!$unit)
-            return $this->json(['message' => 'Unit not found'], 404);
+        // Обновляем budget (если передан)
+        if (!is_null($budgetParam)) {
+            $ticketEntity->setBudget($budgetParam);
+        }
 
-        /** @var District $district */
-        $district = $this->districtRepository->find($districtId);
+        // Обновляем active (если передан)
+        if (!is_null($activeParam)) {
+            $ticketEntity->setActive($activeParam);
+        }
 
-        if (!$district)
-            return $this->json(['message' => 'District not found'], 404);
+        // Обновляем category (если передан)
+        if (!is_null($categoryParam)) {
+            $categoryId = preg_match('#/api/categories/(\d+)#', $categoryParam, $c) ? $c[1] : $categoryParam;
+            /** @var Category $category */
+            $category = $this->categoryRepository->find($categoryId);
 
-        $ticketEntity
-            ->setTitle($titleParam)
-            ->setDescription($descriptionParam)
-            ->setNotice($noticeParam)
-            ->setBudget($budgetParam)
-            ->setActive($activeParam)
-            ->setCategory($category)
-            ->setUnit($unit)
-            ->setAddress($district);
+            if (!$category)
+                return $this->json(['message' => 'Category not found'], 404);
 
-        $message = [
-            'title' => $titleParam,
-            'description' => $descriptionParam,
-            'notice' => $noticeParam,
-            'budget' => $budgetParam,
-            'active' => $activeParam,
-            'category' => "/api/categories/{$category->getId()}",
-            'district' => "/api/districts/{$district->getId()}",
-            'unit' => "/api/units/{$unit->getId()}",
-        ];
+            $ticketEntity->setCategory($category);
+        }
 
-        if (in_array("ROLE_CLIENT", $bearerUser->getRoles())) {
-            $ticketEntity
-                ->setAuthor($bearerUser)
-                ->setMaster(null)
-                ->setService(false);
+        // Обновляем unit (если передан)
+        if (!is_null($unitParam)) {
+            $unitId = preg_match('#/api/units/(\d+)#', $unitParam, $u) ? $u[1] : $unitParam;
+            /** @var Unit $unit */
+            $unit = $this->unitRepository->find($unitId);
 
-            $message += [
-                'author' => "/api/users/{$bearerUser->getId()}",
-                'service' => false,
-            ];
-        } elseif (in_array("ROLE_MASTER", $bearerUser->getRoles())) {
-            $ticketEntity
-                ->setMaster($bearerUser)
-                ->setAuthor(null)
-                ->setService(true);
+            if (!$unit)
+                return $this->json(['message' => 'Unit not found'], 404);
 
-            $message += [
-                'master' => "/api/users/{$bearerUser->getId()}",
-                'service' => true,
-            ];
-        } else return $this->json(['message' => 'Access denied'], 403);
+            $ticketEntity->setUnit($unit);
+        }
+
+        // Обновляем district (если передан)
+        if (!is_null($districtParam)) {
+            $districtId = preg_match('#/api/districts/(\d+)#', $districtParam, $d) ? $d[1] : $districtParam;
+            /** @var District $district */
+            $district = $this->districtRepository->find($districtId);
+
+            if (!$district)
+                return $this->json(['message' => 'District not found'], 404);
+
+            $ticketEntity->setAddress($district);
+        }
 
         $this->entityManager->flush();
 
-        return $this->json((['id' => $ticketEntity->getId()] + $message), 201);
+        // Формируем полный ответ
+        $message = [
+            'id' => $ticketEntity->getId(),
+            'title' => $ticketEntity->getTitle(),
+            'description' => $ticketEntity->getDescription(),
+            'notice' => $ticketEntity->getNotice(),
+            'budget' => $ticketEntity->getBudget(),
+            'active' => $ticketEntity->getActive(),
+            'category' => "/api/categories/{$ticketEntity->getCategory()->getId()}",
+            'district' => "/api/districts/{$ticketEntity->getAddress()->getId()}",
+            'unit' => "/api/units/{$ticketEntity->getUnit()->getId()}",
+        ];
+
+        if (in_array("ROLE_CLIENT", $bearerUser->getRoles())) {
+            $message['author'] = "/api/users/{$ticketEntity->getAuthor()->getId()}";
+            $message['service'] = false;
+        }
+        elseif (in_array("ROLE_MASTER", $bearerUser->getRoles())) {
+            $message['master'] = "/api/users/{$ticketEntity->getMaster()->getId()}";
+            $message['service'] = true;
+        }
+
+        return $this->json($message);
     }
 }

@@ -73,7 +73,7 @@ class AppealCrudController extends AbstractCrudController
             ->setChoices(Appeal::TYPES)
             ->setColumns(12);
 
-        yield BooleanField::new('ticketAppeal', 'Жалоба на объявление')
+        yield BooleanField::new('ticketAppeal', 'Жалоба на объявление / услугу')
             ->hideOnIndex()
             ->setColumns(12);
 
@@ -110,23 +110,23 @@ class AppealCrudController extends AbstractCrudController
             ->setRequired(true)
             ->setColumns(12);
 
-        yield AssociationField::new('author', 'Истец / Автор')
+        yield AssociationField::new('author', 'Клиент / Мастер - Истец')
             ->setRequired(true)
             ->setColumns(6);
 
-        yield AssociationField::new('ticket', 'Объявление')
+        yield AssociationField::new('ticket', 'Объявление / Услуга')
             ->hideOnIndex()
             ->setRequired(true)
             ->addCssClass('ticket-field')
             ->setColumns(6);
 
-        yield ChoiceField::new('compliantReason', 'Причина жалобы')
+        yield ChoiceField::new('complaintReason', 'Причина жалобы')
             ->setColumns(6)
             ->setChoices(Appeal::COMPLAINTS)
             ->addCssClass('compliant-field')
             ->setRequired(true);
 
-        yield AssociationField::new('respondent', 'Ответчик')
+        yield AssociationField::new('respondent', 'Клиент / Мастер - Ответчик')
             ->hideOnIndex()
             ->setRequired(true)
             ->addCssClass('respondent-field')

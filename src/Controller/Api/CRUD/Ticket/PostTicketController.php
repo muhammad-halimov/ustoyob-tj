@@ -58,18 +58,16 @@ class PostTicketController extends AbstractController
         // Загружаем сущности только если ID переданы
         /** @var Category $category */
         $category = $this->categoryRepository->find($categoryId);
+        /** @var Unit $unit */
+        $unit = $this->unitRepository->find($unitId);
+        /** @var District $district */
+        $district = $this->districtRepository->find($districtId);
 
         if (!$category)
             return $this->json(['message' => 'Category not found'], 404);
 
-        /** @var Unit $unit */
-        $unit = $this->unitRepository->find($unitId);
-
         if (!$unit)
             return $this->json(['message' => 'Unit not found'], 404);
-
-        /** @var District $district */
-        $district = $this->districtRepository->find($districtId);
 
         if (!$district)
             return $this->json(['message' => 'District not found'], 404);
