@@ -8,12 +8,17 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\Controller\Api\CRUD\Ticket\PatchTicketController;
+use App\Controller\Api\CRUD\Ticket\PostTicketController;
 use App\Controller\Api\CRUD\Ticket\PostTicketPhotoController;
+use App\Controller\Api\Filter\Ticket\Client\ClientsTicketCategoryFilterController;
 use App\Controller\Api\Filter\Ticket\Client\ClientsTicketFilterController;
 use App\Controller\Api\Filter\Ticket\Client\ClientTicketFilterController;
+use App\Controller\Api\Filter\Ticket\Master\MastersTicketCategoryFilterController;
 use App\Controller\Api\Filter\Ticket\Master\MastersTicketFilterController;
 use App\Controller\Api\Filter\Ticket\Master\MasterTicketFilterController;
 use App\Controller\Api\Filter\Ticket\PersonalTicketFilterController;
+use App\Controller\Api\Filter\Ticket\TicketCategoryFilterController;
 use App\Entity\Appeal\Appeal;
 use App\Entity\Chat\Chat;
 use App\Entity\Geography\District;
@@ -37,19 +42,18 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         new Get(
             uriTemplate: '/tickets/me',
             controller: PersonalTicketFilterController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
         ),
         new Get(
-            uriTemplate: '/tickets/master/category/{id}',
+            uriTemplate: '/tickets/masters/category/{id}',
+            controller: MastersTicketCategoryFilterController::class,
         ),
         new Get(
-            uriTemplate: '/tickets/client/category/{id}',
+            uriTemplate: '/tickets/clients/category/{id}',
+            controller: ClientsTicketCategoryFilterController::class,
         ),
         new GetCollection(
             uriTemplate: '/tickets/category/{id}',
+            controller: TicketCategoryFilterController::class,
         ),
         new GetCollection(
             uriTemplate: '/tickets/masters',
@@ -69,12 +73,12 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             requirements: ['id' => '\d+'],
             controller: ClientTicketFilterController::class,
         ),
+        new GetCollection(
+            uriTemplate: '/tickets',
+        ),
         new Post(
             uriTemplate: '/tickets',
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
+            controller: PostTicketController::class,
         ),
         new Post(
             uriTemplate: '/tickets/{id}/upload-photo',
@@ -88,18 +92,11 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         new Patch(
             uriTemplate: '/tickets/{id}',
             requirements: ['id' => '\d+'],
-            security:
-                "is_granted('ROLE_ADMIN')
-                            or
-                 (is_granted('ROLE_MASTER') and
-                 object.getMaster() == user)
-                            or
-                 (is_granted('ROLE_CLIENT') and
-                 object.getAuthor() == user)",
+            controller: PatchTicketController::class,
         ),
     ],
     normalizationContext: [
-        'groups' => ['userTickets:read', 'masterTickets:read', 'clientTickets:read'],
+        'groups' => ['masterTickets:read', 'clientTickets:read'],
         'skip_null_values' => false,
     ],
     paginationEnabled: false,
@@ -127,7 +124,8 @@ class Ticket
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
         'appeals:read',
         'appealsTicket:read',
         'reviews:read',
@@ -137,7 +135,8 @@ class Ticket
 
     #[ORM\Column(length: 64, nullable: true)]
     #[Groups([
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
         'appeals:read',
         'appealsTicket:read',
         'reviews:read',
@@ -147,25 +146,29 @@ class Ticket
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups([
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
     ])]
     private ?string $description = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups([
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
     ])]
     private ?string $notice = null;
 
     #[ORM\Column(nullable: true)]
     #[Groups([
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
     ])]
     private ?float $budget = null;
 
     #[ORM\Column(type: 'boolean', nullable: true)]
     #[Groups([
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
         'appeals:read',
         'appealsTicket:read',
         'reviews:read',
@@ -176,14 +179,16 @@ class Ticket
     #[ORM\ManyToOne(inversedBy: 'userTickets')]
     #[ORM\JoinColumn(name: 'category_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
     ])]
     private ?Category $category = null;
 
     #[ORM\ManyToOne(inversedBy: 'userTickets')]
     #[ORM\JoinColumn(name: 'author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
         'appeals:read',
         'appealsTicket:read',
         'reviews:read',
@@ -194,7 +199,8 @@ class Ticket
     #[ORM\ManyToOne(inversedBy: 'tickets')]
     #[ORM\JoinColumn(name: 'master_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
         'appeals:read',
         'appealsTicket:read',
         'reviews:read',
@@ -207,7 +213,8 @@ class Ticket
      */
     #[ORM\OneToMany(targetEntity: TicketImage::class, mappedBy: 'userTicket', cascade: ['all'])]
     #[Groups([
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
     ])]
     #[SerializedName('images')]
     #[ApiProperty(writable: false)]
@@ -216,7 +223,8 @@ class Ticket
     #[ORM\ManyToOne(cascade: ['all'], inversedBy: 'userTickets')]
     #[ORM\JoinColumn(name: 'unit_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
     ])]
     private ?Unit $unit = null;
 
@@ -229,7 +237,8 @@ class Ticket
 
     #[ORM\Column(type: 'boolean', nullable: true)]
     #[Groups([
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
         'appeals:read',
         'appealsTicket:read',
         'reviews:read',
@@ -240,7 +249,8 @@ class Ticket
     #[ORM\ManyToOne(inversedBy: 'tickets')]
     #[ORM\JoinColumn(name: 'address_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
     ])]
     #[SerializedName('district')]
     private ?District $address = null;
@@ -268,7 +278,8 @@ class Ticket
 
     #[ORM\Column(type: 'datetime', nullable: false)]
     #[Groups([
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
         'appeals:read',
         'appealsTicket:read',
     ])]
@@ -276,7 +287,8 @@ class Ticket
 
     #[ORM\Column(type: 'datetime', nullable: false)]
     #[Groups([
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
         'appeals:read',
         'appealsTicket:read',
     ])]

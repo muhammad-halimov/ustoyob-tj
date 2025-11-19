@@ -58,7 +58,8 @@ class City
     #[Groups([
         'cities:read',
         'provinces:read',
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
         'districts:read',
         'masters:read',
     ])]
@@ -68,7 +69,8 @@ class City
     #[Groups([
         'cities:read',
         'provinces:read',
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
         'districts:read',
         'masters:read',
     ])]
@@ -88,7 +90,8 @@ class City
     #[Groups([
         'cities:read',
         'provinces:read',
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
         'districts:read',
         'masters:read',
     ])]
@@ -110,7 +113,8 @@ class City
     #[ORM\JoinColumn(name: 'province_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'cities:read',
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
         'districts:read',
         'masters:read',
     ])]

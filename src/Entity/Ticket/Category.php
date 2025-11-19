@@ -65,14 +65,16 @@ class Category
     #[ORM\Column]
     #[Groups([
         'categories:read',
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
     ])]
     private ?int $id = null;
 
     #[ORM\Column(length: 64, nullable: true)]
     #[Groups([
         'categories:read',
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
     ])]
     private ?string $title = null;
 
@@ -90,7 +92,8 @@ class Category
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
         'categories:read',
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
     ])]
     #[ApiProperty(writable: false)]
     private ?string $image = null;

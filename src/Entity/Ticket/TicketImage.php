@@ -29,7 +29,8 @@ class TicketImage
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
     ])]
     private ?int $id = null;
 
@@ -39,7 +40,8 @@ class TicketImage
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
     ])]
     private ?string $image = null;
 

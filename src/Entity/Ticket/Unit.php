@@ -47,14 +47,16 @@ class Unit
     #[ORM\Column]
     #[Groups([
         'units:read',
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
     ])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
         'units:read',
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
     ])]
     private ?string $title = null;
 

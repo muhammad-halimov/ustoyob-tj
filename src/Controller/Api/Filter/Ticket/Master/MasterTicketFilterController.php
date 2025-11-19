@@ -27,6 +27,6 @@ class MasterTicketFilterController extends AbstractController
 
         return empty($data)
             ? $this->json(['message' => 'Resource not found'], 404)
-            : $this->json($data, context: ['groups' => ['userTickets:read']]);
+            : $this->json($data, context: ['groups' => ['masterTickets:read']]);
     }
 }

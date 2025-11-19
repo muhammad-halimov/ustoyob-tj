@@ -58,7 +58,8 @@ class District
     #[Groups([
         'districts:read',
         'provinces:read',
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
         'cities:read',
         'masters:read',
     ])]
@@ -68,7 +69,8 @@ class District
     #[Groups([
         'districts:read',
         'provinces:read',
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
         'cities:read',
         'masters:read',
     ])]
@@ -88,7 +90,8 @@ class District
     #[Groups([
         'districts:read',
         'provinces:read',
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
         'cities:read',
         'masters:read',
     ])]
@@ -99,7 +102,8 @@ class District
     #[ORM\JoinColumn(name: 'city_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'districts:read',
-        'userTickets:read',
+        'masterTickets:read',
+        'clientTickets:read',
         'masters:read',
     ])]
     private ?City $city = null;
