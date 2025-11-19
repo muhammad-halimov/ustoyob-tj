@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controller\Api\Filter\User\Client;
+namespace App\Controller\Api\CRUD\User;
 
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;

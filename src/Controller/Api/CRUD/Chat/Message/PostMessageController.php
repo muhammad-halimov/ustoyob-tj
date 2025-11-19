@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controller\Api\Filter\Chat\Message;
+namespace App\Controller\Api\CRUD\Chat\Message;
 
 use App\Entity\Chat\Chat;
 use App\Entity\Chat\ChatMessage;

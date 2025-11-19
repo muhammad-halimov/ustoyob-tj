@@ -4,13 +4,18 @@ namespace App\Entity\Review;
 
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\Filter\Review\ClientReviewFilterController;
-use App\Controller\Api\Filter\Review\MasterReviewFilterController;
+use App\Controller\Api\CRUD\Review\PatchReviewController;
+use App\Controller\Api\CRUD\Review\PostReviewController;
+use App\Controller\Api\CRUD\Review\PostReviewPhotoController;
+use App\Controller\Api\Filter\Review\Clients\ClientReviewFilterController;
+use App\Controller\Api\Filter\Review\Clients\ClientsReviewFilterController;
+use App\Controller\Api\Filter\Review\Masters\MasterReviewFilterController;
+use App\Controller\Api\Filter\Review\Masters\MastersReviewFilterController;
 use App\Controller\Api\Filter\Review\PersonalReviewFilterController;
-use App\Controller\Api\Filter\Review\PostReviewPhotoController;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
 use App\Repository\ReviewRepository;
@@ -27,52 +32,45 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 #[ApiResource(
     operations: [
         new GetCollection(
+            uriTemplate: '/reviews',
+        ),
+        new GetCollection(
             uriTemplate: '/reviews/me',
             controller: PersonalReviewFilterController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
         ),
         new GetCollection(
             uriTemplate: '/reviews/masters/{id}',
             requirements: ['id' => '\d+'],
             controller: MasterReviewFilterController::class,
         ),
+        new Get(
+            uriTemplate: '/reviews/masters',
+            requirements: ['id' => '\d+'],
+            controller: MastersReviewFilterController::class,
+        ),
         new GetCollection(
             uriTemplate: '/reviews/clients/{id}',
             requirements: ['id' => '\d+'],
             controller: ClientReviewFilterController::class,
         ),
-        new Post(
-            uriTemplate: '/reviews',
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
+        new GetCollection(
+            uriTemplate: '/reviews/clients',
+            requirements: ['id' => '\d+'],
+            controller: ClientsReviewFilterController::class,
         ),
         new Post(
             uriTemplate: '/reviews/{id}/upload-photo',
             requirements: ['id' => '\d+'],
             controller: PostReviewPhotoController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
+        ),
+        new Post(
+            uriTemplate: '/reviews',
+            controller: PostReviewController::class,
         ),
         new Patch(
             uriTemplate: '/reviews/{id}',
             requirements: ['id' => '\d+'],
-            security:
-                "is_granted('ROLE_ADMIN')
-                            or
-                 (is_granted('ROLE_MASTER') and
-                 object.getMaster() == user and
-                 object.getForClient() == true)
-                            or
-                 (is_granted('ROLE_CLIENT') and
-                 object.getClient() == user and
-                 object.getForClient() == false)",
+            controller: PatchReviewController::class,
         ),
         new Delete(
             uriTemplate: '/reviews/{id}',
@@ -82,11 +80,11 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
                             or
                  (is_granted('ROLE_MASTER') and
                  object.getMaster() == user and
-                 object.getForClient() == true)
+                 object.getType() == 'client')
                             or
                  (is_granted('ROLE_CLIENT') and
                  object.getClient() == user and
-                 object.getForClient() == false)",
+                 object.getType() == 'master')",
         )
     ],
     normalizationContext: [
@@ -102,6 +100,11 @@ class Review
         return $this->description[15] ?? "Review #$this->id";
     }
 
+    public const TYPES = [
+        'Отзыв клиенту' => 'client',
+        'Отзыв мастеру' => 'master',
+    ];
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -110,6 +113,13 @@ class Review
         'reviewsClient:read',
     ])]
     private ?int $id = null;
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups([
+        'reviews:read',
+        'reviewsClient:read',
+    ])]
+    private ?string $type = null;
 
     #[ORM\Column(nullable: true)]
     #[Groups([
@@ -125,13 +135,6 @@ class Review
     ])]
     private ?string $description = null;
 
-    #[ORM\Column(type: 'boolean', nullable: true)]
-    #[Groups([
-        'reviews:read',
-        'reviewsClient:read',
-    ])]
-    private ?bool $forClient = null;
-
     #[ORM\ManyToOne(inversedBy: 'reviews')]
     #[ORM\JoinColumn(name: 'services_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
@@ -143,7 +146,7 @@ class Review
     /**
      * @var Collection<int, ReviewImage>
      */
-    #[ORM\OneToMany(targetEntity: ReviewImage::class, mappedBy: 'reviews')]
+    #[ORM\OneToMany(targetEntity: ReviewImage::class, mappedBy: 'reviews', cascade: ['all'])]
     #[Groups([
         'reviews:read',
         'reviewsClient:read',
@@ -215,15 +218,14 @@ class Review
         return $this;
     }
 
-    public function getForClient(): ?bool
+    public function getType(): ?string
     {
-        return $this->forClient;
+        return $this->type;
     }
 
-    public function setForClient(?bool $forClient): Review
+    public function setType(?string $type): void
     {
-        $this->forClient = $forClient;
-        return $this;
+        $this->type = $type;
     }
 
     public function getServices(): ?Ticket

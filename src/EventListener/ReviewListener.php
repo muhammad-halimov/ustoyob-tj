@@ -64,22 +64,24 @@ class ReviewListener
     private function recalculateUserRating(Review $review): void
     {
         // Определяем для кого отзыв: для рецензента (клиента) или для мастера
-        $targetUser = $review->getForClient() ? $review->getClient() : $review->getMaster();
-
-        if (!$targetUser) return;
+        if ($review->getType() == 'client')
+            $targetUser = $review->getClient();
+        elseif ($review->getType() == 'master')
+            $targetUser = $review->getMaster();
+        else return;
 
         // Получаем все отзывы для данного пользователя
         $qb = $this
             ->reviewRepository
             ->createQueryBuilder('r')
-            ->where('r.forClient = :forClient')
+            ->where('r.type = :type')
             ->andWhere('r.rating IS NOT NULL')
-            ->setParameter('forClient', $review->getForClient());
+            ->setParameter('type', $review->getType());
 
         // В зависимости от типа отзыва фильтруем по разным полям
-        if ($review->getForClient())
+        if ($review->getType() == 'client')
             $qb->andWhere('r.client = :user');
-        else
+        elseif ($review->getType() == 'master')
             $qb->andWhere('r.master = :user');
 
         $qb->setParameter('user', $targetUser);

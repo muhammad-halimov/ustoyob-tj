@@ -26,7 +26,7 @@ class PersonalReviewFilterController extends AbstractController
         if (!array_intersect($allowedRoles, $user->getRoles()))
             return $this->json(['message' => 'Access denied'], 403);
 
-        $data = $this->reviewRepository->findUserReviewsById($user);
+        $data = $this->reviewRepository->findUserReviews($user);
 
         return empty($data)
             ? $this->json(['message' => 'Resource not found'], 404)

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controller\Api\Filter\Review;
+namespace App\Controller\Api\Filter\Review\Masters;
 
 use App\Entity\User;
 use App\Repository\ReviewRepository;
@@ -8,7 +8,7 @@ use App\Repository\UserRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
-class ClientReviewFilterController extends AbstractController
+class MasterReviewFilterController extends AbstractController
 {
     public function __construct(
         private readonly ReviewRepository $reviewRepository,
@@ -23,10 +23,10 @@ class ClientReviewFilterController extends AbstractController
         if (!$user)
             return $this->json(['message' => 'User not found'], 404);
 
-        $data = $this->reviewRepository->findClientReviews($user);
+        $data = $this->reviewRepository->findReviewsByTypeAndRole($user, 'master', '%ROLE_MASTER%');
 
         return empty($data)
             ? $this->json(['message' => 'Resource not found'], 404)
-            : $this->json($data, context: ['groups' => ['reviewsClient:read']]);
+            : $this->json($data, context: ['groups' => ['reviews:read']]);
     }
 }

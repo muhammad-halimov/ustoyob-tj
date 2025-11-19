@@ -81,7 +81,6 @@ class TicketCrudController extends AbstractCrudController
             ->setRequired(true);
 
         yield AssociationField::new('category', 'Категория')
-            ->hideOnIndex()
             ->setRequired(true)
             ->setColumns(3);
 

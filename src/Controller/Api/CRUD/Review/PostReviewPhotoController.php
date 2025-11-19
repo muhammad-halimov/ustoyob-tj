@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controller\Api\Filter\Review;
+namespace App\Controller\Api\CRUD\Review;
 
 use App\Entity\Review\Review;
 use App\Entity\Review\ReviewImage;

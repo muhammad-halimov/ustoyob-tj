@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controller\Api\Filter\Gallery;
+namespace App\Controller\Api\CRUD\Gallery;
 
 use App\Entity\Gallery\Gallery;
 use App\Entity\User;

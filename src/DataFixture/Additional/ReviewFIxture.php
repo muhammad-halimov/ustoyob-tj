@@ -18,11 +18,11 @@ class ReviewFIxture extends Fixture
             $forMaster,
         ];
 
-        $forClient->setForClient(true);
+        $forClient->setType("client");
         $forClient->setRating(5);
         $forClient->setDescription("Хороший клиент, даже помог с установкой😁");
 
-        $forMaster->setForClient(false);
+        $forMaster->setType("master");
         $forMaster->setRating(3.5);
         $forMaster->setDescription("Мастер неплохой, но работу выолнил так себе, честно");
 

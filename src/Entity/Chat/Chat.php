@@ -8,11 +8,12 @@ use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\Filter\Chat\Chat\ChatFilterController;
-use App\Controller\Api\Filter\Chat\Chat\DeleteChatController;
-use App\Controller\Api\Filter\Chat\Chat\PersonalChatFilterController;
-use App\Controller\Api\Filter\Chat\Chat\PostChatController;
-use App\Controller\Api\Filter\Chat\Chat\PostChatPhotoController;
+use App\Controller\Api\CRUD\Chat\DeleteChatController;
+use App\Controller\Api\CRUD\Chat\PostChatController;
+use App\Controller\Api\CRUD\Chat\PostChatPhotoController;
+use App\Controller\Api\Filter\Chat\ChatFilterController;
+use App\Controller\Api\Filter\Chat\PersonalChatFilterController;
+use App\Entity\Ticket\Ticket;
 use App\Entity\User;
 use App\Repository\Chat\ChatRepository;
 use DateTime;
@@ -106,6 +107,13 @@ class Chat
         'chats:read',
     ])]
     private ?User $replyAuthor = null;
+
+    #[ORM\ManyToOne(inversedBy: 'chats')]
+    #[ORM\JoinColumn(name: 'ticket_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    #[Groups([
+        'chats:read',
+    ])]
+    private ?Ticket $ticket = null;
 
     /**
      * @var Collection<int, ChatMessage>
@@ -256,5 +264,17 @@ class Chat
     public function setUpdatedAt(): void
     {
         $this->updatedAt = new DateTime();
+    }
+
+    public function getTicket(): ?Ticket
+    {
+        return $this->ticket;
+    }
+
+    public function setTicket(?Ticket $ticket): static
+    {
+        $this->ticket = $ticket;
+
+        return $this;
     }
 }

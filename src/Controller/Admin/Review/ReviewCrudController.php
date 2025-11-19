@@ -9,7 +9,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
@@ -33,8 +33,8 @@ class ReviewCrudController extends AbstractCrudController
     {
         return parent::configureCrud($crud)
             ->setEntityPermission('ROLE_ADMIN')
-            ->setEntityLabelInPlural('Отзывы работ')
-            ->setEntityLabelInSingular('отзывы работ')
+            ->setEntityLabelInPlural('Отзывы')
+            ->setEntityLabelInSingular('отзыв')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление отзыва')
             ->setPageTitle(Crud::PAGE_EDIT, 'Изменение отзыва')
             ->setPageTitle(Crud::PAGE_DETAIL, "Информация об отзыве");
@@ -65,21 +65,16 @@ class ReviewCrudController extends AbstractCrudController
         yield IdField::new('id')
             ->onlyOnIndex();
 
-        yield BooleanField::new('forClient', 'Отзыв клиенту')
+        yield ChoiceField::new('type', 'Тип отзыва')
+            ->setRequired(true)
+            ->allowMultipleChoices(false)
+            ->renderExpanded()
             ->addCssClass("form-switch")
+            ->setChoices(Review::TYPES)
             ->setColumns(12);
 
         yield AssociationField::new('master', 'Мастер')
             ->setRequired(true)
-            ->setColumns(6);
-
-        yield AssociationField::new('client', 'Клиент')
-            ->setRequired(true)
-            ->setColumns(6);
-
-        yield NumberField::new('rating', 'Оценка')
-            ->setRequired(true)
-            ->setNumDecimals(1)
             ->setColumns(6);
 
         yield AssociationField::new('services', 'Услуга')
@@ -87,15 +82,22 @@ class ReviewCrudController extends AbstractCrudController
             ->addCssClass("services-field")
             ->setColumns(6);
 
-        yield TextEditorField::new('description', 'Описание')
+        yield NumberField::new('rating', 'Оценка')
             ->setRequired(true)
+            ->setNumDecimals(1)
+            ->setColumns(6);
+
+        yield AssociationField::new('client', 'Клиент')
+            ->setRequired(true)
+            ->setColumns(6);
+
+        yield TextEditorField::new('description', 'Описание')
             ->setColumns(12);
 
         yield CollectionField::new('reviewImages', 'Галерея изображений')
             ->useEntryCrudForm(ReviewImageCrudController::class)
             ->hideOnIndex()
-            ->setColumns(12)
-            ->setRequired(false);
+            ->setColumns(12);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
             ->onlyOnIndex();

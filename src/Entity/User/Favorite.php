@@ -8,10 +8,9 @@ use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\Filter\User\Favorite\DeleteFavoriteController;
-use App\Controller\Api\Filter\User\Favorite\PatchFavoriteController;
+use App\Controller\Api\CRUD\User\Favorite\PatchFavoriteController;
+use App\Controller\Api\CRUD\User\Favorite\PostFavoriteController;
 use App\Controller\Api\Filter\User\Favorite\PersonalFavoriteFilterController;
-use App\Controller\Api\Filter\User\Favorite\PostFavoriteController;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
@@ -29,36 +28,27 @@ use Symfony\Component\Serializer\Attribute\Groups;
         new Get(
             uriTemplate: '/favorites/me',
             controller: PersonalFavoriteFilterController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
         ),
         new Post(
             uriTemplate: '/favorites',
             controller: PostFavoriteController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
         ),
         new Patch(
             uriTemplate: '/favorites/{id}',
             requirements: ['id' => '\d+'],
             controller: PatchFavoriteController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
         ),
         new Delete(
             uriTemplate: '/favorites/{id}',
             requirements: ['id' => '\d+'],
-            controller: DeleteFavoriteController::class,
             security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
+                "is_granted('ROLE_ADMIN')
+                            or
+                 (is_granted('ROLE_MASTER') and
+                 object.getUser() == user)
+                            or
+                 (is_granted('ROLE_CLIENT') and
+                 object.getUser() == user)",
         ),
     ],
     normalizationContext: [

@@ -8,13 +8,14 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\Controller\Api\CRUD\Ticket\PostTicketPhotoController;
 use App\Controller\Api\Filter\Ticket\Client\ClientsTicketFilterController;
 use App\Controller\Api\Filter\Ticket\Client\ClientTicketFilterController;
 use App\Controller\Api\Filter\Ticket\Master\MastersTicketFilterController;
 use App\Controller\Api\Filter\Ticket\Master\MasterTicketFilterController;
 use App\Controller\Api\Filter\Ticket\PersonalTicketFilterController;
-use App\Controller\Api\Filter\Ticket\PostTicketPhotoController;
 use App\Entity\Appeal\Appeal;
+use App\Entity\Chat\Chat;
 use App\Entity\Geography\District;
 use App\Entity\Review\Review;
 use App\Entity\User;
@@ -41,6 +42,15 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
                  is_granted('ROLE_MASTER') or
                  is_granted('ROLE_CLIENT')"
         ),
+        new Get(
+            uriTemplate: '/tickets/master/category/{id}',
+        ),
+        new Get(
+            uriTemplate: '/tickets/client/category/{id}',
+        ),
+        new GetCollection(
+            uriTemplate: '/tickets/category/{id}',
+        ),
         new GetCollection(
             uriTemplate: '/tickets/masters',
             controller: MastersTicketFilterController::class,
@@ -60,16 +70,9 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             controller: ClientTicketFilterController::class,
         ),
         new Post(
-            uriTemplate: '/tickets/masters',
+            uriTemplate: '/tickets',
             security:
                 "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
-        ),
-        new Post(
-            uriTemplate: '/tickets/clients',
-            security:
-            "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER') or
                  is_granted('ROLE_CLIENT')"
         ),
@@ -86,9 +89,13 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             uriTemplate: '/tickets/{id}',
             requirements: ['id' => '\d+'],
             security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
+                "is_granted('ROLE_ADMIN')
+                            or
+                 (is_granted('ROLE_MASTER') and
+                 object.getMaster() == user)
+                            or
+                 (is_granted('ROLE_CLIENT') and
+                 object.getAuthor() == user)",
         ),
     ],
     normalizationContext: [
@@ -113,6 +120,7 @@ class Ticket
         $this->reviews = new ArrayCollection();
         $this->appeals = new ArrayCollection();
         $this->favorites = new ArrayCollection();
+        $this->chats = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -183,6 +191,17 @@ class Ticket
     ])]
     private ?User $author = null;
 
+    #[ORM\ManyToOne(inversedBy: 'tickets')]
+    #[ORM\JoinColumn(name: 'master_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    #[Groups([
+        'userTickets:read',
+        'appeals:read',
+        'appealsTicket:read',
+        'reviews:read',
+        'favorites:read'
+    ])]
+    private ?User $master = null;
+
     /**
      * @var Collection<int, TicketImage>
      */
@@ -207,17 +226,6 @@ class Ticket
     #[ORM\OneToMany(targetEntity: Review::class, mappedBy: 'services')]
     #[Ignore]
     private Collection $reviews;
-
-    #[ORM\ManyToOne(inversedBy: 'tickets')]
-    #[ORM\JoinColumn(name: 'master_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
-    #[Groups([
-        'userTickets:read',
-        'appeals:read',
-        'appealsTicket:read',
-        'reviews:read',
-        'favorites:read'
-    ])]
-    private ?User $master = null;
 
     #[ORM\Column(type: 'boolean', nullable: true)]
     #[Groups([
@@ -248,7 +256,15 @@ class Ticket
      * @var Collection<int, Favorite>
      */
     #[ORM\ManyToMany(targetEntity: Favorite::class, mappedBy: 'tickets')]
+    #[Ignore]
     private Collection $favorites;
+
+    /**
+     * @var Collection<int, Chat>
+     */
+    #[ORM\OneToMany(targetEntity: Chat::class, mappedBy: 'ticket')]
+    #[Ignore]
+    private Collection $chats;
 
     #[ORM\Column(type: 'datetime', nullable: false)]
     #[Groups([
@@ -538,5 +554,35 @@ class Ticket
     public function setUpdatedAt(): void
     {
         $this->updatedAt = new DateTime();
+    }
+
+    /**
+     * @return Collection<int, Chat>
+     */
+    public function getChats(): Collection
+    {
+        return $this->chats;
+    }
+
+    public function addChat(Chat $chat): static
+    {
+        if (!$this->chats->contains($chat)) {
+            $this->chats->add($chat);
+            $chat->setTicket($this);
+        }
+
+        return $this;
+    }
+
+    public function removeChat(Chat $chat): static
+    {
+        if ($this->chats->removeElement($chat)) {
+            // set the owning side to null (unless already changed)
+            if ($chat->getTicket() === $this) {
+                $chat->setTicket(null);
+            }
+        }
+
+        return $this;
     }
 }

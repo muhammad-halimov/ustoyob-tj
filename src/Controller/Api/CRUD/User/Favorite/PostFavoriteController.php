@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controller\Api\Filter\User\Favorite;
+namespace App\Controller\Api\CRUD\User\Favorite;
 
 use App\Entity\User;
 use App\Entity\User\Favorite;
@@ -40,47 +40,58 @@ class PostFavoriteController extends AbstractController
 
         $data = json_decode($request->getContent(), true);
 
-        $clientsParam = $data['clients'];
-        $mastersParam = $data['masters'];
-        $ticketParam = $data['tickets'];
+        $clientsParam = $data['clients'] ?? null;
+        $mastersParam = $data['masters'] ?? null;
+        $ticketsParam = $data['tickets'] ?? null;
+
+        // Проверка, что хотя бы одно поле передано (используем is_null для корректной работы с пустыми массивами)
+        if (is_null($clientsParam) && is_null($mastersParam) && is_null($ticketsParam))
+            return $this->json(['message' => 'At least one field (clients, masters, or tickets) must be provided'], 400);
 
         $masters = [];
         $clients = [];
         $tickets = [];
 
-        foreach (array_unique($mastersParam) as $master) {
-            // Извлекаем ID из строки "/api/users/1" или просто "1"
-            $masterId = (preg_match('#/api/users/(\d+)#', $master, $m) ? $m[1] : $master);
-            $user = $this->userRepository->find($masterId);
+        // Обработка мастеров (если переданы)
+        if (!is_null($mastersParam)) {
+            foreach (array_unique($mastersParam) as $master) {
+                $masterId = (preg_match('#/api/users/(\d+)#', $master, $m) ? $m[1] : $master);
+                $user = $this->userRepository->find($masterId);
 
-            if (!$user || !in_array($allowedRoles[2], $user->getRoles()))
-                return $this->json(['message' => "Master #$masterId not found"], 404);
+                if (!$user || !in_array($allowedRoles[2], $user->getRoles()))
+                    return $this->json(['message' => "Master #$masterId not found"], 404);
 
-            $masters[] = $user;
+                $masters[] = $user;
+            }
         }
 
-        foreach (array_unique($clientsParam) as $client) {
-            // Извлекаем ID из строки "/api/users/1" или просто "1"
-            $clientId = (preg_match('#/api/users/(\d+)#', $client, $c) ? $c[1] : $client);
-            $user = $this->userRepository->find($clientId);
+        // Обработка клиентов (если переданы)
+        if (!is_null($clientsParam)) {
+            foreach (array_unique($clientsParam) as $client) {
+                $clientId = (preg_match('#/api/users/(\d+)#', $client, $c) ? $c[1] : $client);
+                $user = $this->userRepository->find($clientId);
 
-            if (!$user || !in_array($allowedRoles[1], $user->getRoles()))
-                return $this->json(['message' => "Client #$clientId not found"], 404);
+                if (!$user || !in_array($allowedRoles[1], $user->getRoles()))
+                    return $this->json(['message' => "Client #$clientId not found"], 404);
 
-            $clients[] = $user;
+                $clients[] = $user;
+            }
         }
 
-        foreach (array_unique($ticketParam) as $ticket) {
-            // Извлекаем ID из строки "/api/users/1" или просто "1"
-            $ticketId = (preg_match('#/api/tickets/(\d+)#', $ticket, $t) ? $t[1] : $ticket);
-            $ticketInternal = $this->ticketRepository->find($ticketId);
+        // Обработка тикетов (если переданы)
+        if (!is_null($ticketsParam)) {
+            foreach (array_unique($ticketsParam) as $ticket) {
+                $ticketId = (preg_match('#/api/tickets/(\d+)#', $ticket, $t) ? $t[1] : $ticket);
+                $ticketInternal = $this->ticketRepository->find($ticketId);
 
-            if (!$ticketInternal)
-                return $this->json(['message' => "Ticket #$ticketId not found"], 404);
+                if (!$ticketInternal)
+                    return $this->json(['message' => "Ticket #$ticketId not found"], 404);
 
-            $tickets[] = $ticketInternal;
+                $tickets[] = $ticketInternal;
+            }
         }
 
+        // Добавляем только те сущности, которые были переданы
         foreach ($masters as $master) $favorite->addMaster($master);
         foreach ($clients as $client) $favorite->addClient($client);
         foreach ($tickets as $ticket) $favorite->addTicket($ticket);

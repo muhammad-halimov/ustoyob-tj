@@ -4,7 +4,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function loadAndChangeChoices() {
-    const reviewerOption = document.getElementById('Review_forClient');
+    const clientOption = document.getElementById('Review_type_0');
+    const masterOption = document.getElementById('Review_type_1');
     const serviceDropDown = document.querySelector('.services-field');
 
     const disableDropDown = (dropDown) => {
@@ -20,7 +21,7 @@ async function loadAndChangeChoices() {
     };
 
     const updateDropDowns = () => {
-        if (reviewerOption.checked) {
+        if (clientOption.checked) {
             disableDropDown(serviceDropDown);
         } else {
             // Если ничего не выбрано — отключаем
@@ -29,7 +30,8 @@ async function loadAndChangeChoices() {
     };
 
     // Обработчики переключения
-    reviewerOption.addEventListener('change', updateDropDowns);
+    clientOption.addEventListener('change', updateDropDowns);
+    masterOption.addEventListener('change', updateDropDowns);
 
     updateDropDowns();
 }

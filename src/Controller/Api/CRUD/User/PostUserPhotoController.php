@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controller\Api\Filter\User\Personal;
+namespace App\Controller\Api\CRUD\User;
 
 use App\Entity\User;
 use App\Repository\UserRepository;
@@ -10,7 +10,7 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
-class UpdateUserPhotoController extends AbstractController
+class PostUserPhotoController extends AbstractController
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,

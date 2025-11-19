@@ -7,22 +7,19 @@ use App\Repository\UserRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
-class MastersUserFilterController extends AbstractController
+class MastersOccupationUserFilterController extends AbstractController
 {
     public function __construct(
         private readonly UserRepository $userRepository
     ){}
 
-    public function __invoke(): JsonResponse
+    public function __invoke(int $id): JsonResponse
     {
-        /** @var User $user */
-        $user = $this->userRepository->findAllByRole("ROLE_MASTER");
+        /** @var User $occupations */
+        $occupations = $this->userRepository->findByOccupationId($id);
 
-        if (!$user)
-            return $this->json(['message' => 'User not found'], 404);
-
-        return empty($user)
+        return empty($occupations)
             ? $this->json(['message' => 'Resource not found'], 404)
-            : $this->json($user, context: ['groups' => ['masters:read']]);
+            : $this->json($occupations, context: ['groups' => ['masters:read']]);
     }
 }

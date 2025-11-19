@@ -54,4 +54,14 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
             ->getQuery()
             ->getResult();
     }
+
+    public function findByOccupationId(int $occupationId): array
+    {
+        return $this->createQueryBuilder('u')
+            ->join('u.occupation', 'o')
+            ->where('o.id = :occupationId')
+            ->setParameter('occupationId', $occupationId)
+            ->getQuery()
+            ->getResult();
+    }
 }

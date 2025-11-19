@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controller\Api\Filter\Appeal\Support;
+namespace App\Controller\Api\CRUD\Appeal;
 
 use App\Entity\Appeal\Appeal;
 use App\Entity\Appeal\AppealMessage;

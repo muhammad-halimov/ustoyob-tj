@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controller\Api\Filter\Ticket;
+namespace App\Controller\Api\CRUD\Ticket;
 
 use App\Entity\Ticket\Ticket;
 use App\Entity\Ticket\TicketImage;

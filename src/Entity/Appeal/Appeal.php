@@ -7,9 +7,9 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\Controller\Api\CRUD\Appeal\PostAppealPhotoController;
 use App\Controller\Api\Filter\Appeal\Compliant\TicketComplaintFilterController;
 use App\Controller\Api\Filter\Appeal\Compliant\UserComplaintFilterController;
-use App\Controller\Api\Filter\Appeal\PostAppealPhotoController;
 use App\Controller\Api\Filter\Appeal\Support\AdminSupportFilterController;
 use App\Controller\Api\Filter\Appeal\Support\UserSupportFilterController;
 use App\Entity\Ticket\Ticket;
@@ -55,6 +55,12 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             uriTemplate: '/appeals/support/admin/{id}',
             controller: AdminSupportFilterController::class,
             security: "is_granted('ROLE_ADMIN')"
+        ),
+        new GetCollection(
+            uriTemplate: '/appeals/support/reasons',
+        ),
+        new GetCollection(
+            uriTemplate: '/appeals/complaints/reasons',
         ),
         new Post(
             uriTemplate: '/appeals',

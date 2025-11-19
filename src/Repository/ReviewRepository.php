@@ -17,17 +17,17 @@ class ReviewRepository extends ServiceEntityRepository
         parent::__construct($registry, Review::class);
     }
 
-    public function findUserReviewsById(User $user): array
+    public function findUserReviews(User $user): array
     {
         if (in_array('ROLE_CLIENT', $user->getRoles())){
             return $this
                 ->createQueryBuilder('r')
                 ->innerJoin('r.client', 'rev')
-                ->where('r.client = :clientId')
-                ->andWhere("r.forClient = :status")
+                ->where('r.client = :client')
+                ->andWhere("r.type = :type")
                 ->andWhere("rev.roles LIKE :role")
-                ->setParameter('clientId', $user->getId())
-                ->setParameter('status', false)
+                ->setParameter('client', $user)
+                ->setParameter('type', "master")
                 ->setParameter('role', '%ROLE_CLIENT%')
                 ->getQuery()
                 ->getResult();
@@ -35,11 +35,11 @@ class ReviewRepository extends ServiceEntityRepository
             return $this
                 ->createQueryBuilder('r')
                 ->innerJoin('r.master', 'master')
-                ->where('r.master = :masterId')
-                ->andWhere("r.forClient = :status")
+                ->where('r.master = :master')
+                ->andWhere("r.type = :type")
                 ->andWhere("master.roles LIKE :role")
-                ->setParameter('masterId', $user->getId())
-                ->setParameter('status', true)
+                ->setParameter('master', $user)
+                ->setParameter('type', "client")
                 ->setParameter('role', '%ROLE_MASTER%')
                 ->getQuery()
                 ->getResult();
@@ -48,32 +48,32 @@ class ReviewRepository extends ServiceEntityRepository
         return [];
     }
 
-    public function findClientReviews(User $user): array
+    public function findReviewsByTypeAndRole(User $user, string $type, string $role): array
     {
         return $this
             ->createQueryBuilder('r')
             ->innerJoin('r.client', 'client')
-            ->where('r.client = :user')
-            ->andWhere("r.forClient = :forClient")
-            ->andWhere("client.roles LIKE :role")
+            ->innerJoin('r.master', 'master')
+            ->where("client.roles LIKE :role OR master.roles LIKE :role")
+            ->andWhere('r.client = :user OR r.master = :user')
+            ->andWhere("r.type = :type")
+            ->setParameter('role', $role)
             ->setParameter('user', $user)
-            ->setParameter('forClient', true)
-            ->setParameter('role', '%ROLE_CLIENT%')
+            ->setParameter('type', $type)
             ->getQuery()
             ->getResult();
     }
 
-    public function findMasterReviews(User $user): array
+    public function findReviewsByType(string $type, string $role): array
     {
         return $this
             ->createQueryBuilder('r')
+            ->innerJoin('r.client', 'client')
             ->innerJoin('r.master', 'master')
-            ->where('r.master = :user')
-            ->andWhere("r.forClient = :forClient")
-            ->andWhere("master.roles LIKE :role")
-            ->setParameter('user', $user)
-            ->setParameter('forClient', false)
-            ->setParameter('role', '%ROLE_MASTER%')
+            ->where("client.roles LIKE :role OR master.roles LIKE :role")
+            ->andWhere("r.type = :type")
+            ->setParameter('role', $role)
+            ->setParameter('type', $type)
             ->getQuery()
             ->getResult();
     }

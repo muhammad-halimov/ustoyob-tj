@@ -33,15 +33,13 @@ class ChatCrudController extends AbstractCrudController
 
     public function configureActions(Actions $actions): Actions
     {
-        $actions
-            ->add(Crud::PAGE_INDEX, Action::DETAIL);
+        $actions->add(Crud::PAGE_INDEX, Action::DETAIL);
 
-        $actions
-            ->reorder(Crud::PAGE_INDEX, [
-                Action::DETAIL,
-                Action::EDIT,
-                Action::DELETE
-            ]);
+        $actions->reorder(Crud::PAGE_INDEX, [
+            Action::DETAIL,
+            Action::EDIT,
+            Action::DELETE
+        ]);
 
         return parent::configureActions($actions)
             ->setPermissions([
@@ -58,11 +56,14 @@ class ChatCrudController extends AbstractCrudController
 
         yield AssociationField::new('author', 'Автор')
             ->setRequired(true)
-            ->setColumns(6);
+            ->setColumns(4);
 
         yield AssociationField::new('replyAuthor', 'Ответчик')
             ->setRequired(true)
-            ->setColumns(6);
+            ->setColumns(4);
+
+        yield AssociationField::new('ticket', 'Услуга/Объявление')
+            ->setColumns(4);
 
         yield CollectionField::new('chatImages', 'Галерея изображений')
             ->useEntryCrudForm(ChatImageCrudController::class)

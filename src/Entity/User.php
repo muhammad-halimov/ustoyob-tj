@@ -9,13 +9,14 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\Controller\Api\CRUD\User\GrantRoleController;
+use App\Controller\Api\CRUD\User\PostUserPhotoController;
 use App\Controller\Api\Filter\User\Client\ClientsUserFilterController;
 use App\Controller\Api\Filter\User\Client\ClientUserFilterController;
-use App\Controller\Api\Filter\User\Client\GrantRoleController;
+use App\Controller\Api\Filter\User\Master\MastersOccupationUserFilterController;
 use App\Controller\Api\Filter\User\Master\MastersUserFilterController;
 use App\Controller\Api\Filter\User\Master\MasterUserFilterController;
 use App\Controller\Api\Filter\User\Personal\PersonalUserFilterController;
-use App\Controller\Api\Filter\User\Personal\UpdateUserPhotoController;
 use App\Controller\Api\Filter\User\SocialNetworkController;
 use App\Entity\Appeal\Appeal;
 use App\Entity\Appeal\AppealImage;
@@ -57,10 +58,6 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
         new Get(
             uriTemplate: '/users/me',
             controller: PersonalUserFilterController::class,
-            security:
-               "is_granted('ROLE_ADMIN') or
-                is_granted('ROLE_MASTER') or
-                is_granted('ROLE_CLIENT')",
         ),
         new GetCollection(
             uriTemplate: '/users/clients',
@@ -84,6 +81,11 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
             requirements: ['id' => '\d+'],
             controller: MasterUserFilterController::class,
         ),
+        new GetCollection(
+            uriTemplate: '/users/masters/occupations/{id}',
+            requirements: ['id' => '\d+'],
+            controller: MastersOccupationUserFilterController::class,
+        ),
         new Post(
             uriTemplate: '/users'
         ),
@@ -95,11 +97,7 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
             uriTemplate: '/users/{id}/update-photo',
             inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
-            controller: UpdateUserPhotoController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')",
+            controller: PostUserPhotoController::class,
         ),
         new Patch(
             uriTemplate: '/users/{id}',
