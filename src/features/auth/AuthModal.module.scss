@@ -15,26 +15,26 @@
 }
 
 .modalContent {
-  background: white;
-  border-radius: 12px;
-  padding: 32px;
+  background: map.get(vars.$colors, background-primary);
+  border-radius: map.get(vars.$border-radius, lg);
+  padding: map.get(vars.$spacing, 8);
   width: 100%;
   max-width: 841px;
   position: relative;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 32px map.get(vars.$colors, shadow);
   max-height: 90vh;
   overflow-y: auto;
 }
 
 .closeButton {
   position: absolute;
-  top: 16px;
-  right: 16px;
+  top: map.get(vars.$spacing, 4);
+  right: map.get(vars.$spacing, 4);
   background: none;
   border: none;
   font-size: 24px;
   cursor: pointer;
-  color: #666;
+  color: map.get(vars.$colors, color-icons);
   width: 30px;
   height: 30px;
   display: flex;
@@ -42,8 +42,8 @@
   justify-content: center;
 
   &:hover {
-    color: #000;
-    background: #f5f5f5;
+    color: map.get(vars.$colors, text-black);
+    background: map.get(vars.$colors, hover-with-borderBtn);
     border-radius: 50%;
   }
 }
@@ -53,9 +53,9 @@
   text-align: center;
 
   h2 {
-    margin-bottom: 24px;
-    font-size: 18px;
-    color: #333;
+    margin-bottom: map.get(vars.$spacing, 6);
+    font-size: map.get(vars.$font-sizes, lg);
+    color: map.get(vars.$colors, text-primary);
     line-height: 1.4;
   }
 }
@@ -73,8 +73,8 @@
 /* Form */
 .form {
   h2 {
-    margin-bottom: 32px;
-    font-size: 28px;
+    margin-bottom: map.get(vars.$spacing, 8);
+    font-size: map.get(vars.$font-sizes, '3xl');
     color: map.get(vars.$colors, text-black);
     text-align: center;
     font-weight: 600;
@@ -82,12 +82,12 @@
 
   .socialTitle {
     text-align: center;
-    margin-top: 24px;
-    font-size: 24px;
+    margin-top: map.get(vars.$spacing, 6);
+    font-size: map.get(vars.$font-sizes, xl);
   }
 
   .socialButtons {
-    margin: 12px auto 24px;
+    margin: map.get(vars.$spacing, 3) auto map.get(vars.$spacing, 6);
     width: 100%;
     display: flex;
     justify-content: center;
@@ -95,7 +95,7 @@
     .facebookButton,
     .googleButton {
       max-width: 62px;
-      margin-right: 20px;
+      margin-right: map.get(vars.$spacing, 5);
       cursor: pointer;
     }
   }
@@ -105,58 +105,58 @@
   background: #fee;
   border: 1px solid #fcc;
   color: #c33;
-  padding: 12px;
-  border-radius: 6px;
-  margin-bottom: 16px;
-  font-size: 14px;
+  padding: map.get(vars.$spacing, 3);
+  border-radius: map.get(vars.$border-radius, base);
+  margin-bottom: map.get(vars.$spacing, 4);
+  font-size: map.get(vars.$font-sizes, sm);
   text-align: center;
 }
 
 .subtitle {
   text-align: center;
-  color: #666;
-  margin-bottom: 24px;
-  font-size: 14px;
+  color: map.get(vars.$colors, color-icons);
+  margin-bottom: map.get(vars.$spacing, 6);
+  font-size: map.get(vars.$font-sizes, sm);
 }
 
 /* Role selector */
 .roleSelector {
   display: flex;
   gap: 0;
-  margin-bottom: 32px;
+  margin-bottom: map.get(vars.$spacing, 8);
   width: 59%;
   max-width: 329px;
-  border-radius: 8px;
+  border-radius: map.get(vars.$border-radius, base);
   overflow: hidden;
-  background: #fff;
+  background: map.get(vars.$colors, background-primary);
 
   button {
     flex: 1;
     padding: 6px 14px;
     border: none;
-    background: white;
+    background: map.get(vars.$colors, background-primary);
     cursor: pointer;
     font-size: 15px;
     font-weight: 400;
     transition: all 0.2s ease;
-    color: #333;
+    color: map.get(vars.$colors, text-primary);
 
     &:hover:not(.roleButtonActive) {
-      background: #f8f9fa;
-      border-radius: 10px;
+      background: map.get(vars.$colors, background-btn2);
+      border-radius: map.get(vars.$border-radius, lg);
     }
   }
 }
 
 .roleButtonActive {
-  background: #3A54DA !important;
-  border-radius: 10px;
-  color: white !important;
+  background: map.get(vars.$colors, actual-blue) !important;
+  border-radius: map.get(vars.$border-radius, lg);
+  color: map.get(vars.$colors, primary-text-white) !important;
 }
 
 /* Input/Select */
 .inputGroup {
-  margin-bottom: 12px;
+  margin-bottom: map.get(vars.$spacing, 3);
 
   .selectWrapper {
     position: relative;
@@ -164,22 +164,22 @@
     &::after {
       content: "▾";
       position: absolute;
-      right: 16px;
+      right: map.get(vars.$spacing, 4);
       top: 50%;
       transform: translateY(-50%);
       pointer-events: none;
       font-size: 18px;
-      color: #6c757d;
+      color: map.get(vars.$colors, color-icons);
     }
   }
 
   select {
     width: 100%;
-    padding: 16px;
-    background-color: #EDEDED;
-    color: black;
-    border-radius: 8px;
-    font-size: 24px;
+    padding: map.get(vars.$spacing, 4);
+    background-color: map.get(vars.$colors, background-btn2);
+    color: map.get(vars.$colors, text-black);
+    border-radius: map.get(vars.$border-radius, base);
+    font-size: map.get(vars.$font-sizes, '2xl');
     transition: all 0.2s ease;
     appearance: none;
     cursor: pointer;
@@ -187,40 +187,40 @@
 
     &:focus {
       outline: none;
-      background-color: #fff;
+      background-color: map.get(vars.$colors, background-primary);
       box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.1);
     }
 
     option {
-      background: #fff;
+      background: map.get(vars.$colors, background-primary);
     }
   }
 
   input {
     width: 100%;
-    padding: 16px;
-    background-color: #EDEDED;
-    color: black;
+    padding: map.get(vars.$spacing, 4);
+    background-color: map.get(vars.$colors, background-btn2);
+    color: map.get(vars.$colors, text-black);
     border: none;
-    border-radius: 8px;
-    font-size: 24px;
+    border-radius: map.get(vars.$border-radius, base);
+    font-size: map.get(vars.$font-sizes, '2xl');
 
     &:focus {
       outline: none;
-      background-color: #fff;
+      background-color: map.get(vars.$colors, background-primary);
       box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.1);
     }
 
     &::placeholder {
-      color: #949494;
-      font-size: 24px;
+      color: map.get(vars.$colors, text-placeholder);
+      font-size: map.get(vars.$font-sizes, '2xl');
     }
   }
 }
 
 .nameRow {
   display: flex;
-  gap: 16px;
+  gap: map.get(vars.$spacing, 4);
 
   .inputGroup {
     flex: 1;
@@ -230,15 +230,15 @@
 /* Primary button */
 .primaryButton {
   width: 100%;
-  padding: 16px;
-  background: #3A54DA;
-  color: white;
+  padding: map.get(vars.$spacing, 4);
+  background: map.get(vars.$colors, actual-blue);
+  color: map.get(vars.$colors, primary-text-white);
   border: none;
-  border-radius: 8px;
-  font-size: 24px;
+  border-radius: map.get(vars.$border-radius, base);
+  font-size: map.get(vars.$font-sizes, '2xl');
   font-weight: 400;
   cursor: pointer;
-  margin-bottom: 20px;
+  margin-bottom: map.get(vars.$spacing, 5);
 
   &:hover:not(:disabled) {
     background: #2a44ca;
@@ -255,16 +255,16 @@
 /* Secondary button */
 .secondaryButton {
   width: 100%;
-  padding: 16px;
-  background: white;
-  color: #3A54DA;
-  border: 2px solid #3A54DA;
-  border-radius: 8px;
-  font-size: 24px;
+  padding: map.get(vars.$spacing, 4);
+  background: map.get(vars.$colors, background-primary);
+  color: map.get(vars.$colors, actual-blue);
+  border: 2px solid map.get(vars.$colors, actual-blue);
+  border-radius: map.get(vars.$border-radius, base);
+  font-size: map.get(vars.$font-sizes, '2xl');
   cursor: pointer;
 
   &:hover:not(:disabled) {
-    background: #f8f9ff;
+    background: map.get(vars.$colors, hover-with-borderBtn);
     transform: translateY(-1px);
   }
 
@@ -277,22 +277,21 @@
 .links {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: map.get(vars.$spacing, 4);
   align-items: center;
-  margin-top: 24px;
+  margin-top: map.get(vars.$spacing, 6);
 
   .promptText {
-    font-size: 24px;
+    font-size: map.get(vars.$font-sizes, '2xl');
   }
 }
 
-/* ✅ Оставлен ТОЛЬКО правильный финальный .linkButton */
 .linkButton {
   background: none;
   border: none;
-  color: #3A54DA;
+  color: map.get(vars.$colors, actual-blue);
   cursor: pointer;
-  font-size: 24px;
+  font-size: map.get(vars.$font-sizes, '2xl');
   font-weight: 500;
   transition: color 0.2s;
   text-decoration: none;
@@ -308,8 +307,8 @@
   }
 
   span {
-    color: #5D5D5D;
-    margin-right: 4px;
+    color: map.get(vars.$colors, text-who);
+    margin-right: map.get(vars.$spacing, 1);
   }
 }
 
@@ -327,7 +326,7 @@
   }
 
   .form h2 {
-    font-size: 24px;
+    font-size: map.get(vars.$font-sizes, xl);
   }
 }
 

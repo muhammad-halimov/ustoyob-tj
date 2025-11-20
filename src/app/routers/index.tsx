@@ -11,6 +11,8 @@ import OrderPage from "../../pages/order/OrderPage.tsx";
 import CreateAdPage from "../../pages/create-ad/CreateAdPage";
 import OrderHistoryPage from "../../pages/OrderHistory/OrderHistoryPage";
 import SearchServicePage from "../../pages/search/SearchServicePage";
+import TicketsPage from "../../pages/tickets/TicketsPage";
+import MasterProfileViewPage from "../../entities/MasterProfileViewPage/MasterProfileViewPage";
 
 const router = createBrowserRouter([
     {
@@ -19,16 +21,18 @@ const router = createBrowserRouter([
         children: [
             { index: true, element: <MainPage /> },
             { path: 'orders', element: <OrderHistoryPage /> },
-            { path: 'search-ad', element: <SearchServicePage /> },
+            { path: 'search-service', element: <SearchServicePage /> },
             { path: 'favorites', element: <FavoritesPage /> },
             { path: 'chats', element: <Chat /> },
             { path: 'profile', element: <ProfilePage /> },
-            { path: 'profile', element: <ProfilePage /> },
+            // { path: 'profile', element: <ProfilePage /> },
             { path: 'profile/education', element: <EducationPage /> },
-            { path: 'profile/services', element: <ServicesPage /> },
+            { path: 'profile/services', element: <ServicesPage /> }, //для Мастера
             { path: 'profile/city', element: <CityPage /> },
             { path: "/order/:id", element: <OrderPage /> },
-            { path: 'create-ad', element: <CreateAdPage /> },
+            { path: 'create-ad', element: <CreateAdPage /> }, //для Клиента
+            { path: 'tickets', element: <TicketsPage /> }, //для Мастера
+            { path: 'master/:id', element: <MasterProfileViewPage /> },
             // { path: 'profile/work-area', element: <WorkAreaPage /> },
     //         { path: 'search', element: <SearchPage /> },
     //         { path: 'create-ad', element: <CreateAdPage /> },

@@ -33,7 +33,19 @@ $colors: (
         status-success: #00C48C,
         shadow: rgba(0, 2, 4, 0.2),
         border-btn: #3A54DA,
+
+  // Дополнительно для фильтров и модалок
+        danger-red: #dc3545,
+        danger-red-hover: #c82333,
+        text-white: #ffffff,
+        text-gray-light: #666666,
+        background-gray-light: #f5f5f5,
+        background-gray-hover: #e5e5e5,
+        primary-hover: #2c44c4,
+        filters-btn-hover: rgba(64, 103, 249, 0.05)
 );
+
+
 
 // Шрифты
 $font-sizes: (

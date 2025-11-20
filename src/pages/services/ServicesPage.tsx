@@ -158,10 +158,10 @@ const ServicePage = () => {
 
             const userData = await userResponse.json();
 
-            // ИСПОЛЬЗУЕМ ENDPOINT ДЛЯ МАСТЕРОВ
-            const endpoint = '/api/tickets/masters';
+            // ИСПРАВЛЕНИЕ: используем правильный endpoint из документации
+            const endpoint = '/api/tickets';
 
-            console.log('Using endpoint for masters:', endpoint);
+            console.log('Using correct endpoint:', endpoint);
 
             // СОЗДАЕМ ДАННЫЕ ДЛЯ УСЛУГИ МАСТЕРА
             const ticketData = {
@@ -226,7 +226,7 @@ const ServicePage = () => {
                 }
 
                 setShowSuccessModal(true);
-                // Очищаем форму после успешной отправки
+                // Очищаем форму после успешной отправки, НО НЕ СБРАСЫВАЕМ КАТЕГОРИЮ
                 setFormData({
                     title: '',
                     description: '',
@@ -235,7 +235,7 @@ const ServicePage = () => {
                     active: true,
                 });
                 setImages([]);
-                setSelectedCategory(null);
+                // setSelectedCategory(null);
                 setSelectedDistrict(null);
                 setSelectedUnit(null);
                 setSelectedProvince(null);
@@ -279,7 +279,17 @@ const ServicePage = () => {
 
     const handleSuccessClose = () => {
         setShowSuccessModal(false);
-        navigate('/');
+
+        if (selectedCategory) {
+            console.log('Saving category to localStorage:', selectedCategory);
+            localStorage.setItem('lastCreatedCategory', selectedCategory.toString());
+        } else {
+            console.log('No category selected to save');
+        }
+
+        setSelectedCategory(null);
+
+        navigate('/tickets?type=clients&source=created');
     };
 
     const selectedDistrictInfo = districts.find(d => d.id === selectedDistrict);
@@ -533,7 +543,7 @@ const ServicePage = () => {
                     <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
                         <h2 className={styles.successTitle}>Услуга успешно создана!</h2>
                         <div className={styles.successIcon}>
-                            <img src="./uspeh.png" alt="uspeh"/>
+                            <img src="../uspeh.png" alt="uspeh"/>
                         </div>
 
                         <button

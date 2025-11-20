@@ -1,7 +1,8 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import {useParams, useNavigate, useSearchParams} from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { getAuthToken, getUserRole } from '../../utils/auth';
 import styles from './OrderPage.module.scss';
+import {createChatWithAuthor} from "../../utils/chatUtils";
 
 interface ApiTicket {
     id: number;
@@ -23,6 +24,10 @@ interface ApiTicket {
         city?: {
             id: number;
             title?: string;
+            province?: {
+                id: number;
+                title?: string;
+            }
         };
     } | null;
     createdAt: string;
@@ -35,7 +40,6 @@ interface ApiTicket {
     active: boolean;
     service: boolean;
 }
-
 
 interface Order {
     id: number;
@@ -64,16 +68,15 @@ interface City {
     districts: { id: number }[];
 }
 
-
 const API_BASE_URL = 'https://admin.ustoyob.tj';
 
 export default function OrderPage() {
     const { id } = useParams<{ id: string }>();
+    const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const [order, setOrder] = useState<Order | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    // const [cities, setCities] = useState<City[]>([]);
 
     const [isLiked, setIsLiked] = useState(false);
     const [isLikeLoading, setIsLikeLoading] = useState(false);
@@ -84,6 +87,9 @@ export default function OrderPage() {
     const [reviewText, setReviewText] = useState('');
     const [selectedStars, setSelectedStars] = useState(0);
     const [reviewPhotos, setReviewPhotos] = useState<File[]>([]);
+
+    const ticketType = searchParams.get('type') as 'client' | 'master' | null;
+    const specificTicketId = searchParams.get('ticket');
 
     useEffect(() => {
         if (order) {
@@ -96,12 +102,12 @@ export default function OrderPage() {
         const loadData = async () => {
             await fetchCities();
             if (id) {
-                await fetchOrder(parseInt(id), role);
+                await fetchOrder(parseInt(id), role, ticketType, specificTicketId ? parseInt(specificTicketId) : undefined);
             }
         };
 
         loadData();
-    }, [id]);
+    }, [id, ticketType, specificTicketId]);
 
     const handleStarClick = (starCount: number) => {
         setSelectedStars(starCount);
@@ -136,42 +142,44 @@ export default function OrderPage() {
                 return;
             }
 
-            // Определяем, кто оставляет отзыв и для кого
             const userRole = getUserRole();
             const currentUserId = await getCurrentUserId();
 
-            if (!currentUserId || !order) return;
+            if (!currentUserId || !order) {
+                alert('Не удалось определить пользователя или заказ');
+                return;
+            }
 
-            // Определяем для кого отзыв (forClient)
-            // Если мастер оставляет отзыв для клиента - forClient: true
-            // Если клиент оставляет отзыв для мастера - forClient: false
-            const forClient = userRole === 'master';
+            // Проверяем, что у нас есть authorId
+            if (!order.authorId) {
+                alert('Не удалось определить автора заказа');
+                return;
+            }
 
-            // Определяем master и client
+            // Определяем тип отзыва
+            const reviewType = userRole === 'master' ? 'master_to_client' : 'client_to_master';
+
             let masterIri = '';
             let clientIri = '';
 
             if (userRole === 'master') {
-                // Мастер оставляет отзыв для клиента
                 masterIri = `/api/users/${currentUserId}`;
                 clientIri = `/api/users/${order.authorId}`;
             } else if (userRole === 'client') {
-                // Клиент оставляет отзыв для мастера
                 clientIri = `/api/users/${currentUserId}`;
                 masterIri = `/api/users/${order.authorId}`;
             }
 
-            // Создаем отзыв
             const reviewData = {
+                type: reviewType,
                 rating: selectedStars,
                 description: reviewText,
-                forClient: forClient,
                 ticket: `/api/tickets/${order.id}`,
                 master: masterIri,
                 client: clientIri
             };
 
-            console.log('Sending review:', reviewData);
+            console.log('Sending review data:', reviewData);
 
             const response = await fetch(`${API_BASE_URL}/api/reviews`, {
                 method: 'POST',
@@ -184,49 +192,81 @@ export default function OrderPage() {
 
             if (response.ok) {
                 const reviewResponse = await response.json();
-                console.log('Review created:', reviewResponse);
+                console.log('Review created successfully:', reviewResponse);
 
-                // Загружаем фото если есть
+                // Загружаем фото асинхронно, но не блокируем основной поток
                 if (reviewPhotos.length > 0) {
-                    await uploadReviewPhotos(reviewResponse.id, reviewPhotos, token);
+                    try {
+                        await uploadReviewPhotos(reviewResponse.id, reviewPhotos, token);
+                        console.log('All photos uploaded successfully');
+                    } catch (uploadError) {
+                        console.error('Error uploading photos, but review was created:', uploadError);
+                        // Можно показать предупреждение, что фото не загрузились
+                        alert('Отзыв отправлен, но возникла ошибка при загрузке фото');
+                    }
                 }
 
-                // Закрываем модалку и сбрасываем состояние
                 handleCloseModal();
                 alert('Отзыв успешно отправлен!');
 
             } else {
                 const errorText = await response.text();
-                console.error('Error creating review:', errorText);
-                alert('Ошибка при отправке отзыва');
+                console.error('Error creating review. Status:', response.status, 'Response:', errorText);
+
+                let errorMessage = 'Ошибка при отправке отзыва';
+                if (response.status === 422) {
+                    errorMessage = 'Ошибка валидации данных. Проверьте введенные данные.';
+                } else if (response.status === 400) {
+                    errorMessage = 'Неверные данные для отправки отзыва.';
+                } else if (response.status === 404) {
+                    errorMessage = 'Ресурс не найден. Возможно, заказ или пользователь не существуют.';
+                }
+
+                alert(errorMessage);
             }
 
         } catch (error) {
             console.error('Error submitting review:', error);
-            alert('Ошибка при отправке отзыва');
+            alert('Произошла непредвиденная ошибка при отправке отзыва');
         }
     };
 
     const uploadReviewPhotos = async (reviewId: number, photos: File[], token: string) => {
         try {
+            console.log(`Uploading ${photos.length} photos for review ${reviewId}`);
+
             for (const photo of photos) {
                 const formData = new FormData();
                 formData.append('image', photo);
+
+                console.log(`Uploading photo: ${photo.name}`);
 
                 const response = await fetch(`${API_BASE_URL}/api/reviews/${reviewId}/upload-photo`, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,
+                        // Не устанавливаем Content-Type - браузер сам установит с boundary для FormData
                     },
                     body: formData
                 });
 
-                if (!response.ok) {
-                    console.error('Error uploading photo for review:', reviewId);
+                if (response.ok) {
+                    const uploadResult = await response.json();
+                    console.log('Photo uploaded successfully:', uploadResult);
+                } else {
+                    const errorText = await response.text();
+                    console.error(`Error uploading photo for review ${reviewId}:`, errorText);
+
+                    if (response.status === 422) {
+                        console.error('Validation error for photo upload');
+                    }
                 }
             }
+
+            console.log('All photos uploaded successfully');
         } catch (error) {
             console.error('Error uploading review photos:', error);
+            throw error; // Пробрасываем ошибку дальше
         }
     };
 
@@ -260,7 +300,6 @@ export default function OrderPage() {
         setReviewPhotos([]);
     };
 
-
     const checkFavoriteStatus = async () => {
         const token = getAuthToken();
         if (!token || !order) return;
@@ -275,23 +314,17 @@ export default function OrderPage() {
 
             if (response.ok) {
                 const favorite = await response.json();
-                const userRole = getUserRole();
-
                 console.log('Favorite data:', favorite);
 
-                if (userRole === 'client') {
-                    // Клиент проверяет, есть ли мастер в избранном
-                    const isMasterInFavorites = favorite.masters?.some((m: { id: number }) => m.id === order.authorId);
-                    setIsLiked(!!isMasterInFavorites);
-                    if (isMasterInFavorites) setFavoriteId(favorite.id);
-                } else if (userRole === 'master') {
-                    // Мастер проверяет, есть ли клиент в избранном
-                    const isClientInFavorites = favorite.clients?.some((c: { id: number }) => c.id === order.authorId);
-                    setIsLiked(!!isClientInFavorites);
-                    if (isClientInFavorites) setFavoriteId(favorite.id);
+                const isTicketInFavorites = favorite.tickets?.some((t: { id: number }) => t.id === order.id);
+                setIsLiked(!!isTicketInFavorites);
+
+                if (isTicketInFavorites) {
+                    setFavoriteId(favorite.id);
+                } else {
+                    setFavoriteId(null);
                 }
             } else if (response.status === 404) {
-                // У пользователя нет избранного
                 setIsLiked(false);
                 setFavoriteId(null);
             }
@@ -314,15 +347,13 @@ export default function OrderPage() {
 
         setIsLikeLoading(true);
         try {
-            const userRole = getUserRole();
-            const userIdToAdd = order?.authorId;
+            const ticketId = order?.id;
 
-            if (!userIdToAdd) {
-                console.error('No user ID to add to favorites');
+            if (!ticketId) {
+                console.error('No ticket ID to add to favorites');
                 return;
             }
 
-            // Сначала получаем текущий список избранного
             const currentFavoritesResponse = await fetch(`${API_BASE_URL}/api/favorites/me`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -338,33 +369,33 @@ export default function OrderPage() {
             if (currentFavoritesResponse.ok) {
                 const currentFavorite = await currentFavoritesResponse.json();
                 existingFavoriteId = currentFavorite.id;
+
                 existingMasters = currentFavorite.masters?.map((master: any) => `/api/users/${master.id}`) || [];
                 existingClients = currentFavorite.clients?.map((client: any) => `/api/users/${client.id}`) || [];
                 existingTickets = currentFavorite.tickets?.map((ticket: any) => `/api/tickets/${ticket.id}`) || [];
+
+                console.log('Existing favorites:', {
+                    masters: existingMasters,
+                    clients: existingClients,
+                    tickets: existingTickets
+                });
             }
 
             const favoriteIdToUse = existingFavoriteId;
-            const userIri = `/api/users/${userIdToAdd}`;
+            const ticketIri = `/api/tickets/${ticketId}`;
+
+            if (existingTickets.includes(ticketIri)) {
+                console.log('Ticket already in favorites');
+                setIsLiked(true);
+                return;
+            }
 
             if (favoriteIdToUse) {
-                // Обновляем существующее избранное
                 const updateData: any = {
-                    masters: [...existingMasters],
-                    clients: [...existingClients],
-                    tickets: [...existingTickets]
+                    masters: existingMasters,
+                    clients: existingClients,
+                    tickets: [...existingTickets, ticketIri]
                 };
-
-                if (userRole === 'client') {
-                    // Клиент добавляет мастера
-                    if (!existingMasters.includes(userIri)) {
-                        updateData.masters.push(userIri);
-                    }
-                } else if (userRole === 'master') {
-                    // Мастер добавляет клиента
-                    if (!existingClients.includes(userIri)) {
-                        updateData.clients.push(userIri);
-                    }
-                }
 
                 console.log('Updating favorite with data:', updateData);
 
@@ -380,24 +411,19 @@ export default function OrderPage() {
                 if (patchResponse.ok) {
                     setIsLiked(true);
                     setFavoriteId(favoriteIdToUse);
-                    console.log('Successfully added to favorites');
+                    console.log('Successfully added ticket to favorites');
+                    window.dispatchEvent(new Event('favoritesUpdated'));
                 } else {
                     const errorText = await patchResponse.text();
                     console.error('Failed to update favorite:', errorText);
+                    alert('Ошибка при добавлении в избранное');
                 }
             } else {
-                // Создаем новое избранное
                 const createData: any = {
                     masters: [],
                     clients: [],
-                    tickets: []
+                    tickets: [ticketIri]
                 };
-
-                if (userRole === 'client') {
-                    createData.masters = [userIri];
-                } else if (userRole === 'master') {
-                    createData.clients = [userIri];
-                }
 
                 console.log('Creating new favorite with data:', createData);
 
@@ -414,15 +440,17 @@ export default function OrderPage() {
                     const newFavorite = await createResponse.json();
                     setIsLiked(true);
                     setFavoriteId(newFavorite.id);
-                    console.log('Successfully created favorite');
+                    console.log('Successfully created favorite with ticket');
                 } else {
                     const errorText = await createResponse.text();
                     console.error('Failed to create favorite:', errorText);
+                    alert('Ошибка при создании избранного');
                 }
             }
 
         } catch (error) {
             console.error('Error adding to favorites:', error);
+            alert('Ошибка при добавлении в избранное');
         } finally {
             setIsLikeLoading(false);
         }
@@ -434,10 +462,9 @@ export default function OrderPage() {
         setIsLikeLoading(true);
         try {
             const token = getAuthToken();
-            const userRole = getUserRole();
-            const userIdToRemove = order?.authorId;
+            const ticketIdToRemove = order?.id;
 
-            if (!userIdToRemove) return;
+            if (!ticketIdToRemove) return;
 
             const currentFavoritesResponse = await fetch(`${API_BASE_URL}/api/favorites/me`, {
                 headers: {
@@ -450,31 +477,21 @@ export default function OrderPage() {
 
             const currentFavorite = await currentFavoritesResponse.json();
 
-            // Получаем актуальные массивы
             const newMasters = currentFavorite.masters?.map((m: any) => `/api/users/${m.id}`) || [];
             const newClients = currentFavorite.clients?.map((c: any) => `/api/users/${c.id}`) || [];
             const newTickets = currentFavorite.tickets?.map((t: any) => `/api/tickets/${t.id}`) || [];
 
-            // Удаляем пользователя по роли
-            if (userRole === 'client') {
-                const removeIri = `/api/users/${userIdToRemove}`;
-                const index = newMasters.indexOf(removeIri);
-                if (index !== -1) newMasters.splice(index, 1);
-            } else if (userRole === 'master') {
-                const removeIri = `/api/users/${userIdToRemove}`;
-                const index = newClients.indexOf(removeIri);
-                if (index !== -1) newClients.splice(index, 1);
-            }
+            const removeIri = `/api/tickets/${ticketIdToRemove}`;
+            const updatedTickets = newTickets.filter((ticketIri: string) => ticketIri !== removeIri);
 
             const updateData = {
                 masters: newMasters,
                 clients: newClients,
-                tickets: newTickets
+                tickets: updatedTickets
             };
 
             console.log("PATCH UNLIKE:", updateData);
 
-            // Отправляем PATCH с полным объектом
             const patchResponse = await fetch(`${API_BASE_URL}/api/favorites/${currentFavorite.id}`, {
                 method: 'PATCH',
                 headers: {
@@ -487,17 +504,20 @@ export default function OrderPage() {
             if (patchResponse.ok) {
                 setIsLiked(false);
                 setFavoriteId(null);
+                console.log('Successfully removed from favorites');
+                window.dispatchEvent(new Event('favoritesUpdated'));
             } else {
                 console.error("PATCH error:", await patchResponse.text());
+                alert('Ошибка при удалении из избранного');
             }
 
         } catch (error) {
             console.error('Error removing from favorites:', error);
+            alert('Ошибка при удалении из избранного');
         } finally {
             setIsLikeLoading(false);
         }
     };
-
 
     const fetchCities = async (): Promise<City[]> => {
         try {
@@ -514,7 +534,6 @@ export default function OrderPage() {
             if (!response.ok) return [];
 
             const citiesData: City[] = await response.json();
-            // setCities(citiesData);
             return citiesData;
         } catch (error) {
             console.error('Error fetching cities:', error);
@@ -523,51 +542,34 @@ export default function OrderPage() {
     };
 
     const getFullAddress = (ticketData: ApiTicket): string => {
-        console.log('getFullAddress input:', ticketData); // Отладка
+        console.log('getFullAddress input:', ticketData);
 
-        // Получаем город из district
-        const districtCityName = ticketData.district?.city?.title || '';
+        // Правильная обработка nested объектов согласно API
+        const districtTitle = ticketData.district?.title || '';
+        const cityTitle = ticketData.district?.city?.title || '';
+        const provinceTitle = ticketData.district?.city?.province?.title || '';
         const addressTitle = ticketData.address?.title || '';
 
-        console.log('districtCityName:', districtCityName, 'addressTitle:', addressTitle); // Отладка
+        const parts = [];
+        if (provinceTitle) parts.push(provinceTitle);
+        if (cityTitle) parts.push(cityTitle);
+        if (districtTitle) parts.push(districtTitle);
+        if (addressTitle) parts.push(addressTitle);
 
-        // Если есть и город из district и конкретный адрес
-        if (districtCityName && addressTitle) {
-            return `${districtCityName}, ${addressTitle}`;
-        }
-
-        // Если есть только город из district
-        if (districtCityName) {
-            return districtCityName;
-        }
-
-        // Если есть только адрес
-        if (addressTitle) {
-            return addressTitle;
-        }
-
-        // Если ничего нет, попробуем получить город из address (на всякий случай)
-        const addressCityName = ticketData.address?.city?.title || '';
-        if (addressCityName) {
-            return addressCityName;
-        }
-
-        console.log('No valid address data found'); // Отладка
-        return 'Адрес не указан';
+        const result = parts.length > 0 ? parts.join(', ') : 'Адрес не указан';
+        console.log('Formatted address:', result);
+        return result;
     };
 
     const formatProfileImageUrl = (imagePath: string): string => {
         if (!imagePath) return '';
 
-        // Если путь начинается с /images/profile_photos/, добавляем базовый URL
         if (imagePath.startsWith('/images/profile_photos/')) {
             return `${API_BASE_URL}${imagePath}`;
         }
-        // Если уже полный URL, оставляем как есть
         else if (imagePath.startsWith('http')) {
             return imagePath;
         }
-        // Если просто имя файла, формируем полный путь
         else {
             return `${API_BASE_URL}/images/profile_photos/${imagePath}`;
         }
@@ -576,23 +578,20 @@ export default function OrderPage() {
     const formatTicketImageUrl = (imagePath: string): string => {
         if (!imagePath) return '';
 
-        console.log('Formatting ticket image path:', imagePath); // Для отладки
+        console.log('Formatting ticket image path:', imagePath);
 
-        // Если путь начинается с /images/ticket_photos/, добавляем базовый URL
         if (imagePath.startsWith('/images/ticket_photos/')) {
             return `${API_BASE_URL}${imagePath}`;
         }
-        // Если уже полный URL, оставляем как есть
         else if (imagePath.startsWith('http')) {
             return imagePath;
         }
-        // Если просто имя файла, формируем полный путь
         else {
             return `${API_BASE_URL}/images/ticket_photos/${imagePath}`;
         }
     };
 
-    const fetchOrder = async (orderId: number, role: string | null) => {
+    const fetchOrder = async (userId: number, role: string | null, ticketType: 'client' | 'master' | null, specificTicketId?: number) => {
         try {
             setIsLoading(true);
             setError(null);
@@ -603,13 +602,28 @@ export default function OrderPage() {
                 return;
             }
 
+            console.log('Fetching order with params:', {
+                userId,
+                role,
+                ticketType,
+                specificTicketId
+            });
+
             let endpoint = '';
-            if (role === 'master') endpoint = `/api/tickets/clients/${orderId}`;
-            else if (role === 'client') endpoint = `/api/tickets/masters/${orderId}`;
-            else {
-                setError('Роль пользователя не определена');
-                return;
+            let targetUserId = userId;
+
+            // Определяем endpoint и ID пользователя для запроса
+            if (ticketType === 'client') {
+                endpoint = `/api/tickets/clients/${targetUserId}`;
+            } else if (ticketType === 'master') {
+                endpoint = `/api/tickets/masters/${targetUserId}`;
+            } else {
+                // Если тип не указан, используем общий endpoint для авторизованных пользователей
+                // или получаем все тикеты для неавторизованных
+                endpoint = `/api/tickets`;
             }
+
+            console.log('Fetching from endpoint:', endpoint);
 
             const response = await fetch(`${API_BASE_URL}${endpoint}`, {
                 method: 'GET',
@@ -620,46 +634,80 @@ export default function OrderPage() {
             });
 
             if (!response.ok) {
-                if (response.status === 404) setError('Заказ не найден');
+                if (response.status === 404) setError('Тикеты не найдены');
                 else throw new Error(`HTTP error! status: ${response.status}`);
                 return;
             }
 
-            const responseData = await response.json();
-            let ticketData: ApiTicket;
+            const ticketsData = await response.json();
+            console.log('Received tickets data:', ticketsData);
 
-            if (Array.isArray(responseData)) {
-                if (responseData.length === 0) {
-                    setError('Заказ не найден');
+            let ticketData: ApiTicket | null = null;
+
+            if (Array.isArray(ticketsData)) {
+                if (ticketsData.length === 0) {
+                    setError('У пользователя нет активных тикетов');
                     return;
                 }
-                ticketData = responseData[0];
-            } else ticketData = responseData;
 
-            // console.log('ticketData:', ticketData);
-            // console.log("district city:", ticketData.district?.city?.title ?? "нет города");
-            // console.log('ticketData.address:', ticketData.address);
-            // console.log('ticketData.district:', ticketData.district);
+                if (specificTicketId) {
+                    console.log('Searching for ticket with ID:', specificTicketId);
+                    ticketData = ticketsData.find((ticket: ApiTicket) => ticket.id === specificTicketId) || null;
+                    console.log('Found ticket:', ticketData);
 
+                    if (!ticketData) {
+                        console.log('Ticket not found, available IDs:', ticketsData.map((t: ApiTicket) => t.id));
+                        setError('Тикет не найден');
+                        return;
+                    }
+                } else {
+                    console.log('No specific ticket ID, using first ticket');
+                    ticketData = ticketsData[0];
+                }
+            } else {
+                // Если API вернул не массив, а один объект
+                ticketData = ticketsData;
+            }
+
+            if (!ticketData) {
+                setError('Тикет не найден');
+                return;
+            }
 
             let authorId = 0;
             let authorImage = '';
 
-            if (role === 'master' && ticketData.author) {
+            // Определяем authorId на основе данных тикета, а не роли пользователя
+            // Тикет клиента имеет author, тикет мастера имеет master
+            if (ticketData.author) {
                 authorId = ticketData.author.id;
-                // Пробуем получить фото из ticketData.author
                 if (ticketData.author.image) {
                     authorImage = formatProfileImageUrl(ticketData.author.image);
                 }
-            } else if (role === 'client' && ticketData.master) {
+            } else if (ticketData.master) {
                 authorId = ticketData.master.id;
-                // Пробуем получить фото из ticketData.master
                 if (ticketData.master.image) {
                     authorImage = formatProfileImageUrl(ticketData.master.image);
                 }
             }
 
-            const { name: authorName, rating: authorRating, image: fetchedImage } = await fetchUserInfo(authorId, role);
+            // Если не удалось определить authorId из тикета, используем userId из URL
+            if (authorId === 0 && userId) {
+                authorId = userId;
+                console.log('Using userId from URL as authorId:', authorId);
+            }
+
+            console.log('Final authorId:', authorId);
+
+            // Определяем тип пользователя для запроса информации
+            let userRoleForRequest = role;
+            if (!userRoleForRequest) {
+                // Если роль не определена, определяем по наличию author/master в тикете
+                userRoleForRequest = ticketData.author ? 'client' : 'master';
+                console.log('Auto-detected user role:', userRoleForRequest);
+            }
+
+            const { name: authorName, rating: authorRating, image: fetchedImage } = await fetchUserInfo(authorId, userRoleForRequest);
             setRating(authorRating);
 
             if (!authorImage && fetchedImage) {
@@ -672,16 +720,15 @@ export default function OrderPage() {
             if (ticketData.images?.length) {
                 photos.push(...ticketData.images.map(img => {
                     const imageUrl = img.image.startsWith('http') ? img.image : formatTicketImageUrl(img.image);
-                    console.log('Processed image URL:', imageUrl); // Для отладки
+                    console.log('Processed image URL:', imageUrl);
                     return imageUrl;
                 }));
             }
 
-            // Обрабатываем ticketImages (если есть)
             if (ticketData.ticketImages?.length) {
                 photos.push(...ticketData.ticketImages.map(img => {
                     const imageUrl = img.image.startsWith('http') ? img.image : formatTicketImageUrl(img.image);
-                    console.log('Processed ticketImage URL:', imageUrl); // Для отладки
+                    console.log('Processed ticketImage URL:', imageUrl);
                     return imageUrl;
                 }));
             }
@@ -692,7 +739,7 @@ export default function OrderPage() {
                 id: ticketData.id,
                 title: ticketData.title || 'Без названия',
                 price: ticketData.budget || 0,
-                unit: ticketData.unit?.title || 'руб',
+                unit: ticketData.unit?.title || 'tjs',
                 description: ticketData.description || 'Описание отсутствует',
                 address: fullAddress,
                 date: formatDate(ticketData.createdAt),
@@ -707,8 +754,7 @@ export default function OrderPage() {
                 authorImage: authorImage || undefined,
             };
 
-            console.log('Order data with image:', orderData);
-
+            console.log('Final order data:', orderData);
             setOrder(orderData);
 
         } catch (error) {
@@ -744,25 +790,21 @@ export default function OrderPage() {
             const name = `${userData.name || ''} ${userData.surname || ''}`.trim() || 'Пользователь';
             const rating = userData.rating || 0;
 
-            // ОБРАБОТКА ФОТО ПРОФИЛЯ
             let image = '';
             if (userData.image) {
-                // Если путь начинается с /images/profile_photos/, добавляем базовый URL
                 if (userData.image.startsWith('/images/profile_photos/')) {
                     image = `${API_BASE_URL}${userData.image}`;
                 }
-                // Если уже полный URL, оставляем как есть
                 else if (userData.image.startsWith('http')) {
                     image = userData.image;
                 }
-                // Если просто имя файла, формируем полный путь
                 else {
                     image = `${API_BASE_URL}/images/profile_photos/${userData.image}`;
                 }
             }
 
-            console.log('User image path:', userData.image); // Для отладки
-            console.log('Full image URL:', image); // Для отладки
+            console.log('User image path:', userData.image);
+            console.log('Full image URL:', image);
 
             return { name, rating, image };
         } catch (error) {
@@ -804,68 +846,14 @@ export default function OrderPage() {
         return words[number % 100 > 4 && number % 100 < 20 ? 2 : cases[number % 10 < 5 ? number % 10 : 5]];
     };
 
-    // const handleRespond = () => {
-    //     alert('Отклик отправлен!');
-    // };
-
     const handleLeaveReview = () => {
         setShowReviewModal(true);
     };
 
-    const createChatWithAuthor = async (authorId: number) => {
-        const token = getAuthToken();
-        if (!token) {
-            alert('Пожалуйста, войдите в систему');
-            return null;
-        }
-
-        try {
-            // Получаем информацию о текущем пользователе
-            const userResponse = await fetch(`${API_BASE_URL}/api/users/me`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json',
-                },
-            });
-
-            if (!userResponse.ok) {
-                throw new Error('Не удалось получить информацию о пользователе');
-            }
-
-            // const currentUser = await userResponse.json();
-
-            // Создаем чат
-            const chatResponse = await fetch(`${API_BASE_URL}/api/chats`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    // author: `/api/users/${currentUser.id}`,
-                    replyAuthor: `/api/users/${authorId}`
-                })
-            });
-
-            if (chatResponse.ok) {
-                const chatData = await chatResponse.json();
-                console.log('Chat created successfully:', chatData);
-                return chatData;
-            } else {
-                const errorText = await chatResponse.text();
-                console.error('Error creating chat:', errorText);
-                return null;
-            }
-        } catch (error) {
-            console.error('Error creating chat:', error);
-            return null;
-        }
-    };
 
     const handleRespondClick = async (authorId: number) => {
         const chat = await createChatWithAuthor(authorId);
         if (chat) {
-            // Переходим в чат с созданным chat.id
             navigate(`/chats?chatId=${chat.id}`);
         } else {
             alert('Не удалось создать чат');
@@ -1181,7 +1169,7 @@ export default function OrderPage() {
                                 Отправить
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <g clipPath="url(#clip0_551_2758)">
-                                        <path d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z" stroke="white" strokeWidth="2" stroke-miterlimit="10"/>
+                                        <path d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z" stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
                                         <path d="M6.26953 12H17.7295" stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
                                         <path d="M12.96 7.22998L17.73 12L12.96 16.77" stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
                                     </g>

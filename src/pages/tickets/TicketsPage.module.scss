@@ -1,0 +1,245 @@
+@use '../../app/styles/variables' as vars;
+@use 'sass:map';
+
+.container {
+  position: relative;
+  max-width: 1549px;
+  margin: 40.45px auto;
+  flex: 1;
+  padding: 20px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid map.get(vars.$colors, color-stroke);
+
+  h1 {
+    font-size: 36px;
+    font-weight: 400;
+    color: map.get(vars.$colors, text-black);
+    margin: 0;
+  }
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: #f8f9fa;
+  }
+}
+
+.filterInfo {
+  background: #f8f9fa;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border-left: 4px solid #3A54DA;
+
+  p {
+    margin: 0;
+    color: #666;
+    font-size: 14px;
+  }
+}
+
+.searchResults {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+
+  &.hidden {
+    display: none;
+  }
+
+  .loading, .noResults {
+    text-align: center;
+    padding: 40px 20px;
+
+    p {
+      margin: 0;
+      font-size: 18px;
+      color: map.get(vars.$colors, text-placeholder);
+    }
+  }
+
+  .resultCard {
+    width: 100%;
+    min-height: 320px;
+    background: map.get(vars.$colors, primary-text-white);
+    border-radius: 20px;
+    padding: 20px;
+    border: 1px solid map.get(vars.$colors, color-stroke);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    transition: all 0.2s ease;
+    position: relative;
+
+    &:hover {
+      border-color: map.get(vars.$colors, actual-blue);
+      box-shadow: 0 4px 12px rgba(58, 84, 218, 0.1);
+    }
+
+    //.ticketType {
+    //  position: absolute;
+    //  top: 20px;
+    //  right: 20px;
+    //  background: map.get(vars.$colors, actual-blue);
+    //  color: white;
+    //  padding: 6px 12px;
+    //  border-radius: 6px;
+    //  font-size: 14px;
+    //  font-weight: 500;
+    //}
+
+    .resultHeader {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+
+      h3 {
+        font-size: 32px;
+        font-weight: 400;
+        color: map.get(vars.$colors, text-black);
+        margin: 0;
+      }
+
+      .price {
+        font-size: 20px;
+        color: map.get(vars.$colors, text-black);
+        font-weight: 500;
+        background-color: map.get(vars.$colors, background-btn2);
+        padding: 10px 20px;
+        border-radius: 10px;
+      }
+    }
+
+    .description {
+      margin-bottom: 20px;
+      color: map.get(vars.$colors, text-black);
+      font-size: 24px;
+      line-height: 1.4;
+    }
+
+    .resultDetails {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 20px;
+
+      .address svg {
+        margin-right: 16px;
+      }
+
+      .date svg {
+        margin-right: 16px;
+      }
+
+      span {
+        font-size: 24px;
+        color: map.get(vars.$colors, text-black);
+        display: flex;
+        align-items: center;
+      }
+
+      .category {
+        max-width: 200px;
+        text-align: center;
+        font-size: 18px;
+        color: map.get(vars.$colors, text-black);
+        font-weight: 500;
+        background-color: map.get(vars.$colors, background-btn2);
+        padding: 10px 20px;
+        border-radius: 10px;
+        display: inline-flex;
+        justify-content: center;
+      }
+    }
+
+    .resultFooter {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+
+      .author {
+        display: flex;
+        align-items: center;
+
+        svg {
+          margin-right: 16px;
+        }
+      }
+
+      span {
+        font-size: 24px;
+        color: map.get(vars.$colors, text-who);
+      }
+
+      .timeAgo {
+        color: map.get(vars.$colors, text-placeholder);
+      }
+    }
+  }
+}
+
+// Адаптивность
+@media (max-width: 768px) {
+  .container {
+    margin: 20px auto;
+    padding: 15px;
+  }
+
+  .header {
+    h1 {
+      font-size: 28px;
+    }
+  }
+
+  .searchResults {
+    .resultCard {
+      .resultHeader {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        padding-right: 0;
+
+        h3 {
+          font-size: 24px;
+        }
+
+        .price {
+          font-size: 18px;
+        }
+      }
+
+      .description {
+        font-size: 20px;
+      }
+
+      .resultDetails {
+        span {
+          font-size: 20px;
+        }
+
+        .category {
+          font-size: 16px;
+        }
+      }
+
+      .resultFooter {
+        span {
+          font-size: 20px;
+        }
+      }
+    }
+  }
+}

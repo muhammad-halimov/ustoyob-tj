@@ -169,7 +169,8 @@ const CreateAdPage = () => {
 
             const userData = await userResponse.json();
 
-            const endpoint = role === 'master' ? '/api/tickets/masters' : '/api/tickets/clients';
+            // ИСПРАВЛЕНИЕ: используем правильный endpoint из документации
+            const endpoint = '/api/tickets';
 
             console.log('Using endpoint:', endpoint);
 
@@ -190,7 +191,7 @@ const CreateAdPage = () => {
 
             console.log('Sending correct IRI format:', ticketData);
 
-            // Отправляем запрос
+            // Отправляем запрос на правильный endpoint
             const response = await fetch(`${API_BASE_URL}${endpoint}`, {
                 method: 'POST',
                 headers: {
@@ -291,8 +292,15 @@ const CreateAdPage = () => {
 
     const handleSuccessClose = () => {
         setShowSuccessModal(false);
-        navigate('/');
+
+        // Для мастера - показываем заказы клиентов в той же категории
+        if (selectedCategory) {
+            navigate(`/search-service?category=${selectedCategory}&source=created`);
+        } else {
+            navigate('/search-service?source=created');
+        }
     };
+
     const selectedDistrictInfo = districts.find(d => d.id === selectedDistrict);
 
     return (

@@ -1,9 +1,8 @@
 .container {
-  padding: 40px;
+  padding: 20px;
   max-width: 1284px;
   margin: 40px auto;
-  background-color: white;
-  border-radius: 10px;
+  border-radius: 20px;
 }
 
 .header {
@@ -11,72 +10,415 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 30px;
+  padding-bottom: 20px;
 
   h1 {
     font-size: 24px;
     font-weight: 600;
     color: #333;
+    margin: 0;
   }
 }
 
 .closeButton {
-  background: none;
+  background: #f5f5f5;
   border: none;
-  font-size: 24px;
   cursor: pointer;
-  color: #666;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  color: #333;
+}
+
+.closeButton_end {
+  background: #f5f5f5;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  color: #333;
+
+  svg {
+    margin-right: 10px;
+  }
 
   &:hover {
+    background: #e0e0e0;
+  }
+}
+
+.mastersList {
+  position: relative;
+  margin-bottom: 20px;
+
+  .masterCard {
+    margin-bottom: 20px;
+    padding: 20px;
+    border-radius: 10px;
+    background-color: white;
+    position: relative;
+
+    .mastersList_header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 43px;
+
+      img {
+        max-width: 162px;
+        max-height: 217px;
+        margin-right: 20px;
+      }
+
+      .mastersList_title {
+        display: flex;
+        flex-direction: column;
+
+        h3 {
+          font-size: 36px;
+        }
+
+        &_reviews {
+          display: flex;
+          align-items: center;
+          margin: 20px 0 45px;
+        }
+
+        &_grade,
+        &_review {
+          display: flex;
+          align-items: center;
+        }
+
+        &_grade {
+          margin-right: 34px;
+
+          svg {
+            margin-right: 10px;
+          }
+        }
+
+        .mastersList_title_btns {
+          width: 100%;
+          display: flex;
+          gap: 20px;
+
+          button {
+            display: flex;
+            align-items: center;
+            font-size: 20px;
+            font-weight: 600;
+            border-radius: 10px;
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+
+            svg {
+              margin-right: 10px;
+            }
+          }
+
+          .chatButton {
+            background: #3A54DA;
+            color: #fff;
+          }
+
+          .reviewButton {
+            background: #F2F2F5;
+            color: black;
+          }
+        }
+      }
+    }
+
+    .mastersList_about {
+      width: 100%;
+
+      & > * + * {
+        margin-top: 20px;
+      }
+
+      .mastersList_about_welcome {
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 20px;
+      }
+
+      .mastersList_about_title {
+        font-size: 20px;
+        margin-bottom: 40px;
+        padding-bottom: 20px;
+        min-height: 108px;
+        border-bottom: 1px solid #58585833;
+      }
+
+      .mastersList_about_atHome,
+      .mastersList_about_departure {
+        display: flex;
+        flex-direction: column;
+
+        p {
+          font-size: 24px;
+          margin-bottom: 10px;
+        }
+      }
+
+      .mastersList_about_atHome_addresses {
+        display: flex;
+
+        span {
+          margin-right: 10px;
+          background: #F2F2F5;
+          border-radius: 10px;
+          padding: 10px 20px;
+          font-size: 16px;
+          font-weight: 600;
+        }
+      }
+    }
+
+    .container_like {
+      position: absolute;
+      top: 43px;
+      right: 20px;
+      cursor: pointer;
+      background: none;
+      border: none;
+
+      &.loading {
+        opacity: 0.7;
+        pointer-events: none;
+      }
+
+      svg {
+        transition: fill 0.2s ease;
+      }
+    }
+  }
+}
+
+// Спиннер загрузки
+.loadingSpinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border: 2px solid transparent;
+  border-top: 2px solid #3A54DA;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+// Модальное окно отзыва
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.reviewModal {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modalHeader {
+  margin-bottom: 20px;
+
+  h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    text-align: center;
+  }
+}
+
+.modalContent {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+// Секции комментария, фото и рейтинга
+.commentSection,
+.photoSection,
+.ratingSection {
+  label {
+    display: flex;
+    margin-bottom: 8px;
+    font-weight: 500;
     color: #333;
   }
 }
 
-.searchForm {
+.commentTextarea {
   width: 100%;
-  display: flex;
-  gap: 10px;
-}
-
-.searchSection {
-  display: flex;
-  flex-direction: row;
-  gap: 10px;
-}
-
-
-.searchInput {
-  flex: 1;
-  padding: 15px;
-  border: 2px solid #e9ecef;
+  min-height: 100px;
+  padding: 12px;
+  background-color: #F2F2F5;
   border-radius: 10px;
-  font-size: 24px;
-  width: 100%;
+  resize: vertical;
+  font-family: inherit;
 
   &:focus {
     outline: none;
-    border-color: #0066cc;
   }
 }
 
-.searchButton {
-  display: flex;
-  align-items: center;
-  text-align: center;
-  padding: 15px 25px;
-  background: #0066cc;
-  color: white;
-  border: none;
-  border-radius: 10px;
-  font-size: 24px;
-  font-weight: 500;
-  cursor: pointer;
+// Фото-загрузка
+.photoUploadContainer {
+  margin-top: 8px;
+}
 
-  &:hover:not(:disabled) {
-    background: #0052a3;
+.photoPreviews {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  min-height: 60px;
+}
+
+.photoPreview {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  flex-shrink: 0;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
   }
 
-  &:disabled {
-    background: #ccc;
-    cursor: not-allowed;
+  .removePhoto {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 20px;
+    height: 20px;
+    background: #ff4444;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+}
+
+.photoUpload {
+  width: 60px;
+  height: 60px;
+  flex-shrink: 0;
+}
+
+.fileInput {
+  display: none;
+}
+
+.photoUploadButton {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: #3A54DA;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #F2F2F5;
+
+  &:hover {
+    background: #e6e6e8;
+  }
+}
+
+// Рейтинг
+.stars {
+  display: flex;
+  gap: 8px;
+  padding: 20px;
+  border-radius: 10px;
+  background-color: #F2F2F5;
+  max-width: 200px;
+}
+
+.star {
+  background: none;
+  border: none;
+  font-size: 30px;
+  color: #A6A6A6;
+  transition: color 0.2s;
+  cursor: pointer;
+
+  &.active {
+    color: #FFC107;
+  }
+
+  &:hover {
+    color: #ffc107;
+  }
+}
+
+// Действия модального окна
+.modalActions {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-top: 24px;
+
+  button {
+    padding: 10px 20px;
+    border-radius: 6px;
+    border: none;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .submitButton {
+    background: #3A54DA;
+    color: white;
+    display: flex;
+    align-items: center;
+
+    svg {
+      margin-left: 10px;
+    }
+
+    &:hover {
+      background: #2a44ca;
+    }
+
+    &:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
   }
 }

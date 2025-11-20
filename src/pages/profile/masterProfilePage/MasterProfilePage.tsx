@@ -16,6 +16,16 @@ interface ProfileData {
     services: Service[];
 }
 
+interface ServiceTicket {
+    id: number;
+    title: string;
+    budget: number;
+    unit: {
+        id: number;
+        title: string;
+    } | null;
+}
+
 // interface Gallery {
 //     id: number;
 //     images: {
@@ -109,6 +119,9 @@ function MasterProfilePage() {
     const workExampleInputRef = useRef<HTMLInputElement>(null);
     const [visibleCount, setVisibleCount] = useState(2);
 
+    const [services, setServices] = useState<ServiceTicket[]>([]);
+    const [servicesLoading, setServicesLoading] = useState(false);
+
     // Проверка аутентификации при загрузке компонента
     useEffect(() => {
         const token = getAuthToken();
@@ -125,8 +138,83 @@ function MasterProfilePage() {
         if (profileData?.id) {
             fetchUserGallery();
             fetchReviews();
+            fetchMasterServices();
         }
     }, [profileData?.id]);
+
+    const fetchMasterServices = async () => {
+        if (!profileData?.id) return;
+
+        try {
+            setServicesLoading(true);
+            const token = getAuthToken();
+
+            if (!token) {
+                console.log('No token available for fetching services');
+                return;
+            }
+
+            const endpoint = `/api/tickets/masters/${profileData.id}`;
+
+            console.log('Fetching master services from:', endpoint);
+
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+            });
+
+            if (response.status === 401) {
+                removeAuthToken();
+                navigate('/login');
+                return;
+            }
+
+            if (!response.ok) {
+                console.error(`Failed to fetch services: ${response.status}`);
+                setServices([]);
+                return;
+            }
+
+            const servicesData = await response.json();
+            console.log('Master services received:', servicesData);
+
+            // Обрабатываем разные форматы ответа
+            let servicesArray: any[] = [];
+
+            if (Array.isArray(servicesData)) {
+                servicesArray = servicesData;
+            } else if (servicesData && typeof servicesData === 'object') {
+                if (servicesData['hydra:member'] && Array.isArray(servicesData['hydra:member'])) {
+                    servicesArray = servicesData['hydra:member'];
+                } else if (servicesData.id) {
+                    servicesArray = [servicesData];
+                }
+            }
+
+            // Фильтруем только активные услуги мастера
+            const masterServices = servicesArray
+                .filter(service => service.service === true && service.active === true)
+                .map(service => ({
+                    id: service.id,
+                    title: service.title,
+                    budget: service.budget,
+                    unit: service.unit
+                }));
+
+            console.log('Filtered master services:', masterServices);
+            setServices(masterServices);
+
+        } catch (error) {
+            console.error('Error fetching master services:', error);
+            setServices([]);
+        } finally {
+            setServicesLoading(false);
+        }
+    };
 
     const handleShowMore = () => {
         setVisibleCount(reviews.length);
@@ -1900,7 +1988,7 @@ function MasterProfilePage() {
 
                 {/* Секция "О себе" */}
                 <div className={styles.about_section}>
-                    <h2 className={styles.section_title}>О себе</h2>
+                    {/*<h2 className={styles.section_title}>О себе</h2>*/}
 
                     {/* Образование и опыт */}
                     <h3 className={styles.section_subtitle}>Образование и опыт</h3>
@@ -2146,12 +2234,17 @@ function MasterProfilePage() {
                     <h3 className={styles.section_subtitle}>Услуги и цены</h3>
                     <div className={styles.section_item}>
                         <div className={styles.section_content}>
-                            {profileData.services.length > 0 ? (
-                                <div className={styles.services_display}>
-                                    {profileData.services.map(service => (
-                                        <div key={service.id} className={styles.service_display_item}>
-                                            <span className={styles.service_name}>{service.name}</span>
-                                            <span className={styles.service_price}>{service.price} ₽</span>
+                            {servicesLoading ? (
+                                <div className={styles.loading}>Загрузка услуг...</div>
+                            ) : services.length > 0 ? (
+                                <div className={styles.services_list}>
+                                    {services.map(service => (
+                                        <div key={service.id} className={styles.service_item}>
+                                            <span className={styles.service_name}>{service.title}</span>
+                                            <span className={styles.service_price}>
+                            {service.budget} ₽
+                                                {service.unit && ` / ${service.unit.title}`}
+                        </span>
                                         </div>
                                     ))}
                                 </div>

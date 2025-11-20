@@ -18,20 +18,20 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: map.get(vars.$spacing, 5);
 }
 
 .search {
   max-width: 1549px;
-  background: #fff;
-  border-radius: 20px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  background: map.get(vars.$colors, background-primary);
+  border-radius: map.get(vars.$border-radius, xl);
+  padding: map.get(vars.$spacing, 5);
+  box-shadow: 0 2px 8px map.get(vars.$colors, shadow);
 
   .title {
     font-weight: 400;
     font-size: 36px;
-    margin-bottom: 12px;
+    margin-bottom: map.get(vars.$spacing, 3);
     color: map.get(vars.$colors, text-black);
   }
 
@@ -40,16 +40,16 @@
     align-items: center;
     background-color: map.get(vars.$colors, actual-blue);
     padding: 4px;
-    border-radius: 10px;
+    border-radius: map.get(vars.$border-radius, lg);
     overflow: hidden;
 
     .input {
       flex: 1;
       border: none;
-      border-radius: 8px;
+      border-radius: map.get(vars.$border-radius, base);
       outline: none;
-      padding: 16px 10px;
-      font-size: 24px;
+      padding: map.get(vars.$spacing, 4) map.get(vars.$spacing, 2);
+      font-size: map.get(vars.$font-sizes, '2xl');
       color: map.get(vars.$colors, text-placeholder);
 
       &::placeholder {
@@ -60,43 +60,43 @@
 
     .button {
       background: map.get(vars.$colors, actual-blue);
-      color: #fff;
+      color: map.get(vars.$colors, primary-text-white);
       border: none;
       padding: 10px 45.5px;
       font-weight: 400;
-      font-size: 24px;
+      font-size: map.get(vars.$font-sizes, '2xl');
       cursor: pointer;
       transition: background 0.2s;
 
-      &:hover {
-        background: map.get(vars.$colors, actual-blue);;
-      }
+      //&:hover {
+      //  background: map.get(vars.$colors, primary-hover);
+      //}
     }
   }
 
   .filters_btn {
-    margin: 20px auto;
+    margin: map.get(vars.$spacing, 5) auto;
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 6px;
+    gap: map.get(vars.$spacing, 1);
     background: transparent;
-    border: 2px solid map.get(vars.$colors, actual-blue);;
-    color: map.get(vars.$colors, actual-blue);;
-    font-size: 20px;
+    border: 2px solid map.get(vars.$colors, actual-blue);
+    color: map.get(vars.$colors, actual-blue);
+    font-size: map.get(vars.$font-sizes, xl);
     padding: 10px 20px;
-    border-radius: 10px;
+    border-radius: map.get(vars.$border-radius, lg);
     cursor: pointer;
     transition: all 0.2s ease;
     letter-spacing: 0.02em;
 
     svg {
       stroke: map.get(vars.$colors, actual-blue);
-      margin-right: 10px;
+      margin-right: map.get(vars.$spacing, 2);
     }
 
     &:hover {
-      background: rgba(64, 103, 249, 0.05);
+      background: map.get(vars.$colors, filters-btn-hover);
     }
   }
 }
@@ -104,7 +104,7 @@
 .searchResults {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: map.get(vars.$spacing, 5);
 
   &.hidden {
     display: none;
@@ -112,19 +112,18 @@
 
   .resultCard {
     width: 100%;
-    //max-width: 1022px;
     min-height: 320px;
     background: map.get(vars.$colors, primary-text-white);
-    border-radius: 20px;
-    padding: 20px;
+    border-radius: map.get(vars.$border-radius, xl);
+    padding: map.get(vars.$spacing, 5);
     border: 1px solid map.get(vars.$colors, color-stroke);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 2px 8px map.get(vars.$colors, shadow);
 
     .resultHeader {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 12px;
+      margin-bottom: map.get(vars.$spacing, 3);
 
       h3 {
         font-size: 32px;
@@ -134,48 +133,47 @@
       }
 
       .price {
-        font-size: 20px;
+        font-size: map.get(vars.$font-sizes, xl);
         color: map.get(vars.$colors, text-black);
         font-weight: 500;
         background-color: map.get(vars.$colors, background-btn2);
         padding: 10px 20px;
-        border-radius: 10px;
+        border-radius: map.get(vars.$border-radius, lg);
       }
     }
 
     .description {
-      margin-bottom: 20px;
+      margin-bottom: map.get(vars.$spacing, 5);
       color: map.get(vars.$colors, text-black);
-      font-size: 24px;
+      font-size: map.get(vars.$font-sizes, '2xl');
       line-height: 1.4;
     }
 
     .resultDetails {
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      margin-bottom: 20px;
-      .address svg {
-        margin-right: 16px;
-      }
+      gap: map.get(vars.$spacing, 2);
+      margin-bottom: map.get(vars.$spacing, 5);
+
+      .address svg,
       .date svg {
-        margin-right: 16px;
+        margin-right: map.get(vars.$spacing, 4);
       }
 
       span {
-        font-size: 24px;
+        font-size: map.get(vars.$font-sizes, '2xl');
         color: map.get(vars.$colors, text-black);
       }
 
       .category {
         max-width: 200px;
         text-align: center;
-        font-size: 18px;
+        font-size: map.get(vars.$font-sizes, lg);
         color: map.get(vars.$colors, text-black);
         font-weight: 500;
         background-color: map.get(vars.$colors, background-btn2);
         padding: 10px 20px;
-        border-radius: 10px;
+        border-radius: map.get(vars.$border-radius, lg);
       }
     }
 
@@ -185,11 +183,11 @@
       align-items: center;
 
       .author svg {
-        margin-right: 16px;
+        margin-right: map.get(vars.$spacing, 4);
       }
 
       span {
-        font-size: 24px;
+        font-size: map.get(vars.$font-sizes, '2xl');
         color: map.get(vars.$colors, text-who);
       }
 
@@ -200,196 +198,14 @@
   }
 }
 
-// Стили для выпадающего списка категорий
-.category_select {
-  position: relative;
-  margin-top: 8px;
-
-  select {
-    width: 100%;
-    padding: 16px 20px;
-    font-size: 20px;
-    color: map.get(vars.$colors, text-black);
-    background: map.get(vars.$colors, primary-text-white);
-    border: 2px solid map.get(vars.$colors, color-stroke);
-    border-radius: 10px;
-    outline: none;
-    cursor: pointer;
-    appearance: none;
-    transition: all 0.2s ease;
-
-    &:focus {
-      border-color: map.get(vars.$colors, actual-blue);
-      box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.1);
-    }
-
-    &:hover {
-      border-color: map.get(vars.$colors, actual-blue);
-    }
-
-    option {
-      padding: 12px 20px;
-      font-size: 18px;
-      color: map.get(vars.$colors, text-black);
-      background: map.get(vars.$colors, primary-text-white);
-
-      &:hover {
-        background: map.get(vars.$colors, actual-blue);
-        color: white;
-      }
-    }
-  }
-
-  // Кастомная стрелка для select
-  &::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    right: 20px;
-    transform: translateY(-50%);
-    width: 12px;
-    height: 12px;
-    border-right: 2px solid map.get(vars.$colors, actual-blue);
-    border-bottom: 2px solid map.get(vars.$colors, actual-blue);
-    transform: translateY(-50%) rotate(45deg);
-    pointer-events: none;
-    transition: transform 0.2s ease;
-  }
-
-  &:hover::after {
-    transform: translateY(-50%) rotate(225deg);
-  }
-}
-
-// Стили для секции фильтров категорий
-.filter_section {
-  margin-bottom: 24px;
-
-  h3 {
-    font-size: 24px;
-    font-weight: 400;
-    color: map.get(vars.$colors, text-black);
-    margin-bottom: 12px;
-    letter-spacing: 0.02em;
-  }
-}
-
-// Стили для активных фильтров (если еще не добавили)
-.activeFilters {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin: 16px 0;
-  padding: 12px 16px;
-  background: map.get(vars.$colors, background-btn2);
-  border-radius: 10px;
-  font-size: 18px;
-
-  span:first-child {
-    font-weight: 500;
-    color: map.get(vars.$colors, text-black);
-  }
-}
-
-.filterTag {
-  background: map.get(vars.$colors, actual-blue);
-  color: white;
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 500;
-}
-
-.clearFiltersBtn {
-  background: #dc3545;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 16px;
-  cursor: pointer;
-  transition: background 0.2s ease;
-
-  &:hover {
-    background: #c82333;
-  }
-}
-
-// Стили для ценовых инпутов (если нужно)
-.price_inputs {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-
-  .price_input {
-    flex: 1;
-
-    input {
-      width: 100%;
-      padding: 16px 20px;
-      font-size: 20px;
-      color: map.get(vars.$colors, text-black);
-      background: map.get(vars.$colors, primary-text-white);
-      border: 2px solid map.get(vars.$colors, color-stroke);
-      border-radius: 10px;
-      outline: none;
-      transition: all 0.2s ease;
-
-      &::placeholder {
-        color: map.get(vars.$colors, text-placeholder);
-      }
-
-      &:focus {
-        border-color: map.get(vars.$colors, actual-blue);
-        box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.1);
-      }
-
-      &:hover {
-        border-color: map.get(vars.$colors, actual-blue);
-      }
-    }
-  }
-}
-
-// Медиа-запросы для адаптивности
-@media (max-width: 768px) {
-  .category_select {
-    select {
-      font-size: 18px;
-      padding: 14px 16px;
-    }
-  }
-
-  .price_inputs {
-    flex-direction: column;
-    gap: 8px;
-
-    .price_input input {
-      font-size: 18px;
-      padding: 14px 16px;
-    }
-  }
-
-  .activeFilters {
-    font-size: 16px;
-    padding: 10px 12px;
-  }
-
-  .filterTag,
-  .clearFiltersBtn {
-    font-size: 14px;
-    padding: 6px 12px;
-  }
-}
-
+// Модальные окна
 .modalOverlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0,0,0,0.5);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -397,26 +213,26 @@
 }
 
 .modalContent {
-  background: white;
-  border-radius: 12px;
+  background: map.get(vars.$colors, background-primary);
+  border-radius: map.get(vars.$border-radius, lg);
   padding: 0;
   max-width: 400px;
   width: 90%;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
 }
 
 .modalHeader {
   display: flex;
-  justify-content: between;
+  justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid #e5e5e5;
+  border-bottom: 1px solid map.get(vars.$colors, color-stroke);
 
   h2 {
     margin: 0;
-    font-size: 18px;
+    font-size: map.get(vars.$font-sizes, lg);
     font-weight: 600;
-    color: #333;
+    color: map.get(vars.$colors, text-gray-light);
   }
 }
 
@@ -425,54 +241,54 @@
   border: none;
   cursor: pointer;
   padding: 4px;
-  color: #666;
+  color: map.get(vars.$colors, text-gray-light);
 
   &:hover {
-    color: #333;
+    color: map.get(vars.$colors, text-black);
   }
 }
 
 .modalBody {
-  padding: 24px;
+  padding: map.get(vars.$spacing, 6);
 
   p {
-    margin: 0 0 20px 0;
-    color: #666;
+    margin: 0 0 map.get(vars.$spacing, 5) 0;
+    color: map.get(vars.$colors, text-gray-light);
     line-height: 1.5;
   }
 }
 
 .modalActions {
   display: flex;
-  gap: 12px;
+  gap: map.get(vars.$spacing, 3);
   justify-content: flex-end;
 }
 
 .primaryButton {
-  background: #3A54DA;
-  color: white;
+  background: map.get(vars.$colors, background-btn);
+  color: map.get(vars.$colors, primary-text-white);
   border: none;
   padding: 10px 20px;
-  border-radius: 6px;
+  border-radius: map.get(vars.$border-radius, base);
   cursor: pointer;
-  font-size: 14px;
+  font-size: map.get(vars.$font-sizes, sm);
   font-weight: 500;
 
   &:hover {
-    background: #2c44c4;
+    background: map.get(vars.$colors, primary-hover);
   }
 }
 
 .secondaryButton {
-  background: #f5f5f5;
-  color: #666;
+  background: map.get(vars.$colors, background-gray-light);
+  color: map.get(vars.$colors, text-gray-light);
   border: none;
   padding: 10px 20px;
-  border-radius: 6px;
+  border-radius: map.get(vars.$border-radius, base);
   cursor: pointer;
-  font-size: 14px;
+  font-size: map.get(vars.$font-sizes, sm);
 
   &:hover {
-    background: #e5e5e5;
+    background: map.get(vars.$colors, background-gray-hover);
   }
 }

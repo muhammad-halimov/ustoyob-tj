@@ -120,14 +120,18 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         return () => clearTimeout(debounce);
     }, [filters]);
 
-    const handleCardClick = (authorId?: number) => {
-        if (!authorId) {
-            console.log('No author ID available');
+    const handleCardClick = (ticketId?: number, authorId?: number) => {
+        if (!ticketId) {
+            console.log('No ticket ID available');
             return;
         }
-        console.log('Navigating to user profile:', authorId);
-        navigate(`/order/${authorId}`);
+        console.log('Navigating to ticket:', ticketId, 'of author:', authorId);
+
+        // Если есть authorId, используем его, иначе передаем ticketId в оба параметра
+        const targetAuthorId = authorId || ticketId;
+        navigate(`/order/${targetAuthorId}?ticket=${ticketId}`);
     };
+
 
     const fetchCategories = async () => {
         try {
@@ -786,7 +790,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                             searchResults.map((result) => (
                                 <div key={result.id}
                                      className={styles.resultCard}
-                                     onClick={() => handleCardClick(result.authorId)}
+                                     onClick={() => handleCardClick(result.id, result.authorId)}
                                      style={{ cursor: 'pointer' }}
                                 >
                                     {/* Показываем метку типа тикета только для неавторизованных пользователей */}
