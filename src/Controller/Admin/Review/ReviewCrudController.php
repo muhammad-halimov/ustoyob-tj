@@ -77,7 +77,7 @@ class ReviewCrudController extends AbstractCrudController
             ->setRequired(true)
             ->setColumns(6);
 
-        yield AssociationField::new('services', 'Услуга')
+        yield AssociationField::new('services', 'Услуга / Объявление')
 //            ->setFormTypeOptions(['by_reference' => false])
             ->addCssClass("services-field")
             ->setColumns(6);

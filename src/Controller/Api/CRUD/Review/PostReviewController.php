@@ -79,6 +79,17 @@ class PostReviewController extends AbstractController
             if (!in_array("ROLE_CLIENT", $client->getRoles()))
                 return $this->json(['message' => "Client's role doesn't match"], 403);
 
+            if ($ticket) {
+                if ($ticket->getService() && $ticket->getAuthor() !== $client)
+                    return $this->json(['message' => "Client's ticket doesn't match"], 404);
+
+                $review->setServices($ticket);
+
+                $message += [
+                    'ticket' => "/api/tickets/{$ticket->getId()}",
+                ];
+            }
+
             $review
                 ->setMaster($bearerUser)
                 ->setClient($client);
@@ -95,30 +106,30 @@ class PostReviewController extends AbstractController
             if (!$master)
                 return $this->json(['message' => 'Master not found'], 404);
 
-            if (!$ticketParam)
-                return $this->json(['message' => 'Ticket parameter is required'], 400);
-
-            if (!$ticket)
-                return $this->json(['message' => 'Ticket not found'], 404);
-
             if (!in_array("ROLE_CLIENT", $bearerUser->getRoles()))
                 return $this->json(['message' => 'Access denied'], 403);
 
             if (!in_array("ROLE_MASTER", $master->getRoles()))
                 return $this->json(['message' => "Master's role doesn't match"], 403);
 
-            if (!$ticket->getService() && $ticket->getMaster() !== $master)
-                return $this->json(['message' => "Master's service doesn't match"], 404);
+            if ($ticket) {
+                if (!$ticket->getService() && $ticket->getMaster() !== $master)
+                    return $this->json(['message' => "Master's service doesn't match"], 404);
+
+                $review->setServices($ticket);
+
+                $message += [
+                    'ticket' => "/api/tickets/{$ticket->getId()}",
+                ];
+            }
 
             $review
                 ->setClient($bearerUser)
-                ->setMaster($master)
-                ->setServices($ticket);
+                ->setMaster($master);
 
             $message += [
                 'master' => "/api/users/{$master->getId()}",
                 'client' => "/api/users/{$bearerUser->getId()}",
-                'ticket' => "/api/tickets/{$ticket->getId()}",
             ];
         }
         else return $this->json(['message' => 'Wrong review type'], 400);
