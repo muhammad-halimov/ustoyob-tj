@@ -509,7 +509,7 @@ function FavoritesPage() {
 
             if (createResponse.ok) {
                 // Убрали неиспользуемую переменную newFavorite
-                await createResponse.json(); // Просто читаем ответ, но не сохраняем в переменную
+                await createResponse.json();
                 setLikedMasters(prev => [...prev, masterId]);
                 console.log('Successfully created favorite with master');
                 window.dispatchEvent(new Event('favoritesUpdated'));
@@ -785,13 +785,22 @@ function FavoritesPage() {
             {showTabs && (
                 <div className={styles.tabs}>
                     <button
-                        className={`${styles.tab} ${activeTab === 'orders' ? styles.active : ''}`}
+                        className={`
+                ${styles.tab} 
+                ${styles.tabLeft} 
+                ${activeTab === 'orders' ? styles.activeLeft : ''}
+            `}
                         onClick={() => setActiveTab('orders')}
                     >
                         Заказы
                     </button>
+
                     <button
-                        className={`${styles.tab} ${activeTab === 'masters' ? styles.active : ''}`}
+                        className={`
+                ${styles.tab} 
+                ${styles.tabRight} 
+                ${activeTab === 'masters' ? styles.activeRight : ''}
+            `}
                         onClick={() => setActiveTab('masters')}
                     >
                         Мастера

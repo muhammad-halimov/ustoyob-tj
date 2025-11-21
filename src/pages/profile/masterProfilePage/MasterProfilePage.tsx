@@ -26,17 +26,6 @@ interface ServiceTicket {
     } | null;
 }
 
-// interface Gallery {
-//     id: number;
-//     images: {
-//         id: number;
-//         image: string;
-//     }[];
-//     user: {
-//         id: number;
-//     };
-// }
-
 interface Education {
     id: string;
     institution: string;
@@ -93,6 +82,17 @@ interface Review {
     date?: string;
 }
 
+// Интерфейсы для создания отзыва
+interface ReviewData {
+    type: string;
+    rating: number;
+    description: string;
+    ticket?: string;
+    images?: Array<{ image: string }>;
+    master: string;
+    client: string;
+}
+
 function MasterProfilePage() {
     const navigate = useNavigate();
     const [editingField, setEditingField] = useState<'fullName' | 'specialty' | null>(null);
@@ -110,17 +110,24 @@ function MasterProfilePage() {
     });
     const [reviews, setReviews] = useState<Review[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(false);
-    // const [reviewsError, setReviewsError] = useState<string | null>(null);
     const [usersCache, setUsersCache] = useState<Map<number, any>>(new Map());
+    const [visibleCount, setVisibleCount] = useState(2);
+    const [showReviewModal, setShowReviewModal] = useState(false);
 
-    const API_BASE_URL = 'https://admin.ustoyob.tj';
+    // Состояния для формы отзыва
+    const [reviewText, setReviewText] = useState('');
+    const [selectedStars, setSelectedStars] = useState(0);
+    const [reviewPhotos, setReviewPhotos] = useState<File[]>([]);
+    const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const workExampleInputRef = useRef<HTMLInputElement>(null);
-    const [visibleCount, setVisibleCount] = useState(2);
+    const reviewPhotoInputRef = useRef<HTMLInputElement>(null);
 
     const [services, setServices] = useState<ServiceTicket[]>([]);
     const [servicesLoading, setServicesLoading] = useState(false);
+
+    const API_BASE_URL = 'https://admin.ustoyob.tj';
 
     // Проверка аутентификации при загрузке компонента
     useEffect(() => {
@@ -220,6 +227,10 @@ function MasterProfilePage() {
         setVisibleCount(reviews.length);
     };
 
+    const handleShowLess = () => {
+        setVisibleCount(2);
+    };
+
     // Функция для получения данных пользователя по ID (как в Search)
     const fetchUser = async (userId: number, userType: 'master' | 'client'): Promise<any> => {
         try {
@@ -285,7 +296,6 @@ function MasterProfilePage() {
             img.src = url;
         });
     };
-
 
     const fetchUserData = async () => {
         try {
@@ -459,8 +469,7 @@ function MasterProfilePage() {
         }
     };
 
-
-// Функция для получения правильной информации о пользователе
+    // Функция для получения правильной информации о пользователе
     const getUserInfo = async (userId: number, userType: 'master' | 'client') => {
         console.log(`Getting user info for ${userType} ID:`, userId);
 
@@ -810,7 +819,7 @@ function MasterProfilePage() {
         }
     };
 
-// Функция для получения ID галереи пользователя
+    // Функция для получения ID галереи пользователя
     const getUserGalleryId = async (token: string, userId: number): Promise<number | null> => {
         try {
             // Пробуем получить галерею через разные endpoints
@@ -1013,7 +1022,6 @@ function MasterProfilePage() {
         }
     };
 
-
     // Функция для создания галереи
     const createUserGallery = async (token: string): Promise<number | null> => {
         try {
@@ -1091,7 +1099,7 @@ function MasterProfilePage() {
         return galleryPhotoUrl; // Всегда возвращаем основной путь для галереи
     };
 
-// Функция для загрузки существующей галереи пользователя
+    // Функция для загрузки существующей галереи пользователя
     const fetchUserGallery = async () => {
         try {
             const token = getAuthToken();
@@ -1220,7 +1228,6 @@ function MasterProfilePage() {
             } : null);
         }
     };
-
 
     const getFormattedDate = (): string => {
         const now = new Date();
@@ -1392,7 +1399,6 @@ function MasterProfilePage() {
         }
     };
 
-
     // Функция для получения списка occupation
     const fetchOccupations = async (token: string): Promise<any[] | null> => {
         try {
@@ -1416,7 +1422,7 @@ function MasterProfilePage() {
         }
     };
 
-// Функция для создания новой occupation
+    // Функция для создания новой occupation
     const createOccupation = async (token: string, title: string): Promise<any | null> => {
         try {
             const response = await fetch(`${API_BASE_URL}/api/occupations`, {
@@ -1731,7 +1737,6 @@ function MasterProfilePage() {
         img.src = "./fonTest6.png";
     };
 
-
     // Функция для получения полного имени пользователя из отзыва
     const getReviewerName = (review: Review) => {
         return `${review.reviewer.name} ${review.reviewer.surname}`.trim();
@@ -1782,12 +1787,6 @@ function MasterProfilePage() {
         return Math.round(average * 10) / 10;
     };
 
-    // Функция для повторной загрузки отзывов
-    // const handleRetryLoadReviews = () => {
-    //     fetchReviews();
-    // };
-
-
     // Функция для принудительного обновления изображения (обход кеша)
     const getImageUrlWithCacheBust = (url: string): string => {
         if (!url || url === "./fonTest6.png") return url;
@@ -1796,13 +1795,174 @@ function MasterProfilePage() {
         return `${url}${separator}t=${timestamp}`;
     };
 
-
     const getMasterName = (review: Review) => {
         return `${review.user.name} ${review.user.surname}`.trim();
     };
 
     const getClientName = (review: Review) => {
         return `${review.reviewer.name} ${review.reviewer.surname}`.trim();
+    };
+
+    const handleClientProfileClick = (clientId: number) => {
+        console.log('Navigating to client profile:', clientId);
+        navigate(`/client/${clientId}`);
+    };
+
+    // Функции для работы с формой отзыва
+    const handleLeaveReview = () => {
+        const token = getAuthToken();
+        if (!token) {
+            navigate('/auth');
+            return;
+        }
+
+        setShowReviewModal(true);
+    };
+
+    const handleCloseReviewModal = () => {
+        setShowReviewModal(false);
+        setReviewText('');
+        setSelectedStars(0);
+        setReviewPhotos([]);
+    };
+
+    const handleStarClick = (starCount: number) => {
+        setSelectedStars(starCount);
+    };
+
+    const handleReviewPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            const files = Array.from(e.target.files);
+            setReviewPhotos(prev => [...prev, ...files]);
+        }
+    };
+
+    const removeReviewPhoto = (index: number) => {
+        setReviewPhotos(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleSubmitReview = async () => {
+        if (!reviewText.trim()) {
+            alert('Пожалуйста, напишите комментарий');
+            return;
+        }
+
+        if (selectedStars === 0) {
+            alert('Пожалуйста, поставьте оценку');
+            return;
+        }
+
+        try {
+            setIsSubmittingReview(true);
+            const token = getAuthToken();
+            if (!token) {
+                alert('Необходима авторизация');
+                return;
+            }
+
+            const currentUserId = await getCurrentUserId(token);
+            if (!currentUserId || !profileData) {
+                alert('Не удалось определить пользователя или мастера');
+                return;
+            }
+
+            // Подготавливаем данные для отправки
+            const reviewData: ReviewData = {
+                type: 'master',
+                rating: selectedStars,
+                description: reviewText,
+                master: `/api/users/${profileData.id}`,
+                client: `/api/users/${currentUserId}`
+            };
+
+            console.log('Sending review data:', reviewData);
+
+            const response = await fetch(`${API_BASE_URL}/api/reviews`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(reviewData)
+            });
+
+            if (response.ok) {
+                const reviewResponse = await response.json();
+                console.log('Review created successfully:', reviewResponse);
+
+                // Загружаем фото через отдельный эндпоинт
+                if (reviewPhotos.length > 0) {
+                    try {
+                        await uploadReviewPhotos(reviewResponse.id, reviewPhotos, token);
+                        console.log('All review photos uploaded successfully');
+                    } catch (uploadError) {
+                        console.error('Error uploading photos, but review was created:', uploadError);
+                        alert('Отзыв отправлен, но возникла ошибка при загрузке фото');
+                    }
+                }
+
+                handleCloseReviewModal();
+                alert('Отзыв успешно отправлен!');
+
+                // Обновляем список отзывов
+                await fetchReviews();
+
+            } else {
+                const errorText = await response.text();
+                console.error('Error creating review. Status:', response.status, 'Response:', errorText);
+
+                let errorMessage = 'Ошибка при отправке отзыва';
+                if (response.status === 422) {
+                    errorMessage = 'Ошибка валидации данных. Проверьте введенные данные.';
+                } else if (response.status === 400) {
+                    errorMessage = 'Неверные данные для отправки отзыва.';
+                } else if (response.status === 404) {
+                    errorMessage = 'Ресурс не найден. Возможно, пользователь не существует.';
+                }
+
+                alert(errorMessage);
+            }
+
+        } catch (error) {
+            console.error('Error submitting review:', error);
+            alert('Произошла непредвиденная ошибка при отправке отзыва');
+        } finally {
+            setIsSubmittingReview(false);
+        }
+    };
+
+    const uploadReviewPhotos = async (reviewId: number, photos: File[], token: string) => {
+        try {
+            console.log(`Uploading ${photos.length} photos for review ${reviewId}`);
+
+            for (const photo of photos) {
+                const formData = new FormData();
+                formData.append('image', photo);
+
+                console.log(`Uploading review photo: ${photo.name}`);
+
+                const response = await fetch(`${API_BASE_URL}/api/reviews/${reviewId}/upload-photo`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const uploadResult = await response.json();
+                    console.log('Review photo uploaded successfully:', uploadResult);
+                } else {
+                    const errorText = await response.text();
+                    console.error(`Error uploading photo for review ${reviewId}:`, errorText);
+                }
+            }
+
+            console.log('All review photos uploaded successfully');
+        } catch (error) {
+            console.error('Error uploading review photos:', error);
+            throw error;
+        }
     };
 
     if (isLoading) {
@@ -1988,8 +2148,6 @@ function MasterProfilePage() {
 
                 {/* Секция "О себе" */}
                 <div className={styles.about_section}>
-                    {/*<h2 className={styles.section_title}>О себе</h2>*/}
-
                     {/* Образование и опыт */}
                     <h3 className={styles.section_subtitle}>Образование и опыт</h3>
                     <div className={styles.section_item}>
@@ -2270,18 +2428,6 @@ function MasterProfilePage() {
                         Отзывы
                     </p>
 
-                    {/*{reviewsError && (*/}
-                    {/*    <div className={styles.reviews_error}>*/}
-                    {/*        <p>{reviewsError}</p>*/}
-                    {/*        <button*/}
-                    {/*            className={styles.retry_button}*/}
-                    {/*            onClick={handleRetryLoadReviews}*/}
-                    {/*        >*/}
-                    {/*            Попробовать снова*/}
-                    {/*        </button>*/}
-                    {/*    </div>*/}
-                    {/*)}*/}
-
                     <div className={styles.reviews_list}>
                         {reviewsLoading ? (
                             <div className={styles.loading}>Загрузка отзывов...</div>
@@ -2293,6 +2439,8 @@ function MasterProfilePage() {
                                             <img
                                                 src={getReviewerAvatarUrl(review)}
                                                 alt={getReviewerName(review)}
+                                                onClick={() => handleClientProfileClick(review.reviewer.id)}
+                                                style={{ cursor: 'pointer' }}
                                                 className={styles.reviewer_avatar}
                                                 onError={(e) => {
                                                     e.currentTarget.src = "./fonTest5.png";
@@ -2374,18 +2522,163 @@ function MasterProfilePage() {
                         )}
                     </div>
 
-                    {reviews.length > visibleCount && (
-                        <div className={styles.reviews_actions}>
+                    {/* Кнопки управления отзывами */}
+                    <div className={styles.reviews_actions}>
+                        {reviews.length > 2 && (
                             <button
                                 className={styles.show_all_reviews_btn}
-                                onClick={handleShowMore}
+                                onClick={visibleCount === reviews.length ? handleShowLess : handleShowMore}
                             >
-                                Показать все отзывы
+                                {visibleCount === reviews.length ? 'Скрыть отзывы' : 'Показать все отзывы'}
                             </button>
-                        </div>
-                    )}
+                        )}
+                        <button
+                            className={styles.leave_review_btn}
+                            onClick={handleLeaveReview}
+                        >
+                            Оставить отзыв
+                        </button>
+                    </div>
                 </div>
             </div>
+
+            {/* Модальное окно для оставления отзыва */}
+            {showReviewModal && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.reviewModal}>
+                        <div className={styles.modalHeader}>
+                            <h2>Оставьте отзыв о работе</h2>
+                        </div>
+
+                        <div className={styles.modalContent}>
+                            {/* Поле для комментария */}
+                            <div className={styles.commentSection}>
+                                <textarea
+                                    value={reviewText}
+                                    onChange={(e) => setReviewText(e.target.value)}
+                                    placeholder="Расскажите о вашем опыте работы..."
+                                    className={styles.commentTextarea}
+                                />
+                            </div>
+
+                            {/* Загрузка фото */}
+                            <div className={styles.photoSection}>
+                                <label>Приложите фото</label>
+                                <div className={styles.photoUploadContainer}>
+                                    {/* Превью загруженных фото */}
+                                    <div className={styles.photoPreviews}>
+                                        {reviewPhotos.map((photo, index) => (
+                                            <div key={index} className={styles.photoPreview}>
+                                                <img
+                                                    src={URL.createObjectURL(photo)}
+                                                    alt={`Preview ${index + 1}`}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeReviewPhoto(index)}
+                                                    className={styles.removePhoto}
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                        ))}
+
+                                        {/* Кнопка добавления фото (всегда справа) */}
+                                        <div className={styles.photoUpload}>
+                                            <input
+                                                type="file"
+                                                id="review-photos"
+                                                multiple
+                                                accept="image/*"
+                                                onChange={handleReviewPhotoUpload}
+                                                className={styles.fileInput}
+                                                ref={reviewPhotoInputRef}
+                                            />
+                                            <label htmlFor="review-photos" className={styles.photoUploadButton}>
+                                                +
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Рейтинг звездами */}
+                            <div className={styles.ratingSection}>
+                                <label>Поставьте оценку</label>
+                                <div className={styles.stars}>
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                        <button
+                                            key={star}
+                                            type="button"
+                                            className={`${styles.star} ${star <= selectedStars ? styles.active : ''}`}
+                                            onClick={() => handleStarClick(star)}
+                                        >
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                                <g clipPath="url(#clip0_248_13358)">
+                                                    <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10"/>
+                                                    <path d="M12 19V18.98" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10"/>
+                                                </g>
+                                                <defs>
+                                                    <clipPath id="clip0_248_13358">
+                                                        <rect width="24" height="24" fill="white"/>
+                                                    </clipPath>
+                                                </defs>
+                                            </svg>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Кнопки модалки */}
+                        <div className={styles.modalActions}>
+                            <button
+                                className={styles.closeButton}
+                                onClick={handleCloseReviewModal}
+                                disabled={isSubmittingReview}
+                            >
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <g clipPath="url(#clip0_551_2371)">
+                                        <g clipPath="url(#clip1_551_2371)">
+                                            <path d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z" stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
+                                            <path d="M16.7705 7.22998L7.23047 16.77" stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
+                                            <path d="M7.23047 7.22998L16.7705 16.77" stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
+                                        </g>
+                                    </g>
+                                    <defs>
+                                        <clipPath id="clip0_551_2371">
+                                            <rect width="24" height="24" fill="white"/>
+                                        </clipPath>
+                                        <clipPath id="clip1_551_2371">
+                                            <rect width="24" height="24" fill="white"/>
+                                        </clipPath>
+                                    </defs>
+                                </svg>
+                                Закрыть
+                            </button>
+                            <button
+                                className={styles.submitButton}
+                                onClick={handleSubmitReview}
+                                disabled={isSubmittingReview || !reviewText.trim() || selectedStars === 0}
+                            >
+                                {isSubmittingReview ? 'Отправка...' : 'Отправить'}
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <g clipPath="url(#clip0_551_2758)">
+                                        <path d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z" stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
+                                        <path d="M6.26953 12H17.7295" stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
+                                        <path d="M12.96 7.22998L17.73 12L12.96 16.77" stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
+                                    </g>
+                                    <defs>
+                                        <clipPath id="clip0_551_2758">
+                                            <rect width="24" height="24" fill="white"/>
+                                        </clipPath>
+                                    </defs>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

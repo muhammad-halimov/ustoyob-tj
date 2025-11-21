@@ -72,19 +72,74 @@ interface Review {
     date?: string;
 }
 
+// Интерфейсы для жалобы
+interface AppealData {
+    type: string;
+    title: string;
+    complaintReason: string;
+    supportReason?: string;
+    status?: string;
+    priority?: string;
+    administrant?: string;
+    author: string;
+    respondent: string;
+    description: string;
+    ticket?: string;
+    ticketAppeal?: boolean;
+}
+
+// Интерфейсы для отзыва
+interface ReviewData {
+    type: string;
+    rating: number;
+    description: string;
+    ticket?: string;
+    images?: Array<{
+        image: string;
+    }>;
+    master: string;
+    client: string;
+}
+
+interface ServiceTicket {
+    id: number;
+    title: string;
+    budget: string;
+    unit: string;
+}
+
 const API_BASE_URL = 'https://admin.ustoyob.tj';
 
 function MasterProfileViewPage() {
     const { id } = useParams<{ id: string }>();
     const masterId = id ? parseInt(id) : null;
     const navigate = useNavigate();
-    // const { masterId } = useParams<{ masterId: string }>();
     const [isLoading, setIsLoading] = useState(true);
     const [profileData, setProfileData] = useState<ProfileData | null>(null);
     const [reviews, setReviews] = useState<Review[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(false);
     const [usersCache, setUsersCache] = useState<Map<number, any>>(new Map());
     const [visibleCount, setVisibleCount] = useState(2);
+    const [showComplaintModal, setShowComplaintModal] = useState(false);
+    const [showReviewModal, setShowReviewModal] = useState(false);
+    const [showAllReviews, setShowAllReviews] = useState(false);
+
+    // Состояния для формы жалобы
+    const [complaintReason, setComplaintReason] = useState('');
+    const [complaintDescription, setComplaintDescription] = useState('');
+    const [complaintTitle, setComplaintTitle] = useState('');
+    const [complaintPhotos, setComplaintPhotos] = useState<File[]>([]);
+    const [isSubmittingComplaint, setIsSubmittingComplaint] = useState(false);
+
+    // Состояния для формы отзыва
+    const [reviewText, setReviewText] = useState('');
+    const [selectedStars, setSelectedStars] = useState(0);
+    const [reviewPhotos, setReviewPhotos] = useState<File[]>([]);
+    const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+    // Добавляем состояние для услуг
+    const [services, setServices] = useState<ServiceTicket[]>([]);
+    const [servicesLoading, setServicesLoading] = useState(false);
 
     useEffect(() => {
         if (masterId) {
@@ -96,11 +151,84 @@ function MasterProfileViewPage() {
         if (profileData?.id) {
             fetchUserGallery(parseInt(profileData.id));
             fetchReviews(parseInt(profileData.id));
+            fetchMasterServices(parseInt(profileData.id)); // Загружаем услуги
         }
     }, [profileData?.id]);
 
+    // Функция для загрузки услуг мастера
+    const fetchMasterServices = async (masterId: number) => {
+        try {
+            setServicesLoading(true);
+            const token = getAuthToken();
+
+            if (!token) {
+                console.log('No token available for fetching services');
+                return;
+            }
+
+            const endpoint = `/api/tickets/masters/${masterId}`;
+
+            console.log('Fetching master services from:', endpoint);
+
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+            });
+
+            if (response.status === 401) {
+                navigate('/');
+                return;
+            }
+
+            if (!response.ok) {
+                console.error(`Failed to fetch services: ${response.status}`);
+                setServices([]);
+                return;
+            }
+
+            const servicesData = await response.json();
+            console.log('Master services received:', servicesData);
+
+            // Обрабатываем разные форматы ответа
+            let servicesArray: any[] = [];
+
+            if (Array.isArray(servicesData)) {
+                servicesArray = servicesData;
+            } else if (servicesData && typeof servicesData === 'object') {
+                if (servicesData['hydra:member'] && Array.isArray(servicesData['hydra:member'])) {
+                    servicesArray = servicesData['hydra:member'];
+                } else if (servicesData.id) {
+                    servicesArray = [servicesData];
+                }
+            }
+
+            // Фильтруем только активные услуги мастера
+            const masterServices = servicesArray
+                .filter(service => service.service === true && service.active === true)
+                .map(service => ({
+                    id: service.id,
+                    title: service.title,
+                    budget: service.budget,
+                    unit: service.unit
+                }));
+
+            console.log('Filtered master services:', masterServices);
+            setServices(masterServices);
+
+        } catch (error) {
+            console.error('Error fetching master services:', error);
+            setServices([]);
+        } finally {
+            setServicesLoading(false);
+        }
+    };
+
     const handleShowMore = () => {
-        setVisibleCount(reviews.length);
+        setShowAllReviews(!showAllReviews);
     };
 
     const fetchUser = async (userId: number, userType: 'master' | 'client'): Promise<any> => {
@@ -698,16 +826,350 @@ function MasterProfileViewPage() {
         return `${review.reviewer.name} ${review.reviewer.surname}`.trim();
     };
 
-    // const handleLeaveReview = () => {
-    //     if (profileData?.id) {
-    //         navigate(`/review/${profileData.id}`);
-    //     }
-    // };
-
     const handleClientProfileClick = (clientId: number) => {
         console.log('Navigating to client profile:', clientId);
         navigate(`/client/${clientId}`);
     };
+
+    // Функции для работы с жалобой
+    const handleComplaintClick = () => {
+        const token = getAuthToken();
+        if (!token) {
+            navigate('/auth');
+            return;
+        }
+
+        setShowComplaintModal(true);
+    };
+
+    const handleComplaintClose = () => {
+        setShowComplaintModal(false);
+        setComplaintReason('');
+        setComplaintDescription('');
+        setComplaintTitle('');
+        setComplaintPhotos([]);
+    };
+
+    const handleComplaintPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            const files = Array.from(e.target.files);
+            setComplaintPhotos(prev => [...prev, ...files]);
+        }
+    };
+
+    const removeComplaintPhoto = (index: number) => {
+        setComplaintPhotos(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleSubmitComplaint = async () => {
+        if (!complaintReason.trim()) {
+            alert('Пожалуйста, выберите причину жалобы');
+            return;
+        }
+
+        if (!complaintDescription.trim()) {
+            alert('Пожалуйста, опишите ситуацию подробнее');
+            return;
+        }
+
+        try {
+            setIsSubmittingComplaint(true);
+            const token = getAuthToken();
+            if (!token) {
+                alert('Необходима авторизация');
+                return;
+            }
+
+            const currentUserId = await getCurrentUserId();
+            if (!currentUserId || !profileData) {
+                alert('Не удалось определить пользователя или мастера');
+                return;
+            }
+
+            // Создаем заголовок жалобы
+            const title = complaintTitle.trim() || `Жалоба на мастера ${profileData.fullName}`;
+
+            // Подготавливаем данные для отправки
+            const complaintData: AppealData = {
+                type: 'complaint',
+                title: title,
+                complaintReason: complaintReason,
+                description: complaintDescription,
+                author: `/api/users/${currentUserId}`,
+                respondent: `/api/users/${profileData.id}`,
+                status: 'new',
+                priority: 'medium',
+                ticketAppeal: false
+            };
+
+            console.log('Sending complaint data:', complaintData);
+
+            const response = await fetch(`${API_BASE_URL}/api/appeals`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(complaintData)
+            });
+
+            if (response.ok) {
+                const complaintResponse = await response.json();
+                console.log('Complaint created successfully:', complaintResponse);
+
+                // Загружаем фото через отдельный эндпоинт, если есть
+                if (complaintPhotos.length > 0) {
+                    try {
+                        await uploadComplaintPhotos(complaintResponse.id, complaintPhotos, token);
+                        console.log('All complaint photos uploaded successfully');
+                    } catch (uploadError) {
+                        console.error('Error uploading complaint photos, but complaint was created:', uploadError);
+                        alert('Жалоба отправлена, но возникла ошибка при загрузке фото');
+                    }
+                }
+
+                handleComplaintClose();
+                alert('Жалоба успешно отправлена! Администрация рассмотрит её в ближайшее время.');
+
+            } else {
+                const errorText = await response.text();
+                console.error('Error creating complaint. Status:', response.status, 'Response:', errorText);
+
+                let errorMessage = 'Ошибка при отправке жалобы';
+                if (response.status === 422) {
+                    errorMessage = 'Ошибка валидации данных. Проверьте введенные данные.';
+                } else if (response.status === 400) {
+                    errorMessage = 'Неверные данные для отправки жалобы.';
+                }
+
+                alert(errorMessage);
+            }
+
+        } catch (error) {
+            console.error('Error submitting complaint:', error);
+            alert('Произошла непредвиденная ошибка при отправке жалобы');
+        } finally {
+            setIsSubmittingComplaint(false);
+        }
+    };
+
+    const uploadComplaintPhotos = async (appealId: number, photos: File[], token: string) => {
+        try {
+            console.log(`Uploading ${photos.length} photos for appeal ${appealId}`);
+
+            for (const photo of photos) {
+                const formData = new FormData();
+                formData.append('image', photo);
+
+                console.log(`Uploading complaint photo: ${photo.name}`);
+
+                const response = await fetch(`${API_BASE_URL}/api/appeals/${appealId}/upload-photo`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const uploadResult = await response.json();
+                    console.log('Complaint photo uploaded successfully:', uploadResult);
+                } else {
+                    const errorText = await response.text();
+                    console.error(`Error uploading photo for appeal ${appealId}:`, errorText);
+                }
+            }
+
+            console.log('All complaint photos uploaded successfully');
+        } catch (error) {
+            console.error('Error uploading complaint photos:', error);
+            throw error;
+        }
+    };
+
+    // Функции для работы с отзывами
+    const handleLeaveReview = () => {
+        const token = getAuthToken();
+        if (!token) {
+            navigate('/auth');
+            return;
+        }
+
+        setShowReviewModal(true);
+    };
+
+    const handleReviewClose = () => {
+        setShowReviewModal(false);
+        setReviewText('');
+        setSelectedStars(0);
+        setReviewPhotos([]);
+    };
+
+    const handleReviewPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            const files = Array.from(e.target.files);
+            setReviewPhotos(prev => [...prev, ...files]);
+        }
+    };
+
+    const removeReviewPhoto = (index: number) => {
+        setReviewPhotos(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleStarClick = (starCount: number) => {
+        setSelectedStars(starCount);
+    };
+
+    const handleSubmitReview = async () => {
+        if (!reviewText.trim()) {
+            alert('Пожалуйста, напишите комментарий');
+            return;
+        }
+
+        if (selectedStars === 0) {
+            alert('Пожалуйста, поставьте оценку');
+            return;
+        }
+
+        try {
+            setIsSubmittingReview(true);
+            const token = getAuthToken();
+            if (!token) {
+                alert('Необходима авторизация');
+                return;
+            }
+
+            const currentUserId = await getCurrentUserId();
+            if (!currentUserId || !profileData) {
+                alert('Не удалось определить пользователя или мастера');
+                return;
+            }
+
+            // Подготавливаем данные для отправки отзыва
+            const reviewData: ReviewData = {
+                type: 'master',
+                rating: selectedStars,
+                description: reviewText,
+                master: `/api/users/${profileData.id}`,
+                client: `/api/users/${currentUserId}`
+            };
+
+            console.log('Sending review data:', reviewData);
+
+            const response = await fetch(`${API_BASE_URL}/api/reviews`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(reviewData)
+            });
+
+            if (response.ok) {
+                const reviewResponse = await response.json();
+                console.log('Review created successfully:', reviewResponse);
+
+                // Загружаем фото через отдельный эндпоинт, если есть
+                if (reviewPhotos.length > 0) {
+                    try {
+                        await uploadReviewPhotos(reviewResponse.id, reviewPhotos, token);
+                        console.log('All review photos uploaded successfully');
+                    } catch (uploadError) {
+                        console.error('Error uploading review photos, but review was created:', uploadError);
+                        alert('Отзыв отправлен, но возникла ошибка при загрузке фото');
+                    }
+                }
+
+                handleReviewClose();
+                alert('Отзыв успешно отправлен!');
+
+                // Обновляем список отзывов
+                if (profileData?.id) {
+                    fetchReviews(parseInt(profileData.id));
+                }
+
+            } else {
+                const errorText = await response.text();
+                console.error('Error creating review. Status:', response.status, 'Response:', errorText);
+
+                let errorMessage = 'Ошибка при отправке отзыва';
+                if (response.status === 422) {
+                    errorMessage = 'Ошибка валидации данных. Проверьте введенные данные.';
+                } else if (response.status === 400) {
+                    errorMessage = 'Неверные данные для отправки отзыва.';
+                }
+
+                alert(errorMessage);
+            }
+
+        } catch (error) {
+            console.error('Error submitting review:', error);
+            alert('Произошла непредвиденная ошибка при отправке отзыва');
+        } finally {
+            setIsSubmittingReview(false);
+        }
+    };
+
+    const uploadReviewPhotos = async (reviewId: number, photos: File[], token: string) => {
+        try {
+            console.log(`Uploading ${photos.length} photos for review ${reviewId}`);
+
+            for (const photo of photos) {
+                const formData = new FormData();
+                formData.append('image', photo);
+
+                console.log(`Uploading review photo: ${photo.name}`);
+
+                const response = await fetch(`${API_BASE_URL}/api/reviews/${reviewId}/upload-photo`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const uploadResult = await response.json();
+                    console.log('Review photo uploaded successfully:', uploadResult);
+                } else {
+                    const errorText = await response.text();
+                    console.error(`Error uploading photo for review ${reviewId}:`, errorText);
+                }
+            }
+
+            console.log('All review photos uploaded successfully');
+        } catch (error) {
+            console.error('Error uploading review photos:', error);
+            throw error;
+        }
+    };
+
+    const getCurrentUserId = async (): Promise<number | null> => {
+        try {
+            const token = getAuthToken();
+            if (!token) return null;
+
+            const response = await fetch(`${API_BASE_URL}/api/users/me`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                const userData = await response.json();
+                return userData.id;
+            }
+            return null;
+        } catch (error) {
+            console.error('Error getting current user ID:', error);
+            return null;
+        }
+    };
+
+    // Получаем отзывы для отображения (первые 2 или все)
+    const displayedReviews = showAllReviews ? reviews : reviews.slice(0, 2);
+    const hasMoreReviews = reviews.length > 2;
 
     if (isLoading) {
         return <div className={styles.profile}>Загрузка...</div>;
@@ -796,6 +1258,16 @@ function MasterProfileViewPage() {
                                 </svg>
                                 {reviews.length} отзыва
                             </span>
+                        </div>
+
+                        {/* Кнопка жалобы на мастера */}
+                        <div className={styles.complaint_section}>
+                            <button
+                                className={styles.complaint_button}
+                                onClick={handleComplaintClick}
+                            >
+                                Пожаловаться на мастера
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -938,8 +1410,8 @@ function MasterProfileViewPage() {
                     <div className={styles.reviews_list}>
                         {reviewsLoading ? (
                             <div className={styles.loading}>Загрузка отзывов...</div>
-                        ) : reviews.length > 0 ? (
-                            reviews.slice(0, visibleCount).map((review) => (
+                        ) : displayedReviews.length > 0 ? (
+                            displayedReviews.map((review) => (
                                 <div key={review.id} className={styles.review_item}>
                                     <div className={styles.review_header}>
                                         <div className={styles.reviewer_info}>
@@ -950,7 +1422,7 @@ function MasterProfileViewPage() {
                                                 onClick={() => handleClientProfileClick(review.reviewer.id)}
                                                 style={{ cursor: 'pointer' }}
                                                 onError={(e) => {
-                                                    e.currentTarget.src = "./fonTest5.png";
+                                                    e.currentTarget.src = "../fonTest5.png";
                                                 }}
                                             />
                                             <div className={styles.reviewer_main_info}>
@@ -985,8 +1457,6 @@ function MasterProfileViewPage() {
                                             </div>
                                         </div>
                                     </div>
-
-                                    {/* Остальной код отзыва без изменений */}
                                     <div className={styles.review_details}>
                                         <div className={styles.review_worker_date}>
                                             <span className={styles.review_date}>{review.date}</span>
@@ -1027,18 +1497,309 @@ function MasterProfileViewPage() {
                         )}
                     </div>
 
-                    {reviews.length > visibleCount && (
-                        <div className={styles.reviews_actions}>
+                    {/* Кнопки действий с отзывами */}
+                    <div className={styles.reviews_actions}>
+                        {hasMoreReviews && (
                             <button
                                 className={styles.show_all_reviews_btn}
                                 onClick={handleShowMore}
                             >
-                                Показать все отзывы
+                                {showAllReviews ? 'Скрыть отзывы' : 'Показать все отзывы'}
                             </button>
-                        </div>
-                    )}
+                        )}
+                        <button
+                            className={styles.leave_review_btn}
+                            onClick={handleLeaveReview}
+                        >
+                            Оставить отзыв
+                        </button>
+                    </div>
                 </div>
             </div>
+
+            {/* Модальное окно для жалобы на мастера */}
+            {showComplaintModal && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.complaintModal}>
+                        <div className={styles.modalHeader}>
+                            <h2>Пожаловаться на мастера</h2>
+                            <p className={styles.modalSubtitle}>
+                                Опишите проблему, с которой вы столкнулись при работе с мастером
+                            </p>
+                        </div>
+
+                        <div className={styles.modalContent}>
+                            {/* Причина жалобы */}
+                            <div className={styles.complaintSection}>
+                                <label className={styles.sectionLabel}>Причина жалобы *</label>
+                                <select
+                                    value={complaintReason}
+                                    onChange={(e) => setComplaintReason(e.target.value)}
+                                    className={styles.complaintSelect}
+                                >
+                                    <option value="">Выберите причину</option>
+                                    <option value="poor_quality">Некачественная работа</option>
+                                    <option value="rude_behavior">Грубое поведение</option>
+                                    <option value="no_show">Неявка на встречу</option>
+                                    <option value="late_arrival">Опоздание</option>
+                                    <option value="overpricing">Завышение цены</option>
+                                    <option value="false_advertising">Несоответствие описанию</option>
+                                    <option value="damage_property">Порча имущества</option>
+                                    <option value="other">Другое</option>
+                                </select>
+                            </div>
+
+                            {/* Заголовок жалобы */}
+                            <div className={styles.complaintSection}>
+                                <label className={styles.sectionLabel}>Заголовок жалобы</label>
+                                <input
+                                    type="text"
+                                    value={complaintTitle}
+                                    onChange={(e) => setComplaintTitle(e.target.value)}
+                                    placeholder="Краткое описание проблемы"
+                                    className={styles.complaintInput}
+                                />
+                            </div>
+
+                            {/* Подробное описание */}
+                            <div className={styles.complaintSection}>
+                                <label className={styles.sectionLabel}>Подробное описание ситуации *</label>
+                                <textarea
+                                    value={complaintDescription}
+                                    onChange={(e) => setComplaintDescription(e.target.value)}
+                                    placeholder="Опишите ситуацию подробно, укажите дату и время, если это уместно..."
+                                    className={styles.complaintTextarea}
+                                    rows={5}
+                                />
+                            </div>
+
+                            {/* Загрузка доказательств */}
+                            <div className={styles.complaintSection}>
+                                <label className={styles.sectionLabel}>Доказательства (необязательно)</label>
+                                <p className={styles.photoHint}>
+                                    Вы можете приложить скриншоты переписки, фото или другие материалы
+                                </p>
+                                <div className={styles.photoUploadContainer}>
+                                    <div className={styles.photoPreviews}>
+                                        {complaintPhotos.map((photo, index) => (
+                                            <div key={index} className={styles.photoPreview}>
+                                                <img
+                                                    src={URL.createObjectURL(photo)}
+                                                    alt={`Доказательство ${index + 1}`}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeComplaintPhoto(index)}
+                                                    className={styles.removePhoto}
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                        ))}
+
+                                        <div className={styles.photoUpload}>
+                                            <input
+                                                type="file"
+                                                id="complaint-photos"
+                                                multiple
+                                                accept="image/*"
+                                                onChange={handleComplaintPhotoUpload}
+                                                className={styles.fileInput}
+                                            />
+                                            <label htmlFor="complaint-photos" className={styles.photoUploadButton}>
+                                                +
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Кнопки модалки жалобы */}
+                        <div className={styles.modalActions}>
+                            <button
+                                className={styles.closeButton}
+                                onClick={handleComplaintClose}
+                                disabled={isSubmittingComplaint}
+                            >
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <g clipPath="url(#clip0_551_2371)">
+                                        <g clipPath="url(#clip1_551_2371)">
+                                            <path d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z" stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
+                                            <path d="M16.7705 7.22998L7.23047 16.77" stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
+                                            <path d="M7.23047 7.22998L16.7705 16.77" stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
+                                        </g>
+                                    </g>
+                                    <defs>
+                                        <clipPath id="clip0_551_2371">
+                                            <rect width="24" height="24" fill="white"/>
+                                        </clipPath>
+                                        <clipPath id="clip1_551_2371">
+                                            <rect width="24" height="24" fill="white"/>
+                                        </clipPath>
+                                    </defs>
+                                </svg>
+                                Отмена
+                            </button>
+                            <button
+                                className={styles.submitButton}
+                                onClick={handleSubmitComplaint}
+                                disabled={isSubmittingComplaint || !complaintReason || !complaintDescription}
+                            >
+                                {isSubmittingComplaint ? 'Отправка...' : 'Отправить жалобу'}
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <g clipPath="url(#clip0_551_2758)">
+                                        <path d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z" stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
+                                        <path d="M6.26953 12H17.7295" stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
+                                        <path d="M12.96 7.22998L17.73 12L12.96 16.77" stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
+                                    </g>
+                                    <defs>
+                                        <clipPath id="clip0_551_2758">
+                                            <rect width="24" height="24" fill="white"/>
+                                        </clipPath>
+                                    </defs>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Модальное окно для оставления отзыва */}
+            {showReviewModal && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.reviewModal}>
+                        <div className={styles.modalHeader}>
+                            <h2>Оставьте отзыв о мастере</h2>
+                        </div>
+
+                        <div className={styles.modalContent}>
+                            {/* Поле для комментария */}
+                            <div className={styles.commentSection}>
+                                <textarea
+                                    value={reviewText}
+                                    onChange={(e) => setReviewText(e.target.value)}
+                                    placeholder="Расскажите о вашем опыте работы с мастером..."
+                                    className={styles.commentTextarea}
+                                    rows={5}
+                                />
+                            </div>
+
+                            {/* Загрузка фото */}
+                            <div className={styles.photoSection}>
+                                <label className={styles.sectionLabel}>Приложите фото</label>
+                                <div className={styles.photoUploadContainer}>
+                                    <div className={styles.photoPreviews}>
+                                        {reviewPhotos.map((photo, index) => (
+                                            <div key={index} className={styles.photoPreview}>
+                                                <img
+                                                    src={URL.createObjectURL(photo)}
+                                                    alt={`Preview ${index + 1}`}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeReviewPhoto(index)}
+                                                    className={styles.removePhoto}
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                        ))}
+
+                                        <div className={styles.photoUpload}>
+                                            <input
+                                                type="file"
+                                                id="review-photos"
+                                                multiple
+                                                accept="image/*"
+                                                onChange={handleReviewPhotoUpload}
+                                                className={styles.fileInput}
+                                            />
+                                            <label htmlFor="review-photos" className={styles.photoUploadButton}>
+                                                +
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {/* Рейтинг звездами */}
+                            <div className={styles.ratingSection}>
+                                <label className={styles.sectionLabel}>Поставьте оценку</label>
+                                <div className={styles.stars}>
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                        <button
+                                            key={star}
+                                            type="button"
+                                            className={`${styles.star} ${star <= selectedStars ? styles.active : ''}`}
+                                            onClick={() => handleStarClick(star)}
+                                        >
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                                <g clipPath="url(#clip0_248_13358)">
+                                                    <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10"/>
+                                                    <path d="M12 19V18.98" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10"/>
+                                                </g>
+                                                <defs>
+                                                    <clipPath id="clip0_248_13358">
+                                                        <rect width="24" height="24" fill="white"/>
+                                                    </clipPath>
+                                                </defs>
+                                            </svg>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                        </div>
+
+                        {/* Кнопки модалки отзыва */}
+                        <div className={styles.modalActions}>
+                            <button
+                                className={styles.closeButton}
+                                onClick={handleReviewClose}
+                                disabled={isSubmittingReview}
+                            >
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <g clipPath="url(#clip0_551_2371)">
+                                        <g clipPath="url(#clip1_551_2371)">
+                                            <path d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z" stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
+                                            <path d="M16.7705 7.22998L7.23047 16.77" stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
+                                            <path d="M7.23047 7.22998L16.7705 16.77" stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
+                                        </g>
+                                    </g>
+                                    <defs>
+                                        <clipPath id="clip0_551_2371">
+                                            <rect width="24" height="24" fill="white"/>
+                                        </clipPath>
+                                        <clipPath id="clip1_551_2371">
+                                            <rect width="24" height="24" fill="white"/>
+                                        </clipPath>
+                                    </defs>
+                                </svg>
+                                Отмена
+                            </button>
+                            <button
+                                className={styles.submitButton}
+                                onClick={handleSubmitReview}
+                                disabled={isSubmittingReview || !reviewText || selectedStars === 0}
+                            >
+                                {isSubmittingReview ? 'Отправка...' : 'Отправить отзыв'}
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <g clipPath="url(#clip0_551_2758)">
+                                        <path d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z" stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
+                                        <path d="M6.26953 12H17.7295" stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
+                                        <path d="M12.96 7.22998L17.73 12L12.96 16.77" stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
+                                    </g>
+                                    <defs>
+                                        <clipPath id="clip0_551_2758">
+                                            <rect width="24" height="24" fill="white"/>
+                                        </clipPath>
+                                    </defs>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

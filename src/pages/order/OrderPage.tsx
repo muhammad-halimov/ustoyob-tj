@@ -935,31 +935,44 @@ export default function OrderPage() {
             return;
         }
 
-        // Если авторизован - создаем чат
-        const chat = await createChatWithAuthor(authorId);
-        if (chat) {
-            navigate(`/chats?chatId=${chat.id}`);
-        } else {
-            alert('Не удалось создать чат');
+        // Если авторизован - создаем чат с передачей CORRECT ticket ID
+        try {
+            const chat = await createChatWithAuthor(authorId, order?.id);
+            if (chat && chat.id) {
+                console.log('Navigating to chat:', chat.id);
+                navigate(`/chats?chatId=${chat.id}`);
+            } else {
+                console.error('Failed to create chat or no chat ID returned');
+                alert('Не удалось создать чат');
+            }
+        } catch (error) {
+            console.error('Error creating chat:', error);
+            alert('Ошибка при создании чата');
         }
     };
 
     const handleLoginSuccess = (token: string, email?: string) => {
         console.log('Login successful, token:', token);
-        // email можно использовать для логирования или других целей
         if (email) {
             console.log('User email:', email);
         }
         setShowAuthModal(false);
 
-        // После успешного входа автоматически создаем чат
-        if (order?.authorId) {
+        // После успешного входа автоматически создаем чат с CORRECT ticket ID
+        if (order?.authorId && order?.id) {
             const createChat = async () => {
-                const chat = await createChatWithAuthor(order.authorId);
-                if (chat) {
-                    navigate(`/chats?chatId=${chat.id}`);
-                } else {
-                    alert('Не удалось создать чат');
+                try {
+                    const chat = await createChatWithAuthor(order.authorId, order.id);
+                    if (chat && chat.id) {
+                        console.log('Navigating to chat after login:', chat.id);
+                        navigate(`/chats?chatId=${chat.id}`);
+                    } else {
+                        console.error('Failed to create chat after login');
+                        alert('Не удалось создать чат');
+                    }
+                } catch (error) {
+                    console.error('Error creating chat after login:', error);
+                    alert('Ошибка при создании чата');
                 }
             };
             createChat();

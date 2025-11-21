@@ -368,7 +368,7 @@ const SearchServicePage = () => {
             }
 
             const reviewData = {
-                type: 'client_to_master',
+                type: 'master',
                 rating: selectedStars,
                 description: reviewText,
                 master: `/api/users/${selectedMasterId}`,

@@ -42,6 +42,22 @@ interface Review {
     createdAt?: string;
 }
 
+// Интерфейсы для жалобы
+interface AppealData {
+    type: string;
+    title: string;
+    complaintReason: string;
+    supportReason?: string;
+    status?: string;
+    priority?: string;
+    administrant?: string;
+    author: string;
+    respondent: string;
+    description: string;
+    ticket?: string;
+    ticketAppeal?: boolean;
+}
+
 const API_BASE_URL = 'https://admin.ustoyob.tj';
 
 function ClientProfileViewPage() {
@@ -54,11 +70,19 @@ function ClientProfileViewPage() {
     const [reviewsLoading, setReviewsLoading] = useState(false);
     const [showAllReviews, setShowAllReviews] = useState(false);
     const [showReviewModal, setShowReviewModal] = useState(false);
+    const [showComplaintModal, setShowComplaintModal] = useState(false);
 
     // Состояния для формы отзыва
     const [reviewText, setReviewText] = useState('');
     const [selectedStars, setSelectedStars] = useState(0);
     const [reviewPhotos, setReviewPhotos] = useState<File[]>([]);
+
+    // Состояния для формы жалобы
+    const [complaintReason, setComplaintReason] = useState('');
+    const [complaintDescription, setComplaintDescription] = useState('');
+    const [complaintTitle, setComplaintTitle] = useState('');
+    const [complaintPhotos, setComplaintPhotos] = useState<File[]>([]);
+    const [isSubmittingComplaint, setIsSubmittingComplaint] = useState(false);
 
     useEffect(() => {
         if (clientId) {
@@ -628,6 +652,162 @@ function ClientProfileViewPage() {
         }
     };
 
+    // Функции для работы с жалобой
+    const handleComplaintClick = () => {
+        const token = getAuthToken();
+        if (!token) {
+            navigate('/auth');
+            return;
+        }
+
+        setShowComplaintModal(true);
+    };
+
+    const handleComplaintClose = () => {
+        setShowComplaintModal(false);
+        setComplaintReason('');
+        setComplaintDescription('');
+        setComplaintTitle('');
+        setComplaintPhotos([]);
+    };
+
+    const handleComplaintPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            const files = Array.from(e.target.files);
+            setComplaintPhotos(prev => [...prev, ...files]);
+        }
+    };
+
+    const removeComplaintPhoto = (index: number) => {
+        setComplaintPhotos(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleSubmitComplaint = async () => {
+        if (!complaintReason.trim()) {
+            alert('Пожалуйста, выберите причину жалобы');
+            return;
+        }
+
+        if (!complaintDescription.trim()) {
+            alert('Пожалуйста, опишите ситуацию подробнее');
+            return;
+        }
+
+        try {
+            setIsSubmittingComplaint(true);
+            const token = getAuthToken();
+            if (!token) {
+                alert('Необходима авторизация');
+                return;
+            }
+
+            const currentUserId = await getCurrentUserId();
+            if (!currentUserId || !profileData) {
+                alert('Не удалось определить пользователя или клиента');
+                return;
+            }
+
+            // Создаем заголовок жалобы
+            const title = complaintTitle.trim() || `Жалоба на клиента ${profileData.fullName}`;
+
+            // Подготавливаем данные для отправки
+            const complaintData: AppealData = {
+                type: 'complaint',
+                title: title,
+                complaintReason: complaintReason,
+                description: complaintDescription,
+                author: `/api/users/${currentUserId}`,
+                respondent: `/api/users/${profileData.id}`,
+                status: 'new',
+                priority: 'medium',
+                ticketAppeal: false
+            };
+
+            console.log('Sending complaint data:', complaintData);
+
+            const response = await fetch(`${API_BASE_URL}/api/appeals`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(complaintData)
+            });
+
+            if (response.ok) {
+                const complaintResponse = await response.json();
+                console.log('Complaint created successfully:', complaintResponse);
+
+                // Загружаем фото через отдельный эндпоинт, если есть
+                if (complaintPhotos.length > 0) {
+                    try {
+                        await uploadComplaintPhotos(complaintResponse.id, complaintPhotos, token);
+                        console.log('All complaint photos uploaded successfully');
+                    } catch (uploadError) {
+                        console.error('Error uploading complaint photos, but complaint was created:', uploadError);
+                        alert('Жалоба отправлена, но возникла ошибка при загрузке фото');
+                    }
+                }
+
+                handleComplaintClose();
+                alert('Жалоба успешно отправлена! Администрация рассмотрит её в ближайшее время.');
+
+            } else {
+                const errorText = await response.text();
+                console.error('Error creating complaint. Status:', response.status, 'Response:', errorText);
+
+                let errorMessage = 'Ошибка при отправке жалобы';
+                if (response.status === 422) {
+                    errorMessage = 'Ошибка валидации данных. Проверьте введенные данные.';
+                } else if (response.status === 400) {
+                    errorMessage = 'Неверные данные для отправки жалобы.';
+                }
+
+                alert(errorMessage);
+            }
+
+        } catch (error) {
+            console.error('Error submitting complaint:', error);
+            alert('Произошла непредвиденная ошибка при отправке жалобы');
+        } finally {
+            setIsSubmittingComplaint(false);
+        }
+    };
+
+    const uploadComplaintPhotos = async (appealId: number, photos: File[], token: string) => {
+        try {
+            console.log(`Uploading ${photos.length} photos for appeal ${appealId}`);
+
+            for (const photo of photos) {
+                const formData = new FormData();
+                formData.append('image', photo);
+
+                console.log(`Uploading complaint photo: ${photo.name}`);
+
+                const response = await fetch(`${API_BASE_URL}/api/appeals/${appealId}/upload-photo`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const uploadResult = await response.json();
+                    console.log('Complaint photo uploaded successfully:', uploadResult);
+                } else {
+                    const errorText = await response.text();
+                    console.error(`Error uploading photo for appeal ${appealId}:`, errorText);
+                }
+            }
+
+            console.log('All complaint photos uploaded successfully');
+        } catch (error) {
+            console.error('Error uploading complaint photos:', error);
+            throw error;
+        }
+    };
+
     // Получаем отзывы для отображения (первые 2 или все)
     const displayedReviews = showAllReviews ? reviews : reviews.slice(0, 2);
     const hasMoreReviews = reviews.length > 2;
@@ -699,7 +879,16 @@ function ClientProfileViewPage() {
                                     {profileData.reviews} отзыва
                                 </span>
                             </div>
+                            <div className={styles.complaint_section}>
+                                <button
+                                    className={styles.complaint_button}
+                                    onClick={handleComplaintClick}
+                                >
+                                    Пожаловаться на клиента
+                                </button>
+                            </div>
                         </div>
+
                     </div>
                 </div>
 
@@ -996,6 +1185,152 @@ function ClientProfileViewPage() {
                                 onClick={handleSubmitReview}
                             >
                                 Отправить
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <g clipPath="url(#clip0_551_2758)">
+                                        <path d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z" stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
+                                        <path d="M6.26953 12H17.7295" stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
+                                        <path d="M12.96 7.22998L17.73 12L12.96 16.77" stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
+                                    </g>
+                                    <defs>
+                                        <clipPath id="clip0_551_2758">
+                                            <rect width="24" height="24" fill="white"/>
+                                        </clipPath>
+                                    </defs>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Модальное окно для жалобы на клиента */}
+            {showComplaintModal && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.complaintModal}>
+                        <div className={styles.modalHeader}>
+                            <h2>Пожаловаться на клиента</h2>
+                            <p className={styles.modalSubtitle}>
+                                Опишите проблему, с которой вы столкнулись при работе с клиентом
+                            </p>
+                        </div>
+
+                        <div className={styles.modalContent}>
+                            {/* Причина жалобы */}
+                            <div className={styles.complaintSection}>
+                                <label className={styles.sectionLabel}>Причина жалобы *</label>
+                                <select
+                                    value={complaintReason}
+                                    onChange={(e) => setComplaintReason(e.target.value)}
+                                    className={styles.complaintSelect}
+                                >
+                                    <option value="">Выберите причину</option>
+                                    <option value="rude_behavior">Грубое поведение</option>
+                                    <option value="no_show">Неявка на встречу</option>
+                                    <option value="late_payment">Задержка оплаты</option>
+                                    <option value="false_information">Предоставление ложной информации</option>
+                                    <option value="inappropriate_requests">Неуместные просьбы/требования</option>
+                                    <option value="other">Другое</option>
+                                </select>
+                            </div>
+
+                            {/* Заголовок жалобы */}
+                            <div className={styles.complaintSection}>
+                                <label className={styles.sectionLabel}>Заголовок жалобы</label>
+                                <input
+                                    type="text"
+                                    value={complaintTitle}
+                                    onChange={(e) => setComplaintTitle(e.target.value)}
+                                    placeholder="Краткое описание проблемы"
+                                    className={styles.complaintInput}
+                                />
+                            </div>
+
+                            {/* Подробное описание */}
+                            <div className={styles.complaintSection}>
+                                <label className={styles.sectionLabel}>Подробное описание ситуации *</label>
+                                <textarea
+                                    value={complaintDescription}
+                                    onChange={(e) => setComplaintDescription(e.target.value)}
+                                    placeholder="Опишите ситуацию подробно, укажите дату и время, если это уместно..."
+                                    className={styles.complaintTextarea}
+                                    rows={5}
+                                />
+                            </div>
+
+                            {/* Загрузка доказательств */}
+                            <div className={styles.complaintSection}>
+                                <label className={styles.sectionLabel}>Доказательства (необязательно)</label>
+                                <p className={styles.photoHint}>
+                                    Вы можете приложить скриншоты переписки, фото или другие материалы
+                                </p>
+                                <div className={styles.photoUploadContainer}>
+                                    <div className={styles.photoPreviews}>
+                                        {complaintPhotos.map((photo, index) => (
+                                            <div key={index} className={styles.photoPreview}>
+                                                <img
+                                                    src={URL.createObjectURL(photo)}
+                                                    alt={`Доказательство ${index + 1}`}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeComplaintPhoto(index)}
+                                                    className={styles.removePhoto}
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                        ))}
+
+                                        <div className={styles.photoUpload}>
+                                            <input
+                                                type="file"
+                                                id="complaint-photos"
+                                                multiple
+                                                accept="image/*"
+                                                onChange={handleComplaintPhotoUpload}
+                                                className={styles.fileInput}
+                                            />
+                                            <label htmlFor="complaint-photos" className={styles.photoUploadButton}>
+                                                +
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Кнопки модалки жалобы */}
+                        <div className={styles.modalActions}>
+                            <button
+                                className={styles.closeButton}
+                                onClick={handleComplaintClose}
+                                disabled={isSubmittingComplaint}
+                            >
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <g clipPath="url(#clip0_551_2371)">
+                                        <g clipPath="url(#clip1_551_2371)">
+                                            <path d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z" stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
+                                            <path d="M16.7705 7.22998L7.23047 16.77" stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
+                                            <path d="M7.23047 7.22998L16.7705 16.77" stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
+                                        </g>
+                                    </g>
+                                    <defs>
+                                        <clipPath id="clip0_551_2371">
+                                            <rect width="24" height="24" fill="white"/>
+                                        </clipPath>
+                                        <clipPath id="clip1_551_2371">
+                                            <rect width="24" height="24" fill="white"/>
+                                        </clipPath>
+                                    </defs>
+                                </svg>
+                                Отмена
+                            </button>
+                            <button
+                                className={styles.submitButton}
+                                onClick={handleSubmitComplaint}
+                                disabled={isSubmittingComplaint || !complaintReason || !complaintDescription}
+                            >
+                                {isSubmittingComplaint ? 'Отправка...' : 'Отправить жалобу'}
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <g clipPath="url(#clip0_551_2758)">
                                         <path d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z" stroke="white" strokeWidth="2" strokeMiterlimit="10"/>

@@ -1,5 +1,5 @@
 @use '../../app/styles/variables' as vars;
-@use 'sass:map';
+@use 'sass:map';;
 
 .profile {
   //min-height: 100vh;
@@ -1177,4 +1177,924 @@
   color: black;
   white-space: nowrap;
   margin-left: 12px;
+}
+
+// Добавьте эти стили в ваш ProfilePage.module.scss
+
+.complaint_section {
+  margin-top: 16px;
+  display: flex;
+  //justify-content: center;
+}
+
+.complaint_button {
+  background: #3A54DA;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+
+  &:hover {
+    background: #ff3742;
+  }
+
+  &:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+  }
+}
+
+// Стили для модального окна жалобы
+.complaintModal {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+
+  .modalHeader {
+    margin-bottom: 24px;
+
+    h2 {
+      margin: 0 0 8px 0;
+      font-size: 24px;
+      color: #101010;
+    }
+  }
+
+  .modalSubtitle {
+    margin: 0;
+    color: #666;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+}
+
+.complaintSection {
+  margin-bottom: 20px;
+
+  .sectionLabel {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #101010;
+  }
+}
+
+.complaintSelect {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  background: white;
+
+  &:focus {
+    outline: none;
+    border-color: #3A54DA;
+  }
+}
+
+.complaintInput {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+
+  &:focus {
+    outline: none;
+    border-color: #3A54DA;
+  }
+}
+
+.complaintTextarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 120px;
+
+  &:focus {
+    outline: none;
+    border-color: #3A54DA;
+  }
+}
+
+.photoHint {
+  margin: 4px 0 12px 0;
+  color: #666;
+  font-size: 12px;
+  font-style: italic;
+}
+
+// Общие стили для модальных окон
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modalActions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+  padding-top: 20px;
+
+  .closeButton, .submitButton {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .closeButton {
+    background: #f8f9fa;
+    color: #101010;
+    border: 1px solid #ddd;
+
+    &:hover:not(:disabled) {
+      background: #e9ecef;
+    }
+  }
+
+  .submitButton {
+    background: #3A54DA;
+    color: white;
+
+    &:hover:not(:disabled) {
+      background: #2a44ca;
+    }
+
+    &:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+  }
+}
+
+// Стили для загрузки фото (если их еще нет)
+.photoUploadContainer {
+  margin-top: 8px;
+}
+
+.photoPreviews {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.photoPreview {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.removePhoto {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+
+  &:hover {
+    background: white;
+  }
+}
+
+.photoUpload {
+  display: inline-block;
+}
+
+.fileInput {
+  display: none;
+}
+
+
+// Добавьте эти стили в ваш ProfilePage.module.scss
+
+.reviews_actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 24px;
+  flex-wrap: wrap;
+
+  .show_all_reviews_btn,
+  .leave_review_btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 160px;
+  }
+
+  .show_all_reviews_btn {
+    background: #f8f9fa;
+    color: #101010;
+    border: 1px solid #ddd;
+
+    &:hover {
+      background: #e9ecef;
+    }
+  }
+
+  .leave_review_btn {
+    background: #3A54DA;
+    color: white;
+
+    &:hover {
+      background: #2a44ca;
+    }
+  }
+}
+
+// Стили для модального окна отзыва
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+//.reviewModal {
+//  background: white;
+//  border-radius: 12px;
+//  padding: 24px;
+//  max-width: 500px;
+//  width: 90%;
+//  max-height: 90vh;
+//  overflow-y: auto;
+//  position: relative;
+//}
+
+.modalHeader {
+  margin-bottom: 24px;
+
+  h2 {
+    margin: 0;
+    font-size: 20px;
+    color: #101010;
+    text-align: center;
+  }
+}
+
+.modalContent {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.commentSection {
+  .commentTextarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    resize: vertical;
+    min-height: 120px;
+
+    &:focus {
+      outline: none;
+      border-color: #3A54DA;
+    }
+  }
+}
+
+.photoSection {
+  label {
+    //display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #101010;
+  }
+}
+
+.photoUploadContainer {
+  margin-top: 8px;
+}
+
+.photoPreviews {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.photoPreview {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.removePhoto {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+
+  &:hover {
+    background: white;
+  }
+}
+
+.photoUpload {
+  display: inline-block;
+}
+
+.fileInput {
+  display: none;
+}
+
+
+.ratingSection {
+  label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #101010;
+  }
+}
+
+.stars {
+  display: flex;
+  gap: 8px;
+
+}
+
+.modalActions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+  padding-top: 20px;
+
+  .closeButton, .submitButton {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .closeButton {
+    background: #f8f9fa;
+    color: #101010;
+    border: 1px solid #ddd;
+
+    &:hover:not(:disabled) {
+      background: #e9ecef;
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  .submitButton {
+    background: #3A54DA;
+    color: white;
+
+    &:hover:not(:disabled) {
+      background: #2a44ca;
+    }
+
+    &:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.complaint_section {
+  margin-top: 16px;
+  display: flex;
+  //justify-content: center;
+}
+
+.complaint_button {
+  background: #3A54DA;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+
+  &:hover {
+    background: #ff3742;
+  }
+
+  &:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+  }
+}
+
+// Стили для модального окна жалобы
+.complaintModal {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+
+  .modalHeader {
+    margin-bottom: 24px;
+
+    h2 {
+      margin: 0 0 8px 0;
+      font-size: 24px;
+      color: #101010;
+    }
+  }
+
+  .modalSubtitle {
+    margin: 0;
+    color: #666;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+}
+
+.complaintSection {
+  margin-bottom: 20px;
+
+  .sectionLabel {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #101010;
+  }
+}
+
+.complaintSelect {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  background: white;
+
+  &:focus {
+    outline: none;
+    border-color: #3A54DA;
+  }
+}
+
+.complaintInput {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+
+  &:focus {
+    outline: none;
+    border-color: #3A54DA;
+  }
+}
+
+.complaintTextarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 120px;
+
+  &:focus {
+    outline: none;
+    border-color: #3A54DA;
+  }
+}
+
+.photoHint {
+  margin: 4px 0 12px 0;
+  color: #666;
+  font-size: 12px;
+  font-style: italic;
+}
+
+// Стили для модального окна отзыва (обновленные)
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.reviewModal {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+//.modalHeader {
+//  margin-bottom: 20px;
+//
+//  h2 {
+//    margin: 0 0 8px 0;
+//    font-size: 28px;
+//    font-weight: 600;
+//    text-align: center;
+//    color: map.get(vars.$colors, text-black);
+//  }
+//}
+
+.modalSubtitle {
+  margin: 0;
+  color: #666;
+  font-size: 16px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.modalContent {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ratingSection {
+  .sectionLabel {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: map.get(vars.$colors, text-black);
+    font-size: 16px;
+  }
+}
+
+.stars {
+  display: flex;
+  gap: 8px;
+  padding: 20px;
+  border-radius: 10px;
+  background-color: #F2F2F5;
+  max-width: 200px;
+}
+
+.star {
+  background: none;
+  border: none;
+  font-size: 30px;
+  color: #A6A6A6;
+  transition: color 0.2s;
+  cursor: pointer;
+
+  &.active {
+    color: #FFC107;
+  }
+
+  &:hover {
+    color: #ffc107;
+  }
+
+  svg {
+    display: block;
+    width: 24px;
+    height: 24px;
+  }
+}
+
+.commentSection {
+  .sectionLabel {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: map.get(vars.$colors, text-black);
+    font-size: 16px;
+  }
+}
+
+.commentTextarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 20px;
+  background-color: #F2F2F5;
+  border-radius: 10px;
+  border: none;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 16px;
+  color: #585858;
+
+  &:focus {
+    outline: none;
+  }
+
+  &::placeholder {
+    color: #A6A6A6;
+  }
+}
+
+.photoSection {
+  .sectionLabel {
+    //display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: map.get(vars.$colors, text-black);
+    font-size: 16px;
+  }
+}
+
+.photoHint {
+  margin: 4px 0 12px 0;
+  color: #666;
+  font-size: 14px;
+  font-style: italic;
+}
+
+.photoUploadContainer {
+  margin-top: 8px;
+}
+
+.photoPreviews {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  min-height: 80px;
+}
+
+.photoPreview {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  flex-shrink: 0;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+  }
+}
+
+.removePhoto {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 24px;
+  height: 24px;
+  background: #ff4444;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  font-weight: bold;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background: #cc0000;
+  }
+}
+
+.photoUpload {
+  width: 60px;
+  height: 60px;
+  flex-shrink: 0;
+}
+
+.fileInput {
+  display: none;
+}
+
+.photoUploadButton {
+  display: flex;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #333;
+
+  &:hover {
+    background: #e6e6e8;
+  }
+}
+
+.modalActions {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-top: 30px;
+  padding-top: 20px;
+
+  button {
+    padding: 12px 24px;
+    border-radius: 8px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 140px;
+  }
+}
+
+.closeButton {
+  background: #f5f5f5;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  svg {
+    margin-right: 8px;
+  }
+
+  &:hover {
+    background: #e0e0e0;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.submitButton {
+  background: #3A54DA;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  svg {
+    margin-left: 8px;
+  }
+
+  &:hover:not(:disabled) {
+    background: #2a44ca;
+  }
+
+  &:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+  }
+}
+
+// Стили для загрузки фото (если их еще нет)
+.photoUploadContainer {
+  margin-top: 8px;
+}
+
+.photoPreviews {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.photoPreview {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.removePhoto {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+
+  &:hover {
+    background: white;
+  }
+}
+
+.photoUpload {
+  display: inline-block;
+}
+
+.fileInput {
+  display: none;
+}
+
+.photoUploadButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  //border: 2px dashed #ddd;
+  border-radius: 8px;
+  background: #f8f9fa;
+  cursor: pointer;
+  font-size: 24px;
+  color: #666;
+  transition: all 0.3s ease;
+
 }
