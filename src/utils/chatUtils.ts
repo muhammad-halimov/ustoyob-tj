@@ -7,6 +7,16 @@ interface ChatCreateData {
     ticket?: string;
 }
 
+interface Chat {
+    id: number;
+    author?: {
+        id: number;
+    };
+    replyAuthor?: {
+        id: number;
+    };
+}
+
 export const createChatWithAuthor = async (authorId: number, ticketId?: number) => {
     try {
         const token = getAuthToken();
@@ -47,7 +57,7 @@ export const createChatWithAuthor = async (authorId: number, ticketId?: number) 
             if (response.status === 422 || response.status === 400) {
                 console.log('Trying to find existing chat...');
                 const existingChats = await fetchUserChats(token);
-                const existingChat = existingChats.find(chat =>
+                const existingChat = existingChats.find((chat: Chat) =>
                     chat.replyAuthor?.id === authorId || chat.author?.id === authorId
                 );
                 if (existingChat) {
@@ -63,7 +73,7 @@ export const createChatWithAuthor = async (authorId: number, ticketId?: number) 
     }
 };
 
-const fetchUserChats = async (token: string) => {
+const fetchUserChats = async (token: string): Promise<Chat[]> => {
     try {
         const response = await fetch(`${API_BASE_URL}/api/chats/me`, {
             headers: {
