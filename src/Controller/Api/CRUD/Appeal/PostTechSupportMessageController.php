@@ -2,8 +2,8 @@
 
 namespace App\Controller\Api\CRUD\Appeal;
 
-use App\Entity\Appeal\Appeal;
-use App\Entity\Appeal\AppealMessage;
+use App\Entity\TechSupport\TechSupport;
+use App\Entity\TechSupport\TechSupportMessage;
 use App\Entity\User;
 use App\Repository\User\AppealRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -12,7 +12,7 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
-class PostAppealMessageController extends AbstractController
+class PostTechSupportMessageController extends AbstractController
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
@@ -33,40 +33,37 @@ class PostAppealMessageController extends AbstractController
 
         $data = json_decode($request->getContent(), true);
         $text = $data['text'];
-        $appealParam = $data['appeal'];
+        $techSupportParam = $data['techSupport'];
 
         // Извлекаем ID из строки "/api/chats/1" или просто "1"
-        $appealId = (preg_match('#/api/appeals/(\d+)#', $appealParam, $a) ? $a[1] : $appealParam);
-        /** @var Appeal $appeal */
-        $appeal = $this->appealRepository->find($appealId);
+        $techSupportlId = (preg_match('#/api/tech-suports/(\d+)#', $techSupportParam, $a) ? $a[1] : $techSupportParam);
+        /** @var TechSupport $techSupport */
+        $techSupport = $this->appealRepository->find($techSupportlId);
 
         if (!$text)
             return $this->json(['message' => "Empty text"], 404);
 
-        if (!$appealParam)
-            return $this->json(['message' => "Wrong appeal format"], 404);
+        if (!$techSupportParam)
+            return $this->json(['message' => "Wrong tech-support format"], 404);
 
-        if (!$appeal)
-            return $this->json(['message' => "Appeal not found"], 404);
+        if (!$techSupport)
+            return $this->json(['message' => "Tech-support not found"], 404);
 
-        if ($appeal->getType() !== 'support')
-            return $this->json(['message' => "Appeal not found"], 404);
-
-        if ($appeal->getAdministrant() !== $user && $appeal->getAuthor() !== $user)
+        if ($techSupport->getAdministrant() !== $user && $techSupport->getAuthor() !== $user)
             return $this->json(['message' => "Ownership doesn't match"], 403);
 
-        $appealMessage = (new AppealMessage())
+        $appealMessage = (new TechSupportMessage())
             ->setText($text)
-            ->setAppeal($appeal)
+            ->setTechSupport($techSupport)
             ->setAuthor($user);
 
-        $appeal->addAppealMessage($appealMessage);
+        $techSupport->addTechSupportMessage($appealMessage);
 
         $this->entityManager->persist($appealMessage);
         $this->entityManager->flush();
 
         return $this->json([
-            'appeal' => ['id' => $appeal->getId()],
+            'techSupport' => ['id' => $techSupport->getId()],
             'message' => ['id' => $appealMessage->getId()],
         ]);
     }

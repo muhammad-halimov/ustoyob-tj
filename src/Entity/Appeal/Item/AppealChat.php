@@ -1,14 +1,9 @@
 <?php
 
-namespace App\Entity\Appeal;
+namespace App\Entity\Appeal\Item;
 
 use ApiPlatform\Metadata\ApiProperty;
-use ApiPlatform\Metadata\ApiResource;
-use ApiPlatform\Metadata\Delete;
-use ApiPlatform\Metadata\Patch;
-use ApiPlatform\Metadata\Post;
-use App\Controller\Api\CRUD\Appeal\DeleteAppealMessageController;
-use App\Controller\Api\CRUD\Appeal\PostAppealMessageController;
+use App\Entity\Appeal\Appeal;
 use App\Entity\User;
 use App\Repository\Appeal\AppealMessageRepository;
 use DateTime;
@@ -18,41 +13,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
 
 #[ORM\Entity(repositoryClass: AppealMessageRepository::class)]
 #[ORM\HasLifecycleCallbacks]
-#[ApiResource(
-    operations: [
-        new Post(
-            uriTemplate: '/appeal-messages',
-            controller: PostAppealMessageController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
-        ),
-        new Patch(
-            uriTemplate: '/appeal-messages/{id}',
-            requirements: ['id' => '\d+'],
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
-        ),
-        new Delete(
-            uriTemplate: '/appeal-messages/{id}',
-            requirements: ['id' => '\d+'],
-            controller: DeleteAppealMessageController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
-        )
-    ],
-    normalizationContext: [
-        'groups' => ['appealMessages:read'],
-        'skip_null_values' => false,
-    ],
-    paginationEnabled: false,
-)]
-class AppealMessage
+class AppealChat
 {
     public function __toString(): string
     {

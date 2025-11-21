@@ -10,6 +10,7 @@ use App\Entity\Geography\City;
 use App\Entity\Geography\District;
 use App\Entity\Geography\Province;
 use App\Entity\Review\Review;
+use App\Entity\TechSupport\TechSupport;
 use App\Entity\Ticket\Category;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Ticket\Unit;
@@ -56,7 +57,8 @@ class DashboardController extends AbstractDashboardController
             yield MenuItem::linkToCrud('Пользователи', 'fas fa-users', User::class);
             yield MenuItem::linkToCrud('Чаты и сообщения', 'fas fa-comments', Chat::class);
             yield MenuItem::linkToCrud('Отзывы', 'fas fa-star', Review::class);
-            yield MenuItem::linkToCrud('ТП / Жалобы', 'fas fa-headset', Appeal::class);
+            yield MenuItem::linkToCrud('Тех. поддержка', 'fas fa-headset', TechSupport::class);
+            yield MenuItem::linkToCrud('Жалобы', 'fas fa-triangle-exclamation', Appeal::class);
 
         yield MenuItem::section('Доп. настройки');
             yield MenuItem::subMenu('География', 'fas fa-location-dot')->setSubItems([

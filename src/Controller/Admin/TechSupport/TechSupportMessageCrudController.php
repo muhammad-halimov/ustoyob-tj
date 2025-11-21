@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Controller\Admin\Appeal;
+namespace App\Controller\Admin\TechSupport;
 
-use App\Entity\Appeal\Item\AppealChat;
+use App\Entity\TechSupport\TechSupportMessage;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
@@ -12,11 +12,11 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
-class AppealMessageCrudController extends AbstractCrudController
+class TechSupportMessageCrudController extends AbstractCrudController
 {
     public static function getEntityFqcn(): string
     {
-        return AppealChat::class;
+        return TechSupportMessage::class;
     }
 
     public function configureCrud(Crud $crud): Crud

@@ -31,44 +31,24 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             uriTemplate: '/chats/{id}',
             requirements: ['id' => '\d+'],
             controller: ChatFilterController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
         ),
         new GetCollection(
             uriTemplate: '/chats/me',
             controller: PersonalChatFilterController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
         ),
         new Post(
             uriTemplate: '/chats/{id}/upload-photo',
             requirements: ['id' => '\d+'],
             controller: PostChatPhotoController::class,
-            security:
-            "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
         ),
         new Post(
             uriTemplate: '/chats',
             controller: PostChatController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
         ),
         new Delete(
             uriTemplate: '/chats/{id}',
             requirements: ['id' => '\d+'],
             controller: DeleteChatController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
         )
     ],
     normalizationContext: [

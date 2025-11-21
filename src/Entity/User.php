@@ -20,13 +20,16 @@ use App\Controller\Api\Filter\User\Personal\PersonalUserFilterController;
 use App\Controller\Api\Filter\User\SocialNetworkController;
 use App\Entity\Appeal\Appeal;
 use App\Entity\Appeal\AppealImage;
-use App\Entity\Appeal\AppealMessage;
+use App\Entity\Appeal\Item\AppealChat;
 use App\Entity\Chat\Chat;
 use App\Entity\Chat\ChatImage;
 use App\Entity\Chat\ChatMessage;
 use App\Entity\Gallery\Gallery;
 use App\Entity\Geography\District;
 use App\Entity\Review\Review;
+use App\Entity\TechSupport\TechSupport;
+use App\Entity\TechSupport\TechSupportImage;
+use App\Entity\TechSupport\TechSupportMessage;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
@@ -169,6 +172,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->occupation = new ArrayCollection();
         $this->clientsFavorites = new ArrayCollection();
         $this->mastersFavorites = new ArrayCollection();
+        $this->techSupportImages = new ArrayCollection();
+        $this->techSupportMessages = new ArrayCollection();
+        $this->techSupports = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -427,9 +433,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private Collection $administrantAppeals;
 
     /**
-     * @var Collection<int, AppealMessage>
+     * @var Collection<int, AppealChat>
      */
-    #[ORM\OneToMany(targetEntity: AppealMessage::class, mappedBy: 'author')]
+    #[ORM\OneToMany(targetEntity: AppealChat::class, mappedBy: 'author')]
     #[Ignore]
     private Collection $appealMessages;
 
@@ -492,6 +498,24 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\ManyToMany(targetEntity: Favorite::class, mappedBy: 'masters')]
     #[Ignore]
     private Collection $mastersFavorites;
+
+    /**
+     * @var Collection<int, TechSupportImage>
+     */
+    #[ORM\OneToMany(targetEntity: TechSupportImage::class, mappedBy: 'author')]
+    private Collection $techSupportImages;
+
+    /**
+     * @var Collection<int, TechSupportMessage>
+     */
+    #[ORM\OneToMany(targetEntity: TechSupportMessage::class, mappedBy: 'author')]
+    private Collection $techSupportMessages;
+
+    /**
+     * @var Collection<int, TechSupport>
+     */
+    #[ORM\OneToMany(targetEntity: TechSupport::class, mappedBy: 'administrant')]
+    private Collection $techSupports;
 
     public function getId(): ?int
     {
@@ -1076,14 +1100,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * @return Collection<int, AppealMessage>
+     * @return Collection<int, AppealChat>
      */
     public function getAppealMessages(): Collection
     {
         return $this->appealMessages;
     }
 
-    public function addAppealMessage(AppealMessage $appealMessage): static
+    public function addAppealMessage(AppealChat $appealMessage): static
     {
         if (!$this->appealMessages->contains($appealMessage)) {
             $this->appealMessages->add($appealMessage);
@@ -1093,7 +1117,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    public function removeAppealMessage(AppealMessage $appealMessage): static
+    public function removeAppealMessage(AppealChat $appealMessage): static
     {
         if ($this->appealMessages->removeElement($appealMessage)) {
             // set the owning side to null (unless already changed)
@@ -1328,6 +1352,96 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         if ($this->mastersFavorites->removeElement($mastersFavorite)) {
             $mastersFavorite->removeMaster($this);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, TechSupportImage>
+     */
+    public function getTechSupportImages(): Collection
+    {
+        return $this->techSupportImages;
+    }
+
+    public function addTechSupportImage(TechSupportImage $techSupportImage): static
+    {
+        if (!$this->techSupportImages->contains($techSupportImage)) {
+            $this->techSupportImages->add($techSupportImage);
+            $techSupportImage->setAuthor($this);
+        }
+
+        return $this;
+    }
+
+    public function removeTechSupportImage(TechSupportImage $techSupportImage): static
+    {
+        if ($this->techSupportImages->removeElement($techSupportImage)) {
+            // set the owning side to null (unless already changed)
+            if ($techSupportImage->getAuthor() === $this) {
+                $techSupportImage->setAuthor(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, TechSupportMessage>
+     */
+    public function getTechSupportMessages(): Collection
+    {
+        return $this->techSupportMessages;
+    }
+
+    public function addTechSupportMessage(TechSupportMessage $techSupportMessage): static
+    {
+        if (!$this->techSupportMessages->contains($techSupportMessage)) {
+            $this->techSupportMessages->add($techSupportMessage);
+            $techSupportMessage->setAuthor($this);
+        }
+
+        return $this;
+    }
+
+    public function removeTechSupportMessage(TechSupportMessage $techSupportMessage): static
+    {
+        if ($this->techSupportMessages->removeElement($techSupportMessage)) {
+            // set the owning side to null (unless already changed)
+            if ($techSupportMessage->getAuthor() === $this) {
+                $techSupportMessage->setAuthor(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, TechSupport>
+     */
+    public function getTechSupports(): Collection
+    {
+        return $this->techSupports;
+    }
+
+    public function addTechSupport(TechSupport $techSupport): static
+    {
+        if (!$this->techSupports->contains($techSupport)) {
+            $this->techSupports->add($techSupport);
+            $techSupport->setAdministrant($this);
+        }
+
+        return $this;
+    }
+
+    public function removeTechSupport(TechSupport $techSupport): static
+    {
+        if ($this->techSupports->removeElement($techSupport)) {
+            // set the owning side to null (unless already changed)
+            if ($techSupport->getAdministrant() === $this) {
+                $techSupport->setAdministrant(null);
+            }
         }
 
         return $this;

@@ -1,15 +1,14 @@
 <?php
 
-namespace App\Controller\Admin\Appeal;
+namespace App\Controller\Admin\TechSupport;
 
 use App\Entity\Appeal\Appeal;
+use App\Entity\TechSupport\TechSupport;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
-use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
@@ -17,28 +16,22 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
-class AppealCrudController extends AbstractCrudController
+class TechSupportCrudController extends AbstractCrudController
 {
     public static function getEntityFqcn(): string
     {
-        return Appeal::class;
-    }
-
-    public function configureAssets(Assets $assets): Assets
-    {
-        return parent::configureAssets($assets)
-            ->addJsFile("assets/js/appealCrud.js");
+        return TechSupport::class;
     }
 
     public function configureCrud(Crud $crud): Crud
     {
         return parent::configureCrud($crud)
             ->setEntityPermission('ROLE_ADMIN')
-            ->setEntityLabelInPlural('Жалобы')
-            ->setEntityLabelInSingular('жалобу')
-            ->setPageTitle(Crud::PAGE_NEW, 'Добавление жалобы')
-            ->setPageTitle(Crud::PAGE_EDIT, 'Изменение жалобы')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о жалобе");
+            ->setEntityLabelInPlural('Тех. поддержка')
+            ->setEntityLabelInSingular('талон')
+            ->setPageTitle(Crud::PAGE_NEW, 'Добавление талона')
+            ->setPageTitle(Crud::PAGE_EDIT, 'Изменение талона')
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о талоне");
     }
 
     public function configureActions(Actions $actions): Actions
@@ -66,48 +59,50 @@ class AppealCrudController extends AbstractCrudController
         yield IdField::new('id')
             ->onlyOnIndex();
 
-        yield ChoiceField::new('type', 'Тип')
-            ->hideOnIndex()
-            ->setRequired(true)
-            ->renderExpanded()
-            ->addCssClass("form-switch")
-            ->setChoices(Appeal::TYPES)
-            ->setColumns(12);
-
-        yield BooleanField::new('ticketAppeal', 'Объявление / Услуга')
-            ->setColumns(12);
-
         yield TextField::new('title', 'Заголовок')
             ->setRequired(true)
             ->setColumns(6);
 
-        yield AssociationField::new('ticket', 'Объявление / Услуга')
-            ->setRequired(true)
-            ->addCssClass('ticket-field')
-            ->setColumns(6);
+        yield ChoiceField::new('supportReason', 'Категория талона')
+            ->setColumns(6)
+            ->setChoices(Appeal::SUPPORT)
+            ->addCssClass('support-field')
+            ->setRequired(true);
 
-        yield AssociationField::new('author', 'Истец')
-            ->setRequired(true)
-            ->setColumns(4);
+        yield ChoiceField::new('status', 'Статус')
+            ->setColumns(3)
+            ->setChoices(Appeal::STATUSES)
+            ->addCssClass('status-field')
+            ->setRequired(true);
 
-        yield AssociationField::new('respondent', 'Ответчик')
-            ->hideOnIndex()
-            ->setRequired(true)
-            ->addCssClass('respondent-field')
-            ->setColumns(4);
+        yield ChoiceField::new('priority', 'Приоритет')
+            ->setColumns(3)
+            ->setChoices(Appeal::PRIORITIES)
+            ->addCssClass('priority-field')
+            ->setRequired(true);
 
-        yield ChoiceField::new('complaintReason', 'Причина жалобы')
-            ->setChoices(Appeal::COMPLAINTS)
-            ->addCssClass('compliant-field')
+        yield AssociationField::new('author', 'Клиент / Мастер')
             ->setRequired(true)
-            ->setColumns(4);
+            ->setColumns(3);
+
+        yield AssociationField::new('administrant', 'Исполнитель / Админ')
+            ->setRequired(true)
+            ->addCssClass('administrant-field')
+            ->setColumns(3);
 
         yield TextEditorField::new('description', 'Описание')
             ->setRequired(true)
             ->setColumns(12);
 
-        yield CollectionField::new('appealImages', 'Галерея изображений')
-            ->useEntryCrudForm(AppealImageCrudController::class)
+        yield CollectionField::new('techSupportImages', 'Галерея изображений')
+            ->useEntryCrudForm(TechSupportImageCrudController::class)
+            ->hideOnIndex()
+            ->setColumns(12)
+            ->setRequired(false);
+
+        yield CollectionField::new('techSupportMessages', 'Сообщения')
+            ->addCssClass('messages-field')
+            ->useEntryCrudForm(TechSupportMessageCrudController::class)
             ->hideOnIndex()
             ->setColumns(12)
             ->setRequired(false);

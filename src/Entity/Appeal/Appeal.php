@@ -5,17 +5,13 @@ namespace App\Entity\Appeal;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\GetCollection;
-use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\CRUD\Appeal\PatchSupportAppealController;
-use App\Controller\Api\CRUD\Appeal\PostAppealPhotoController;
 use App\Controller\Api\CRUD\Appeal\PostAppealConntroller;
+use App\Controller\Api\CRUD\Appeal\PostAppealPhotoController;
 use App\Controller\Api\Filter\Appeal\Compliant\ComplaintsFilterController;
 use App\Controller\Api\Filter\Appeal\Compliant\TicketComplaintFilterController;
 use App\Controller\Api\Filter\Appeal\Compliant\UserComplaintFilterController;
-use App\Controller\Api\Filter\Appeal\Support\AdminSupportFilterController;
-use App\Controller\Api\Filter\Appeal\Support\SupportFilterController;
-use App\Controller\Api\Filter\Appeal\Support\UserSupportFilterController;
+use App\Entity\Appeal\Item\AppealChat;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
 use App\Repository\User\AppealRepository;
@@ -48,23 +44,6 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
                  is_granted('ROLE_CLIENT')"
         ),
         new GetCollection(
-            uriTemplate: '/appeals/support/user/{id}',
-            controller: UserSupportFilterController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
-        ),
-        new GetCollection(
-            uriTemplate: '/appeals/support/admin/{id}',
-            controller: AdminSupportFilterController::class,
-            security: "is_granted('ROLE_ADMIN')"
-        ),
-        new GetCollection(
-            uriTemplate: '/appeals/support/reasons',
-            controller: SupportFilterController::class,
-        ),
-        new GetCollection(
             uriTemplate: '/appeals/complaints/reasons',
             controller: ComplaintsFilterController::class,
         ),
@@ -76,11 +55,6 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             uriTemplate: '/appeals/{id}/upload-photo',
             requirements: ['id' => '\d+'],
             controller: PostAppealPhotoController::class,
-        ),
-        new Patch(
-            uriTemplate: '/appeals/{id}',
-            requirements: ['id' => '\d+'],
-            controller: PatchSupportAppealController::class,
         ),
     ],
     normalizationContext: [
@@ -258,9 +232,9 @@ class Appeal
     private Collection $appealImages;
 
     /**
-     * @var Collection<int, AppealMessage>
+     * @var Collection<int, AppealChat>
      */
-    #[ORM\OneToMany(targetEntity: AppealMessage::class, mappedBy: 'appeal', cascade: ['persist', 'remove'])]
+    #[ORM\OneToMany(targetEntity: AppealChat::class, mappedBy: 'appeal', cascade: ['persist', 'remove'])]
     #[Groups([
         'appealsSupport:read',
     ])]
@@ -458,14 +432,14 @@ class Appeal
     }
 
     /**
-     * @return Collection<int, AppealMessage>
+     * @return Collection<int, AppealChat>
      */
     public function getAppealMessages(): Collection
     {
         return $this->appealMessages;
     }
 
-    public function addAppealMessage(AppealMessage $appealMessage): static
+    public function addAppealMessage(AppealChat $appealMessage): static
     {
         if (!$this->appealMessages->contains($appealMessage)) {
             $this->appealMessages->add($appealMessage);
@@ -475,7 +449,7 @@ class Appeal
         return $this;
     }
 
-    public function removeAppealMessage(AppealMessage $appealMessage): static
+    public function removeAppealMessage(AppealChat $appealMessage): static
     {
         if ($this->appealMessages->removeElement($appealMessage)) {
             // set the owning side to null (unless already changed)
