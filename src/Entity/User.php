@@ -321,7 +321,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'masters:read',
         'clients:read',
     ])]
-    private ?bool $remotely = null;
+    private ?bool $atHome = null;
 
     /**
      * @var list<string> The user roles
@@ -649,14 +649,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    public function getRemotely(): ?bool
+    public function getAtHome(): ?bool
     {
-        return $this->remotely;
+        return $this->atHome;
     }
 
-    public function setRemotely(?bool $remotely): void
+    public function setAtHome(?bool $atHome): void
     {
-        $this->remotely = $remotely;
+        $this->atHome = $atHome;
     }
 
     /**

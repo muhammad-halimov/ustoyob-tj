@@ -106,7 +106,7 @@ class UserCrudController extends AbstractCrudController
             ->setChoices(User::ROLES)
             ->setColumns(9);
 
-        yield BooleanField::new('remotely', 'Удаленно')
+        yield BooleanField::new('atHome', 'Принимает у себя')
             ->addCssClass("form-switch")
             ->hideOnIndex()
             ->setColumns(12);
