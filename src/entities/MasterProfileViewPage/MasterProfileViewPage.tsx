@@ -704,6 +704,11 @@ function MasterProfileViewPage() {
     //     }
     // };
 
+    const handleClientProfileClick = (clientId: number) => {
+        console.log('Navigating to client profile:', clientId);
+        navigate(`/client/${clientId}`);
+    };
+
     if (isLoading) {
         return <div className={styles.profile}>Загрузка...</div>;
     }
@@ -942,12 +947,20 @@ function MasterProfileViewPage() {
                                                 src={getReviewerAvatarUrl(review)}
                                                 alt={getReviewerName(review)}
                                                 className={styles.reviewer_avatar}
+                                                onClick={() => handleClientProfileClick(review.reviewer.id)}
+                                                style={{ cursor: 'pointer' }}
                                                 onError={(e) => {
                                                     e.currentTarget.src = "./fonTest5.png";
                                                 }}
                                             />
                                             <div className={styles.reviewer_main_info}>
-                                                <div className={styles.reviewer_name}>{getClientName(review)}</div>
+                                                <div
+                                                    className={styles.reviewer_name}
+                                                    onClick={() => handleClientProfileClick(review.reviewer.id)}
+                                                    style={{ cursor: 'pointer' }}
+                                                >
+                                                    {getClientName(review)}
+                                                </div>
                                                 <div className={styles.review_vacation}>{review.vacation}</div>
                                                 <span className={styles.review_worker}>{getMasterName(review)}</span>
                                                 <div className={styles.review_rating_main}>
@@ -973,6 +986,7 @@ function MasterProfileViewPage() {
                                         </div>
                                     </div>
 
+                                    {/* Остальной код отзыва без изменений */}
                                     <div className={styles.review_details}>
                                         <div className={styles.review_worker_date}>
                                             <span className={styles.review_date}>{review.date}</span>

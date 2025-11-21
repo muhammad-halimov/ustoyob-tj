@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { getAuthToken, getUserRole } from '../../utils/auth';
 import styles from './OrderPage.module.scss';
 import {createChatWithAuthor} from "../../utils/chatUtils";
+import AuthModal from "../../features/auth/AuthModal";
 
 interface ApiTicket {
     id: number;
@@ -87,6 +88,7 @@ export default function OrderPage() {
     const [reviewText, setReviewText] = useState('');
     const [selectedStars, setSelectedStars] = useState(0);
     const [reviewPhotos, setReviewPhotos] = useState<File[]>([]);
+    const [showAuthModal, setShowAuthModal] = useState(false);
 
     const ticketType = searchParams.get('type') as 'client' | 'master' | null;
     const specificTicketId = searchParams.get('ticket');
@@ -150,34 +152,50 @@ export default function OrderPage() {
                 return;
             }
 
-            // Проверяем, что у нас есть authorId
             if (!order.authorId) {
                 alert('Не удалось определить автора заказа');
                 return;
             }
 
-            // Определяем тип отзыва
-            const reviewType = userRole === 'master' ? 'master_to_client' : 'client_to_master';
-
+            // ПРАВИЛЬНАЯ ЛОГИКА СОГЛАСНО ВАШИМ ПРАВИЛАМ:
+            let reviewType = '';
             let masterIri = '';
             let clientIri = '';
 
             if (userRole === 'master') {
+                // Мастер оставляет отзыв клиенту -> type: "client"
+                reviewType = 'client';
                 masterIri = `/api/users/${currentUserId}`;
                 clientIri = `/api/users/${order.authorId}`;
             } else if (userRole === 'client') {
+                // Клиент оставляет отзыв мастеру -> type: "master"
+                reviewType = 'master';
                 clientIri = `/api/users/${currentUserId}`;
                 masterIri = `/api/users/${order.authorId}`;
+            } else {
+                alert('Неизвестная роль пользователя');
+                return;
             }
 
-            const reviewData = {
+            // Проверяем что не оставляем отзыв самому себе
+            if (currentUserId === order.authorId) {
+                alert('Нельзя оставлять отзыв самому себе');
+                return;
+            }
+
+            const reviewData: any = {
                 type: reviewType,
                 rating: selectedStars,
                 description: reviewText,
-                ticket: `/api/tickets/${order.id}`,
-                master: masterIri,
-                client: clientIri
+                ticket: `/api/tickets/${order.id}`, // Тикет обязателен в нашем случае
             };
+
+            // Добавляем master или client в зависимости от типа
+            if (reviewType === 'master') {
+                reviewData.master = masterIri;
+            } else if (reviewType === 'client') {
+                reviewData.client = clientIri;
+            }
 
             console.log('Sending review data:', reviewData);
 
@@ -194,14 +212,13 @@ export default function OrderPage() {
                 const reviewResponse = await response.json();
                 console.log('Review created successfully:', reviewResponse);
 
-                // Загружаем фото асинхронно, но не блокируем основной поток
+                // Загружаем фото через отдельный эндпоинт (ваша оригинальная функция)
                 if (reviewPhotos.length > 0) {
                     try {
                         await uploadReviewPhotos(reviewResponse.id, reviewPhotos, token);
                         console.log('All photos uploaded successfully');
                     } catch (uploadError) {
                         console.error('Error uploading photos, but review was created:', uploadError);
-                        // Можно показать предупреждение, что фото не загрузились
                         alert('Отзыв отправлен, но возникла ошибка при загрузке фото');
                     }
                 }
@@ -596,12 +613,6 @@ export default function OrderPage() {
             setIsLoading(true);
             setError(null);
 
-            const token = getAuthToken();
-            if (!token) {
-                setError('Требуется авторизация');
-                return;
-            }
-
             console.log('Fetching order with params:', {
                 userId,
                 role,
@@ -618,19 +629,23 @@ export default function OrderPage() {
             } else if (ticketType === 'master') {
                 endpoint = `/api/tickets/masters/${targetUserId}`;
             } else {
-                // Если тип не указан, используем общий endpoint для авторизованных пользователей
-                // или получаем все тикеты для неавторизованных
                 endpoint = `/api/tickets`;
             }
 
             console.log('Fetching from endpoint:', endpoint);
 
+            const headers: HeadersInit = {
+                'Content-Type': 'application/json',
+            };
+
+            const token = getAuthToken();
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
             const response = await fetch(`${API_BASE_URL}${endpoint}`, {
                 method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
+                headers: headers,
             });
 
             if (!response.ok) {
@@ -651,21 +666,15 @@ export default function OrderPage() {
                 }
 
                 if (specificTicketId) {
-                    console.log('Searching for ticket with ID:', specificTicketId);
                     ticketData = ticketsData.find((ticket: ApiTicket) => ticket.id === specificTicketId) || null;
-                    console.log('Found ticket:', ticketData);
-
                     if (!ticketData) {
-                        console.log('Ticket not found, available IDs:', ticketsData.map((t: ApiTicket) => t.id));
                         setError('Тикет не найден');
                         return;
                     }
                 } else {
-                    console.log('No specific ticket ID, using first ticket');
                     ticketData = ticketsData[0];
                 }
             } else {
-                // Если API вернул не массив, а один объект
                 ticketData = ticketsData;
             }
 
@@ -674,45 +683,59 @@ export default function OrderPage() {
                 return;
             }
 
-            let authorId = 0;
-            let authorImage = '';
+            // Определяем, чью информацию показывать
+            let displayUserId = 0;
+            let displayUserName = '';
+            let displayUserImage = '';
+            let userTypeForRating: 'client' | 'master' | null = ticketType;
 
-            // Определяем authorId на основе данных тикета, а не роли пользователя
-            // Тикет клиента имеет author, тикет мастера имеет master
-            if (ticketData.author) {
-                authorId = ticketData.author.id;
-                if (ticketData.author.image) {
-                    authorImage = formatProfileImageUrl(ticketData.author.image);
+            // Логика определения, чью информацию показывать:
+            if (ticketType === 'client') {
+                // Если смотрим тикеты клиента, показываем информацию о клиенте (авторе)
+                displayUserId = ticketData.author?.id || 0;
+                displayUserName = ticketData.author ? `${ticketData.author.name || ''} ${ticketData.author.surname || ''}`.trim() : 'Клиент';
+                displayUserImage = ticketData.author?.image ? formatProfileImageUrl(ticketData.author.image) : '';
+                userTypeForRating = 'client';
+            } else if (ticketType === 'master') {
+                // Если смотрим тикеты мастера, показываем информацию о мастере
+                displayUserId = ticketData.master?.id || 0;
+                displayUserName = ticketData.master ? `${ticketData.master.name || ''} ${ticketData.master.surname || ''}`.trim() : 'Мастер';
+                displayUserImage = ticketData.master?.image ? formatProfileImageUrl(ticketData.master.image) : '';
+                userTypeForRating = 'master';
+            } else {
+                // Если тип не указан, по умолчанию показываем автора
+                displayUserId = ticketData.author?.id || 0;
+                displayUserName = ticketData.author ? `${ticketData.author.name || ''} ${ticketData.author.surname || ''}`.trim() : 'Пользователь';
+                displayUserImage = ticketData.author?.image ? formatProfileImageUrl(ticketData.author.image) : '';
+                userTypeForRating = null;
+            }
+
+            // Если не удалось определить ID из тикета, используем userId из URL
+            if (displayUserId === 0 && userId) {
+                displayUserId = userId;
+                console.log('Using userId from URL as displayUserId:', displayUserId);
+
+                // Получаем дополнительную информацию о пользователе
+                const userInfo = await fetchUserInfo(displayUserId, userTypeForRating);
+                if (!displayUserName || displayUserName === 'Клиент' || displayUserName === 'Мастер' || displayUserName === 'Пользователь') {
+                    displayUserName = userInfo.name;
                 }
-            } else if (ticketData.master) {
-                authorId = ticketData.master.id;
-                if (ticketData.master.image) {
-                    authorImage = formatProfileImageUrl(ticketData.master.image);
+                if (!displayUserImage) {
+                    displayUserImage = userInfo.image;
                 }
             }
 
-            // Если не удалось определить authorId из тикета, используем userId из URL
-            if (authorId === 0 && userId) {
-                authorId = userId;
-                console.log('Using userId from URL as authorId:', authorId);
-            }
+            console.log('Final user info:', {
+                displayUserId,
+                displayUserName,
+                userTypeForRating,
+                displayUserImage
+            });
 
-            console.log('Final authorId:', authorId);
-
-            // Определяем тип пользователя для запроса информации
-            let userRoleForRequest = role;
-            if (!userRoleForRequest) {
-                // Если роль не определена, определяем по наличию author/master в тикете
-                userRoleForRequest = ticketData.author ? 'client' : 'master';
-                console.log('Auto-detected user role:', userRoleForRequest);
-            }
-
-            const { name: authorName, rating: authorRating, image: fetchedImage } = await fetchUserInfo(authorId, userRoleForRequest);
-            setRating(authorRating);
-
-            if (!authorImage && fetchedImage) {
-                authorImage = fetchedImage;
-            }
+            // Получаем рейтинг пользователя
+            const userRatingInfo = await fetchUserInfo(displayUserId, userTypeForRating);
+            const userRating = userRatingInfo.rating;
+            setRating(userRating);
 
             const fullAddress = getFullAddress(ticketData);
 
@@ -720,7 +743,6 @@ export default function OrderPage() {
             if (ticketData.images?.length) {
                 photos.push(...ticketData.images.map(img => {
                     const imageUrl = img.image.startsWith('http') ? img.image : formatTicketImageUrl(img.image);
-                    console.log('Processed image URL:', imageUrl);
                     return imageUrl;
                 }));
             }
@@ -728,12 +750,9 @@ export default function OrderPage() {
             if (ticketData.ticketImages?.length) {
                 photos.push(...ticketData.ticketImages.map(img => {
                     const imageUrl = img.image.startsWith('http') ? img.image : formatTicketImageUrl(img.image);
-                    console.log('Processed ticketImage URL:', imageUrl);
                     return imageUrl;
                 }));
             }
-
-            console.log('All processed photos:', photos);
 
             const orderData: Order = {
                 id: ticketData.id,
@@ -743,15 +762,15 @@ export default function OrderPage() {
                 description: ticketData.description || 'Описание отсутствует',
                 address: fullAddress,
                 date: formatDate(ticketData.createdAt),
-                author: authorName || 'Неизвестный автор',
-                authorId: authorId,
+                author: displayUserName,
+                authorId: displayUserId,
                 timeAgo: getTimeAgo(ticketData.createdAt),
                 category: ticketData.category?.title || 'другое',
                 additionalComments: ticketData.notice,
                 photos: photos.length > 0 ? photos : undefined,
                 notice: ticketData.notice,
-                rating: authorRating,
-                authorImage: authorImage || undefined,
+                rating: userRating,
+                authorImage: displayUserImage || undefined,
             };
 
             console.log('Final order data:', orderData);
@@ -765,52 +784,108 @@ export default function OrderPage() {
         }
     };
 
-    const fetchUserInfo = async (userId: number, role: string | null): Promise<{ name: string; rating: number; image: string }> => {
+    const fetchUserInfo = async (userId: number, userType: 'client' | 'master' | null): Promise<{ name: string; rating: number; image: string }> => {
         try {
-            const token = getAuthToken();
-            if (!token) return { name: 'Пользователь', rating: 0, image: '' };
-
-            let endpoint = '';
-            if (role === 'master') endpoint = `/api/users/clients/${userId}`;
-            else if (role === 'client') endpoint = `/api/users/masters/${userId}`;
-            else return { name: 'Пользователь', rating: 0, image: '' };
-
-            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (!response.ok) return { name: 'Пользователь', rating: 0, image: '' };
-
-            const userArray = await response.json();
-            const userData = Array.isArray(userArray) ? userArray[0] : userArray;
-
-            const name = `${userData.name || ''} ${userData.surname || ''}`.trim() || 'Пользователь';
-            const rating = userData.rating || 0;
-
-            let image = '';
-            if (userData.image) {
-                if (userData.image.startsWith('/images/profile_photos/')) {
-                    image = `${API_BASE_URL}${userData.image}`;
-                }
-                else if (userData.image.startsWith('http')) {
-                    image = userData.image;
-                }
-                else {
-                    image = `${API_BASE_URL}/images/profile_photos/${userData.image}`;
-                }
+            if (!userId || userId === 0) {
+                return { name: 'Пользователь', rating: 0, image: '' };
             }
 
-            console.log('User image path:', userData.image);
-            console.log('Full image URL:', image);
+            const headers: HeadersInit = {
+                'Content-Type': 'application/json',
+            };
 
-            return { name, rating, image };
+            const token = getAuthToken();
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            let endpoint = '';
+
+            // Определяем endpoint на основе типа пользователя
+            if (userType === 'master') {
+                endpoint = `/api/users/masters/${userId}`;
+            } else if (userType === 'client') {
+                endpoint = `/api/users/clients/${userId}`;
+            } else {
+                // Если тип не указан, пробуем оба варианта
+                try {
+                    // Сначала пробуем как клиента
+                    const clientResponse = await fetch(`${API_BASE_URL}/api/users/clients/${userId}`, {
+                        headers: headers,
+                    });
+
+                    if (clientResponse.ok) {
+                        const userDataArray = await clientResponse.json();
+                        const userData = Array.isArray(userDataArray) ? userDataArray[0] : userDataArray;
+                        return formatUserInfo(userData);
+                    }
+                } catch (error) {
+                    console.error('Error fetching as client:', error);
+                }
+
+                // Если не получилось как клиент, пробуем как мастер
+                try {
+                    const masterResponse = await fetch(`${API_BASE_URL}/api/users/masters/${userId}`, {
+                        headers: headers,
+                    });
+
+                    if (masterResponse.ok) {
+                        const userDataArray = await masterResponse.json();
+                        const userData = Array.isArray(userDataArray) ? userDataArray[0] : userDataArray;
+                        return formatUserInfo(userData);
+                    }
+                } catch (error) {
+                    console.error('Error fetching as master:', error);
+                }
+
+                return { name: 'Пользователь', rating: 0, image: '' };
+            }
+
+            console.log(`Fetching user info from: ${endpoint} for user ID: ${userId}`);
+
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                headers: headers,
+            });
+
+            if (!response.ok) {
+                console.log(`Failed to fetch user info: ${response.status}`);
+                return { name: 'Пользователь', rating: 0, image: '' };
+            }
+
+            const userDataArray = await response.json();
+            const userData = Array.isArray(userDataArray) ? userDataArray[0] : userDataArray;
+
+            return formatUserInfo(userData);
+
         } catch (error) {
             console.error('Error fetching user info:', error);
             return { name: 'Пользователь', rating: 0, image: '' };
         }
+    };
+
+    const formatUserInfo = (userData: any): { name: string; rating: number; image: string } => {
+        if (!userData) {
+            return { name: 'Пользователь', rating: 0, image: '' };
+        }
+
+        const name = `${userData.name || ''} ${userData.surname || ''}`.trim() || 'Пользователь';
+        const rating = userData.rating || 0;
+
+        let image = '';
+        if (userData.image) {
+            if (userData.image.startsWith('/images/profile_photos/')) {
+                image = `${API_BASE_URL}${userData.image}`;
+            }
+            else if (userData.image.startsWith('http')) {
+                image = userData.image;
+            }
+            else {
+                image = `${API_BASE_URL}/images/profile_photos/${userData.image}`;
+            }
+        }
+
+        console.log('User info found:', { name, rating, image });
+        return { name, rating, image };
     };
 
     const formatDate = (dateString: string) => {
@@ -852,6 +927,15 @@ export default function OrderPage() {
 
 
     const handleRespondClick = async (authorId: number) => {
+        const token = getAuthToken();
+
+        // Если пользователь не авторизован - показываем модалку входа
+        if (!token) {
+            setShowAuthModal(true);
+            return;
+        }
+
+        // Если авторизован - создаем чат
         const chat = await createChatWithAuthor(authorId);
         if (chat) {
             navigate(`/chats?chatId=${chat.id}`);
@@ -859,6 +943,52 @@ export default function OrderPage() {
             alert('Не удалось создать чат');
         }
     };
+
+    const handleLoginSuccess = (token: string, email?: string) => {
+        console.log('Login successful, token:', token);
+        // email можно использовать для логирования или других целей
+        if (email) {
+            console.log('User email:', email);
+        }
+        setShowAuthModal(false);
+
+        // После успешного входа автоматически создаем чат
+        if (order?.authorId) {
+            const createChat = async () => {
+                const chat = await createChatWithAuthor(order.authorId);
+                if (chat) {
+                    navigate(`/chats?chatId=${chat.id}`);
+                } else {
+                    alert('Не удалось создать чат');
+                }
+            };
+            createChat();
+        }
+    };
+
+    const handleProfileClick = (userId: number, ticketType: 'client' | 'master' | null) => {
+        const currentUserRole = getUserRole(); // Получаем роль текущего пользователя
+
+        console.log('Profile click details:', {
+            userId,
+            ticketType,
+            currentUserRole
+        });
+
+        // Логика определения маршрута:
+        if (ticketType === 'client') {
+            navigate(`/client/${userId}`);
+        } else if (ticketType === 'master') {
+            navigate(`/master/${userId}`);
+        } else {
+            if (currentUserRole === 'master') {
+                navigate(`/client/${userId}`);
+            } else {
+                navigate(`/master/${userId}`);
+            }
+        }
+    };
+
 
     if (isLoading) return <div className={styles.loading}>Загрузка...</div>;
     if (error) return (
@@ -938,10 +1068,20 @@ export default function OrderPage() {
 
                 <section className={styles.section}>
                     <div className={styles.section_photo}>
-                        <img src={order.authorImage} alt=""/>
+                        <img
+                            src={order.authorImage}
+                            alt="authorImage"
+                            onClick={() => handleProfileClick(order.authorId, ticketType)}
+                            style={{ cursor: 'pointer' }}
+                        />
                         <div className={styles.authorSection}>
                             <div className={styles.authorInfo}>
-                                <h3>{order.author}</h3>
+                                <h3
+                                    onClick={() => handleProfileClick(order.authorId, ticketType)}
+                                    style={{ cursor: 'pointer' }}
+                                >
+                                    {order.author}
+                                </h3>
                             </div>
                             <p>{order.title}</p>
                         </div>
@@ -1043,7 +1183,17 @@ export default function OrderPage() {
                             </button>
                         </div>
 
-                        <button className={styles.reviewButton} onClick={handleLeaveReview}>
+                        <button
+                            className={styles.reviewButton}
+                            onClick={() => {
+                                const token = getAuthToken();
+                                if (!token) {
+                                    handleRespondClick(order?.authorId);
+                                } else {
+                                    handleLeaveReview();
+                                }
+                            }}
+                        >
                             Оставить отзыв
                         </button>
                     </div>
@@ -1183,6 +1333,13 @@ export default function OrderPage() {
                         </div>
                     </div>
                 </div>
+            )}
+            {showAuthModal && (
+                <AuthModal
+                    isOpen={showAuthModal}
+                    onClose={() => setShowAuthModal(false)}
+                    onLoginSuccess={handleLoginSuccess}
+                />
             )}
         </div>
     );

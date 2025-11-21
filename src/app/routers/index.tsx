@@ -13,6 +13,7 @@ import OrderHistoryPage from "../../pages/OrderHistory/OrderHistoryPage";
 import SearchServicePage from "../../pages/search/SearchServicePage";
 import TicketsPage from "../../pages/tickets/TicketsPage";
 import MasterProfileViewPage from "../../entities/MasterProfileViewPage/MasterProfileViewPage";
+import ClientProfileViewPage from "../../entities/ClientProfileViewPage/ClientProfileViewPage.tsx";
 
 const router = createBrowserRouter([
     {
@@ -33,6 +34,7 @@ const router = createBrowserRouter([
             { path: 'create-ad', element: <CreateAdPage /> }, //для Клиента
             { path: 'tickets', element: <TicketsPage /> }, //для Мастера
             { path: 'master/:id', element: <MasterProfileViewPage /> },
+            { path: 'client/:id', element: <ClientProfileViewPage /> },
             // { path: 'profile/work-area', element: <WorkAreaPage /> },
     //         { path: 'search', element: <SearchPage /> },
     //         { path: 'create-ad', element: <CreateAdPage /> },

@@ -199,9 +199,26 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
                         // ДОБАВЛЯЕМ: Сохраняем роль пользователя
                         if (userData.roles && userData.roles.length > 0) {
-                            const userRole = userData.roles[0]; // Берем первую роль
-                            localStorage.setItem('userRole', userRole);
-                            console.log('User role saved:', userRole);
+                            const roles = userData.roles;
+                            console.log('User roles:', roles);
+
+                            // Определяем роль пользователя
+                            let userRole: 'client' | 'master' = 'client';
+
+                            const isMaster = roles.some((role: string) =>
+                                role.includes('MASTER') || role.includes('master'));
+                            const isClient = roles.some((role: string) =>
+                                role.includes('CLIENT') || role.includes('client'));
+
+                            if (isMaster) {
+                                userRole = 'master';
+                            } else if (isClient) {
+                                userRole = 'client';
+                            }
+
+                            // Сохраняем в правильном формате
+                            localStorage.setItem('userRole', userRole === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT');
+                            console.log('User role determined:', userRole);
                         }
                     } else {
                         console.warn('Failed to fetch user data, but login successful');
@@ -249,7 +266,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             return;
         }
 
-        // Для регистрации используем ТОЛЬКО email согласно документации логина
         const email = formData.phoneOrEmail.includes('@') ? formData.phoneOrEmail : '';
 
         if (!email) {
@@ -258,162 +274,160 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             return;
         }
 
-        // Подготовка данных для регистрации
-        const requestData: any = {
+        // 1. Создаем базового пользователя (без ролей)
+        const baseUserData: any = {
             email: email,
             name: formData.firstName,
             surname: formData.lastName,
-            password: formData.password
+            password: formData.password,
         };
 
-        // Для клиентов используем ROLE_CLIENT, для мастеров ROLE_MASTER
-        if (formData.role === 'master') {
-            requestData.roles = ["ROLE_MASTER"];
-            // Для мастеров добавляем категорию если выбрана
-            if (formData.specialty) {
-                requestData.occupation = [parseInt(formData.specialty)];
-            }
-        } else {
-            requestData.roles = ["ROLE_CLIENT"];
+        // Добавляем occupation только для мастеров
+        if (formData.role === 'master' && formData.specialty) {
+            baseUserData.occupation = [`${API_BASE_URL}/api/occupations/${formData.specialty}`];
         }
 
-        console.log('Registration request:', requestData);
+        console.log('Step 1: Creating user with data:', baseUserData);
 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/users`, {
+            // ШАГ 1: Создаем пользователя
+            const createResponse = await fetch(`${API_BASE_URL}/api/users`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
                 },
-                body: JSON.stringify(requestData)
+                body: JSON.stringify(baseUserData)
             });
 
-            const responseText = await response.text();
-            console.log('Registration response:', responseText);
+            const createResponseText = await createResponse.text();
+            console.log('Create user response status:', createResponse.status);
+            console.log('Create user response:', createResponseText);
 
-            if (!response.ok) {
+            if (!createResponse.ok) {
                 let errorMessage = 'Ошибка регистрации';
                 try {
-                    const errorData = JSON.parse(responseText);
-                    errorMessage = errorData.message || errorData.detail || errorMessage;
-
-                    // Обработка специфических ошибок
+                    const errorData = JSON.parse(createResponseText);
+                    errorMessage = errorData.detail || errorData.message || errorMessage;
                     if (errorData.violations) {
                         errorMessage = errorData.violations.map((v: any) => v.message).join(', ');
                     }
                 } catch {
-                    errorMessage = `HTTP error! status: ${response.status}. Response: ${responseText}`;
+                    errorMessage = `HTTP error! status: ${createResponse.status}`;
                 }
                 throw new Error(errorMessage);
             }
 
-            console.log('User registered successfully');
+            const userData = JSON.parse(createResponseText);
+            console.log('User created successfully:', userData);
 
-            // Автоматический логин после успешной регистрации
+            // ШАГ 2: Получаем токен для нового пользователя
+            console.log('Step 2: Getting token for new user');
+
+            const loginResponse = await fetch(`${API_BASE_URL}/api/authentication_token`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: email,
+                    password: formData.password
+                })
+            });
+
+            if (!loginResponse.ok) {
+                throw new Error('Не удалось получить токен для назначения роли');
+            }
+
+            const loginData: LoginResponse = await loginResponse.json();
+            console.log('Token received for role assignment');
+
+            // ШАГ 3: Назначаем роль через grant-role endpoint с Bearer токеном
+            console.log('Step 3: Assigning role via grant-role with Bearer token');
+
+            const grantRoleData = {
+                role: formData.role === 'master' ? 'master' : 'client'
+            };
+
+            console.log('Grant role request:', grantRoleData);
+
+            const grantRoleResponse = await fetch(`${API_BASE_URL}/api/users/grant-role/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${loginData.token}`
+                },
+                body: JSON.stringify(grantRoleData)
+            });
+
+            const grantRoleResponseText = await grantRoleResponse.text();
+            console.log('Grant role response status:', grantRoleResponse.status);
+            console.log('Grant role response:', grantRoleResponseText);
+
+            if (!grantRoleResponse.ok) {
+                console.warn('Role assignment failed, but user was created');
+                // Продолжаем, так как пользователь создан, просто роль не назначена
+            } else {
+                console.log('Role assigned successfully');
+                try {
+                    const grantRoleResult = JSON.parse(grantRoleResponseText);
+                    console.log('User with role:', grantRoleResult);
+                } catch (e) {
+                    console.log('Role assignment response (not JSON):', grantRoleResponseText);
+                }
+            }
+
+            // ШАГ 4: Сохраняем токен и данные пользователя
+            localStorage.setItem('authToken', loginData.token);
+            localStorage.setItem('userEmail', email);
+
+            // Сохраняем роль в правильном формате
+            const roleToSave = formData.role === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT';
+            localStorage.setItem('userRole', roleToSave);
+            console.log('User role saved to localStorage:', roleToSave);
+
+            // Получаем полные данные пользователя
             try {
-                const loginResponse = await fetch(`${API_BASE_URL}/api/authentication_token`, {
-                    method: 'POST',
+                const userResponse = await fetch(`${API_BASE_URL}/api/users/me`, {
+                    method: 'GET',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${loginData.token}`,
                         'Accept': 'application/json',
                     },
-                    body: JSON.stringify({
-                        email: email,
-                        password: formData.password
-                    })
                 });
 
-                if (loginResponse.ok) {
-                    const loginData: LoginResponse = await loginResponse.json();
-                    localStorage.setItem('authToken', loginData.token);
-                    localStorage.setItem('userEmail', email);
-
-                    if (onLoginSuccess) {
-                        onLoginSuccess(loginData.token, email);
-                    }
-                    window.location.reload();
-                    onClose();
-                    resetForm();
-                } else {
-                    // Если авто-логин не удался, переходим на страницу логина
-                    setCurrentState(AuthModalState.LOGIN);
-                    setError('Регистрация успешна! Теперь войдите в систему.');
+                if (userResponse.ok) {
+                    const currentUserData = await userResponse.json();
+                    console.log('User data after registration:', currentUserData);
+                    localStorage.setItem('userData', JSON.stringify(currentUserData));
+                    console.log('Final roles from API:', currentUserData.roles);
                 }
-            } catch (loginError) {
-                console.error('Auto-login error:', loginError);
-                setCurrentState(AuthModalState.LOGIN);
-                setError('Регистрация успешна! Теперь войдите в систему.');
+            } catch (userError) {
+                console.error('Error fetching user data:', userError);
             }
+
+            if (onLoginSuccess) {
+                onLoginSuccess(loginData.token, email);
+            }
+
+            console.log('Registration and login successful! Role:', formData.role);
+
+            alert(`Регистрация успешна! Вы зарегистрированы как ${formData.role === 'master' ? 'специалист' : 'клиент'}`);
+
+            window.location.reload();
+            onClose();
+            resetForm();
 
         } catch (err) {
             console.error('Registration error:', err);
-
-            // Если ошибка связана с occupation, пробуем без него
-            if (err instanceof Error && err.message.includes('occupation')) {
-                console.log('Trying registration without occupation...');
-
-                // Удаляем occupation из данных и пробуем снова
-                const simplifiedData = { ...requestData };
-                delete simplifiedData.occupation;
-
-                try {
-                    const retryResponse = await fetch(`${API_BASE_URL}/api/users`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                        },
-                        body: JSON.stringify(simplifiedData)
-                    });
-
-                    const retryText = await retryResponse.text();
-
-                    if (retryResponse.ok) {
-                        console.log('User registered successfully without occupation');
-
-                        // Авто-логин после успешной регистрации
-                        const loginResponse = await fetch(`${API_BASE_URL}/api/authentication_token`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
-                                email: email,
-                                password: formData.password
-                            })
-                        });
-
-                        if (loginResponse.ok) {
-                            const loginData: LoginResponse = await loginResponse.json();
-                            localStorage.setItem('authToken', loginData.token);
-                            localStorage.setItem('userEmail', email);
-
-                            if (onLoginSuccess) {
-                                onLoginSuccess(loginData.token, email);
-                            }
-                            onClose();
-                            resetForm();
-                            return;
-                        }
-
-                        setCurrentState(AuthModalState.LOGIN);
-                        setError('Регистрация успешна! Теперь войдите в систему.');
-                        return;
-                    } else {
-                        throw new Error(`Retry failed: ${retryText}`);
-                    }
-                } catch (retryError) {
-                    console.error('Retry registration error:', retryError);
-                    setError(`Ошибка регистрации: ${retryError instanceof Error ? retryError.message : 'Неизвестная ошибка'}`);
-                }
-            } else {
-                setError(err instanceof Error ? err.message : 'Произошла ошибка при регистрации');
-            }
+            setError(err instanceof Error ? err.message : 'Произошла ошибка при регистрации');
         } finally {
             setIsLoading(false);
         }
     };
+
 
     const handleForgotPassword = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -464,7 +478,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             <div className={styles.welcomeScreen}>
                 <h2>Войдите, чтобы получить доступ к функциям сервиса</h2>
                 <div className={styles.welcomeButtons}>
-                    <img className={styles.enterPic} src="./enter_pic.png" alt="enter" width='280'/>
+                    <img className={styles.enterPic} src="../enter_pic.png" alt="enter" width='280'/>
                     <button
                         className={styles.primaryButton}
                         onClick={() => setCurrentState(AuthModalState.LOGIN)}

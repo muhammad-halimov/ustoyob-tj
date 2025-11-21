@@ -226,6 +226,7 @@ function Header() {
                                 </Link>
                             </li>
                             <li className={`${styles.bottomHeader_item} ${isActivePage === "chats" ? styles.active : ""}`}>
+                                {isAuthenticated ? (
                                 <Link to="/chats" className={styles.navLink}>
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                         <g clipPath="url(#clip0_324_3538)">
@@ -244,6 +245,30 @@ function Header() {
                                     </svg>
                                     <p>Чаты</p>
                                 </Link>
+                                ) : (
+                                    <Link
+                                        to="/profile"
+                                        className={styles.navLink}
+                                        onClick={handleProfileClick}
+                                    >
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <g clipPath="url(#clip0_324_3538)">
+                                                <g clipPath="url(#clip1_324_3538)">
+                                                    <path d="M12 1.47998C6.2 1.47998 1.5 5.74998 1.5 11C1.52866 13.0153 2.23294 14.9626 3.5 16.53L2.5 21.53L9.16 20.2C10.1031 20.4499 11.0744 20.5776 12.05 20.58C17.85 20.58 22.55 16.3 22.55 11.03C22.55 5.75998 17.8 1.47998 12 1.47998Z" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10"/>
+                                                </g>
+                                            </g>
+                                            <defs>
+                                                <clipPath id="clip0_324_3538">
+                                                    <rect width="24" height="24" fill="white"/>
+                                                </clipPath>
+                                                <clipPath id="clip1_324_3538">
+                                                    <rect width="24" height="24" fill="white"/>
+                                                </clipPath>
+                                            </defs>
+                                        </svg>
+                                        <p>Чаты</p>
+                                    </Link>
+                                )}
                             </li>
                             <li className={`${styles.bottomHeader_item} ${isActivePage === "profile" ? styles.active : ""}`}>
                                 {isAuthenticated ? (

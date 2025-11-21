@@ -65,7 +65,7 @@ function Reviews() {
                 {reviews.map((review) => (
                     <div className={style.reviews_item} key={review.id}>
                         <div className={style.reviews_naming}>
-                            <img src="./fonTest5.png" alt="fon Test"/>
+                            <img src="../fonTest5.png" alt="fon Test"/>
                             <div className={style.reviews_naming_title}>
                                 <h3>{review.name}</h3>
                                 <p>{review.vacation}</p>
