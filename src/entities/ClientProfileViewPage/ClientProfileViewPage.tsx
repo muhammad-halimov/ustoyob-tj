@@ -522,7 +522,7 @@ function ClientProfileViewPage() {
                 return;
             }
 
-            const userRole = getUserRole();
+            // const userRole = getUserRole();
             const currentUserId = await getCurrentUserId();
 
             if (!currentUserId || !profileData) {
@@ -1224,11 +1224,11 @@ function ClientProfileViewPage() {
                                     className={styles.complaintSelect}
                                 >
                                     <option value="">Выберите причину</option>
-                                    <option value="rude_behavior">Грубое поведение</option>
-                                    <option value="no_show">Неявка на встречу</option>
-                                    <option value="late_payment">Задержка оплаты</option>
-                                    <option value="false_information">Предоставление ложной информации</option>
-                                    <option value="inappropriate_requests">Неуместные просьбы/требования</option>
+                                    {/*<option value="rude_behavior">Грубое поведение</option>*/}
+                                    {/*<option value="no_show">Неявка на встречу</option>*/}
+                                    {/*<option value="late_payment">Задержка оплаты</option>*/}
+                                    {/*<option value="false_information">Предоставление ложной информации</option>*/}
+                                    {/*<option value="inappropriate_requests">Неуместные просьбы/требования</option>*/}
                                     <option value="other">Другое</option>
                                 </select>
                             </div>

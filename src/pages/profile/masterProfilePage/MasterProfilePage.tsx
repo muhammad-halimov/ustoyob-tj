@@ -2535,6 +2535,7 @@ function MasterProfilePage() {
                         <button
                             className={styles.leave_review_btn}
                             onClick={handleLeaveReview}
+                            style={{ display: "none" }}
                         >
                             Оставить отзыв
                         </button>

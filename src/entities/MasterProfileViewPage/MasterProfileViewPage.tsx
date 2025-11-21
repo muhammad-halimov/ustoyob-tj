@@ -119,7 +119,6 @@ function MasterProfileViewPage() {
     const [reviews, setReviews] = useState<Review[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(false);
     const [usersCache, setUsersCache] = useState<Map<number, any>>(new Map());
-    const [visibleCount, setVisibleCount] = useState(2);
     const [showComplaintModal, setShowComplaintModal] = useState(false);
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [showAllReviews, setShowAllReviews] = useState(false);
@@ -139,7 +138,7 @@ function MasterProfileViewPage() {
 
     // Добавляем состояние для услуг
     const [services, setServices] = useState<ServiceTicket[]>([]);
-    const [servicesLoading, setServicesLoading] = useState(false);
+    // const [servicesLoading, setServicesLoading] = useState(false);
 
     useEffect(() => {
         if (masterId) {
@@ -158,7 +157,7 @@ function MasterProfileViewPage() {
     // Функция для загрузки услуг мастера
     const fetchMasterServices = async (masterId: number) => {
         try {
-            setServicesLoading(true);
+            // setServicesLoading(true);
             const token = getAuthToken();
 
             if (!token) {
@@ -213,7 +212,7 @@ function MasterProfileViewPage() {
                     id: service.id,
                     title: service.title,
                     budget: service.budget,
-                    unit: service.unit
+                    unit: service.unit?.title || 'tjs'
                 }));
 
             console.log('Filtered master services:', masterServices);
@@ -223,7 +222,7 @@ function MasterProfileViewPage() {
             console.error('Error fetching master services:', error);
             setServices([]);
         } finally {
-            setServicesLoading(false);
+            // setServicesLoading(false);
         }
     };
 
@@ -1382,12 +1381,12 @@ function MasterProfileViewPage() {
                     <h3 className={styles.section_subtitle}>Услуги и цены</h3>
                     <div className={styles.section_item}>
                         <div className={styles.section_content}>
-                            {profileData.services.length > 0 ? (
+                            {services.length > 0 ? (
                                 <div className={styles.services_display}>
-                                    {profileData.services.map(service => (
+                                    {services.map(service => (
                                         <div key={service.id} className={styles.service_display_item}>
-                                            <span className={styles.service_name}>{service.name}</span>
-                                            <span className={styles.service_price}>{service.price} ₽</span>
+                                            <span className={styles.service_name}>{service.title}</span>
+                                            <span className={styles.service_price}>{service.budget} {service.unit}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -1422,7 +1421,7 @@ function MasterProfileViewPage() {
                                                 onClick={() => handleClientProfileClick(review.reviewer.id)}
                                                 style={{ cursor: 'pointer' }}
                                                 onError={(e) => {
-                                                    e.currentTarget.src = "../fonTest5.png";
+                                                    e.currentTarget.src = "./fonTest6.png";
                                                 }}
                                             />
                                             <div className={styles.reviewer_main_info}>
@@ -1538,13 +1537,6 @@ function MasterProfileViewPage() {
                                     className={styles.complaintSelect}
                                 >
                                     <option value="">Выберите причину</option>
-                                    <option value="poor_quality">Некачественная работа</option>
-                                    <option value="rude_behavior">Грубое поведение</option>
-                                    <option value="no_show">Неявка на встречу</option>
-                                    <option value="late_arrival">Опоздание</option>
-                                    <option value="overpricing">Завышение цены</option>
-                                    <option value="false_advertising">Несоответствие описанию</option>
-                                    <option value="damage_property">Порча имущества</option>
                                     <option value="other">Другое</option>
                                 </select>
                             </div>
