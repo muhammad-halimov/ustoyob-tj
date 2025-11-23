@@ -6,6 +6,7 @@ use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use App\Entity\Ticket\Category;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
@@ -55,14 +56,16 @@ class Occupation
     #[ORM\Column]
     #[Groups([
         'masters:read',
-        'occupations:read'
+        'occupations:read',
+        'categories:read',
     ])]
     private ?int $id = null;
 
     #[ORM\Column(length: 64, nullable: true)]
     #[Groups([
         'masters:read',
-        'occupations:read'
+        'occupations:read',
+        'categories:read',
     ])]
     private ?string $title = null;
 
@@ -78,7 +81,8 @@ class Occupation
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
-        'occupations:read'
+        'occupations:read',
+        'categories:read',
     ])]
     #[ApiProperty(writable: false)]
     private ?string $image = null;
@@ -97,10 +101,20 @@ class Occupation
     #[Ignore]
     private Collection $master;
 
+    /**
+     * @var Collection<int, Category>
+     */
+    #[ORM\OneToMany(targetEntity: Category::class, mappedBy: 'occupations')]
+    #[Groups([
+        'occupations:read',
+    ])]
+    private Collection $categories;
+
     public function __construct()
     {
         $this->education = new ArrayCollection();
         $this->master = new ArrayCollection();
+        $this->categories = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -209,6 +223,36 @@ class Occupation
     public function removeMaster(User $master): static
     {
         $this->master->removeElement($master);
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Category>
+     */
+    public function getCategories(): Collection
+    {
+        return $this->categories;
+    }
+
+    public function addCategory(Category $category): static
+    {
+        if (!$this->categories->contains($category)) {
+            $this->categories->add($category);
+            $category->setOccupations($this);
+        }
+
+        return $this;
+    }
+
+    public function removeCategory(Category $category): static
+    {
+        if ($this->categories->removeElement($category)) {
+            // set the owning side to null (unless already changed)
+            if ($category->getOccupations() === $this) {
+                $category->setOccupations(null);
+            }
+        }
 
         return $this;
     }

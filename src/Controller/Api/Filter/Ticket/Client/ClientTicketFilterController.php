@@ -2,6 +2,7 @@
 
 namespace App\Controller\Api\Filter\Ticket\Client;
 
+use App\Entity\Ticket\Ticket;
 use App\Entity\User;
 use App\Repository\TicketRepository;
 use App\Repository\UserRepository;
@@ -23,7 +24,8 @@ class ClientTicketFilterController extends AbstractController
         if (!$user)
             return $this->json(['message' => 'User not found'], 404);
 
-        $data = $this->ticketRepository->findUserTicketsByClientRole($user);
+        /** @var Ticket[] $data */
+        $data = $this->ticketRepository->findClientTickets($user);
 
         return empty($data)
             ? $this->json(['message' => 'Resource not found'], 404)

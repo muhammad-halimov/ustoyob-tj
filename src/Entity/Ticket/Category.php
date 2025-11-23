@@ -7,8 +7,10 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
+use App\Controller\Api\Filter\Ticket\CategoryOccupationFilterController;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
+use App\Entity\User\Occupation;
 use App\Repository\CategoryRepository;
 use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -29,6 +31,11 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
         new Get(
             uriTemplate: '/categories/{id}',
             requirements: ['id' => '\d+'],
+        ),
+        new GetCollection(
+            uriTemplate: '/categories/occupation/{id}',
+            requirements: ['id' => '\d+'],
+            controller: CategoryOccupationFilterController::class,
         ),
         new GetCollection(
             uriTemplate: '/categories',
@@ -67,6 +74,7 @@ class Category
         'categories:read',
         'masterTickets:read',
         'clientTickets:read',
+        'occupations:read'
     ])]
     private ?int $id = null;
 
@@ -75,6 +83,7 @@ class Category
         'categories:read',
         'masterTickets:read',
         'clientTickets:read',
+        'occupations:read'
     ])]
     private ?string $title = null;
 
@@ -94,6 +103,7 @@ class Category
         'categories:read',
         'masterTickets:read',
         'clientTickets:read',
+        'occupations:read'
     ])]
     #[ApiProperty(writable: false)]
     private ?string $image = null;
@@ -104,6 +114,12 @@ class Category
     #[ORM\OneToMany(targetEntity: Ticket::class, mappedBy: 'category')]
     #[Ignore]
     private Collection $userTickets;
+
+    #[ORM\ManyToOne(inversedBy: 'categories')]
+    #[Groups([
+        'categories:read',
+    ])]
+    private ?Occupation $occupations = null;
 
     public function getId(): ?int
     {
@@ -187,6 +203,18 @@ class Category
                 $userTicket->setCategory(null);
             }
         }
+
+        return $this;
+    }
+
+    public function getOccupations(): ?Occupation
+    {
+        return $this->occupations;
+    }
+
+    public function setOccupations(?Occupation $occupations): static
+    {
+        $this->occupations = $occupations;
 
         return $this;
     }

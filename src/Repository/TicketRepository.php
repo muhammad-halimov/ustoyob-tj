@@ -17,7 +17,7 @@ class TicketRepository extends ServiceEntityRepository
         parent::__construct($registry, Ticket::class);
     }
 
-    public function findUserTicketsById(User $user): array
+    public function findTicketsByUserRole(User $user): array
     {
         if (in_array('ROLE_CLIENT', $user->getRoles())){
             return $this
@@ -50,7 +50,7 @@ class TicketRepository extends ServiceEntityRepository
         return [];
     }
 
-    public function findUserTicketsByClientRole(User $user): array
+    public function findClientTickets(User $user): array
     {
         return $this
             ->createQueryBuilder('t')
@@ -66,7 +66,7 @@ class TicketRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    public function findUserTicketsByMasterRole(User $user): array
+    public function findMasterTickets(User $user): array
     {
         return $this
             ->createQueryBuilder('t')
@@ -82,12 +82,22 @@ class TicketRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    public function findUserTicketsByStatus(bool $status): array
+    public function findClientTicketsByCateogryId(int $categoryId): array
     {
-        return $this
-            ->createQueryBuilder('t')
-            ->where("t.service = :status")
-            ->setParameter('status', $status)
+        return $this->createQueryBuilder('t')
+            ->join('t.author', 'a')
+            ->where("CAST(a.roles AS text) LIKE '%ROLE_CLIENT%' AND t.category = :categoryId")
+            ->setParameter('categoryId', $categoryId)
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function findMasterTicketsByCateogryId(int $categoryId): array
+    {
+        return $this->createQueryBuilder('t')
+            ->join('t.master', 'm')
+            ->where("CAST(m.roles AS text) LIKE '%ROLE_MASTER%' AND t.category = :categoryId")
+            ->setParameter('categoryId', $categoryId)
             ->getQuery()
             ->getResult();
     }

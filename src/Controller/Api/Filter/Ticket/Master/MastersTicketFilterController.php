@@ -2,6 +2,7 @@
 
 namespace App\Controller\Api\Filter\Ticket\Master;
 
+use App\Entity\Ticket\Ticket;
 use App\Repository\TicketRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -14,7 +15,8 @@ class MastersTicketFilterController extends AbstractController
 
     public function __invoke(): JsonResponse
     {
-        $data = $this->ticketRepository->findUserTicketsByStatus(true);
+        /** @var Ticket[] $data */
+        $data = $this->ticketRepository->findBy(['service' => true]);
 
         return empty($data)
             ? $this->json(['message' => 'Resource not found'], 404)

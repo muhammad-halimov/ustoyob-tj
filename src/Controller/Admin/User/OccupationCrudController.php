@@ -58,8 +58,12 @@ class OccupationCrudController extends AbstractCrudController
             ->onlyOnIndex();
 
         yield TextField::new('title', 'Название')
-            ->setColumns(12)
+            ->setColumns(6)
             ->setRequired(true);
+
+        yield AssociationField::new('categories', 'Категории работ')
+            ->setFormTypeOptions(['by_reference' => false])
+            ->setColumns(6);
 
         yield TextEditorField::new('description', 'Описание')
             ->setColumns(12)

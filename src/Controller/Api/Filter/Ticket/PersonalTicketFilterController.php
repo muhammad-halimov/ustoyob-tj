@@ -2,6 +2,7 @@
 
 namespace App\Controller\Api\Filter\Ticket;
 
+use App\Entity\Ticket\Ticket;
 use App\Entity\User;
 use App\Repository\TicketRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -26,7 +27,8 @@ class PersonalTicketFilterController extends AbstractController
         if (!array_intersect($allowedRoles, $user->getRoles()))
             return $this->json(['message' => 'Access denied'], 403);
 
-        $data = $this->ticketRepository->findUserTicketsById($user);
+        /** @var Ticket[] $data */
+        $data = $this->ticketRepository->findTicketsByUserRole($user);
 
         return empty($data)
             ? $this->json(['message' => 'Resource not found'], 404)

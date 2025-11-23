@@ -110,7 +110,6 @@ class City
     private Collection $districts;
 
     #[ORM\ManyToOne(inversedBy: 'cities')]
-    #[ORM\JoinColumn(name: 'province_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'cities:read',
         'masterTickets:read',

@@ -2,6 +2,7 @@
 
 namespace App\Controller\Api\Filter\Ticket\Master;
 
+use App\Entity\Ticket\Ticket;
 use App\Entity\User;
 use App\Repository\TicketRepository;
 use App\Repository\UserRepository;
@@ -23,7 +24,8 @@ class MasterTicketFilterController extends AbstractController
         if (!$user)
             return $this->json(['message' => 'User not found'], 404);
 
-        $data = $this->ticketRepository->findUserTicketsByMasterRole($user);
+        /** @var Ticket[] $data */
+        $data = $this->ticketRepository->findMasterTickets($user);
 
         return empty($data)
             ? $this->json(['message' => 'Resource not found'], 404)

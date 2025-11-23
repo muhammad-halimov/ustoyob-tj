@@ -87,7 +87,7 @@ class Province
     /**
      * @var Collection<int, City>
      */
-    #[ORM\OneToMany(targetEntity: City::class, mappedBy: 'province', cascade: ['persist'], orphanRemoval: false)]
+    #[ORM\OneToMany(targetEntity: City::class, mappedBy: 'province')]
     #[Groups([
         'provinces:read',
     ])]
