@@ -4,6 +4,7 @@ namespace App\Repository;
 
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\Exception;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Security\Core\Exception\UnsupportedUserException;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
@@ -37,7 +38,8 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     {
         return $this
             ->createQueryBuilder('u')
-            ->where("u.roles LIKE :role")
+//            ->where("u.roles LIKE :role")
+            ->where("CAST(u.roles AS text) LIKE :role")
             ->andWhere("u.id = :id")
             ->setParameter('role', '%' . $role . '%')
             ->setParameter('id', $id)
@@ -49,7 +51,8 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     {
         return $this
             ->createQueryBuilder('u')
-            ->where("u.roles LIKE :role")
+//            ->where("u.roles LIKE :role")
+            ->where("CAST(u.roles AS text) LIKE :role")
             ->setParameter('role', '%' . $role . '%')
             ->getQuery()
             ->getResult();

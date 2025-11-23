@@ -25,7 +25,8 @@ class ReviewRepository extends ServiceEntityRepository
                 ->innerJoin('r.client', 'rev')
                 ->where('r.client = :client')
                 ->andWhere("r.type = :type")
-                ->andWhere("rev.roles LIKE :role")
+//                ->andWhere("rev.roles LIKE :role")
+                ->andWhere("CAST(rev.roles AS text) LIKE :role")
                 ->setParameter('client', $user)
                 ->setParameter('type', "master")
                 ->setParameter('role', '%ROLE_CLIENT%')
@@ -37,7 +38,8 @@ class ReviewRepository extends ServiceEntityRepository
                 ->innerJoin('r.master', 'master')
                 ->where('r.master = :master')
                 ->andWhere("r.type = :type")
-                ->andWhere("master.roles LIKE :role")
+//                ->andWhere("master.roles LIKE :role")
+                ->andWhere("CAST(master.roles AS text) LIKE :role")
                 ->setParameter('master', $user)
                 ->setParameter('type', "client")
                 ->setParameter('role', '%ROLE_MASTER%')
@@ -50,31 +52,63 @@ class ReviewRepository extends ServiceEntityRepository
 
     public function findReviewsByTypeAndRole(User $user, string $type, string $role): array
     {
-        return $this
-            ->createQueryBuilder('r')
-            ->innerJoin('r.client', 'client')
-            ->innerJoin('r.master', 'master')
-            ->where("client.roles LIKE :role OR master.roles LIKE :role")
-            ->andWhere('r.client = :user OR r.master = :user')
-            ->andWhere("r.type = :type")
-            ->setParameter('role', $role)
-            ->setParameter('user', $user)
-            ->setParameter('type', $type)
-            ->getQuery()
-            ->getResult();
+        if ($type == "master" && $role == '%ROLE_MASTER%'){
+            return $this
+                ->createQueryBuilder('r')
+                ->innerJoin('r.master', 'master')
+//            ->where("master.roles LIKE :role")
+                ->where("CAST(master.roles AS text) LIKE :role")
+                ->andWhere('r.master = :user')
+                ->andWhere("r.type = :type")
+                ->setParameter('role', $role)
+                ->setParameter('user', $user)
+                ->setParameter('type', $type)
+                ->getQuery()
+                ->getResult();
+        } elseif ($type == "client" && $role == '%ROLE_CLIENT%'){
+            return $this
+                ->createQueryBuilder('r')
+                ->innerJoin('r.client', 'client')
+//            ->where("client.roles LIKE :role")
+                ->where("CAST(client.roles AS text) LIKE :role")
+                ->andWhere('r.client = :user')
+                ->andWhere("r.type = :type")
+                ->setParameter('role', $role)
+                ->setParameter('user', $user)
+                ->setParameter('type', $type)
+                ->getQuery()
+                ->getResult();
+        }
+
+        return [];
     }
 
     public function findReviewsByType(string $type, string $role): array
     {
-        return $this
-            ->createQueryBuilder('r')
-            ->innerJoin('r.client', 'client')
-            ->innerJoin('r.master', 'master')
-            ->where("client.roles LIKE :role OR master.roles LIKE :role")
-            ->andWhere("r.type = :type")
-            ->setParameter('role', $role)
-            ->setParameter('type', $type)
-            ->getQuery()
-            ->getResult();
+        if ($type == "master" && $role == '%ROLE_MASTER%'){
+            return $this
+                ->createQueryBuilder('r')
+                ->innerJoin('r.master', 'master')
+//            ->where("master.roles LIKE :role")
+                ->where("CAST(master.roles AS text) LIKE :role")
+                ->andWhere("r.type = :type")
+                ->setParameter('role', $role)
+                ->setParameter('type', $type)
+                ->getQuery()
+                ->getResult();
+        } elseif ($type == "client" && $role == '%ROLE_CLIENT%'){
+            return $this
+                ->createQueryBuilder('r')
+                ->innerJoin('r.client', 'client')
+//            ->where("client.roles LIKE :role")
+                ->where("CAST(client.roles AS text) LIKE :role")
+                ->andWhere("r.type = :type")
+                ->setParameter('role', $role)
+                ->setParameter('type', $type)
+                ->getQuery()
+                ->getResult();
+        }
+
+        return [];
     }
 }

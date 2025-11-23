@@ -16,7 +16,7 @@ class ClientUserFilterController extends AbstractController
     public function __invoke(int $id): JsonResponse
     {
         /** @var User $user */
-        $user = $this->userRepository->findOneByRole("ROLE_CLIENT", $id);
+        $user = $this->userRepository->findOneByRole("ROLE_CLIENT", $id)[0] ?? null;
 
         if (!$user)
             return $this->json(['message' => 'User not found'], 404);

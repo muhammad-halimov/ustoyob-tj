@@ -100,6 +100,8 @@ class ReviewListener
             $averageRating = min(round($averageRating, 2), 5.0);
         } else $averageRating = null;
 
+        if (!$averageRating) return;
+
         // Обновляем рейтинг пользователя
         $targetUser->setRating($averageRating);
 

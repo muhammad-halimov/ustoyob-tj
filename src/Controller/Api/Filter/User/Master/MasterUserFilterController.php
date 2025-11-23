@@ -16,7 +16,7 @@ class MasterUserFilterController extends AbstractController
     public function __invoke(int $id): JsonResponse
     {
         /** @var User $user */
-        $user = $this->userRepository->findOneByRole("ROLE_MASTER", $id);
+        $user = $this->userRepository->findOneByRole("ROLE_MASTER", $id)[0] ?? null;
 
         if (!$user)
             return $this->json(['message' => 'User not found'], 404);
