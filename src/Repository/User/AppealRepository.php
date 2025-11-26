@@ -4,7 +4,6 @@ namespace App\Repository\User;
 
 use App\Entity\Appeal\Appeal;
 use App\Entity\Ticket\Ticket;
-use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -18,58 +17,13 @@ class AppealRepository extends ServiceEntityRepository
         parent::__construct($registry, Appeal::class);
     }
 
-    public function findTicketComplaints(bool $ticketStatus, Ticket $ticket, string $type): ?array
+    public function findTicketComplaints(Ticket $ticket): ?array
     {
         return $this
             ->createQueryBuilder('a')
-            ->where("a.type = :type")
-            ->andWhere("a.ticketAppeal = :status")
-            ->andWhere("a.ticket = :ticket")
-            ->setParameter('type', $type)
-            ->setParameter('status', $ticketStatus)
+            ->innerJoin('a.appealTicket', 'at')
+            ->andWhere('at.ticket = :ticket')
             ->setParameter('ticket', $ticket)
-            ->getQuery()
-            ->getResult();
-    }
-
-    public function findUserComplaints(bool $ticketStatus, User $user, string $type): ?array
-    {
-        return $this
-            ->createQueryBuilder('a')
-            ->where("a.type = :type")
-            ->andWhere("a.ticketAppeal = :status")
-            ->andWhere("a.respondent = :user")
-            ->setParameter('type', $type)
-            ->setParameter('status', $ticketStatus)
-            ->setParameter('user', $user)
-            ->getQuery()
-            ->getResult();
-    }
-
-    public function findTechSupportsByAdmin(bool $ticketStatus, User $user, string $type): ?array
-    {
-        return $this
-            ->createQueryBuilder('a')
-            ->where("a.type = :type")
-            ->andWhere("a.ticketAppeal = :status")
-            ->andWhere("a.administrant = :user")
-            ->setParameter('type', $type)
-            ->setParameter('status', $ticketStatus)
-            ->setParameter('user', $user)
-            ->getQuery()
-            ->getResult();
-    }
-
-    public function findTechSupportsByClient(bool $ticketStatus, User $user, string $type): ?array
-    {
-        return $this
-            ->createQueryBuilder('a')
-            ->where("a.type = :type")
-            ->andWhere("a.ticketAppeal = :status")
-            ->andWhere("a.author = :user")
-            ->setParameter('type', $type)
-            ->setParameter('status', $ticketStatus)
-            ->setParameter('user', $user)
             ->getQuery()
             ->getResult();
     }

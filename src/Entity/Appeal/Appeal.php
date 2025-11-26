@@ -2,50 +2,42 @@
 
 namespace App\Entity\Appeal;
 
-use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\Appeal\PostAppealConntroller;
 use App\Controller\Api\CRUD\Appeal\PostAppealPhotoController;
-use App\Controller\Api\Filter\Appeal\Compliant\ComplaintsFilterController;
-use App\Controller\Api\Filter\Appeal\Compliant\TicketComplaintFilterController;
-use App\Controller\Api\Filter\Appeal\Compliant\UserComplaintFilterController;
-use App\Entity\Appeal\Item\AppealChat;
-use App\Entity\Ticket\Ticket;
-use App\Entity\User;
+use App\Controller\Api\Filter\Appeal\ComplaintsFilterController;
+use App\Controller\Api\Filter\Appeal\TicketComplaintFilterController;
+use App\Entity\Appeal\AppealTypes\AppealChat;
+use App\Entity\Appeal\AppealTypes\AppealTicket;
 use App\Repository\User\AppealRepository;
 use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
-use Symfony\Component\Serializer\Attribute\SerializedName;
 
 #[ORM\Entity(repositoryClass: AppealRepository::class)]
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
     operations: [
         new GetCollection(
-            uriTemplate: '/appeals/complaints/ticket/{id}',
-            controller: TicketComplaintFilterController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
-        ),
-        new GetCollection(
-            uriTemplate: '/appeals/complaints/user/{id}',
-            controller: UserComplaintFilterController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
-        ),
-        new GetCollection(
-            uriTemplate: '/appeals/complaints/reasons',
+            uriTemplate: '/appeals/reasons',
             controller: ComplaintsFilterController::class,
+        ),
+        new Get(
+            uriTemplate: '/appeals/{id}',
+            security:  "is_granted('ROLE_ADMIN')",
+        ),
+        new GetCollection(
+            uriTemplate: '/appeals',
+            security:  "is_granted('ROLE_ADMIN')",
+        ),
+        new GetCollection(
+            uriTemplate: '/appeals/ticket/{id}',
+            controller: TicketComplaintFilterController::class,
         ),
         new Post(
             uriTemplate: '/appeals',
@@ -59,9 +51,8 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
     ],
     normalizationContext: [
         'groups' => [
-            'appeals:read',
             'appealsTicket:read',
-            'appealsSupport:read',
+            'appealsChat:read',
         ],
     ],
     paginationEnabled: false,
@@ -70,395 +61,71 @@ class Appeal
 {
     public function __toString(): string
     {
-        return $this->complaintReason ?? "Пустой заголовок жалобы";
+        return $this->complaintReason ?? "Жалоба #$this->id";
     }
 
     public function __construct()
     {
-        $this->appealImages = new ArrayCollection();
-        $this->appealMessages = new ArrayCollection();
+        $this->appealTicket = new ArrayCollection();
+        $this->appealChat = new ArrayCollection();
     }
 
-    public const COMPLAINTS = [
-        'Опоздание/Отсутствие' => 'lateness',
-        'Плохое качество' => 'bad_quality',
-        'Повреждения имущества' => 'property_damage',
-        'Завышение стоимости' => 'overpricing',
-        'Непрофессионализм' => 'unprofessionalism',
-        'Мошенничество' => 'fraud',
-        'Расизм/Нацизм' => 'racism_or_nazism',
-        'Другое' => 'other',
-    ];
-
-    public const SUPPORT = [
-        'Проблемы с аккаунтом' => 'account',
-        'Проблемы с объявлениями' => 'ticket',
-        'Вопросы по работе платформы' => 'platform',
-        'Технические проблемы' => 'issues',
-        'Юридические вопросы' => 'law',
-        'Предложения и фидбек' => 'feedback',
-        'Экстренный' => 'urgent',
-        'Другое' => 'other',
-    ];
-
     public const TYPES = [
-        'Жалоба' => 'complaint',
-        'Тех. поддержка' => 'support',
-    ];
-
-    public const STATUSES = [
-        'Новый' => 'new',
-        'Заново открыто' => 'renewed',
-        'В прогрессе' => 'in_progress',
-        'Решено' => 'resolved',
-        'Закрыто' => 'closed',
-    ];
-
-    public const PRIORITIES = [
-        'Низкий' => 'low',
-        'Средний' => 'normal',
-        'Высокий' => 'high',
-        'Экстренный' => 'urgent',
+        'Услуга / Объявление' => 'ticket',
+        'Чат' => 'chat',
     ];
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
-        'appeals:read',
         'appealsTicket:read',
-        'appealsSupport:read',
+        'appealsChat:read',
     ])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
-        'appeals:read',
         'appealsTicket:read',
-        'appealsSupport:read',
+        'appealsChat:read',
     ])]
     private ?string $type = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
-    #[Groups([
-        'appeals:read',
-        'appealsTicket:read',
-        'appealsSupport:read',
-    ])]
-    private ?string $title = null;
-
-    #[ORM\Column(length: 255, nullable: true)]
-    #[Groups([
-        'appeals:read',
-        'appealsTicket:read',
-    ])]
-    private ?string $complaintReason = null;
-
-    #[ORM\Column(length: 255, nullable: true)]
-    #[Groups([
-        'appealsSupport:read',
-    ])]
-    private ?string $supportReason = null;
-
-    #[ORM\Column(length: 255, nullable: true)]
-    #[Groups([
-        'appealsSupport:read',
-    ])]
-    private ?string $status = null;
-
-    #[ORM\Column(length: 255, nullable: true)]
-    #[Groups([
-        'appealsSupport:read',
-    ])]
-    private ?string $priority = null;
-
-    #[ORM\ManyToOne(inversedBy: 'administrantAppeals')]
-    #[ORM\JoinColumn(name: 'administrant_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
-    #[Groups([
-        'appealsSupport:read',
-    ])]
-    private ?User $administrant = null;
-
-    #[ORM\ManyToOne(inversedBy: 'appeals')]
-    #[ORM\JoinColumn(name: 'author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
-    #[Groups([
-        'appeals:read',
-        'appealsTicket:read',
-        'appealsSupport:read',
-    ])]
-    private ?User $author = null;
-
-    #[ORM\ManyToOne(inversedBy: 'appealsRespondent')]
-    #[ORM\JoinColumn(name: 'respondent_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
-    #[Groups([
-        'appeals:read',
-    ])]
-    private ?User $respondent = null;
-
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    #[Groups([
-        'appeals:read',
-        'appealsTicket:read',
-        'appealsSupport:read',
-    ])]
-    private ?string $description = null;
-
-    #[ORM\ManyToOne(inversedBy: 'appeals')]
-    #[ORM\JoinColumn(name: 'ticket_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
-    #[Groups([
-        'appeals:read',
-        'appealsTicket:read',
-    ])]
-    private ?Ticket $ticket = null;
-
-    #[ORM\Column(type: 'boolean', nullable: true)]
-    #[Groups([
-        'appeals:read',
-        'appealsTicket:read',
-    ])]
-    private ?bool $ticketAppeal = null;
-
     /**
-     * @var Collection<int, AppealImage>
+     * @var Collection<int, AppealTicket>
      */
-    #[ORM\OneToMany(targetEntity: AppealImage::class, mappedBy: 'appeals', cascade: ['all'])]
+    #[ORM\OneToMany(targetEntity: AppealTicket::class, mappedBy: 'appeal', cascade: ['all'])]
     #[Groups([
-        'appeals:read',
         'appealsTicket:read',
-        'appealsSupport:read',
     ])]
-    #[SerializedName('images')]
-    #[ApiProperty(writable: false)]
-    private Collection $appealImages;
+    private Collection $appealTicket;
 
     /**
      * @var Collection<int, AppealChat>
      */
-    #[ORM\OneToMany(targetEntity: AppealChat::class, mappedBy: 'appeal', cascade: ['persist', 'remove'])]
+    #[ORM\OneToMany(targetEntity: AppealChat::class, mappedBy: 'appeal', cascade: ['all'])]
     #[Groups([
-        'appealsSupport:read',
+        'appealsChat:read',
     ])]
-    #[SerializedName('messages')]
-    #[ApiProperty(writable: false)]
-    private Collection $appealMessages;
+    private Collection $appealChat;
 
     #[ORM\Column(type: 'datetime', nullable: false)]
     #[Groups([
-        'appeals:read',
         'appealsTicket:read',
-        'appealsSupport:read',
+        'appealsChat:read',
     ])]
     protected DateTime $createdAt;
 
     #[ORM\Column(type: 'datetime', nullable: false)]
     #[Groups([
-        'appeals:read',
         'appealsTicket:read',
-        'appealsSupport:read',
+        'appealsChat:read',
     ])]
     protected DateTime $updatedAt;
 
     public function getId(): ?int
     {
         return $this->id;
-    }
-
-    public function getComplaintReason(): ?string
-    {
-        return $this->complaintReason;
-    }
-
-    public function setComplaintReason(?string $complaintReason): static
-    {
-        $this->complaintReason = $complaintReason;
-
-        return $this;
-    }
-
-    public function getDescription(): ?string
-    {
-        return strip_tags($this->description);
-    }
-
-    public function setDescription(?string $description): static
-    {
-        $this->description = $description;
-
-        return $this;
-    }
-
-    public function getAuthor(): ?User
-    {
-        return $this->author;
-    }
-
-    public function setAuthor(?User $author): static
-    {
-        $this->author = $author;
-
-        return $this;
-    }
-
-    public function getTicket(): ?Ticket
-    {
-        return $this->ticket;
-    }
-
-    public function setTicket(?Ticket $ticket): static
-    {
-        $this->ticket = $ticket;
-
-        return $this;
-    }
-
-    public function getTicketAppeal(): ?bool
-    {
-        return $this->ticketAppeal;
-    }
-
-    public function setTicketAppeal(?bool $ticketAppeal): static
-    {
-        $this->ticketAppeal = $ticketAppeal;
-        return $this;
-    }
-
-    public function getRespondent(): ?User
-    {
-        return $this->respondent;
-    }
-
-    public function setRespondent(?User $respondent): static
-    {
-        $this->respondent = $respondent;
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, AppealImage>
-     */
-    public function getAppealImages(): Collection
-    {
-        return $this->appealImages;
-    }
-
-    public function addAppealImage(AppealImage $appealImage): static
-    {
-        if (!$this->appealImages->contains($appealImage)) {
-            $this->appealImages->add($appealImage);
-            $appealImage->setAppeals($this);
-        }
-
-        return $this;
-    }
-
-    public function removeAppealImage(AppealImage $appealImage): static
-    {
-        if ($this->appealImages->removeElement($appealImage)) {
-            // set the owning side to null (unless already changed)
-            if ($appealImage->getAppeals() === $this) {
-                $appealImage->setAppeals(null);
-            }
-        }
-
-        return $this;
-    }
-
-    public function getTitle(): ?string
-    {
-        return $this->title;
-    }
-
-    public function setTitle(?string $title): static
-    {
-        $this->title = $title;
-        return $this;
-    }
-
-    public function getType(): ?string
-    {
-        return $this->type;
-    }
-
-    public function setType(?string $type): static
-    {
-        $this->type = $type;
-        return $this;
-    }
-
-    public function getSupportReason(): ?string
-    {
-        return $this->supportReason;
-    }
-
-    public function setSupportReason(?string $supportReason): static
-    {
-        $this->supportReason = $supportReason;
-        return $this;
-    }
-
-    public function getStatus(): ?string
-    {
-        return $this->status;
-    }
-
-    public function setStatus(?string $status): static
-    {
-        $this->status = $status;
-        return $this;
-    }
-
-    public function getPriority(): ?string
-    {
-        return $this->priority;
-    }
-
-    public function setPriority(?string $priority): static
-    {
-        $this->priority = $priority;
-        return $this;
-    }
-
-    public function getAdministrant(): ?User
-    {
-        return $this->administrant;
-    }
-
-    public function setAdministrant(?User $administrant): static
-    {
-        $this->administrant = $administrant;
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, AppealChat>
-     */
-    public function getAppealMessages(): Collection
-    {
-        return $this->appealMessages;
-    }
-
-    public function addAppealMessage(AppealChat $appealMessage): static
-    {
-        if (!$this->appealMessages->contains($appealMessage)) {
-            $this->appealMessages->add($appealMessage);
-            $appealMessage->setAppeal($this);
-        }
-
-        return $this;
-    }
-
-    public function removeAppealMessage(AppealChat $appealMessage): static
-    {
-        if ($this->appealMessages->removeElement($appealMessage)) {
-            // set the owning side to null (unless already changed)
-            if ($appealMessage->getAppeal() === $this) {
-                $appealMessage->setAppeal(null);
-            }
-        }
-
-        return $this;
     }
 
     public function getCreatedAt(): DateTime
@@ -482,5 +149,123 @@ class Appeal
     public function setUpdatedAt(): void
     {
         $this->updatedAt = new DateTime();
+    }
+
+    public function getType(): ?string
+    {
+        return $this->type;
+    }
+
+    public function setType(?string $type): static
+    {
+        $this->type = $type;
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, AppealTicket>
+     */
+    public function getAppealTicket(): Collection
+    {
+        return $this->appealTicket;
+    }
+
+    public function addAppealTicket(AppealTicket $appealTicket): static
+    {
+        if (!$this->appealTicket->contains($appealTicket)) {
+            $this->appealTicket->add($appealTicket);
+            $appealTicket->setAppeal($this);
+        }
+
+        return $this;
+    }
+
+    public function removeAppealTicket(AppealTicket $appealTicket): static
+    {
+        if ($this->appealTicket->removeElement($appealTicket)) {
+            // set the owning side to null (unless already changed)
+            if ($appealTicket->getAppeal() === $this) {
+                $appealTicket->setAppeal(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, AppealChat>
+     */
+    public function getAppealChat(): Collection
+    {
+        return $this->appealChat;
+    }
+
+    public function addAppealChat(AppealChat $appealChat): static
+    {
+        if (!$this->appealChat->contains($appealChat)) {
+            $this->appealChat->add($appealChat);
+            $appealChat->setAppeal($this);
+        }
+
+        return $this;
+    }
+
+    public function removeAppealChat(AppealChat $appealChat): static
+    {
+        if ($this->appealChat->removeElement($appealChat)) {
+            // set the owning side to null (unless already changed)
+            if ($appealChat->getAppeal() === $this) {
+                $appealChat->setAppeal(null);
+            }
+        }
+
+        return $this;
+    }
+
+    public function getInfo(): ?string
+    {
+        // Получаем читаемый тип из массива TYPES
+        $typeCode = $this->type;
+        $typeHuman = array_search($typeCode, Appeal::TYPES) ?: $typeCode;
+
+        if (!$this->appealChat->isEmpty()) {
+            $appealChat = $this->appealChat->first();
+
+            // Получаем читаемую причину из массива COMPLAINTS
+            $complaintCode = $appealChat->getComplaintReason();
+            $complaintHuman = array_search($complaintCode, AppealChat::COMPLAINTS) ?: $complaintCode;
+
+            return "
+                Тип жалобы: ".($typeHuman ?? 'N/A')."
+                ID жалобы: {$this->getId()}
+                ID чата: ".($appealChat->getChat()?->getId() ?? 'N/A')."
+                Заголовок жалобы: ".($appealChat->getTitle() ?? 'N/A')."
+                Истец: {$appealChat->getAuthor()->getEmail()}
+                Ответчик: {$appealChat->getRespondent()->getEmail()}
+                Причина жалобы: ".($complaintHuman ?? 'N/A')."
+                Описание: ".($appealChat->getDescription() ?? 'N/A')."
+            ";
+        }
+
+        if (!$this->appealTicket->isEmpty()) {
+            $appealTicket = $this->appealTicket->first();
+
+            // Получаем читаемую причину из массива COMPLAINTS
+            $complaintCode = $appealTicket->getComplaintReason();
+            $complaintHuman = array_search($complaintCode, AppealTicket::COMPLAINTS) ?: $complaintCode;
+
+            return "
+                Тип жалобы: ".($typeHuman ?? 'N/A')."
+                ID жалобы: {$this->getId()}
+                ID услуги/объявления: ".($appealTicket->getTicket()?->getId() ?? 'N/A')."
+                Заголовок жалобы: ".($appealTicket->getTitle() ?? 'N/A')."
+                Истец: {$appealTicket->getAuthor()->getEmail()}
+                Ответчик: {$appealTicket->getRespondent()->getEmail()}
+                Причина жалобы: ".($complaintHuman ?? 'N/A')."
+                Описание: ".($appealTicket->getDescription() ?? 'N/A')."
+            ";
+        }
+
+        return null;
     }
 }

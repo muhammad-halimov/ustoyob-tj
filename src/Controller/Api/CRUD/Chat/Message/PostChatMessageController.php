@@ -12,7 +12,7 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
-class PostMessageController extends AbstractController
+class PostChatMessageController extends AbstractController
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,

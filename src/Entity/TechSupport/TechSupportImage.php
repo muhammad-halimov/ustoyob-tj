@@ -36,7 +36,7 @@ class TechSupportImage
     ])]
     private ?int $id = null;
 
-    #[Vich\UploadableField(mapping: 'appeal_photos', fileNameProperty: 'image')]
+    #[Vich\UploadableField(mapping: 'tech_support_photos', fileNameProperty: 'image')]
     #[Assert\Image(mimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])]
     #[ApiProperty(writable: false)]
     private ?File $imageFile = null;

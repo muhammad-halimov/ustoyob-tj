@@ -21,10 +21,6 @@ class AppealImageCrudController extends AbstractCrudController
         yield IdField::new('id')
             ->onlyOnIndex();
 
-        yield AssociationField::new('author', 'Автор')
-            ->setRequired(true)
-            ->setColumns(12);
-
         yield VichImageField::new('imageFile', 'Изображение')
             ->setHelp('
                 <div class="mt-3">

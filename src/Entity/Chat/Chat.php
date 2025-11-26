@@ -8,11 +8,12 @@ use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\CRUD\Chat\DeleteChatController;
-use App\Controller\Api\CRUD\Chat\PostChatController;
-use App\Controller\Api\CRUD\Chat\PostChatPhotoController;
+use App\Controller\Api\CRUD\Chat\Chat\DeleteChatController;
+use App\Controller\Api\CRUD\Chat\Chat\PostChatController;
+use App\Controller\Api\CRUD\Chat\Chat\PostChatPhotoController;
 use App\Controller\Api\Filter\Chat\ChatFilterController;
 use App\Controller\Api\Filter\Chat\PersonalChatFilterController;
+use App\Entity\Appeal\AppealTypes\AppealChat;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
 use App\Repository\Chat\ChatRepository;
@@ -70,6 +71,7 @@ class Chat
     #[Groups([
         'chats:read',
         'chatMessages:read',
+        'appealsChat:read',
     ])]
     private ?int $id = null;
 
@@ -128,10 +130,17 @@ class Chat
     ])]
     protected DateTime $updatedAt;
 
+    /**
+     * @var Collection<int, AppealChat>
+     */
+    #[ORM\OneToMany(targetEntity: AppealChat::class, mappedBy: 'chat')]
+    private Collection $appealChats;
+
     public function __construct()
     {
         $this->messages = new ArrayCollection();
         $this->chatImages = new ArrayCollection();
+        $this->appealChats = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -254,6 +263,36 @@ class Chat
     public function setTicket(?Ticket $ticket): static
     {
         $this->ticket = $ticket;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, AppealChat>
+     */
+    public function getAppealChats(): Collection
+    {
+        return $this->appealChats;
+    }
+
+    public function addAppealChat(AppealChat $appealChat): static
+    {
+        if (!$this->appealChats->contains($appealChat)) {
+            $this->appealChats->add($appealChat);
+            $appealChat->setChat($this);
+        }
+
+        return $this;
+    }
+
+    public function removeAppealChat(AppealChat $appealChat): static
+    {
+        if ($this->appealChats->removeElement($appealChat)) {
+            // set the owning side to null (unless already changed)
+            if ($appealChat->getChat() === $this) {
+                $appealChat->setChat(null);
+            }
+        }
 
         return $this;
     }

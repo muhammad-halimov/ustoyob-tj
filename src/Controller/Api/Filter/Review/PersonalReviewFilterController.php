@@ -2,6 +2,7 @@
 
 namespace App\Controller\Api\Filter\Review;
 
+use App\Entity\Review\Review;
 use App\Entity\User;
 use App\Repository\ReviewRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -26,6 +27,7 @@ class PersonalReviewFilterController extends AbstractController
         if (!array_intersect($allowedRoles, $user->getRoles()))
             return $this->json(['message' => 'Access denied'], 403);
 
+        /** @var Review $data */
         $data = $this->reviewRepository->findUserReviews($user);
 
         return empty($data)

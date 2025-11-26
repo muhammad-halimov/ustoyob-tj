@@ -1,19 +1,19 @@
 <?php
 
-namespace App\Controller\Api\Filter\Appeal\Support;
+namespace App\Controller\Api\Filter\TechSupport;
 
-use App\Entity\Appeal\Appeal;
+use App\Entity\TechSupport\TechSupport;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
-class SupportFilterController extends AbstractController
+class SupportReasonFilterController extends AbstractController
 {
     public function __invoke(): JsonResponse
     {
         $supports = [];
         $count = 1;
 
-        foreach (Appeal::SUPPORT as $key => $value) {
+        foreach (TechSupport::SUPPORT as $key => $value) {
             $supports[] = [
                 "id" => $count++,
                 "support_code" => $value,

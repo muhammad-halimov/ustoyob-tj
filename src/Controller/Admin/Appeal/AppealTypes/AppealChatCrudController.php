@@ -1,18 +1,21 @@
 <?php
 
-namespace App\Controller\Admin\Appeal;
+namespace App\Controller\Admin\Appeal\AppealTypes;
 
-use App\Entity\Appeal\Item\AppealChat;
+use App\Controller\Admin\Appeal\AppealImageCrudController;
+use App\Entity\Appeal\AppealTypes\AppealChat;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
-class AppealMessageCrudController extends AbstractCrudController
+class AppealChatCrudController extends AbstractCrudController
 {
     public static function getEntityFqcn(): string
     {
@@ -23,11 +26,11 @@ class AppealMessageCrudController extends AbstractCrudController
     {
         return parent::configureCrud($crud)
             ->setEntityPermission('ROLE_ADMIN')
-            ->setEntityLabelInPlural('Сообщения ТП')
-            ->setEntityLabelInSingular('сообщение тп')
-            ->setPageTitle(Crud::PAGE_NEW, 'Добавление сообщении тп')
-            ->setPageTitle(Crud::PAGE_EDIT, 'Изменение сообщении тп')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о сообщении тп");
+            ->setEntityLabelInPlural('Жалоба на чат')
+            ->setEntityLabelInSingular('жалобу на чат')
+            ->setPageTitle(Crud::PAGE_NEW, 'Добавление жалобы на чат')
+            ->setPageTitle(Crud::PAGE_EDIT, 'Изменение жалобы на чат')
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о жалобе на чат");
     }
 
 
@@ -56,13 +59,36 @@ class AppealMessageCrudController extends AbstractCrudController
         yield IdField::new('id')
             ->onlyOnIndex();
 
-        yield AssociationField::new('author', 'Автор')
+        yield TextField::new('title', 'Заголовок')
             ->setRequired(true)
             ->setColumns(12);
 
-        yield TextField::new('text', 'Сообщение')
+        yield AssociationField::new('author', 'Истец')
             ->setRequired(true)
             ->setColumns(12);
+
+        yield AssociationField::new('respondent', 'Ответчик')
+            ->setRequired(true)
+            ->setColumns(12);
+
+        yield AssociationField::new('chat', 'Чат')
+            ->setRequired(true)
+            ->setColumns(12);
+
+        yield ChoiceField::new('complaintReason', 'Причина жалобы')
+            ->setChoices(AppealChat::COMPLAINTS)
+            ->setRequired(true)
+            ->setColumns(12);
+
+        yield TextField::new('description', 'Описание')
+            ->setRequired(true)
+            ->setColumns(12);
+
+        yield CollectionField::new('appealChatImages', 'Галерея изображений')
+            ->useEntryCrudForm(AppealImageCrudController::class)
+            ->hideOnIndex()
+            ->setColumns(12)
+            ->setRequired(false);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
             ->onlyOnIndex();

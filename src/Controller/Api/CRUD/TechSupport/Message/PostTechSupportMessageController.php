@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Controller\Api\CRUD\Appeal;
+namespace App\Controller\Api\CRUD\TechSupport\Message;
 
 use App\Entity\TechSupport\TechSupport;
 use App\Entity\TechSupport\TechSupportMessage;
 use App\Entity\User;
-use App\Repository\User\AppealRepository;
+use App\Repository\TechSupport\TechSupportRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -16,7 +16,7 @@ class PostTechSupportMessageController extends AbstractController
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly AppealRepository       $appealRepository,
+        private readonly TechSupportRepository  $techSupportRepository,
         private readonly Security               $security,
     ){}
 
@@ -38,33 +38,33 @@ class PostTechSupportMessageController extends AbstractController
         // Извлекаем ID из строки "/api/chats/1" или просто "1"
         $techSupportlId = (preg_match('#/api/tech-suports/(\d+)#', $techSupportParam, $a) ? $a[1] : $techSupportParam);
         /** @var TechSupport $techSupport */
-        $techSupport = $this->appealRepository->find($techSupportlId);
+        $techSupport = $this->techSupportRepository->find($techSupportlId);
 
         if (!$text)
             return $this->json(['message' => "Empty text"], 404);
 
         if (!$techSupportParam)
-            return $this->json(['message' => "Wrong tech-support format"], 404);
+            return $this->json(['message' => "Wrong tech support format"], 404);
 
         if (!$techSupport)
-            return $this->json(['message' => "Tech-support not found"], 404);
+            return $this->json(['message' => "Tech support not found"], 404);
 
         if ($techSupport->getAdministrant() !== $user && $techSupport->getAuthor() !== $user)
             return $this->json(['message' => "Ownership doesn't match"], 403);
 
-        $appealMessage = (new TechSupportMessage())
+        $techSupportMessage = (new TechSupportMessage())
             ->setText($text)
             ->setTechSupport($techSupport)
             ->setAuthor($user);
 
-        $techSupport->addTechSupportMessage($appealMessage);
+        $techSupport->addTechSupportMessage($techSupportMessage);
 
-        $this->entityManager->persist($appealMessage);
+        $this->entityManager->persist($techSupportMessage);
         $this->entityManager->flush();
 
         return $this->json([
             'techSupport' => ['id' => $techSupport->getId()],
-            'message' => ['id' => $appealMessage->getId()],
+            'message' => ['id' => $techSupportMessage->getId()],
         ]);
     }
 }

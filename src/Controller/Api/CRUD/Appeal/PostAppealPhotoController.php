@@ -4,6 +4,8 @@ namespace App\Controller\Api\CRUD\Appeal;
 
 use App\Entity\Appeal\Appeal;
 use App\Entity\Appeal\AppealImage;
+use App\Entity\Appeal\AppealTypes\AppealChat;
+use App\Entity\Appeal\AppealTypes\AppealTicket;
 use App\Entity\User;
 use App\Repository\User\AppealRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -29,33 +31,43 @@ class PostAppealPhotoController extends AbstractController
         $user = $this->security->getUser();
         /** @var Appeal $appeal */
         $appeal = $this->appealRepository->find($id);
+
+        /** @var AppealChat $appealChat */
+        $appealChat = $appeal->getAppealChat()->first();
+        /** @var AppealTicket $appealTicket */
+        $appealTicket = $appeal->getAppealTicket()->first();
+
         $imageFiles = $request->files->get('imageFile');
 
         if (!array_intersect($allowedRoles, $user->getRoles()))
             return $this->json(['message' => 'Access denied'], 403);
 
-        if (!$appeal)
-            return $this->json(['message' => 'Appeal not found'], 404);
-
         if (!$imageFiles)
             return $this->json(['message' => 'No files provided'], 400);
 
-        if ($appeal->getAdministrant() !== $user &&
-            $appeal->getAuthor() !== $user &&
-            $appeal->getRespondent() !== $user
-        ) return $this->json(['message' => "Ownership doesn't match"], 403);
+        if ($appeal->getAppealChat()->first()->getAuthor() !== $user
+            && $appeal->getAppealChat()->first()->getRespondent() !== $user)
+            return $this->json(['message' => "Ownership doesn't match"], 403);
 
         $imageFiles = is_array($imageFiles) ? $imageFiles : [$imageFiles];
 
-        foreach ($imageFiles as $imageFile) {
-            if ($imageFile->isValid()) {
-                $appealImage = (new AppealImage())
-                    ->setImageFile($imageFile)
-                    ->setAuthor($user);
-                $appeal->addAppealImage($appealImage);
-                $this->entityManager->persist($appealImage);
+        if ($appealChat) {
+            foreach ($imageFiles as $imageFile) {
+                if ($imageFile->isValid()) {
+                    $appealImage = (new AppealImage())->setImageFile($imageFile);
+                    $appealChat->addAppealChatImage($appealImage);
+                    $this->entityManager->persist($appealImage);
+                }
             }
-        }
+        } elseif ($appealTicket) {
+            foreach ($imageFiles as $imageFile) {
+                if ($imageFile->isValid()) {
+                    $appealImage = (new AppealImage())->setImageFile($imageFile);
+                    $appealTicket->addAppealTicketImage($appealImage);
+                    $this->entityManager->persist($appealImage);
+                }
+            }
+        } else return $this->json(['message' => 'Appeal attachment is empty'], 500);
 
         $this->entityManager->flush();
 

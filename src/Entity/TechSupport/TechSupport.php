@@ -7,12 +7,13 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\CRUD\Appeal\PatchSupportAppealController;
-use App\Controller\Api\CRUD\Appeal\PostAppealConntroller;
-use App\Controller\Api\CRUD\Appeal\PostAppealPhotoController;
-use App\Controller\Api\Filter\Appeal\Support\AdminSupportFilterController;
-use App\Controller\Api\Filter\Appeal\Support\SupportFilterController;
-use App\Controller\Api\Filter\Appeal\Support\UserSupportFilterController;
+use App\Controller\Api\CRUD\TechSupport\TechSupport\PatchTechSupportController;
+use App\Controller\Api\CRUD\TechSupport\TechSupport\PostTechSupportController;
+use App\Controller\Api\CRUD\TechSupport\TechSupport\PostTechSupportPhotoController;
+use App\Controller\Api\Filter\TechSupport\AdminTechSupportFilterController;
+use App\Controller\Api\Filter\TechSupport\PersonalTechSupportFilterController;
+use App\Controller\Api\Filter\TechSupport\SupportReasonFilterController;
+use App\Controller\Api\Filter\TechSupport\UserTechSupportFilterController;
 use App\Entity\User;
 use App\Repository\TechSupport\TechSupportRepository;
 use DateTime;
@@ -29,37 +30,33 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
     operations: [
         new GetCollection(
             uriTemplate: '/tech-support/me',
+            controller: PersonalTechSupportFilterController::class,
         ),
         new GetCollection(
             uriTemplate: '/tech-support/user/{id}',
-            controller: UserSupportFilterController::class,
-            security:
-            "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
+            controller: UserTechSupportFilterController::class,
         ),
         new GetCollection(
             uriTemplate: '/tech-support/admin/{id}',
-            controller: AdminSupportFilterController::class,
-            security: "is_granted('ROLE_ADMIN')"
+            controller: AdminTechSupportFilterController::class,
         ),
         new GetCollection(
             uriTemplate: '/tech-support/reasons',
-            controller: SupportFilterController::class,
+            controller: SupportReasonFilterController::class,
         ),
         new Post(
             uriTemplate: '/tech-support',
-            controller: PostAppealConntroller::class,
-        ),
-        new Post(
-            uriTemplate: '/tech-support/{id}/upload-photo',
-            requirements: ['id' => '\d+'],
-            controller: PostAppealPhotoController::class,
+            controller: PostTechSupportController::class,
         ),
         new Patch(
             uriTemplate: '/tech-support/{id}',
             requirements: ['id' => '\d+'],
-            controller: PatchSupportAppealController::class,
+            controller: PatchTechSupportController::class,
+        ),
+        new Post(
+            uriTemplate: '/tech-support/{id}/upload-photo',
+            requirements: ['id' => '\d+'],
+            controller: PostTechSupportPhotoController::class,
         ),
     ],
     normalizationContext: [
@@ -127,6 +124,7 @@ class TechSupport
     #[Groups([
         'techSupport:read',
     ])]
+    #[ApiProperty(writable: false)]
     private ?string $status = null;
 
     #[ORM\Column(length: 255, nullable: true)]
@@ -168,6 +166,7 @@ class TechSupport
     #[Groups([
         'techSupport:read',
     ])]
+    #[ApiProperty(writable: false)]
     private ?User $administrant = null;
 
     #[ORM\ManyToOne(inversedBy: 'techSupports')]
@@ -175,6 +174,7 @@ class TechSupport
     #[Groups([
         'techSupport:read',
     ])]
+    #[ApiProperty(writable: false)]
     private ?User $author = null;
 
     #[ORM\Column(type: 'datetime', nullable: false)]
@@ -254,56 +254,6 @@ class TechSupport
         return $this;
     }
 
-    public function getTitle(): ?string
-    {
-        return $this->title;
-    }
-
-    public function setTitle(?string $title): void
-    {
-        $this->title = $title;
-    }
-
-    public function getSupportReason(): ?string
-    {
-        return $this->supportReason;
-    }
-
-    public function setSupportReason(?string $supportReason): void
-    {
-        $this->supportReason = $supportReason;
-    }
-
-    public function getStatus(): ?string
-    {
-        return $this->status;
-    }
-
-    public function setStatus(?string $status): void
-    {
-        $this->status = $status;
-    }
-
-    public function getPriority(): ?string
-    {
-        return $this->priority;
-    }
-
-    public function setPriority(?string $priority): void
-    {
-        $this->priority = $priority;
-    }
-
-    public function getDescription(): ?string
-    {
-        return $this->description;
-    }
-
-    public function setDescription(?string $description): void
-    {
-        $this->description = $description;
-    }
-
     public function getCreatedAt(): DateTime
     {
         return $this->createdAt;
@@ -348,6 +298,61 @@ class TechSupport
     {
         $this->author = $author;
 
+        return $this;
+    }
+
+    public function getTitle(): ?string
+    {
+        return $this->title;
+    }
+
+    public function setTitle(?string $title): static
+    {
+        $this->title = $title;
+        return $this;
+    }
+
+    public function getSupportReason(): ?string
+    {
+        return $this->supportReason;
+    }
+
+    public function setSupportReason(?string $supportReason): static
+    {
+        $this->supportReason = $supportReason;
+        return $this;
+    }
+
+    public function getStatus(): ?string
+    {
+        return $this->status;
+    }
+
+    public function setStatus(?string $status): static
+    {
+        $this->status = $status;
+        return $this;
+    }
+
+    public function getPriority(): ?string
+    {
+        return $this->priority;
+    }
+
+    public function setPriority(?string $priority): static
+    {
+        $this->priority = $priority;
+        return $this;
+    }
+
+    public function getDescription(): ?string
+    {
+        return $this->description;
+    }
+
+    public function setDescription(?string $description): static
+    {
+        $this->description = $description;
         return $this;
     }
 }

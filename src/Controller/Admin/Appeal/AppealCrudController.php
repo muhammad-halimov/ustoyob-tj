@@ -2,20 +2,20 @@
 
 namespace App\Controller\Admin\Appeal;
 
+use App\Controller\Admin\Appeal\AppealTypes\AppealChatCrudController;
+use App\Controller\Admin\Appeal\AppealTypes\AppealTicketCrudController;
 use App\Entity\Appeal\Appeal;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
-use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\FormField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
 class AppealCrudController extends AbstractCrudController
 {
@@ -66,51 +66,37 @@ class AppealCrudController extends AbstractCrudController
         yield IdField::new('id')
             ->onlyOnIndex();
 
-        yield ChoiceField::new('type', 'Тип')
-            ->hideOnIndex()
-            ->setRequired(true)
-            ->renderExpanded()
-            ->addCssClass("form-switch")
-            ->setChoices(Appeal::TYPES)
-            ->setColumns(12);
+        yield FormField::addTab('Типы жалоб', 'fas fa-list');
+            yield ChoiceField::new('type', 'Тип')
+                ->setRequired(true)
+                ->allowMultipleChoices(false)
+                ->renderExpanded()
+                ->addCssClass("form-switch")
+                ->setChoices(Appeal::TYPES)
+                ->setColumns(12);
 
-        yield BooleanField::new('ticketAppeal', 'Объявление / Услуга')
-            ->setColumns(12);
+        yield TextEditorField::new('getInfo', 'Информация о жалобе')
+            ->hideOnForm();
 
-        yield TextField::new('title', 'Заголовок')
-            ->setRequired(true)
-            ->setColumns(6);
+        yield FormField::addTab('Услуга / Объявление', 'fas fa-ticket');
+            yield CollectionField::new('appealTicket', 'Жалоба на услугу/объявление')
+                ->useEntryCrudForm(AppealTicketCrudController::class)
+                ->allowDelete(false)
+                ->allowAdd(false)
+                ->hideOnIndex()
+                ->setColumns(12)
+                ->addCssClass("ticket-field")
+                ->setRequired(false);
 
-        yield AssociationField::new('ticket', 'Объявление / Услуга')
-            ->setRequired(true)
-            ->addCssClass('ticket-field')
-            ->setColumns(6);
-
-        yield AssociationField::new('author', 'Истец')
-            ->setRequired(true)
-            ->setColumns(4);
-
-        yield AssociationField::new('respondent', 'Ответчик')
-            ->hideOnIndex()
-            ->setRequired(true)
-            ->addCssClass('respondent-field')
-            ->setColumns(4);
-
-        yield ChoiceField::new('complaintReason', 'Причина жалобы')
-            ->setChoices(Appeal::COMPLAINTS)
-            ->addCssClass('compliant-field')
-            ->setRequired(true)
-            ->setColumns(4);
-
-        yield TextEditorField::new('description', 'Описание')
-            ->setRequired(true)
-            ->setColumns(12);
-
-        yield CollectionField::new('appealImages', 'Галерея изображений')
-            ->useEntryCrudForm(AppealImageCrudController::class)
-            ->hideOnIndex()
-            ->setColumns(12)
-            ->setRequired(false);
+        yield FormField::addTab('Чат', 'fas fa-comments');
+            yield CollectionField::new('appealChat', 'Жалоба на чат')
+                ->useEntryCrudForm(AppealChatCrudController::class)
+                ->allowDelete(false)
+                ->allowAdd(false)
+                ->hideOnIndex()
+                ->setColumns(12)
+                ->addCssClass("chat-field")
+                ->setRequired(false);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
             ->hideOnForm();

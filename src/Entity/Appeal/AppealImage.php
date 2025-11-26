@@ -2,14 +2,17 @@
 
 namespace App\Entity\Appeal;
 
+use ApiPlatform\Metadata\ApiProperty;
+use App\Entity\Appeal\AppealTypes\AppealChat;
+use App\Entity\Appeal\AppealTypes\AppealTicket;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
-use App\Entity\User;
 use App\Repository\Appeal\AppealImageRepository;
 use DateTime;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 
+use Symfony\Component\Serializer\Attribute\Ignore;
 use Symfony\Component\Validator\Constraints as Assert;
 use Vich\UploaderBundle\Mapping\Annotation as Vich;
 use Symfony\Component\HttpFoundation\File\File;
@@ -30,9 +33,8 @@ class AppealImage
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
-        'appeals:read',
         'appealsTicket:read',
-        'appealsSupport:read',
+        'appealsChat:read',
     ])]
     private ?int $id = null;
 
@@ -42,22 +44,19 @@ class AppealImage
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
-        'appeals:read',
         'appealsTicket:read',
-        'appealsSupport:read',
+        'appealsChat:read',
     ])]
+    #[ApiProperty(writable: false)]
     private ?string $image = null;
 
-    #[ORM\ManyToOne(inversedBy: 'appealImages')]
-    private ?Appeal $appeals = null;
+    #[ORM\ManyToOne(inversedBy: 'appealChatImages')]
+    #[Ignore]
+    private ?AppealChat $appealChat = null;
 
-    #[ORM\ManyToOne(inversedBy: 'appealImages')]
-    #[Groups([
-        'appeals:read',
-        'appealsTicket:read',
-        'appealsSupport:read',
-    ])]
-    private ?User $author = null;
+    #[ORM\ManyToOne(inversedBy: 'appealTicketImages')]
+    #[Ignore]
+    private ?AppealTicket $appealTicket = null;
 
     public function getId(): ?int
     {
@@ -91,26 +90,26 @@ class AppealImage
         return $this;
     }
 
-    public function getAppeals(): ?Appeal
+    public function getAppealChat(): ?AppealChat
     {
-        return $this->appeals;
+        return $this->appealChat;
     }
 
-    public function setAppeals(?Appeal $appeals): static
+    public function setAppealChat(?AppealChat $appealChat): static
     {
-        $this->appeals = $appeals;
+        $this->appealChat = $appealChat;
 
         return $this;
     }
 
-    public function getAuthor(): ?User
+    public function getAppealTicket(): ?AppealTicket
     {
-        return $this->author;
+        return $this->appealTicket;
     }
 
-    public function setAuthor(?User $author): static
+    public function setAppealTicket(?AppealTicket $appealTicket): static
     {
-        $this->author = $author;
+        $this->appealTicket = $appealTicket;
 
         return $this;
     }

@@ -2,7 +2,6 @@
 
 namespace App\Controller\Admin\TechSupport;
 
-use App\Entity\Appeal\Appeal;
 use App\Entity\TechSupport\TechSupport;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
@@ -65,19 +64,19 @@ class TechSupportCrudController extends AbstractCrudController
 
         yield ChoiceField::new('supportReason', 'Категория талона')
             ->setColumns(6)
-            ->setChoices(Appeal::SUPPORT)
+            ->setChoices(TechSupport::SUPPORT)
             ->addCssClass('support-field')
             ->setRequired(true);
 
         yield ChoiceField::new('status', 'Статус')
             ->setColumns(3)
-            ->setChoices(Appeal::STATUSES)
+            ->setChoices(TechSupport::STATUSES)
             ->addCssClass('status-field')
             ->setRequired(true);
 
         yield ChoiceField::new('priority', 'Приоритет')
             ->setColumns(3)
-            ->setChoices(Appeal::PRIORITIES)
+            ->setChoices(TechSupport::PRIORITIES)
             ->addCssClass('priority-field')
             ->setRequired(true);
 

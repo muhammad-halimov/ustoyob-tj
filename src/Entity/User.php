@@ -9,8 +9,8 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\CRUD\User\GrantRoleController;
-use App\Controller\Api\CRUD\User\PostUserPhotoController;
+use App\Controller\Api\CRUD\User\User\GrantRoleController;
+use App\Controller\Api\CRUD\User\User\PostUserPhotoController;
 use App\Controller\Api\Filter\User\Client\ClientsUserFilterController;
 use App\Controller\Api\Filter\User\Client\ClientUserFilterController;
 use App\Controller\Api\Filter\User\Master\MastersOccupationUserFilterController;
@@ -18,9 +18,8 @@ use App\Controller\Api\Filter\User\Master\MastersUserFilterController;
 use App\Controller\Api\Filter\User\Master\MasterUserFilterController;
 use App\Controller\Api\Filter\User\Personal\PersonalUserFilterController;
 use App\Controller\Api\Filter\User\SocialNetworkController;
-use App\Entity\Appeal\Appeal;
-use App\Entity\Appeal\AppealImage;
-use App\Entity\Appeal\Item\AppealChat;
+use App\Entity\Appeal\AppealTypes\AppealChat;
+use App\Entity\Appeal\AppealTypes\AppealTicket;
 use App\Entity\Chat\Chat;
 use App\Entity\Chat\ChatImage;
 use App\Entity\Chat\ChatMessage;
@@ -159,13 +158,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->chatMessages = new ArrayCollection();
         $this->galleries = new ArrayCollection();
         $this->tickets = new ArrayCollection();
-        $this->appeals = new ArrayCollection();
-        $this->appealsRespondent = new ArrayCollection();
         $this->favorites = new ArrayCollection();
-        $this->administrantAppeals = new ArrayCollection();
-        $this->appealMessages = new ArrayCollection();
         $this->chatImages = new ArrayCollection();
-        $this->appealImages = new ArrayCollection();
         $this->masterReviews = new ArrayCollection();
         $this->clientReviews = new ArrayCollection();
         $this->districts = new ArrayCollection();
@@ -175,6 +169,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->techSupportImages = new ArrayCollection();
         $this->techSupportMessages = new ArrayCollection();
         $this->techSupports = new ArrayCollection();
+        $this->appealTickets = new ArrayCollection();
+        $this->appealChats = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -190,10 +186,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'clientTickets:read',
         'chats:read',
         'chatMessages:read',
-        'appeals:read',
         'appealsTicket:read',
-        'appealsSupport:read',
+        'appealsChat:read',
         'favorites:read',
+        'techSupport:read',
     ])]
     private ?int $id = null;
 
@@ -208,10 +204,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'clientTickets:read',
         'chats:read',
         'chatMessages:read',
-        'appeals:read',
         'appealsTicket:read',
-        'appealsSupport:read',
+        'appealsChat:read',
         'favorites:read',
+        'techSupport:read',
     ])]
     private ?string $email = null;
 
@@ -226,10 +222,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'clientTickets:read',
         'chats:read',
         'chatMessages:read',
-        'appeals:read',
         'appealsTicket:read',
-        'appealsSupport:read',
+        'appealsChat:read',
         'favorites:read',
+        'techSupport:read',
     ])]
     private ?string $name = null;
 
@@ -244,10 +240,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'clientTickets:read',
         'chats:read',
         'chatMessages:read',
-        'appeals:read',
         'appealsTicket:read',
-        'appealsSupport:read',
+        'appealsChat:read',
         'favorites:read',
+        'techSupport:read',
     ])]
     private ?string $surname = null;
 
@@ -294,10 +290,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'clientTickets:read',
         'chats:read',
         'chatMessages:read',
-        'appeals:read',
         'appealsTicket:read',
-        'appealsSupport:read',
+        'appealsChat:read',
         'favorites:read',
+        'techSupport:read',
     ])]
     #[ApiProperty(writable: false)]
     private ?string $image = null;
@@ -405,20 +401,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private Collection $tickets;
 
     /**
-     * @var Collection<int, Appeal>
-     */
-    #[ORM\OneToMany(targetEntity: Appeal::class, mappedBy: 'author')]
-    #[ApiProperty(writable: false)]
-    private Collection $appeals;
-
-    /**
-     * @var Collection<int, Appeal>
-     */
-    #[ORM\OneToMany(targetEntity: Appeal::class, mappedBy: 'respondent')]
-    #[ApiProperty(writable: false)]
-    private Collection $appealsRespondent;
-
-    /**
      * @var Collection<int, Favorite>
      */
     #[ORM\OneToMany(targetEntity: Favorite::class, mappedBy: 'user')]
@@ -426,32 +408,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private Collection $favorites;
 
     /**
-     * @var Collection<int, Appeal>
-     */
-    #[ORM\OneToMany(targetEntity: Appeal::class, mappedBy: 'administrant')]
-    #[Ignore]
-    private Collection $administrantAppeals;
-
-    /**
-     * @var Collection<int, AppealChat>
-     */
-    #[ORM\OneToMany(targetEntity: AppealChat::class, mappedBy: 'author')]
-    #[Ignore]
-    private Collection $appealMessages;
-
-    /**
      * @var Collection<int, ChatImage>
      */
     #[ORM\OneToMany(targetEntity: ChatImage::class, mappedBy: 'author')]
     #[Ignore]
     private Collection $chatImages;
-
-    /**
-     * @var Collection<int, AppealImage>
-     */
-    #[ORM\OneToMany(targetEntity: AppealImage::class, mappedBy: 'author')]
-    #[Ignore]
-    private Collection $appealImages;
 
     /**
      * @var Collection<int, Review>
@@ -516,6 +477,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     #[ORM\OneToMany(targetEntity: TechSupport::class, mappedBy: 'administrant')]
     private Collection $techSupports;
+
+    /**
+     * @var Collection<int, AppealTicket>
+     */
+    #[ORM\OneToMany(targetEntity: AppealTicket::class, mappedBy: 'author')]
+    private Collection $appealTickets;
+
+    /**
+     * @var Collection<int, AppealChat>
+     */
+    #[ORM\OneToMany(targetEntity: AppealChat::class, mappedBy: 'author')]
+    private Collection $appealChats;
 
     public function getId(): ?int
     {
@@ -980,66 +953,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * @return Collection<int, Appeal>
-     */
-    public function getAppeals(): Collection
-    {
-        return $this->appeals;
-    }
-
-    public function addAppeal(Appeal $appeal): static
-    {
-        if (!$this->appeals->contains($appeal)) {
-            $this->appeals->add($appeal);
-            $appeal->setAuthor($this);
-        }
-
-        return $this;
-    }
-
-    public function removeAppeal(Appeal $appeal): static
-    {
-        if ($this->appeals->removeElement($appeal)) {
-            // set the owning side to null (unless already changed)
-            if ($appeal->getAuthor() === $this) {
-                $appeal->setAuthor(null);
-            }
-        }
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, Appeal>
-     */
-    public function getAppealsRespondent(): Collection
-    {
-        return $this->appealsRespondent;
-    }
-
-    public function addAppealsRespondent(Appeal $appealsRespondent): static
-    {
-        if (!$this->appealsRespondent->contains($appealsRespondent)) {
-            $this->appealsRespondent->add($appealsRespondent);
-            $appealsRespondent->setRespondent($this);
-        }
-
-        return $this;
-    }
-
-    public function removeAppealsRespondent(Appeal $appealsRespondent): static
-    {
-        if ($this->appealsRespondent->removeElement($appealsRespondent)) {
-            // set the owning side to null (unless already changed)
-            if ($appealsRespondent->getRespondent() === $this) {
-                $appealsRespondent->setRespondent(null);
-            }
-        }
-
-        return $this;
-    }
-
-    /**
      * @return Collection<int, Favorite>
      */
     public function getFavorites(): Collection
@@ -1070,66 +983,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * @return Collection<int, Appeal>
-     */
-    public function getAdministrantAppeals(): Collection
-    {
-        return $this->administrantAppeals;
-    }
-
-    public function addAdministrantAppeal(Appeal $administrantAppeal): static
-    {
-        if (!$this->administrantAppeals->contains($administrantAppeal)) {
-            $this->administrantAppeals->add($administrantAppeal);
-            $administrantAppeal->setAdministrant($this);
-        }
-
-        return $this;
-    }
-
-    public function removeAdministrantAppeal(Appeal $administrantAppeal): static
-    {
-        if ($this->administrantAppeals->removeElement($administrantAppeal)) {
-            // set the owning side to null (unless already changed)
-            if ($administrantAppeal->getAdministrant() === $this) {
-                $administrantAppeal->setAdministrant(null);
-            }
-        }
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, AppealChat>
-     */
-    public function getAppealMessages(): Collection
-    {
-        return $this->appealMessages;
-    }
-
-    public function addAppealMessage(AppealChat $appealMessage): static
-    {
-        if (!$this->appealMessages->contains($appealMessage)) {
-            $this->appealMessages->add($appealMessage);
-            $appealMessage->setAuthor($this);
-        }
-
-        return $this;
-    }
-
-    public function removeAppealMessage(AppealChat $appealMessage): static
-    {
-        if ($this->appealMessages->removeElement($appealMessage)) {
-            // set the owning side to null (unless already changed)
-            if ($appealMessage->getAuthor() === $this) {
-                $appealMessage->setAuthor(null);
-            }
-        }
-
-        return $this;
-    }
-
-    /**
      * @return Collection<int, ChatImage>
      */
     public function getChatImages(): Collection
@@ -1153,36 +1006,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             // set the owning side to null (unless already changed)
             if ($chatImage->getAuthor() === $this) {
                 $chatImage->setAuthor(null);
-            }
-        }
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, AppealImage>
-     */
-    public function getAppealImages(): Collection
-    {
-        return $this->appealImages;
-    }
-
-    public function addAppealImage(AppealImage $appealImage): static
-    {
-        if (!$this->appealImages->contains($appealImage)) {
-            $this->appealImages->add($appealImage);
-            $appealImage->setAuthor($this);
-        }
-
-        return $this;
-    }
-
-    public function removeAppealImage(AppealImage $appealImage): static
-    {
-        if ($this->appealImages->removeElement($appealImage)) {
-            // set the owning side to null (unless already changed)
-            if ($appealImage->getAuthor() === $this) {
-                $appealImage->setAuthor(null);
             }
         }
 
@@ -1441,6 +1264,66 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             // set the owning side to null (unless already changed)
             if ($techSupport->getAdministrant() === $this) {
                 $techSupport->setAdministrant(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, AppealTicket>
+     */
+    public function getAppealTickets(): Collection
+    {
+        return $this->appealTickets;
+    }
+
+    public function addAppealTicket(AppealTicket $appealTicket): static
+    {
+        if (!$this->appealTickets->contains($appealTicket)) {
+            $this->appealTickets->add($appealTicket);
+            $appealTicket->setAuthor($this);
+        }
+
+        return $this;
+    }
+
+    public function removeAppealTicket(AppealTicket $appealTicket): static
+    {
+        if ($this->appealTickets->removeElement($appealTicket)) {
+            // set the owning side to null (unless already changed)
+            if ($appealTicket->getAuthor() === $this) {
+                $appealTicket->setAuthor(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, AppealChat>
+     */
+    public function getAppealChats(): Collection
+    {
+        return $this->appealChats;
+    }
+
+    public function addAppealChat(AppealChat $appealChat): static
+    {
+        if (!$this->appealChats->contains($appealChat)) {
+            $this->appealChats->add($appealChat);
+            $appealChat->setAuthor($this);
+        }
+
+        return $this;
+    }
+
+    public function removeAppealChat(AppealChat $appealChat): static
+    {
+        if ($this->appealChats->removeElement($appealChat)) {
+            // set the owning side to null (unless already changed)
+            if ($appealChat->getAuthor() === $this) {
+                $appealChat->setAuthor(null);
             }
         }
 

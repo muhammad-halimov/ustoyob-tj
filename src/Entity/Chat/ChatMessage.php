@@ -8,7 +8,8 @@ use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\Chat\Message\DeleteChatMessageController;
-use App\Controller\Api\CRUD\Chat\Message\PostMessageController;
+use App\Controller\Api\CRUD\Chat\Message\PatchChatMessageController;
+use App\Controller\Api\CRUD\Chat\Message\PostChatMessageController;
 use App\Entity\User;
 use App\Repository\Chat\ChatMessageRepository;
 use DateTime;
@@ -24,28 +25,17 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
     operations: [
         new Post(
             uriTemplate: '/chat-messages',
-            controller: PostMessageController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
+            controller: PostChatMessageController::class,
         ),
         new Patch(
             uriTemplate: '/chat-messages/{id}',
             requirements: ['id' => '\d+'],
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
+            controller: PatchChatMessageController::class,
         ),
         new Delete(
             uriTemplate: '/chat-messages/{id}',
             requirements: ['id' => '\d+'],
             controller: DeleteChatMessageController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
         )
     ],
     normalizationContext: [

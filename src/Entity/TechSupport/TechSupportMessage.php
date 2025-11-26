@@ -7,8 +7,9 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\CRUD\Appeal\DeleteTechSupportMessageController;
-use App\Controller\Api\CRUD\Appeal\PostTechSupportMessageController;
+use App\Controller\Api\CRUD\TechSupport\Message\DeleteTechSupportMessageController;
+use App\Controller\Api\CRUD\TechSupport\Message\PatchTechSupportMessageController;
+use App\Controller\Api\CRUD\TechSupport\Message\PostTechSupportMessageController;
 use App\Entity\User;
 use App\Repository\TechSupport\TechSupportMessageRepository;
 use DateTime;
@@ -23,18 +24,11 @@ use Symfony\Component\Serializer\Attribute\Groups;
         new Post(
             uriTemplate: '/tech-support-messages',
             controller: PostTechSupportMessageController::class,
-            security:
-            "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
         ),
         new Patch(
             uriTemplate: '/tech-support-messages/{id}',
             requirements: ['id' => '\d+'],
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')"
+            controller: PatchTechSupportMessageController::class,
         ),
         new Delete(
             uriTemplate: '/tech-support-messages/{id}',

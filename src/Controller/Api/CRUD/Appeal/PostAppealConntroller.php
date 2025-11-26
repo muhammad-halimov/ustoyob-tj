@@ -3,8 +3,12 @@
 namespace App\Controller\Api\CRUD\Appeal;
 
 use App\Entity\Appeal\Appeal;
+use App\Entity\Appeal\AppealTypes\AppealChat;
+use App\Entity\Appeal\AppealTypes\AppealTicket;
+use App\Entity\Chat\Chat;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
+use App\Repository\Chat\ChatRepository;
 use App\Repository\TicketRepository;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -18,6 +22,7 @@ class PostAppealConntroller extends AbstractController
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly TicketRepository       $ticketRepository,
+        private readonly ChatRepository         $chatRepository,
         private readonly UserRepository         $userRepository,
         private readonly Security               $security,
     ) {}
@@ -30,6 +35,13 @@ class PostAppealConntroller extends AbstractController
         /** @var User $bearerUser */
         $bearerUser = $this->security->getUser();
 
+        $allComplaints = array_unique(
+            array_merge(
+                AppealChat::COMPLAINTS,
+                AppealTicket::COMPLAINTS,
+            )
+        );
+
         if (!array_intersect($allowedRoles, $bearerUser->getRoles())) {
             return $this->json(['message' => 'Access denied'], 403);
         }
@@ -40,122 +52,103 @@ class PostAppealConntroller extends AbstractController
             return $this->json(['message' => 'Invalid JSON'], 400);
 
         // безопасное извлечение данных
-        $typeParam        = $data['type'];
-        $titleParam       = $data['title'] ?? null;
-        $descriptionParam = $data['description'] ?? null;
+        $typeParam            = $data['type'] ?? null;
+        $titleParam           = $data['title'] ?? null;
+        $descriptionParam     = $data['description'] ?? null;
+        $complaintReasonParam = $data['complaintReason'] ?? null;
+        $respondentParam      = $data['respondent'] ?? null;
 
-        if (!$typeParam || !$titleParam || !$descriptionParam)
+        if (!$titleParam || !$descriptionParam || !$complaintReasonParam || !$typeParam)
             return $this->json(['message' => 'Missing required fields'], 400);
+
+        if (!in_array($complaintReasonParam, array_values($allComplaints)))
+            return $this->json(['message' => 'Wrong complaint reason'], 400);
+
+        $respondentId = preg_match('#/api/users/(\d+)#', $respondentParam, $r) ? $r[1] : $respondentParam;
+        /** @var User $respondent */
+        $respondent = $this->userRepository->find($respondentId);
+
+        if (!$respondent)
+            return $this->json(['message' => 'Respondent not found'], 404);
+
+        $message = [
+            'type'            => $typeParam,
+            'title'           => $titleParam,
+            'description'     => $descriptionParam,
+            'complaintReason' => $complaintReasonParam,
+            'respondent'      => "/api/users/{$respondent->getId()}",
+            'author'          => "/api/users/{$bearerUser->getId()}",
+        ];
 
         $appeal = new Appeal();
 
-        $message = [
-            'type' => $typeParam,
-            'title' => $titleParam,
-            'description' => $descriptionParam,
-        ];
+        if ($typeParam === 'ticket') {
+            $ticketParam = $data['ticket'] ?? null;
 
-        // ---------------------------------------------------------------------
-        //  COMPLAINT
-        // ---------------------------------------------------------------------
-        if ($typeParam === 'complaint') {
+            if (!$ticketParam)
+                return $this->json(['message' => 'Missing ticket'], 400);
 
-            $complaintReasonParam = $data['complaintReason'] ?? null;
-            $ticketAppealParam    = (bool)($data['ticketAppeal'] ?? false);
+            $ticketId = preg_match('#/api/tickets/(\d+)#', $ticketParam, $t) ? $t[1] : $ticketParam;
+            /** @var Ticket $ticket */
+            $ticket = $this->ticketRepository->find($ticketId);
 
-            if (!$complaintReasonParam)
-                return $this->json(['message' => 'Missing complaintReason'], 400);
+            if (!$ticket)
+                return $this->json(['message' => 'Ticket not found'], 404);
 
-            if (!in_array($complaintReasonParam, array_values(Appeal::COMPLAINTS)))
-                return $this->json(['message' => 'Wrong complaint reason'], 400);
+            // correct match: respondent must be either author OR master
+            if ($ticket->getAuthor() !== $respondent && $ticket->getMaster() !== $respondent)
+                return $this->json(['message' => "Respondent's ticket doesn't match"], 400);
 
-            // respondent
-            $respondentParam = $data['respondent'] ?? null;
-            if (!$respondentParam)
-                return $this->json(['message' => 'Missing respondent'], 400);
-
-            $respondentId = preg_match('#/api/users/(\d+)#', $respondentParam, $r) ? $r[1] : $respondentParam;
-
-            /** @var User $respondent */
-            $respondent = $this->userRepository->find($respondentId);
-
-            if (!$respondent)
-                return $this->json(['message' => 'User not found'], 404);
-
-            // базовые поля жалобы
             $appeal
                 ->setType($typeParam)
-                ->setTitle($titleParam)
-                ->setDescription($descriptionParam)
-                ->setComplaintReason($complaintReasonParam)
-                ->setAuthor($bearerUser)
-                ->setRespondent($respondent);
+                ->addAppealTicket((new AppealTicket())
+                    ->setTitle($titleParam)
+                    ->setDescription($descriptionParam)
+                    ->setComplaintReason($complaintReasonParam)
+                    ->setRespondent($respondent)
+                    ->setAuthor($bearerUser)
+                    ->setTicket($ticket)
+                );
 
             $message += [
-                'complaintReason' => $complaintReasonParam,
-                'author'     => "/api/users/{$bearerUser->getId()}",
-                'respondent' => "/api/users/{$respondent->getId()}",
+                'ticket' => "/api/tickets/{$ticket->getId()}"
             ];
+        } elseif ($typeParam === 'chat') {
+            $chatParam = $data['chat'] ?? null;
 
-            // -----------------------------------------------------------------
-            //  IF ticketAppeal = true
-            // -----------------------------------------------------------------
-            if ($ticketAppealParam) {
+            if (!$chatParam)
+                return $this->json(['message' => 'Missing chat'], 400);
 
-                $ticketParam = $data['ticket'] ?? null;
-                if (!$ticketParam)
-                    return $this->json(['message' => 'Missing ticket'], 400);
+            $chatId = preg_match('#/api/chats/(\d+)#', $chatParam, $c) ? $c[1] : $chatParam;
 
-                $ticketId = preg_match('#/api/tickets/(\d+)#', $ticketParam, $t) ? $t[1] : $ticketParam;
+            /** @var Chat $chat */
+            $chat = $this->chatRepository->find($chatId);
 
-                /** @var Ticket $ticket */
-                $ticket = $this->ticketRepository->find($ticketId);
+            if (!$chat)
+                return $this->json(['message' => 'Chat not found'], 404);
 
-                if (!$ticket)
-                    return $this->json(['message' => 'Ticket not found'], 404);
+            if ($chat->getAuthor() !== $bearerUser)
+                return $this->json(['message' => "Ownership doesn't match"], 400);
 
-                // correct match: respondent must be either author OR master
-                if ($ticket->getAuthor() !== $respondent && $ticket->getMaster() !== $respondent)
-                    return $this->json(['message' => "Respondent's ticket doesn't match"], 400);
+            if ($chat->getReplyAuthor() !== $respondent)
+                return $this->json(['message' => "Respondent's chat doesn't match"], 400);
 
-                $appeal
-                    ->setTicket($ticket)
-                    ->setTicketAppeal(true);
-
-                $message += [
-                    'ticket'       => "/api/tickets/{$ticket->getId()}",
-                    'ticketAppeal' => true,
-                ];
-            }
-        }
-
-        // ---------------------------------------------------------------------
-        //  SUPPORT
-        // ---------------------------------------------------------------------
-        elseif ($typeParam === 'support') {
-
-            $supportReasonParam = $data['supportReason'] ?? null;
-            $priorityParam      = $data['priority'] ?? null;
-
-            if (!$supportReasonParam)
-                return $this->json(['message' => 'Missing supportReason'], 400);
-
-            if (!in_array($supportReasonParam, array_values(Appeal::SUPPORT)))
-                return $this->json(['message' => 'Wrong support reason'], 400);
 
             $appeal
                 ->setType($typeParam)
-                ->setTitle($titleParam)
-                ->setStatus("new")
-                ->setPriority($priorityParam)
-                ->setDescription($descriptionParam)
-                ->setSupportReason($supportReasonParam)
-                ->setAuthor($bearerUser);
-        }
+                ->addAppealChat((new AppealChat())
+                    ->setTitle($titleParam)
+                    ->setDescription($descriptionParam)
+                    ->setComplaintReason($complaintReasonParam)
+                    ->setRespondent($respondent)
+                    ->setAuthor($bearerUser)
+                    ->setChat($chat)
+                );
 
-        else {
-            return $this->json(['message' => "Wrong appeal type. Formats support / complaint"], 400);
-        }
+            $message += [
+                'chat' => "/api/chats/{$chat->getId()}"
+            ];
+        } else return $this->json(['message' => "Wrong type"], 400);
 
         // save
         $this->entityManager->persist($appeal);

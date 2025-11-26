@@ -19,7 +19,7 @@ use App\Controller\Api\Filter\Ticket\Master\MastersTicketFilterController;
 use App\Controller\Api\Filter\Ticket\Master\MasterTicketFilterController;
 use App\Controller\Api\Filter\Ticket\PersonalTicketFilterController;
 use App\Controller\Api\Filter\Ticket\TicketCategoryFilterController;
-use App\Entity\Appeal\Appeal;
+use App\Entity\Appeal\AppealTypes\AppealTicket;
 use App\Entity\Chat\Chat;
 use App\Entity\Geography\District;
 use App\Entity\Review\Review;
@@ -115,7 +115,7 @@ class Ticket
     {
         $this->userTicketImages = new ArrayCollection();
         $this->reviews = new ArrayCollection();
-        $this->appeals = new ArrayCollection();
+        $this->appealTicket = new ArrayCollection();
         $this->favorites = new ArrayCollection();
         $this->chats = new ArrayCollection();
     }
@@ -126,7 +126,6 @@ class Ticket
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
-        'appeals:read',
         'appealsTicket:read',
         'reviews:read',
         'favorites:read'
@@ -137,7 +136,6 @@ class Ticket
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
-        'appeals:read',
         'appealsTicket:read',
         'reviews:read',
         'favorites:read'
@@ -169,7 +167,6 @@ class Ticket
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
-        'appeals:read',
         'appealsTicket:read',
         'reviews:read',
         'favorites:read'
@@ -189,8 +186,6 @@ class Ticket
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
-        'appeals:read',
-        'appealsTicket:read',
         'reviews:read',
         'favorites:read'
     ])]
@@ -201,8 +196,6 @@ class Ticket
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
-        'appeals:read',
-        'appealsTicket:read',
         'reviews:read',
         'favorites:read'
     ])]
@@ -239,7 +232,6 @@ class Ticket
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
-        'appeals:read',
         'appealsTicket:read',
         'reviews:read',
         'favorites:read'
@@ -256,11 +248,11 @@ class Ticket
     private ?District $address = null;
 
     /**
-     * @var Collection<int, Appeal>
+     * @var Collection<int, AppealTicket>
      */
-    #[ORM\OneToMany(targetEntity: Appeal::class, mappedBy: 'ticket')]
+    #[ORM\OneToMany(targetEntity: AppealTicket::class, mappedBy: 'ticket')]
     #[Ignore]
-    private Collection $appeals;
+    private Collection $appealTicket;
 
     /**
      * @var Collection<int, Favorite>
@@ -280,8 +272,6 @@ class Ticket
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
-        'appeals:read',
-        'appealsTicket:read',
     ])]
     protected DateTime $createdAt;
 
@@ -289,8 +279,6 @@ class Ticket
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
-        'appeals:read',
-        'appealsTicket:read',
     ])]
     protected DateTime $updatedAt;
 
@@ -489,26 +477,26 @@ class Ticket
     }
 
     /**
-     * @return Collection<int, Appeal>
+     * @return Collection<int, AppealTicket>
      */
-    public function getAppeals(): Collection
+    public function getAppealTicket(): Collection
     {
-        return $this->appeals;
+        return $this->appealTicket;
     }
 
-    public function addAppeal(Appeal $appeal): static
+    public function addAppealTicket(AppealTicket $appeal): static
     {
-        if (!$this->appeals->contains($appeal)) {
-            $this->appeals->add($appeal);
+        if (!$this->appealTicket->contains($appeal)) {
+            $this->appealTicket->add($appeal);
             $appeal->setTicket($this);
         }
 
         return $this;
     }
 
-    public function removeAppeal(Appeal $appeal): static
+    public function removeAppealTicket(AppealTicket $appeal): static
     {
-        if ($this->appeals->removeElement($appeal)) {
+        if ($this->appealTicket->removeElement($appeal)) {
             // set the owning side to null (unless already changed)
             if ($appeal->getTicket() === $this) {
                 $appeal->setTicket(null);

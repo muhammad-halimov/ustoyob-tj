@@ -104,7 +104,7 @@ class UserCrudController extends AbstractCrudController
             ->renderExpanded()
             ->addCssClass("form-switch")
             ->setChoices(User::ROLES)
-            ->setColumns(9);
+            ->setColumns(12);
 
         yield BooleanField::new('atHome', 'Принимает у себя')
             ->addCssClass("form-switch")

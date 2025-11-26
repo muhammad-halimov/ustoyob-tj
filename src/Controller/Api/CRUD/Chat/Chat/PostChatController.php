@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controller\Api\CRUD\Chat;
+namespace App\Controller\Api\CRUD\Chat\Chat;
 
 use App\Entity\Chat\Chat;
 use App\Entity\Ticket\Ticket;

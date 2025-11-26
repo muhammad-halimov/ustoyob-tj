@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controller\Api\Filter\Appeal\Compliant;
+namespace App\Controller\Api\Filter\Appeal;
 
 use App\Entity\Appeal\Appeal;
 use App\Entity\Ticket\Ticket;
@@ -35,7 +35,7 @@ class TicketComplaintFilterController extends AbstractController
             return $this->json(['message' => 'Ticket not found'], 404);
 
         /** @var Appeal $appeals */
-        $appeals = $this->appealRepository->findTicketComplaints(true, $ticket, 'complaint');
+        $appeals = $this->appealRepository->findTicketComplaints($ticket);
 
         return empty($appeals)
             ? $this->json(['message' => 'Resource not found'], 404)

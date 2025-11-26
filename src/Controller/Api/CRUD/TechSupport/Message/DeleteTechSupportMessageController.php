@@ -1,21 +1,21 @@
 <?php
 
-namespace App\Controller\Api\CRUD\Chat;
+namespace App\Controller\Api\CRUD\TechSupport\Message;
 
-use App\Entity\Chat\Chat;
+use App\Entity\TechSupport\TechSupport;
 use App\Entity\User;
-use App\Repository\Chat\ChatRepository;
+use App\Repository\TechSupport\TechSupportMessageRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
-class DeleteChatController extends AbstractController
+class DeleteTechSupportMessageController extends AbstractController
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly ChatRepository         $chatRepository,
-        private readonly Security               $security,
+        private readonly EntityManagerInterface       $entityManager,
+        private readonly TechSupportMessageRepository $techSupportMessageRepository,
+        private readonly Security                     $security,
     ){}
 
     public function __invoke(int $id): JsonResponse
@@ -25,19 +25,19 @@ class DeleteChatController extends AbstractController
 
         /** @var User $bearerUser */
         $bearerUser = $this->security->getUser();
-        /** @var Chat $chat */
-        $chat = $this->chatRepository->find($id);
+        /** @var TechSupport $techSupportMessage */
+        $techSupportMessage = $this->techSupportMessageRepository->find($id);
 
         if (!array_intersect($allowedRoles, $bearerUser->getRoles()))
             return $this->json(['message' => 'Access denied'], 403);
 
-        if (!$chat)
+        if (!$techSupportMessage)
             return $this->json(['message' => "Resource not found"], 404);
 
-        if ($chat->getAuthor() !== $bearerUser && $chat->getReplyAuthor() !== $bearerUser)
+        if ($techSupportMessage->getAuthor() !== $bearerUser)
             return $this->json(['message' => "Ownership doesn't match"], 400);
 
-        $this->entityManager->remove($chat);
+        $this->entityManager->remove($techSupportMessage);
         $this->entityManager->flush();
 
         return $this->json(['message' => 'Resource successfully removed'], 204);
