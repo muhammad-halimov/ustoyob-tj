@@ -92,6 +92,7 @@ export default function OrderPage() {
 
     const ticketType = searchParams.get('type') as 'client' | 'master' | null;
     const specificTicketId = searchParams.get('ticket');
+    const [reviewCount, setReviewCount] = useState<number>(0);
 
     useEffect(() => {
         if (order) {
@@ -110,6 +111,55 @@ export default function OrderPage() {
 
         loadData();
     }, [id, ticketType, specificTicketId]);
+
+    const fetchReviewCount = async (userId: number): Promise<number> => {
+        try {
+            const token = getAuthToken();
+            const headers: HeadersInit = {
+                'Content-Type': 'application/json',
+            };
+
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            // Загружаем отзывы для клиента и мастера по ID пользователя
+            const [clientReviewsResponse, masterReviewsResponse] = await Promise.all([
+                fetch(`${API_BASE_URL}/api/reviews/clients/${userId}`, { headers }),
+                fetch(`${API_BASE_URL}/api/reviews/masters/${userId}`, { headers })
+            ]);
+
+            let totalReviews = 0;
+
+            if (clientReviewsResponse.ok) {
+                const clientReviews = await clientReviewsResponse.json();
+                // Если это массив - считаем длину, если объект - проверяем есть ли данные
+                if (Array.isArray(clientReviews)) {
+                    totalReviews += clientReviews.length;
+                } else if (clientReviews && typeof clientReviews === 'object') {
+                    // Если пришел один объект отзыва
+                    totalReviews += 1;
+                }
+            }
+
+            if (masterReviewsResponse.ok) {
+                const masterReviews = await masterReviewsResponse.json();
+                // Если это массив - считаем длину, если объект - проверяем есть ли данные
+                if (Array.isArray(masterReviews)) {
+                    totalReviews += masterReviews.length;
+                } else if (masterReviews && typeof masterReviews === 'object') {
+                    // Если пришел один объект отзыва
+                    totalReviews += 1;
+                }
+            }
+
+            console.log(`Found ${totalReviews} reviews for user ${userId}`);
+            return totalReviews;
+        } catch (error) {
+            console.error('Error fetching review count:', error);
+            return 0;
+        }
+    };
 
     const handleStarClick = (starCount: number) => {
         setSelectedStars(starCount);
@@ -212,7 +262,7 @@ export default function OrderPage() {
                 const reviewResponse = await response.json();
                 console.log('Review created successfully:', reviewResponse);
 
-                // Загружаем фото через отдельный эндпоинт (ваша оригинальная функция)
+                // Загружаем фото через отдельный эндпоинт
                 if (reviewPhotos.length > 0) {
                     try {
                         await uploadReviewPhotos(reviewResponse.id, reviewPhotos, token);
@@ -223,9 +273,14 @@ export default function OrderPage() {
                     }
                 }
 
+                // Обновляем количество отзывов для автора заказа
+                if (order?.authorId) {
+                    const updatedCount = await fetchReviewCount(order.authorId);
+                    setReviewCount(updatedCount);
+                }
+
                 handleCloseModal();
                 alert('Отзыв успешно отправлен!');
-
             } else {
                 const errorText = await response.text();
                 console.error('Error creating review. Status:', response.status, 'Response:', errorText);
@@ -350,10 +405,60 @@ export default function OrderPage() {
         }
     };
 
+    const loadLocalStorageFavorites = (): { masters: number[], tickets: number[] } => {
+        try {
+            const stored = localStorage.getItem('favorites');
+            if (stored) {
+                return JSON.parse(stored);
+            }
+        } catch (error) {
+            console.error('Error loading favorites from localStorage:', error);
+        }
+        return { masters: [], tickets: [] };
+    };
+
+    const saveLocalStorageFavorites = (favorites: { masters: number[], tickets: number[] }) => {
+        try {
+            localStorage.setItem('favorites', JSON.stringify(favorites));
+        } catch (error) {
+            console.error('Error saving favorites to localStorage:', error);
+        }
+    };
+
     const handleLikeClick = async () => {
         const token = getAuthToken();
+        const ticketId = order?.id;
+
+        if (!ticketId) {
+            console.error('No ticket ID to add to favorites');
+            return;
+        }
+
+        // Для неавторизованных пользователей работаем с localStorage
         if (!token) {
-            alert('Пожалуйста, войдите в систему чтобы добавить в избранное');
+            const localFavorites = loadLocalStorageFavorites();
+            const isCurrentlyLiked = localFavorites.tickets.includes(ticketId);
+
+            if (isCurrentlyLiked) {
+                // Снимаем лайк
+                const localFavorites = loadLocalStorageFavorites();
+                const updatedTickets = localFavorites.tickets.filter(id => id !== order?.id);
+                saveLocalStorageFavorites({
+                    ...localFavorites,
+                    tickets: updatedTickets
+                });
+                setIsLiked(false);
+                window.dispatchEvent(new Event('favoritesUpdated'));
+            } else {
+                // Ставим лайк
+                const updatedTickets = [...localFavorites.tickets, ticketId];
+                saveLocalStorageFavorites({
+                    ...localFavorites,
+                    tickets: updatedTickets
+                });
+                setIsLiked(true);
+            }
+            window.dispatchEvent(new Event('favoritesUpdated'));
             return;
         }
 
@@ -561,17 +666,28 @@ export default function OrderPage() {
     const getFullAddress = (ticketData: ApiTicket): string => {
         console.log('getFullAddress input:', ticketData);
 
-        // Правильная обработка nested объектов согласно API
-        const districtTitle = ticketData.district?.title || '';
-        const cityTitle = ticketData.district?.city?.title || '';
-        const provinceTitle = ticketData.district?.city?.province?.title || '';
-        const addressTitle = ticketData.address?.title || '';
-
         const parts = [];
-        if (provinceTitle) parts.push(provinceTitle);
-        if (cityTitle) parts.push(cityTitle);
-        if (districtTitle) parts.push(districtTitle);
-        if (addressTitle) parts.push(addressTitle);
+
+        // Провинция (область)
+        if (ticketData.district?.city?.province?.title) {
+            parts.push(ticketData.district.city.province.title);
+        }
+
+        // Город (из district или из address)
+        const city = ticketData.district?.city?.title || ticketData.address?.city?.title;
+        if (city) {
+            parts.push(city);
+        }
+
+        // Район
+        if (ticketData.district?.title) {
+            parts.push(ticketData.district.title);
+        }
+
+        // Конкретный адрес
+        if (ticketData.address?.title) {
+            parts.push(ticketData.address.title);
+        }
 
         const result = parts.length > 0 ? parts.join(', ') : 'Адрес не указан';
         console.log('Formatted address:', result);
@@ -689,7 +805,6 @@ export default function OrderPage() {
             let displayUserImage = '';
             let userTypeForRating: 'client' | 'master' | null = ticketType;
 
-            // Логика определения, чью информацию показывать:
             if (ticketType === 'client') {
                 // Если смотрим тикеты клиента, показываем информацию о клиенте (авторе)
                 displayUserId = ticketData.author?.id || 0;
@@ -731,6 +846,10 @@ export default function OrderPage() {
                 userTypeForRating,
                 displayUserImage
             });
+
+            // Загружаем количество отзывов для ЭТОГО ПОЛЬЗОВАТЕЛЯ (displayUserId)
+            const reviewCountForUser = await fetchReviewCount(displayUserId); // CHANGED: Renamed variable
+            setReviewCount(reviewCountForUser); // CHANGED: Use the renamed variable
 
             // Получаем рейтинг пользователя
             const userRatingInfo = await fetchUserInfo(displayUserId, userTypeForRating);
@@ -1133,7 +1252,7 @@ export default function OrderPage() {
                                     </clipPath>
                                 </defs>
                             </svg>
-                            <p>Отзыв</p>
+                            <p>{reviewCount}</p>
                         </div>
                         <div className={styles.rate_item}>
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

@@ -23,6 +23,7 @@
     padding: 40px;
     background: map.get(vars.$colors, background-primary);
     margin-bottom: 32px;
+    position: relative; // Добавляем для позиционирования кнопки лайка
 
     &_title {
       display: flex;
@@ -129,6 +130,32 @@
       }
     }
 
+    // Стили для кнопки лайка тикета
+    .ticketLikeButton {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 50%;
+      transition: background-color 0.2s ease;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      //&:hover {
+      //  background-color: rgba(58, 84, 218, 0.1);
+      //}
+
+      svg {
+        width: 24px;
+        height: 24px;
+      }
+    }
   }
 }
 
@@ -155,6 +182,18 @@
       &_inform {
         flex-direction: column;
         gap: 8px;
+      }
+
+      .ticketLikeButton {
+        top: 15px;
+        right: 15px;
+        width: 36px;
+        height: 36px;
+
+        svg {
+          width: 20px;
+          height: 20px;
+        }
       }
     }
   }
@@ -185,11 +224,28 @@
           font-size: 16px;
         }
       }
+
+      .ticketLikeButton {
+        top: 10px;
+        right: 10px;
+        width: 32px;
+        height: 32px;
+
+        svg {
+          width: 18px;
+          height: 18px;
+        }
+      }
     }
   }
   .recommendation_item_price {
     margin-left: unset !important;
   }
+}
+
+
+.recommendation_item_price {
+  margin-right: 15px;
 }
 
 .emptyState {
@@ -772,22 +828,33 @@
     }
   }
 
+  // Обновленные стили для кнопки лайка мастера
   .container_like {
     position: absolute;
-    top: 43px;
+    top: 20px;
     right: 20px;
-    cursor: pointer;
     background: none;
     border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: background-color 0.2s ease;
     width: 40px;
     height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
 
-    //.loadingSpinner
-    svg  {
+    &:hover {
+      background-color: rgba(58, 84, 218, 0.1);
+    }
+
+    &.loading {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    svg {
       width: 24px;
       height: 24px;
     }

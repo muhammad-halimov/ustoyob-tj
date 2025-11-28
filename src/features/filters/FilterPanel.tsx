@@ -1,6 +1,15 @@
 import styles from './FilterPanel.module.scss';
 import { useState, useEffect } from 'react';
 
+export interface FilterState {
+    minPrice: string;
+    maxPrice: string;
+    category: string;
+    rating: string;
+    reviewCount: string;
+    sortBy: string;
+}
+
 interface FilterPanelProps {
     showFilters: boolean;
     setShowFilters: (show: boolean) => void;
@@ -9,37 +18,33 @@ interface FilterPanelProps {
     onResetFilters: () => void;
     categories: { id: number; name: string }[];
 }
-export interface FilterState {
-    minPrice: string;
-    maxPrice: string;
-    category: string;
-}
 
 function FilterPanel({
                          showFilters,
                          setShowFilters,
                          onFilterChange,
                          filters,
-                         onResetFilters
+                         onResetFilters,
+                         categories
                      }: FilterPanelProps) {
     const [localFilters, setLocalFilters] = useState<FilterState>(filters);
-    const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
 
     // Синхронизация с внешними фильтрами
     useEffect(() => {
         setLocalFilters(filters);
     }, [filters]);
 
-    // Загрузка категорий
-    useEffect(() => {
-        fetch('https://admin.ustoyob.tj/api/categories')
-            .then(res => res.json())
-            .then(data => {
-                const formatted = data.map((cat: any) => ({ id: cat.id, name: cat.title }));
-                setCategories(formatted);
-            })
-            .catch(err => console.error(err));
-    }, []);
+    const handleRatingChange = (value: string) => {
+        setLocalFilters(prev => ({ ...prev, rating: value }));
+    };
+
+    const handleReviewCountChange = (value: string) => {
+        setLocalFilters(prev => ({ ...prev, reviewCount: value }));
+    };
+
+    const handleSortChange = (value: string) => {
+        setLocalFilters(prev => ({ ...prev, sortBy: value }));
+    };
 
     const handlePriceChange = (field: 'minPrice' | 'maxPrice', value: string) => {
         setLocalFilters(prev => ({ ...prev, [field]: value }));
@@ -51,11 +56,18 @@ function FilterPanel({
 
     const handleApplyFilters = () => {
         onFilterChange(localFilters);
-        setShowFilters(true);
+        setShowFilters(false);
     };
 
     const handleCancel = () => {
-        const resetFilters: FilterState = { minPrice: '', maxPrice: '', category: '' };
+        const resetFilters: FilterState = {
+            minPrice: '',
+            maxPrice: '',
+            category: '',
+            rating: '',
+            reviewCount: '',
+            sortBy: ''
+        };
         setLocalFilters(resetFilters);
         onResetFilters();
         setShowFilters(false);
@@ -69,6 +81,28 @@ function FilterPanel({
                         <h2>Фильтры</h2>
                     </div>
 
+                    {/* Сортировка */}
+                    <div className={styles.filter_section}>
+                        <h3>Сортировка</h3>
+                        <div className={styles.category_select}>
+                            <select
+                                value={localFilters.sortBy}
+                                onChange={e => handleSortChange(e.target.value)}
+                            >
+                                <option value="">По умолчанию</option>
+                                <option value="rating_desc">По рейтингу (убыв.)</option>
+                                <option value="rating_asc">По рейтингу (возр.)</option>
+                                <option value="reviews_desc">По отзывам (убыв.)</option>
+                                <option value="reviews_asc">По отзывам (возр.)</option>
+                                <option value="price_desc">По цене (убыв.)</option>
+                                <option value="price_asc">По цене (возр.)</option>
+                                <option value="date_desc">По дате (новые)</option>
+                                <option value="date_asc">По дате (старые)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Цена */}
                     <div className={styles.filter_section}>
                         <h3>Цена</h3>
                         <div className={styles.price_inputs}>
@@ -91,6 +125,7 @@ function FilterPanel({
                         </div>
                     </div>
 
+                    {/* Категория */}
                     {categories.length > 0 && (
                         <div className={styles.filter_section}>
                             <h3>Категория</h3>
@@ -109,6 +144,43 @@ function FilterPanel({
                             </div>
                         </div>
                     )}
+
+                    {/* Рейтинг */}
+                    <div className={styles.filter_section}>
+                        <h3>Рейтинг</h3>
+                        <div className={styles.category_select}>
+                            <select
+                                value={localFilters.rating}
+                                onChange={e => handleRatingChange(e.target.value)}
+                            >
+                                <option value="">Любой рейтинг</option>
+                                <option value="5">5 звезд</option>
+                                <option value="4">4+ звезды</option>
+                                <option value="3">3+ звезды</option>
+                                <option value="2">2+ звезды</option>
+                                <option value="1">1+ звезда</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Количество отзывов */}
+                    <div className={styles.filter_section}>
+                        <h3>Количество отзывов</h3>
+                        <div className={styles.category_select}>
+                            <select
+                                value={localFilters.reviewCount}
+                                onChange={e => handleReviewCountChange(e.target.value)}
+                            >
+                                <option value="">Любое количество</option>
+                                <option value="100">100+ отзывов</option>
+                                <option value="50">50+ отзывов</option>
+                                <option value="20">20+ отзывов</option>
+                                <option value="10">10+ отзывов</option>
+                                <option value="5">5+ отзывов</option>
+                                <option value="1">С отзывами</option>
+                            </select>
+                        </div>
+                    </div>
 
                     <div className={styles.filter_section}>
                         <h3>Характеристика</h3>

@@ -324,3 +324,54 @@
     }
   }
 }
+
+.rating_stars {
+  display: flex;
+  flex-direction: column;
+  gap: map.get(vars.$spacing, 3);
+}
+
+.star_option {
+  display: flex;
+  align-items: center;
+  gap: map.get(vars.$spacing, 3);
+  padding: map.get(vars.$spacing, 2) map.get(vars.$spacing, 3);
+  border-radius: map.get(vars.$border-radius, base);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: map.get(vars.$colors, color-stroke);
+  }
+
+  &.selected {
+    background-color: map.get(vars.$colors, actual-blue);
+    color: map.get(vars.$colors, primary-text-white);
+  }
+
+  .stars {
+    display: flex;
+    gap: 2px;
+
+    .star {
+      color: map.get(vars.$colors, star-yellow);
+      font-size: map.get(vars.$font-sizes, xl);
+    }
+  }
+
+  .star_label {
+    font-size: map.get(vars.$font-sizes, base);
+    font-weight: 500;
+  }
+}
+
+// Адаптивность для новых фильтров
+@media (max-width: 480px) {
+  .rating_stars .star_option {
+    padding: map.get(vars.$spacing, 2);
+
+    .star_label {
+      font-size: map.get(vars.$font-sizes, sm);
+    }
+  }
+}

@@ -134,6 +134,7 @@ function FavoritesPage() {
     const [likedMasters, setLikedMasters] = useState<number[]>([]);
     const [likedTickets, setLikedTickets] = useState<number[]>([]);
     const [isLikeLoading, setIsLikeLoading] = useState<number | null>(null);
+    const [favoriteId, setFavoriteId] = useState<number | null>(null);
     const navigate = useNavigate();
     const userRole = getUserRole();
 
@@ -227,6 +228,66 @@ function FavoritesPage() {
         return 'актуально';
     };
 
+
+    const fetchTicketDetailsForUnauthorized = async (ticketId: number): Promise<FavoriteTicket | null> => {
+        try {
+            // Пробуем получить данные через публичные endpoints
+            const endpoints = [
+                '/api/tickets/clients',
+                '/api/tickets/masters'
+            ];
+
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}${endpoint}`);
+
+                    if (response.ok) {
+                        const ticketsData: ApiTicket[] = await response.json();
+                        const ticket = ticketsData.find(t => t.id === ticketId);
+
+                        if (ticket) {
+                            console.log(`Found ticket ${ticketId} in ${endpoint} for unauthorized user:`, ticket);
+
+                            const userType = endpoint.includes('masters') ? 'master' : 'client';
+                            const authorId = userType === 'master'
+                                ? ticket.master?.id || 0
+                                : ticket.author?.id || 0;
+
+                            return {
+                                id: ticket.id,
+                                title: ticket.title || 'Без названия',
+                                price: ticket.budget || 0,
+                                unit: ticket.unit?.title || 'tjs',
+                                description: ticket.description || 'Описание отсутствует',
+                                address: getFullAddress(ticket),
+                                date: formatDate(ticket.createdAt),
+                                author: userType === 'master'
+                                    ? `${ticket.master?.name || ''} ${ticket.master?.surname || ''}`.trim() || 'Мастер'
+                                    : `${ticket.author?.name || ''} ${ticket.author?.surname || ''}`.trim() || 'Клиент',
+                                authorId: authorId,
+                                timeAgo: getTimeAgo(ticket.createdAt),
+                                category: ticket.category?.title || 'другое',
+                                status: getTicketStatus(ticket.active, ticket.service),
+                                type: userType,
+                                active: ticket.active,
+                                service: ticket.service
+                            };
+                        }
+                    }
+                } catch (error) {
+                    console.error(`Error fetching tickets from ${endpoint} for unauthorized:`, error);
+                }
+            }
+
+            console.log(`Ticket with ID ${ticketId} not found for unauthorized user`);
+            return null;
+
+        } catch (error) {
+            console.error('Error fetching ticket details for unauthorized:', error);
+            return null;
+        }
+    };
+
     const fetchFavorites = async () => {
         try {
             const token = getAuthToken();
@@ -236,6 +297,17 @@ function FavoritesPage() {
                 const localFavorites = loadLocalStorageFavorites();
                 setLikedMasters(localFavorites.masters);
                 setLikedTickets(localFavorites.tickets);
+
+                // ДОБАВЬТЕ ЭТОТ КОД: загружаем детали тикетов
+                let tickets: FavoriteTicket[] = [];
+                for (const ticketId of localFavorites.tickets) {
+                    const ticketDetails = await fetchTicketDetailsForUnauthorized(ticketId);
+                    if (ticketDetails) {
+                        tickets.push(ticketDetails);
+                    }
+                }
+                setFavoriteTickets(tickets);
+
                 setIsLoading(false);
                 return;
             }
@@ -250,6 +322,7 @@ function FavoritesPage() {
             if (response.ok) {
                 const favorite: Favorite = await response.json();
                 console.log('Favorite data:', favorite);
+                setFavoriteId(favorite.id);
 
                 let tickets: FavoriteTicket[] = [];
                 let masters: Master[] = [];
@@ -480,6 +553,230 @@ function FavoritesPage() {
         navigate(`/order/${authorId}?ticket=${ticketId}`);
     };
 
+    // Функция для снятия лайка с тикета
+    const handleUnlikeTicket = async (ticketId: number) => {
+        const token = getAuthToken();
+        if (!favoriteId) return;
+
+        const ticketIri = `/api/tickets/${ticketId}`;
+
+        try {
+            const currentFavoritesResponse = await fetch(`${API_BASE_URL}/api/favorites/me`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (currentFavoritesResponse.ok) {
+                const currentFavorite = await currentFavoritesResponse.json();
+
+                const existingMasters = currentFavorite.masters?.map((master: any) => `/api/users/${master.id}`) || [];
+                const existingClients = currentFavorite.clients?.map((client: any) => `/api/users/${client.id}`) || [];
+                const existingTickets = currentFavorite.tickets?.map((ticket: any) => `/api/tickets/${ticket.id}`) || [];
+
+                const updatedTickets = existingTickets.filter((ticket: string) => ticket !== ticketIri);
+
+                const updateData = {
+                    masters: existingMasters,
+                    clients: existingClients,
+                    tickets: updatedTickets
+                };
+
+                console.log("PATCH UNLIKE TICKET:", updateData);
+
+                const patchResponse = await fetch(`${API_BASE_URL}/api/favorites/${favoriteId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/merge-patch+json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(updateData)
+                });
+
+                if (patchResponse.ok) {
+                    setLikedTickets(prev => prev.filter(id => id !== ticketId));
+                    console.log('Successfully removed ticket from favorites');
+                    window.dispatchEvent(new Event('favoritesUpdated'));
+
+                    // Обновляем список тикетов в избранном
+                    setFavoriteTickets(prev => prev.filter(ticket => ticket.id !== ticketId));
+                } else {
+                    console.error("PATCH error:", await patchResponse.text());
+                    alert('Ошибка при удалении из избранного');
+                }
+            }
+        } catch (error) {
+            console.error('Error removing ticket from favorites:', error);
+            alert('Ошибка при удалении из избранного');
+        }
+    };
+
+    // Обновленная функция для лайка тикетов
+    const handleTicketLike = async (ticketId: number) => {
+        const token = getAuthToken();
+
+        if (!token) {
+            alert('Пожалуйста, войдите в систему чтобы добавить в избранное');
+            return;
+        }
+
+        const isLiked = likedTickets.includes(ticketId) || favoriteTickets.some(ticket => ticket.id === ticketId);
+
+        if (isLiked && favoriteId) {
+            await handleUnlikeTicket(ticketId);
+            return;
+        }
+
+        setIsLikeLoading(ticketId);
+
+        try {
+            const currentFavoritesResponse = await fetch(`${API_BASE_URL}/api/favorites/me`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            let existingFavoriteId: number | null = null;
+            let existingMasters: string[] = [];
+            let existingClients: string[] = [];
+            let existingTickets: string[] = [];
+
+            if (currentFavoritesResponse.ok) {
+                const currentFavorite = await currentFavoritesResponse.json();
+                existingFavoriteId = currentFavorite.id;
+
+                existingMasters = currentFavorite.masters?.map((master: any) => `/api/users/${master.id}`) || [];
+                existingClients = currentFavorite.clients?.map((client: any) => `/api/users/${client.id}`) || [];
+                existingTickets = currentFavorite.tickets?.map((ticket: any) => `/api/tickets/${ticket.id}`) || [];
+
+                console.log('Existing favorites:', {
+                    masters: existingMasters,
+                    clients: existingClients,
+                    tickets: existingTickets
+                });
+            }
+
+            const favoriteIdToUse = existingFavoriteId;
+            const ticketIri = `/api/tickets/${ticketId}`;
+
+            if (existingTickets.includes(ticketIri)) {
+                console.log('Ticket already in favorites');
+                setLikedTickets(prev => [...prev, ticketId]);
+                return;
+            }
+
+            if (favoriteIdToUse) {
+                const updateData: any = {
+                    masters: existingMasters,
+                    clients: existingClients,
+                    tickets: [...existingTickets, ticketIri]
+                };
+
+                console.log('Updating favorite with data:', updateData);
+
+                const patchResponse = await fetch(`${API_BASE_URL}/api/favorites/${favoriteIdToUse}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/merge-patch+json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(updateData)
+                });
+
+                if (patchResponse.ok) {
+                    setLikedTickets(prev => prev.filter(id => id !== ticketId));
+                    setFavoriteTickets(prev => prev.filter(ticket => ticket.id !== ticketId));
+                    console.log('Successfully removed ticket from favorites');
+                    window.dispatchEvent(new Event('favoritesUpdated'));
+                } else {
+                    const errorText = await patchResponse.text();
+                    console.error('Failed to update favorite:', errorText);
+                    alert('Ошибка при добавлении в избранное');
+                }
+            } else {
+                const createData: any = {
+                    masters: [],
+                    clients: [],
+                    tickets: [ticketIri]
+                };
+
+                console.log('Creating new favorite with data:', createData);
+
+                const createResponse = await fetch(`${API_BASE_URL}/api/favorites`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(createData)
+                });
+
+                if (createResponse.ok) {
+                    const newFavorite = await createResponse.json();
+                    setLikedTickets(prev => [...prev, ticketId]);
+                    setFavoriteId(newFavorite.id);
+                    console.log('Successfully created favorite with ticket');
+                    window.dispatchEvent(new Event('favoritesUpdated'));
+                } else {
+                    const errorText = await createResponse.text();
+                    console.error('Failed to create favorite:', errorText);
+                    alert('Ошибка при создании избранного');
+                }
+            }
+
+        } catch (error) {
+            console.error('Error adding to favorites:', error);
+            alert('Ошибка при добавлении в избранное');
+        } finally {
+            setIsLikeLoading(null);
+        }
+    };
+
+    // Функция для лайка тикетов для неавторизованных пользователей
+    const handleTicketLikeUnauthorized = async (ticketId: number) => {
+        const localFavorites = loadLocalStorageFavorites();
+
+        const isCurrentlyLiked = localFavorites.tickets.includes(ticketId);
+        let updatedTickets: number[];
+
+        if (isCurrentlyLiked) {
+            updatedTickets = localFavorites.tickets.filter(id => id !== ticketId);
+            setLikedTickets(prev => prev.filter(id => id !== ticketId));
+            setFavoriteTickets(prev => prev.filter(ticket => ticket.id !== ticketId));
+        } else {
+            updatedTickets = [...localFavorites.tickets, ticketId];
+            setLikedTickets(prev => [...prev, ticketId]);
+
+            // Добавляем детали тикета
+            const ticketDetails = await fetchTicketDetailsForUnauthorized(ticketId);
+            if (ticketDetails) {
+                setFavoriteTickets(prev => [...prev, ticketDetails]);
+            }
+        }
+
+        saveLocalStorageFavorites({
+            ...localFavorites,
+            tickets: updatedTickets
+        });
+
+        window.dispatchEvent(new Event('favoritesUpdated'));
+    };
+
+    // Общая функция для лайка тикетов
+    const handleTicketLikeWrapper = (ticketId: number) => {
+        const token = getAuthToken();
+
+        if (!token) {
+            handleTicketLikeUnauthorized(ticketId);
+            return;
+        }
+
+        // Просто вызываем handleTicketLike - он сам проверит текущий статус
+        handleTicketLike(ticketId);
+    };
+
     const handleLike = async (masterId: number) => {
         const token = getAuthToken();
 
@@ -666,38 +963,6 @@ function FavoritesPage() {
             console.error("PATCH error:", await patchResponse.text());
             alert('Ошибка при удалении из избранного');
         }
-    };
-
-    // Функция для лайка тикетов (для неавторизованных пользователей)
-    const handleTicketLike = (ticketId: number) => {
-        const token = getAuthToken();
-
-        if (!token) {
-            // Для неавторизованных пользователей сохраняем в localStorage
-            const localFavorites = loadLocalStorageFavorites();
-
-            const isCurrentlyLiked = localFavorites.tickets.includes(ticketId);
-            let updatedTickets: number[];
-
-            if (isCurrentlyLiked) {
-                updatedTickets = localFavorites.tickets.filter(id => id !== ticketId);
-                setLikedTickets(prev => prev.filter(id => id !== ticketId));
-            } else {
-                updatedTickets = [...localFavorites.tickets, ticketId];
-                setLikedTickets(prev => [...prev, ticketId]);
-            }
-
-            saveLocalStorageFavorites({
-                ...localFavorites,
-                tickets: updatedTickets
-            });
-
-            window.dispatchEvent(new Event('favoritesUpdated'));
-            return;
-        }
-
-        // Для авторизованных пользователей можно добавить логику сохранения на сервер
-        console.log('Ticket like for authorized user:', ticketId);
     };
 
     const getMasterAddress = (master: Master) => {
@@ -995,14 +1260,15 @@ function FavoritesPage() {
                                 className={styles.ticketLikeButton}
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    handleTicketLike(ticket.id);
+                                    handleTicketLikeWrapper(ticket.id);
                                 }}
+                                disabled={isLikeLoading === ticket.id}
                                 title={likedTickets.includes(ticket.id) ? "Удалить из избранного" : "Добавить в избранное"}
                             >
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path
                                         d="M16.77 2.45C15.7961 2.47092 14.8444 2.74461 14.0081 3.24424C13.1719 3.74388 12.4799 4.45229 12 5.3C11.5201 4.45229 10.8281 3.74388 9.99186 3.24424C9.15563 2.74461 8.2039 2.47092 7.23 2.45C4.06 2.45 1.5 5.3 1.5 8.82C1.5 15.18 12 21.55 12 21.55C12 21.55 22.5 15.18 22.5 8.82C22.5 5.3 19.94 2.45 16.77 2.45Z"
-                                        fill={likedTickets.includes(ticket.id) ? "#3A54DA" : "none"}
+                                        fill={favoriteTickets.some(favTicket => favTicket.id === ticket.id) ? "#3A54DA" : "none"}
                                         stroke="#3A54DA"
                                         strokeWidth="2"
                                         strokeMiterlimit="10"

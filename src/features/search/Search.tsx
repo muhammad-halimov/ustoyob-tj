@@ -1,10 +1,10 @@
 import styles from './Search.module.scss';
 import {useState, useEffect, useCallback, useMemo, useRef} from "react";
-import FilterPanel from "../filters/FilterPanel.tsx";
+import FilterPanel, { FilterState } from "../filters/FilterPanel.tsx";
 import { getAuthToken, getUserRole } from "../../utils/auth";
 import {useNavigate} from "react-router-dom";
 
-// Интерфейсы остаются без изменений
+// Интерфейсы
 interface User {
     id: number;
     email: string;
@@ -45,6 +45,11 @@ interface ApiTicket {
     };
 }
 
+// Тип для тикета с добавленным полем type
+interface TypedTicket extends ApiTicket {
+    type: 'client' | 'master';
+}
+
 interface SearchProps {
     onSearchResults: (results: SearchResult[]) => void;
     onFilterToggle: (isVisible: boolean) => void;
@@ -65,12 +70,6 @@ interface SearchResult {
     type: 'client' | 'master';
 }
 
-interface FilterState {
-    minPrice: string;
-    maxPrice: string;
-    category: string;
-}
-
 const API_BASE_URL = 'https://admin.ustoyob.tj';
 
 // Кэши вне компонента для глобального доступа
@@ -85,7 +84,10 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     const [filters, setFilters] = useState<FilterState>({
         minPrice: '',
         maxPrice: '',
-        category: ''
+        category: '',
+        rating: '',
+        reviewCount: '',
+        sortBy: ''
     });
     const [isLoading, setIsLoading] = useState(false);
     const [categories, setCategories] = useState<{ id: number, name: string }[]>([]);
@@ -98,12 +100,47 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         userRole: 'client' | 'master' | null;
     }>({
         query: '',
-        filters: { minPrice: '', maxPrice: '', category: '' },
+        filters: {
+            minPrice: '',
+            maxPrice: '',
+            category: '',
+            rating: '',
+            reviewCount: '',
+            sortBy: ''
+        },
         userRole: null
     });
 
     // Флаг для предотвращения дублирующих запросов
     const isSearchInProgressRef = useRef(false);
+
+    // Функция сортировки тикетов
+    const sortTickets = useCallback((tickets: TypedTicket[], sortBy: string): TypedTicket[] => {
+        const sortedTickets = [...tickets];
+
+        switch (sortBy) {
+            case 'rating_desc':
+                // Сортировка по рейтингу (если бы было поле rating)
+                return sortedTickets.sort((a, b) => (b.budget || 0) - (a.budget || 0));
+            case 'rating_asc':
+                return sortedTickets.sort((a, b) => (a.budget || 0) - (b.budget || 0));
+            case 'reviews_desc':
+                // Сортировка по отзывам (если бы было поле reviewCount)
+                return sortedTickets.sort((a, b) => (b.budget || 0) - (a.budget || 0));
+            case 'reviews_asc':
+                return sortedTickets.sort((a, b) => (a.budget || 0) - (b.budget || 0));
+            case 'price_desc':
+                return sortedTickets.sort((a, b) => b.budget - a.budget);
+            case 'price_asc':
+                return sortedTickets.sort((a, b) => a.budget - b.budget);
+            case 'date_desc':
+                return sortedTickets.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            case 'date_asc':
+                return sortedTickets.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+            default:
+                return sortedTickets;
+        }
+    }, []);
 
     // Мемоизированные функции
     const getFormattedAddress = useCallback((ticket: ApiTicket): string => {
@@ -181,7 +218,6 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
     // Оптимизированная функция получения пользователя
     const fetchUser = useCallback(async (userId: number, userType: 'client' | 'master'): Promise<User | null> => {
-        // Проверяем кэш
         if (usersCache.has(userId)) {
             return usersCache.get(userId) || null;
         }
@@ -239,7 +275,6 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
     // Оптимизированная функция загрузки категорий
     const fetchCategories = useCallback(async () => {
-        // Если категории уже загружены, не загружаем снова
         if (categoriesCache.size > 0) {
             setCategories(Array.from(categoriesCache.values()));
             return;
@@ -264,7 +299,6 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     name: cat.title
                 }));
 
-                // Сохраняем в кэш
                 formatted.forEach((cat: { id: number, name: string }) => {
                     categoriesCache.set(cat.id, cat);
                 });
@@ -307,7 +341,8 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 masterTickets = await masterResponse.json();
             }
 
-            const allTickets = [
+            // Создаем типизированные тикеты с явным указанием типа
+            const allTickets: TypedTicket[] = [
                 ...clientTickets.map(ticket => ({ ...ticket, type: 'client' as const })),
                 ...masterTickets.map(ticket => ({ ...ticket, type: 'master' as const }))
             ];
@@ -339,7 +374,11 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 return true;
             });
 
-            // Явно указываем тип SearchResult
+            // Применяем сортировку
+            if (filterParams.sortBy) {
+                filteredData = sortTickets(filteredData, filterParams.sortBy);
+            }
+
             const ticketsWithUsers: SearchResult[] = filteredData.map((ticket) => {
                 const authorId = ticket.author?.id || ticket.master?.id || undefined;
                 const userName = ticket.author?.id ? 'Клиент' : ticket.master?.id ? 'Мастер' : 'Пользователь не указан';
@@ -360,7 +399,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     authorId,
                     timeAgo: getTimeAgo(ticket.createdAt),
                     category: ticket.category?.title || 'другое',
-                    type: ticket.type // type уже правильно типизирован как 'client' | 'master'
+                    type: ticket.type
                 };
             });
 
@@ -371,7 +410,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         } finally {
             setIsLoading(false);
         }
-    }, [getFormattedAddress, getTimeAgo]);
+    }, [getFormattedAddress, getTimeAgo, sortTickets]);
 
     // Оптимизированная функция загрузки тикетов по роли
     const fetchTicketsByRole = useCallback(async (query: string = '', filterParams: FilterState) => {
@@ -391,7 +430,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             if (filterParams.category) params.append('category.id', filterParams.category);
 
             const endpoint = userRole === 'client' ? '/api/tickets/masters' : '/api/tickets/clients';
-            const ticketType = userRole === 'client' ? 'master' as const : 'client' as const; // Явно указываем тип
+            const ticketType = userRole === 'client' ? 'master' as const : 'client' as const;
 
             const response = await fetch(`${API_BASE_URL}${endpoint}?${params.toString()}`, {
                 method: 'GET',
@@ -405,7 +444,13 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
             const ticketsData: ApiTicket[] = await response.json();
 
-            const filteredData = ticketsData.filter(ticket => {
+            // Создаем типизированные тикеты
+            const typedTickets: TypedTicket[] = ticketsData.map(ticket => ({
+                ...ticket,
+                type: ticketType
+            }));
+
+            const filteredData = typedTickets.filter(ticket => {
                 if (query.trim()) {
                     const searchTerm = query.trim().toLowerCase();
                     const matchesSearch =
@@ -432,9 +477,14 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 return true;
             });
 
-            // Явно указываем тип SearchResult
+            // Применяем сортировку
+            let sortedData = [...filteredData];
+            if (filterParams.sortBy) {
+                sortedData = sortTickets(sortedData, filterParams.sortBy);
+            }
+
             const ticketsWithUsers: SearchResult[] = await Promise.all(
-                filteredData.map(async (ticket) => {
+                sortedData.map(async (ticket) => {
                     const userName = await getUserName(ticket, ticketType);
                     const authorId = ticketType === 'client' ? ticket.author?.id : ticket.master?.id;
 
@@ -454,7 +504,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                         authorId,
                         timeAgo: getTimeAgo(ticket.createdAt),
                         category: ticket.category?.title || 'другое',
-                        type: ticketType // Используем явно типизированную переменную
+                        type: ticketType
                     };
                 })
             );
@@ -466,35 +516,44 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         } finally {
             setIsLoading(false);
         }
-    }, [userRole, fetchAllTickets, getUserName, getFormattedAddress, getTimeAgo]);
+    }, [userRole, fetchAllTickets, getUserName, getFormattedAddress, getTimeAgo, sortTickets]);
 
     // Оптимизированный обработчик поиска
     const handleSearch = useCallback(async () => {
-        // Проверяем, не выполняется ли уже поиск
         if (isSearchInProgressRef.current) {
             console.log('Search already in progress, skipping...');
             return;
         }
 
-        // Проверяем, изменились ли параметры поиска
-        const currentSearch = { query: searchQuery.trim(), filters, userRole };
+        const currentSearch = {
+            query: searchQuery.trim(),
+            filters,
+            userRole
+        };
         const previousSearch = previousSearchRef.current;
 
         const hasQueryChanged = currentSearch.query !== previousSearch.query;
         const hasFiltersChanged =
             currentSearch.filters.minPrice !== previousSearch.filters.minPrice ||
             currentSearch.filters.maxPrice !== previousSearch.filters.maxPrice ||
-            currentSearch.filters.category !== previousSearch.filters.category;
+            currentSearch.filters.category !== previousSearch.filters.category ||
+            currentSearch.filters.rating !== previousSearch.filters.rating ||
+            currentSearch.filters.reviewCount !== previousSearch.filters.reviewCount ||
+            currentSearch.filters.sortBy !== previousSearch.filters.sortBy;
         const hasRoleChanged = currentSearch.userRole !== previousSearch.userRole;
 
-        // Если ничего не изменилось, не выполняем поиск
         if (!hasQueryChanged && !hasFiltersChanged && !hasRoleChanged) {
             console.log('Search parameters unchanged, skipping...');
             return;
         }
 
-        // Если нет поискового запроса и фильтров - очищаем результаты
-        if (!currentSearch.query && !filters.minPrice && !filters.maxPrice && !filters.category) {
+        if (!currentSearch.query &&
+            !filters.minPrice &&
+            !filters.maxPrice &&
+            !filters.category &&
+            !filters.rating &&
+            !filters.reviewCount &&
+            !filters.sortBy) {
             console.log('Clearing results - no search criteria');
             setShowResults(false);
             setSearchResults([]);
@@ -514,7 +573,6 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             setShowResults(true);
             onSearchResults(results);
 
-            // Обновляем предыдущий поиск
             previousSearchRef.current = currentSearch;
         } catch (error) {
             console.error('Error in handleSearch:', error);
@@ -539,17 +597,34 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     }, [onFilterToggle]);
 
     const handleResetFilters = useCallback(() => {
-        setFilters({ minPrice: '', maxPrice: '', category: '' });
+        setFilters({
+            minPrice: '',
+            maxPrice: '',
+            category: '',
+            rating: '',
+            reviewCount: '',
+            sortBy: ''
+        });
         setShowResults(false);
         setSearchResults([]);
         onSearchResults([]);
-        // Сбрасываем предыдущий поиск
         previousSearchRef.current = {
             query: searchQuery,
-            filters: { minPrice: '', maxPrice: '', category: '' },
+            filters: {
+                minPrice: '',
+                maxPrice: '',
+                category: '',
+                rating: '',
+                reviewCount: '',
+                sortBy: ''
+            },
             userRole
         };
     }, [searchQuery, userRole, onSearchResults]);
+
+    const handleFilterChange = useCallback((newFilters: FilterState) => {
+        setFilters(newFilters);
+    }, []);
 
     // Эффекты
     useEffect(() => {
@@ -564,25 +639,17 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         }, 500);
 
         return () => clearTimeout(debounceTimer);
-    }, [searchQuery, filters.minPrice, filters.maxPrice, filters.category, userRole, handleSearch]);
-
-    // useEffect(() => {
-    //     const debounce = setTimeout(() => {
-    //         if (searchQuery.trim() || filters.minPrice || filters.maxPrice || filters.category) {
-    //             handleSearch();
-    //         } else {
-    //             setShowResults(false);
-    //             setSearchResults([]);
-    //             onSearchResults([]);
-    //         }
-    //     }, 500);
-    //
-    //     return () => clearTimeout(debounce);
-    // }, [searchQuery, filters, handleSearch, onSearchResults]);
-
-    const handleFilterChange = useCallback((newFilters: FilterState) => {
-        setFilters(newFilters);
-    }, []);
+    }, [
+        searchQuery,
+        filters.minPrice,
+        filters.maxPrice,
+        filters.category,
+        filters.rating,
+        filters.reviewCount,
+        filters.sortBy,
+        userRole,
+        handleSearch
+    ]);
 
     // Мемоизированный рендер результатов
     const renderedResults = useMemo(() => {
@@ -709,7 +776,6 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                                     </clipPath>
                                 </defs>
                             </svg>
-
                             <p>Фильтры</p>
                         </button>
                     </div>
