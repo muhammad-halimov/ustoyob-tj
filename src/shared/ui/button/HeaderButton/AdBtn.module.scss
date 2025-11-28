@@ -8,7 +8,7 @@
   max-width: 286px;
   width: 100%;
   color: map.get(vars.$colors, primary-text-white);
-  font-size: 20px;
+  font-size: map.get(vars.$font-sizes, 'lg');
   box-sizing: border-box;
   border: none;
   margin-right: 24px;
@@ -20,5 +20,17 @@
   cursor: pointer;
   &:hover {
     background: map.get(vars.$colors, actual-blue)
+  }
+}
+
+@media screen and (max-width: 480px){
+  .btn {
+    max-width: 164px;
+    width: 100%;
+    font-size: 12px;
+    &:hover {
+      background: map.get(vars.$colors, actual-blue)
+    }
+    margin-right: 4px;
   }
 }

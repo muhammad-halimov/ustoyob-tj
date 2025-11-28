@@ -53,8 +53,8 @@
   text-align: center;
 
   h2 {
-    margin-bottom: map.get(vars.$spacing, 6);
-    font-size: map.get(vars.$font-sizes, lg);
+    margin-bottom: map.get(vars.$spacing, 4);
+    font-size: map.get(vars.$font-sizes, 2xl);
     color: map.get(vars.$colors, text-primary);
     line-height: 1.4;
   }
@@ -66,7 +66,7 @@
 
   .enterPic {
     display: block;
-    margin: 40px auto 40px;
+    margin: 40px auto 5px;
   }
 }
 
@@ -74,7 +74,7 @@
 .form {
   h2 {
     margin-bottom: map.get(vars.$spacing, 8);
-    font-size: map.get(vars.$font-sizes, '3xl');
+    font-size: map.get(vars.$font-sizes, '2xl');
     color: map.get(vars.$colors, text-black);
     text-align: center;
     font-weight: 600;
@@ -83,7 +83,7 @@
   .socialTitle {
     text-align: center;
     margin-top: map.get(vars.$spacing, 6);
-    font-size: map.get(vars.$font-sizes, xl);
+    font-size: map.get(vars.$font-sizes, base);
   }
 
   .socialButtons {
@@ -168,7 +168,7 @@
       top: 50%;
       transform: translateY(-50%);
       pointer-events: none;
-      font-size: 18px;
+      font-size: map.get(vars.$font-sizes, 'base');
       color: map.get(vars.$colors, color-icons);
     }
   }
@@ -179,7 +179,7 @@
     background-color: map.get(vars.$colors, background-btn2);
     color: map.get(vars.$colors, text-black);
     border-radius: map.get(vars.$border-radius, base);
-    font-size: map.get(vars.$font-sizes, '2xl');
+    font-size: map.get(vars.$font-sizes, 'base');
     transition: all 0.2s ease;
     appearance: none;
     cursor: pointer;
@@ -203,7 +203,7 @@
     color: map.get(vars.$colors, text-black);
     border: none;
     border-radius: map.get(vars.$border-radius, base);
-    font-size: map.get(vars.$font-sizes, '2xl');
+    font-size: map.get(vars.$font-sizes, 'base');
 
     &:focus {
       outline: none;
@@ -213,7 +213,7 @@
 
     &::placeholder {
       color: map.get(vars.$colors, text-placeholder);
-      font-size: map.get(vars.$font-sizes, '2xl');
+      font-size: map.get(vars.$font-sizes, 'base');
     }
   }
 }
@@ -230,15 +230,15 @@
 /* Primary button */
 .primaryButton {
   width: 100%;
-  padding: map.get(vars.$spacing, 4);
+  padding: map.get(vars.$spacing, 3);
   background: map.get(vars.$colors, actual-blue);
   color: map.get(vars.$colors, primary-text-white);
   border: none;
   border-radius: map.get(vars.$border-radius, base);
-  font-size: map.get(vars.$font-sizes, '2xl');
+  font-size: map.get(vars.$font-sizes, 'base');
   font-weight: 400;
   cursor: pointer;
-  margin-bottom: map.get(vars.$spacing, 5);
+  margin: 15px auto;
 
   &:hover:not(:disabled) {
     background: #2a44ca;
@@ -255,13 +255,14 @@
 /* Secondary button */
 .secondaryButton {
   width: 100%;
-  padding: map.get(vars.$spacing, 4);
+  padding: map.get(vars.$spacing, 3);
   background: map.get(vars.$colors, background-primary);
   color: map.get(vars.$colors, actual-blue);
   border: 2px solid map.get(vars.$colors, actual-blue);
   border-radius: map.get(vars.$border-radius, base);
-  font-size: map.get(vars.$font-sizes, '2xl');
+  font-size: map.get(vars.$font-sizes, 'base');
   cursor: pointer;
+  margin: 0 auto;
 
   &:hover:not(:disabled) {
     background: map.get(vars.$colors, hover-with-borderBtn);
@@ -282,7 +283,7 @@
   margin-top: map.get(vars.$spacing, 6);
 
   .promptText {
-    font-size: map.get(vars.$font-sizes, '2xl');
+    font-size: map.get(vars.$font-sizes, 'base');
   }
 }
 
@@ -291,7 +292,7 @@
   border: none;
   color: map.get(vars.$colors, actual-blue);
   cursor: pointer;
-  font-size: map.get(vars.$font-sizes, '2xl');
+  font-size: map.get(vars.$font-sizes, 'base');
   font-weight: 500;
   transition: color 0.2s;
   text-decoration: none;
@@ -326,14 +327,46 @@
   }
 
   .form h2 {
-    font-size: map.get(vars.$font-sizes, xl);
+    font-size: map.get(vars.$font-sizes, 'base');
   }
 }
 
 /* Modal sizes */
-.modal_welcome { max-width: 600px; padding: 24px 32px; }
+.modal_welcome { max-width: 520px; padding: 24px 32px; }
 .modal_login { max-width: 520px; }
 .modal_register { max-width: 717px; }
 .modal_forgot_password { max-width: 520px; }
 .modal_verify_code { max-width: 520px; }
 .modal_new_password { max-width: 520px; }
+
+@media screen and (max-width: 480px) {
+  .modal_welcome {
+    max-width: 335px;
+  }
+  .modal_login { max-width: 335px; }
+  .modal_register { max-width: 335px; }
+  .modal_forgot_password { max-width: 335px; }
+  .modal_verify_code { max-width: 335px; }
+  .modal_new_password { max-width: 335px; }
+
+  .roleSelector {
+    width: 100%;
+    button {
+      padding: 8px 16px;
+    }
+  }
+  .modalContent {
+    padding: 20px;
+  }
+
+  .facebookButton img,
+  .googleButton img {
+    width: 70%;
+  }
+
+  .facebookButton ,
+  .googleButton  {
+    margin-right: 0 !important;
+    max-width: unset !important;
+  }
+}

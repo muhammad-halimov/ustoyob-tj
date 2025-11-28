@@ -526,3 +526,47 @@
   text-align: center;
   //margin-top: 40px;
 }
+
+@media screen and (max-width: 480px){
+  .orderTitle {
+    font-size: 18px !important;
+  }
+
+  .category {
+    font-size: 16px !important;
+  }
+
+  .price {
+    font-size: 18px !important;
+  }
+
+  .priceSection {
+    margin: 5px 0 5px 0;
+  }
+
+  .section h2 {
+    font-size: 18px !important;
+  }
+
+  .description,
+  .address {
+    font-size: 16px !important;
+  }
+
+  .commentsContent p {
+    font-size: 16px !important;
+  }
+
+  .rate_item {
+    font-size: 16px !important;
+  }
+
+  .rate_item svg {
+    width: 20px !important;
+    margin-right: 4px !important;
+  }
+
+  .actionButtons {
+    width: 100%;
+  }
+}

@@ -19,6 +19,8 @@ interface FavoriteTicket {
     authorId: number;
     type: 'client' | 'master';
     authorImage?: string;
+    active: boolean;
+    service: boolean;
 }
 
 interface Master {
@@ -50,29 +52,45 @@ interface Master {
 
 interface Favorite {
     id: number;
-    user: { id: number };
+    user: {
+        id: number;
+        email: string;
+        name: string;
+        surname: string;
+        image: string;
+    };
     masters: Array<{
         id: number;
-        name?: string;
-        surname?: string;
-        image?: string;
-        categories?: Array<{ id: number; title: string }>;
-        district?: { id: number; title: string; city: { title: string } };
-        rating?: number;
-        reviewCount?: number;
+        email: string;
+        name: string;
+        surname: string;
+        image: string;
     }>;
     clients: Array<{
         id: number;
-        name?: string;
-        surname?: string;
-        image?: string;
+        email: string;
+        name: string;
+        surname: string;
+        image: string;
     }>;
     tickets: Array<{
         id: number;
         title: string;
         active: boolean;
-        author: { id: number; name?: string; surname?: string; image?: string };
-        master: { id: number; name?: string; surname?: string; image?: string };
+        author: {
+            id: number;
+            email: string;
+            name: string;
+            surname: string;
+            image: string;
+        };
+        master: {
+            id: number;
+            email: string;
+            name: string;
+            surname: string;
+            image: string;
+        };
         service: boolean;
     }>;
 }
@@ -101,6 +119,11 @@ interface ApiTicket {
     images?: { id: number; image: string }[];
 }
 
+interface LocalStorageFavorites {
+    masters: number[];
+    tickets: number[];
+}
+
 const API_BASE_URL = 'https://admin.ustoyob.tj';
 
 function FavoritesPage() {
@@ -109,6 +132,7 @@ function FavoritesPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'orders' | 'masters'>('orders');
     const [likedMasters, setLikedMasters] = useState<number[]>([]);
+    const [likedTickets, setLikedTickets] = useState<number[]>([]);
     const [isLikeLoading, setIsLikeLoading] = useState<number | null>(null);
     const navigate = useNavigate();
     const userRole = getUserRole();
@@ -119,6 +143,28 @@ function FavoritesPage() {
     const [selectedStars, setSelectedStars] = useState(0);
     const [reviewPhotos, setReviewPhotos] = useState<File[]>([]);
     const [selectedMasterId, setSelectedMasterId] = useState<number | null>(null);
+
+    // Загрузка избранного из localStorage для неавторизованных пользователей
+    const loadLocalStorageFavorites = (): LocalStorageFavorites => {
+        try {
+            const stored = localStorage.getItem('favorites');
+            if (stored) {
+                return JSON.parse(stored);
+            }
+        } catch (error) {
+            console.error('Error loading favorites from localStorage:', error);
+        }
+        return { masters: [], tickets: [] };
+    };
+
+    // Сохранение избранного в localStorage для неавторизованных пользователей
+    const saveLocalStorageFavorites = (favorites: LocalStorageFavorites) => {
+        try {
+            localStorage.setItem('favorites', JSON.stringify(favorites));
+        } catch (error) {
+            console.error('Error saving favorites to localStorage:', error);
+        }
+    };
 
     useEffect(() => {
         fetchFavorites();
@@ -136,9 +182,23 @@ function FavoritesPage() {
     }, []);
 
     useEffect(() => {
+        // Загружаем лайки из localStorage для неавторизованных пользователей
+        const token = getAuthToken();
+        if (!token) {
+            const localFavorites = loadLocalStorageFavorites();
+            setLikedMasters(localFavorites.masters);
+            setLikedTickets(localFavorites.tickets);
+        }
+    }, []);
+
+    useEffect(() => {
         if (favoriteMasters.length > 0) {
-            const masterIds = favoriteMasters.map(master => master.id);
-            setLikedMasters(masterIds);
+            const token = getAuthToken();
+            if (token) {
+                // Для авторизованных пользователей используем данные с сервера
+                const masterIds = favoriteMasters.map(master => master.id);
+                setLikedMasters(masterIds);
+            }
         }
     }, [favoriteMasters]);
 
@@ -154,10 +214,31 @@ function FavoritesPage() {
         }
     };
 
+    // Функция для определения реального статуса тикета
+    const getTicketStatus = (active: boolean, service: boolean): string => {
+        if (!active) {
+            return 'не актуально';
+        }
+
+        if (service) {
+            return 'услуга';
+        }
+
+        return 'актуально';
+    };
+
     const fetchFavorites = async () => {
         try {
             const token = getAuthToken();
-            if (!token) return;
+
+            // Для неавторизованных пользователей загружаем только из localStorage
+            if (!token) {
+                const localFavorites = loadLocalStorageFavorites();
+                setLikedMasters(localFavorites.masters);
+                setLikedTickets(localFavorites.tickets);
+                setIsLoading(false);
+                return;
+            }
 
             const response = await fetch(`${API_BASE_URL}/api/favorites/me`, {
                 headers: {
@@ -179,8 +260,14 @@ function FavoritesPage() {
                     for (const ticket of favorite.tickets) {
                         const ticketDetails = await fetchTicketDetails(ticket.id);
                         if (ticketDetails) {
+                            // Используем реальный статус из API
+                            const status = getTicketStatus(ticket.active, ticket.service);
+
                             tickets.push({
                                 ...ticketDetails,
+                                active: ticket.active, // Сохраняем реальный статус
+                                service: ticket.service, // Сохраняем тип услуги
+                                status: status, // Используем вычисленный статус
                                 authorImage: ticket.author?.image ? formatProfileImageUrl(ticket.author.image) :
                                     ticket.master?.image ? formatProfileImageUrl(ticket.master.image) : undefined
                             });
@@ -309,8 +396,10 @@ function FavoritesPage() {
                                 authorId: authorId,
                                 timeAgo: getTimeAgo(ticket.createdAt),
                                 category: ticket.category?.title || 'другое',
-                                status: ticket.active ? 'В работе' : 'Завершен',
-                                type: userType
+                                status: getTicketStatus(ticket.active, ticket.service), // Используем реальный статус
+                                type: userType,
+                                active: ticket.active,
+                                service: ticket.service
                             };
                         }
                     } else {
@@ -393,8 +482,30 @@ function FavoritesPage() {
 
     const handleLike = async (masterId: number) => {
         const token = getAuthToken();
+
         if (!token) {
-            alert('Пожалуйста, войдите в систему чтобы добавить в избранное');
+            // Для неавторизованных пользователей сохраняем в localStorage
+            setIsLikeLoading(masterId);
+            const localFavorites = loadLocalStorageFavorites();
+
+            const isCurrentlyLiked = localFavorites.masters.includes(masterId);
+            let updatedMasters: number[];
+
+            if (isCurrentlyLiked) {
+                updatedMasters = localFavorites.masters.filter(id => id !== masterId);
+                setLikedMasters(prev => prev.filter(id => id !== masterId));
+            } else {
+                updatedMasters = [...localFavorites.masters, masterId];
+                setLikedMasters(prev => [...prev, masterId]);
+            }
+
+            saveLocalStorageFavorites({
+                ...localFavorites,
+                masters: updatedMasters
+            });
+
+            setIsLikeLoading(null);
+            window.dispatchEvent(new Event('favoritesUpdated'));
             return;
         }
 
@@ -508,7 +619,6 @@ function FavoritesPage() {
             });
 
             if (createResponse.ok) {
-                // Убрали неиспользуемую переменную newFavorite
                 await createResponse.json();
                 setLikedMasters(prev => [...prev, masterId]);
                 console.log('Successfully created favorite with master');
@@ -558,6 +668,38 @@ function FavoritesPage() {
         }
     };
 
+    // Функция для лайка тикетов (для неавторизованных пользователей)
+    const handleTicketLike = (ticketId: number) => {
+        const token = getAuthToken();
+
+        if (!token) {
+            // Для неавторизованных пользователей сохраняем в localStorage
+            const localFavorites = loadLocalStorageFavorites();
+
+            const isCurrentlyLiked = localFavorites.tickets.includes(ticketId);
+            let updatedTickets: number[];
+
+            if (isCurrentlyLiked) {
+                updatedTickets = localFavorites.tickets.filter(id => id !== ticketId);
+                setLikedTickets(prev => prev.filter(id => id !== ticketId));
+            } else {
+                updatedTickets = [...localFavorites.tickets, ticketId];
+                setLikedTickets(prev => [...prev, ticketId]);
+            }
+
+            saveLocalStorageFavorites({
+                ...localFavorites,
+                tickets: updatedTickets
+            });
+
+            window.dispatchEvent(new Event('favoritesUpdated'));
+            return;
+        }
+
+        // Для авторизованных пользователей можно добавить логику сохранения на сервер
+        console.log('Ticket like for authorized user:', ticketId);
+    };
+
     const getMasterAddress = (master: Master) => {
         const d = master.districts?.[0];
         if (!d) return 'Адрес не указан';
@@ -569,8 +711,13 @@ function FavoritesPage() {
         return [province, city, district].filter(Boolean).join(', ');
     };
 
-
     const handleMasterChat = async (authorId: number) => {
+        const token = getAuthToken();
+        if (!token) {
+            alert('Пожалуйста, войдите в систему чтобы написать мастеру');
+            return;
+        }
+
         const chat = await createChatWithAuthor(authorId);
         if (chat) {
             navigate(`/chats?chatId=${chat.id}`);
@@ -581,6 +728,12 @@ function FavoritesPage() {
 
     // Функции для модального окна отзыва
     const handleMasterReview = (masterId: number) => {
+        const token = getAuthToken();
+        if (!token) {
+            alert('Пожалуйста, войдите в систему чтобы оставить отзыв');
+            return;
+        }
+
         setSelectedMasterId(masterId);
         setShowReviewModal(true);
     };
@@ -766,6 +919,21 @@ function FavoritesPage() {
     const hasMasters = favoriteMasters.length > 0;
     const hasNoFavorites = !hasOrders && !hasMasters;
 
+    // Для неавторизованных пользователей показываем сообщение о необходимости авторизации
+    const token = getAuthToken();
+    if (!token && hasNoFavorites) {
+        return (
+            <div className={styles.recommendation}>
+                <div className={styles.recommendation_wrap}>
+                    <div className={styles.emptyState}>
+                        <p>Войдите в систему, чтобы увидеть избранное</p>
+                        <p>Или добавляйте понравившиеся заказы и мастеров в избранное</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     if (hasNoFavorites) {
         return (
             <div className={styles.recommendation}>
@@ -822,6 +990,25 @@ function FavoritesPage() {
                             <span className={styles.recommendation_item_price}>
                                 {ticket.price.toLocaleString('ru-RU')} {ticket.unit}
                             </span>
+                            {/* Кнопка лайка для тикета */}
+                            <button
+                                className={styles.ticketLikeButton}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleTicketLike(ticket.id);
+                                }}
+                                title={likedTickets.includes(ticket.id) ? "Удалить из избранного" : "Добавить в избранное"}
+                            >
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path
+                                        d="M16.77 2.45C15.7961 2.47092 14.8444 2.74461 14.0081 3.24424C13.1719 3.74388 12.4799 4.45229 12 5.3C11.5201 4.45229 10.8281 3.74388 9.99186 3.24424C9.15563 2.74461 8.2039 2.47092 7.23 2.45C4.06 2.45 1.5 5.3 1.5 8.82C1.5 15.18 12 21.55 12 21.55C12 21.55 22.5 15.18 22.5 8.82C22.5 5.3 19.94 2.45 16.77 2.45Z"
+                                        fill={likedTickets.includes(ticket.id) ? "#3A54DA" : "none"}
+                                        stroke="#3A54DA"
+                                        strokeWidth="2"
+                                        strokeMiterlimit="10"
+                                    />
+                                </svg>
+                            </button>
                         </div>
                         <div className={styles.recommendation_item_status}>
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -842,6 +1029,7 @@ function FavoritesPage() {
                                     </clipPath>
                                 </defs>
                             </svg>
+                            {/* Отображаем реальный статус */}
                             <p>{ticket.status}</p>
                         </div>
                         <div className={styles.recommendation_item_description}>

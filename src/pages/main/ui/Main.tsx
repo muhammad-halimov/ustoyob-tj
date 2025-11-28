@@ -9,6 +9,9 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getUserRole } from "../../../utils/auth.ts";
 
+import { Swiper, SwiperSlide } from "swiper/react";
+import "swiper/css";
+
 interface SearchResult {
     id: number;
     title: string;
@@ -30,9 +33,9 @@ export function MainPage() {
 
     const masters = [
         { id: 1, name: "Поиск проверенных мастеров", title: "Найдите специалиста нужного профиля в пару кликов: стройка, ремонт, сантехника и многое другое." },
-        { id: 2, name: "Поиск проверенных мастеров", title: "Найдите специалиста нужного профиля в пару кликов: стройка, ремонт, сантехника и многое другое." },
-        { id: 3, name: "Поиск проверенных мастеров", title: "Найдите специалиста нужного профиля в пару кликов: стройка, ремонт, сантехника и многое другое." },
-        { id: 4, name: "Поиск проверенных мастеров", title: "Найдите специалиста нужного профиля в пару кликов: стройка, ремонт, сантехника и многое другое." },
+        { id: 2, name: "Поиск проверенных мастеров2", title: "Найдите специалиста нужного профиля в пару кликов: стройка, ремонт, сантехника и многое другое." },
+        { id: 3, name: "Поиск проверенных мастеров3", title: "Найдите специалиста нужного профиля в пару кликов: стройка, ремонт, сантехника и многое другое." },
+        { id: 4, name: "Поиск проверенных мастеров4", title: "Найдите специалиста нужного профиля в пару кликов: стройка, ремонт, сантехника и многое другое." },
     ];
 
     const worker = [
@@ -87,13 +90,34 @@ export function MainPage() {
                     </div>
 
                     <div className={styles.searchMasters}>
-                        {masters.map(master => (
-                            <div className={styles.searchMasters_item} key={master.id}>
-                                <img src="./fonTest2.png" alt="fonTest2" />
-                                <h3 className={styles.searchMasters_item_welc}>{master.name}</h3>
-                                <p className={styles.searchMasters_item_title}>{master.title}</p>
-                            </div>
-                        ))}
+                        {/* MOBILE SLIDER */}
+                        <div className={styles.mobileSlider}>
+                            <Swiper
+                                spaceBetween={16}
+                                slidesPerView={1.2}
+                            >
+                                {masters.map(master => (
+                                    <SwiperSlide key={master.id}>
+                                        <div className={styles.searchMasters_item}>
+                                            <img src="./fonTest2.png" alt="fonTest2" />
+                                            <h3 className={styles.searchMasters_item_welc}>{master.name}</h3>
+                                            <p className={styles.searchMasters_item_title}>{master.title}</p>
+                                        </div>
+                                    </SwiperSlide>
+                                ))}
+                            </Swiper>
+                        </div>
+
+                        {/* DESKTOP GRID */}
+                        <div className={styles.desktopGrid}>
+                            {masters.map(master => (
+                                <div className={styles.searchMasters_item} key={master.id}>
+                                    <img src="./fonTest2.png" alt="fonTest2" />
+                                    <h3 className={styles.searchMasters_item_welc}>{master.name}</h3>
+                                    <p className={styles.searchMasters_item_title}>{master.title}</p>
+                                </div>
+                            ))}
+                        </div>
                     </div>
 
                     <About />

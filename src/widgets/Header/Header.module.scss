@@ -20,7 +20,7 @@
 
     .locate {
       font-family: vars.$font-family;
-      font-size: map.get(vars.$font-sizes, '2xl');
+      font-size: map.get(vars.$font-sizes, 'lg');
       color: map.get(vars.$colors, actual-blue);
       padding-left: 4px;
       align-items: center;
@@ -32,12 +32,16 @@
       display: flex;
       align-items: center;
       gap: 16px;
+      .rightPart_buttons {
+        display: flex;
+        gap: 10px;
+      }
 
       .rightPart_lang__box {
         display: flex;
         align-items: center;
         font-family: vars.$font-family;
-        font-size: 20px;
+        font-size: map.get(vars.$font-sizes, 'lg');
         gap: 8px;
       }
 
@@ -76,6 +80,7 @@
             p {
               font-family: vars.$font-family;
               margin-top: 16.5px;
+              font-size: map.get(vars.$font-sizes, 'base');
             }
             &:hover, :active {
               color: map.get(vars.$colors, actual-blue);
@@ -195,4 +200,60 @@
     color: #1976d2;
     font-weight: 500;
   }
+}
+
+@media (max-width: 480px) {
+  .rightPart_buttons {
+    display: none !important;
+  }
+  .bottomHeader_wrap {
+    padding: 10px 20px !important;
+  }
+
+  .headerWrap {
+    padding: 12px 20px !important;
+  }
+  .flagIcon {
+    width: 25px !important;
+    height: 17px !important;
+  }
+  .bottomHeader_nav {
+    display: none !important;
+  }
+  .bottomHeader_wrap {
+    display: flex !important;
+    .rightPart_buttons_mobile {
+      display: flex;
+    }
+  }
+  .logo_mobile {
+    width: 70px !important;
+    height: 29px !important;
+  }
+
+  .mobile_header {
+    display: block !important;
+    height: 50px;
+    border-top: 1px solid rgba(158, 158, 158, 0.5);
+    ul {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 20px;
+      list-style: none;
+      a {
+        text-decoration: none;
+        color: black;
+        font-size: 14px !important;
+      }
+    }
+  }
+
+}
+
+.rightPart_buttons_mobile {
+  display: none;
+}
+
+.mobile_header {
+  display: none;
 }

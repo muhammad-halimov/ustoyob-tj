@@ -65,7 +65,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
     React.useEffect(() => {
         const loadCategories = async () => {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/categories`);
+                const response = await fetch(`${API_BASE_URL}/api/occupations`);
                 if (response.ok) {
                     const data = await response.json();
                     setCategories(data);
@@ -232,7 +232,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 }
 
 
-                window.location.reload();
+                if (onLoginSuccess) {
+                    onLoginSuccess(data.token, formData.email);
+                }
+
                 onClose();
                 resetForm();
 
@@ -416,7 +419,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
             alert(`Регистрация успешна! Вы зарегистрированы как ${formData.role === 'master' ? 'специалист' : 'клиент'}`);
 
-            window.location.reload();
+            if (onLoginSuccess) {
+                onLoginSuccess(loginData.token, email);
+            }
+
             onClose();
             resetForm();
 
@@ -476,9 +482,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
     const renderWelcomeScreen = () => {
         return (
             <div className={styles.welcomeScreen}>
-                <h2>Войдите, чтобы получить доступ к функциям сервиса</h2>
                 <div className={styles.welcomeButtons}>
-                    <img className={styles.enterPic} src="../enter_pic.png" alt="enter" width='280'/>
+                    <img className={styles.enterPic} src="../Logo.svg" alt="enter" width='120'/>
+                    <h2>Вход</h2>
                     <button
                         className={styles.primaryButton}
                         onClick={() => setCurrentState(AuthModalState.LOGIN)}
@@ -541,14 +547,14 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         className={styles.facebookButton}
                         // disabled={isLoading}
                     >
-                        <img src="./facebook.png" alt="Facebook" />
+                        <img src="../facebook.png" alt="Facebook" />
                     </a>
 
                     <a
                         className={styles.googleButton}
                         // disabled={isLoading}
                     >
-                        <img src="./google.png" alt="Google" />
+                        <img src="../google.png" alt="Google" />
                     </a>
                 </div>
 
@@ -696,14 +702,14 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         className={styles.facebookButton}
                         // disabled={isLoading}
                     >
-                        <img src="./facebook.png" alt="Facebook" />
+                        <img src="../facebook.png" alt="Facebook" />
                     </a>
 
                     <a
                         className={styles.googleButton}
                         // disabled={isLoading}
                     >
-                        <img src="./google.png" alt="Google" />
+                        <img src="../google.png" alt="Google" />
                     </a>
                 </div>
 

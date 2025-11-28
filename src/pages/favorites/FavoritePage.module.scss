@@ -31,7 +31,7 @@
       margin-bottom: 9px;
 
       h4 {
-        font-size: 32px;
+        font-size: 28px;
         font-weight: 600;
         color: #000;
         margin: 0;
@@ -67,7 +67,7 @@
       }
 
       p {
-        font-size: 20px;
+        font-size: 18px;
         color: map.get(vars.$colors, text-black);
         margin: 0;
       }
@@ -75,7 +75,7 @@
 
     &_description {
       p {
-        font-size: 24px;
+        font-size: 20px;
         color: map.get(vars.$colors, text-black);
         margin: 0 0 20px 0;
       }
@@ -104,7 +104,7 @@
       }
 
       p {
-        font-size: 20px;
+        font-size: 18px;
         color: map.get(vars.$colors, text-black);
         margin: 0;
         font-weight: 400;
@@ -135,12 +135,12 @@
 // Адаптивность для мобильных устройств
 @media (max-width: 768px) {
   .recommendation {
-    &_wrap {
-      padding: 16px;
-    }
+    //&_wrap {
+    //  padding: 16px;
+    //}
 
     &_item {
-      padding: 12px;
+      padding: 20px;
 
       &_title {
         flex-direction: column;
@@ -162,6 +162,7 @@
 
 @media (max-width: 480px) {
   .recommendation {
+    margin-top: 0 !important;
     &_item {
       &_title {
         h4 {
@@ -181,10 +182,13 @@
       &_locate,
       &_who {
         p {
-          font-size: 11px;
+          font-size: 16px;
         }
       }
     }
+  }
+  .recommendation_item_price {
+    margin-left: unset !important;
   }
 }
 

@@ -20,8 +20,8 @@ interface ApiUser {
     phone1: string;
     phone2: string;
     image?: string;
-    isOnline?: boolean; // Добавляем поле для статуса онлайн
-    lastSeen?: string; // Время последней активности
+    isOnline?: boolean;
+    lastSeen?: string;
 }
 
 interface ApiMessage {
@@ -51,10 +51,8 @@ function Chat() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [currentUser, setCurrentUser] = useState<ApiUser | null>(null);
-    const [showCreateChat, setShowCreateChat] = useState(false);
-    const [availableUsers, setAvailableUsers] = useState<ApiUser[]>([]);
-    const [isLoadingUsers, setIsLoadingUsers] = useState(false);
     const [onlineStatuses, setOnlineStatuses] = useState<{[key: number]: boolean}>({});
+    const [isMobileChatActive, setIsMobileChatActive] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -78,6 +76,9 @@ function Chat() {
     useEffect(() => {
         if (selectedChat) {
             startPolling(selectedChat);
+            if (window.innerWidth <= 480) {
+                setIsMobileChatActive(true);
+            }
         } else {
             setMessages([]);
             stopPolling();
@@ -99,7 +100,6 @@ function Chat() {
         }
     }, [chatIdFromUrl, chats]);
 
-    // Запускаем проверку статусов онлайн при наличии чатов
     useEffect(() => {
         if (chats.length > 0) {
         }
@@ -120,18 +120,6 @@ function Chat() {
         }
 
         return chat.author.id === currentUser.id ? chat.replyAuthor : chat.author;
-    };
-
-    // Функция для проверки существующего чата с пользователем
-    const findExistingChat = (replyAuthorId: number): number | null => {
-        if (!currentUser) return null;
-
-        const existingChat = chats.find(chat =>
-            (chat.author.id === currentUser.id && chat.replyAuthor.id === replyAuthorId) ||
-            (chat.author.id === replyAuthorId && chat.replyAuthor.id === currentUser.id)
-        );
-
-        return existingChat ? existingChat.id : null;
     };
 
     const fetchChatById = async (chatId: number) => {
@@ -188,35 +176,6 @@ function Chat() {
         }
     };
 
-    // const checkUserOnlineStatus = async (userId: number) => {
-    //     try {
-    //         const token = getAuthToken();
-    //         if (!token) return;
-    //
-    //         // Здесь нужно использовать ваш реальный endpoint для проверки статуса
-    //         // Предположим, что есть endpoint /api/users/{id}/status
-    //         const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
-    //             headers: {
-    //                 'Authorization': `Bearer ${token}`,
-    //                 'Accept': 'application/json',
-    //             },
-    //         });
-    //
-    //         if (response.ok) {
-    //             const userData = await response.json();
-    //             // Предположим, что в ответе есть поле isOnline
-    //             const isOnline = userData.isOnline || false;
-    //
-    //             setOnlineStatuses(prev => ({
-    //                 ...prev,
-    //                 [userId]: isOnline
-    //             }));
-    //         }
-    //     } catch (error) {
-    //         console.error(`Error checking status for user ${userId}:`, error);
-    //     }
-    // };
-
     const getOnlineStatus = (userId: number): boolean => {
         return onlineStatuses[userId] || false;
     };
@@ -251,7 +210,6 @@ function Chat() {
                 const chatData: ApiChat = await response.json();
                 processApiMessages(chatId, chatData.messages || []);
 
-                // Обновляем информацию о собеседнике при получении новых сообщений
                 const interlocutor = getInterlocutorFromChat(chatData);
                 if (interlocutor) {
                     // await checkUserOnlineStatus(interlocutor.id);
@@ -277,7 +235,6 @@ function Chat() {
                 : ""
         }));
 
-        // Автоматически определяем онлайн статус по последнему сообщению
         if (apiMessages.length > 0) {
             const lastMessage = apiMessages[apiMessages.length - 1];
             const interlocutorId = lastMessage.author.id === currentUser?.id
@@ -285,9 +242,8 @@ function Chat() {
                 : lastMessage.author.id;
 
             if (interlocutorId) {
-                // Если сообщение было отправлено менее 2 минут назад - считаем онлайн
                 const messageTime = new Date(lastMessage.createdAt || '').getTime();
-                const isOnline = Date.now() - messageTime < 2 * 60 * 1000; // 2 минуты
+                const isOnline = Date.now() - messageTime < 2 * 60 * 1000;
 
                 setOnlineStatuses(prev => ({
                     ...prev,
@@ -400,123 +356,12 @@ function Chat() {
                     phone1: "+992987654321",
                     phone2: "",
                     isOnline: false,
-                    lastSeen: new Date(Date.now() - 15 * 60 * 1000).toISOString() // 15 минут назад
+                    lastSeen: new Date(Date.now() - 15 * 60 * 1000).toISOString()
                 },
                 messages: [],
                 images: []
             }
         ];
-    };
-
-    const fetchAvailableUsers = async () => {
-        setIsLoadingUsers(true);
-        try {
-            const token = getAuthToken();
-            if (!token) return;
-
-            // Запрашиваем реальных пользователей вместо моковых данных
-            const response = await fetch(`${API_BASE_URL}/api/users`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json',
-                },
-            });
-
-            if (response.ok) {
-                const usersData = await response.json();
-                setAvailableUsers(usersData);
-            } else {
-                // Fallback на моковые данные
-                const mockUsers: ApiUser[] = [
-                    {
-                        id: 2,
-                        email: "master1@example.com",
-                        name: "Алишер",
-                        surname: "Каримов",
-                        phone1: "+992123456789",
-                        phone2: "",
-                        isOnline: true
-                    },
-                    {
-                        id: 3,
-                        email: "master2@example.com",
-                        name: "Фаррух",
-                        surname: "Юсупов",
-                        phone1: "+992987654321",
-                        phone2: "",
-                        isOnline: false
-                    }
-                ];
-                setAvailableUsers(mockUsers);
-            }
-        } catch (error) {
-            console.error('Error fetching available users:', error);
-            const mockUsers: ApiUser[] = [
-                {
-                    id: 2,
-                    email: "master1@example.com",
-                    name: "Алишер",
-                    surname: "Каримов",
-                    phone1: "+992123456789",
-                    phone2: "",
-                    isOnline: true
-                },
-                {
-                    id: 3,
-                    email: "master2@example.com",
-                    name: "Фаррух",
-                    surname: "Юсупов",
-                    phone1: "+992987654321",
-                    phone2: "",
-                    isOnline: false
-                }
-            ];
-            setAvailableUsers(mockUsers);
-        } finally {
-            setIsLoadingUsers(false);
-        }
-    };
-
-    const createNewChat = async (replyAuthorId: number) => {
-        if (!currentUser) return;
-
-        // Проверяем существующий чат
-        const existingChatId = findExistingChat(replyAuthorId);
-        if (existingChatId) {
-            setSelectedChat(existingChatId);
-            setShowCreateChat(false);
-            return;
-        }
-
-        try {
-            const token = getAuthToken();
-            if (!token) return;
-
-            const response = await fetch(`${API_BASE_URL}/api/chats`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    replyAuthor: `/api/users/${replyAuthorId}`
-                })
-            });
-
-            if (response.ok) {
-                const newChat: ApiChat = await response.json();
-                setChats(prev => [...prev, newChat]);
-                setSelectedChat(newChat.id);
-                setShowCreateChat(false);
-            } else {
-                const errorText = await response.text();
-                console.error('Error creating chat:', errorText);
-                setError('Ошибка при создании чата');
-            }
-        } catch (error) {
-            console.error('Error creating chat:', error);
-            setError('Ошибка при создании чата');
-        }
     };
 
     const sendMessage = async () => {
@@ -530,7 +375,6 @@ function Chat() {
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
 
-        // Локально добавляем сообщение
         setMessages(prev => [...prev, newMessageObj]);
         setNewMessage("");
 
@@ -560,7 +404,6 @@ function Chat() {
                 const newMessageData = await response.json();
                 console.log('Новое сообщение создано:', newMessageData);
 
-                // Обновляем чат чтобы получить обновленные сообщения
                 fetchChatMessages(chatId);
             } else {
                 const errorText = await response.text();
@@ -589,24 +432,31 @@ function Chat() {
         return msg?.text || 'Нет сообщений';
     };
 
-    const handleCreateChatClick = () => {
-        setShowCreateChat(true);
-        fetchAvailableUsers();
+    const handleChatSelect = (chatId: number) => {
+        setSelectedChat(chatId);
+        if (window.innerWidth <= 480) {
+            setIsMobileChatActive(true);
+        }
+    };
+
+    const handleBackToChatList = () => {
+        setIsMobileChatActive(false);
     };
 
     const currentChat = chats.find(chat => chat.id === selectedChat);
     const currentInterlocutor = currentChat ? getInterlocutorFromChat(currentChat) : null;
     const showChatArea = selectedChat !== null && currentInterlocutor !== null;
 
-    // Получаем статус текущего собеседника
     const currentInterlocutorStatus = currentInterlocutor
         ? getOnlineStatus(currentInterlocutor.id)
         : false;
 
+    const chatContainerClass = `${styles.chat} ${isMobileChatActive ? styles.chatAreaActive : ''}`;
+
     if (isLoading) return <div className={styles.chat}>Загрузка чатов...</div>;
 
     return (
-        <div className={styles.chat}>
+        <div className={chatContainerClass}>
             {/* Sidebar */}
             <div className={styles.sidebar}>
                 <div className={styles.searchBar}>
@@ -622,7 +472,6 @@ function Chat() {
                     {chats.length === 0 ? (
                         <div className={styles.noChatsContainer}>
                             <div className={styles.noChats}>Чатов нет</div>
-                            <button className={styles.createChatButton} onClick={handleCreateChatClick}>Создать чат</button>
                         </div>
                     ) : (
                         chats.map(chat => {
@@ -635,7 +484,7 @@ function Chat() {
                             const isOnline = getOnlineStatus(interlocutor.id);
 
                             return (
-                                <div key={chat.id} className={`${styles.chatItem} ${selectedChat === chat.id ? styles.selected : ""}`} onClick={() => setSelectedChat(chat.id)}>
+                                <div key={chat.id} className={`${styles.chatItem} ${selectedChat === chat.id ? styles.selected : ""}`} onClick={() => handleChatSelect(chat.id)}>
                                     <div className={styles.avatar}>
                                         {interlocutor.image ? (
                                             <img
@@ -671,6 +520,12 @@ function Chat() {
                     <>
                         <div className={styles.chatHeader}>
                             <div className={styles.headerLeft}>
+                                <button
+                                    className={styles.backButton}
+                                    onClick={handleBackToChatList}
+                                >
+                                    ←
+                                </button>
                                 <div className={styles.avatar}>
                                     {currentInterlocutor.name?.charAt(0)}{currentInterlocutor.surname?.charAt(0)}
                                     <div className={`${styles.onlineIndicator} ${currentInterlocutorStatus ? styles.online : styles.offline}`} />
@@ -735,41 +590,6 @@ function Chat() {
                     </div>
                 )}
             </div>
-
-            {/* Create Chat Modal */}
-            {showCreateChat && (
-                <div className={styles.modalOverlay}>
-                    <div className={styles.modal}>
-                        <div className={styles.modalHeader}>
-                            <h2>Выберите пользователя</h2>
-                            <button className={styles.closeButton} onClick={() => setShowCreateChat(false)}>×</button>
-                        </div>
-                        <div className={styles.usersList}>
-                            {isLoadingUsers ? (
-                                <div className={styles.loading}>Загрузка пользователей...</div>
-                            ) : availableUsers.length === 0 ? (
-                                <div className={styles.noUsers}>Нет доступных пользователей</div>
-                            ) : (
-                                availableUsers.map(user => (
-                                    <div key={user.id} className={styles.userItem} onClick={() => createNewChat(user.id)}>
-                                        <div className={styles.userAvatar}>
-                                            {user.name.charAt(0)}{user.surname.charAt(0)}
-                                            <div className={`${styles.onlineIndicator} ${user.isOnline ? styles.online : styles.offline}`} />
-                                        </div>
-                                        <div className={styles.userInfo}>
-                                            <div className={styles.userName}>{user.name} {user.surname}</div>
-                                            <div className={styles.userEmail}>{user.email}</div>
-                                            <div className={styles.userStatus}>
-                                                {user.isOnline ? 'онлайн' : 'оффлайн'}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

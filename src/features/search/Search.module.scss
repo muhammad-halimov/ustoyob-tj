@@ -4,6 +4,7 @@
 .container {
   position: relative;
   max-width: 1549px;
+  width: 100%;
   margin: 40.45px auto;
   flex: 1;
 }
@@ -30,7 +31,7 @@
 
   .title {
     font-weight: 400;
-    font-size: 36px;
+    font-size: map.get(vars.$font-sizes, '3xl');
     margin-bottom: map.get(vars.$spacing, 3);
     color: map.get(vars.$colors, text-black);
   }
@@ -48,8 +49,8 @@
       border: none;
       border-radius: map.get(vars.$border-radius, base);
       outline: none;
-      padding: map.get(vars.$spacing, 4) map.get(vars.$spacing, 2);
-      font-size: map.get(vars.$font-sizes, '2xl');
+      padding: map.get(vars.$spacing, 3) map.get(vars.$spacing, 2);
+      font-size: map.get(vars.$font-sizes, 'base');
       color: map.get(vars.$colors, text-placeholder);
 
       &::placeholder {
@@ -64,7 +65,7 @@
       border: none;
       padding: 10px 45.5px;
       font-weight: 400;
-      font-size: map.get(vars.$font-sizes, '2xl');
+      font-size: map.get(vars.$font-sizes, 'xl');
       cursor: pointer;
       transition: background 0.2s;
 
@@ -126,7 +127,7 @@
       margin-bottom: map.get(vars.$spacing, 3);
 
       h3 {
-        font-size: 32px;
+        font-size: 28px;
         font-weight: 400;
         color: map.get(vars.$colors, text-black);
         margin: 0;
@@ -145,7 +146,7 @@
     .description {
       margin-bottom: map.get(vars.$spacing, 5);
       color: map.get(vars.$colors, text-black);
-      font-size: map.get(vars.$font-sizes, '2xl');
+      font-size: map.get(vars.$font-sizes, 'base');
       line-height: 1.4;
     }
 
@@ -161,14 +162,14 @@
       }
 
       span {
-        font-size: map.get(vars.$font-sizes, '2xl');
+        font-size: map.get(vars.$font-sizes, 'base');
         color: map.get(vars.$colors, text-black);
       }
 
       .category {
         max-width: 200px;
         text-align: center;
-        font-size: map.get(vars.$font-sizes, lg);
+        font-size: map.get(vars.$font-sizes, base);
         color: map.get(vars.$colors, text-black);
         font-weight: 500;
         background-color: map.get(vars.$colors, background-btn2);
@@ -187,7 +188,7 @@
       }
 
       span {
-        font-size: map.get(vars.$font-sizes, '2xl');
+        font-size: map.get(vars.$font-sizes, 'xl');
         color: map.get(vars.$colors, text-who);
       }
 
@@ -291,4 +292,58 @@
   &:hover {
     background: map.get(vars.$colors, background-gray-hover);
   }
+}
+
+
+@media screen and (max-width: 480px){
+  .container {
+    margin: 65px 0 0;
+    width: 100%;
+    padding: 0 20px;
+    .title {
+      font-size: 18px;
+    }
+    .search_wrap {
+      font-size: 16px;
+      input {
+        padding: 9px 10px;
+        &::placeholder {
+          font-size: 14px;
+        }
+      }
+      .button {
+        padding: 10px 13px;
+      }
+    }
+    .filters_btn {
+      padding: 8px 15px;
+      //max-width: 91px;
+      font-size: 12px;
+      svg {
+        width: 16px;
+      }
+    }
+    .search_with_filters {
+      flex-direction: column;
+    }
+    .resultHeader {
+      h3 {
+        font-size: 20px !important;
+      }
+      .price {
+        font-size: 10px !important;
+        display: flex;
+        padding: 10px;
+        max-width: 87px;
+      }
+    }
+    .category {
+      font-size: 14px !important;
+    }
+    .author,
+    .timeAgo {
+      font-size: 16px !important;
+    }
+  }
+
 }

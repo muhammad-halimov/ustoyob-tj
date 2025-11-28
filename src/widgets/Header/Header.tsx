@@ -123,6 +123,7 @@ function Header() {
                         <div className={styles.rightPart_lang}>
                             <div className={styles.rightPart_lang__box}>
                                 <svg
+                                    className={styles.flagIcon}
                                     width="46"
                                     height="32"
                                     viewBox="0 0 46 32"
@@ -157,12 +158,14 @@ function Header() {
                                     <path d="M0.707031 0.707031L8.35703 8.35703L16.007 0.707031" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
                                 </svg>
                             </div>
-                            <AdBtn onClick={() => handleAdBtnClick()} />
-                            <EnterBtn
-                                isModalOpen={showAuthModal}
-                                onModalClose={closeAuthModal}
-                                onClick={handleEnterBtnClick}
-                            />
+                            <div className={styles.rightPart_buttons}>
+                                <AdBtn onClick={() => handleAdBtnClick()} />
+                                <EnterBtn
+                                    isModalOpen={showAuthModal}
+                                    onModalClose={closeAuthModal}
+                                    onClick={handleEnterBtnClick}
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -170,7 +173,7 @@ function Header() {
             <div className={styles.bottomHeader}>
                 <div className={styles.bottomHeader_wrap}>
                     <Link to="/" className={styles.bottomHeader_logo}>
-                        <svg width="197" height="65" viewBox="0 0 197 65" fill="none" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink">
+                        <svg className={styles.logo_mobile} width="197" height="65" viewBox="0 0 197 65" fill="none" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink">
                             <rect width="196.438" height="64.8244" fill="url(#pattern0_324_558)"/>
                             <defs>
                                 <pattern id="pattern0_324_558" patternContentUnits="objectBoundingBox" width="1" height="1">
@@ -181,6 +184,14 @@ function Header() {
                         </svg>
 
                     </Link>
+                    <div className={styles.rightPart_buttons_mobile}>
+                        <AdBtn onClick={() => handleAdBtnClick()} />
+                        <EnterBtn
+                            isModalOpen={showAuthModal}
+                            onModalClose={closeAuthModal}
+                            onClick={handleEnterBtnClick}
+                        />
+                    </div>
 
                     <nav className={styles.bottomHeader_nav}>
                         <ul className={styles.bottomHeader_navList}>
@@ -335,6 +346,50 @@ function Header() {
                             </li>
                         </ul>
                     </nav>
+                </div>
+                <div className={styles.mobile_header}>
+                    <ul className={styles.bottomHeader_navList}>
+                        <li className={`${styles.bottomHeader_item} ${isActivePage == "orders" ? styles.active : ""}`}>
+                            <Link to="/" className={styles.navLink}>
+                                <p>Заказы</p>
+                            </Link>
+                        </li>
+                        <li className={`${styles.bottomHeader_item} ${isActivePage === "favorites" ? styles.active : ""}`}>
+                            <Link to="/favorites" className={styles.navLink}>
+                                <p>Избранное</p>
+                            </Link>
+                        </li>
+                        <li className={`${styles.bottomHeader_item} ${isActivePage === "chats" ? styles.active : ""}`}>
+                            {isAuthenticated ? (
+                                <Link to="/chats" className={styles.navLink}>
+                                    <p>Чаты</p>
+                                </Link>
+                            ) : (
+                                <Link
+                                    to="/profile"
+                                    className={styles.navLink}
+                                    onClick={handleProfileClick}
+                                >
+                                    <p>Чаты</p>
+                                </Link>
+                            )}
+                        </li>
+                        <li className={`${styles.bottomHeader_item} ${isActivePage === "profile" ? styles.active : ""}`}>
+                            {isAuthenticated ? (
+                                <Link to="/profile" className={styles.navLink}>
+                                    <p>Профиль</p>
+                                </Link>
+                            ) : (
+                                <Link
+                                    to="/profile"
+                                    className={styles.navLink}
+                                    onClick={handleProfileClick}
+                                >
+                                    <p>Профиль</p>
+                                </Link>
+                            )}
+                        </li>
+                    </ul>
                 </div>
             </div>
             {showCityModal && (

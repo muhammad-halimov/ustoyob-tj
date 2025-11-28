@@ -3,6 +3,12 @@
   max-width: 1284px;
   margin: 40px auto;
   border-radius: 20px;
+
+  // Мобильная версия
+  @media (max-width: 480px) {
+    padding: 16px;
+    margin: 20px auto;
+  }
 }
 
 .header {
@@ -17,6 +23,17 @@
     font-weight: 600;
     color: #333;
     margin: 0;
+
+    // Мобильная версия
+    @media (max-width: 480px) {
+      font-size: 20px;
+    }
+  }
+
+  // Мобильная версия
+  @media (max-width: 480px) {
+    margin-bottom: 20px;
+    padding-bottom: 16px;
   }
 }
 
@@ -29,6 +46,16 @@
   display: flex;
   align-items: center;
   color: #333;
+
+  // Мобильная версия
+  @media (max-width: 480px) {
+    padding: 6px;
+
+    svg {
+      width: 20px;
+      height: 20px;
+    }
+  }
 }
 
 .closeButton_end {
@@ -48,6 +75,19 @@
   &:hover {
     background: #e0e0e0;
   }
+
+  // Мобильная версия
+  @media (max-width: 480px) {
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+
+    svg {
+      margin-right: 8px;
+      width: 18px;
+      height: 18px;
+    }
+  }
 }
 
 .mastersList {
@@ -61,15 +101,37 @@
     background-color: white;
     position: relative;
 
+    // Мобильная версия
+    @media (max-width: 480px) {
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
     .mastersList_header {
       display: flex;
       align-items: center;
       margin-bottom: 43px;
 
+      // Мобильная версия
+      @media (max-width: 480px) {
+        flex-direction: column;
+        align-items: center;
+        margin-bottom: 24px;
+        gap: 16px;
+      }
+
       img {
         max-width: 162px;
         max-height: 217px;
         margin-right: 20px;
+
+        // Мобильная версия
+        @media (max-width: 480px) {
+          max-width: 120px;
+          max-height: 160px;
+          margin-right: 0;
+          align-self: center;
+        }
       }
 
       .mastersList_title {
@@ -78,22 +140,45 @@
 
         h3 {
           font-size: 36px;
+
+          // Мобильная версия
+          @media (max-width: 480px) {
+            font-size: 24px;
+            text-align: center;
+          }
         }
 
         &_reviews {
           display: flex;
           align-items: center;
           margin: 20px 0 45px;
+
+          // Мобильная версия
+          @media (max-width: 480px) {
+            margin: 16px 0 24px;
+            justify-content: center;
+            gap: 20px;
+          }
         }
 
         &_grade,
         &_review {
           display: flex;
           align-items: center;
+
+          // Мобильная версия
+          @media (max-width: 480px) {
+            font-size: 14px;
+          }
         }
 
         &_grade {
           margin-right: 34px;
+
+          // Мобильная версия
+          @media (max-width: 480px) {
+            margin-right: 0;
+          }
 
           svg {
             margin-right: 10px;
@@ -105,6 +190,12 @@
           display: flex;
           gap: 20px;
 
+          // Мобильная версия
+          @media (max-width: 480px) {
+            flex-direction: column;
+            gap: 12px;
+          }
+
           button {
             display: flex;
             align-items: center;
@@ -115,8 +206,22 @@
             cursor: pointer;
             border: none;
 
+            // Мобильная версия
+            @media (max-width: 480px) {
+              font-size: 16px;
+              padding: 12px 16px;
+              justify-content: center;
+            }
+
             svg {
               margin-right: 10px;
+
+              // Мобильная версия
+              @media (max-width: 480px) {
+                margin-right: 8px;
+                width: 20px;
+                height: 20px;
+              }
             }
           }
 
@@ -138,12 +243,23 @@
 
       & > * + * {
         margin-top: 20px;
+
+        // Мобильная версия
+        @media (max-width: 480px) {
+          margin-top: 16px;
+        }
       }
 
       .mastersList_about_welcome {
         font-size: 24px;
         font-weight: 600;
         margin-bottom: 20px;
+
+        // Мобильная версия
+        @media (max-width: 480px) {
+          font-size: 20px;
+          margin-bottom: 12px;
+        }
       }
 
       .mastersList_about_title {
@@ -152,6 +268,14 @@
         padding-bottom: 20px;
         min-height: 108px;
         border-bottom: 1px solid #58585833;
+
+        // Мобильная версия
+        @media (max-width: 480px) {
+          font-size: 16px;
+          margin-bottom: 24px;
+          padding-bottom: 16px;
+          min-height: auto;
+        }
       }
 
       .mastersList_about_atHome,
@@ -162,11 +286,23 @@
         p {
           font-size: 24px;
           margin-bottom: 10px;
+
+          // Мобильная версия
+          @media (max-width: 480px) {
+            font-size: 18px;
+            margin-bottom: 8px;
+          }
         }
       }
 
       .mastersList_about_atHome_addresses {
         display: flex;
+
+        // Мобильная версия
+        @media (max-width: 480px) {
+          flex-wrap: wrap;
+          gap: 8px;
+        }
 
         span {
           margin-right: 10px;
@@ -175,6 +311,13 @@
           padding: 10px 20px;
           font-size: 16px;
           font-weight: 600;
+
+          // Мобильная версия
+          @media (max-width: 480px) {
+            font-size: 14px;
+            padding: 8px 16px;
+            margin-right: 0;
+          }
         }
       }
     }
@@ -194,6 +337,15 @@
 
       svg {
         transition: fill 0.2s ease;
+      }
+
+      // Мобильная версия
+      @media (max-width: 480px) {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        align-self: flex-end;
+        margin-top: 8px;
       }
     }
   }
@@ -230,6 +382,11 @@
   justify-content: center;
   align-items: center;
   z-index: 1000;
+
+  // Мобильная версия
+  @media (max-width: 480px) {
+    padding: 16px;
+  }
 }
 
 .reviewModal {
@@ -240,6 +397,12 @@
   max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
+
+  // Мобильная версия
+  @media (max-width: 480px) {
+    padding: 20px;
+    width: 95%;
+  }
 }
 
 .modalHeader {
@@ -250,6 +413,16 @@
     font-size: 20px;
     font-weight: 600;
     text-align: center;
+
+    // Мобильная версия
+    @media (max-width: 480px) {
+      font-size: 18px;
+    }
+  }
+
+  // Мобильная версия
+  @media (max-width: 480px) {
+    margin-bottom: 16px;
   }
 }
 
@@ -257,6 +430,11 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+
+  // Мобильная версия
+  @media (max-width: 480px) {
+    gap: 16px;
+  }
 }
 
 // Секции комментария, фото и рейтинга
@@ -268,6 +446,11 @@
     margin-bottom: 8px;
     font-weight: 500;
     color: #333;
+
+    // Мобильная версия
+    @media (max-width: 480px) {
+      font-size: 14px;
+    }
   }
 }
 
@@ -282,6 +465,12 @@
 
   &:focus {
     outline: none;
+  }
+
+  // Мобильная версия
+  @media (max-width: 480px) {
+    min-height: 80px;
+    font-size: 14px;
   }
 }
 
@@ -367,6 +556,13 @@
   border-radius: 10px;
   background-color: #F2F2F5;
   max-width: 200px;
+
+  // Мобильная версия
+  @media (max-width: 480px) {
+    max-width: 100%;
+    justify-content: center;
+    padding: 16px;
+  }
 }
 
 .star {
@@ -384,6 +580,11 @@
   &:hover {
     color: #ffc107;
   }
+
+  // Мобильная версия
+  @media (max-width: 480px) {
+    font-size: 24px;
+  }
 }
 
 // Действия модального окна
@@ -393,6 +594,12 @@
   justify-content: space-between;
   margin-top: 24px;
 
+  // Мобильная версия
+  @media (max-width: 480px) {
+    margin-top: 20px;
+    gap: 8px;
+  }
+
   button {
     padding: 10px 20px;
     border-radius: 6px;
@@ -400,6 +607,13 @@
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
+
+    // Мобильная версия
+    @media (max-width: 480px) {
+      padding: 12px 16px;
+      font-size: 14px;
+      flex: 1;
+    }
   }
 
   .submitButton {
@@ -420,5 +634,29 @@
       background: #ccc;
       cursor: not-allowed;
     }
+
+    // Мобильная версия
+    @media (max-width: 480px) {
+      svg {
+        margin-left: 8px;
+        width: 18px;
+        height: 18px;
+      }
+    }
+  }
+}
+
+// Добавляем стили для loading и noResults если их нет
+.loading,
+.noResults {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+  font-size: 16px;
+
+  // Мобильная версия
+  @media (max-width: 480px) {
+    padding: 20px;
+    font-size: 14px;
   }
 }

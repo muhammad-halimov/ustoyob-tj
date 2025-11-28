@@ -17,7 +17,8 @@ interface Province {
 interface City {
     id: number;
     title: string;
-    province: Province;
+    province: Province | null;
+    suburbs: Suburb[];
 }
 
 interface District {
@@ -25,7 +26,27 @@ interface District {
     title: string;
     description: string;
     image: string;
-    city: City;
+    province: Province | null;
+    communities: Community[];
+    settlements: Settlement[];
+}
+
+interface Suburb {
+    id: number;
+    title: string;
+    description: string;
+}
+
+interface Community {
+    id: number;
+    title: string;
+    description: string;
+}
+
+interface Settlement {
+    id: number;
+    title: string;
+    description: string;
 }
 
 interface Unit {
@@ -44,9 +65,12 @@ const CreateAdPage = () => {
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [districts, setDistricts] = useState<District[]>([]);
-    // const [userRole, setUserRole] = useState<'client' | 'master' | null>(null);
+    const [cities, setCities] = useState<City[]>([]);
+    const [provinces, setProvinces] = useState<Province[]>([]);
     const [selectedProvince, setSelectedProvince] = useState<number | null>(null);
     const [selectedCity, setSelectedCity] = useState<number | null>(null);
+    const [filteredCities, setFilteredCities] = useState<City[]>([]);
+    const [filteredDistricts, setFilteredDistricts] = useState<District[]>([]);
 
     const [formData, setFormData] = useState({
         title: '',
@@ -60,12 +84,81 @@ const CreateAdPage = () => {
 
     useEffect(() => {
         const role = getUserRole();
-        // setUserRole(role);
         console.log('User role:', role);
         fetchCategories();
+        fetchProvinces();
+        fetchCities();
         fetchDistricts();
         fetchUnits();
     }, []);
+
+    // Фильтруем города при выборе области
+    useEffect(() => {
+        if (selectedProvince) {
+            const filtered = cities.filter(city =>
+                city.province && city.province.id === selectedProvince
+            );
+            setFilteredCities(filtered);
+            setSelectedCity(null); // Сбрасываем выбор города при смене области
+            setSelectedDistrict(null); // Сбрасываем выбор района
+        } else {
+            setFilteredCities([]);
+            setSelectedCity(null);
+            setSelectedDistrict(null);
+        }
+    }, [selectedProvince, cities]);
+
+    // Фильтруем районы при выборе города и области
+    useEffect(() => {
+        if (selectedCity && selectedProvince) {
+            // Находим выбранный город
+            const selectedCityData = cities.find(city => city.id === selectedCity);
+            if (selectedCityData) {
+                // Фильтруем районы по выбранной области
+                const cityDistricts = districts.filter(district =>
+                    district.province && district.province.id === selectedProvince
+                );
+                setFilteredDistricts(cityDistricts);
+            }
+            setSelectedDistrict(null); // Сбрасываем выбор района при смене города
+        } else {
+            setFilteredDistricts([]);
+            setSelectedDistrict(null);
+        }
+    }, [selectedCity, selectedProvince, cities, districts]);
+
+    const fetchProvinces = async () => {
+        try {
+            const token = getAuthToken();
+            const response = await fetch(`${API_BASE_URL}/api/provinces`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                }
+            });
+            const data = await response.json();
+            setProvinces(data);
+        } catch (error) {
+            console.error('Error fetching provinces:', error);
+        }
+    };
+
+    const fetchCities = async () => {
+        try {
+            const token = getAuthToken();
+            const response = await fetch(`${API_BASE_URL}/api/cities`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                }
+            });
+            const data = await response.json();
+            // Добавляем проверку на null для province
+            const citiesWithNullCheck = Array.isArray(data) ? data : [];
+            console.log('Fetched cities:', citiesWithNullCheck);
+            setCities(citiesWithNullCheck);
+        } catch (error) {
+            console.error('Error fetching cities:', error);
+        }
+    };
 
     const fetchDistricts = async () => {
         try {
@@ -76,7 +169,10 @@ const CreateAdPage = () => {
                 }
             });
             const data = await response.json();
-            setDistricts(data);
+            // Добавляем проверку на null для province
+            const districtsWithNullCheck = Array.isArray(data) ? data : [];
+            console.log('Fetched districts:', districtsWithNullCheck);
+            setDistricts(districtsWithNullCheck);
         } catch (error) {
             console.error('Error fetching districts:', error);
         }
@@ -169,12 +265,10 @@ const CreateAdPage = () => {
 
             const userData = await userResponse.json();
 
-            // ИСПРАВЛЕНИЕ: используем правильный endpoint из документации
             const endpoint = '/api/tickets';
 
             console.log('Using endpoint:', endpoint);
 
-            // СОЗДАЕМ ПРАВИЛЬНЫЕ IRI В ФОРМАТЕ КАК В ДОКУМЕНТАЦИИ
             const ticketData = {
                 title: formData.title.trim(),
                 description: formData.description.trim(),
@@ -301,254 +395,236 @@ const CreateAdPage = () => {
         }
     };
 
-    const selectedDistrictInfo = districts.find(d => d.id === selectedDistrict);
-
     return (
         <>
             <div className={styles.container}>
-                <div className={styles.header}>
-                    <h1>Заполните заявку с деталями</h1>
-                    {/*{userRole && (*/}
-                    {/*    <div className={styles.roleInfo}>*/}
-                    {/*        Создание объявления как: <strong>{userRole === 'master' ? 'Мастер' : 'Клиент'}</strong>*/}
-                    {/*    </div>*/}
-                    {/*)}*/}
-                </div>
-
-                <form onSubmit={handleSubmit} className={styles.form}>
-                    {/* Название услуги */}
-                    <div className={styles.section}>
-                        <h2>Название услуги</h2>
-                        <div className={styles.serviceSection}>
-                            <input
-                                type="text"
-                                name="title"
-                                value={formData.title}
-                                onChange={handleInputChange}
-                                placeholder="Введите название услуги"
-                                className={styles.titleInput}
-                                required
-                            />
-                            <div className={styles.categorySection}>
-                                <div className={styles.categoryOption}>
-                                    <select
-                                        value={selectedCategory || ''}
-                                        onChange={(e) => setSelectedCategory(Number(e.target.value))}
-                                        className={styles.categorySelect}
-                                        required
-                                    >
-                                        <option value="">Выберите категорию</option>
-                                        {categories.map(category => (
-                                            <option key={category.id} value={category.id}>
-                                                {category.title}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className={styles.divider} />
-
-                    {/* Адрес */}
-                    <div className={styles.section}>
-                        <h2>Адрес</h2>
-                        <div className={styles.addressSection}>
-                            <div className={styles.addressRow}>
-                                {/* Район - ПЕРВЫЙ */}
-                                <div className={styles.addressField}>
-                                    <select
-                                        value={selectedDistrict || ''}
-                                        onChange={(e) => {
-                                            const districtId = Number(e.target.value);
-                                            setSelectedDistrict(districtId);
-                                            // Автоматически устанавливаем область и город из выбранного района
-                                            if (districtId) {
-                                                const district = districts.find(d => d.id === districtId);
-                                                if (district) {
-                                                    setSelectedProvince(district.city.province.id);
-                                                    setSelectedCity(district.city.id);
-                                                }
-                                            } else {
-                                                setSelectedProvince(null);
-                                                setSelectedCity(null);
-                                            }
-                                        }}
-                                        className={styles.addressSelect}
-                                        required
-                                    >
-                                        <option value="">Выберите район *</option>
-                                        {districts.map(district => (
-                                            <option key={district.id} value={district.id}>
-                                                {district.title}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                {/* Область - автоматически заполняется */}
-                                <div className={styles.addressField}>
-                                    <select
-                                        value={selectedProvince || ''}
-                                        className={styles.addressSelect}
-                                        disabled
-                                    >
-                                        <option value="">Область</option>
-                                        {selectedProvince && (
-                                            <option value={selectedProvince}>
-                                                {selectedDistrictInfo?.city.province.title}
-                                            </option>
-                                        )}
-                                    </select>
-                                </div>
-
-                                {/* Город - автоматически заполняется */}
-                                <div className={styles.addressField}>
-                                    <select
-                                        value={selectedCity || ''}
-                                        className={styles.addressSelect}
-                                        disabled
-                                    >
-                                        <option value="">Город</option>
-                                        {selectedCity && (
-                                            <option value={selectedCity}>
-                                                {selectedDistrictInfo?.city.title}
-                                            </option>
-                                        )}
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className={styles.divider} />
-
-                    {/* Бюджет */}
-                    <div className={styles.section}>
-                        <h2>Укажите бюджет</h2>
-                        <div className={styles.budgetSection}>
-                            <div className={styles.budgetRow}>
-                                <div className={styles.budgetField}>
-                                    <input
-                                        type="number"
-                                        name="budget"
-                                        value={formData.budget}
-                                        onChange={handleInputChange}
-                                        placeholder="0"
-                                        className={styles.budgetInput}
-                                        min="0"
-                                        required
-                                    />
-                                </div>
-                                <div className={styles.budgetField}>
-                                    <select
-                                        className={styles.unitSelect}
-                                        value={selectedUnit || ''}
-                                        onChange={(e) => setSelectedUnit(Number(e.target.value))}
-                                    >
-                                        <option value="">Ед. изм.</option>
-                                        {units.map(unit => (
-                                            <option key={unit.id} value={unit.id}>
-                                                {unit.title}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className={styles.divider} />
-
-                    {/* Фото */}
-                    <div className={styles.section}>
-                        <h2>Приложите фото</h2>
-                        <div className={styles.photoSection}>
-                            <div className={styles.photoLabel}>Из вашего портфолио</div>
-                            <div className={styles.photoUpload}>
+                <div className={styles.container_wrap}>
+                    <form onSubmit={handleSubmit} className={styles.form}>
+                        <h3>Заполните заявку с деталями</h3>
+                        {/* Название услуги */}
+                        <div className={styles.section}>
+                            <h2>Название услуги</h2>
+                            <div className={styles.serviceSection}>
                                 <input
-                                    type="file"
-                                    multiple
-                                    accept="image/*"
-                                    onChange={handleImageUpload}
-                                    className={styles.fileInput}
-                                    id="photo-upload"
+                                    type="text"
+                                    name="title"
+                                    value={formData.title}
+                                    onChange={handleInputChange}
+                                    placeholder="Введите название услуги"
+                                    className={styles.titleInput}
+                                    required
                                 />
-                                <label htmlFor="photo-upload" className={styles.uploadLabel}>
-                                    <span className={styles.plusIcon}>+</span>
-                                </label>
-
-                                {images.length > 0 && (
-                                    <div className={styles.imagePreview}>
-                                        {images.map((image, index) => (
-                                            <div key={index} className={styles.previewItem}>
-                                                <img src={URL.createObjectURL(image)} alt={`Preview ${index}`} />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeImage(index)}
-                                                    className={styles.removeImage}
-                                                >
-                                                    ×
-                                                </button>
-                                            </div>
-                                        ))}
+                                <div className={styles.categorySection}>
+                                    <div className={styles.categoryOption}>
+                                        <select
+                                            value={selectedCategory || ''}
+                                            onChange={(e) => setSelectedCategory(Number(e.target.value))}
+                                            className={styles.categorySelect}
+                                            required
+                                        >
+                                            <option value="">Выберите категорию</option>
+                                            {categories.map(category => (
+                                                <option key={category.id} value={category.id}>
+                                                    {category.title}
+                                                </option>
+                                            ))}
+                                        </select>
                                     </div>
-                                )}
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div className={styles.divider} />
+                        <div className={styles.divider} />
 
-                    {/* Описание */}
-                    <div className={styles.section}>
-                        <h2>Есть пожелания?</h2>
-                        <div className={styles.descriptionSection}>
-                            <div className={styles.descriptionLabel}>
-                                Укажите важные детали, которые нужно знать заказчику.
+                        {/* Адрес */}
+                        <div className={styles.section}>
+                            <h2>Адрес</h2>
+                            <div className={styles.addressSection}>
+                                <div className={styles.addressRow}>
+                                    {/* Область - ПЕРВЫЙ выбор */}
+                                    <div className={styles.addressField}>
+                                        <select
+                                            value={selectedProvince || ''}
+                                            onChange={(e) => setSelectedProvince(Number(e.target.value))}
+                                            className={styles.addressSelect}
+                                            required
+                                        >
+                                            <option value="">Выберите область *</option>
+                                            {provinces.map(province => (
+                                                <option key={province.id} value={province.id}>
+                                                    {province.title}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Город - ВТОРОЙ выбор (зависит от области) */}
+                                    <div className={styles.addressField}>
+                                        <select
+                                            value={selectedCity || ''}
+                                            onChange={(e) => setSelectedCity(Number(e.target.value))}
+                                            className={styles.addressSelect}
+                                            required
+                                            disabled={!selectedProvince}
+                                        >
+                                            <option value="">Выберите город *</option>
+                                            {filteredCities.map(city => (
+                                                <option key={city.id} value={city.id}>
+                                                    {city.title}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Район - ТРЕТИЙ выбор (зависит от города) */}
+                                    <div className={styles.addressField}>
+                                        <select
+                                            value={selectedDistrict || ''}
+                                            onChange={(e) => setSelectedDistrict(Number(e.target.value))}
+                                            className={styles.addressSelect}
+                                            required
+                                            disabled={!selectedCity}
+                                        >
+                                            <option value="">Выберите район *</option>
+                                            {filteredDistricts.map(district => (
+                                                <option key={district.id} value={district.id}>
+                                                    {district.title}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
-                            <textarea
-                                name="description"
-                                value={formData.description}
-                                onChange={handleInputChange}
-                                placeholder="Опишите детали вашей услуги..."
-                                rows={4}
-                                className={styles.descriptionTextarea}
-                                required
-                            />
                         </div>
-                    </div>
 
-                    {/* Дополнительные заметки */}
-                    <div className={styles.section}>
-                        <h2>Дополнительные заметки</h2>
-                        <div className={styles.descriptionSection}>
-                            <div className={styles.descriptionLabel}>
-                                Любая дополнительная информация (опционально)
+                        <div className={styles.divider} />
+
+                        {/* Бюджет */}
+                        <div className={styles.section}>
+                            <h2>Укажите бюджет</h2>
+                            <div className={styles.budgetSection}>
+                                <div className={styles.budgetRow}>
+                                    <div className={styles.budgetField}>
+                                        <input
+                                            type="number"
+                                            name="budget"
+                                            value={formData.budget}
+                                            onChange={handleInputChange}
+                                            placeholder="0"
+                                            className={styles.budgetInput}
+                                            min="0"
+                                            required
+                                        />
+                                    </div>
+                                    <div className={styles.budgetField}>
+                                        <select
+                                            className={styles.unitSelect}
+                                            value={selectedUnit || ''}
+                                            onChange={(e) => setSelectedUnit(Number(e.target.value))}
+                                        >
+                                            <option value="">Ед. изм.</option>
+                                            {units.map(unit => (
+                                                <option key={unit.id} value={unit.id}>
+                                                    {unit.title}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
-                            <textarea
-                                name="notice"
-                                value={formData.notice}
-                                onChange={handleInputChange}
-                                placeholder="Дополнительная информация..."
-                                rows={2}
-                                className={styles.descriptionTextarea}
-                            />
                         </div>
-                    </div>
 
-                    {/* Кнопка отправки */}
-                    <div className={styles.submitSection}>
-                        <button
-                            type="submit"
-                            className={styles.submitButton}
-                            disabled={isSubmitting}
-                        >
-                            {isSubmitting ? 'Публикация...' : 'Разместить объявление'}
-                        </button>
-                    </div>
-                </form>
+                        <div className={styles.divider} />
+
+                        {/* Фото */}
+                        <div className={styles.section}>
+                            <h2>Приложите фото</h2>
+                            <div className={styles.photoSection}>
+                                <div className={styles.photoLabel}>Из вашего портфолио</div>
+                                <div className={styles.photoUpload}>
+                                    <input
+                                        type="file"
+                                        multiple
+                                        accept="image/*"
+                                        onChange={handleImageUpload}
+                                        className={styles.fileInput}
+                                        id="photo-upload"
+                                    />
+                                    <label htmlFor="photo-upload" className={styles.uploadLabel}>
+                                        <span className={styles.plusIcon}>+</span>
+                                    </label>
+
+                                    {images.length > 0 && (
+                                        <div className={styles.imagePreview}>
+                                            {images.map((image, index) => (
+                                                <div key={index} className={styles.previewItem}>
+                                                    <img src={URL.createObjectURL(image)} alt={`Preview ${index}`} />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeImage(index)}
+                                                        className={styles.removeImage}
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className={styles.divider} />
+
+                        {/* Описание */}
+                        <div className={styles.section}>
+                            <h2>Есть пожелания?</h2>
+                            <div className={styles.descriptionSection}>
+                                <div className={styles.descriptionLabel}>
+                                    Укажите важные детали, которые нужно знать заказчику.
+                                </div>
+                                <textarea
+                                    name="description"
+                                    value={formData.description}
+                                    onChange={handleInputChange}
+                                    placeholder="Опишите детали вашей услуги..."
+                                    rows={4}
+                                    className={styles.descriptionTextarea}
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        {/* Дополнительные заметки */}
+                        <div className={styles.section}>
+                            <h2>Дополнительные заметки</h2>
+                            <div className={styles.descriptionSection}>
+                                <div className={styles.descriptionLabel}>
+                                    Любая дополнительная информация (опционально)
+                                </div>
+                                <textarea
+                                    name="notice"
+                                    value={formData.notice}
+                                    onChange={handleInputChange}
+                                    placeholder="Дополнительная информация..."
+                                    rows={2}
+                                    className={styles.descriptionTextarea}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Кнопка отправки */}
+                        <div className={styles.submitSection}>
+                            <button
+                                type="submit"
+                                className={styles.submitButton}
+                                disabled={isSubmitting}
+                            >
+                                {isSubmitting ? 'Публикация...' : 'Разместить объявление'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
 
             {/* Модальное окно успеха */}

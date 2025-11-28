@@ -935,7 +935,7 @@ export default function OrderPage() {
             return;
         }
 
-        // Если авторизован - создаем чат с передачей CORRECT ticket ID
+        // Если авторизован - создаем чат или переходим к существующему
         try {
             const chat = await createChatWithAuthor(authorId, order?.id);
             if (chat && chat.id) {
@@ -1068,7 +1068,7 @@ export default function OrderPage() {
                                         alt={`Фото ${index + 1}`}
                                         className={styles.photo}
                                         onError={(e) => {
-                                            (e.target as HTMLImageElement).src = '/placeholder-image.jpg';
+                                            (e.target as HTMLImageElement).src = './fonTest1.png';
                                         }}
                                     />
                                 ))}

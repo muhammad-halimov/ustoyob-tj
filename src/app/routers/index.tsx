@@ -14,6 +14,8 @@ import SearchServicePage from "../../pages/search/SearchServicePage";
 import TicketsPage from "../../pages/tickets/TicketsPage";
 import MasterProfileViewPage from "../../entities/MasterProfileViewPage/MasterProfileViewPage";
 import ClientProfileViewPage from "../../entities/ClientProfileViewPage/ClientProfileViewPage.tsx";
+import MyTickets from "../../pages/myTickets/MyTickets.tsx";
+import CategoryTicketsPage from "../../pages/categoryTicketsPage/CategoryTicketsPage.tsx";
 
 const router = createBrowserRouter([
     {
@@ -26,7 +28,7 @@ const router = createBrowserRouter([
             { path: 'favorites', element: <FavoritesPage /> },
             { path: 'chats', element: <Chat /> },
             { path: 'profile', element: <ProfilePage /> },
-            // { path: 'profile', element: <ProfilePage /> },
+            { path: '/my-tickets', element: <MyTickets /> },
             { path: 'profile/education', element: <EducationPage /> },
             { path: 'profile/services', element: <ServicesPage /> }, //для Мастера
             { path: 'profile/city', element: <CityPage /> },
@@ -35,6 +37,7 @@ const router = createBrowserRouter([
             { path: 'tickets', element: <TicketsPage /> }, //для Мастера
             { path: 'master/:id', element: <MasterProfileViewPage /> },
             { path: 'client/:id', element: <ClientProfileViewPage /> },
+            { path: 'category-tickets/:categoryId', element: <CategoryTicketsPage /> },
             // { path: 'profile/work-area', element: <WorkAreaPage /> },
     //         { path: 'search', element: <SearchPage /> },
     //         { path: 'create-ad', element: <CreateAdPage /> },

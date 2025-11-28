@@ -11,6 +11,7 @@
     align-items: center;
     background-color: white;
     padding: 40px;
+    border-radius: 10px;
   }
   h3 {
     margin: 40px 0 20px 0;
@@ -43,4 +44,24 @@
       }
     }
   }
+}
+
+@media screen and (max-width: 480px) {
+  .container {
+    padding: 0 20px;
+    span {
+      font-size: 18px;
+    }
+    h3 {
+      font-size: 24px;
+    }
+
+    .order_item_title p,
+    .order_item_title span,
+    .order_item_status span {
+      font-size: 18px !important;
+    }
+  }
+
+
 }

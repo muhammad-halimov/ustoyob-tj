@@ -2,7 +2,9 @@
 @use 'sass:map';
 
 .filters_panel {
-  width: 499px;
+  max-width: 450px;
+  width: 100%;
+  //min-width: 400px;
   background: map.get(vars.$colors, background-primary);
   border-radius: map.get(vars.$border-radius, base);
   box-shadow: 0 4px 12px map.get(vars.$colors, shadow);
@@ -39,7 +41,7 @@
   gap: map.get(vars.$spacing, 3);
   background-color: map.get(vars.$colors, color-stroke);
   padding: map.get(vars.$spacing, 3);
-  border-radius: map.get(vars.$border-radius, '2xl');
+  border-radius: 10px;
 
   .price_input {
     flex: 1;
@@ -49,13 +51,14 @@
       padding: map.get(vars.$spacing, 4);
       border: none;
       border-radius: map.get(vars.$border-radius, base);
-      font-size: map.get(vars.$font-sizes, '2xl');
+      font-size: map.get(vars.$font-sizes, 'xl');
       background: map.get(vars.$colors, primary-text-white);
       color: map.get(vars.$colors, text-black);
 
       &::placeholder {
         color: map.get(vars.$colors, text-placeholder);
         letter-spacing: 0.02em;
+        font-size: map.get(vars.$font-sizes, 'base');
       }
 
       &:focus {
@@ -141,7 +144,7 @@
     background: map.get(vars.$colors, actual-blue);
     color: map.get(vars.$colors, primary-text-white);
     font-weight: 600;
-    font-size: map.get(vars.$font-sizes, xl);
+    font-size: map.get(vars.$font-sizes, base);
     letter-spacing: 0.02em;
     border-radius: map.get(vars.$border-radius, lg);
     max-width: 141px;
@@ -155,7 +158,7 @@
     background: map.get(vars.$colors, color-stroke);
     color: map.get(vars.$colors, text-black);
     font-weight: 600;
-    font-size: map.get(vars.$font-sizes, xl);
+    font-size: map.get(vars.$font-sizes, base);
     letter-spacing: 0.02em;
     border-radius: map.get(vars.$border-radius, lg);
     max-width: 141px;
@@ -173,7 +176,7 @@
   select {
     width: 100%;
     padding: map.get(vars.$spacing, 4) map.get(vars.$spacing, 5);
-    font-size: map.get(vars.$font-sizes, xl);
+    font-size:  map.get(vars.$font-sizes, base);
     color: map.get(vars.$colors, text-black);
     background: map.get(vars.$colors, primary-text-white);
     border: 2px solid map.get(vars.$colors, color-stroke);
@@ -194,7 +197,7 @@
 
     option {
       padding: 12px 20px;
-      font-size: map.get(vars.$font-sizes, lg);
+      font-size: map.get(vars.$font-sizes, base);
       color: map.get(vars.$colors, text-black);
 
       &:hover {
@@ -264,7 +267,7 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 480px) {
   .category_select select {
     font-size: map.get(vars.$font-sizes, lg);
     padding: map.get(vars.$spacing, 3) map.get(vars.$spacing, 4);
@@ -289,5 +292,35 @@
   .clearFiltersBtn {
     font-size: map.get(vars.$font-sizes, sm);
     padding: map.get(vars.$spacing, 1) map.get(vars.$spacing, 3);
+  }
+
+  .filters_panel {
+    width: 100%;
+    .filter_section {
+      h3 {
+        font-size: 16px;
+      }
+    }
+  }
+
+  .category_select {
+    select {
+      font-size: 16px !important;
+    }
+  }
+
+  .filters_header {
+    margin-bottom: 10px !important;
+    padding-bottom: 0 !important;
+    h2 {
+      font-size: 18px !important;
+    }
+  }
+
+  .filter_actions {
+    .apply_btn,
+    .cancel_btn {
+      padding: 12px !important;
+    }
   }
 }

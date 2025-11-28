@@ -133,12 +133,9 @@
 // Адаптивность для мобильных устройств
 @media (max-width: 768px) {
   .recommendation {
-    &_wrap {
-      padding: 16px;
-    }
 
     &_item {
-      padding: 12px;
+      padding: 20px;
 
       &_title {
         flex-direction: column;
@@ -159,6 +156,15 @@
 }
 
 @media (max-width: 480px) {
+  .recommendation_wrap {
+    h3 {
+      margin-top: 40px !important;
+      text-align: start;
+      font-size: 24px !important;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+  }
   .recommendation {
     &_item {
       &_title {

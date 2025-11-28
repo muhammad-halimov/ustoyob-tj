@@ -416,7 +416,7 @@ const SearchServicePage = () => {
     };
 
     const handleClose = () => {
-        navigate(-1);
+        navigate('/my-tickets');
     };
 
     const formatProfileImageUrl = (imagePath: string): string => {

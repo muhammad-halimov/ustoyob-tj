@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { getAuthToken, removeAuthToken } from '../../../utils/auth.ts';
 import styles from '../ProfilePage.module.scss';
 
+import { Swiper, SwiperSlide } from "swiper/react";
+import "swiper/css";
+
 interface ProfileData {
     id: string;
     fullName: string;
@@ -2400,8 +2403,8 @@ function MasterProfilePage() {
                                         <div key={service.id} className={styles.service_item}>
                                             <span className={styles.service_name}>{service.title}</span>
                                             <span className={styles.service_price}>
-                            {service.budget} ₽
-                                                {service.unit && ` / ${service.unit.title}`}
+                            {service.budget} TJS
+                                                {service.unit && ` - ${service.unit.title}`}
                         </span>
                                         </div>
                                     ))}
@@ -2424,39 +2427,60 @@ function MasterProfilePage() {
                 <h2 className={styles.section_title}>Отзывы</h2>
                 {/* Секция отзывов */}
                 <div className={styles.reviews_section}>
-                    <p className={styles.section_subtitle_revievs}>
-                        Отзывы
-                    </p>
-
                     <div className={styles.reviews_list}>
                         {reviewsLoading ? (
                             <div className={styles.loading}>Загрузка отзывов...</div>
                         ) : reviews.length > 0 ? (
-                            reviews.slice(0, visibleCount).map((review) => (
-                                <div key={review.id} className={styles.review_item}>
-                                    <div className={styles.review_header}>
-                                        <div className={styles.reviewer_info}>
-                                            <img
-                                                src={getReviewerAvatarUrl(review)}
-                                                alt={getReviewerName(review)}
-                                                onClick={() => handleClientProfileClick(review.reviewer.id)}
-                                                style={{ cursor: 'pointer' }}
-                                                className={styles.reviewer_avatar}
-                                                onError={(e) => {
-                                                    e.currentTarget.src = "./fonTest5.png";
-                                                }}
-                                            />
-                                            <div className={styles.reviewer_main_info}>
-                                                {/* Имя клиента который оставил отзыв */}
-                                                <div className={styles.reviewer_name}>{getClientName(review)}</div>
+                            <>
+                                {/* Десктопная версия */}
+                                <div className={styles.reviews_desktop}>
+                                    {reviews.slice(0, visibleCount).map((review) => (
+                                        <div key={review.id} className={styles.review_item}>
+                                            <div className={styles.review_header}>
+                                                <div className={styles.reviewer_info}>
+                                                    <img
+                                                        src={getReviewerAvatarUrl(review)}
+                                                        alt={getReviewerName(review)}
+                                                        onClick={() => handleClientProfileClick(review.reviewer.id)}
+                                                        style={{ cursor: 'pointer' }}
+                                                        className={styles.reviewer_avatar}
+                                                        onError={(e) => {
+                                                            e.currentTarget.src = "./fonTest5.png";
+                                                        }}
+                                                    />
+                                                    <div className={styles.reviewer_main_info}>
+                                                        <div className={styles.reviewer_name}>{getClientName(review)}</div>
+                                                        <div className={styles.review_vacation}>{review.vacation}</div>
+                                                        <span className={styles.review_worker}>{getMasterName(review)}</span>
+                                                        <div className={styles.review_rating_main}>
+                                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                <g clipPath="url(#clip0_324_2272)">
+                                                                    <g clipPath="url(#clip1_324_2272)">
+                                                                        <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                                                        <path d="M12 19V18.98" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
+                                                                    </g>
+                                                                </g>
+                                                                <defs>
+                                                                    <clipPath id="clip0_324_2272">
+                                                                        <rect width="24" height="24" fill="white"/>
+                                                                    </clipPath>
+                                                                    <clipPath id="clip1_324_2272">
+                                                                        <rect width="24" height="24" fill="white"/>
+                                                                    </clipPath>
+                                                                </defs>
+                                                            </svg>
+                                                            <span className={styles.rating_value}>{review.rating}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
 
-                                                {/* Специальность мастера (из profileData) */}
-                                                <div className={styles.review_vacation}>{review.vacation}</div>
-
-                                                {/* ФИО клиента (worker) */}
-                                                <span className={styles.review_worker}>{getMasterName(review)}</span>
-
-                                                <div className={styles.review_rating_main}>
+                                            <div className={styles.review_details}>
+                                                <div className={styles.review_worker_date}>
+                                                    <span className={styles.review_date}>{review.date}</span>
+                                                </div>
+                                                <div className={styles.review_rating_secondary}>
+                                                    <span>Поставил </span>
                                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                         <g clipPath="url(#clip0_324_2272)">
                                                             <g clipPath="url(#clip1_324_2272)">
@@ -2473,48 +2497,105 @@ function MasterProfilePage() {
                                                             </clipPath>
                                                         </defs>
                                                     </svg>
-
                                                     <span className={styles.rating_value}>{review.rating}</span>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </div>
 
-                                    <div className={styles.review_details}>
-                                        <div className={styles.review_worker_date}>
-                                            <span className={styles.review_date}>{review.date}</span>
+                                            {review.description && (
+                                                <div className={styles.review_text}>
+                                                    {review.description.replace(/<[^>]*>/g, '')}
+                                                </div>
+                                            )}
                                         </div>
-                                        <div className={styles.review_rating_secondary}>
-                                            <span>Поставил </span>
-                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                <g clipPath="url(#clip0_324_2272)">
-                                                    <g clipPath="url(#clip1_324_2272)">
-                                                        <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                                        <path d="M12 19V18.98" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
-                                                    </g>
-                                                </g>
-                                                <defs>
-                                                    <clipPath id="clip0_324_2272">
-                                                        <rect width="24" height="24" fill="white"/>
-                                                    </clipPath>
-                                                    <clipPath id="clip1_324_2272">
-                                                        <rect width="24" height="24" fill="white"/>
-                                                    </clipPath>
-                                                </defs>
-                                            </svg>
-                                            <span className={styles.rating_value}>{review.rating}</span>
-                                        </div>
-                                    </div>
-
-                                    {review.description && (
-                                        <div className={styles.review_text}>
-                                            {review.description.replace(/<[^>]*>/g, '')}
-                                        </div>
-                                    )}
-
-                                    {/*<span className={styles.review_more}>Еще</span>*/}
+                                    ))}
                                 </div>
-                            ))
+
+                                {/* Мобильная версия со слайдером */}
+                                <div className={styles.reviews_mobile}>
+                                    <Swiper
+                                        spaceBetween={16}
+                                        slidesPerView={1}
+                                        className={styles.reviews_slider}
+                                    >
+                                        {reviews.slice(0, visibleCount).map((review) => (
+                                            <SwiperSlide key={review.id}>
+                                                <div className={styles.review_item}>
+                                                    <div className={styles.review_header}>
+                                                        <div className={styles.reviewer_info}>
+                                                            <img
+                                                                src={getReviewerAvatarUrl(review)}
+                                                                alt={getReviewerName(review)}
+                                                                onClick={() => handleClientProfileClick(review.reviewer.id)}
+                                                                style={{ cursor: 'pointer' }}
+                                                                className={styles.reviewer_avatar}
+                                                                onError={(e) => {
+                                                                    e.currentTarget.src = "./fonTest5.png";
+                                                                }}
+                                                            />
+                                                            <div className={styles.reviewer_main_info}>
+                                                                <div className={styles.reviewer_name}>{getClientName(review)}</div>
+                                                                <div className={styles.review_vacation}>{review.vacation}</div>
+                                                                <span className={styles.review_worker}>{getMasterName(review)}</span>
+                                                                <div className={styles.review_rating_main}>
+                                                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                        <g clipPath="url(#clip0_324_2272)">
+                                                                            <g clipPath="url(#clip1_324_2272)">
+                                                                                <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                                                                <path d="M12 19V18.98" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
+                                                                            </g>
+                                                                        </g>
+                                                                        <defs>
+                                                                            <clipPath id="clip0_324_2272">
+                                                                                <rect width="24" height="24" fill="white"/>
+                                                                            </clipPath>
+                                                                            <clipPath id="clip1_324_2272">
+                                                                                <rect width="24" height="24" fill="white"/>
+                                                                            </clipPath>
+                                                                        </defs>
+                                                                    </svg>
+                                                                    <span className={styles.rating_value}>{review.rating}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className={styles.review_details}>
+                                                        <div className={styles.review_worker_date}>
+                                                            <span className={styles.review_date}>{review.date}</span>
+                                                        </div>
+                                                        <div className={styles.review_rating_secondary}>
+                                                            <span>Поставил </span>
+                                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                <g clipPath="url(#clip0_324_2272)">
+                                                                    <g clipPath="url(#clip1_324_2272)">
+                                                                        <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                                                        <path d="M12 19V18.98" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
+                                                                    </g>
+                                                                </g>
+                                                                <defs>
+                                                                    <clipPath id="clip0_324_2272">
+                                                                        <rect width="24" height="24" fill="white"/>
+                                                                    </clipPath>
+                                                                    <clipPath id="clip1_324_2272">
+                                                                        <rect width="24" height="24" fill="white"/>
+                                                                    </clipPath>
+                                                                </defs>
+                                                            </svg>
+                                                            <span className={styles.rating_value}>{review.rating}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    {review.description && (
+                                                        <div className={styles.review_text}>
+                                                            {review.description.replace(/<[^>]*>/g, '')}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </SwiperSlide>
+                                        ))}
+                                    </Swiper>
+                                </div>
+                            </>
                         ) : (
                             <div className={styles.no_reviews}>
                                 Пока нет отзывов от клиентов

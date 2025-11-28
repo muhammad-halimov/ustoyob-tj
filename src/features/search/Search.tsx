@@ -161,11 +161,11 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
     const getSearchTitle = useMemo(() => {
         if (userRole === 'client') {
-            return 'Поиск специалистов';
+            return 'Поиск услуг';
         } else if (userRole === 'master') {
-            return 'Поиск заказов';
+            return 'Поиск объявлений';
         } else {
-            return 'Поиск услуг и заказов';
+            return 'Поиск услуг и объявлений';
         }
     }, [userRole]);
 
@@ -352,7 +352,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     id: ticket.id,
                     title: ticket.title,
                     price: ticket.budget,
-                    unit: ticket.unit?.title || 'руб',
+                    unit: ticket.unit?.title || 'TJS',
                     description: ticket.description,
                     address: getFormattedAddress(ticket),
                     date: formattedDate,
@@ -446,7 +446,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                         id: ticket.id,
                         title: ticket.title,
                         price: ticket.budget,
-                        unit: ticket.unit?.title || 'руб',
+                        unit: ticket.unit?.title || 'TJS',
                         description: ticket.description,
                         address: getFormattedAddress(ticket),
                         date: formattedDate,
@@ -665,6 +665,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     onResetFilters={handleResetFilters}
                     categories={categories}
                 />
+
                 <div className={styles.search_content}>
                     <div className={styles.search}>
                         <h2 className={styles.title}>
@@ -685,14 +686,31 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                         </div>
 
                         <button className={styles.filters_btn} onClick={() => handleFilterToggle(!showFilters)}>
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <g clipPath="url(#clip0_182_2269)">
-                                    <g clipPath="url(#clip1_182_2269)">
-                                        <path d="M7.22922 20.59L2.44922 21.59L3.44922 16.81L17.8892 2.29001C18.1398 2.03889 18.4375 1.83982 18.7653 1.70424C19.0931 1.56865 19.4445 1.49925 19.7992 1.50001C20.5153 1.50001 21.2021 1.78447 21.7084 2.29082C22.2148 2.79717 22.4992 3.48392 22.4992 4.20001C22.5 4.55474 22.4306 4.90611 22.295 5.23391C22.1594 5.56171 21.9603 5.85945 21.7092 6.11001L7.22922 20.59Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <g clipPath="url(#clip0_710_4461)">
+                                    <g clipPath="url(#clip1_710_4461)">
+                                        <path d="M12.453 3.54667C13.1563 3.54667 13.7264 2.97658 13.7264 2.27333C13.7264 1.57009 13.1563 1 12.453 1C11.7498 1 11.1797 1.57009 11.1797 2.27333C11.1797 2.97658 11.7498 3.54667 12.453 3.54667Z" stroke="#3A54DA" strokeMiterlimit="10"/>
+                                        <path d="M3.54677 9.27323C4.25001 9.27323 4.8201 8.70314 4.8201 7.9999C4.8201 7.29665 4.25001 6.72656 3.54677 6.72656C2.84353 6.72656 2.27344 7.29665 2.27344 7.9999C2.27344 8.70314 2.84353 9.27323 3.54677 9.27323Z" stroke="#3A54DA" strokeMiterlimit="10"/>
+                                        <path d="M7.9999 14.9998C8.70314 14.9998 9.27323 14.4297 9.27323 13.7265C9.27323 13.0232 8.70314 12.4531 7.9999 12.4531C7.29665 12.4531 6.72656 13.0232 6.72656 13.7265C6.72656 14.4297 7.29665 14.9998 7.9999 14.9998Z" stroke="#3A54DA" strokeMiterlimit="10"/>
+                                        <path d="M0.366211 2.27344H11.1795" stroke="#3A54DA" strokeMiterlimit="10"/>
+                                        <path d="M13.7266 2.27344H15.6332" stroke="#3A54DA" strokeMiterlimit="10"/>
+                                        <path d="M0.366211 8H2.27288" stroke="#3A54DA" strokeMiterlimit="10"/>
+                                        <path d="M4.82031 8H15.6336" stroke="#3A54DA" strokeMiterlimit="10"/>
+                                        <path d="M0.366211 13.7266H6.72621" stroke="#3A54DA" strokeMiterlimit="10"/>
+                                        <path d="M9.27344 13.7266H15.6334" stroke="#3A54DA" strokeMiterlimit="10"/>
                                     </g>
                                 </g>
+                                <defs>
+                                    <clipPath id="clip0_710_4461">
+                                        <rect width="16" height="16" fill="white"/>
+                                    </clipPath>
+                                    <clipPath id="clip1_710_4461">
+                                        <rect width="16" height="16" fill="white"/>
+                                    </clipPath>
+                                </defs>
                             </svg>
-                            <p>Настроить фильтры поиска</p>
+
+                            <p>Фильтры</p>
                         </button>
                     </div>
 

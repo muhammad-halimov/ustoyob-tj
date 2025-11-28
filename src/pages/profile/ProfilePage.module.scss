@@ -162,15 +162,6 @@
   }
 }
 
-// Адаптивность для мобильных устройств
-@media (max-width: 768px) {
-  .profile_content {
-    flex-direction: column;
-    align-items: center;
-    gap: 15px;
-  }
-}
-
 .full_name_edit {
   display: flex;
   align-items: center;
@@ -948,9 +939,24 @@
 }
 
 .reviews_list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 27px;
+  .reviews_desktop {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 27px;
+    width: 100%;
+  }
+
+  .reviews_mobile {
+    display: none;
+  }
+
+  .reviews_slider {
+    width: 100%;
+
+    .swiper-slide {
+      height: auto;
+    }
+  }
 }
 
 .review_item {
@@ -2097,4 +2103,99 @@
   color: #666;
   transition: all 0.3s ease;
 
+}
+
+@media screen and (max-width: 480px) {
+  .avatar_container {
+    width: 89px;
+    height: 88px;
+  }
+
+  .profile_wrap {
+    padding: 20px;
+  }
+
+  .profile_content {
+    display: flex;
+  }
+  .name {
+    font-size: 18px;
+  }
+
+  .specialty {
+    font-size: 18px;
+  }
+
+  .rating,
+  .reviews {
+    font-size: 12px;
+    svg {
+      margin-right: 4px;
+      width: 16px;
+    }
+  }
+  .specialty_with_icon,
+  .rating_reviews {
+    margin-top: 10px;
+  }
+
+  .rating_reviews {
+    gap: 4px !important;
+  }
+
+  .section_subtitle {
+    font-size: 20px !important;
+  }
+
+  .section_item {
+    padding: 10px 20px !important;
+    margin-bottom: 18px !important;
+    min-height: 40px;
+  }
+
+  .empty_state {
+    height: 20px;
+  }
+
+  .add_button {
+    width: 16px;
+    height: 16px;
+  }
+
+  .services_list {
+    padding: 0;
+  }
+
+  .service_name,
+  .service_price {
+    font-size: 16px !important;
+  }
+
+  .section_title {
+    margin: 20px 0 10px 0 !important;
+  }
+
+  .reviews_section {
+    margin-top: 0 !important;
+  }
+
+  .reviews_list {
+    .reviews_desktop {
+      display: none;
+    }
+
+    .reviews_mobile {
+      display: block;
+    }
+  }
+
+  .reviewer_name {
+    font-size: 18px !important;
+  }
+
+
+  .reviewer_avatar {
+    width: 60px !important;
+    height: 60px !important;
+  }
 }
