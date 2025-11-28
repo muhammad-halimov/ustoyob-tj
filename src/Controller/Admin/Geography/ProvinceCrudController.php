@@ -3,6 +3,8 @@
 namespace App\Controller\Admin\Geography;
 
 use App\Entity\Geography\Province;
+use App\Repository\CityRepository;
+use App\Repository\DistrictRepository;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
@@ -53,18 +55,52 @@ class ProvinceCrudController extends AbstractCrudController
 
     public function configureFields(string $pageName): iterable
     {
+        /** @var Province $province */
+        $province = $this->getContext()?->getEntity()?->getInstance();
+
         yield IdField::new('id')
             ->onlyOnIndex();
 
         yield ChoiceField::new('province', 'Провинция')
-            ->setColumns(6)
+            ->setColumns(4)
             ->setChoices(Province::PROVINCES)
             ->setRequired(true);
 
         yield AssociationField::new('cities', 'Города')
-            ->setColumns(6)
-            ->setFormTypeOptions(['by_reference' => false])
-            ->setRequired(true);
+            ->setColumns(4)
+            ->setFormTypeOptions([
+                'by_reference' => false,
+                'query_builder' => function (CityRepository $repo) use ($province) {
+                    $qb = $repo
+                        ->createQueryBuilder('c')
+                        ->where('c.province IS NULL');
+
+                    if ($province && $province->getId())
+                        $qb
+                            ->orWhere('c.province = :province')
+                            ->setParameter('province', $province);
+
+                    return $qb;
+                },
+            ]);
+
+        yield AssociationField::new('district', 'Районы')
+            ->setColumns(4)
+            ->setFormTypeOptions([
+                'by_reference' => false,
+                'query_builder' => function (DistrictRepository $repo) use ($province) {
+                    $qb = $repo
+                        ->createQueryBuilder('d')
+                        ->where('d.province IS NULL');
+
+                    if ($province && $province->getId())
+                        $qb
+                            ->orWhere('d.province = :province')
+                            ->setParameter('province', $province);
+
+                    return $qb;
+                },
+            ]);
 
         yield TextEditorField::new('description', 'Описание')
             ->setColumns(12);

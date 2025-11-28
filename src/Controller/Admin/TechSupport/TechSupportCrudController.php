@@ -3,6 +3,7 @@
 namespace App\Controller\Admin\TechSupport;
 
 use App\Entity\TechSupport\TechSupport;
+use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
@@ -81,10 +82,16 @@ class TechSupportCrudController extends AbstractCrudController
             ->setRequired(true);
 
         yield AssociationField::new('author', 'Клиент / Мастер')
+            ->setQueryBuilder(function (QueryBuilder $qb) {
+                return $qb->andWhere("CAST(entity.roles as text) NOT LIKE '%ROLE_ADMIN%'");
+            })
             ->setRequired(true)
             ->setColumns(3);
 
         yield AssociationField::new('administrant', 'Исполнитель / Админ')
+            ->setQueryBuilder(function (QueryBuilder $qb) {
+                return $qb->andWhere("CAST(entity.roles as text) LIKE '%ROLE_ADMIN%'");
+            })
             ->setRequired(true)
             ->addCssClass('administrant-field')
             ->setColumns(3);

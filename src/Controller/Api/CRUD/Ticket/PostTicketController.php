@@ -2,7 +2,7 @@
 
 namespace App\Controller\Api\CRUD\Ticket;
 
-use App\Entity\Geography\District;
+use App\Entity\Geography\District\District;
 use App\Entity\Ticket\Category;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Ticket\Unit;

@@ -75,6 +75,14 @@ class Chat
     ])]
     private ?int $id = null;
 
+    #[ORM\Column(type: 'boolean', nullable: true)]
+    #[Groups([
+        'chats:read',
+        'chatMessages:read',
+        'appealsChat:read',
+    ])]
+    private ?bool $active = null;
+
     #[ORM\ManyToOne(inversedBy: 'messageAuthor')]
     #[ORM\JoinColumn(name: 'author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
@@ -294,6 +302,17 @@ class Chat
             }
         }
 
+        return $this;
+    }
+
+    public function getActive(): ?bool
+    {
+        return $this->active;
+    }
+
+    public function setActive(?bool $active): static
+    {
+        $this->active = $active;
         return $this;
     }
 }

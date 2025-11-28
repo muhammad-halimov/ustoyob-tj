@@ -2,7 +2,7 @@
 
 namespace App\DataFixture\User;
 
-use App\Entity\Geography\District;
+use App\Entity\Geography\District\District;
 use App\Entity\Review\Review;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;

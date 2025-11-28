@@ -98,6 +98,10 @@ class UserCrudController extends AbstractCrudController
         yield IdField::new('id')
             ->onlyOnIndex();
 
+        yield BooleanField::new('active', 'Активен')
+            ->addCssClass("form-switch")
+            ->setColumns(12);
+
         yield ChoiceField::new('roles', 'Права')
             ->setRequired(true)
             ->allowMultipleChoices()

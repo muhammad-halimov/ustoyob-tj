@@ -2,8 +2,8 @@
 
 namespace App\DataFixture\Geography;
 
-use App\Entity\Geography\City;
-use App\Entity\Geography\District;
+use App\Entity\Geography\City\City;
+use App\Entity\Geography\District\District;
 use App\Entity\Ticket\Ticket;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
@@ -26,21 +26,17 @@ class DistrictFixture extends Fixture
 
         $rudaki->setTitle("Рудаки");
         $rudaki->setDescription("Район Рудаки, Вахдат");
-        $rudaki->setCity($this->getReference('vahdat', City::class));
         $rudaki->addTicket($this->getReference('ticket', Ticket::class));
 
         $huroson->setTitle("Хуросон");
         $huroson->setDescription("Район Хуросон, Вахдат");
-        $huroson->setCity($this->getReference('vahdat', City::class));
 
         $sino->setTitle("Сино");
         $sino->setDescription("Район Сино, Душанбе");
-        $sino->setCity($this->getReference('dushanbe', City::class));
         $sino->addTicket($this->getReference('service', Ticket::class));
 
         $schevchenko->setTitle("Шевченко");
         $schevchenko->setDescription("Район Шевченко, Душанбе");
-        $schevchenko->setCity($this->getReference('dushanbe', City::class));
 
         foreach ($districts as $district) {
             $manager->persist($district);

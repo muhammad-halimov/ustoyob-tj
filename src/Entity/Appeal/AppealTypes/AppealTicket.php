@@ -46,44 +46,44 @@ class AppealTicket
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
-        'appealsTicket:read',
+        'appeal:ticket:read',
     ])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
-        'appealsTicket:read',
+        'appeal:ticket:read',
     ])]
     private ?string $title = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups([
-        'appealsTicket:read',
+        'appeal:ticket:read',
     ])]
     private ?string $description = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
-        'appealsTicket:read',
+        'appeal:ticket:read',
     ])]
-    private ?string $complaintReason = null;
+    private ?string $reason = null;
 
     #[ORM\ManyToOne(inversedBy: 'appealTicket')]
     #[ORM\JoinColumn(name: 'ticket_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
-        'appealsTicket:read',
+        'appeal:ticket:read',
     ])]
     private ?Ticket $ticket = null;
 
     #[ORM\ManyToOne(inversedBy: 'appealTickets')]
     #[Groups([
-        'appealsTicket:read',
+        'appeal:ticket:read',
     ])]
     private ?User $author = null;
 
     #[ORM\ManyToOne(inversedBy: 'appealTickets')]
     #[Groups([
-        'appealsTicket:read',
+        'appeal:ticket:read',
     ])]
     private ?User $respondent = null;
 
@@ -96,7 +96,7 @@ class AppealTicket
      */
     #[ORM\OneToMany(targetEntity: AppealImage::class, mappedBy: 'appealTicket', cascade: ['all'])]
     #[Groups([
-        'appealsTicket:read',
+        'appeal:ticket:read',
     ])]
     #[ApiProperty(writable: false)]
     #[SerializedName('images')]
@@ -112,14 +112,14 @@ class AppealTicket
         return $this->id;
     }
 
-    public function getComplaintReason(): ?string
+    public function getReason(): ?string
     {
-        return $this->complaintReason;
+        return $this->reason;
     }
 
-    public function setComplaintReason(?string $complaintReason): static
+    public function setReason(?string $reason): static
     {
-        $this->complaintReason = $complaintReason;
+        $this->reason = $reason;
 
         return $this;
     }

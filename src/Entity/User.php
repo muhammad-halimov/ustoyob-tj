@@ -24,7 +24,7 @@ use App\Entity\Chat\Chat;
 use App\Entity\Chat\ChatImage;
 use App\Entity\Chat\ChatMessage;
 use App\Entity\Gallery\Gallery;
-use App\Entity\Geography\District;
+use App\Entity\Geography\District\District;
 use App\Entity\Review\Review;
 use App\Entity\TechSupport\TechSupport;
 use App\Entity\TechSupport\TechSupportImage;
@@ -186,8 +186,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'clientTickets:read',
         'chats:read',
         'chatMessages:read',
-        'appealsTicket:read',
-        'appealsChat:read',
+        'appeal:ticket:read',
         'favorites:read',
         'techSupport:read',
     ])]
@@ -204,8 +203,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'clientTickets:read',
         'chats:read',
         'chatMessages:read',
-        'appealsTicket:read',
-        'appealsChat:read',
+        'appeal:ticket:read',
         'favorites:read',
         'techSupport:read',
     ])]
@@ -222,8 +220,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'clientTickets:read',
         'chats:read',
         'chatMessages:read',
-        'appealsTicket:read',
-        'appealsChat:read',
+        'appeal:ticket:read',
         'favorites:read',
         'techSupport:read',
     ])]
@@ -240,8 +237,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'clientTickets:read',
         'chats:read',
         'chatMessages:read',
-        'appealsTicket:read',
-        'appealsChat:read',
+        'appeal:ticket:read',
         'favorites:read',
         'techSupport:read',
     ])]
@@ -290,8 +286,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'clientTickets:read',
         'chats:read',
         'chatMessages:read',
-        'appealsTicket:read',
-        'appealsChat:read',
+        'appeal:ticket:read',
         'favorites:read',
         'techSupport:read',
     ])]
@@ -318,6 +313,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'clients:read',
     ])]
     private ?bool $atHome = null;
+
+    #[ORM\Column(type: 'boolean', nullable: true)]
+    #[Groups([
+        'masters:read',
+        'clients:read',
+    ])]
+    private ?bool $active = null;
 
     /**
      * @var list<string> The user roles
@@ -1327,6 +1329,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             }
         }
 
+        return $this;
+    }
+
+    public function getActive(): ?bool
+    {
+        return $this->active;
+    }
+
+    public function setActive(?bool $active): static
+    {
+        $this->active = $active;
         return $this;
     }
 }

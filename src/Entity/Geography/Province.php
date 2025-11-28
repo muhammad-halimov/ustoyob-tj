@@ -5,6 +5,8 @@ namespace App\Entity\Geography;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use App\Entity\Geography\City\City;
+use App\Entity\Geography\District\District;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Repository\ProvinceRepository;
@@ -44,9 +46,11 @@ class Province
     public function __construct()
     {
         $this->cities = new ArrayCollection();
+        $this->district = new ArrayCollection();
     }
 
     public const PROVINCES = [
+        'Душанбе' => 'Лушанбе',
         'ГРРП' => 'ГРРП',
         'ГБАО' => 'ГБАО',
         'Согдийская область' => 'Согдийская область',
@@ -63,6 +67,7 @@ class Province
         'cities:read',
         'districts:read',
         'masters:read',
+        'districts:read'
     ])]
     private ?int $id = null;
 
@@ -74,6 +79,7 @@ class Province
         'cities:read',
         'districts:read',
         'masters:read',
+        'districts:read'
     ])]
     #[SerializedName('title')]
     private ?string $province = null;
@@ -92,6 +98,12 @@ class Province
         'provinces:read',
     ])]
     private Collection $cities;
+
+    /**
+     * @var Collection<int, District>
+     */
+    #[ORM\OneToMany(targetEntity: District::class, mappedBy: 'province')]
+    private Collection $district;
 
     public function getId(): ?int
     {
@@ -145,6 +157,36 @@ class Province
             // set the owning side to null (unless already changed)
             if ($city->getProvince() === $this) {
                 $city->setProvince(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, District>
+     */
+    public function getDistrict(): Collection
+    {
+        return $this->district;
+    }
+
+    public function addDistrict(District $district): static
+    {
+        if (!$this->district->contains($district)) {
+            $this->district->add($district);
+            $district->setProvince($this);
+        }
+
+        return $this;
+    }
+
+    public function removeDistrict(District $district): static
+    {
+        if ($this->district->removeElement($district)) {
+            // set the owning side to null (unless already changed)
+            if ($district->getProvince() === $this) {
+                $district->setProvince(null);
             }
         }
 

@@ -1,11 +1,12 @@
 <?php
 
-namespace App\Entity\Geography;
+namespace App\Entity\Geography\District;
 
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use App\Entity\Geography\Province;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
@@ -47,9 +48,15 @@ class District
 
     public function __toString(): string
     {
-        return
-            "{$this->city->getProvince()}, г. $this->city, р. $this->title" ??
-            "District #$this->id";
+        return  $this->title ?? "District #$this->id";
+    }
+
+    public function __construct()
+    {
+        $this->tickets = new ArrayCollection();
+        $this->user = new ArrayCollection();
+        $this->communities = new ArrayCollection();
+        $this->settlements = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -98,16 +105,6 @@ class District
     #[ApiProperty(writable: false)]
     private ?string $image = null;
 
-    #[ORM\ManyToOne(inversedBy: 'districts')]
-    #[ORM\JoinColumn(name: 'city_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
-    #[Groups([
-        'districts:read',
-        'masterTickets:read',
-        'clientTickets:read',
-        'masters:read',
-    ])]
-    private ?City $city = null;
-
     /**
      * @var Collection<int, Ticket>
      */
@@ -122,11 +119,39 @@ class District
     #[Ignore]
     private Collection $user;
 
-    public function __construct()
-    {
-        $this->tickets = new ArrayCollection();
-        $this->user = new ArrayCollection();
-    }
+    #[ORM\ManyToOne(inversedBy: 'district')]
+    #[Groups([
+        'districts:read',
+    ])]
+    private ?Province $province = null;
+
+    /**
+     * @var Collection<int, Community>
+     */
+    #[ORM\OneToMany(targetEntity: Community::class, mappedBy: 'district', cascade: ['all'])]
+    #[Groups([
+        'districts:read',
+        'provinces:read',
+        'masterTickets:read',
+        'clientTickets:read',
+        'cities:read',
+        'masters:read',
+    ])]
+    private Collection $communities;
+
+    /**
+     * @var Collection<int, Settlement>
+     */
+    #[ORM\OneToMany(targetEntity: Settlement::class, mappedBy: 'district', cascade: ['all'])]
+    #[Groups([
+        'districts:read',
+        'provinces:read',
+        'masterTickets:read',
+        'clientTickets:read',
+        'cities:read',
+        'masters:read',
+    ])]
+    private Collection $settlements;
 
     public function getId(): ?int
     {
@@ -184,18 +209,6 @@ class District
         return $this;
     }
 
-    public function getCity(): ?City
-    {
-        return $this->city;
-    }
-
-    public function setCity(?City $city): static
-    {
-        $this->city = $city;
-
-        return $this;
-    }
-
     /**
      * @return Collection<int, Ticket>
      */
@@ -246,6 +259,78 @@ class District
     public function removeUser(User $user): static
     {
         $this->user->removeElement($user);
+
+        return $this;
+    }
+
+    public function getProvince(): ?Province
+    {
+        return $this->province;
+    }
+
+    public function setProvince(?Province $province): static
+    {
+        $this->province = $province;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Community>
+     */
+    public function getCommunities(): Collection
+    {
+        return $this->communities;
+    }
+
+    public function addCommunity(Community $community): static
+    {
+        if (!$this->communities->contains($community)) {
+            $this->communities->add($community);
+            $community->setDistrict($this);
+        }
+
+        return $this;
+    }
+
+    public function removeCommunity(Community $community): static
+    {
+        if ($this->communities->removeElement($community)) {
+            // set the owning side to null (unless already changed)
+            if ($community->getDistrict() === $this) {
+                $community->setDistrict(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Settlement>
+     */
+    public function getSettlements(): Collection
+    {
+        return $this->settlements;
+    }
+
+    public function addSettlement(Settlement $settlement): static
+    {
+        if (!$this->settlements->contains($settlement)) {
+            $this->settlements->add($settlement);
+            $settlement->setDistrict($this);
+        }
+
+        return $this;
+    }
+
+    public function removeSettlement(Settlement $settlement): static
+    {
+        if ($this->settlements->removeElement($settlement)) {
+            // set the owning side to null (unless already changed)
+            if ($settlement->getDistrict() === $this) {
+                $settlement->setDistrict(null);
+            }
+        }
 
         return $this;
     }

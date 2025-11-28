@@ -1,11 +1,12 @@
 <?php
 
-namespace App\Entity\Geography;
+namespace App\Entity\Geography\City;
 
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use App\Entity\Geography\Province;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Repository\CityRepository;
@@ -45,11 +46,6 @@ class City
     public function __toString(): string
     {
         return $this->title ?? "City #$this->id";
-    }
-
-    public function __construct()
-    {
-        $this->districts = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -98,17 +94,6 @@ class City
     #[ApiProperty(writable: false)]
     private ?string $image = null;
 
-    /**
-     * @var Collection<int, District>
-     */
-    #[ORM\OneToMany(targetEntity: District::class, mappedBy: 'city', cascade: ['persist'], orphanRemoval: false)]
-    #[Groups([
-        'cities:read',
-        'provinces:read',
-    ])]
-    #[ApiProperty(writable: false)]
-    private Collection $districts;
-
     #[ORM\ManyToOne(inversedBy: 'cities')]
     #[Groups([
         'cities:read',
@@ -118,6 +103,25 @@ class City
         'masters:read',
     ])]
     private ?Province $province = null;
+
+    /**
+     * @var Collection<int, Suburb>
+     */
+    #[ORM\OneToMany(targetEntity: Suburb::class, mappedBy: 'cities', cascade: ['all'])]
+    #[Groups([
+        'cities:read',
+        'provinces:read',
+        'masterTickets:read',
+        'clientTickets:read',
+        'districts:read',
+        'masters:read',
+    ])]
+    private Collection $suburbs;
+
+    public function __construct()
+    {
+        $this->suburbs = new ArrayCollection();
+    }
 
     public function getId(): ?int
     {
@@ -175,36 +179,6 @@ class City
         return $this;
     }
 
-    /**
-     * @return Collection<int, District>
-     */
-    public function getDistricts(): Collection
-    {
-        return $this->districts;
-    }
-
-    public function addDistrict(District $district): static
-    {
-        if (!$this->districts->contains($district)) {
-            $this->districts->add($district);
-            $district->setCity($this);
-        }
-
-        return $this;
-    }
-
-    public function removeDistrict(District $district): static
-    {
-        if ($this->districts->removeElement($district)) {
-            // set the owning side to null (unless already changed)
-            if ($district->getCity() === $this) {
-                $district->setCity(null);
-            }
-        }
-
-        return $this;
-    }
-
     public function getProvince(): ?Province
     {
         return $this->province;
@@ -213,6 +187,36 @@ class City
     public function setProvince(?Province $province): static
     {
         $this->province = $province;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Suburb>
+     */
+    public function getSuburbs(): Collection
+    {
+        return $this->suburbs;
+    }
+
+    public function addSuburb(Suburb $suburb): static
+    {
+        if (!$this->suburbs->contains($suburb)) {
+            $this->suburbs->add($suburb);
+            $suburb->setCities($this);
+        }
+
+        return $this;
+    }
+
+    public function removeSuburb(Suburb $suburb): static
+    {
+        if ($this->suburbs->removeElement($suburb)) {
+            // set the owning side to null (unless already changed)
+            if ($suburb->getCities() === $this) {
+                $suburb->setCities(null);
+            }
+        }
 
         return $this;
     }

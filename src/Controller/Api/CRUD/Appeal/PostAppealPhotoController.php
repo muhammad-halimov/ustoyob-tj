@@ -71,7 +71,7 @@ class PostAppealPhotoController extends AbstractController
 
         $this->entityManager->flush();
 
-        return new JsonResponse([
+        return $this->json([
             'message' => 'Photos uploaded successfully',
             'count' => count($imageFiles)
         ]);

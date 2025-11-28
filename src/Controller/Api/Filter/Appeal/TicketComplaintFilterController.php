@@ -39,6 +39,6 @@ class TicketComplaintFilterController extends AbstractController
 
         return empty($appeals)
             ? $this->json(['message' => 'Resource not found'], 404)
-            : $this->json($appeals, context: ['groups' => ['appealsTicket:read']]);
+            : $this->json($appeals, context: ['groups' => ['appeal:ticket:read']]);
     }
 }

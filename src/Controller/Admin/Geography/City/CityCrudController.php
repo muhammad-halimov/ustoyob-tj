@@ -1,35 +1,36 @@
 <?php
 
-namespace App\Controller\Admin\Geography;
+namespace App\Controller\Admin\Geography\City;
 
 use App\Controller\Admin\Field\VichImageField;
-use App\Entity\Geography\District;
+use App\Entity\Geography\City\City;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
-class DistrictCrudController extends AbstractCrudController
+class CityCrudController extends AbstractCrudController
 {
     public static function getEntityFqcn(): string
     {
-        return District::class;
+        return City::class;
     }
 
     public function configureCrud(Crud $crud): Crud
     {
         return parent::configureCrud($crud)
             ->setEntityPermission('ROLE_ADMIN')
-            ->setEntityLabelInPlural('География района')
-            ->setEntityLabelInSingular('географию района')
-            ->setPageTitle(Crud::PAGE_NEW, 'Добавление района')
-            ->setPageTitle(Crud::PAGE_EDIT, 'Изменение района')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о районе");
+            ->setEntityLabelInPlural('География города')
+            ->setEntityLabelInSingular('географию города')
+            ->setPageTitle(Crud::PAGE_NEW, 'Добавление города')
+            ->setPageTitle(Crud::PAGE_EDIT, 'Изменение города')
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о городе");
     }
 
     public function configureActions(Actions $actions): Actions
@@ -61,9 +62,8 @@ class DistrictCrudController extends AbstractCrudController
             ->setColumns(6)
             ->setRequired(true);
 
-        yield AssociationField::new('city', 'Город')
-            ->setColumns(6)
-            ->setRequired(true);
+        yield AssociationField::new('province', 'Провинция')
+            ->setColumns(6);
 
         yield TextEditorField::new('description', 'Описание')
             ->setColumns(12);
@@ -79,7 +79,14 @@ class DistrictCrudController extends AbstractCrudController
                 </div>
             ')
             ->onlyOnForms()
-            ->setColumns(12);
+            ->setColumns(6);
+
+        yield CollectionField::new('suburbs', 'Кварталы / Маҳалаҳо')
+            ->useEntryCrudForm(SuburbCrudController::class)
+            ->setFormTypeOptions(['by_reference' => false])
+            ->hideOnIndex()
+            ->setColumns(6)
+            ->setRequired(false);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
             ->onlyOnIndex();

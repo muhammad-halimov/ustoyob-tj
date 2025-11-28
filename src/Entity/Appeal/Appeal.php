@@ -8,16 +8,18 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\Appeal\PostAppealConntroller;
 use App\Controller\Api\CRUD\Appeal\PostAppealPhotoController;
-use App\Controller\Api\Filter\Appeal\ComplaintsFilterController;
 use App\Controller\Api\Filter\Appeal\TicketComplaintFilterController;
+use App\Dto\Appeal\ComplaintReasonOutput;
 use App\Entity\Appeal\AppealTypes\AppealChat;
 use App\Entity\Appeal\AppealTypes\AppealTicket;
 use App\Repository\User\AppealRepository;
+use App\State\Appeal\ComplaintReasonProvider;
 use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Serializer\Attribute\SerializedName;
 
 #[ORM\Entity(repositoryClass: AppealRepository::class)]
 #[ORM\HasLifecycleCallbacks]
@@ -25,19 +27,26 @@ use Symfony\Component\Serializer\Attribute\Groups;
     operations: [
         new GetCollection(
             uriTemplate: '/appeals/reasons',
-            controller: ComplaintsFilterController::class,
+            output: ComplaintReasonOutput::class,
+            provider: ComplaintReasonProvider::class,
         ),
         new Get(
             uriTemplate: '/appeals/{id}',
-            security:  "is_granted('ROLE_ADMIN')",
+            normalizationContext: ['groups' => ['appeal:read']],
+            security:  "is_granted('ROLE_ADMIN')"
         ),
         new GetCollection(
             uriTemplate: '/appeals',
+            normalizationContext: ['groups' => ['appeal:read']],
             security:  "is_granted('ROLE_ADMIN')",
         ),
         new GetCollection(
             uriTemplate: '/appeals/ticket/{id}',
             controller: TicketComplaintFilterController::class,
+            normalizationContext: [
+                'groups' => ['appeal:ticket:read'],
+                'skip_null_values' => false,
+            ]
         ),
         new Post(
             uriTemplate: '/appeals',
@@ -48,12 +57,6 @@ use Symfony\Component\Serializer\Attribute\Groups;
             requirements: ['id' => '\d+'],
             controller: PostAppealPhotoController::class,
         ),
-    ],
-    normalizationContext: [
-        'groups' => [
-            'appealsTicket:read',
-            'appealsChat:read',
-        ],
     ],
     paginationEnabled: false,
 )]
@@ -79,15 +82,15 @@ class Appeal
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
-        'appealsTicket:read',
-        'appealsChat:read',
+        'appeal:ticket:read',
+        'appeal:read'
     ])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
-        'appealsTicket:read',
-        'appealsChat:read',
+        'appeal:ticket:read',
+        'appeal:read'
     ])]
     private ?string $type = null;
 
@@ -96,8 +99,10 @@ class Appeal
      */
     #[ORM\OneToMany(targetEntity: AppealTicket::class, mappedBy: 'appeal', cascade: ['all'])]
     #[Groups([
-        'appealsTicket:read',
+        'appeal:ticket:read',
+        'appeal:read'
     ])]
+    #[SerializedName('ticket')]
     private Collection $appealTicket;
 
     /**
@@ -106,20 +111,22 @@ class Appeal
     #[ORM\OneToMany(targetEntity: AppealChat::class, mappedBy: 'appeal', cascade: ['all'])]
     #[Groups([
         'appealsChat:read',
+        'appeal:read'
     ])]
+    #[SerializedName('chat')]
     private Collection $appealChat;
 
     #[ORM\Column(type: 'datetime', nullable: false)]
     #[Groups([
-        'appealsTicket:read',
-        'appealsChat:read',
+        'appeal:ticket:read',
+        'appeal:read'
     ])]
     protected DateTime $createdAt;
 
     #[ORM\Column(type: 'datetime', nullable: false)]
     #[Groups([
-        'appealsTicket:read',
-        'appealsChat:read',
+        'appeal:ticket:read',
+        'appeal:read'
     ])]
     protected DateTime $updatedAt;
 
@@ -251,7 +258,7 @@ class Appeal
             $appealTicket = $this->appealTicket->first();
 
             // Получаем читаемую причину из массива COMPLAINTS
-            $complaintCode = $appealTicket->getComplaintReason();
+            $complaintCode = $appealTicket->getReason();
             $complaintHuman = array_search($complaintCode, AppealTicket::COMPLAINTS) ?: $complaintCode;
 
             return "

@@ -33,8 +33,7 @@ class AppealImage
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
-        'appealsTicket:read',
-        'appealsChat:read',
+        'appeal:ticket:read',
     ])]
     private ?int $id = null;
 
@@ -44,8 +43,7 @@ class AppealImage
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
-        'appealsTicket:read',
-        'appealsChat:read',
+        'appeal:ticket:read',
     ])]
     #[ApiProperty(writable: false)]
     private ?string $image = null;

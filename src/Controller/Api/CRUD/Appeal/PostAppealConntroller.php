@@ -55,13 +55,13 @@ class PostAppealConntroller extends AbstractController
         $typeParam            = $data['type'] ?? null;
         $titleParam           = $data['title'] ?? null;
         $descriptionParam     = $data['description'] ?? null;
-        $complaintReasonParam = $data['complaintReason'] ?? null;
+        $reasonParam = $data['reason'] ?? null;
         $respondentParam      = $data['respondent'] ?? null;
 
-        if (!$titleParam || !$descriptionParam || !$complaintReasonParam || !$typeParam)
+        if (!$titleParam || !$descriptionParam || !$reasonParam || !$typeParam)
             return $this->json(['message' => 'Missing required fields'], 400);
 
-        if (!in_array($complaintReasonParam, array_values($allComplaints)))
+        if (!in_array($reasonParam, array_values($allComplaints)))
             return $this->json(['message' => 'Wrong complaint reason'], 400);
 
         $respondentId = preg_match('#/api/users/(\d+)#', $respondentParam, $r) ? $r[1] : $respondentParam;
@@ -75,7 +75,7 @@ class PostAppealConntroller extends AbstractController
             'type'            => $typeParam,
             'title'           => $titleParam,
             'description'     => $descriptionParam,
-            'complaintReason' => $complaintReasonParam,
+            'reason'          => $reasonParam,
             'respondent'      => "/api/users/{$respondent->getId()}",
             'author'          => "/api/users/{$bearerUser->getId()}",
         ];
@@ -104,7 +104,7 @@ class PostAppealConntroller extends AbstractController
                 ->addAppealTicket((new AppealTicket())
                     ->setTitle($titleParam)
                     ->setDescription($descriptionParam)
-                    ->setComplaintReason($complaintReasonParam)
+                    ->setReason($reasonParam)
                     ->setRespondent($respondent)
                     ->setAuthor($bearerUser)
                     ->setTicket($ticket)
@@ -139,7 +139,7 @@ class PostAppealConntroller extends AbstractController
                 ->addAppealChat((new AppealChat())
                     ->setTitle($titleParam)
                     ->setDescription($descriptionParam)
-                    ->setComplaintReason($complaintReasonParam)
+                    ->setComplaintReason($reasonParam)
                     ->setRespondent($respondent)
                     ->setAuthor($bearerUser)
                     ->setChat($chat)

@@ -2,7 +2,7 @@
 
 namespace App\DataFixture\Geography;
 
-use App\Entity\Geography\City;
+use App\Entity\Geography\City\City;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
 

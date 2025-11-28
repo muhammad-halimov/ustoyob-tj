@@ -21,7 +21,7 @@ use App\Controller\Api\Filter\Ticket\PersonalTicketFilterController;
 use App\Controller\Api\Filter\Ticket\TicketCategoryFilterController;
 use App\Entity\Appeal\AppealTypes\AppealTicket;
 use App\Entity\Chat\Chat;
-use App\Entity\Geography\District;
+use App\Entity\Geography\District\District;
 use App\Entity\Review\Review;
 use App\Entity\User;
 use App\Entity\User\Favorite;
@@ -126,9 +126,9 @@ class Ticket
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
-        'appealsTicket:read',
         'reviews:read',
-        'favorites:read'
+        'favorites:read',
+        'appeal:ticket:read'
     ])]
     private ?int $id = null;
 
@@ -136,9 +136,9 @@ class Ticket
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
-        'appealsTicket:read',
         'reviews:read',
-        'favorites:read'
+        'favorites:read',
+        'appeal:ticket:read'
     ])]
     private ?string $title = null;
 
@@ -167,9 +167,9 @@ class Ticket
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
-        'appealsTicket:read',
         'reviews:read',
-        'favorites:read'
+        'favorites:read',
+        'appeal:ticket:read'
     ])]
     private ?bool $active = null;
 
@@ -187,7 +187,8 @@ class Ticket
         'masterTickets:read',
         'clientTickets:read',
         'reviews:read',
-        'favorites:read'
+        'favorites:read',
+        'appeal:ticket:read'
     ])]
     private ?User $author = null;
 
@@ -197,7 +198,8 @@ class Ticket
         'masterTickets:read',
         'clientTickets:read',
         'reviews:read',
-        'favorites:read'
+        'favorites:read',
+        'appeal:ticket:read'
     ])]
     private ?User $master = null;
 
@@ -232,9 +234,9 @@ class Ticket
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
-        'appealsTicket:read',
         'reviews:read',
-        'favorites:read'
+        'favorites:read',
+        'appeal:ticket:read'
     ])]
     private ?bool $service = null;
 
