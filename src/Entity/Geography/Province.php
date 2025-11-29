@@ -103,6 +103,9 @@ class Province
      * @var Collection<int, District>
      */
     #[ORM\OneToMany(targetEntity: District::class, mappedBy: 'province')]
+    #[Groups([
+        'provinces:read',
+    ])]
     private Collection $district;
 
     public function getId(): ?int

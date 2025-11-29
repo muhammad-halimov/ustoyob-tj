@@ -20,7 +20,6 @@ use App\Controller\Api\Filter\Ticket\Master\MasterTicketFilterController;
 use App\Controller\Api\Filter\Ticket\PersonalTicketFilterController;
 use App\Controller\Api\Filter\Ticket\TicketCategoryFilterController;
 use App\Dto\Ticket\TicketInput;
-use App\Dto\Ticket\TicketOutput;
 use App\Entity\Appeal\AppealTypes\AppealTicket;
 use App\Entity\Chat\Chat;
 use App\Entity\Geography\District\District;
@@ -28,7 +27,6 @@ use App\Entity\Review\Review;
 use App\Entity\User;
 use App\Entity\User\Favorite;
 use App\Repository\TicketRepository;
-use App\State\Ticket\TicketProvider;
 use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -78,8 +76,6 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         ),
         new GetCollection(
             uriTemplate: '/tickets',
-            output: TicketOutput::class,
-//            provider: TicketProvider::class,
         ),
         new Post(
             uriTemplate: '/tickets',
@@ -102,7 +98,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         ),
     ],
     normalizationContext: [
-//        'groups' => ['masterTickets:read', 'clientTickets:read'],
+        'groups' => ['masterTickets:read', 'clientTickets:read'],
         'skip_null_values' => false,
     ],
     paginationEnabled: false,

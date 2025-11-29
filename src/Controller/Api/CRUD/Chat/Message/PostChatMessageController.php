@@ -6,6 +6,8 @@ use App\Entity\Chat\Chat;
 use App\Entity\Chat\ChatMessage;
 use App\Entity\User;
 use App\Repository\Chat\ChatRepository;
+use App\Service\AccessService;
+use App\Service\ExtractIriService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -16,29 +18,25 @@ class PostChatMessageController extends AbstractController
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly ChatRepository         $chatRepository,
         private readonly Security               $security,
+        private readonly AccessService          $accessService,
+        private readonly ExtractIriService      $extractIriService,
     ){}
 
     public function __invoke(Request $request): JsonResponse
     {
-        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
-        $allowedRoles = ["ROLE_ADMIN", "ROLE_CLIENT", "ROLE_MASTER"];
+        /** @var User $bearerUser */
+        $bearerUser = $this->security->getUser();
 
-        /** @var User $user */
-        $user = $this->security->getUser();
-
-        if (!array_intersect($allowedRoles, $user->getRoles()))
-            return $this->json(['message' => 'Access denied'], 403);
+        $this->accessService->check($bearerUser);
 
         $data = json_decode($request->getContent(), true);
         $chatParam = $data['chat'];
         $text = $data['text'];
 
         // Извлекаем ID из строки "/api/chats/1" или просто "1"
-        $chatId = (preg_match('#/api/chats/(\d+)#', $chatParam, $c) ? $c[1] : $chatParam);
         /** @var Chat $chat */
-        $chat = $this->chatRepository->find($chatId);
+        $chat = $this->extractIriService->extract($chatParam, Chat::class, 'chats');
 
         if(!$chat)
             return $this->json(['message' => "Chat not found"], 404);
@@ -50,13 +48,13 @@ class PostChatMessageController extends AbstractController
             return $this->json(['message' => "Empty message text"], 400);
 
 
-        if ($chat->getAuthor() !== $user && $chat->getReplyAuthor() !== $user)
+        if ($chat->getAuthor() !== $bearerUser && $chat->getReplyAuthor() !== $bearerUser)
             return $this->json(['message' => "Ownership doesn't match"], 403);
 
         $chatMessage = (new ChatMessage())
             ->setText($text)
             ->setChat($chat)
-            ->setAuthor($user);
+            ->setAuthor($bearerUser);
 
         $chat->addMessage($chatMessage);
 
