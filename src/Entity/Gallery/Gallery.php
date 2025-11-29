@@ -12,6 +12,7 @@ use App\Controller\Api\CRUD\Gallery\PostGalleryController;
 use App\Controller\Api\CRUD\Gallery\PostGalleryPhotoController;
 use App\Controller\Api\Filter\Gallery\MasterGalleryFilterController;
 use App\Controller\Api\Filter\Gallery\PersonalGalleryFilterController;
+use App\Dto\Appeal\Photo\AppealPhotoInput;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
@@ -56,6 +57,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             security:
                 "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER')",
+            input: AppealPhotoInput::class,
         ),
         new Patch(
             uriTemplate: '/galleries/{id}',

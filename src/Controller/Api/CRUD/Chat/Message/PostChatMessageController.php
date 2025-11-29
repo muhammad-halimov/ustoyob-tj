@@ -5,7 +5,6 @@ namespace App\Controller\Api\CRUD\Chat\Message;
 use App\Entity\Chat\Chat;
 use App\Entity\Chat\ChatMessage;
 use App\Entity\User;
-use App\Repository\Chat\ChatRepository;
 use App\Service\AccessService;
 use App\Service\ExtractIriService;
 use Doctrine\ORM\EntityManagerInterface;

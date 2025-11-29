@@ -8,9 +8,8 @@ use App\Entity\Appeal\AppealTypes\AppealTicket;
 use App\Entity\Chat\Chat;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
-use App\Repository\Chat\ChatRepository;
-use App\Repository\TicketRepository;
-use App\Repository\UserRepository;
+use App\Service\AccessService;
+use App\Service\ExtractIriService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -21,42 +20,28 @@ class PostAppealConntroller extends AbstractController
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly TicketRepository       $ticketRepository,
-        private readonly ChatRepository         $chatRepository,
-        private readonly UserRepository         $userRepository,
         private readonly Security               $security,
+        private readonly AccessService          $accessService,
+        private readonly ExtractIriService      $extractIriService,
     ) {}
 
     public function __invoke(Request $request): JsonResponse
     {
-        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
-        $allowedRoles = ["ROLE_ADMIN", "ROLE_CLIENT", "ROLE_MASTER"];
-
         /** @var User $bearerUser */
         $bearerUser = $this->security->getUser();
 
-        $allComplaints = array_unique(
-            array_merge(
-                AppealChat::COMPLAINTS,
-                AppealTicket::COMPLAINTS,
-            )
-        );
+        $this->accessService->check($bearerUser);
 
-        if (!array_intersect($allowedRoles, $bearerUser->getRoles())) {
-            return $this->json(['message' => 'Access denied'], 403);
-        }
+        $allComplaints = array_unique(array_merge(AppealChat::COMPLAINTS, AppealTicket::COMPLAINTS));
 
         $data = json_decode($request->getContent(), true);
 
-        if (!$data)
-            return $this->json(['message' => 'Invalid JSON'], 400);
-
         // безопасное извлечение данных
-        $typeParam            = $data['type'] ?? null;
-        $titleParam           = $data['title'] ?? null;
-        $descriptionParam     = $data['description'] ?? null;
-        $reasonParam          = $data['reason'] ?? null;
-        $respondentParam      = $data['respondent'] ?? null;
+        $typeParam        = $data['type'] ?? null;
+        $titleParam       = $data['title'] ?? null;
+        $descriptionParam = $data['description'] ?? null;
+        $reasonParam      = $data['reason'] ?? null;
+        $respondentParam  = $data['respondent'] ?? null;
 
         if (!$titleParam || !$descriptionParam || !$reasonParam || !$typeParam)
             return $this->json(['message' => 'Missing required fields'], 400);
@@ -64,20 +49,19 @@ class PostAppealConntroller extends AbstractController
         if (!in_array($reasonParam, array_values($allComplaints)))
             return $this->json(['message' => 'Wrong complaint reason'], 400);
 
-        $respondentId = preg_match('#/api/users/(\d+)#', $respondentParam, $r) ? $r[1] : $respondentParam;
         /** @var User $respondent */
-        $respondent = $this->userRepository->find($respondentId);
+        $respondent = $this->extractIriService->extract($respondentParam, User::class, 'users');
 
         if (!$respondent)
             return $this->json(['message' => 'Respondent not found'], 404);
 
         $message = [
-            'type'            => $typeParam,
-            'title'           => $titleParam,
-            'description'     => $descriptionParam,
-            'reason'          => $reasonParam,
-            'respondent'      => "/api/users/{$respondent->getId()}",
-            'author'          => "/api/users/{$bearerUser->getId()}",
+            'type'        => $typeParam,
+            'title'       => $titleParam,
+            'description' => $descriptionParam,
+            'reason'      => $reasonParam,
+            'respondent'  => "/api/users/{$respondent->getId()}",
+            'author'      => "/api/users/{$bearerUser->getId()}",
         ];
 
         $appeal = new Appeal();
@@ -88,9 +72,8 @@ class PostAppealConntroller extends AbstractController
             if (!$ticketParam)
                 return $this->json(['message' => 'Missing ticket'], 400);
 
-            $ticketId = preg_match('#/api/tickets/(\d+)#', $ticketParam, $t) ? $t[1] : $ticketParam;
             /** @var Ticket $ticket */
-            $ticket = $this->ticketRepository->find($ticketId);
+            $ticket = $this->extractIriService->extract($ticketParam, Ticket::class, 'tickets');
 
             if (!$ticket)
                 return $this->json(['message' => 'Ticket not found'], 404);
@@ -119,10 +102,8 @@ class PostAppealConntroller extends AbstractController
             if (!$chatParam)
                 return $this->json(['message' => 'Missing chat'], 400);
 
-            $chatId = preg_match('#/api/chats/(\d+)#', $chatParam, $c) ? $c[1] : $chatParam;
-
             /** @var Chat $chat */
-            $chat = $this->chatRepository->find($chatId);
+            $chat = $this->extractIriService->extract($chatParam, Chat::class, 'chats');
 
             if (!$chat)
                 return $this->json(['message' => 'Chat not found'], 404);
@@ -132,7 +113,6 @@ class PostAppealConntroller extends AbstractController
 
             if ($chat->getReplyAuthor() !== $respondent)
                 return $this->json(['message' => "Respondent's chat doesn't match"], 400);
-
 
             $appeal
                 ->setType($typeParam)

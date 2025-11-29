@@ -18,6 +18,9 @@ use App\Controller\Api\Filter\User\Master\MastersUserFilterController;
 use App\Controller\Api\Filter\User\Master\MasterUserFilterController;
 use App\Controller\Api\Filter\User\Personal\PersonalUserFilterController;
 use App\Controller\Api\Filter\User\SocialNetworkController;
+use App\Dto\Appeal\Photo\AppealPhotoInput;
+use App\Dto\User\RoleOutput;
+use App\Dto\User\SocialNetworkOutput;
 use App\Entity\Appeal\AppealTypes\AppealChat;
 use App\Entity\Appeal\AppealTypes\AppealTicket;
 use App\Entity\Chat\Chat;
@@ -60,46 +63,73 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
         new Get(
             uriTemplate: '/users/me',
             controller: PersonalUserFilterController::class,
+            normalizationContext: [
+                'groups' => ['masters:read', 'clients:read'],
+                'skip_null_values' => false,
+            ],
         ),
         new GetCollection(
             uriTemplate: '/users/clients',
             controller: ClientsUserFilterController::class,
+            normalizationContext: [
+                'groups' => ['clients:read'],
+                'skip_null_values' => false,
+            ],
         ),
         new Get(
             uriTemplate: '/users/clients/{id}',
             requirements: ['id' => '\d+'],
             controller: ClientUserFilterController::class,
+            normalizationContext: [
+                'groups' => ['clients:read'],
+                'skip_null_values' => false,
+            ],
         ),
         new GetCollection(
             uriTemplate: '/users/masters',
             controller: MastersUserFilterController::class,
+            normalizationContext: [
+                'groups' => ['masters:read'],
+                'skip_null_values' => false,
+            ],
         ),
         new GetCollection(
             uriTemplate: '/users/social-networks',
             controller: SocialNetworkController::class,
+            output: SocialNetworkOutput::class,
         ),
         new Get(
             uriTemplate: '/users/masters/{id}',
             requirements: ['id' => '\d+'],
             controller: MasterUserFilterController::class,
+            normalizationContext: [
+                'groups' => ['masters:read'],
+                'skip_null_values' => false,
+            ],
         ),
         new GetCollection(
             uriTemplate: '/users/masters/occupations/{id}',
             requirements: ['id' => '\d+'],
             controller: MastersOccupationUserFilterController::class,
+            normalizationContext: [
+                'groups' => ['masters:read'],
+                'skip_null_values' => false,
+            ],
         ),
         new Post(
-            uriTemplate: '/users'
+            uriTemplate: '/users',
         ),
         new Post(
             uriTemplate: '/users/grant-role/',
             controller: GrantRoleController::class,
+            input: RoleOutput::class,
         ),
         new Post(
             uriTemplate: '/users/{id}/update-photo',
             inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
             controller: PostUserPhotoController::class,
+            input: AppealPhotoInput::class,
         ),
         new Patch(
             uriTemplate: '/users/{id}',
@@ -119,10 +149,6 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
                  is_granted('ROLE_CLIENT')) and
                  object == user)",
         )
-    ],
-    normalizationContext: [
-        'groups' => ['masters:read', 'clients:read'],
-        'skip_null_values' => false,
     ],
     paginationEnabled: false,
 )]
@@ -466,30 +492,35 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      * @var Collection<int, TechSupportImage>
      */
     #[ORM\OneToMany(targetEntity: TechSupportImage::class, mappedBy: 'author')]
+    #[Ignore]
     private Collection $techSupportImages;
 
     /**
      * @var Collection<int, TechSupportMessage>
      */
     #[ORM\OneToMany(targetEntity: TechSupportMessage::class, mappedBy: 'author')]
+    #[Ignore]
     private Collection $techSupportMessages;
 
     /**
      * @var Collection<int, TechSupport>
      */
     #[ORM\OneToMany(targetEntity: TechSupport::class, mappedBy: 'administrant')]
+    #[Ignore]
     private Collection $techSupports;
 
     /**
      * @var Collection<int, AppealTicket>
      */
     #[ORM\OneToMany(targetEntity: AppealTicket::class, mappedBy: 'author')]
+    #[Ignore]
     private Collection $appealTickets;
 
     /**
      * @var Collection<int, AppealChat>
      */
     #[ORM\OneToMany(targetEntity: AppealChat::class, mappedBy: 'author')]
+    #[Ignore]
     private Collection $appealChats;
 
     public function getId(): ?int

@@ -14,6 +14,7 @@ use App\Controller\Api\Filter\TechSupport\AdminTechSupportFilterController;
 use App\Controller\Api\Filter\TechSupport\PersonalTechSupportFilterController;
 use App\Controller\Api\Filter\TechSupport\SupportReasonFilterController;
 use App\Controller\Api\Filter\TechSupport\UserTechSupportFilterController;
+use App\Dto\Appeal\Photo\AppealPhotoInput;
 use App\Entity\User;
 use App\Repository\TechSupport\TechSupportRepository;
 use DateTime;
@@ -55,8 +56,10 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         ),
         new Post(
             uriTemplate: '/tech-support/{id}/upload-photo',
+            inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
             controller: PostTechSupportPhotoController::class,
+            input: AppealPhotoInput::class,
         ),
     ],
     normalizationContext: [

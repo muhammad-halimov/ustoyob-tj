@@ -2,6 +2,7 @@
 
 namespace App\Entity\Review;
 
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
@@ -16,6 +17,7 @@ use App\Controller\Api\Filter\Review\Clients\ClientsReviewFilterController;
 use App\Controller\Api\Filter\Review\Masters\MasterReviewFilterController;
 use App\Controller\Api\Filter\Review\Masters\MastersReviewFilterController;
 use App\Controller\Api\Filter\Review\PersonalReviewFilterController;
+use App\Dto\Appeal\Photo\AppealPhotoInput;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
 use App\Repository\ReviewRepository;
@@ -60,8 +62,10 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         ),
         new Post(
             uriTemplate: '/reviews/{id}/upload-photo',
+            inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
             controller: PostReviewPhotoController::class,
+            input: AppealPhotoInput::class,
         ),
         new Post(
             uriTemplate: '/reviews',
@@ -152,6 +156,7 @@ class Review
         'reviewsClient:read',
     ])]
     #[SerializedName('images')]
+    #[ApiProperty(writable: false)]
     private Collection $reviewImages;
 
     #[ORM\ManyToOne(inversedBy: 'masterReviews')]

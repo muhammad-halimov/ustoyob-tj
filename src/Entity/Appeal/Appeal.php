@@ -6,16 +6,15 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
+use App\Controller\Api\CRUD\Appeal\PostAppealConntroller;
+use App\Controller\Api\CRUD\Appeal\PostAppealPhotoController;
+use App\Controller\Api\Filter\Appeal\AppealReasonFilterController;
 use App\Dto\Appeal\Appeal\AppealInput;
 use App\Dto\Appeal\Appeal\ComplaintReasonOutput;
 use App\Dto\Appeal\Photo\AppealPhotoInput;
-use App\Dto\Appeal\Photo\AppealPhotoOutput;
 use App\Entity\Appeal\AppealTypes\AppealChat;
 use App\Entity\Appeal\AppealTypes\AppealTicket;
 use App\Repository\User\AppealRepository;
-use App\State\Appeal\AppealPhotoProcessor;
-use App\State\Appeal\AppealProcessor;
-use App\State\Appeal\ComplaintReasonProvider;
 use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -29,8 +28,8 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
     operations: [
         new GetCollection(
             uriTemplate: '/appeals/reasons',
+            controller: AppealReasonFilterController::class,
             output: ComplaintReasonOutput::class,
-            provider: ComplaintReasonProvider::class,
         ),
         new Get(
             uriTemplate: '/appeals/{id}',
@@ -44,15 +43,15 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         ),
         new Post(
             uriTemplate: '/appeals',
+            controller: PostAppealConntroller::class,
             input: AppealInput::class,
-            processor: AppealProcessor::class,
         ),
         new Post(
             uriTemplate: '/appeals/{id}/upload-photo',
+            inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
+            controller: PostAppealPhotoController::class,
             input: AppealPhotoInput::class,
-            output: AppealPhotoOutput::class,
-            processor: AppealPhotoProcessor::class,
         ),
     ],
     paginationEnabled: false,

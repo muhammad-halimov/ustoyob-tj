@@ -1,16 +1,16 @@
 <?php
 
-namespace App\State\Appeal;
+namespace App\Controller\Api\Filter\Appeal;
 
-use ApiPlatform\Metadata\Operation;
-use ApiPlatform\State\ProviderInterface;
 use App\Dto\Appeal\Appeal\ComplaintReasonOutput;
 use App\Entity\Appeal\AppealTypes\AppealChat;
 use App\Entity\Appeal\AppealTypes\AppealTicket;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 
-class ComplaintReasonProvider implements ProviderInterface
+class AppealReasonFilterController extends AbstractController
 {
-    public function provide(Operation $operation, array $uriVariables = [], array $context = []): array
+    public function __invoke(): JsonResponse
     {
         $allComplaints = array_merge(
             AppealChat::COMPLAINTS,
@@ -35,6 +35,6 @@ class ComplaintReasonProvider implements ProviderInterface
             $complaints[] = new ComplaintReasonOutput($id++, $code, $humanReadable);
         }
 
-        return $complaints;
+        return $this->json($complaints);
     }
 }

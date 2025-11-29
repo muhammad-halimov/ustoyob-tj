@@ -1,5 +1,4 @@
 <?php
-// src/Dto/Appeal/ComplaintReasonOutput.php
 
 namespace App\Dto\Appeal\Appeal;
 
