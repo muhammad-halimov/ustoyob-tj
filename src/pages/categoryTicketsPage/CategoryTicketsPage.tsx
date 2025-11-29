@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getAuthToken } from '../../utils/auth';
+import { getAuthToken, getUserRole } from '../../utils/auth';
 import styles from './CategoryTicketsPage.module.scss';
 
 interface Ticket {
@@ -21,7 +21,7 @@ interface Ticket {
         name: string;
         surname: string;
         image: string;
-    };
+    } | null;
     master: {
         id: number;
         email: string;
@@ -37,7 +37,7 @@ interface Ticket {
         id: number;
         title: string;
     };
-    service: boolean;
+    service: boolean; // true - услуга от мастера, false - заказ от клиента
     district: {
         id: number;
         title: string;
@@ -81,8 +81,12 @@ function CategoryTicketsPage() {
     const [tickets, setTickets] = useState<FormattedTicket[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [categoryName, setCategoryName] = useState<string>('');
+    const [userRole, setUserRole] = useState<'client' | 'master' | null>(null);
 
     useEffect(() => {
+        const role = getUserRole();
+        setUserRole(role);
+
         if (categoryId) {
             fetchTicketsByCategory();
             fetchCategoryName();
@@ -103,7 +107,9 @@ function CategoryTicketsPage() {
 
     const fetchCategoryName = async () => {
         try {
-            const headers: HeadersInit = {};
+            const headers: HeadersInit = {
+                'Accept': 'application/json'
+            };
             const token = getAuthToken();
 
             if (token) {
@@ -117,9 +123,12 @@ function CategoryTicketsPage() {
             if (response.ok) {
                 const categoryData = await response.json();
                 setCategoryName(categoryData.title);
+            } else {
+                setCategoryName('Категория');
             }
         } catch (error) {
             console.error('Error fetching category name:', error);
+            setCategoryName('Категория');
         }
     };
 
@@ -127,39 +136,49 @@ function CategoryTicketsPage() {
         try {
             setIsLoading(true);
             const token = getAuthToken();
+            const role = getUserRole();
 
-            // Получаем все тикеты
-            const url = `${API_BASE_URL}/api/tickets`;
-            console.log('Fetching tickets from:', url);
+            console.log('Fetching tickets for category:', categoryId);
+            console.log('User role:', role);
+            console.log('Token exists:', !!token);
 
-            // Создаем заголовки в зависимости от наличия токена
-            const headers: HeadersInit = {
-                'Content-Type': 'application/json'
-            };
+            let ticketsData: Ticket[] = [];
 
-            // Добавляем Authorization только если есть токен
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
+            if (!token || role === null) {
+                // Для неавторизованных - получаем все тикеты
+                console.log('Fetching all tickets for unauthorized user');
+                const [clientTickets, masterTickets] = await Promise.all([
+                    fetchTicketsWithoutAuth('/api/tickets/clients'),
+                    fetchTicketsWithoutAuth('/api/tickets/masters')
+                ]);
+                ticketsData = [...clientTickets, ...masterTickets];
+            } else if (role === 'client') {
+                // Для клиентов - получаем тикеты мастеров (услуги)
+                console.log('Fetching master tickets for client');
+                ticketsData = await fetchTicketsWithAuth('/api/tickets/masters', token);
+            } else if (role === 'master') {
+                // Для мастеров - получаем тикеты клиентов (заказы)
+                console.log('Fetching client tickets for master');
+                ticketsData = await fetchTicketsWithAuth('/api/tickets/clients', token);
             }
 
-            const response = await fetch(url, {
-                headers: headers
-            });
+            console.log('Total tickets received:', ticketsData.length);
 
-            if (response.ok) {
-                const ticketsData: Ticket[] = await response.json();
-                console.log('Received tickets:', ticketsData);
+            // Фильтруем тикеты по категории и активности
+            const filteredTickets = ticketsData.filter(ticket =>
+                ticket.category?.id === Number(categoryId) &&
+                ticket.active === true
+            );
 
-                // Фильтруем тикеты по категории и активности
-                const filteredTickets = ticketsData.filter(ticket =>
-                    ticket.category?.id === Number(categoryId) &&
-                    ticket.service === false &&
-                    ticket.active === true
-                );
+            console.log('Filtered tickets by category:', filteredTickets);
 
-                console.log('Filtered tickets by category:', filteredTickets);
+            const formattedTickets: FormattedTicket[] = filteredTickets.map(ticket => {
+                const isMasterTicket = ticket.service === true; // service: true - услуга от мастера
+                const author = isMasterTicket ? ticket.master : ticket.author;
+                const authorId = author?.id || 0;
+                const authorName = author ? `${author.name || ''} ${author.surname || ''}`.trim() : 'Пользователь';
 
-                const formattedTickets: FormattedTicket[] = filteredTickets.map(ticket => ({
+                return {
                     id: ticket.id,
                     title: ticket.title || 'Без названия',
                     price: ticket.budget || 0,
@@ -167,26 +186,71 @@ function CategoryTicketsPage() {
                     description: ticket.description || 'Описание отсутствует',
                     address: getFullAddress(ticket),
                     date: formatDate(ticket.createdAt),
-                    author: `${ticket.author?.name || ''} ${ticket.author?.surname || ''}`.trim() ||
-                        (ticket.service ? 'Мастер' : 'Клиент'),
-                    authorId: ticket.author?.id || 0,
+                    author: authorName,
+                    authorId: authorId,
                     timeAgo: getTimeAgo(ticket.createdAt),
                     category: ticket.category?.title || 'другое',
                     status: ticket.active ? 'В работе' : 'Завершен',
-                    type: ticket.service ? 'master' : 'client',
-                    authorImage: ticket.author?.image ? formatProfileImageUrl(ticket.author.image) : undefined
-                }));
+                    type: isMasterTicket ? 'master' : 'client',
+                    authorImage: author?.image ? formatProfileImageUrl(author.image) : undefined
+                };
+            });
 
-                setTickets(formattedTickets);
-            } else {
-                console.error('Error fetching tickets, status:', response.status);
-                setTickets([]);
-            }
+            setTickets(formattedTickets);
         } catch (error) {
             console.error('Error fetching tickets:', error);
             setTickets([]);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    // Функция для получения тикетов без авторизации
+    const fetchTicketsWithoutAuth = async (endpoint: string): Promise<Ticket[]> => {
+        try {
+            const headers: HeadersInit = {
+                'Accept': 'application/json'
+            };
+
+            const response = await fetch(`${API_BASE_URL}${endpoint}?category.id=${categoryId}`, {
+                headers: headers
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log(`Unauthorized ${endpoint}:`, data.length);
+                return Array.isArray(data) ? data : [];
+            }
+            return [];
+        } catch (error) {
+            console.error(`Error fetching ${endpoint} without auth:`, error);
+            return [];
+        }
+    };
+
+    // Функция для получения тикетов с авторизацией
+    const fetchTicketsWithAuth = async (endpoint: string, token: string): Promise<Ticket[]> => {
+        try {
+            const headers: HeadersInit = {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json'
+            };
+
+            const response = await fetch(`${API_BASE_URL}${endpoint}?category.id=${categoryId}`, {
+                headers: headers
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log(`Authorized ${endpoint}:`, data.length);
+                return Array.isArray(data) ? data : [];
+            } else {
+                console.error(`Error fetching ${endpoint}:`, response.status);
+                return [];
+            }
+        } catch (error) {
+            console.error(`Error fetching ${endpoint} with auth:`, error);
+            return [];
         }
     };
 
@@ -239,8 +303,8 @@ function CategoryTicketsPage() {
         return words[number % 100 > 4 && number % 100 < 20 ? 2 : cases[number % 10 < 5 ? number % 10 : 5]];
     };
 
-    const handleCardClick = (authorId: number) => {
-        navigate(`/order/${authorId}`);
+    const handleCardClick = (ticketId: number, authorId: number) => {
+        navigate(`/order/${authorId}?ticket=${ticketId}`);
     };
 
     const handleClose = () => {
@@ -248,7 +312,22 @@ function CategoryTicketsPage() {
     };
 
     const getPageTitle = () => {
-        return categoryName ? `Категория: ${categoryName}` : 'По категории';
+        if (!categoryName) return 'По категории';
+
+        let roleText = '';
+        if (userRole === 'client') {
+            roleText = ' - Услуги мастеров';
+        } else if (userRole === 'master') {
+            roleText = ' - Заказы клиентов';
+        } else {
+            roleText = ' - Все объявления';
+        }
+
+        return `${categoryName}${roleText}`;
+    };
+
+    const getTicketTypeLabel = (type: 'client' | 'master') => {
+        return type === 'client' ? 'Заказ от клиента' : 'Услуга от мастера';
     };
 
     return (
@@ -270,8 +349,8 @@ function CategoryTicketsPage() {
                     <div className={styles.noResults}>
                         <p>
                             {categoryName
-                                ? `Нет заказов в категории "${categoryName}"`
-                                : 'Нет заказов в выбранной категории'
+                                ? `Нет объявлений в категории "${categoryName}"`
+                                : 'Нет объявлений в выбранной категории'
                             }
                         </p>
                     </div>
@@ -279,9 +358,16 @@ function CategoryTicketsPage() {
                     tickets.map((ticket) => (
                         <div key={ticket.id}
                              className={styles.resultCard}
-                             onClick={() => handleCardClick(ticket.authorId)}
+                             onClick={() => handleCardClick(ticket.id, ticket.authorId)}
                              style={{ cursor: 'pointer' }}
                         >
+                            {/* Показываем тип тикета для неавторизованных пользователей */}
+                            {userRole === null && (
+                                <div className={styles.ticketType}>
+                                    {getTicketTypeLabel(ticket.type)}
+                                </div>
+                            )}
+
                             <div className={styles.resultHeader}>
                                 <h3>{ticket.title}</h3>
                                 <span className={styles.price}>{ticket.price.toLocaleString('ru-RU')} {ticket.unit}</span>

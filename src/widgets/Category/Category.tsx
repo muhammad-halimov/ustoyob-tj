@@ -14,6 +14,7 @@ export default function Category() {
     const [categories, setCategories] = useState<CategoryItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
+    const [showAll, setShowAll] = useState(false);
     const navigate = useNavigate();
 
     const API_URL = "https://admin.ustoyob.tj";
@@ -47,18 +48,39 @@ export default function Category() {
     };
 
     const handleViewAll = () => {
-        navigate('/tickets');
+        setShowAll(true);
+    };
+
+    const handleShowLess = () => {
+        setShowAll(false);
     };
 
     if (loading) return <p>Загрузка категорий...</p>;
 
-    const visibleItems = isMobile
-        ? categories.slice(0, 4) // мобильная версия
-        : categories.slice(0, 12); // десктоп как раньше
+    // Определяем какие категории показывать
+    let visibleItems;
+    if (showAll) {
+        // Показываем все категории
+        visibleItems = categories;
+    } else {
+        // Показываем ограниченное количество
+        visibleItems = isMobile
+            ? categories.slice(0, 6) // мобильная версия - 4 категории
+            : categories.slice(0, 8); // десктоп - 8 категорий (2 ряда по 4)
+    }
+
+    // Проверяем нужно ли показывать кнопку "Посмотреть все"
+    const shouldShowViewAll = !showAll && (
+        (isMobile && categories.length > 6) ||
+        (!isMobile && categories.length > 8)
+    );
+
+    // Проверяем нужно ли показывать кнопку "Свернуть"
+    const shouldShowShowLess = showAll;
 
     return (
         <div className={styles.category}>
-            <h3>Категории услуг</h3>
+            <h3>Категории</h3>
 
             <div className={styles.category_item}>
                 {visibleItems.map((item) => (
@@ -75,21 +97,21 @@ export default function Category() {
                         <p>{item.title}</p>
                     </div>
                 ))}
-
-                {/* Мобильная версия — если категорий > 4 → показать кнопку */}
-                {isMobile && categories.length > 4 && (
-                    <div className={styles.category_btn}>
-                        <AdBtn text="Посмотреть все услуги" alwaysVisible onClick={handleViewAll} />
-                    </div>
-                )}
-
-                {/* Десктоп — если категорий > 12 → старая кнопка */}
-                {!isMobile && categories.length > 12 && (
-                    <div className={styles.category_btn}>
-                        <AdBtn text="Посмотреть все услуги" alwaysVisible onClick={handleViewAll} />
-                    </div>
-                )}
             </div>
+
+            {/* Кнопка "Посмотреть все" */}
+            {shouldShowViewAll && (
+                <div className={styles.category_btn_center}>
+                    <AdBtn text="Посмотреть все" alwaysVisible onClick={handleViewAll} />
+                </div>
+            )}
+
+            {/* Кнопка "Свернуть" */}
+            {shouldShowShowLess && (
+                <div className={styles.category_btn_center}>
+                    <AdBtn text="Свернуть" alwaysVisible onClick={handleShowLess} />
+                </div>
+            )}
         </div>
     );
 }

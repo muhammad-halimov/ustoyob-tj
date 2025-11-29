@@ -23,9 +23,10 @@
       text-align: center;
       border-radius: 20px;
       min-width: 235px;
-      flex: 1 1 235px;
+      flex: 1 1 calc(25% - 23px);
       max-width: calc(25% - 23px);
       cursor: pointer;
+      box-sizing: border-box;
 
       img {
         margin-bottom: 12px;
@@ -40,9 +41,36 @@
         font-weight: 300;
       }
     }
+  }
 
-    .category_btn {
-      margin: 29px auto;
+  .category_btn_center {
+    display: flex;
+    justify-content: center;
+    margin-top: 30px;
+    width: 100%;
+  }
+}
+
+// Планшеты и маленькие десктопы
+@media screen and (max-width: 1024px) {
+  .category {
+    .category_item {
+      .category_item_step {
+        flex: 1 1 calc(33.333% - 23px);
+        max-width: calc(33.333% - 23px);
+      }
+    }
+  }
+}
+
+// Мобильные устройства
+@media screen and (max-width: 768px) {
+  .category {
+    .category_item {
+      .category_item_step {
+        flex: 1 1 calc(50% - 23px);
+        max-width: calc(50% - 23px);
+      }
     }
   }
 }
@@ -51,6 +79,7 @@
   .category {
     padding: 0 20px;
     margin-top: 40px !important;
+    margin-bottom: 30px !important;
 
     h3 {
       font-size: 24px;
@@ -66,7 +95,21 @@
       .category_item_step {
         max-width: unset !important;
         min-width: unset !important;
+        flex: unset !important;
       }
+    }
+
+    .category_btn_center {
+      margin-top: 20px;
+    }
+  }
+}
+
+// Очень маленькие мобильные устройства
+@media screen and (max-width: 360px) {
+  .category {
+    .category_item {
+      grid-template-columns: 1fr;
     }
   }
 }

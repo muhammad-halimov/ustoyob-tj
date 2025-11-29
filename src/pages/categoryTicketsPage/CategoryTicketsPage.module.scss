@@ -231,3 +231,16 @@
     }
   }
 }
+
+.ticketType {
+  position: absolute;
+  top: 67px;
+  right: 15px;
+  background: #3A54DA;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  z-index: 1;
+}

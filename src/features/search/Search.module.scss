@@ -12,7 +12,7 @@
 .search_with_filters {
   display: flex;
   gap: 27px;
-  align-items: flex-start;
+  //align-items: flex-start;
 }
 
 .search_content {
@@ -297,8 +297,9 @@
 
 @media screen and (max-width: 480px){
   .container {
-    margin: 65px 0 0;
+    margin: 35px 0 0;
     width: 100%;
+    display: block;
     padding: 0 20px;
     .title {
       font-size: 18px;
@@ -346,4 +347,38 @@
     }
   }
 
+}
+
+.active_filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f5f5f5;
+  border-radius: 8px;
+
+  span:first-child {
+    font-weight: 600;
+    margin-right: 8px;
+  }
+}
+
+.filter_tag {
+  background: #3A54DA;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.clear_filters_btn {
+  background: #3A54DA;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
 }

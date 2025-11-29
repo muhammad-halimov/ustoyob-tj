@@ -1,7 +1,7 @@
 import styles from "./Main.module.scss";
 import Search from "../../../features/search/Search.tsx";
 import { AdBtn } from "../../../shared/ui/button/HeaderButton/AdBtn.tsx";
-import About from "../../../widgets/About/About.tsx";
+// import About from "../../../widgets/About/About.tsx";
 import Category from "../../../widgets/Category/Category.tsx";
 import Reviews from "../../../widgets/Reviews/Reviews.tsx";
 import Recommendations from "../../../widgets/Recommendations/Recommendations.tsx";
@@ -9,7 +9,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getUserRole } from "../../../utils/auth.ts";
 
-import { Swiper, SwiperSlide } from "swiper/react";
+// import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
 
 interface SearchResult {
@@ -31,12 +31,12 @@ export function MainPage() {
 
     const userRole = getUserRole();
 
-    const masters = [
-        { id: 1, name: "Поиск проверенных мастеров", title: "Найдите специалиста нужного профиля в пару кликов: стройка, ремонт, сантехника и многое другое." },
-        { id: 2, name: "Поиск проверенных мастеров2", title: "Найдите специалиста нужного профиля в пару кликов: стройка, ремонт, сантехника и многое другое." },
-        { id: 3, name: "Поиск проверенных мастеров3", title: "Найдите специалиста нужного профиля в пару кликов: стройка, ремонт, сантехника и многое другое." },
-        { id: 4, name: "Поиск проверенных мастеров4", title: "Найдите специалиста нужного профиля в пару кликов: стройка, ремонт, сантехника и многое другое." },
-    ];
+    // const masters = [
+    //     { id: 1, name: "Поиск проверенных мастеров", title: "Найдите специалиста нужного профиля в пару кликов: стройка, ремонт, сантехника и многое другое." },
+    //     { id: 2, name: "Поиск проверенных мастеров2", title: "Найдите специалиста нужного профиля в пару кликов: стройка, ремонт, сантехника и многое другое." },
+    //     { id: 3, name: "Поиск проверенных мастеров3", title: "Найдите специалиста нужного профиля в пару кликов: стройка, ремонт, сантехника и многое другое." },
+    //     { id: 4, name: "Поиск проверенных мастеров4", title: "Найдите специалиста нужного профиля в пару кликов: стройка, ремонт, сантехника и многое другое." },
+    // ];
 
     const worker = [
         { id: 1, name: "Заказчики", title: "Здесь клиенты находят проверенных специалистов для ремонта, строительства и других услуг", img: "./clientTest.jpg" },
@@ -66,7 +66,7 @@ export function MainPage() {
     return (
         <div className={styles.main}>
             <Search onSearchResults={handleSearchResults} onFilterToggle={handleFilterToggle} />
-
+            <Category />
             {!showResults && (
                 <>
                     <div className={styles.performers}>
@@ -91,39 +91,38 @@ export function MainPage() {
 
                     <div className={styles.searchMasters}>
                         {/* MOBILE SLIDER */}
-                        <div className={styles.mobileSlider}>
-                            <Swiper
-                                spaceBetween={16}
-                                slidesPerView={1.2}
-                            >
-                                {masters.map(master => (
-                                    <SwiperSlide key={master.id}>
-                                        <div className={styles.searchMasters_item}>
-                                            <img src="./fonTest2.png" alt="fonTest2" />
-                                            <h3 className={styles.searchMasters_item_welc}>{master.name}</h3>
-                                            <p className={styles.searchMasters_item_title}>{master.title}</p>
-                                        </div>
-                                    </SwiperSlide>
-                                ))}
-                            </Swiper>
-                        </div>
+                        {/*<div className={styles.mobileSlider}>*/}
+                        {/*    <Swiper*/}
+                        {/*        spaceBetween={16}*/}
+                        {/*        slidesPerView={1.2}*/}
+                        {/*    >*/}
+                        {/*        {masters.map(master => (*/}
+                        {/*            <SwiperSlide key={master.id}>*/}
+                        {/*                <div className={styles.searchMasters_item}>*/}
+                        {/*                    <img src="./fonTest2.png" alt="fonTest2" />*/}
+                        {/*                    <h3 className={styles.searchMasters_item_welc}>{master.name}</h3>*/}
+                        {/*                    <p className={styles.searchMasters_item_title}>{master.title}</p>*/}
+                        {/*                </div>*/}
+                        {/*            </SwiperSlide>*/}
+                        {/*        ))}*/}
+                        {/*    </Swiper>*/}
+                        {/*</div>*/}
 
                         {/* DESKTOP GRID */}
-                        <div className={styles.desktopGrid}>
-                            {masters.map(master => (
-                                <div className={styles.searchMasters_item} key={master.id}>
-                                    <img src="./fonTest2.png" alt="fonTest2" />
-                                    <h3 className={styles.searchMasters_item_welc}>{master.name}</h3>
-                                    <p className={styles.searchMasters_item_title}>{master.title}</p>
-                                </div>
-                            ))}
-                        </div>
+                        {/*<div className={styles.desktopGrid}>*/}
+                        {/*    {masters.map(master => (*/}
+                        {/*        <div className={styles.searchMasters_item} key={master.id}>*/}
+                        {/*            <img src="./fonTest2.png" alt="fonTest2" />*/}
+                        {/*            <h3 className={styles.searchMasters_item_welc}>{master.name}</h3>*/}
+                        {/*            <p className={styles.searchMasters_item_title}>{master.title}</p>*/}
+                        {/*        </div>*/}
+                        {/*    ))}*/}
+                        {/*</div>*/}
                     </div>
 
-                    <About />
-                    <Category />
-                    <Reviews />
+                    {/*<About />*/}
                     <Recommendations />
+                    <Reviews />
                 </>
             )}
 

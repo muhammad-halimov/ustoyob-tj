@@ -2,6 +2,29 @@
   max-width: 1284px;
   margin: 40px auto;
   border-radius: 10px;
+  :global {
+    .auth-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .auth-modal-content {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    }
+  }
   .create_order {
     font-size: 24px;
     text-decoration: none;
@@ -64,4 +87,8 @@
   }
 
 
+}
+.not_authenticated_message {
+  text-align: center;
+  margin-top: 20px;
 }
