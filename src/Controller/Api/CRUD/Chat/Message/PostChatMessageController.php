@@ -33,19 +33,15 @@ class PostChatMessageController extends AbstractController
         $chatParam = $data['chat'];
         $text = $data['text'];
 
+        if(!$chatParam) return $this->json(['message' => "Wrong chat format"], 400);
+
+        if(!$text) return $this->json(['message' => "Empty message text"], 400);
+
         // Извлекаем ID из строки "/api/chats/1" или просто "1"
         /** @var Chat $chat */
         $chat = $this->extractIriService->extract($chatParam, Chat::class, 'chats');
 
-        if(!$chat)
-            return $this->json(['message' => "Chat not found"], 404);
-
-        if(!$chatParam)
-            return $this->json(['message' => "Wrong chat format"], 400);
-
-        if(!$text)
-            return $this->json(['message' => "Empty message text"], 400);
-
+        if(!$chat) return $this->json(['message' => "Chat not found"], 404);
 
         if ($chat->getAuthor() !== $bearerUser && $chat->getReplyAuthor() !== $bearerUser)
             return $this->json(['message' => "Ownership doesn't match"], 403);

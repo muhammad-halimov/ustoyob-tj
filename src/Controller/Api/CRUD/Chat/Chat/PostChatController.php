@@ -6,8 +6,8 @@ use App\Entity\Chat\Chat;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
 use App\Repository\Chat\ChatRepository;
-use App\Repository\TicketRepository;
-use App\Repository\UserRepository;
+use App\Service\AccessService;
+use App\Service\ExtractIriService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -18,35 +18,31 @@ class PostChatController extends AbstractController
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly TicketRepository       $ticketRepository,
         private readonly ChatRepository         $chatRepository,
-        private readonly UserRepository         $userRepository,
         private readonly Security               $security,
+        private readonly AccessService          $accessService,
+        private readonly ExtractIriService      $extractIriService,
     ){}
 
     public function __invoke(Request $request): JsonResponse
     {
-        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
-        $allowedRoles = ["ROLE_ADMIN", "ROLE_CLIENT", "ROLE_MASTER"];
-
         /** @var User $bearerUser */
         $bearerUser = $this->security->getUser();
 
-        if (!array_intersect($allowedRoles, $bearerUser->getRoles()))
-            return $this->json(['message' => 'Access denied'], 403);
+        $this->accessService->check($bearerUser);
 
         $data = json_decode($request->getContent(), true);
 
         $replyAuthorParam = $data['replyAuthor'];
         $ticketParam = $data['ticket'] ?? null;
 
-        $replyAuthorId = (preg_match('#/api/users/(\d+)#', $replyAuthorParam, $m) ? $m[1] : $replyAuthorParam);
-        $ticketId = $ticketParam ? (preg_match('#/api/tickets/(\d+)#', $ticketParam, $t) ? $t[1] : $ticketParam) : null;
-
         /** @var User $replyAuthor */
-        $replyAuthor = $this->userRepository->find($replyAuthorId);
-        /** @var Ticket $ticket */
-        $ticket = $ticketId ? $this->ticketRepository->find($ticketId) : null;
+        $replyAuthor = $this->extractIriService->extract($replyAuthorParam, User::class, 'users');
+
+        /** @var Ticket|null $ticket */
+        $ticket = $ticketParam
+            ? $this->extractIriService->extract($ticketParam, Ticket::class, 'tickets')
+            : null;
 
         if (!$replyAuthor)
             return $this->json(['message' => 'User not found'], 404);
@@ -55,7 +51,7 @@ class PostChatController extends AbstractController
             return $this->json(['message' => 'You cannot post a chat with yourself'], 403);
 
         // Проверяем существование тикета, если он передан
-        if ($ticketId && !$ticket)
+        if ($ticketParam && !$ticket)
             return $this->json(['message' => 'Ticket not found'], 404);
 
         // Проверка на дубликат чата с учетом тикета
@@ -76,14 +72,16 @@ class PostChatController extends AbstractController
         if ($existingChat)
             return $this->json(['message' => 'Chat already exists'], 409);
 
+        $chat = (new Chat())
+            ->setActive(true)
+            ->setAuthor($bearerUser)
+            ->setReplyAuthor($replyAuthor);
+
         if (!$ticket &&  // Чат клиента/мастера с мастером/клиентом, без тикета
             (in_array("ROLE_CLIENT", $bearerUser->getRoles()) || in_array("ROLE_MASTER", $bearerUser->getRoles())) &&
             (in_array("ROLE_CLIENT", $replyAuthor->getRoles()) || in_array("ROLE_MASTER", $replyAuthor->getRoles()))) {
 
-            $this->entityManager->persist((new Chat())
-                ->setTicket(null)
-                ->setAuthor($bearerUser)
-                ->setReplyAuthor($replyAuthor));
+            $this->entityManager->persist($chat->setTicket(null));
 
             $this->entityManager->flush();
 
@@ -95,11 +93,7 @@ class PostChatController extends AbstractController
             in_array("ROLE_MASTER", $replyAuthor->getRoles()) &&
             $ticket->getMaster() === $replyAuthor){
 
-            $this->entityManager
-                ->persist((new Chat())
-                    ->setTicket($ticket)
-                    ->setAuthor($bearerUser)
-                    ->setReplyAuthor($replyAuthor));
+            $this->entityManager->persist($chat->setTicket($ticket));
 
             $this->entityManager->flush();
 
@@ -111,11 +105,7 @@ class PostChatController extends AbstractController
             in_array("ROLE_CLIENT", $replyAuthor->getRoles()) &&
             $ticket->getAuthor() === $replyAuthor) {
 
-            $this->entityManager
-                ->persist((new Chat())
-                    ->setTicket($ticket)
-                    ->setAuthor($bearerUser)
-                    ->setReplyAuthor($replyAuthor));
+            $this->entityManager->persist($chat->setTicket($ticket));
 
             $this->entityManager->flush();
 

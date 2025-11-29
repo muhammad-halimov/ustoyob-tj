@@ -7,13 +7,17 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\Chat\Chat\DeleteChatController;
+use App\Controller\Api\CRUD\Chat\Chat\PatchChatController;
 use App\Controller\Api\CRUD\Chat\Chat\PostChatController;
 use App\Controller\Api\CRUD\Chat\Chat\PostChatPhotoController;
 use App\Controller\Api\Filter\Chat\ChatFilterController;
 use App\Controller\Api\Filter\Chat\PersonalChatFilterController;
 use App\Dto\Appeal\Photo\AppealPhotoInput;
+use App\Dto\Chat\ChatPatchInput;
+use App\Dto\Chat\ChatPostInput;
 use App\Entity\Appeal\AppealTypes\AppealChat;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
@@ -49,6 +53,13 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         new Post(
             uriTemplate: '/chats',
             controller: PostChatController::class,
+            input: ChatPostInput::class,
+        ),
+        new Patch(
+            uriTemplate: '/chats/{id}',
+            requirements: ['id' => '\d+'],
+            controller: PatchChatController::class,
+            input: ChatPatchInput::class,
         ),
         new Delete(
             uriTemplate: '/chats/{id}',
@@ -122,7 +133,7 @@ class Chat
     /**
      * @var Collection<int, ChatImage>
      */
-    #[ORM\OneToMany(targetEntity: ChatImage::class, mappedBy: 'chats')]
+    #[ORM\OneToMany(targetEntity: ChatImage::class, mappedBy: 'chats', cascade: ['all'])]
     #[Groups([
         'chats:read',
     ])]
