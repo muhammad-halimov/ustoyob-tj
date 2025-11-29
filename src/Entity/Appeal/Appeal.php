@@ -6,13 +6,15 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\CRUD\Appeal\PostAppealConntroller;
-use App\Controller\Api\CRUD\Appeal\PostAppealPhotoController;
-use App\Controller\Api\Filter\Appeal\TicketComplaintFilterController;
-use App\Dto\Appeal\ComplaintReasonOutput;
+use App\Dto\Appeal\Appeal\AppealInput;
+use App\Dto\Appeal\Appeal\ComplaintReasonOutput;
+use App\Dto\Appeal\Photo\AppealPhotoInput;
+use App\Dto\Appeal\Photo\AppealPhotoOutput;
 use App\Entity\Appeal\AppealTypes\AppealChat;
 use App\Entity\Appeal\AppealTypes\AppealTicket;
 use App\Repository\User\AppealRepository;
+use App\State\Appeal\AppealPhotoProcessor;
+use App\State\Appeal\AppealProcessor;
 use App\State\Appeal\ComplaintReasonProvider;
 use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -32,30 +34,25 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         ),
         new Get(
             uriTemplate: '/appeals/{id}',
-            normalizationContext: ['groups' => ['appeal:read']],
-            security:  "is_granted('ROLE_ADMIN')"
+            normalizationContext: ['groups' => ['appeal:read', 'appeal:ticket:read',]],
+            security: "is_granted('ROLE_ADMIN')",
         ),
         new GetCollection(
             uriTemplate: '/appeals',
-            normalizationContext: ['groups' => ['appeal:read']],
-            security:  "is_granted('ROLE_ADMIN')",
-        ),
-        new GetCollection(
-            uriTemplate: '/appeals/ticket/{id}',
-            controller: TicketComplaintFilterController::class,
-            normalizationContext: [
-                'groups' => ['appeal:ticket:read'],
-                'skip_null_values' => false,
-            ]
+            normalizationContext: ['groups' => ['appeal:read', 'appeal:ticket:read',]],
+            security: "is_granted('ROLE_ADMIN')",
         ),
         new Post(
             uriTemplate: '/appeals',
-            controller: PostAppealConntroller::class,
+            input: AppealInput::class,
+            processor: AppealProcessor::class,
         ),
         new Post(
             uriTemplate: '/appeals/{id}/upload-photo',
             requirements: ['id' => '\d+'],
-            controller: PostAppealPhotoController::class,
+            input: AppealPhotoInput::class,
+            output: AppealPhotoOutput::class,
+            processor: AppealPhotoProcessor::class,
         ),
     ],
     paginationEnabled: false,

@@ -75,7 +75,7 @@ class AppealTicketCrudController extends AbstractCrudController
             ->setRequired(true)
             ->setColumns(12);
 
-        yield ChoiceField::new('complaintReason', 'Причина жалобы')
+        yield ChoiceField::new('reason', 'Причина жалобы')
             ->setChoices(AppealTicket::COMPLAINTS)
             ->setRequired(true)
             ->setColumns(12);

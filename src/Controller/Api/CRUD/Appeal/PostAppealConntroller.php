@@ -55,7 +55,7 @@ class PostAppealConntroller extends AbstractController
         $typeParam            = $data['type'] ?? null;
         $titleParam           = $data['title'] ?? null;
         $descriptionParam     = $data['description'] ?? null;
-        $reasonParam = $data['reason'] ?? null;
+        $reasonParam          = $data['reason'] ?? null;
         $respondentParam      = $data['respondent'] ?? null;
 
         if (!$titleParam || !$descriptionParam || !$reasonParam || !$typeParam)

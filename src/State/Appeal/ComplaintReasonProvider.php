@@ -1,11 +1,10 @@
 <?php
-// src/State/Appeal/ComplaintReasonProvider.php
 
 namespace App\State\Appeal;
 
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
-use App\Dto\Appeal\ComplaintReasonOutput;
+use App\Dto\Appeal\Appeal\ComplaintReasonOutput;
 use App\Entity\Appeal\AppealTypes\AppealChat;
 use App\Entity\Appeal\AppealTypes\AppealTicket;
 

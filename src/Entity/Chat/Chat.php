@@ -22,6 +22,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Serializer\Attribute\Ignore;
 use Symfony\Component\Serializer\Attribute\SerializedName;
 
 #[ORM\HasLifecycleCallbacks]
@@ -142,6 +143,7 @@ class Chat
      * @var Collection<int, AppealChat>
      */
     #[ORM\OneToMany(targetEntity: AppealChat::class, mappedBy: 'chat')]
+    #[Ignore]
     private Collection $appealChats;
 
     public function __construct()

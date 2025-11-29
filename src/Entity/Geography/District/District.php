@@ -122,6 +122,8 @@ class District
     #[ORM\ManyToOne(inversedBy: 'district')]
     #[Groups([
         'districts:read',
+        'masterTickets:read',
+        'clientTickets:read',
     ])]
     private ?Province $province = null;
 

@@ -28,6 +28,8 @@ class Settlement
     #[Groups([
         'districts:read',
         'provinces:read',
+        'masterTickets:read',
+        'clientTickets:read',
     ])]
     private ?int $id = null;
 
@@ -35,6 +37,8 @@ class Settlement
     #[Groups([
         'districts:read',
         'provinces:read',
+        'masterTickets:read',
+        'clientTickets:read',
     ])]
     private ?string $title = null;
 
