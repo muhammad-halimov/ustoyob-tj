@@ -15,6 +15,7 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\User\User\ConfirmAccountController;
+use App\Controller\Api\CRUD\User\User\ConfirmAccountTokenlessController;
 use App\Controller\Api\CRUD\User\User\GrantRoleController;
 use App\Controller\Api\CRUD\User\User\PostUserPhotoController;
 use App\Controller\Api\Filter\User\PersonalUserFilterController;
@@ -104,6 +105,12 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
             uriTemplate: '/confirm-account/',
             controller: ConfirmAccountController::class,
             input: AccountConfirmInput::class,
+            output: AccountConfirmOutput::class,
+        ),
+        new Post(
+            uriTemplate: '/confirm-account-tokenless/',
+            controller: ConfirmAccountTokenlessController::class,
+            input: false,
             output: AccountConfirmOutput::class,
         ),
         new Post(

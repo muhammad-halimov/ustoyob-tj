@@ -19,7 +19,10 @@ class ConfirmAccountController extends AbstractController
     {
         $data = json_decode($request->getContent(), true);
 
-        $confirmationToken = $this->entityManager->getRepository(AccountConfirmationToken::class)
+        /** @var AccountConfirmationToken $confirmationToken */
+        $confirmationToken = $this
+            ->entityManager
+            ->getRepository(AccountConfirmationToken::class)
             ->findOneBy(['token' => $data['token']]);
 
         if (!$confirmationToken || $confirmationToken->getExpiresAt() < new DateTime())

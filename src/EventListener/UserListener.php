@@ -3,15 +3,11 @@
 namespace App\EventListener;
 
 use App\Entity\User;
-use App\Service\AccountConfirmationService;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsEntityListener;
 use Doctrine\ORM\Events;
 use Doctrine\Persistence\Event\LifecycleEventArgs;
-use Random\RandomException;
-use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
-#[AsEntityListener(event: Events::postPersist, entity: User::class)]
 #[AsEntityListener(event: Events::prePersist, entity: User::class)]
 #[AsEntityListener(event: Events::preUpdate, entity: User::class)]
 readonly class UserListener
@@ -20,7 +16,6 @@ readonly class UserListener
 
     public function __construct(
         private UserPasswordHasherInterface $passwordHasher,
-        private AccountConfirmationService  $accountConfirmationService,
     ) {}
 
     /**
@@ -29,16 +24,6 @@ readonly class UserListener
     public function prePersist(User $user, LifecycleEventArgs $args): void
     {
         $this->hashPasswordIfNeeded($user);
-    }
-
-    /**
-     * Отправляем письмо подтверждения после сохранения пользователя
-     * @throws RandomException
-     * @throws TransportExceptionInterface
-     */
-    public function postPersist(User $user, LifecycleEventArgs $args): void
-    {
-        $this->accountConfirmationService->sendConfirmationEmail($user);
     }
 
     /**
