@@ -10,6 +10,8 @@
         "api-platform/core": "^4.1",
         "api-platform/doctrine-orm": "^4.1",
         "api-platform/symfony": "^4.1",
+        "botman/botman": "^2.8",
+        "botman/driver-telegram": "^2.0",
         "doctrine/dbal": "^3",
         "doctrine/doctrine-bundle": "^2.15",
         "doctrine/doctrine-migrations-bundle": "^3.4",
