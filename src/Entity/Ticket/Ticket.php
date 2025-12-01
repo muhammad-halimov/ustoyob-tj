@@ -16,6 +16,7 @@ use App\Controller\Api\CRUD\Ticket\PatchTicketController;
 use App\Controller\Api\CRUD\Ticket\PostTicketController;
 use App\Controller\Api\CRUD\Ticket\PostTicketPhotoController;
 use App\Controller\Api\Filter\Ticket\PersonalTicketFilterController;
+use App\Dto\Appeal\Photo\AppealPhotoInput;
 use App\Dto\Ticket\TicketInput;
 use App\Entity\Appeal\AppealTypes\AppealTicket;
 use App\Entity\Chat\Chat;
@@ -51,12 +52,10 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         ),
         new Post(
             uriTemplate: '/tickets/{id}/upload-photo',
+            inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
             controller: PostTicketPhotoController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER') or
-                 is_granted('ROLE_CLIENT')",
+            input: AppealPhotoInput::class,
         ),
         new Patch(
             uriTemplate: '/tickets/{id}',

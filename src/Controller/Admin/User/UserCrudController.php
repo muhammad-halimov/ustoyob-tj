@@ -4,6 +4,7 @@ namespace App\Controller\Admin\User;
 
 use App\Controller\Admin\Field\VichImageField;
 use App\Entity\User;
+use App\Service\AccountConfirmationService;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
@@ -21,14 +22,18 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TelephoneField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
+use Random\RandomException;
+use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 class UserCrudController extends AbstractCrudController
 {
     public function __construct(
-        private readonly UserPasswordHasherInterface $passwordEncoder
+        private readonly UserPasswordHasherInterface $passwordEncoder,
+        private readonly AccountConfirmationService  $accountConfirmationService,
     ){}
-
 
     public static function getEntityFqcn(): string
     {
@@ -52,7 +57,6 @@ class UserCrudController extends AbstractCrudController
             ->setPageTitle(Crud::PAGE_DETAIL, "Информация о пользователе");
     }
 
-
     public function configureActions(Actions $actions): Actions
     {
         $actions
@@ -65,12 +69,47 @@ class UserCrudController extends AbstractCrudController
                 Action::DELETE
             ]);
 
+        $actions
+            ->add(Crud::PAGE_INDEX, Action::new('confirmAccountRequest', 'Подтвердить пользователя')
+            ->linkToCrudAction('confirmAccountRequest'));
+
         return parent::configureActions($actions)
             ->setPermissions([
                 Action::NEW => 'ROLE_ADMIN',
                 Action::DELETE => 'ROLE_ADMIN',
                 Action::EDIT => 'ROLE_ADMIN',
             ]);
+    }
+
+    /**
+     * @throws RandomException
+     * @throws TransportExceptionInterface
+     */
+    public function confirmAccountRequest(EntityManagerInterface $entityManager, AdminUrlGenerator $adminUrlGenerator): RedirectResponse
+    {
+        $id = $this->getContext()->getRequest()->get('entityId');
+        $user = $entityManager->getRepository(User::class)->find($id);
+
+        $currentPage = $this
+            ->redirect($adminUrlGenerator
+            ->setController(UserCrudController::class)
+            ->setAction(Crud::PAGE_INDEX)
+            ->generateUrl());
+
+        if (!$user) {
+            $this->addFlash('warning', 'Пользователь не найден.');
+            return $currentPage;
+        }
+
+        if ($user->getActive() && $user->getApproved()) {
+            $this->addFlash('warning', 'Пользователь уже одобрен и активен.');
+            return $currentPage;
+        }
+
+        $response = $this->accountConfirmationService->sendConfirmationEmail($user);
+        $this->addFlash('success', $response);
+
+        return $currentPage;
     }
 
     public function persistEntity(EntityManagerInterface $entityManager, $entityInstance): void
@@ -99,6 +138,10 @@ class UserCrudController extends AbstractCrudController
             ->onlyOnIndex();
 
         yield BooleanField::new('active', 'Активен')
+            ->addCssClass("form-switch")
+            ->setColumns(12);
+
+        yield BooleanField::new('approved', 'Подтвержден')
             ->addCssClass("form-switch")
             ->setColumns(12);
 

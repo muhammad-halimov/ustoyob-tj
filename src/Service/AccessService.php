@@ -7,12 +7,12 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\Security\Core\Exception\TokenNotFoundException;
 
-class AccessService
+readonly class AccessService
 {
     private const TRIPLE_ALLOWED_ROLES = ['ROLE_ADMIN', 'ROLE_CLIENT', 'ROLE_MASTER'];
     private const DOUBLE_ALLOWED_ROLES = ['ROLE_CLIENT', 'ROLE_MASTER'];
 
-    public function __construct(private readonly Security $security){}
+    public function __construct(private Security $security){}
 
     public function check(User|null $user, string $grade = 'triple') : bool
     {
@@ -22,6 +22,10 @@ class AccessService
             throw new AccessDeniedHttpException('Authentication required');
         elseif (!$this->security->getUser())
             throw new TokenNotFoundException('Authentication required');
+        elseif (!$user->getActive())
+            throw new TokenNotFoundException('User is not active');
+        elseif (!$user->getApproved())
+            throw new TokenNotFoundException('User is not approved');
 
         switch ($grade) {
             case 'triple':

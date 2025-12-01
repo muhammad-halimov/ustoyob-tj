@@ -14,12 +14,15 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\Controller\Api\CRUD\User\User\ConfirmAccountController;
 use App\Controller\Api\CRUD\User\User\GrantRoleController;
 use App\Controller\Api\CRUD\User\User\PostUserPhotoController;
 use App\Controller\Api\Filter\User\PersonalUserFilterController;
 use App\Controller\Api\Filter\User\RolesFilter;
 use App\Controller\Api\Filter\User\SocialNetworkController;
 use App\Dto\Appeal\Photo\AppealPhotoInput;
+use App\Dto\User\AccountConfirmInput;
+use App\Dto\User\AccountConfirmOutput;
 use App\Dto\User\RoleOutput;
 use App\Dto\User\SocialNetworkOutput;
 use App\Entity\Appeal\AppealTypes\AppealChat;
@@ -76,6 +79,7 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
         ),
         new Get(
             uriTemplate: '/users/{id}',
+            requirements: ['id' => '\d+'],
             normalizationContext: [
                 'groups' => ['clients:read', 'masters:read'],
                 'skip_null_values' => false,
@@ -92,9 +96,15 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
             uriTemplate: '/users',
         ),
         new Post(
-            uriTemplate: '/users/grant-role/',
+            uriTemplate: '/users/grant-role',
             controller: GrantRoleController::class,
             input: RoleOutput::class,
+        ),
+        new Post(
+            uriTemplate: '/confirm-account/',
+            controller: ConfirmAccountController::class,
+            input: AccountConfirmInput::class,
+            output: AccountConfirmOutput::class,
         ),
         new Post(
             uriTemplate: '/users/{id}/update-photo',
@@ -326,6 +336,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     ])]
     #[ApiProperty(writable: false)]
     private ?bool $active = null;
+
+    #[ORM\Column(type: 'boolean', nullable: true)]
+    #[Groups([
+        'masters:read',
+        'clients:read',
+    ])]
+    #[ApiProperty(writable: false)]
+    private ?bool $approved = null;
 
     /**
      * @var list<string> The user roles
@@ -1351,6 +1369,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setActive(?bool $active): static
     {
         $this->active = $active;
+        return $this;
+    }
+
+    public function getApproved(): ?bool
+    {
+        return $this->approved;
+    }
+
+    public function setApproved(?bool $approved): static
+    {
+        $this->approved = $approved;
         return $this;
     }
 }
