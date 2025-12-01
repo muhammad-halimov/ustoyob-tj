@@ -4,6 +4,7 @@ namespace App\Controller\Api\CRUD\TechSupport\TechSupport;
 
 use App\Entity\TechSupport\TechSupport;
 use App\Entity\User;
+use App\Service\AccessService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -14,37 +15,32 @@ class PostTechSupportController extends AbstractController
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
+        private readonly AccessService          $accessService,
         private readonly Security               $security,
     ){}
 
     public function __invoke(Request $request): JsonResponse
     {
-        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
-        $allowedRoles = ["ROLE_CLIENT", "ROLE_MASTER"];
-
         /** @var User $bearerUser */
         $bearerUser = $this->security->getUser();
+
+        $this->accessService->check($bearerUser, 'double');
+
         $techSupport = new TechSupport();
 
         $data = json_decode($request->getContent(), true);
 
         $titleParam = $data['title'];
-        $supportReasonParam = $data['supportReason'];
+        $reasonParam = $data['reason'];
         $priorityParam = $data['priority'];
         $descriptionParam = $data['description'];
 
-        if (!array_intersect($allowedRoles, $bearerUser->getRoles()))
-            return $this->json(['message' => 'Access denied'], 403);
-
-        if (in_array("ROLE_ADMIN", $bearerUser->getRoles()))
-            return $this->json(['message' => 'Access denied'], 403);
-
-        if (!in_array($supportReasonParam, array_values($techSupport::SUPPORT)))
+        if (!in_array($reasonParam, array_values($techSupport::SUPPORT)))
             return $this->json(['message' => "Wrong support type", 400]);
 
         $techSupport
             ->setTitle($titleParam)
-            ->setSupportReason($supportReasonParam)
+            ->setReason($reasonParam)
             ->setStatus("new")
             ->setPriority($priorityParam)
             ->setDescription($descriptionParam)
@@ -56,7 +52,7 @@ class PostTechSupportController extends AbstractController
         $message = [
             'id' => $techSupport->getId(),
             'title' => $techSupport->getTitle(),
-            'supportReason' => $techSupport->getSupportReason(),
+            'supportReason' => $techSupport->getReason(),
             'status' => $techSupport->getStatus(),
             'priority' => $techSupport->getPriority(),
             'description' => $techSupport->getDescription(),

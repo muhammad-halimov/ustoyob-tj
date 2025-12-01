@@ -6,7 +6,8 @@ use App\Entity\Chat\Chat;
 use App\Entity\Chat\ChatMessage;
 use App\Entity\User;
 use App\Repository\Chat\ChatMessageRepository;
-use App\Repository\Chat\ChatRepository;
+use App\Service\AccessService;
+use App\Service\ExtractIriService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -17,29 +18,26 @@ class PatchChatMessageController extends AbstractController
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly ChatRepository         $chatRepository,
-        private readonly Security               $security, private readonly ChatMessageRepository $chatMessageRepository,
+        private readonly ChatMessageRepository  $chatMessageRepository,
+        private readonly ExtractIriService      $extractIriService,
+        private readonly AccessService          $accessService,
+        private readonly Security               $security,
     ){}
 
     public function __invoke(int $id, Request $request): JsonResponse
     {
-        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
-        $allowedRoles = ["ROLE_ADMIN", "ROLE_CLIENT", "ROLE_MASTER"];
-
         /** @var User $bearerUser */
         $bearerUser = $this->security->getUser();
 
-        if (!array_intersect($allowedRoles, $bearerUser->getRoles()))
-            return $this->json(['message' => 'Access denied'], 403);
+        $this->accessService->check($bearerUser);
 
         $data = json_decode($request->getContent(), true);
         $chatParam = $data['chat'];
         $text = $data['text'];
 
         // Извлекаем ID из строки "/api/chats/1" или просто "1"
-        $chatId = (preg_match('#/api/chats/(\d+)#', $chatParam, $c) ? $c[1] : $chatParam);
         /** @var Chat $chat */
-        $chat = $this->chatRepository->find($chatId);
+        $chat = $this->extractIriService->extract($chatParam, Chat::class, 'chats');
         /** @var ChatMessage $chatMessage */
         $chatMessage = $this->chatMessageRepository->find($id);
 

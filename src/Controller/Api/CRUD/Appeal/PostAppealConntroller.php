@@ -119,7 +119,7 @@ class PostAppealConntroller extends AbstractController
                 ->addAppealChat((new AppealChat())
                     ->setTitle($titleParam)
                     ->setDescription($descriptionParam)
-                    ->setComplaintReason($reasonParam)
+                    ->setReason($reasonParam)
                     ->setRespondent($respondent)
                     ->setAuthor($bearerUser)
                     ->setChat($chat)

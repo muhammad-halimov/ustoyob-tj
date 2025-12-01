@@ -43,43 +43,43 @@ class AppealChat
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
-        'appealsChat:read',
+        'appeal:chat:read',
     ])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
-        'appealsChat:read',
+        'appeal:chat:read',
     ])]
     private ?string $title = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups([
-        'appealsChat:read',
+        'appeal:chat:read',
     ])]
     private ?string $description = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
-        'appealsChat:read',
+        'appeal:chat:read',
     ])]
-    private ?string $complaintReason = null;
+    private ?string $reason = null;
 
     #[ORM\ManyToOne(inversedBy: 'appealChats')]
     #[Groups([
-        'appealsChat:read',
+        'appeal:chat:read',
     ])]
     private ?Chat $chat = null;
 
     #[ORM\ManyToOne(inversedBy: 'appealChats')]
     #[Groups([
-        'appealsChat:read',
+        'appeal:chat:read',
     ])]
     private ?User $author = null;
 
     #[ORM\ManyToOne(inversedBy: 'appealChats')]
     #[Groups([
-        'appealsChat:read',
+        'appeal:chat:read',
     ])]
     private ?User $respondent = null;
 
@@ -88,7 +88,7 @@ class AppealChat
      */
     #[ORM\OneToMany(targetEntity: AppealImage::class, mappedBy: 'appealChat', cascade: ['all'])]
     #[Groups([
-        'appealsChat:read',
+        'appeal:chat:read',
     ])]
     #[ApiProperty(writable: false)]
     #[SerializedName('images')]
@@ -108,14 +108,14 @@ class AppealChat
         return $this->id;
     }
 
-    public function getComplaintReason(): ?string
+    public function getReason(): ?string
     {
-        return $this->complaintReason;
+        return $this->reason;
     }
 
-    public function setComplaintReason(?string $complaintReason): AppealChat
+    public function setReason(?string $reason): AppealChat
     {
-        $this->complaintReason = $complaintReason;
+        $this->reason = $reason;
         return $this;
     }
 

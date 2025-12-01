@@ -5,6 +5,7 @@ namespace App\Controller\Api\CRUD\TechSupport\TechSupport;
 use App\Entity\TechSupport\TechSupport;
 use App\Entity\User;
 use App\Repository\TechSupport\TechSupportRepository;
+use App\Service\AccessService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -16,25 +17,23 @@ class PatchTechSupportController extends AbstractController
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly TechSupportRepository  $techSupportRepository,
+        private readonly AccessService          $accessService,
         private readonly Security               $security,
     ){}
 
     public function __invoke(int $id, Request $request): JsonResponse
     {
-        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
-        $allowedRoles = ["ROLE_ADMIN", "ROLE_CLIENT", "ROLE_MASTER"];
-
         /** @var User $bearerUser */
         $bearerUser = $this->security->getUser();
+
+        $this->accessService->check($bearerUser, 'double');
+
         /** @var TechSupport $techSupport */
         $techSupport = $this->techSupportRepository->find($id);
 
         $data = json_decode($request->getContent(), true);
 
         $statusParam = $data['status'];
-
-        if (!array_intersect($allowedRoles, $bearerUser->getRoles()))
-            return $this->json(['message' => 'Access denied'], 403);
 
         if (!in_array("ROLE_ADMIN", $bearerUser->getRoles()) && $statusParam == 'in_progress')
             return $this->json(['message' => 'Access denied'], 403);
@@ -57,7 +56,7 @@ class PatchTechSupportController extends AbstractController
         $message = [
             'id' => $techSupport->getId(),
             'title' => $techSupport->getTitle(),
-            'supportReason' => $techSupport->getSupportReason(),
+            'supportReason' => $techSupport->getReason(),
             'status' => $techSupport->getStatus(),
             'priority' => $techSupport->getPriority(),
             'administrant' => "/api/users/{$techSupport->getAdministrant()->getId()}" ?? null,

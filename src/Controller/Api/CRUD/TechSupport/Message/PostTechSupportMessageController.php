@@ -5,7 +5,8 @@ namespace App\Controller\Api\CRUD\TechSupport\Message;
 use App\Entity\TechSupport\TechSupport;
 use App\Entity\TechSupport\TechSupportMessage;
 use App\Entity\User;
-use App\Repository\TechSupport\TechSupportRepository;
+use App\Service\AccessService;
+use App\Service\ExtractIriService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -16,29 +17,24 @@ class PostTechSupportMessageController extends AbstractController
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly TechSupportRepository  $techSupportRepository,
+        private readonly ExtractIriService      $extractIriService,
+        private readonly AccessService          $accessService,
         private readonly Security               $security,
     ){}
 
     public function __invoke(Request $request): JsonResponse
     {
-        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
-        $allowedRoles = ["ROLE_ADMIN", "ROLE_CLIENT", "ROLE_MASTER"];
+        /** @var User $bearerUser */
+        $bearerUser = $this->security->getUser();
 
-        /** @var User $user */
-        $user = $this->security->getUser();
-
-        if (!array_intersect($allowedRoles, $user->getRoles()))
-            return $this->json(['message' => 'Access denied'], 403);
+        $this->accessService->check($bearerUser);
 
         $data = json_decode($request->getContent(), true);
         $text = $data['text'];
         $techSupportParam = $data['techSupport'];
 
-        // Извлекаем ID из строки "/api/chats/1" или просто "1"
-        $techSupportlId = (preg_match('#/api/tech-suports/(\d+)#', $techSupportParam, $a) ? $a[1] : $techSupportParam);
         /** @var TechSupport $techSupport */
-        $techSupport = $this->techSupportRepository->find($techSupportlId);
+        $techSupport = $this->extractIriService->extract($techSupportParam, TechSupport::class, 'tech-suports');
 
         if (!$text)
             return $this->json(['message' => "Empty text"], 404);
@@ -49,13 +45,13 @@ class PostTechSupportMessageController extends AbstractController
         if (!$techSupport)
             return $this->json(['message' => "Tech support not found"], 404);
 
-        if ($techSupport->getAdministrant() !== $user && $techSupport->getAuthor() !== $user)
+        if ($techSupport->getAdministrant() !== $bearerUser && $techSupport->getAuthor() !== $bearerUser)
             return $this->json(['message' => "Ownership doesn't match"], 403);
 
         $techSupportMessage = (new TechSupportMessage())
             ->setText($text)
             ->setTechSupport($techSupport)
-            ->setAuthor($user);
+            ->setAuthor($bearerUser);
 
         $techSupport->addTechSupportMessage($techSupportMessage);
 

@@ -5,35 +5,32 @@ namespace App\Controller\Api\CRUD\Gallery;
 use App\Entity\Gallery\Gallery;
 use App\Entity\User;
 use App\Repository\GalleryRepository;
+use App\Service\AccessService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\Request;
 
 class PostGalleryController extends AbstractController
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly GalleryRepository      $galleryRepository,
-        private readonly Security               $security,
+        private readonly AccessService     $accessService,
+        private readonly Security          $security,
     ){}
 
-    public function __invoke(Request $request): JsonResponse
+    public function __invoke(): JsonResponse
     {
-        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
-        $allowedRoles = ["ROLE_ADMIN", "ROLE_MASTER"];
+        /** @var User $bearerUser */
+        $bearerUser = $this->security->getUser();
 
-        /** @var User $user */
-        $user = $this->security->getUser();
+        $this->accessService->check($bearerUser, 'double');
 
-        if (!array_intersect($allowedRoles, $user->getRoles()))
-            return $this->json(['message' => 'Access denied'], 403);
-
-        if ($this->galleryRepository->findUserGallery($user))
+        if ($this->galleryRepository->findUserGallery($bearerUser))
             return $this->json(['message' => "This user has gallery, patch instead"], 400);
 
-        $this->entityManager->persist((new Gallery())->setUser($user));
+        $this->entityManager->persist((new Gallery())->setUser($bearerUser));
         $this->entityManager->flush();
 
         return $this->json(['message' => 'Resource successfully posted']);

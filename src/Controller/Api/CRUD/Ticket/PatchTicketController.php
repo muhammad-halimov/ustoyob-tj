@@ -7,10 +7,9 @@ use App\Entity\Ticket\Category;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Ticket\Unit;
 use App\Entity\User;
-use App\Repository\CategoryRepository;
-use App\Repository\DistrictRepository;
 use App\Repository\TicketRepository;
-use App\Repository\UnitRepository;
+use App\Service\AccessService;
+use App\Service\ExtractIriService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -21,25 +20,21 @@ class PatchTicketController extends AbstractController
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly CategoryRepository     $categoryRepository,
         private readonly TicketRepository       $ticketRepository,
-        private readonly DistrictRepository     $districtRepository,
-        private readonly UnitRepository         $unitRepository,
+        private readonly ExtractIriService      $extractIriService,
+        private readonly AccessService          $accessService,
         private readonly Security               $security,
     ){}
 
     public function __invoke(int $id, Request $request): JsonResponse
     {
-        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
-        $allowedRoles = ["ROLE_ADMIN", "ROLE_CLIENT", "ROLE_MASTER"];
-
         /** @var User $bearerUser */
         $bearerUser = $this->security->getUser();
+
+        $this->accessService->check($bearerUser);
+
         /** @var Ticket $ticketEntity */
         $ticketEntity = $this->ticketRepository->find($id);
-
-        if (!array_intersect($allowedRoles, $bearerUser->getRoles()))
-            return $this->json(['message' => 'Access denied'], 403);
 
         if (!$ticketEntity)
             return $this->json(['message' => 'Ticket not found'], 404);
@@ -95,9 +90,8 @@ class PatchTicketController extends AbstractController
 
         // Обновляем category (если передан)
         if (!is_null($categoryParam)) {
-            $categoryId = preg_match('#/api/categories/(\d+)#', $categoryParam, $c) ? $c[1] : $categoryParam;
             /** @var Category $category */
-            $category = $this->categoryRepository->find($categoryId);
+            $category = $this->extractIriService->extract($categoryParam, Category::class, 'categories');
 
             if (!$category)
                 return $this->json(['message' => 'Category not found'], 404);
@@ -107,9 +101,8 @@ class PatchTicketController extends AbstractController
 
         // Обновляем unit (если передан)
         if (!is_null($unitParam)) {
-            $unitId = preg_match('#/api/units/(\d+)#', $unitParam, $u) ? $u[1] : $unitParam;
             /** @var Unit $unit */
-            $unit = $this->unitRepository->find($unitId);
+            $unit = $this->extractIriService->extract($unitParam, Unit::class, 'units');
 
             if (!$unit)
                 return $this->json(['message' => 'Unit not found'], 404);
@@ -119,9 +112,8 @@ class PatchTicketController extends AbstractController
 
         // Обновляем district (если передан)
         if (!is_null($districtParam)) {
-            $districtId = preg_match('#/api/districts/(\d+)#', $districtParam, $d) ? $d[1] : $districtParam;
             /** @var District $district */
-            $district = $this->districtRepository->find($districtId);
+            $district = $this->extractIriService->extract($districtParam, District::class, 'districts');
 
             if (!$district)
                 return $this->json(['message' => 'District not found'], 404);

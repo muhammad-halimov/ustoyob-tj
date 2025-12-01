@@ -2,20 +2,20 @@
 
 namespace App\Entity\Review;
 
+use ApiPlatform\Doctrine\Orm\Filter\BooleanFilter;
+use ApiPlatform\Doctrine\Orm\Filter\ExistsFilter;
+use ApiPlatform\Doctrine\Orm\Filter\RangeFilter;
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
-use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\Review\PatchReviewController;
 use App\Controller\Api\CRUD\Review\PostReviewController;
 use App\Controller\Api\CRUD\Review\PostReviewPhotoController;
-use App\Controller\Api\Filter\Review\Clients\ClientReviewFilterController;
-use App\Controller\Api\Filter\Review\Clients\ClientsReviewFilterController;
-use App\Controller\Api\Filter\Review\Masters\MasterReviewFilterController;
-use App\Controller\Api\Filter\Review\Masters\MastersReviewFilterController;
 use App\Controller\Api\Filter\Review\PersonalReviewFilterController;
 use App\Dto\Appeal\Photo\AppealPhotoInput;
 use App\Entity\Ticket\Ticket;
@@ -39,26 +39,6 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         new GetCollection(
             uriTemplate: '/reviews/me',
             controller: PersonalReviewFilterController::class,
-        ),
-        new GetCollection(
-            uriTemplate: '/reviews/masters/{id}',
-            requirements: ['id' => '\d+'],
-            controller: MasterReviewFilterController::class,
-        ),
-        new Get(
-            uriTemplate: '/reviews/masters',
-            requirements: ['id' => '\d+'],
-            controller: MastersReviewFilterController::class,
-        ),
-        new GetCollection(
-            uriTemplate: '/reviews/clients/{id}',
-            requirements: ['id' => '\d+'],
-            controller: ClientReviewFilterController::class,
-        ),
-        new GetCollection(
-            uriTemplate: '/reviews/clients',
-            requirements: ['id' => '\d+'],
-            controller: ClientsReviewFilterController::class,
         ),
         new Post(
             uriTemplate: '/reviews/{id}/upload-photo',
@@ -97,6 +77,17 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
     ],
     paginationEnabled: false,
 )]
+#[ApiFilter(BooleanFilter::class, properties: ['services.service'])]
+#[ApiFilter(ExistsFilter::class, properties: ['services', 'master', 'client', 'reviewImages',])]
+#[ApiFilter(SearchFilter::class, properties: [
+    'type',
+    'master',
+    'client',
+    'description',
+    'services',
+    'services.title',
+])]
+#[ApiFilter(RangeFilter::class, properties: ['rating'])]
 class Review
 {
     public function __toString(): string

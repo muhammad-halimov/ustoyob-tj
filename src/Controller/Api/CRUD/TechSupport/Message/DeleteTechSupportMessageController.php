@@ -5,6 +5,7 @@ namespace App\Controller\Api\CRUD\TechSupport\Message;
 use App\Entity\TechSupport\TechSupport;
 use App\Entity\User;
 use App\Repository\TechSupport\TechSupportMessageRepository;
+use App\Service\AccessService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -15,21 +16,19 @@ class DeleteTechSupportMessageController extends AbstractController
     public function __construct(
         private readonly EntityManagerInterface       $entityManager,
         private readonly TechSupportMessageRepository $techSupportMessageRepository,
+        private readonly AccessService                $accessService,
         private readonly Security                     $security,
     ){}
 
     public function __invoke(int $id): JsonResponse
     {
-        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
-        $allowedRoles = ["ROLE_ADMIN", "ROLE_CLIENT", "ROLE_MASTER"];
-
         /** @var User $bearerUser */
         $bearerUser = $this->security->getUser();
+
+        $this->accessService->check($bearerUser);
+
         /** @var TechSupport $techSupportMessage */
         $techSupportMessage = $this->techSupportMessageRepository->find($id);
-
-        if (!array_intersect($allowedRoles, $bearerUser->getRoles()))
-            return $this->json(['message' => 'Access denied'], 403);
 
         if (!$techSupportMessage)
             return $this->json(['message' => "Resource not found"], 404);

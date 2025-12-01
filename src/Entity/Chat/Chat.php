@@ -86,7 +86,7 @@ class Chat
     #[Groups([
         'chats:read',
         'chatMessages:read',
-        'appealsChat:read',
+        'appeal:chat:read',
     ])]
     private ?int $id = null;
 
@@ -94,7 +94,7 @@ class Chat
     #[Groups([
         'chats:read',
         'chatMessages:read',
-        'appealsChat:read',
+        'appeal:chat:read',
     ])]
     private ?bool $active = null;
 
@@ -102,6 +102,7 @@ class Chat
     #[ORM\JoinColumn(name: 'author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'chats:read',
+        'appeal:chat:read',
     ])]
     #[ApiProperty(writable: false)]
     private ?User $author = null;
@@ -110,6 +111,7 @@ class Chat
     #[ORM\JoinColumn(name: 'reply_author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'chats:read',
+        'appeal:chat:read',
     ])]
     private ?User $replyAuthor = null;
 
@@ -117,6 +119,7 @@ class Chat
     #[ORM\JoinColumn(name: 'ticket_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'chats:read',
+        'appeal:chat:read',
     ])]
     private ?Ticket $ticket = null;
 

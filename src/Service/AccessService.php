@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Entity\User;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\Security\Core\Exception\TokenNotFoundException;
 
 class AccessService
 {
@@ -13,10 +14,14 @@ class AccessService
 
     public function __construct(private readonly Security $security){}
 
-    public function check(User $user, string $grade = 'triple') : bool
+    public function check(User|null $user, string $grade = 'triple') : bool
     {
-        if (!$this->security->isGranted('IS_AUTHENTICATED_FULLY'))
+        if (!$user)
+            throw new TokenNotFoundException('Authentication required');
+        elseif (!$this->security->isGranted('IS_AUTHENTICATED_FULLY'))
             throw new AccessDeniedHttpException('Authentication required');
+        elseif (!$this->security->getUser())
+            throw new TokenNotFoundException('Authentication required');
 
         switch ($grade) {
             case 'triple':

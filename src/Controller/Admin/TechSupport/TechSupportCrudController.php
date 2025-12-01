@@ -63,7 +63,7 @@ class TechSupportCrudController extends AbstractCrudController
             ->setRequired(true)
             ->setColumns(6);
 
-        yield ChoiceField::new('supportReason', 'Категория талона')
+        yield ChoiceField::new('reason', 'Категория талона')
             ->setColumns(6)
             ->setChoices(TechSupport::SUPPORT)
             ->addCssClass('support-field')

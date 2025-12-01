@@ -2,12 +2,13 @@
 
 namespace App\Entity\Ticket;
 
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\Filter\Ticket\CategoryOccupationFilterController;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User\Occupation;
@@ -33,11 +34,6 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
             requirements: ['id' => '\d+'],
         ),
         new GetCollection(
-            uriTemplate: '/categories/occupation/{id}',
-            requirements: ['id' => '\d+'],
-            controller: CategoryOccupationFilterController::class,
-        ),
-        new GetCollection(
             uriTemplate: '/categories',
         ),
         new Post(
@@ -53,6 +49,7 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
     ],
     paginationEnabled: false,
 )]
+#[ApiFilter(SearchFilter::class, properties: ['occupations', 'description', 'title'])]
 class Category
 {
     use UpdatedAtTrait, CreatedAtTrait;

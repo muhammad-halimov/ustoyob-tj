@@ -15,6 +15,7 @@ use App\Controller\Api\Filter\TechSupport\PersonalTechSupportFilterController;
 use App\Controller\Api\Filter\TechSupport\SupportReasonFilterController;
 use App\Controller\Api\Filter\TechSupport\UserTechSupportFilterController;
 use App\Dto\Appeal\Photo\AppealPhotoInput;
+use App\Dto\TechSupport\TechSupportInput;
 use App\Entity\User;
 use App\Repository\TechSupport\TechSupportRepository;
 use DateTime;
@@ -53,6 +54,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             uriTemplate: '/tech-support/{id}',
             requirements: ['id' => '\d+'],
             controller: PatchTechSupportController::class,
+            input: TechSupportInput::class,
         ),
         new Post(
             uriTemplate: '/tech-support/{id}/upload-photo',
@@ -121,7 +123,7 @@ class TechSupport
     #[Groups([
         'techSupport:read',
     ])]
-    private ?string $supportReason = null;
+    private ?string $reason = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
@@ -315,14 +317,14 @@ class TechSupport
         return $this;
     }
 
-    public function getSupportReason(): ?string
+    public function getReason(): ?string
     {
-        return $this->supportReason;
+        return $this->reason;
     }
 
-    public function setSupportReason(?string $supportReason): static
+    public function setReason(?string $reason): static
     {
-        $this->supportReason = $supportReason;
+        $this->reason = $reason;
         return $this;
     }
 

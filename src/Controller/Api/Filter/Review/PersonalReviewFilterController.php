@@ -5,6 +5,7 @@ namespace App\Controller\Api\Filter\Review;
 use App\Entity\Review\Review;
 use App\Entity\User;
 use App\Repository\ReviewRepository;
+use App\Service\AccessService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -13,22 +14,19 @@ class PersonalReviewFilterController extends AbstractController
 {
     public function __construct(
         private readonly ReviewRepository $reviewRepository,
+        private readonly AccessService    $accessService,
         private readonly Security         $security,
     ){}
 
     public function __invoke(): JsonResponse
     {
-        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
-        $allowedRoles = ["ROLE_ADMIN", "ROLE_CLIENT", "ROLE_MASTER"];
+        /** @var User $bearerUser */
+        $bearerUser = $this->security->getUser();
 
-        /** @var User $user */
-        $user = $this->security->getUser();
-
-        if (!array_intersect($allowedRoles, $user->getRoles()))
-            return $this->json(['message' => 'Access denied'], 403);
+        $this->accessService->check($bearerUser);
 
         /** @var Review $data */
-        $data = $this->reviewRepository->findUserReviews($user);
+        $data = $this->reviewRepository->findUserReviews($bearerUser);
 
         return empty($data)
             ? $this->json(['message' => 'Resource not found'], 404)

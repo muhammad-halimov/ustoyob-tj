@@ -1,10 +1,11 @@
 <?php
 
-namespace App\Controller\Api\Filter\User\Favorite;
+namespace App\Controller\Api\Filter\User;
 
 use App\Entity\User;
 use App\Entity\User\Favorite;
 use App\Repository\User\FavoriteRepository;
+use App\Service\AccessService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -13,22 +14,19 @@ class PersonalFavoriteFilterController extends AbstractController
 {
     public function __construct(
         private readonly FavoriteRepository $favoriteRepository,
+        private readonly AccessService      $accessService,
         private readonly Security           $security,
     ){}
 
     public function __invoke(): JsonResponse
     {
-        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
-        $allowedRoles = ["ROLE_ADMIN", "ROLE_CLIENT", "ROLE_MASTER"];
+        /** @var User $bearerUser */
+        $bearerUser = $this->security->getUser();
 
-        /** @var User $user */
-        $user = $this->security->getUser();
-
-        if (!array_intersect($allowedRoles, $user->getRoles()))
-            return $this->json(['message' => 'Access denied'], 403);
+        $this->accessService->check($bearerUser);
 
         /** @var Favorite $favorite */
-        $favorite = $this->favoriteRepository->findUserFavoriteMasters($user)[0] ?? null;
+        $favorite = $this->favoriteRepository->findUserFavoriteMasters($bearerUser)[0] ?? null;
 
         return empty($favorite)
             ? $this->json(['message' => 'Resource not found'], 404)

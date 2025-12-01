@@ -7,9 +7,8 @@ use App\Entity\Ticket\Category;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Ticket\Unit;
 use App\Entity\User;
-use App\Repository\CategoryRepository;
-use App\Repository\DistrictRepository;
-use App\Repository\UnitRepository;
+use App\Service\AccessService;
+use App\Service\ExtractIriService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -20,22 +19,17 @@ class PostTicketController extends AbstractController
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly CategoryRepository     $categoryRepository,
-        private readonly DistrictRepository     $districtRepository,
-        private readonly UnitRepository         $unitRepository,
+        private readonly ExtractIriService      $extractIriService,
+        private readonly AccessService          $accessService,
         private readonly Security               $security,
     ){}
 
     public function __invoke(Request $request): JsonResponse
     {
-        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
-        $allowedRoles = ["ROLE_ADMIN", "ROLE_CLIENT", "ROLE_MASTER"];
-
         /** @var User $bearerUser */
         $bearerUser = $this->security->getUser();
 
-        if (!array_intersect($allowedRoles, $bearerUser->getRoles()))
-            return $this->json(['message' => 'Access denied'], 403);
+        $this->accessService->check($bearerUser);
 
         $ticketEntity = new Ticket();
 
@@ -50,18 +44,13 @@ class PostTicketController extends AbstractController
         $unitParam = $data['unit'];
         $districtParam = $data['district'];
 
-        // Извлекаем ID только если параметры переданы
-        $categoryId = preg_match('#/api/categories/(\d+)#', $categoryParam, $c) ? $c[1] : $categoryParam;
-        $districtId = preg_match('#/api/districts/(\d+)#', $districtParam, $d) ? $d[1] : $districtParam;
-        $unitId = preg_match('#/api/units/(\d+)#', $unitParam, $u) ? $u[1] : $unitParam;
-
         // Загружаем сущности только если ID переданы
         /** @var Category $category */
-        $category = $this->categoryRepository->find($categoryId);
+        $category = $this->extractIriService->extract($categoryParam, Category::class, 'categories');
         /** @var Unit $unit */
-        $unit = $this->unitRepository->find($unitId);
+        $unit = $this->extractIriService->extract($unitParam, Unit::class, 'units');
         /** @var District $district */
-        $district = $this->districtRepository->find($districtId);
+        $district = $this->extractIriService->extract($districtParam, District::class, 'districts');
 
         if (!$category)
             return $this->json(['message' => 'Category not found'], 404);

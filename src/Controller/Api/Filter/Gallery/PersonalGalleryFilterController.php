@@ -4,7 +4,7 @@ namespace App\Controller\Api\Filter\Gallery;
 
 use App\Entity\User;
 use App\Repository\GalleryRepository;
-use Exception;
+use App\Service\AccessService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -13,21 +13,18 @@ class PersonalGalleryFilterController extends AbstractController
 {
     public function __construct(
         private readonly GalleryRepository $galleryRepository,
+        private readonly AccessService     $accessService,
         private readonly Security          $security,
     ){}
 
     public function __invoke(): JsonResponse
     {
-        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
-        $allowedRoles = ["ROLE_ADMIN", "ROLE_MASTER"];
+        /** @var User $bearerUser */
+        $bearerUser = $this->security->getUser();
 
-        /** @var User $user */
-        $user = $this->security->getUser();
+        $this->accessService->check($bearerUser, 'double');
 
-        if (!array_intersect($allowedRoles, $user->getRoles()))
-            return $this->json(['message' => 'Access denied'], 403);
-
-        $data = $this->galleryRepository->findUserGallery($user);
+        $data = $this->galleryRepository->findUserGallery($bearerUser);
 
         return empty($data)
             ? $this->json(['message' => 'Resource not found'], 404)

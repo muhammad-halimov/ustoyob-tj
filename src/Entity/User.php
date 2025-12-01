@@ -2,6 +2,11 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Doctrine\Orm\Filter\BooleanFilter;
+use ApiPlatform\Doctrine\Orm\Filter\ExistsFilter;
+use ApiPlatform\Doctrine\Orm\Filter\RangeFilter;
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
@@ -11,12 +16,8 @@ use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\User\User\GrantRoleController;
 use App\Controller\Api\CRUD\User\User\PostUserPhotoController;
-use App\Controller\Api\Filter\User\Client\ClientsUserFilterController;
-use App\Controller\Api\Filter\User\Client\ClientUserFilterController;
-use App\Controller\Api\Filter\User\Master\MastersOccupationUserFilterController;
-use App\Controller\Api\Filter\User\Master\MastersUserFilterController;
-use App\Controller\Api\Filter\User\Master\MasterUserFilterController;
-use App\Controller\Api\Filter\User\Personal\PersonalUserFilterController;
+use App\Controller\Api\Filter\User\PersonalUserFilterController;
+use App\Controller\Api\Filter\User\RolesFilter;
 use App\Controller\Api\Filter\User\SocialNetworkController;
 use App\Dto\Appeal\Photo\AppealPhotoInput;
 use App\Dto\User\RoleOutput;
@@ -60,6 +61,11 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
 #[ORM\UniqueConstraint(name: 'UNIQ_IDENTIFIER_EMAIL', fields: ['email'])]
 #[ApiResource(
     operations: [
+        new GetCollection(
+            uriTemplate: '/users/social-networks',
+            controller: SocialNetworkController::class,
+            output: SocialNetworkOutput::class,
+        ),
         new Get(
             uriTemplate: '/users/me',
             controller: PersonalUserFilterController::class,
@@ -68,51 +74,17 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
                 'skip_null_values' => false,
             ],
         ),
-        new GetCollection(
-            uriTemplate: '/users/clients',
-            controller: ClientsUserFilterController::class,
-            normalizationContext: [
-                'groups' => ['clients:read'],
-                'skip_null_values' => false,
-            ],
-        ),
         new Get(
-            uriTemplate: '/users/clients/{id}',
-            requirements: ['id' => '\d+'],
-            controller: ClientUserFilterController::class,
+            uriTemplate: '/users/{id}',
             normalizationContext: [
-                'groups' => ['clients:read'],
+                'groups' => ['clients:read', 'masters:read'],
                 'skip_null_values' => false,
             ],
         ),
         new GetCollection(
-            uriTemplate: '/users/masters',
-            controller: MastersUserFilterController::class,
+            uriTemplate: '/users',
             normalizationContext: [
-                'groups' => ['masters:read'],
-                'skip_null_values' => false,
-            ],
-        ),
-        new GetCollection(
-            uriTemplate: '/users/social-networks',
-            controller: SocialNetworkController::class,
-            output: SocialNetworkOutput::class,
-        ),
-        new Get(
-            uriTemplate: '/users/masters/{id}',
-            requirements: ['id' => '\d+'],
-            controller: MasterUserFilterController::class,
-            normalizationContext: [
-                'groups' => ['masters:read'],
-                'skip_null_values' => false,
-            ],
-        ),
-        new GetCollection(
-            uriTemplate: '/users/masters/occupations/{id}',
-            requirements: ['id' => '\d+'],
-            controller: MastersOccupationUserFilterController::class,
-            normalizationContext: [
-                'groups' => ['masters:read'],
+                'groups' => ['clients:read', 'masters:read'],
                 'skip_null_values' => false,
             ],
         ),
@@ -152,6 +124,11 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
     ],
     paginationEnabled: false,
 )]
+#[ApiFilter(BooleanFilter::class, properties: ['active', 'atHome'])]
+#[ApiFilter(RangeFilter::class, properties: ['rating'])]
+#[ApiFilter(SearchFilter::class, properties: ['occupation', 'gender', 'socialNetworks'])]
+#[ApiFilter(RolesFilter::class)]
+#[ApiFilter(ExistsFilter::class, properties: ['image', 'phone1', 'phone2'])]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     use UpdatedAtTrait, CreatedAtTrait;
@@ -287,6 +264,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups([
         'masters:read',
         'clients:read',
+        'masterTickets:read',
+        'clientTickets:read',
     ])]
     private ?float $rating = null;
 
@@ -345,6 +324,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'masters:read',
         'clients:read',
     ])]
+    #[ApiProperty(writable: false)]
     private ?bool $active = null;
 
     /**

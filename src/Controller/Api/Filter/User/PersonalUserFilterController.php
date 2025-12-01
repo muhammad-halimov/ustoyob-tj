@@ -1,20 +1,18 @@
 <?php
 
-namespace App\Controller\Api\Filter\Chat;
+namespace App\Controller\Api\Filter\User;
 
 use App\Entity\User;
-use App\Repository\Chat\ChatRepository;
 use App\Service\AccessService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
-class PersonalChatFilterController extends AbstractController
+class PersonalUserFilterController extends AbstractController
 {
     public function __construct(
-        private readonly ChatRepository $chatRepository,
-        private readonly AccessService  $accessService,
-        private readonly Security       $security,
+        private readonly AccessService $accessService,
+        private readonly Security      $security,
     ){}
 
     public function __invoke(): JsonResponse
@@ -24,10 +22,8 @@ class PersonalChatFilterController extends AbstractController
 
         $this->accessService->check($bearerUser);
 
-        $data = $this->chatRepository->findUserChats($bearerUser);
-
-        return empty($data)
+        return empty($bearerUser)
             ? $this->json(['message' => 'Resource not found'], 404)
-            : $this->json($data, context: ['groups' => ['chats:read']]);
+            : $this->json($bearerUser, context: ['groups' => ['masters:read', 'clients:read']]);
     }
 }

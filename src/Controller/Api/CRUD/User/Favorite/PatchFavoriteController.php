@@ -2,11 +2,12 @@
 
 namespace App\Controller\Api\CRUD\User\Favorite;
 
+use App\Entity\Ticket\Ticket;
 use App\Entity\User;
 use App\Entity\User\Favorite;
-use App\Repository\TicketRepository;
 use App\Repository\User\FavoriteRepository;
-use App\Repository\UserRepository;
+use App\Service\AccessService;
+use App\Service\ExtractIriService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -18,23 +19,20 @@ class PatchFavoriteController extends AbstractController
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly FavoriteRepository     $favoriteRepository,
-        private readonly TicketRepository       $ticketRepository,
-        private readonly UserRepository         $userRepository,
+        private readonly ExtractIriService      $extractIriService,
+        private readonly AccessService          $accessService,
         private readonly Security               $security,
     ){}
 
     public function __invoke(int $id, Request $request): JsonResponse
     {
-        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
-        $allowedRoles = ["ROLE_ADMIN", "ROLE_CLIENT", "ROLE_MASTER"];
-
         /** @var User $bearerUser */
         $bearerUser = $this->security->getUser();
+
+        $this->accessService->check($bearerUser);
+
         /** @var Favorite $favorite */
         $favorite = $this->favoriteRepository->find($id);
-
-        if (!array_intersect($allowedRoles, $bearerUser->getRoles()))
-            return $this->json(['message' => 'Access denied'], 403);
 
         if (!$favorite)
             return $this->json(['message' => "Resource not found"], 404);
@@ -59,11 +57,11 @@ class PatchFavoriteController extends AbstractController
         // Обработка мастеров (если переданы)
         if (!is_null($mastersParam)) {
             foreach (array_unique($mastersParam) as $master) {
-                $masterId = (preg_match('#/api/users/(\d+)#', $master, $m) ? $m[1] : $master);
-                $user = $this->userRepository->find($masterId);
+                /** @var User $user */
+                $user = $this->extractIriService->extract($master, User::class, 'users');
 
-                if (!$user || !in_array($allowedRoles[2], $user->getRoles()))
-                    return $this->json(['message' => "Master #$masterId not found"], 404);
+                if (!$user || !in_array('ROLE_MASTER', $user->getRoles()))
+                    return $this->json(['message' => "Master #$master not found"], 404);
 
                 $masters[] = $user;
             }
@@ -72,11 +70,11 @@ class PatchFavoriteController extends AbstractController
         // Обработка клиентов (если переданы)
         if (!is_null($clientsParam)) {
             foreach (array_unique($clientsParam) as $client) {
-                $clientId = (preg_match('#/api/users/(\d+)#', $client, $c) ? $c[1] : $client);
-                $user = $this->userRepository->find($clientId);
+                /** @var User $user */
+                $user = $this->extractIriService->extract($client, User::class, 'users');
 
-                if (!$user || !in_array($allowedRoles[1], $user->getRoles()))
-                    return $this->json(['message' => "Client #$clientId not found"], 404);
+                if (!$user || !in_array('ROLE_CLIENT', $user->getRoles()))
+                    return $this->json(['message' => "Client #$client not found"], 404);
 
                 $clients[] = $user;
             }
@@ -85,11 +83,11 @@ class PatchFavoriteController extends AbstractController
         // Обработка тикетов (если переданы)
         if (!is_null($ticketsParam)) {
             foreach (array_unique($ticketsParam) as $ticket) {
-                $ticketId = (preg_match('#/api/tickets/(\d+)#', $ticket, $t) ? $t[1] : $ticket);
-                $ticketInternal = $this->ticketRepository->find($ticketId);
+                /** @var Ticket $ticketInternal */
+                $ticketInternal = $this->extractIriService->extract($ticket, Ticket::class, 'tickets');
 
                 if (!$ticketInternal)
-                    return $this->json(['message' => "Ticket #$ticketId not found"], 404);
+                    return $this->json(['message' => "Ticket #$ticket not found"], 404);
 
                 $tickets[] = $ticketInternal;
             }

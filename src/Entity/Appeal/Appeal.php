@@ -2,6 +2,9 @@
 
 namespace App\Entity\Appeal;
 
+use ApiPlatform\Doctrine\Orm\Filter\ExistsFilter;
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
@@ -33,12 +36,24 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         ),
         new Get(
             uriTemplate: '/appeals/{id}',
-            normalizationContext: ['groups' => ['appeal:read', 'appeal:ticket:read',]],
+            normalizationContext: [
+                'groups' => [
+                    'appeal:read',
+                    'appeal:ticket:read',
+                    'appeal:chat:read'
+                ]
+            ],
             security: "is_granted('ROLE_ADMIN')",
         ),
         new GetCollection(
             uriTemplate: '/appeals',
-            normalizationContext: ['groups' => ['appeal:read', 'appeal:ticket:read',]],
+            normalizationContext: [
+                'groups' => [
+                    'appeal:read',
+                    'appeal:ticket:read',
+                    'appeal:chat:read'
+                ]
+            ],
             security: "is_granted('ROLE_ADMIN')",
         ),
         new Post(
@@ -56,6 +71,27 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
     ],
     paginationEnabled: false,
 )]
+#[ApiFilter(ExistsFilter::class, properties: ['appealChat', 'appealTicket'])]
+#[ApiFilter(SearchFilter::class, properties: [
+    'type',
+    'appealTicket',
+    'appealTicket.title',
+    'appealTicket.description',
+    'appealTicket.reason',
+    'appealTicket.ticket',
+    'appealTicket.ticket.title',
+    'appealTicket.ticket.service',
+    'appealTicket.author',
+    'appealTicket.respondent',
+
+    'appealChat',
+    'appealChat.title',
+    'appealChat.description',
+    'appealChat.reason',
+    'appealChat.chat',
+    'appealChat.author',
+    'appealChat.respondent',
+])]
 class Appeal
 {
     public function __toString(): string
@@ -78,15 +114,17 @@ class Appeal
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
+        'appeal:read',
+        'appeal:chat:read',
         'appeal:ticket:read',
-        'appeal:read'
     ])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
+        'appeal:read',
+        'appeal:chat:read',
         'appeal:ticket:read',
-        'appeal:read'
     ])]
     private ?string $type = null;
 
@@ -95,8 +133,8 @@ class Appeal
      */
     #[ORM\OneToMany(targetEntity: AppealTicket::class, mappedBy: 'appeal', cascade: ['all'])]
     #[Groups([
+        'appeal:read',
         'appeal:ticket:read',
-        'appeal:read'
     ])]
     #[SerializedName('ticket')]
     private Collection $appealTicket;
@@ -106,23 +144,25 @@ class Appeal
      */
     #[ORM\OneToMany(targetEntity: AppealChat::class, mappedBy: 'appeal', cascade: ['all'])]
     #[Groups([
-        'appealsChat:read',
-        'appeal:read'
+        'appeal:read',
+        'appeal:chat:read',
     ])]
     #[SerializedName('chat')]
     private Collection $appealChat;
 
     #[ORM\Column(type: 'datetime', nullable: false)]
     #[Groups([
+        'appeal:read',
+        'appeal:chat:read',
         'appeal:ticket:read',
-        'appeal:read'
     ])]
     protected DateTime $createdAt;
 
     #[ORM\Column(type: 'datetime', nullable: false)]
     #[Groups([
+        'appeal:read',
+        'appeal:chat:read',
         'appeal:ticket:read',
-        'appeal:read'
     ])]
     protected DateTime $updatedAt;
 
@@ -235,7 +275,7 @@ class Appeal
             $appealChat = $this->appealChat->first();
 
             // Получаем читаемую причину из массива COMPLAINTS
-            $complaintCode = $appealChat->getComplaintReason();
+            $complaintCode = $appealChat->getReason();
             $complaintHuman = array_search($complaintCode, AppealChat::COMPLAINTS) ?: $complaintCode;
 
             return "

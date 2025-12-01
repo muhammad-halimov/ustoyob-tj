@@ -7,6 +7,7 @@ use App\Entity\Ticket\Ticket;
 use App\Entity\User;
 use App\Repository\TicketRepository;
 use App\Repository\UserRepository;
+use App\Service\AccessService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -19,19 +20,16 @@ class PostReviewController extends AbstractController
         private readonly EntityManagerInterface $entityManager,
         private readonly TicketRepository       $ticketRepository,
         private readonly UserRepository         $userRepository,
+        private readonly AccessService          $accessService,
         private readonly Security               $security,
     ){}
 
     public function __invoke(Request $request): JsonResponse
     {
-        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
-        $allowedRoles = ["ROLE_ADMIN", "ROLE_CLIENT", "ROLE_MASTER"];
-
         /** @var User $bearerUser */
         $bearerUser = $this->security->getUser();
 
-        if (!array_intersect($allowedRoles, $bearerUser->getRoles()))
-            return $this->json(['message' => 'Access denied'], 403);
+        $this->accessService->check($bearerUser);
 
         $review = new Review();
 

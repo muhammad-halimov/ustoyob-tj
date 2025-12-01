@@ -10,7 +10,7 @@ use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\User\Favorite\PatchFavoriteController;
 use App\Controller\Api\CRUD\User\Favorite\PostFavoriteController;
-use App\Controller\Api\Filter\User\Favorite\PersonalFavoriteFilterController;
+use App\Controller\Api\Filter\User\PersonalFavoriteFilterController;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;

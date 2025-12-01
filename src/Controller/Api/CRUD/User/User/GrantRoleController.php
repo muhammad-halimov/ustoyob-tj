@@ -20,27 +20,28 @@ class GrantRoleController extends AbstractController
     {
         $this->denyAccessUnlessGranted("IS_AUTHENTICATED_FULLY");
 
-        /** @var User $user */
-        $user = $this->security->getUser();
+        /** @var User $bearerUser */
+        $bearerUser = $this->security->getUser();
+
         $data = json_decode($request->getContent(), true);
         $roleParam = $data['role'];
 
-        if (in_array('ROLE_ADMIN', $user->getRoles()))
+        if (in_array('ROLE_ADMIN', $bearerUser->getRoles()))
             return $this->json(['message' => "You're admin"], 403);
 
-        if (!in_array("ROLE_CLIENT", $user->getRoles()) && in_array("ROLE_MASTER", $user->getRoles()))
+        if (!in_array("ROLE_CLIENT", $bearerUser->getRoles()) && in_array("ROLE_MASTER", $bearerUser->getRoles()))
             return $this->json(['message' => "You're master"], 403);
 
-        if (!in_array("ROLE_MASTER", $user->getRoles()) && in_array("ROLE_CLIENT", $user->getRoles()))
+        if (!in_array("ROLE_MASTER", $bearerUser->getRoles()) && in_array("ROLE_CLIENT", $bearerUser->getRoles()))
             return $this->json(['message' => "You're client"], 403);
 
         if ($roleParam == 'master')
-            $user->setRoles(['ROLE_MASTER']);
+            $bearerUser->setRoles(['ROLE_MASTER']);
         elseif ($roleParam == 'client')
-            $user->setRoles(['ROLE_CLIENT']);
+            $bearerUser->setRoles(['ROLE_CLIENT']);
         else return $this->json(['message' => "Wrong role provided"], 404);
 
-        $this->entityManager->persist($user);
+        $this->entityManager->persist($bearerUser);
         $this->entityManager->flush();
 
         return $this->json(['message' => "Granted $roleParam role"]);

@@ -2,6 +2,8 @@
 
 namespace App\Entity\Gallery;
 
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
@@ -10,7 +12,6 @@ use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\Gallery\PostGalleryController;
 use App\Controller\Api\CRUD\Gallery\PostGalleryPhotoController;
-use App\Controller\Api\Filter\Gallery\MasterGalleryFilterController;
 use App\Controller\Api\Filter\Gallery\PersonalGalleryFilterController;
 use App\Dto\Appeal\Photo\AppealPhotoInput;
 use App\Entity\Traits\CreatedAtTrait;
@@ -30,33 +31,19 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         new GetCollection(
             uriTemplate: '/galleries/me',
             controller: PersonalGalleryFilterController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER')"
         ),
         new GetCollection(
-            uriTemplate: '/galleries/master/{id}',
-            requirements: ['id' => '\d+'],
-            controller: MasterGalleryFilterController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER')"
+            uriTemplate: '/galleries',
         ),
         new Post(
             uriTemplate: '/galleries',
             controller: PostGalleryController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER')",
         ),
         new Post(
             uriTemplate: '/galleries/{id}/upload-photo',
             inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
             controller: PostGalleryPhotoController::class,
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER')",
             input: AppealPhotoInput::class,
         ),
         new Patch(
@@ -84,6 +71,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
     ],
     paginationEnabled: false,
 )]
+#[ApiFilter(SearchFilter::class, properties: ['user'])]
 class Gallery
 {
     use UpdatedAtTrait, CreatedAtTrait;

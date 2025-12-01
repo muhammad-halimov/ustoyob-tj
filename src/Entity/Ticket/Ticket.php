@@ -2,23 +2,20 @@
 
 namespace App\Entity\Ticket;
 
+use ApiPlatform\Doctrine\Orm\Filter\BooleanFilter;
+use ApiPlatform\Doctrine\Orm\Filter\ExistsFilter;
+use ApiPlatform\Doctrine\Orm\Filter\RangeFilter;
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
-use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\Ticket\PatchTicketController;
 use App\Controller\Api\CRUD\Ticket\PostTicketController;
 use App\Controller\Api\CRUD\Ticket\PostTicketPhotoController;
-use App\Controller\Api\Filter\Ticket\Client\ClientsTicketCategoryFilterController;
-use App\Controller\Api\Filter\Ticket\Client\ClientsTicketFilterController;
-use App\Controller\Api\Filter\Ticket\Client\ClientTicketFilterController;
-use App\Controller\Api\Filter\Ticket\Master\MastersTicketCategoryFilterController;
-use App\Controller\Api\Filter\Ticket\Master\MastersTicketFilterController;
-use App\Controller\Api\Filter\Ticket\Master\MasterTicketFilterController;
 use App\Controller\Api\Filter\Ticket\PersonalTicketFilterController;
-use App\Controller\Api\Filter\Ticket\TicketCategoryFilterController;
 use App\Dto\Ticket\TicketInput;
 use App\Entity\Appeal\AppealTypes\AppealTicket;
 use App\Entity\Chat\Chat;
@@ -40,39 +37,9 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
     operations: [
-        new Get(
+        new GetCollection(
             uriTemplate: '/tickets/me',
             controller: PersonalTicketFilterController::class,
-        ),
-        new Get(
-            uriTemplate: '/tickets/masters/category/{id}',
-            controller: MastersTicketCategoryFilterController::class,
-        ),
-        new Get(
-            uriTemplate: '/tickets/clients/category/{id}',
-            controller: ClientsTicketCategoryFilterController::class,
-        ),
-        new GetCollection(
-            uriTemplate: '/tickets/category/{id}',
-            controller: TicketCategoryFilterController::class,
-        ),
-        new GetCollection(
-            uriTemplate: '/tickets/masters',
-            controller: MastersTicketFilterController::class,
-        ),
-        new GetCollection(
-            uriTemplate: '/tickets/masters/{id}',
-            requirements: ['id' => '\d+'],
-            controller: MasterTicketFilterController::class,
-        ),
-        new GetCollection(
-            uriTemplate: '/tickets/clients',
-            controller: ClientsTicketFilterController::class,
-        ),
-        new GetCollection(
-            uriTemplate: '/tickets/clients/{id}',
-            requirements: ['id' => '\d+'],
-            controller: ClientTicketFilterController::class,
         ),
         new GetCollection(
             uriTemplate: '/tickets',
@@ -103,6 +70,10 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
     ],
     paginationEnabled: false,
 )]
+#[ApiFilter(BooleanFilter::class, properties: ['active', 'service'])]
+#[ApiFilter(ExistsFilter::class, properties: ['master', 'author'])]
+#[ApiFilter(SearchFilter::class, properties: ['category', 'master', 'author', 'description'])]
+#[ApiFilter(RangeFilter::class, properties: ['budget', 'master.rating', 'author.rating'])]
 class Ticket
 {
     public function __toString(): string
@@ -130,7 +101,8 @@ class Ticket
         'clientTickets:read',
         'reviews:read',
         'favorites:read',
-        'appeal:ticket:read'
+        'appeal:ticket:read',
+        'appeal:chat:read',
     ])]
     private ?int $id = null;
 
@@ -140,7 +112,8 @@ class Ticket
         'clientTickets:read',
         'reviews:read',
         'favorites:read',
-        'appeal:ticket:read'
+        'appeal:ticket:read',
+        'appeal:chat:read',
     ])]
     private ?string $title = null;
 
@@ -171,7 +144,19 @@ class Ticket
         'clientTickets:read',
         'reviews:read',
         'favorites:read',
-        'appeal:ticket:read'
+        'appeal:ticket:read',
+        'appeal:chat:read',
+    ])]
+    private ?bool $service = null;
+
+    #[ORM\Column(type: 'boolean', nullable: true)]
+    #[Groups([
+        'masterTickets:read',
+        'clientTickets:read',
+        'reviews:read',
+        'favorites:read',
+        'appeal:ticket:read',
+        'appeal:chat:read',
     ])]
     private ?bool $active = null;
 
@@ -190,7 +175,8 @@ class Ticket
         'clientTickets:read',
         'reviews:read',
         'favorites:read',
-        'appeal:ticket:read'
+        'appeal:ticket:read',
+        'appeal:chat:read',
     ])]
     private ?User $author = null;
 
@@ -201,7 +187,8 @@ class Ticket
         'clientTickets:read',
         'reviews:read',
         'favorites:read',
-        'appeal:ticket:read'
+        'appeal:ticket:read',
+        'appeal:chat:read',
     ])]
     private ?User $master = null;
 
@@ -231,16 +218,6 @@ class Ticket
     #[ORM\OneToMany(targetEntity: Review::class, mappedBy: 'services')]
     #[Ignore]
     private Collection $reviews;
-
-    #[ORM\Column(type: 'boolean', nullable: true)]
-    #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'reviews:read',
-        'favorites:read',
-        'appeal:ticket:read'
-    ])]
-    private ?bool $service = null;
 
     #[ORM\ManyToOne(inversedBy: 'tickets')]
     #[ORM\JoinColumn(name: 'address_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
