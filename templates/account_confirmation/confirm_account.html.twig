@@ -126,7 +126,7 @@
 
                         if (data.success) {
                             setTimeout(() => {
-                                window.location.href = "https://" + data.redirectUrl;
+                                window.location.href = data.redirectUrl;
                             }, 1500);
                         } else {
                             alert('Ошибка подтверждения. Попробуйте позже.');
