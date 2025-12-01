@@ -3,19 +3,29 @@
 namespace App\Controller\Api\CRUD\User\User;
 
 use App\Entity\User;
+use App\Service\AccountConfirmationService;
 use Doctrine\ORM\EntityManagerInterface;
+use Random\RandomException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 class GrantRoleController extends AbstractController
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly Security               $security,
+        private readonly EntityManagerInterface     $entityManager,
+        private readonly AccountConfirmationService $accountConfirmationService,
+        private readonly Security                   $security,
     ){}
 
+
+    /**
+     * Отправляем письмо подтверждения после сохранения пользователя
+     * @throws RandomException
+     * @throws TransportExceptionInterface
+     */
     public function __invoke(Request $request): JsonResponse
     {
         $this->denyAccessUnlessGranted("IS_AUTHENTICATED_FULLY");
@@ -41,7 +51,7 @@ class GrantRoleController extends AbstractController
             $bearerUser->setRoles(['ROLE_CLIENT']);
         else return $this->json(['message' => "Wrong role provided"], 404);
 
-        $this->entityManager->persist($bearerUser);
+        $this->accountConfirmationService->sendConfirmationEmail($bearerUser);
         $this->entityManager->flush();
 
         return $this->json(['message' => "Granted $roleParam role"]);
