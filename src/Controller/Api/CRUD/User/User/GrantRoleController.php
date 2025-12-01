@@ -51,8 +51,8 @@ class GrantRoleController extends AbstractController
             $bearerUser->setRoles(['ROLE_CLIENT']);
         else return $this->json(['message' => "Wrong role provided"], 404);
 
-        $this->accountConfirmationService->sendConfirmationEmail($bearerUser);
         $this->entityManager->flush();
+        $this->accountConfirmationService->sendConfirmationEmail($bearerUser);
 
         return $this->json(['message' => "Granted $roleParam role"]);
     }
