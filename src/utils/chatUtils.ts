@@ -29,7 +29,6 @@ export const createChatWithAuthor = async (authorId: number, ticketId?: number):
         console.log('Checking for existing chats with author:', authorId);
         const existingChats = await fetchUserChats(token);
         const existingChat = existingChats.find((chat: Chat) => {
-            // Проверяем, что чат существует с этим пользователем (в любой роли)
             const isAuthor = chat.author?.id === authorId;
             const isReplyAuthor = chat.replyAuthor?.id === authorId;
             return isAuthor || isReplyAuthor;
@@ -56,20 +55,57 @@ export const createChatWithAuthor = async (authorId: number, ticketId?: number):
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Accept': 'application/json' // Добавляем Accept header
             },
             body: JSON.stringify(chatData)
         });
 
-        if (response.ok) {
-            const chat = await response.json();
-            console.log('Chat created successfully:', chat);
-            return chat;
-        } else {
-            const errorText = await response.text();
-            console.error('Error creating chat:', response.status, errorText);
+        const responseText = await response.text();
+        console.log('Raw response:', responseText);
 
-            // Дополнительная попытка найти чат после ошибки создания
+        if (response.ok) {
+            try {
+                // Пытаемся парсить JSON
+                const responseData = JSON.parse(responseText);
+
+                // Если это сообщение об успехе, но без данных чата - ищем чат
+                if (responseData.message && !responseData.id) {
+                    console.log('Success message received, searching for created chat...');
+
+                    // Ждем немного и ищем созданный чат
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+
+                    const recheckChats = await fetchUserChats(token);
+                    const recheckChat = recheckChats.find((chat: Chat) =>
+                        chat.replyAuthor?.id === authorId || chat.author?.id === authorId
+                    );
+
+                    if (recheckChat) {
+                        console.log('Found chat after creation:', recheckChat);
+                        return recheckChat;
+                    } else {
+                        console.log('Could not find chat after creation');
+                        return null;
+                    }
+                }
+
+                // Если есть ID - это нормальный объект чата
+                if (responseData.id) {
+                    console.log('Chat created successfully with ID:', responseData.id);
+                    return responseData;
+                }
+
+                console.log('Response data:', responseData);
+                return null;
+            } catch (parseError) {
+                console.error('Error parsing JSON:', parseError);
+                return null;
+            }
+        } else {
+            console.error('Error creating chat:', response.status, responseText);
+
+            // Дополнительная попытка найти чат после ошибки
             if (response.status === 422 || response.status === 400) {
                 console.log('Double-checking for existing chats after creation error...');
                 const recheckChats = await fetchUserChats(token);

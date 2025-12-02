@@ -1,9 +1,9 @@
+import React, { useEffect, useState } from 'react';
 import styles from "./Header.module.scss";
-import {AdBtn} from "../../shared/ui/button/HeaderButton/AdBtn.tsx";
-import {EnterBtn} from "../../shared/ui/button/HeaderButton/EnterBtn.tsx";
-import {Link, useLocation, useNavigate} from "react-router-dom";
-import {useEffect, useState} from "react";
-import { getAuthToken } from "../../utils/auth";
+import { AdBtn } from "../../shared/ui/button/HeaderButton/AdBtn.tsx";
+import { EnterBtn } from "../../shared/ui/button/HeaderButton/EnterBtn.tsx";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { getAuthToken, removeAuthToken } from "../../utils/auth";
 
 interface City {
     id: number;
@@ -25,6 +25,15 @@ interface Province {
     title: string;
 }
 
+interface UserData {
+    id: number;
+    email: string;
+    name: string;
+    surname: string;
+    approved?: boolean;
+    roles: string[];
+}
+
 function Header() {
     const location = useLocation();
     const navigate = useNavigate();
@@ -35,6 +44,22 @@ function Header() {
         return savedCity || "Местоположение";
     });
     const [showCityModal, setShowCityModal] = useState(false);
+    const [showConfirmationBanner, setShowConfirmationBanner] = useState<boolean>(() => {
+        const token = getAuthToken();
+        if (!token) return false;
+
+        const userDataStr = localStorage.getItem('userData');
+        if (userDataStr) {
+            try {
+                const userData: UserData = JSON.parse(userDataStr);
+                return userData.approved === false;
+            } catch {
+                return false;
+            }
+        }
+        return false;
+    });
+    const [isLoading, setIsLoading] = useState(false);
     const API_BASE_URL = 'https://admin.ustoyob.tj';
 
     useEffect(() => {
@@ -50,6 +75,147 @@ function Header() {
 
         fetchCities();
     }, []);
+
+    useEffect(() => {
+        const checkAccountConfirmation = async () => {
+            const token = getAuthToken();
+            console.log('Token from localStorage:', token);
+
+            if (!token) {
+                console.log('No token found, hiding banner');
+                setShowConfirmationBanner(false);
+                return;
+            }
+
+            try {
+                console.log('Fetching fresh user data from server with token:', token.substring(0, 20) + '...');
+
+                const response = await fetch(`${API_BASE_URL}/api/users/me`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token.trim()}`,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                });
+
+                console.log('Response status:', response.status);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Server error:', errorText);
+
+                    if (response.status === 401) {
+                        console.error('Unauthorized: Token is invalid or expired');
+                        removeAuthToken();
+                        setShowConfirmationBanner(false);
+                        return;
+                    }
+
+                    // ВАЖНОЕ ИЗМЕНЕНИЕ: Вместо показа плашки при ошибке, лучше ее скрыть
+                    console.log('Cannot fetch user data, hiding banner for safety');
+                    setShowConfirmationBanner(false);
+                    return;
+                }
+
+                const userData: UserData = await response.json();
+                console.log('Fresh user data received:', userData);
+                console.log('User approved status:', userData.approved);
+
+                // Сохраняем свежие данные
+                localStorage.setItem('userData', JSON.stringify(userData));
+
+                // Показываем плашку ТОЛЬКО если пользователь НЕ подтвержден
+                setShowConfirmationBanner(userData.approved === false);
+
+            } catch (error) {
+                console.error('Error checking account confirmation:', error);
+                // При ошибке сети скрываем плашку для безопасности
+                setShowConfirmationBanner(false);
+            }
+        };
+
+        checkAccountConfirmation();
+
+        // Проверяем статус при каждом изменении маршрута
+        const interval = setInterval(checkAccountConfirmation, 60000);
+
+        return () => clearInterval(interval);
+    }, [location.pathname]);
+
+    const handleResendConfirmationFromHeader = async () => {
+        setIsLoading(true);
+        const token = getAuthToken();
+        if (!token) {
+            alert('Токен авторизации не найден. Пожалуйста, войдите заново.');
+            setIsLoading(false);
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/confirm-account-tokenless/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            console.log('Resend confirmation response status:', response.status);
+
+            if (response.ok) {
+                alert('Письмо с подтверждением отправлено повторно! Проверьте вашу почту.');
+            } else if (response.status === 409) {
+                // Конфликт - возможно, письмо уже было отправлено или аккаунт уже подтвержден
+                const errorText = await response.text();
+                let errorMessage = 'Не удалось отправить письмо.';
+
+                try {
+                    const errorData = JSON.parse(errorText);
+                    errorMessage = errorData.detail || errorData.message || errorMessage;
+                } catch {
+                    // Если ответ не JSON, используем текст ответа
+                    errorMessage = errorText || `Ошибка ${response.status}`;
+                }
+
+                alert(`Внимание: ${errorMessage}. Проверьте вашу почту или обновите страницу.`);
+
+                // Обновляем данные пользователя, возможно аккаунт уже подтвержден
+                const refreshResponse = await fetch(`${API_BASE_URL}/api/users/me`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json',
+                    },
+                });
+
+                if (refreshResponse.ok) {
+                    const userData: UserData = await refreshResponse.json();
+                    localStorage.setItem('userData', JSON.stringify(userData));
+                    setShowConfirmationBanner(userData.approved === false);
+                }
+            } else {
+                const errorText = await response.text();
+                let errorMessage = 'Не удалось отправить письмо. Пожалуйста, попробуйте позже.';
+
+                try {
+                    const errorData = JSON.parse(errorText);
+                    errorMessage = errorData.detail || errorData.message || errorMessage;
+                } catch {
+                    errorMessage = `Ошибка ${response.status}: ${errorText}`;
+                }
+
+                alert(errorMessage);
+            }
+        } catch (error) {
+            console.error('Error resending confirmation:', error);
+            alert('Произошла ошибка при отправке письма. Проверьте подключение к интернету.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handleCitySelect = (cityTitle: string) => {
         setSelectedCity(cityTitle);
@@ -89,7 +255,33 @@ function Header() {
 
     const closeAuthModal = () => {
         setShowAuthModal(false);
-        window.location.reload()
+
+        // После закрытия модального окна проверяем статус подтверждения
+        setTimeout(() => {
+            const checkAccountConfirmation = async () => {
+                const token = getAuthToken();
+                if (!token) return;
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/users/me`, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${token.trim()}`,
+                            'Accept': 'application/json',
+                        },
+                    });
+
+                    if (response.ok) {
+                        const userData: UserData = await response.json();
+                        localStorage.setItem('userData', JSON.stringify(userData));
+                        setShowConfirmationBanner(userData.approved === false);
+                    }
+                } catch (error) {
+                    console.error('Error checking confirmation:', error);
+                }
+            };
+            checkAccountConfirmation();
+        }, 500);
     };
 
     const handleAdBtnClick = () => {
@@ -98,6 +290,45 @@ function Header() {
 
     return (
         <header className={styles.header}>
+            {/* Плашка подтверждения аккаунта */}
+            {showConfirmationBanner && isAuthenticated && (
+                <div className={styles.confirmationBanner}>
+                    <div className={styles.confirmationBannerContent}>
+                        <div className={styles.confirmationBannerText}>
+                            <svg
+                                width="20"
+                                height="20"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                className={styles.confirmationBannerIcon}
+                            >
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                            </svg>
+                            <span>
+                            Ваш аккаунт не подтвержден.
+                            Подтвердите аккаунт по ссылке из письма, чтобы получить полный доступ к функциям сайта.
+                        </span>
+                        </div>
+                        <button
+                            onClick={handleResendConfirmationFromHeader}
+                            className={styles.confirmationBannerButton}
+                            disabled={isLoading}
+                        >
+                            {isLoading ? 'Отправка...' : 'Отправить письмо повторно'}
+                        </button>
+                        <button
+                            onClick={() => setShowConfirmationBanner(false)}
+                            className={styles.confirmationBannerClose}
+                        >
+                            ×
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Остальной код заголовка остается без изменений */}
             <div className={styles.header_top}>
                 <div className={styles.headerWrap}>
                     <div className={styles.locate} onClick={() => setShowCityModal(true)}>
@@ -122,8 +353,8 @@ function Header() {
                     <div className={styles.rightPart}>
                         <div className={styles.rightPart_lang}>
                             <div className={styles.rightPart_lang__box}>
+
                                 <svg
-                                    className={styles.flagIcon}
                                     width="46"
                                     height="32"
                                     viewBox="0 0 46 32"
@@ -140,16 +371,17 @@ function Header() {
                                             height="1"
                                         >
                                             <use
-                                                xlinkHref="#image0_324_1123"
+                                                href="#image0_324_1123"
                                                 transform="matrix(0.00444444 0 0 0.00638889 0 -0.0111111)"
                                             />
                                         </pattern>
+
                                         <image
                                             id="image0_324_1123"
                                             width="225"
                                             height="160"
                                             preserveAspectRatio="none"
-                                            xlinkHref="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOEAAACgCAIAAAB11ZzkAAAEuUlEQVR4AezXMW4UQRBGYWuQQEIiJOJ2pByB3AfhDhyEcxCTEGC06c7sbo9n2lVd/VnjwD21XVXvf8F6efGDQG4Cy5MfBHIT4GjufEz39MRRFmQnwNHsCZmPoxzITqDV0ex7mK8uAY7WzbbKZhytkmTdPThaN9sqm3G0SpJ19+Bo3WyrbHa2o1W42CMPAY7mycIk2wQ4us3FaR4CHM2ThUm2CXB0m4vTPAQ4micLk2wTiHJ0exqnCKwJcHTNxEkuAhzNlYdp1gQ4umbiJBcBjubKwzRrAhxdM3GSi0B2R3PRMk0EAY5GUNdzDwGO7qGlNoIARyOo67mHAEf30FIbQYCjEdT13EOgiqN7dlY7FgGOjpXXjNNydMbUx9qZo2PlNeO0HJ0x9bF25uhYec047WyOzpjx6DtzdPQE68/P0foZj74hR0dPsP78HK2f8egbcnT0BOvPz9HtjJ3mIcDRPFmYZJsAR7e5OM1DgKN5sjDJNgGObnNxmocAR/NkYZJtAhzd5tJ6qq4/AY72Z6zDMQIcPcbPp/sT4Gh/xjocI8DRY/x8uj+B5fv3Hx4EMhNYnp9/efoTAPn1BJb3Xz54EMhMwPfR/t+ndDhGgKPH+Pl0fwIc7c9Yh2MEOHqMn0/3J8DR/oz3dFC7JsDRNRMnuQhwNFceplkT4OiaiZNcBDiaKw/TrAlwdM3ESS4CHM2VR+s0M9VxdKa0x9yVo2PmNtPUHJ0p7TF35eiYuc00NUdnSnvMXTk6Zm6tU1eo42iFFGvvwNHa+VbYjqMVUqy9A0dr51thO45WSLH2DhytnW/rdpnrOJo5HbNdCHD0QsFvZgIczZyO2S4EOHqh4DczAY5mTsdsFwIcvVDw20ogoo6jEdT13EOAo3toqY0gwNEI6nruIcDRPbTURhDgaAR1PfcQ4OgeWmpbCZxZx9EzabqrBwGO9qDqzjMJcPRMmu7qQYCjPai680wCHD2Tprt6EOBoD6rubCXQUsfRFkpqIglwNJK+3i0EONpCSU0kAY5G0te7hQBHWyipiSTA0Uj6ercQuDjaUqcGgSgCHI0ir28rgeXvyzsPApkJLF8//vYgkJnA8u3zTw8CmQksf/598iCQmcCe/5lav+OqQ+BMAhw9k6a7ehDgaA+q7jyTAEfPpOmuHgQ42oOqO88kwNEzabqrB4EejvaY053zEuDovNmPsjlHR0lq3jk5Om/2o2zO0VGSmndOjs6b/SibRzo6CiNzxhLgaCx/3R8T4OhjRipiCXA0lr/ujwlw9DEjFbEEOBrLX/fHBEZw9PEWKioT4GjldGvsxtEaOVbegqOV062xG0dr5Fh5C45WTrfGbpUcrZGILa4JcPSaiL+zEeBotkTMc02Ao9dE/J2NAEezJWKeawIcvSbi72wEZnQ0WwbmuU+Ao/f5eBtPgKPxGZjgPgGO3ufjbTwBjsZnYIL7BDh6n4+38QQ4ejsDb3IQ4GiOHExxmwBHb7PxJgcBjubIwRS3CXD0NhtvchDgaI4cTHGbAEdvs2l9o64vAY725ev24wQ4epyhG/oS4Ghfvm4/ToCjxxm6oS8Bjvbl6/bjBDh6nGHrDepeR4Cjr+PmU29HgKNvx1qn1xH4DwAA///QOwkCAAAABklEQVQDAN+AjMgr6UTkAAAAAElFTkSuQmCC"
+                                            href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOEAAACgCAIAAAB11ZzkAAAEuUlEQVR4AezXMW4UQRBGYWuQQEIiJOJ2pByB3AfhDhyEcxCTEGC06c7sbo9n2lVd/VnjwD21XVXvf8F6efGDQG4Cy5MfBHIT4GjufEz39MRRFmQnwNHsCZmPoxzITqDV0ex7mK8uAY7WzbbKZhytkmTdPThaN9sqm3G0SpJ19+Bo3WyrbHa2o1W42CMPAY7mycIk2wQ4us3FaR4CHM2ThUm2CXB0m4vTPAQ4micLk2wTiHJ0exqnCKwJcHTNxEkuAhzNlYdp1gQ4umbiJBcBjubKwzRrAhxdM3GSi0B2R3PRMk0EAY5GUNdzDwGO7qGlNoIARyOo67mHAEf30FIbQYCjEdT13EOgiqN7dlY7FgGOjpXXjNNydMbUx9qZo2PlNeO0HJ0x9bF25uhYec047WyOzpjx6DtzdPQE68/P0foZj74hR0dPsP78HK2f8egbcnT0BOvPz9HtjJ3mIcDRPFmYZJsAR7e5OM1DgKN5sjDJNgGObnNxmocAR/NkYZJtAhzd5tJ6qq4/AY72Z6zDMQIcPcbPp/sT4Gh/xjocI8DRY/x8uj+B5fv3Hx4EMhNYnp9/efoTAPn1BJb3Xz54EMhMwPfR/t+ndDhGgKPH+Pl0fwIc7c9Yh2MEOHqMn0/3J8DR/oz3dFC7JsDRNRMnuQhwNFceplkT4OiaiZNcBDiaKw/TrAlwdM3ESS4CHM2VR+s0M9VxdKa0x9yVo2PmNtPUHJ0p7TF35eiYuc00NUdnSnvMXTk6Zm6tU1eo42iFFGvvwNHa+VbYjqMVUqy9A0dr51thO45WSLH2DhytnW/rdpnrOJo5HbNdCHD0QsFvZgIczZyO2S4EOHqh4DczAY5mTsdsFwIcvVDw20ogoo6jEdT13EOAo3toqY0gwNEI6nruIcDRPbTURhDgaAR1PfcQ4OgeWmpbCZxZx9EzabqrBwGO9qDqzjMJcPRMmu7qQYCjPai680wCHD2Tprt6EOBoD6rubCXQUsfRFkpqIglwNJK+3i0EONpCSU0kAY5G0te7hQBHWyipiSTA0Uj6ercQuDjaUqcGgSgCHI0ir28rgeXvyzsPApkJLF8//vYgkJnA8u3zTw8CmQksf/598iCQmcCe/5lav+OqQ+BMAhw9k6a7ehDgaA+q7jyTAEfPpOmuHgQ42oOqO88kwNEzabqrB4EejvaY053zEuDovNmPsjlHR0lq3jk5Om/2o2zO0VGSmndOjs6b/SibRzo6CiNzxhLgaCx/3R8T4OhjRipiCXA0lr/ujwlw9DEjFbEEOBrLX/fHBEZw9PEWKioT4GjldGvsxtEaOVbegqOV062xG0dr5Fh5C45WTrfGbpUcrZGILa4JcPSaiL+zEeBotkTMc02Ao9dE/J2NAEezJWKeawIcvSbi72wEZnQ0WwbmuU+Ao/f5eBtPgKPxGZjgPgGO3ufjbTwBjsZnYIL7BDh6n4+38QQ4ejsDb3IQ4GiOHExxmwBHb7PxJgcBjubIwRS3CXD0NhtvchDgaI4cTHGbAEdvs2l9o64vAY725ev24wQ4epyhG/oS4Ghfvm4/ToCjxxm6oS8Bjvbl6/bjBDh6nGHrDepeR4Cjr+PmU29HgKNvx1qn1xH4DwAA///QOwkCAAAABklEQVQDAN+AjMgr6UTkAAAAAElFTkSuQmCC"
                                         />
                                     </defs>
                                 </svg>
@@ -164,6 +396,19 @@ function Header() {
                                     isModalOpen={showAuthModal}
                                     onModalClose={closeAuthModal}
                                     onClick={handleEnterBtnClick}
+                                    onLoginSuccess={() => {
+                                        setTimeout(() => {
+                                            const userDataStr = localStorage.getItem('userData');
+                                            if (userDataStr) {
+                                                try {
+                                                    const userData: UserData = JSON.parse(userDataStr);
+                                                    setShowConfirmationBanner(userData.approved === false);
+                                                } catch (error) {
+                                                    console.error('Error parsing user data:', error);
+                                                }
+                                            }
+                                        }, 500);
+                                    }}
                                 />
                             </div>
                         </div>
@@ -173,7 +418,7 @@ function Header() {
             <div className={styles.bottomHeader}>
                 <div className={styles.bottomHeader_wrap}>
                     <Link to="/" className={styles.bottomHeader_logo}>
-                        <svg className={styles.logo_mobile} width="197" height="65" viewBox="0 0 197 65" fill="none" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink">
+                        <svg width="197" height="65" viewBox="0 0 197 65" fill="none" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink">
                             <rect width="196.438" height="64.8244" fill="url(#pattern0_324_558)"/>
                             <defs>
                                 <pattern id="pattern0_324_558" patternContentUnits="objectBoundingBox" width="1" height="1">
@@ -190,6 +435,19 @@ function Header() {
                             isModalOpen={showAuthModal}
                             onModalClose={closeAuthModal}
                             onClick={handleEnterBtnClick}
+                            onLoginSuccess={() => {
+                                setTimeout(() => {
+                                    const userDataStr = localStorage.getItem('userData');
+                                    if (userDataStr) {
+                                        try {
+                                            const userData: UserData = JSON.parse(userDataStr);
+                                            setShowConfirmationBanner(userData.approved === false);
+                                        } catch (error) {
+                                            console.error('Error parsing user data:', error);
+                                        }
+                                    }
+                                }, 500);
+                            }}
                         />
                     </div>
 
@@ -238,24 +496,24 @@ function Header() {
                             </li>
                             <li className={`${styles.bottomHeader_item} ${isActivePage === "chats" ? styles.active : ""}`}>
                                 {isAuthenticated ? (
-                                <Link to="/chats" className={styles.navLink}>
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <g clipPath="url(#clip0_324_3538)">
-                                            <g clipPath="url(#clip1_324_3538)">
-                                                <path d="M12 1.47998C6.2 1.47998 1.5 5.74998 1.5 11C1.52866 13.0153 2.23294 14.9626 3.5 16.53L2.5 21.53L9.16 20.2C10.1031 20.4499 11.0744 20.5776 12.05 20.58C17.85 20.58 22.55 16.3 22.55 11.03C22.55 5.75998 17.8 1.47998 12 1.47998Z" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10"/>
+                                    <Link to="/chats" className={styles.navLink}>
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <g clipPath="url(#clip0_324_3538)">
+                                                <g clipPath="url(#clip1_324_3538)">
+                                                    <path d="M12 1.47998C6.2 1.47998 1.5 5.74998 1.5 11C1.52866 13.0153 2.23294 14.9626 3.5 16.53L2.5 21.53L9.16 20.2C10.1031 20.4499 11.0744 20.5776 12.05 20.58C17.85 20.58 22.55 16.3 22.55 11.03C22.55 5.75998 17.8 1.47998 12 1.47998Z" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10"/>
+                                                </g>
                                             </g>
-                                        </g>
-                                        <defs>
-                                            <clipPath id="clip0_324_3538">
-                                                <rect width="24" height="24" fill="white"/>
-                                            </clipPath>
-                                            <clipPath id="clip1_324_3538">
-                                                <rect width="24" height="24" fill="white"/>
-                                            </clipPath>
-                                        </defs>
-                                    </svg>
-                                    <p>Чаты</p>
-                                </Link>
+                                            <defs>
+                                                <clipPath id="clip0_324_3538">
+                                                    <rect width="24" height="24" fill="white"/>
+                                                </clipPath>
+                                                <clipPath id="clip1_324_3538">
+                                                    <rect width="24" height="24" fill="white"/>
+                                                </clipPath>
+                                            </defs>
+                                        </svg>
+                                        <p>Чаты</p>
+                                    </Link>
                                 ) : (
                                     <Link
                                         to="/profile"
@@ -418,7 +676,6 @@ function Header() {
                 </div>
             )}
         </header>
-
     );
 }
 

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getAuthToken, getUserRole } from '../../utils/auth';
 import styles from '../../pages/profile/clientProfilePage/ClientProfilePage.module.scss';
+import {fetchUserById, fetchUserWithRole} from "../../utils/api.ts";
 
 interface ClientProfileData {
     id: string;
@@ -158,14 +159,42 @@ function ClientProfileViewPage() {
                 return null;
             }
 
-            let endpoint = '';
-            if (userType === 'master') {
-                endpoint = `/api/users/masters`;
-            } else if (userType === 'client') {
-                endpoint = `/api/users/clients`;
+            // ПОДХОД 1: Прямой запрос по ID пользователя
+            try {
+                const directResponse = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                });
+
+                if (directResponse.ok) {
+                    const userData = await directResponse.json();
+                    console.log(`Found user ${userId} directly:`, userData);
+
+                    // Проверяем, что у пользователя правильная роль
+                    if (userData.roles) {
+                        const hasRole = userType === 'master'
+                            ? userData.roles.includes('ROLE_MASTER')
+                            : userData.roles.includes('ROLE_CLIENT');
+
+                        if (!hasRole) {
+                            console.warn(`User ${userId} does not have required role ${userType}`);
+                            return null;
+                        }
+                    }
+
+                    return userData;
+                }
+            } catch (directError) {
+                console.log('Direct fetch failed, trying alternative approach:', directError);
             }
 
-            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+            // ПОДХОД 2: Получаем всех пользователей и фильтруем на клиенте
+            console.log('Trying to fetch all users and filter locally');
+            const response = await fetch(`${API_BASE_URL}/api/users`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -175,14 +204,49 @@ function ClientProfileViewPage() {
             });
 
             if (!response.ok) {
-                console.warn(`Failed to fetch ${userType} data:`, response.status);
+                console.warn(`Failed to fetch users:`, response.status);
                 return null;
             }
 
             const usersData = await response.json();
-            const userData = usersData.find((user: any) => user.id === userId) || null;
+            console.log('All users data received');
 
-            return userData;
+            // Обрабатываем разные форматы ответа
+            let usersArray: any[] = [];
+
+            if (Array.isArray(usersData)) {
+                usersArray = usersData;
+            } else if (usersData && typeof usersData === 'object') {
+                if (usersData['hydra:member'] && Array.isArray(usersData['hydra:member'])) {
+                    usersArray = usersData['hydra:member'];
+                } else if (usersData.id) {
+                    usersArray = [usersData];
+                }
+            }
+
+            // Ищем пользователя по ID в массиве
+            const userData = usersArray.find((user: any) => user.id === userId) || null;
+
+            if (userData) {
+                console.log(`Found user ${userId} in list:`, userData);
+
+                // Проверяем роль пользователя
+                if (userData.roles) {
+                    const hasRole = userType === 'master'
+                        ? userData.roles.includes('ROLE_MASTER')
+                        : userData.roles.includes('ROLE_CLIENT');
+
+                    if (!hasRole) {
+                        console.warn(`User ${userId} does not have required role ${userType}`);
+                        return null;
+                    }
+                }
+
+                return userData;
+            } else {
+                console.log(`User ${userId} not found in the list`);
+                return null;
+            }
 
         } catch (error) {
             console.error(`Error fetching ${userType} data:`, error);
@@ -244,7 +308,7 @@ function ClientProfileViewPage() {
 
             console.log('Fetching reviews for client ID:', clientId);
 
-            // Используем endpoint для отзывов о клиентах
+            // ЭТОТ ENDPOINT ДОЛЖЕН РАБОТАТЬ, ОСТАВЬТЕ ЕГО
             const endpoint = `/api/reviews/clients/${clientId}`;
 
             const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -301,7 +365,8 @@ function ClientProfileViewPage() {
                         let masterData = null;
 
                         if (masterId) {
-                            masterData = await fetchUser(masterId, 'master');
+                            // ИСПОЛЬЗУЙТЕ НОВУЮ ФУНКЦИЮ
+                            masterData = await fetchUserById(masterId);
                         }
 
                         const transformedReview: Review = {
@@ -460,9 +525,25 @@ function ClientProfileViewPage() {
         return genderMap[gender] || gender;
     };
 
-    const handleMasterProfileClick = (masterId: number) => {
+    const handleMasterProfileClick = async (masterId: number) => {
         console.log('Navigating to master profile:', masterId);
-        navigate(`/master/${masterId}`);
+
+        // Можно использовать fetchUserWithRole для проверки роли
+        try {
+            const { role } = await fetchUserWithRole(masterId);
+
+            if (role === 'master') {
+                navigate(`/master/${masterId}`);
+            } else {
+                console.warn('User is not a master, role:', role);
+                // Все равно перенаправляем на мастер профиль
+                navigate(`/master/${masterId}`);
+            }
+        } catch (error) {
+            console.error('Error checking user role:', error);
+            // Fallback
+            navigate(`/master/${masterId}`);
+        }
     };
 
     const handleLeaveReview = () => {

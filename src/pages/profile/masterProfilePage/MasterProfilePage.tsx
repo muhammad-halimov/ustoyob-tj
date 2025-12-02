@@ -5,6 +5,7 @@ import styles from '../ProfilePage.module.scss';
 
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
+import {fetchUserById} from "../../../utils/api.ts";
 
 interface ProfileData {
     id: string;
@@ -113,7 +114,7 @@ function MasterProfilePage() {
     });
     const [reviews, setReviews] = useState<Review[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(false);
-    const [usersCache, setUsersCache] = useState<Map<number, any>>(new Map());
+    // const [usersCache, setUsersCache] = useState<Map<number, any>>(new Map());
     const [visibleCount, setVisibleCount] = useState(2);
     const [showReviewModal, setShowReviewModal] = useState(false);
 
@@ -235,60 +236,96 @@ function MasterProfilePage() {
     };
 
     // Функция для получения данных пользователя по ID (как в Search)
-    const fetchUser = async (userId: number, userType: 'master' | 'client'): Promise<any> => {
-        try {
-            // Проверяем кэш
-            if (usersCache.has(userId)) {
-                return usersCache.get(userId) || null;
-            }
+    // const fetchUser = async (userId: number, userType: 'master' | 'client'): Promise<any> => {
+    //     try {
+    //         // Проверяем кэш
+    //         if (usersCache.has(userId)) {
+    //             return usersCache.get(userId) || null;
+    //         }
+    //
+    //         const token = getAuthToken();
+    //         if (!token) {
+    //             console.log('No token available for fetching user data');
+    //             return null;
+    //         }
+    //
+    //         // Определяем роль для фильтрации
+    //         const roleFilter = userType === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT';
+    //
+    //         // Используем общий endpoint с фильтром по роли
+    //         const endpoint = `/api/users?roles=${roleFilter}`;
+    //
+    //         console.log(`Fetching ${userType} data from: ${endpoint} for user ID: ${userId}`);
+    //
+    //         const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    //             method: 'GET',
+    //             headers: {
+    //                 'Authorization': `Bearer ${token}`,
+    //                 'Content-Type': 'application/json',
+    //                 'Accept': 'application/json',
+    //             },
+    //         });
+    //
+    //         if (!response.ok) {
+    //             console.warn(`Failed to fetch ${userType} data:`, response.status);
+    //             // Пробуем получить пользователя напрямую
+    //             return await fetchUserByIdDirectly(userId, token);
+    //         }
+    //
+    //         const usersData = await response.json();
+    //         console.log(`Fetched ${userType}s:`, usersData);
+    //
+    //         // Получаем массив пользователей
+    //         let usersArray: any[] = [];
+    //         if (Array.isArray(usersData)) {
+    //             usersArray = usersData;
+    //         } else if (usersData && typeof usersData === 'object') {
+    //             if (usersData['hydra:member'] && Array.isArray(usersData['hydra:member'])) {
+    //                 usersArray = usersData['hydra:member'];
+    //             }
+    //         }
+    //
+    //         // Ищем пользователя по ID в массиве
+    //         const userData = usersArray.find((user: any) => user.id === userId) || null;
+    //
+    //         if (userData) {
+    //             setUsersCache(prev => new Map(prev).set(userId, userData));
+    //             return userData;
+    //         }
+    //
+    //         // Если не нашли в списке, пробуем напрямую
+    //         console.log(`User ${userId} not found in list, trying direct fetch...`);
+    //         return await fetchUserByIdDirectly(userId, token);
+    //
+    //     } catch (error) {
+    //         console.error(`Error fetching ${userType} data:`, error);
+    //         return null;
+    //     }
+    // };
 
-            const token = getAuthToken();
-            if (!token) {
-                console.log('No token available for fetching user data');
-                return null;
-            }
-
-            // Определяем endpoint в зависимости от типа пользователя
-            let endpoint = '';
-            if (userType === 'master') {
-                endpoint = `/api/users/masters`;  // Получаем ВСЕХ мастеров
-            } else if (userType === 'client') {
-                endpoint = `/api/users/clients`;  // Получаем ВСЕХ клиентов
-            }
-
-            console.log(`Fetching ${userType} data from: ${endpoint} for user ID: ${userId}`);
-
-            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                console.warn(`Failed to fetch ${userType} data:`, response.status);
-                return null;
-            }
-
-            const usersData = await response.json();
-            console.log(`Fetched all ${userType}s:`, usersData);
-
-            // Ищем пользователя по ID в массиве
-            const userData = usersData.find((user: any) => user.id === userId) || null;
-
-            if (userData) {
-                setUsersCache(prev => new Map(prev).set(userId, userData));
-            }
-
-            return userData;
-
-        } catch (error) {
-            console.error(`Error fetching ${userType} data:`, error);
-            return null;
-        }
-    };
+// Вспомогательная функция для прямого получения пользователя
+//     const fetchUserByIdDirectly = async (userId: number, token: string): Promise<any | null> => {
+//         try {
+//             const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
+//                 method: 'GET',
+//                 headers: {
+//                     'Authorization': `Bearer ${token}`,
+//                     'Content-Type': 'application/json',
+//                     'Accept': 'application/json',
+//                 },
+//             });
+//
+//             if (response.ok) {
+//                 const userData = await response.json();
+//                 setUsersCache(prev => new Map(prev).set(userId, userData));
+//                 return userData;
+//             }
+//             return null;
+//         } catch (error) {
+//             console.error(`Error fetching user ${userId} directly:`, error);
+//             return null;
+//         }
+//     };
 
     // Функция для проверки доступности изображения
     const checkImageExists = (url: string): Promise<boolean> => {
@@ -488,7 +525,7 @@ function MasterProfilePage() {
             };
         }
 
-        const userData = await fetchUser(userId, userType);
+        const userData = await fetchUserById(userId);
 
         if (userData) {
             // Получаем URL аватара для клиента/мастера
@@ -500,14 +537,13 @@ function MasterProfilePage() {
                 name: userData.name || '',
                 surname: userData.surname || '',
                 rating: userData.rating || 0,
-                image: avatarUrl || ''  // Используем полученный URL аватара
+                image: avatarUrl || ''
             };
             console.log(`User info for ${userType}:`, userInfo);
             return userInfo;
         }
 
         console.log(`Using fallback for ${userType} ID:`, userId);
-        // Fallback данные
         return {
             id: userId,
             email: '',
@@ -517,6 +553,84 @@ function MasterProfilePage() {
             image: ''
         };
     };
+
+    // const fetchUserDirectly = async (userId: number, userType: 'master' | 'client'): Promise<any | null> => {
+    //     try {
+    //         // Проверяем кэш
+    //         if (usersCache.has(userId)) {
+    //             console.log(`Using cached data for user ${userId}`);
+    //             return usersCache.get(userId) || null;
+    //         }
+    //
+    //         const token = getAuthToken();
+    //         if (!token) {
+    //             console.log('No token available for fetching user data');
+    //             return null;
+    //         }
+    //
+    //         console.log(`Fetching ${userType} data directly for ID: ${userId}`);
+    //
+    //         // Вариант 1: Пробуем получить пользователя напрямую по ID
+    //         const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
+    //             method: 'GET',
+    //             headers: {
+    //                 'Authorization': `Bearer ${token}`,
+    //                 'Content-Type': 'application/json',
+    //                 'Accept': 'application/json',
+    //             },
+    //         });
+    //
+    //         if (response.ok) {
+    //             const userData = await response.json();
+    //             console.log(`Fetched ${userType} directly:`, userData);
+    //
+    //             // Сохраняем в кэш
+    //             setUsersCache(prev => new Map(prev).set(userId, userData));
+    //             return userData;
+    //         }
+    //
+    //         // Вариант 2: Если прямой запрос не сработал, пробуем через фильтрацию
+    //         console.log(`Direct fetch failed (${response.status}), trying filtered fetch...`);
+    //         const roleFilter = userType === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT';
+    //         const filteredResponse = await fetch(`${API_BASE_URL}/api/users?roles=${roleFilter}`, {
+    //             method: 'GET',
+    //             headers: {
+    //                 'Authorization': `Bearer ${token}`,
+    //                 'Content-Type': 'application/json',
+    //                 'Accept': 'application/json',
+    //             },
+    //         });
+    //
+    //         if (filteredResponse.ok) {
+    //             const usersData = await filteredResponse.json();
+    //             console.log(`Fetched ${userType}s list:`, usersData);
+    //
+    //             // Обрабатываем разные форматы ответа
+    //             let usersArray: any[] = [];
+    //             if (Array.isArray(usersData)) {
+    //                 usersArray = usersData;
+    //             } else if (usersData && typeof usersData === 'object') {
+    //                 if (usersData['hydra:member'] && Array.isArray(usersData['hydra:member'])) {
+    //                     usersArray = usersData['hydra:member'];
+    //                 }
+    //             }
+    //
+    //             // Ищем пользователя по ID в массиве
+    //             const userData = usersArray.find((user: any) => user.id === userId) || null;
+    //
+    //             if (userData) {
+    //                 setUsersCache(prev => new Map(prev).set(userId, userData));
+    //                 return userData;
+    //             }
+    //         }
+    //
+    //         return null;
+    //
+    //     } catch (error) {
+    //         console.error(`Error fetching ${userType} data:`, error);
+    //         return null;
+    //     }
+    // };
 
     // Функция для получения отзывов
     const fetchReviews = async () => {

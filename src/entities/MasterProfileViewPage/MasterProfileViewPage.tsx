@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getAuthToken } from '../../utils/auth';
 import styles from '../../pages/profile/ProfilePage.module.scss';
+import { fetchUserById, fetchUserWithRole } from "../../utils/api.ts";
 
 interface ProfileData {
     id: string;
@@ -118,7 +119,7 @@ function MasterProfileViewPage() {
     const [profileData, setProfileData] = useState<ProfileData | null>(null);
     const [reviews, setReviews] = useState<Review[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(false);
-    const [usersCache, setUsersCache] = useState<Map<number, any>>(new Map());
+    // const [usersCache, setUsersCache] = useState<Map<number, any>>(new Map());
     const [showComplaintModal, setShowComplaintModal] = useState(false);
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [showAllReviews, setShowAllReviews] = useState(false);
@@ -230,53 +231,53 @@ function MasterProfileViewPage() {
         setShowAllReviews(!showAllReviews);
     };
 
-    const fetchUser = async (userId: number, userType: 'master' | 'client'): Promise<any> => {
-        try {
-            if (usersCache.has(userId)) {
-                return usersCache.get(userId) || null;
-            }
-
-            const token = getAuthToken();
-            if (!token) {
-                console.log('No token available for fetching user data');
-                return null;
-            }
-
-            let endpoint = '';
-            if (userType === 'master') {
-                endpoint = `/api/users/masters`;
-            } else if (userType === 'client') {
-                endpoint = `/api/users/clients`;
-            }
-
-            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                console.warn(`Failed to fetch ${userType} data:`, response.status);
-                return null;
-            }
-
-            const usersData = await response.json();
-            const userData = usersData.find((user: any) => user.id === userId) || null;
-
-            if (userData) {
-                setUsersCache(prev => new Map(prev).set(userId, userData));
-            }
-
-            return userData;
-
-        } catch (error) {
-            console.error(`Error fetching ${userType} data:`, error);
-            return null;
-        }
-    };
+    // const fetchUser = async (userId: number, userType: 'master' | 'client'): Promise<any> => {
+    //     try {
+    //         if (usersCache.has(userId)) {
+    //             return usersCache.get(userId) || null;
+    //         }
+    //
+    //         const token = getAuthToken();
+    //         if (!token) {
+    //             console.log('No token available for fetching user data');
+    //             return null;
+    //         }
+    //
+    //         let endpoint = '';
+    //         if (userType === 'master') {
+    //             endpoint = `/api/users/masters`;
+    //         } else if (userType === 'client') {
+    //             endpoint = `/api/users/clients`;
+    //         }
+    //
+    //         const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    //             method: 'GET',
+    //             headers: {
+    //                 'Authorization': `Bearer ${token}`,
+    //                 'Content-Type': 'application/json',
+    //                 'Accept': 'application/json',
+    //             },
+    //         });
+    //
+    //         if (!response.ok) {
+    //             console.warn(`Failed to fetch ${userType} data:`, response.status);
+    //             return null;
+    //         }
+    //
+    //         const usersData = await response.json();
+    //         const userData = usersData.find((user: any) => user.id === userId) || null;
+    //
+    //         if (userData) {
+    //             setUsersCache(prev => new Map(prev).set(userId, userData));
+    //         }
+    //
+    //         return userData;
+    //
+    //     } catch (error) {
+    //         console.error(`Error fetching ${userType} data:`, error);
+    //         return null;
+    //     }
+    // };
 
     const checkImageExists = (url: string): Promise<boolean> => {
         return new Promise((resolve) => {
@@ -297,10 +298,20 @@ function MasterProfileViewPage() {
                 return;
             }
 
-            const masterData = await fetchUser(masterId, 'master');
+            // ЗАМЕНИТЬ старый вызов fetchUser на fetchUserById
+            const masterData = await fetchUserById(masterId);
+
             if (!masterData) {
                 console.error('Master not found');
                 setProfileData(null);
+                return;
+            }
+
+            // Проверить роль пользователя - должен быть ROLE_MASTER
+            if (!masterData.roles || !masterData.roles.includes('ROLE_MASTER')) {
+                console.warn('User is not a master, roles:', masterData.roles);
+                alert('Пользователь не является мастером');
+                navigate('/');
                 return;
             }
 
@@ -308,6 +319,7 @@ function MasterProfileViewPage() {
 
             const avatarUrl = await getAvatarUrl(masterData);
 
+            // ДОБАВЬТЕ код для получения адреса:
             let workArea = '';
             if (masterData.districts && masterData.districts.length > 0) {
                 const district = masterData.districts[0];
@@ -369,6 +381,7 @@ function MasterProfileViewPage() {
         console.log(`Getting user info for ${userType} ID:`, userId);
 
         if (!userId) {
+            console.log('No user ID provided');
             return {
                 id: 0,
                 email: '',
@@ -379,20 +392,29 @@ function MasterProfileViewPage() {
             };
         }
 
-        const userData = await fetchUser(userId, userType);
+        try {
+            const userData = await fetchUserById(userId);
 
-        if (userData) {
-            const avatarUrl = await getAvatarUrl(userData, userType);
-            return {
-                id: userData.id,
-                email: userData.email || '',
-                name: userData.name || '',
-                surname: userData.surname || '',
-                rating: userData.rating || 0,
-                image: avatarUrl || ''
-            };
+            if (userData) {
+                // Получаем URL аватара
+                const avatarUrl = await getAvatarUrl(userData, userType);
+
+                const userInfo = {
+                    id: userData.id,
+                    email: userData.email || '',
+                    name: userData.name || '',
+                    surname: userData.surname || '',
+                    rating: userData.rating || 0,
+                    image: avatarUrl || ''
+                };
+                console.log(`User info for ${userType}:`, userInfo);
+                return userInfo;
+            }
+        } catch (error) {
+            console.error(`Error fetching user ${userId}:`, error);
         }
 
+        console.log(`Using fallback for ${userType} ID:`, userId);
         return {
             id: userId,
             email: '',
@@ -415,7 +437,8 @@ function MasterProfileViewPage() {
 
             console.log('Fetching reviews for master ID:', masterId);
 
-            // ПРАВИЛЬНЫЙ ENDPOINT - согласно документации API
+            // ИСПРАВЛЕННЫЙ ENDPOINT согласно документации API
+            // Используем фильтрацию по master
             const endpoint = `/api/reviews?master.id=${masterId}`;
 
             const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -470,11 +493,13 @@ function MasterProfileViewPage() {
                         const masterId = review.master?.id;
                         const clientId = review.client?.id;
 
+                        // Получаем данные мастера и клиента
                         const [masterData, clientData] = await Promise.all([
                             masterId ? getUserInfo(masterId, 'master') : Promise.resolve(null),
                             clientId ? getUserInfo(clientId, 'client') : Promise.resolve(null)
                         ]);
 
+                        // Определяем user (мастер) и reviewer (клиент)
                         const user = masterData || {
                             id: parseInt(profileData?.id || '0'),
                             email: '',
@@ -518,9 +543,11 @@ function MasterProfileViewPage() {
                 console.log('All transformed reviews:', transformedReviews);
                 setReviews(transformedReviews);
 
+                // Рассчитываем средний рейтинг только для отзывов, где этот мастер является получателем
                 const userReviews = transformedReviews.filter(r => r.user.id === parseInt(profileData?.id || '0'));
                 const newRating = calculateAverageRating(userReviews);
 
+                // Обновляем профиль
                 setProfileData(prev => prev ? {
                     ...prev,
                     reviews: userReviews.length,
@@ -825,9 +852,25 @@ function MasterProfileViewPage() {
         return `${review.reviewer.name} ${review.reviewer.surname}`.trim();
     };
 
-    const handleClientProfileClick = (clientId: number) => {
+    const handleClientProfileClick = async (clientId: number) => {
         console.log('Navigating to client profile:', clientId);
-        navigate(`/client/${clientId}`);
+
+        try {
+            // Использовать fetchUserWithRole для определения роли
+            const { role } = await fetchUserWithRole(clientId);
+
+            if (role === 'client') {
+                navigate(`/client/${clientId}`);
+            } else {
+                console.warn('User is not a client, role:', role);
+                // Все равно перенаправляем на клиентский профиль
+                navigate(`/client/${clientId}`);
+            }
+        } catch (error) {
+            console.error('Error checking user role:', error);
+            // Fallback
+            navigate(`/client/${clientId}`);
+        }
     };
 
     // Функции для работы с жалобой

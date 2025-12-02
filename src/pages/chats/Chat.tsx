@@ -51,22 +51,43 @@ function Chat() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [currentUser, setCurrentUser] = useState<ApiUser | null>(null);
-    const [onlineStatuses, setOnlineStatuses] = useState<{[key: number]: boolean}>({});
     const [isMobileChatActive, setIsMobileChatActive] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-    const statusPollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const API_BASE_URL = 'https://admin.ustoyob.tj';
     const POLLING_INTERVAL = 5000;
 
     const [searchParams] = useSearchParams();
     const chatIdFromUrl = searchParams.get('chatId');
 
+    // Отладочный эффект
+    useEffect(() => {
+        console.log('DEBUG - Current user data:', {
+            id: currentUser?.id,
+            name: currentUser?.name,
+            email: currentUser?.email
+        });
+
+        const currentChat = chats.find(c => c.id === selectedChat);
+        if (currentChat && currentUser) {
+            console.log('DEBUG - Selected chat analysis:', {
+                chatId: selectedChat,
+                chatAuthorId: currentChat.author?.id,
+                chatReplyAuthorId: currentChat.replyAuthor?.id,
+                currentUserId: currentUser.id,
+                currentUserIsAuthor: currentChat.author.id === currentUser.id,
+                currentUserIsReplyAuthor: currentChat.replyAuthor.id === currentUser.id
+            });
+        }
+    }, [currentUser, selectedChat, chats]);
+
     useEffect(() => {
         const initializeChat = async () => {
+            console.log('Initializing chat...');
             const user = await getCurrentUser();
             if (user) {
+                console.log('User loaded, fetching chats...');
                 await fetchChats();
             }
         };
@@ -75,6 +96,7 @@ function Chat() {
 
     useEffect(() => {
         if (selectedChat) {
+            console.log('Starting polling for chat:', selectedChat);
             startPolling(selectedChat);
             if (window.innerWidth <= 480) {
                 setIsMobileChatActive(true);
@@ -93,6 +115,7 @@ function Chat() {
     useEffect(() => {
         if (chatIdFromUrl) {
             const chatId = parseInt(chatIdFromUrl);
+            console.log('Chat ID from URL:', chatId);
             setSelectedChat(chatId);
             if (!chats.find(chat => chat.id === chatId)) {
                 fetchChatById(chatId);
@@ -101,13 +124,26 @@ function Chat() {
     }, [chatIdFromUrl, chats]);
 
     useEffect(() => {
-        if (chats.length > 0) {
+        if (currentUser && selectedChat) {
+            console.log('DEBUG - currentUser loaded, checking if we need to fetch messages');
+            // Если сообщений нет, но чат выбран - загружаем сообщения
+            if (messages.length === 0) {
+                console.log('DEBUG - No messages, fetching for chat:', selectedChat);
+                fetchChatMessages(selectedChat);
+            }
         }
-        return () => stopStatusPolling();
-    }, [chats]);
+    }, [currentUser, selectedChat]);
 
     const getInterlocutorFromChat = (chat: ApiChat | undefined): ApiUser | null => {
         if (!chat || !currentUser) return null;
+
+        console.log('DEBUG - getInterlocutorFromChat:', {
+            currentUserId: currentUser.id,
+            chatAuthorId: chat.author?.id,
+            chatReplyAuthorId: chat.replyAuthor?.id,
+            chatAuthorName: chat.author?.name,
+            chatReplyAuthorName: chat.replyAuthor?.name
+        });
 
         if (!chat.author || !chat.replyAuthor) {
             console.error('Invalid chat structure:', chat);
@@ -119,7 +155,20 @@ function Chat() {
             return null;
         }
 
-        return chat.author.id === currentUser.id ? chat.replyAuthor : chat.author;
+        // Определяем, кто собеседник
+        if (chat.author.id === currentUser.id) {
+            console.log('Current user is AUTHOR, interlocutor is REPLY_AUTHOR');
+            return chat.replyAuthor;
+        } else if (chat.replyAuthor.id === currentUser.id) {
+            console.log('Current user is REPLY_AUTHOR, interlocutor is AUTHOR');
+            return chat.author;
+        } else {
+            console.error('Current user is neither author nor replyAuthor of this chat!');
+            console.error('Current user ID:', currentUser.id);
+            console.error('Chat author ID:', chat.author.id);
+            console.error('Chat replyAuthor ID:', chat.replyAuthor.id);
+            return null;
+        }
     };
 
     const fetchChatById = async (chatId: number) => {
@@ -136,12 +185,13 @@ function Chat() {
 
             if (response.ok) {
                 const chatData = await response.json();
+                console.log('Fetched chat by ID:', chatData);
                 setChats(prev => {
                     const exists = prev.find(chat => chat.id === chatId);
                     if (!exists) {
                         return [...prev, chatData];
                     }
-                    return prev;
+                    return prev.map(chat => chat.id === chatId ? chatData : chat);
                 });
             }
         } catch (error) {
@@ -169,17 +219,6 @@ function Chat() {
         }
     };
 
-    const stopStatusPolling = () => {
-        if (statusPollingIntervalRef.current) {
-            clearInterval(statusPollingIntervalRef.current);
-            statusPollingIntervalRef.current = null;
-        }
-    };
-
-    const getOnlineStatus = (userId: number): boolean => {
-        return onlineStatuses[userId] || false;
-    };
-
     const getLastSeenTime = (user: ApiUser): string => {
         if (!user.lastSeen) return '';
 
@@ -196,8 +235,12 @@ function Chat() {
     const fetchChatMessages = async (chatId: number) => {
         try {
             const token = getAuthToken();
-            if (!token) return;
+            if (!token) {
+                console.log('No token for fetching messages');
+                return;
+            }
 
+            console.log('Fetching messages for chat:', chatId);
             const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}`, {
                 method: 'GET',
                 headers: {
@@ -208,11 +251,31 @@ function Chat() {
 
             if (response.ok) {
                 const chatData: ApiChat = await response.json();
-                processApiMessages(chatId, chatData.messages || []);
+                console.log('Raw chat data received:', {
+                    chatId: chatData.id,
+                    messagesCount: chatData.messages?.length || 0,
+                    authorId: chatData.author?.id,
+                    replyAuthorId: chatData.replyAuthor?.id
+                });
 
-                const interlocutor = getInterlocutorFromChat(chatData);
-                if (interlocutor) {
-                    // await checkUserOnlineStatus(interlocutor.id);
+                // Если currentUser еще не загружен, ждем
+                if (!currentUser) {
+                    console.log('DEBUG - currentUser not ready yet, waiting...');
+                    setTimeout(() => {
+                        if (currentUser) {
+                            processApiMessages(chatId, chatData.messages || []);
+                        } else {
+                            console.log('DEBUG - Still no currentUser after timeout');
+                            // Пробуем еще раз через секунду
+                            setTimeout(() => {
+                                if (currentUser) {
+                                    processApiMessages(chatId, chatData.messages || []);
+                                }
+                            }, 1000);
+                        }
+                    }, 500);
+                } else {
+                    processApiMessages(chatId, chatData.messages || []);
                 }
             } else if (response.status >= 500) {
                 console.warn(`Server error (${response.status}) fetching chat ${chatId}`);
@@ -225,41 +288,77 @@ function Chat() {
     };
 
     const processApiMessages = (chatId: number, apiMessages: ApiMessage[]) => {
-        const formatted: Message[] = apiMessages.map(msg => ({
-            id: msg.id,
-            sender: msg.author.id === currentUser?.id ? "me" : "other",
-            name: `${msg.author.name} ${msg.author.surname}`,
-            text: msg.text,
-            time: msg.createdAt
-                ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                : ""
-        }));
+        if (!currentUser) {
+            console.log('DEBUG - currentUser is null, will process later or wait for it');
+            // Сохраняем сообщения и обработаем их, когда появится currentUser
+            const savedMessages = apiMessages;
+            const savedChatId = chatId;
 
-        if (apiMessages.length > 0) {
-            const lastMessage = apiMessages[apiMessages.length - 1];
-            const interlocutorId = lastMessage.author.id === currentUser?.id
-                ? getInterlocutorFromChat(chats.find(c => c.id === chatId))?.id
-                : lastMessage.author.id;
-
-            if (interlocutorId) {
-                const messageTime = new Date(lastMessage.createdAt || '').getTime();
-                const isOnline = Date.now() - messageTime < 2 * 60 * 1000;
-
-                setOnlineStatuses(prev => ({
-                    ...prev,
-                    [interlocutorId]: isOnline
-                }));
+            // Проверяем, есть ли сохраненные сообщения для этого чата
+            if (apiMessages.length > 0) {
+                // Ждем немного и проверяем снова
+                setTimeout(() => {
+                    if (currentUser) {
+                        console.log('DEBUG - Now have currentUser, processing saved messages');
+                        processMessagesWithUser(savedChatId, savedMessages);
+                    }
+                }, 100);
             }
+            return;
         }
 
-        if (selectedChat === chatId) setMessages(formatted);
+        processMessagesWithUser(chatId, apiMessages);
+    };
+
+// Новая функция для обработки сообщений с currentUser
+    const processMessagesWithUser = (chatId: number, apiMessages: ApiMessage[]) => {
+        console.log('DEBUG - Processing messages for user:', {
+            currentUserId: currentUser!.id,
+            currentUserName: `${currentUser!.name} ${currentUser!.surname}`,
+            totalMessages: apiMessages.length
+        });
+
+        const formatted: Message[] = apiMessages.map(msg => {
+            const isFromMe = msg.author.id === currentUser!.id;
+
+            console.log('DEBUG - Message details:', {
+                messageId: msg.id,
+                authorId: msg.author.id,
+                authorName: `${msg.author.name} ${msg.author.surname}`,
+                currentUserId: currentUser!.id,
+                currentUserName: `${currentUser!.name} ${currentUser!.surname}`,
+                isFromMe: isFromMe,
+                textPreview: msg.text.substring(0, 30)
+            });
+
+            return {
+                id: msg.id,
+                sender: isFromMe ? "me" : "other",
+                name: `${msg.author.name} ${msg.author.surname}`,
+                text: msg.text,
+                time: msg.createdAt
+                    ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : ""
+            };
+        });
+
+        console.log('DEBUG - Final formatted messages summary:',
+            formatted.map(m => `${m.sender === "me" ? "→" : "←"} ${m.name}: ${m.text.substring(0, 20)}...`)
+        );
+
+        if (selectedChat === chatId) {
+            console.log('Setting messages for selected chat');
+            setMessages(formatted);
+        }
     };
 
     const getCurrentUser = async (): Promise<ApiUser | null> => {
         try {
             const token = getAuthToken();
             if (!token) {
+                console.log('No auth token available');
                 setError("Необходима авторизация");
+                setIsLoading(false);
                 return null;
             }
 
@@ -270,14 +369,22 @@ function Chat() {
 
             if (response.ok) {
                 const userData = await response.json();
+                console.log('Current user loaded successfully:', {
+                    id: userData.id,
+                    name: userData.name,
+                    email: userData.email
+                });
                 setCurrentUser(userData);
                 return userData;
             } else {
+                console.error('Failed to fetch current user:', response.status);
                 setError("Ошибка авторизации");
+                setIsLoading(false);
                 return null;
             }
         } catch (err) {
             console.error('Error fetching current user:', err);
+            setIsLoading(false);
             return null;
         }
     };
@@ -288,26 +395,77 @@ function Chat() {
             setError(null);
 
             const token = getAuthToken();
-            if (!token) return;
+            if (!token) {
+                console.log('No auth token, using mock chats');
+                const mockChats = createMockChats();
+                setChats(mockChats);
+                if (mockChats.length > 0 && !selectedChat) {
+                    setSelectedChat(mockChats[0].id);
+                }
+                setIsLoading(false);
+                return;
+            }
 
+            console.log('Fetching chats with token...');
             const response = await fetch(`${API_BASE_URL}/api/chats/me`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
+                    'Accept': 'application/json'
                 },
             });
 
             let chatsData: ApiChat[] = [];
 
             if (response.ok) {
-                chatsData = await response.json();
-                if (!Array.isArray(chatsData)) {
-                    console.error('Invalid chats data format:', chatsData);
-                    chatsData = [];
+                try {
+                    const responseData = await response.json();
+                    console.log('Chats API response:', responseData);
+
+                    // Обрабатываем разные форматы ответа
+                    if (Array.isArray(responseData)) {
+                        chatsData = responseData;
+                    } else if (responseData && typeof responseData === 'object') {
+                        // API Platform формат
+                        if (responseData['hydra:member'] && Array.isArray(responseData['hydra:member'])) {
+                            chatsData = responseData['hydra:member'];
+                        } else if (responseData.id) {
+                            // Одиночный объект
+                            chatsData = [responseData];
+                        }
+                    }
+
+                    console.log(`Parsed ${chatsData.length} chats`);
+
+                    // Добавляем тестовые сообщения для дебага
+                    if (chatsData.length > 0 && process.env.NODE_ENV === 'development') {
+                        chatsData = chatsData.map(chat => ({
+                            ...chat,
+                            messages: [
+                                ...(chat.messages || []),
+                                {
+                                    id: 999991,
+                                    text: "Тест: мое сообщение (синий справа)",
+                                    image: "",
+                                    author: currentUser || { id: 0, email: "", name: "Тест", surname: "Пользователь", phone1: "", phone2: "" },
+                                    createdAt: new Date().toISOString()
+                                },
+                                {
+                                    id: 999992,
+                                    text: "Тест: сообщение собеседника (серый слева)",
+                                    image: "",
+                                    author: chat.author.id === currentUser?.id ? chat.replyAuthor : chat.author,
+                                    createdAt: new Date().toISOString()
+                                }
+                            ].filter(m => m.author.id > 0)
+                        }));
+                    }
+                } catch (parseError) {
+                    console.error('Error parsing chats response:', parseError);
+                    chatsData = createMockChats();
                 }
             } else {
-                console.warn('Failed to fetch chats, using mock data');
+                console.warn(`Failed to fetch chats (status: ${response.status}), using mock data`);
                 chatsData = createMockChats();
             }
 
@@ -329,6 +487,9 @@ function Chat() {
 
     const createMockChats = (): ApiChat[] => {
         if (!currentUser) return [];
+
+        console.log('Creating mock chats for user:', currentUser.id);
+
         return [
             {
                 id: 1,
@@ -342,30 +503,49 @@ function Chat() {
                     phone2: "",
                     isOnline: true
                 },
-                messages: [],
-                images: []
-            },
-            {
-                id: 2,
-                author: currentUser,
-                replyAuthor: {
-                    id: 3,
-                    email: "support@example.com",
-                    name: "Мария",
-                    surname: "Иванова",
-                    phone1: "+992987654321",
-                    phone2: "",
-                    isOnline: false,
-                    lastSeen: new Date(Date.now() - 15 * 60 * 1000).toISOString()
-                },
-                messages: [],
+                messages: [
+                    {
+                        id: 1,
+                        text: "Это мое тестовое сообщение (должно быть справа синее)",
+                        image: "",
+                        author: currentUser,
+                        createdAt: new Date().toISOString()
+                    },
+                    {
+                        id: 2,
+                        text: "Это тестовое сообщение собеседника (должно быть слева серое)",
+                        image: "",
+                        author: {
+                            id: 2,
+                            email: "master@example.com",
+                            name: "Алишер",
+                            surname: "Каримов",
+                            phone1: "+992123456789",
+                            phone2: ""
+                        },
+                        createdAt: new Date().toISOString()
+                    }
+                ],
                 images: []
             }
         ];
     };
 
     const sendMessage = async () => {
-        if (!newMessage.trim() || !selectedChat || !currentUser) return;
+        if (!newMessage.trim() || !selectedChat || !currentUser) {
+            console.log('Cannot send message:', {
+                newMessage,
+                selectedChat,
+                hasCurrentUser: !!currentUser
+            });
+            return;
+        }
+
+        console.log('DEBUG - Sending message:', {
+            currentUserId: currentUser.id,
+            currentUserName: currentUser.name,
+            message: newMessage
+        });
 
         const newMessageObj: Message = {
             id: Date.now(),
@@ -375,6 +555,7 @@ function Chat() {
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
 
+        // Добавляем сообщение в локальный стейт сразу
         setMessages(prev => [...prev, newMessageObj]);
         setNewMessage("");
 
@@ -433,6 +614,7 @@ function Chat() {
     };
 
     const handleChatSelect = (chatId: number) => {
+        console.log('Selecting chat:', chatId);
         setSelectedChat(chatId);
         if (window.innerWidth <= 480) {
             setIsMobileChatActive(true);
@@ -446,10 +628,6 @@ function Chat() {
     const currentChat = chats.find(chat => chat.id === selectedChat);
     const currentInterlocutor = currentChat ? getInterlocutorFromChat(currentChat) : null;
     const showChatArea = selectedChat !== null && currentInterlocutor !== null;
-
-    const currentInterlocutorStatus = currentInterlocutor
-        ? getOnlineStatus(currentInterlocutor.id)
-        : false;
 
     const chatContainerClass = `${styles.chat} ${isMobileChatActive ? styles.chatAreaActive : ''}`;
 
@@ -481,8 +659,6 @@ function Chat() {
                                 return null;
                             }
 
-                            const isOnline = getOnlineStatus(interlocutor.id);
-
                             return (
                                 <div key={chat.id} className={`${styles.chatItem} ${selectedChat === chat.id ? styles.selected : ""}`} onClick={() => handleChatSelect(chat.id)}>
                                     <div className={styles.avatar}>
@@ -490,11 +666,14 @@ function Chat() {
                                             <img
                                                 src={interlocutor.image}
                                                 className={styles.avatarImage}
+                                                alt={`${interlocutor.name} ${interlocutor.surname}`}
                                             />
                                         ) : (
                                             `${interlocutor.name?.charAt(0) || ''}${interlocutor.surname?.charAt(0) || ''}`
                                         )}
-                                        <div className={`${styles.onlineIndicator} ${isOnline ? styles.online : styles.offline}`} />
+                                        {interlocutor.isOnline && (
+                                            <div className={styles.onlineIndicator} />
+                                        )}
                                     </div>
                                     <div className={styles.chatInfo}>
                                         <div className={styles.name}>{interlocutor.name} {interlocutor.surname}</div>
@@ -503,7 +682,7 @@ function Chat() {
                                     </div>
                                     <div className={styles.chatMeta}>
                                         <div className={styles.time}>{getLastMessageTime(chat)}</div>
-                                        {!isOnline && interlocutor.lastSeen && (
+                                        {!interlocutor.isOnline && interlocutor.lastSeen && (
                                             <div className={styles.lastSeen}>{getLastSeenTime(interlocutor)}</div>
                                         )}
                                     </div>
@@ -528,15 +707,17 @@ function Chat() {
                                 </button>
                                 <div className={styles.avatar}>
                                     {currentInterlocutor.name?.charAt(0)}{currentInterlocutor.surname?.charAt(0)}
-                                    <div className={`${styles.onlineIndicator} ${currentInterlocutorStatus ? styles.online : styles.offline}`} />
+                                    {currentInterlocutor.isOnline && (
+                                        <div className={styles.onlineIndicator} />
+                                    )}
                                 </div>
                                 <div className={styles.headerInfo}>
                                     <div className={styles.name}>
                                         {currentInterlocutor.name} {currentInterlocutor.surname}
                                     </div>
-                                    <div className={`${styles.status} ${currentInterlocutorStatus ? styles.online : styles.offline}`}>
-                                        {currentInterlocutorStatus ? 'онлайн' : 'оффлайн'}
-                                        {!currentInterlocutorStatus && currentInterlocutor.lastSeen && (
+                                    <div className={styles.status}>
+                                        {currentInterlocutor.isOnline ? 'онлайн' : 'оффлайн'}
+                                        {!currentInterlocutor.isOnline && currentInterlocutor.lastSeen && (
                                             <span className={styles.lastSeen}> • {getLastSeenTime(currentInterlocutor)}</span>
                                         )}
                                     </div>
@@ -548,13 +729,24 @@ function Chat() {
                             {messages.length === 0 ? (
                                 <div className={styles.noMessages}>Начните чат</div>
                             ) : (
-                                messages.map(msg => (
-                                    <div key={msg.id} className={`${styles.message} ${msg.sender === "me" ? styles.myMessage : styles.theirMessage}`}>
-                                        <div className={styles.messageName}>{msg.name}</div>
-                                        <div className={styles.messageText}>{msg.text}</div>
-                                        <div className={styles.messageTime}>{msg.time}</div>
-                                    </div>
-                                ))
+                                <div className={styles.messagesContainer}>
+                                    {messages.map(msg => {
+                                        return (
+                                            <div
+                                                key={msg.id}
+                                                className={`${styles.message} ${msg.sender === "me" ? styles.myMessage : styles.theirMessage}`}
+                                            >
+                                                {msg.sender === "other" && (
+                                                    <div className={styles.messageName}>{msg.name}</div>
+                                                )}
+                                                <div className={styles.messageContent}>
+                                                    <div className={styles.messageText}>{msg.text}</div>
+                                                    <div className={styles.messageTime}>{msg.time}</div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             )}
                             <div ref={messagesEndRef} />
                         </div>

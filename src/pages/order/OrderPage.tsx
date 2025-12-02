@@ -4,6 +4,7 @@ import { getAuthToken, getUserRole } from '../../utils/auth';
 import styles from './OrderPage.module.scss';
 import {createChatWithAuthor} from "../../utils/chatUtils";
 import AuthModal from "../../features/auth/AuthModal";
+import {fetchUserWithRole} from "../../utils/api.ts";
 
 interface ApiTicket {
     id: number;
@@ -123,38 +124,36 @@ export default function OrderPage() {
                 headers['Authorization'] = `Bearer ${token}`;
             }
 
-            // Загружаем отзывы для клиента и мастера по ID пользователя
-            const [clientReviewsResponse, masterReviewsResponse] = await Promise.all([
-                fetch(`${API_BASE_URL}/api/reviews/clients/${userId}`, { headers }),
-                fetch(`${API_BASE_URL}/api/reviews/masters/${userId}`, { headers })
-            ]);
+            // Загружаем ВСЕ отзывы и фильтруем на клиенте
+            const reviewsResponse = await fetch(`${API_BASE_URL}/api/reviews`, { headers });
 
-            let totalReviews = 0;
+            if (!reviewsResponse.ok) {
+                console.error('Failed to fetch reviews:', reviewsResponse.status);
+                return 0;
+            }
 
-            if (clientReviewsResponse.ok) {
-                const clientReviews = await clientReviewsResponse.json();
-                // Если это массив - считаем длину, если объект - проверяем есть ли данные
-                if (Array.isArray(clientReviews)) {
-                    totalReviews += clientReviews.length;
-                } else if (clientReviews && typeof clientReviews === 'object') {
-                    // Если пришел один объект отзыва
-                    totalReviews += 1;
+            const reviewsData = await reviewsResponse.json();
+
+            // Получаем массив отзывов
+            let reviewsArray: any[] = [];
+            if (Array.isArray(reviewsData)) {
+                reviewsArray = reviewsData;
+            } else if (reviewsData && typeof reviewsData === 'object') {
+                if (reviewsData['hydra:member'] && Array.isArray(reviewsData['hydra:member'])) {
+                    reviewsArray = reviewsData['hydra:member'];
                 }
             }
 
-            if (masterReviewsResponse.ok) {
-                const masterReviews = await masterReviewsResponse.json();
-                // Если это массив - считаем длину, если объект - проверяем есть ли данные
-                if (Array.isArray(masterReviews)) {
-                    totalReviews += masterReviews.length;
-                } else if (masterReviews && typeof masterReviews === 'object') {
-                    // Если пришел один объект отзыва
-                    totalReviews += 1;
-                }
-            }
+            // Фильтруем отзывы для данного пользователя
+            // Пользователь может быть как мастером (master), так и клиентом (author)
+            const userReviews = reviewsArray.filter(review => {
+                const reviewMasterId = review.master?.id;
+                const reviewClientId = review.client?.id; // Изменено с author на client
+                return reviewMasterId === userId || reviewClientId === userId;
+            });
 
-            console.log(`Found ${totalReviews} reviews for user ${userId}`);
-            return totalReviews;
+            console.log(`Found ${userReviews.length} reviews for user ${userId}`);
+            return userReviews.length;
         } catch (error) {
             console.error('Error fetching review count:', error);
             return 0;
@@ -918,69 +917,93 @@ export default function OrderPage() {
                 headers['Authorization'] = `Bearer ${token}`;
             }
 
-            let endpoint = '';
+            // СНАЧАЛА пытаемся получить пользователя напрямую по ID - это самый надежный способ
+            try {
+                console.log(`Trying direct fetch for user ID: ${userId}`);
+                const directResponse = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
+                    headers: headers,
+                });
 
-            // Определяем endpoint на основе типа пользователя
-            if (userType === 'master') {
-                endpoint = `/api/users/masters/${userId}`;
-            } else if (userType === 'client') {
-                endpoint = `/api/users/clients/${userId}`;
-            } else {
-                // Если тип не указан, пробуем оба варианта
-                try {
-                    // Сначала пробуем как клиента
-                    const clientResponse = await fetch(`${API_BASE_URL}/api/users/clients/${userId}`, {
-                        headers: headers,
-                    });
-
-                    if (clientResponse.ok) {
-                        const userDataArray = await clientResponse.json();
-                        const userData = Array.isArray(userDataArray) ? userDataArray[0] : userDataArray;
-                        return formatUserInfo(userData);
-                    }
-                } catch (error) {
-                    console.error('Error fetching as client:', error);
+                if (directResponse.ok) {
+                    const userData = await directResponse.json();
+                    console.log('Direct fetch successful:', userData);
+                    return formatUserInfo(userData);
                 }
-
-                // Если не получилось как клиент, пробуем как мастер
-                try {
-                    const masterResponse = await fetch(`${API_BASE_URL}/api/users/masters/${userId}`, {
-                        headers: headers,
-                    });
-
-                    if (masterResponse.ok) {
-                        const userDataArray = await masterResponse.json();
-                        const userData = Array.isArray(userDataArray) ? userDataArray[0] : userDataArray;
-                        return formatUserInfo(userData);
-                    }
-                } catch (error) {
-                    console.error('Error fetching as master:', error);
-                }
-
-                return { name: 'Пользователь', rating: 0, image: '' };
+            } catch (directError) {
+                console.log('Direct fetch failed, trying filtered fetch...', directError);
             }
 
-            console.log(`Fetching user info from: ${endpoint} for user ID: ${userId}`);
+            // Если прямой запрос не сработал, пробуем получить через список
+            let url = `${API_BASE_URL}/api/users`;
 
-            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-                headers: headers,
-            });
+            // Согласно документации API, для фильтрации по ролям нужно использовать roles[] параметр
+            if (userType === 'master') {
+                url += `?roles[]=ROLE_MASTER`;
+            } else if (userType === 'client') {
+                url += `?roles[]=ROLE_CLIENT`;
+            }
+
+            console.log(`Fetching user info from filtered URL: ${url}`);
+
+            const response = await fetch(url, { headers });
 
             if (!response.ok) {
-                console.log(`Failed to fetch user info: ${response.status}`);
+                console.log(`Failed to fetch users list: ${response.status}`);
                 return { name: 'Пользователь', rating: 0, image: '' };
             }
 
-            const userDataArray = await response.json();
-            const userData = Array.isArray(userDataArray) ? userDataArray[0] : userDataArray;
+            const usersData = await response.json();
 
-            return formatUserInfo(userData);
+            // Проверяем разные форматы ответа
+            let usersArray: any[] = [];
+            if (Array.isArray(usersData)) {
+                usersArray = usersData;
+            } else if (usersData && typeof usersData === 'object') {
+                if (usersData['hydra:member'] && Array.isArray(usersData['hydra:member'])) {
+                    usersArray = usersData['hydra:member'];
+                } else if (usersData.id) {
+                    usersArray = [usersData];
+                }
+            }
+
+            // Ищем пользователя по ID в массиве
+            const userData = usersArray.find(user => user.id === userId);
+
+            if (userData) {
+                return formatUserInfo(userData);
+            }
+
+            // Если пользователь не найден, возвращаем fallback
+            console.log(`User ${userId} not found in list`);
+            return { name: 'Пользователь', rating: 0, image: '' };
 
         } catch (error) {
             console.error('Error fetching user info:', error);
             return { name: 'Пользователь', rating: 0, image: '' };
         }
     };
+
+// Вспомогательная функция для получения пользователя напрямую по ID
+//     const fetchUserById = async (userId: number, headers: HeadersInit): Promise<{ name: string; rating: number; image: string }> => {
+//         try {
+//             console.log(`Trying to fetch user directly by ID: ${userId}`);
+//
+//             const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
+//                 headers: headers,
+//             });
+//
+//             if (response.ok) {
+//                 const userData = await response.json();
+//                 return formatUserInfo(userData);
+//             } else {
+//                 console.log(`Failed to fetch user by ID: ${response.status}`);
+//                 return { name: 'Пользователь', rating: 0, image: '' };
+//             }
+//         } catch (error) {
+//             console.error('Error fetching user by ID:', error);
+//             return { name: 'Пользователь', rating: 0, image: '' };
+//         }
+//     };
 
     const formatUserInfo = (userData: any): { name: string; rating: number; image: string } => {
         if (!userData) {
@@ -1098,25 +1121,43 @@ export default function OrderPage() {
         }
     };
 
-    const handleProfileClick = (userId: number, ticketType: 'client' | 'master' | null) => {
-        const currentUserRole = getUserRole(); // Получаем роль текущего пользователя
-
+    const handleProfileClick = async (userId: number) => {
         console.log('Profile click details:', {
             userId,
             ticketType,
-            currentUserRole
+            currentUserRole: getUserRole()
         });
 
-        // Логика определения маршрута:
-        if (ticketType === 'client') {
-            navigate(`/client/${userId}`);
-        } else if (ticketType === 'master') {
-            navigate(`/master/${userId}`);
-        } else {
-            if (currentUserRole === 'master') {
+        try {
+            // Используем fetchUserWithRole для определения роли пользователя
+            const { role } = await fetchUserWithRole(userId);
+
+            console.log('User role determined:', role);
+
+            if (role === 'master') {
+                navigate(`/master/${userId}`);
+            } else if (role === 'client') {
                 navigate(`/client/${userId}`);
             } else {
+                console.warn('Unknown user role, defaulting to master profile');
                 navigate(`/master/${userId}`);
+            }
+        } catch (error) {
+            console.error('Error determining user role:', error);
+
+            // Fallback логика на основе ticketType
+            if (ticketType === 'client') {
+                navigate(`/client/${userId}`);
+            } else if (ticketType === 'master') {
+                navigate(`/master/${userId}`);
+            } else {
+                // Если тип не указан, пробуем определить по текущей роли пользователя
+                const currentUserRole = getUserRole();
+                if (currentUserRole === 'master') {
+                    navigate(`/client/${userId}`);
+                } else {
+                    navigate(`/master/${userId}`);
+                }
             }
         }
     };
@@ -1203,13 +1244,13 @@ export default function OrderPage() {
                         <img
                             src={order.authorImage}
                             alt="authorImage"
-                            onClick={() => handleProfileClick(order.authorId, ticketType)}
+                            onClick={() => handleProfileClick(order.authorId)}
                             style={{ cursor: 'pointer' }}
                         />
                         <div className={styles.authorSection}>
                             <div className={styles.authorInfo}>
                                 <h3
-                                    onClick={() => handleProfileClick(order.authorId, ticketType)}
+                                    onClick={() => handleProfileClick(order.authorId)}
                                     style={{ cursor: 'pointer' }}
                                 >
                                     {order.author}

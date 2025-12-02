@@ -8,9 +8,10 @@ type EnterBtnProps = {
     onClick?: () => void;
     isModalOpen?: boolean;
     onModalClose?: () => void;
+    onLoginSuccess?: () => void;
 };
 
-export function EnterBtn({ onClick, isModalOpen, onModalClose }: EnterBtnProps) {
+export function EnterBtn({ onClick, isModalOpen, onModalClose, onLoginSuccess }: EnterBtnProps) {
     const [internalModalOpen, setInternalModalOpen] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const navigate = useNavigate();
@@ -41,6 +42,10 @@ export function EnterBtn({ onClick, isModalOpen, onModalClose }: EnterBtnProps) 
         console.log('User logged in with token:', token);
         setIsLoggedIn(true);
         closeModal();
+
+        if (onLoginSuccess) {
+            onLoginSuccess();
+        }
 
         window.dispatchEvent(new Event('storage'));
     };
