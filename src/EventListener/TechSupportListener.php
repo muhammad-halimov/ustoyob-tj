@@ -3,6 +3,7 @@
 namespace App\EventListener;
 
 use App\Entity\TechSupport\TechSupport;
+use App\Entity\User;
 use App\Repository\TechSupport\TechSupportRepository;
 use App\Repository\UserRepository;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsEntityListener;
@@ -37,14 +38,15 @@ readonly class TechSupportListener
     private function setLessLoadedAdmin(TechSupport $techSupport): void
     {
         // Получаем всех администраторов
+        /** @var User[] $admins */
         $admins = $this->userRepository->findAllByRole('ROLE_ADMIN');
 
-        if (empty($admins)) {
-            return; // Нет доступных администраторов
-        }
+        if (empty($admins)) return; // Нет доступных администраторов
 
-        $leastLoadedAdmin = null;
         $minActiveTechSupports = PHP_INT_MAX;
+
+        /** @var User $leastLoadedAdmin */
+        $leastLoadedAdmin = null;
 
         foreach ($admins as $admin) {
             // Подсчитываем количество активных ТП для каждого админа
@@ -60,8 +62,9 @@ readonly class TechSupportListener
         }
 
         // Назначаем найденного администратора
-        if ($leastLoadedAdmin !== null) {
+        if ($leastLoadedAdmin !== null)
             $techSupport->setAdministrant($leastLoadedAdmin);
-        }
+
+
     }
 }
