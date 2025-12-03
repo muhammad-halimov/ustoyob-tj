@@ -25,22 +25,12 @@ class TelegramBotController extends AbstractController
         DriverManager::loadDriver(TelegramDriver::class);
         $botman = BotManFactory::create($config);
 
-        $botman->hears(['/start', 'start', 'старт'], function (BotMan $bot) {
-            $bot->reply('👋 Привет! Бот для уведомления о заявках в ТП запущен | ustoyob.tj');
+        $botman->hears(['/start', 'start'], function (BotMan $bot) {
+            $bot->reply('👋 Привет! Бот для уведомлений ТП запущен | ustoyob.tj');
         });
 
-        // Команда для получения Chat ID
         $botman->hears(['/id', 'id'], function (BotMan $bot) {
-            $user = $bot->getUser();
-            $chatId = $user->getId();
-
-            $bot->reply("🆔 Ваш Chat ID: <code>$chatId</code>\n\n" .
-                "Скопируйте этот ID и добавьте в свой профиль в админке для получения уведомлений.",
-                ['parse_mode' => 'HTML']);
-        });
-
-        $botman->hears(['hello', 'привет'], function (BotMan $bot) {
-            $bot->reply('Hello yourself! 🎉');
+            $bot->reply("🆔ID чата: {$bot->getUser()->getId()}");
         });
 
         $botman->fallback(function (BotMan $bot) {

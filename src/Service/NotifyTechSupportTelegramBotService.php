@@ -4,14 +4,17 @@ namespace App\Service;
 
 use App\Entity\TechSupport\TechSupport;
 use App\Entity\User;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 class NotifyTechSupportTelegramBotService
 {
     private string $botToken;
+    private string $telegramApiUrl;
 
-    public function __construct()
+    public function __construct(private readonly UrlGeneratorInterface $urlGenerator)
     {
         $this->botToken = $_ENV['TELEGRAM_BOT_TOKEN'];
+        $this->telegramApiUrl = $_ENV['TELEGRAM_API_URL'];
     }
 
     /**
@@ -22,9 +25,7 @@ class NotifyTechSupportTelegramBotService
         // Проверяем есть ли у админа Telegram ID
         $telegramId = $user->getTelegramChatId();
 
-        if (!$telegramId) {
-            return false; // У админа нет Telegram ID
-        }
+        if (!$telegramId) return false; // У админа нет Telegram ID
 
         // Формируем сообщение
         $message = $this->formatTechSupportMessage($techSupport);
@@ -38,29 +39,28 @@ class NotifyTechSupportTelegramBotService
      */
     private function formatTechSupportMessage(TechSupport $techSupport): string
     {
-        $status = match($techSupport->getStatus()) {
-            'new' => '🆕 Новая',
-            'renewed' => '🔄 Возобновлена',
-            'in_progress' => '⏳ В работе',
-            'closed' => '✅ Закрыта',
-            default => $techSupport->getStatus(),
-        };
-
-        return sprintf(
-            "🎫 <b>Новая заявка в ТП</b>\n\n" .
-            "📋 <b>ID:</b> #%d\n" .
-            "📊 <b>Статус:</b> %s\n" .
-            "👤 <b>Клиент:</b> %s\n" .
-            "📝 <b>Тема:</b> %s\n" .
-            "💬 <b>Описание:</b> %s\n\n" .
-            "🔗 <a href='https://admin.ustoyob.tj/admin?crudAction=detail&crudControllerFqcn=App\Controller\Admin\TechSupport\TechSupportCrudController&entityId=%d'>Открыть в админке</a>",
-            $techSupport->getId(),
-            $status,
-            $techSupport->getAuthor() ? $techSupport->getAuthor()->getEmail() : 'Неизвестен',
-            $techSupport->getTitle() ?? 'Без темы',
-            mb_substr($techSupport->getDescription() ?? '', 0, 100) . '...',
-            $techSupport->getId()
+        $techSupportUrl = $this->urlGenerator->generate(
+            'admin_tech_support_edit',
+            ['entityId' => $techSupport->getId()],
+            UrlGeneratorInterface::ABSOLUTE_URL
         );
+
+        $reasonLabel = array_search($techSupport->getReason(), TechSupport::SUPPORT);
+        $statusLabel = array_search($techSupport->getStatus(), TechSupport::STATUSES);
+        $priorityLabel = array_search($techSupport->getPriority(), TechSupport::PRIORITIES);
+        $descriptionLabel = mb_substr($techSupport->getDescription(), 0, 30) . '...';
+
+        return
+            "🆕Новая заявка в ТП\n\n" .
+            "📌Заголовок: <b>{$techSupport->getTitle()}</b>\n" .
+            "📂Категория: <b>$reasonLabel</b>\n" .
+            "📊Статус: <b>$statusLabel</b>\n" .
+            "⚡ Приоритет: <b>$priorityLabel</b>\n" .
+            "👤Пользователь: <b>{$techSupport->getAuthor()->getEmail()}</b>\n" .
+            "📝Описание: <b>$descriptionLabel</b>\n" .
+            "💬Сообщений: <b>{$techSupport->getTechSupportMessages()->count()}</b>\n" .
+            "🖼Фото: <b>{$techSupport->getTechSupportImages()->count()}</b>\n\n" .
+            "🔗<a href='$techSupportUrl'>Открыть в админке</a>";
     }
 
     /**
@@ -68,7 +68,7 @@ class NotifyTechSupportTelegramBotService
      */
     private function sendMessage(string $chatId, string $message): bool
     {
-        $url = "https://api.telegram.org/bot$this->botToken/sendMessage";
+        $url = "$this->telegramApiUrl/bot$this->botToken/sendMessage";
 
         $data = [
             'chat_id' => $chatId,
@@ -83,8 +83,12 @@ class NotifyTechSupportTelegramBotService
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_TIMEOUT, 10);
 
-        curl_exec($ch);
+        $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        if (!$response) dump(curl_error($ch));
+        else dump($response);
+
         curl_close($ch);
 
         return $httpCode === 200;

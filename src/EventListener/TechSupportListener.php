@@ -44,8 +44,8 @@ readonly class TechSupportListener
      */
     public function postPersist(TechSupport $techSupport, LifecycleEventArgs $args): void
     {
-        $this->notifyTechSupportEmailService->sendTechSupportEmail(user: $techSupport->getAdministrant(), techSupport: $techSupport);
         $this->notifyTechSupportTelegramBotService->sendTechSupportNotification(user: $techSupport->getAdministrant(), techSupport: $techSupport);
+        $this->notifyTechSupportEmailService->sendTechSupportEmail(user: $techSupport->getAdministrant(), techSupport: $techSupport);
     }
 
     /**
