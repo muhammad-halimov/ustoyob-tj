@@ -20,7 +20,7 @@ class PersonalUserFilterController extends AbstractController
         /** @var User $bearerUser */
         $bearerUser = $this->security->getUser();
 
-        $this->accessService->check($bearerUser);
+        $this->accessService->check($bearerUser, activeAndApproved: false);
 
         return empty($bearerUser)
             ? $this->json(['message' => 'Resource not found'], 404)

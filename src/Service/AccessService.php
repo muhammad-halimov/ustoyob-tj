@@ -14,18 +14,19 @@ readonly class AccessService
 
     public function __construct(private Security $security){}
 
-    public function check(User|null $user, string $grade = 'triple') : bool
+    public function check(User|null $user, string $grade = 'triple', bool $activeAndApproved = true) : bool
     {
-        if (!$user)
-            throw new TokenNotFoundException('Authentication required');
-        elseif (!$this->security->isGranted('IS_AUTHENTICATED_FULLY'))
-            throw new AccessDeniedHttpException('Authentication required');
-        elseif (!$this->security->getUser())
-            throw new TokenNotFoundException('Authentication required');
-        elseif (!$user->getActive())
-            throw new TokenNotFoundException('User is not active');
-        elseif (!$user->getApproved())
-            throw new TokenNotFoundException('User is not approved');
+        if ($activeAndApproved)
+            if (!$user)
+                throw new TokenNotFoundException('Authentication required');
+            elseif (!$this->security->isGranted('IS_AUTHENTICATED_FULLY'))
+                throw new AccessDeniedHttpException('Authentication required');
+            elseif (!$this->security->getUser())
+                throw new TokenNotFoundException('Authentication required');
+            elseif (!$user->getActive())
+                throw new TokenNotFoundException('User is not active');
+            elseif (!$user->getApproved())
+                throw new TokenNotFoundException('User is not approved');
 
         switch ($grade) {
             case 'triple':

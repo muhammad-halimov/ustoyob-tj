@@ -6,16 +6,20 @@ use App\Entity\TechSupport\TechSupport;
 use App\Entity\User;
 use App\Repository\TechSupport\TechSupportRepository;
 use App\Repository\UserRepository;
+use App\Service\NotifyTechSupportService;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsEntityListener;
 use Doctrine\ORM\Events;
 use Doctrine\Persistence\Event\LifecycleEventArgs;
+use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 #[AsEntityListener(event: Events::prePersist, entity: TechSupport::class)]
+#[AsEntityListener(event: Events::postPersist, entity: TechSupport::class)]
 readonly class TechSupportListener
 {
     public function __construct(
-        private TechSupportRepository  $techSupportRepository,
-        private UserRepository         $userRepository,
+        private NotifyTechSupportService $notifyTechSupportService,
+        private TechSupportRepository    $techSupportRepository,
+        private UserRepository           $userRepository,
     ){}
 
     /**
@@ -30,6 +34,15 @@ readonly class TechSupportListener
 
         // Назначаем наименее загруженного администратора
         $this->setLessLoadedAdmin($techSupport);
+    }
+
+    /**
+     * После создания ТП отправляем уведомление на почту и тг админа
+     * @throws TransportExceptionInterface
+     */
+    public function postPersist(TechSupport $techSupport, LifecycleEventArgs $args): void
+    {
+        $this->notifyTechSupportService->sendTechSupportEmail(user: $techSupport->getAdministrant(), techSupport: $techSupport);
     }
 
     /**
@@ -62,9 +75,6 @@ readonly class TechSupportListener
         }
 
         // Назначаем найденного администратора
-        if ($leastLoadedAdmin !== null)
-            $techSupport->setAdministrant($leastLoadedAdmin);
-
-
+        if ($leastLoadedAdmin !== null) $techSupport->setAdministrant($leastLoadedAdmin);
     }
 }

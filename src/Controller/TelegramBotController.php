@@ -25,13 +25,19 @@ class TelegramBotController extends AbstractController
         DriverManager::loadDriver(TelegramDriver::class);
         $botman = BotManFactory::create($config);
 
-        $botman->hears('/start', function (BotMan $bot) {
-            $bot->reply('👋 Привет! Бот для уведомление о новых заявках запущен | ustoyob.tj');
+        // Принимает: /start, start, /старт, старт (любой регистр)
+        $botman->hears('/^\/?(?:start|старт)$/i', function (BotMan $bot) {
+            $bot->reply('👋 Привет! Напиши hello.');
         });
 
-        // Обработка ВСЕХ сообщений (fallback)
+        // Принимает: hello, привет, Hello, ПРИВЕТ
+        $botman->hears('/^(?:hello|привет)$/i', function (BotMan $bot) {
+            $bot->reply('Hello yourself! 🎉');
+        });
+
+        // Fallback для всех остальных сообщений
         $botman->fallback(function (BotMan $bot) {
-            $bot->reply('Попробуй: /start или start');
+            $bot->reply('Не понял команду 🤔 Попробуй: /start или hello');
         });
 
         $botman->listen();
