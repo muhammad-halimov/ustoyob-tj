@@ -67,40 +67,40 @@ class ProvinceCrudController extends AbstractCrudController
             ->setRequired(true);
 
         yield AssociationField::new('cities', 'Города')
-            ->setColumns(4);
-//            ->setFormTypeOptions([
-//                'by_reference' => false,
-//                'query_builder' => function (CityRepository $repo) use ($province) {
-//                    $qb = $repo
-//                        ->createQueryBuilder('c')
-//                        ->where('c.province IS NULL');
-//
-//                    if ($province && $province->getId())
-//                        $qb
-//                            ->orWhere('c.province = :province')
-//                            ->setParameter('province', $province);
-//
-//                    return $qb;
-//                },
-//            ]);
+            ->setColumns(4)
+            ->setFormTypeOptions([
+                'by_reference' => false,
+                'query_builder' => function (CityRepository $repo) use ($province) {
+                    $qb = $repo
+                        ->createQueryBuilder('c')
+                        ->where('c.province IS NULL');
+
+                    if ($province && $province->getId())
+                        $qb
+                            ->orWhere('c.province = :province')
+                            ->setParameter('province', $province);
+
+                    return $qb;
+                },
+            ]);
 
         yield AssociationField::new('districts', 'Районы')
-            ->setColumns(4);
-//            ->setFormTypeOptions([
-//                'by_reference' => false,
-//                'query_builder' => function (DistrictRepository $repo) use ($province) {
-//                    $qb = $repo
-//                        ->createQueryBuilder('d')
-//                        ->where('d.province IS NULL');
-//
-//                    if ($province && $province->getId())
-//                        $qb
-//                            ->orWhere('d.province = :province')
-//                            ->setParameter('province', $province);
-//
-//                    return $qb;
-//                },
-//            ]);
+            ->setColumns(4)
+            ->setFormTypeOptions([
+                'by_reference' => false,
+                'query_builder' => function (DistrictRepository $repo) use ($province) {
+                    $qb = $repo
+                        ->createQueryBuilder('d')
+                        ->where('d.province IS NULL');
+
+                    if ($province && $province->getId())
+                        $qb
+                            ->orWhere('d.province = :province')
+                            ->setParameter('province', $province);
+
+                    return $qb;
+                },
+            ]);
 
         yield TextEditorField::new('description', 'Описание')
             ->setColumns(12);
