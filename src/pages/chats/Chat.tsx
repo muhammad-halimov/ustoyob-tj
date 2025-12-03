@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { getAuthToken } from "../../utils/auth";
 import styles from "./Chat.module.scss";
-import { useSearchParams } from 'react-router-dom';
+import {useNavigate, useSearchParams} from 'react-router-dom';
 import { IoSend } from "react-icons/io5";
 
 interface Message {
@@ -22,6 +22,8 @@ interface ApiUser {
     image?: string;
     isOnline?: boolean;
     lastSeen?: string;
+    approved?: boolean;
+    active?: boolean;
 }
 
 interface ApiMessage {
@@ -37,7 +39,7 @@ interface ApiChat {
     author: ApiUser;
     replyAuthor: ApiUser;
     messages: ApiMessage[];
-    images: any[];
+    images: string[];
     createdAt?: string;
     updatedAt?: string;
 }
@@ -60,40 +62,26 @@ function Chat() {
 
     const [searchParams] = useSearchParams();
     const chatIdFromUrl = searchParams.get('chatId');
+    const navigate = useNavigate();
 
-    // Отладочный эффект
-    useEffect(() => {
-        console.log('DEBUG - Current user data:', {
-            id: currentUser?.id,
-            name: currentUser?.name,
-            email: currentUser?.email
-        });
-
-        const currentChat = chats.find(c => c.id === selectedChat);
-        if (currentChat && currentUser) {
-            console.log('DEBUG - Selected chat analysis:', {
-                chatId: selectedChat,
-                chatAuthorId: currentChat.author?.id,
-                chatReplyAuthorId: currentChat.replyAuthor?.id,
-                currentUserId: currentUser.id,
-                currentUserIsAuthor: currentChat.author.id === currentUser.id,
-                currentUserIsReplyAuthor: currentChat.replyAuthor.id === currentUser.id
-            });
-        }
-    }, [currentUser, selectedChat, chats]);
-
+    // Инициализация пользователя и чатов
     useEffect(() => {
         const initializeChat = async () => {
             console.log('Initializing chat...');
-            const user = await getCurrentUser();
-            if (user) {
-                console.log('User loaded, fetching chats...');
-                await fetchChats();
-            }
+            await getCurrentUser();
         };
         initializeChat();
     }, []);
 
+    // Загрузка чатов после получения текущего пользователя
+    useEffect(() => {
+        if (currentUser) {
+            console.log('User loaded, fetching chats...');
+            fetchChats();
+        }
+    }, [currentUser]);
+
+    // Обработка выбранного чата
     useEffect(() => {
         if (selectedChat) {
             console.log('Starting polling for chat:', selectedChat);
@@ -108,31 +96,19 @@ function Chat() {
         return () => stopPolling();
     }, [selectedChat]);
 
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
-
+    // Обработка chatId из URL
     useEffect(() => {
         if (chatIdFromUrl) {
             const chatId = parseInt(chatIdFromUrl);
             console.log('Chat ID from URL:', chatId);
             setSelectedChat(chatId);
-            if (!chats.find(chat => chat.id === chatId)) {
-                fetchChatById(chatId);
-            }
         }
-    }, [chatIdFromUrl, chats]);
+    }, [chatIdFromUrl]);
 
+    // Прокрутка к последнему сообщению
     useEffect(() => {
-        if (currentUser && selectedChat) {
-            console.log('DEBUG - currentUser loaded, checking if we need to fetch messages');
-            // Если сообщений нет, но чат выбран - загружаем сообщения
-            if (messages.length === 0) {
-                console.log('DEBUG - No messages, fetching for chat:', selectedChat);
-                fetchChatMessages(selectedChat);
-            }
-        }
-    }, [currentUser, selectedChat]);
+        scrollToBottom();
+    }, [messages]);
 
     const getInterlocutorFromChat = (chat: ApiChat | undefined): ApiUser | null => {
         if (!chat || !currentUser) return null;
@@ -140,9 +116,7 @@ function Chat() {
         console.log('DEBUG - getInterlocutorFromChat:', {
             currentUserId: currentUser.id,
             chatAuthorId: chat.author?.id,
-            chatReplyAuthorId: chat.replyAuthor?.id,
-            chatAuthorName: chat.author?.name,
-            chatReplyAuthorName: chat.replyAuthor?.name
+            chatReplyAuthorId: chat.replyAuthor?.id
         });
 
         if (!chat.author || !chat.replyAuthor) {
@@ -150,54 +124,44 @@ function Chat() {
             return null;
         }
 
-        if (!chat.author.id || !chat.replyAuthor.id) {
-            console.error('Chat authors missing ID:', chat);
-            return null;
-        }
-
         // Определяем, кто собеседник
         if (chat.author.id === currentUser.id) {
-            console.log('Current user is AUTHOR, interlocutor is REPLY_AUTHOR');
             return chat.replyAuthor;
         } else if (chat.replyAuthor.id === currentUser.id) {
-            console.log('Current user is REPLY_AUTHOR, interlocutor is AUTHOR');
             return chat.author;
         } else {
             console.error('Current user is neither author nor replyAuthor of this chat!');
-            console.error('Current user ID:', currentUser.id);
-            console.error('Chat author ID:', chat.author.id);
-            console.error('Chat replyAuthor ID:', chat.replyAuthor.id);
             return null;
         }
     };
 
-    const fetchChatById = async (chatId: number) => {
-        try {
-            const token = getAuthToken();
-            if (!token) return;
-
-            const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json',
-                },
-            });
-
-            if (response.ok) {
-                const chatData = await response.json();
-                console.log('Fetched chat by ID:', chatData);
-                setChats(prev => {
-                    const exists = prev.find(chat => chat.id === chatId);
-                    if (!exists) {
-                        return [...prev, chatData];
-                    }
-                    return prev.map(chat => chat.id === chatId ? chatData : chat);
-                });
-            }
-        } catch (error) {
-            console.error('Error fetching chat by ID:', error);
-        }
-    };
+    // const fetchChatById = async (chatId: number) => {
+    //     try {
+    //         const token = getAuthToken();
+    //         if (!token) return;
+    //
+    //         const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}`, {
+    //             headers: {
+    //                 'Authorization': `Bearer ${token}`,
+    //                 'Accept': 'application/json',
+    //             },
+    //         });
+    //
+    //         if (response.ok) {
+    //             const chatData = await response.json();
+    //             console.log('Fetched chat by ID:', chatData);
+    //             setChats(prev => {
+    //                 const exists = prev.find(chat => chat.id === chatId);
+    //                 if (!exists) {
+    //                     return [...prev, chatData];
+    //                 }
+    //                 return prev.map(chat => chat.id === chatId ? chatData : chat);
+    //             });
+    //         }
+    //     } catch (error) {
+    //         console.error('Error fetching chat by ID:', error);
+    //     }
+    // };
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -242,7 +206,6 @@ function Chat() {
 
             console.log('Fetching messages for chat:', chatId);
             const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}`, {
-                method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Accept': 'application/json',
@@ -251,104 +214,40 @@ function Chat() {
 
             if (response.ok) {
                 const chatData: ApiChat = await response.json();
-                console.log('Raw chat data received:', {
-                    chatId: chatData.id,
-                    messagesCount: chatData.messages?.length || 0,
-                    authorId: chatData.author?.id,
-                    replyAuthorId: chatData.replyAuthor?.id
+
+                // Обновляем список чатов
+                setChats(prev => {
+                    const chatIndex = prev.findIndex(c => c.id === chatId);
+                    if (chatIndex === -1) {
+                        return [...prev, chatData];
+                    }
+                    const newChats = [...prev];
+                    newChats[chatIndex] = {
+                        ...newChats[chatIndex],
+                        messages: chatData.messages || []
+                    };
+                    return newChats;
                 });
 
-                // Если currentUser еще не загружен, ждем
-                if (!currentUser) {
-                    console.log('DEBUG - currentUser not ready yet, waiting...');
-                    setTimeout(() => {
-                        if (currentUser) {
-                            processApiMessages(chatId, chatData.messages || []);
-                        } else {
-                            console.log('DEBUG - Still no currentUser after timeout');
-                            // Пробуем еще раз через секунду
-                            setTimeout(() => {
-                                if (currentUser) {
-                                    processApiMessages(chatId, chatData.messages || []);
-                                }
-                            }, 1000);
-                        }
-                    }, 500);
-                } else {
-                    processApiMessages(chatId, chatData.messages || []);
+                // Форматируем сообщения
+                if (currentUser) {
+                    const formatted: Message[] = (chatData.messages || []).map(msg => ({
+                        id: msg.id,
+                        sender: msg.author.id === currentUser.id ? "me" : "other",
+                        name: `${msg.author.name} ${msg.author.surname}`,
+                        text: msg.text,
+                        time: msg.createdAt
+                            ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                            : ""
+                    }));
+
+                    setMessages(formatted);
                 }
-            } else if (response.status >= 500) {
-                console.warn(`Server error (${response.status}) fetching chat ${chatId}`);
             } else {
                 console.error(`Error fetching chat messages: ${response.status}`);
             }
         } catch (err) {
             console.error('Error fetching chat messages:', err);
-        }
-    };
-
-    const processApiMessages = (chatId: number, apiMessages: ApiMessage[]) => {
-        if (!currentUser) {
-            console.log('DEBUG - currentUser is null, will process later or wait for it');
-            // Сохраняем сообщения и обработаем их, когда появится currentUser
-            const savedMessages = apiMessages;
-            const savedChatId = chatId;
-
-            // Проверяем, есть ли сохраненные сообщения для этого чата
-            if (apiMessages.length > 0) {
-                // Ждем немного и проверяем снова
-                setTimeout(() => {
-                    if (currentUser) {
-                        console.log('DEBUG - Now have currentUser, processing saved messages');
-                        processMessagesWithUser(savedChatId, savedMessages);
-                    }
-                }, 100);
-            }
-            return;
-        }
-
-        processMessagesWithUser(chatId, apiMessages);
-    };
-
-// Новая функция для обработки сообщений с currentUser
-    const processMessagesWithUser = (chatId: number, apiMessages: ApiMessage[]) => {
-        console.log('DEBUG - Processing messages for user:', {
-            currentUserId: currentUser!.id,
-            currentUserName: `${currentUser!.name} ${currentUser!.surname}`,
-            totalMessages: apiMessages.length
-        });
-
-        const formatted: Message[] = apiMessages.map(msg => {
-            const isFromMe = msg.author.id === currentUser!.id;
-
-            console.log('DEBUG - Message details:', {
-                messageId: msg.id,
-                authorId: msg.author.id,
-                authorName: `${msg.author.name} ${msg.author.surname}`,
-                currentUserId: currentUser!.id,
-                currentUserName: `${currentUser!.name} ${currentUser!.surname}`,
-                isFromMe: isFromMe,
-                textPreview: msg.text.substring(0, 30)
-            });
-
-            return {
-                id: msg.id,
-                sender: isFromMe ? "me" : "other",
-                name: `${msg.author.name} ${msg.author.surname}`,
-                text: msg.text,
-                time: msg.createdAt
-                    ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                    : ""
-            };
-        });
-
-        console.log('DEBUG - Final formatted messages summary:',
-            formatted.map(m => `${m.sender === "me" ? "→" : "←"} ${m.name}: ${m.text.substring(0, 20)}...`)
-        );
-
-        if (selectedChat === chatId) {
-            console.log('Setting messages for selected chat');
-            setMessages(formatted);
         }
     };
 
@@ -363,16 +262,17 @@ function Chat() {
             }
 
             const response = await fetch(`${API_BASE_URL}/api/users/me`, {
-                method: 'GET',
-                headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                },
             });
 
             if (response.ok) {
                 const userData = await response.json();
                 console.log('Current user loaded successfully:', {
                     id: userData.id,
-                    name: userData.name,
-                    email: userData.email
+                    name: userData.name
                 });
                 setCurrentUser(userData);
                 return userData;
@@ -396,19 +296,13 @@ function Chat() {
 
             const token = getAuthToken();
             if (!token) {
-                console.log('No auth token, using mock chats');
-                const mockChats = createMockChats();
-                setChats(mockChats);
-                if (mockChats.length > 0 && !selectedChat) {
-                    setSelectedChat(mockChats[0].id);
-                }
+                console.log('No auth token available');
                 setIsLoading(false);
                 return;
             }
 
             console.log('Fetching chats with token...');
             const response = await fetch(`${API_BASE_URL}/api/chats/me`, {
-                method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Accept': 'application/json'
@@ -418,117 +312,43 @@ function Chat() {
             let chatsData: ApiChat[] = [];
 
             if (response.ok) {
-                try {
-                    const responseData = await response.json();
-                    console.log('Chats API response:', responseData);
+                const responseData = await response.json();
+                console.log('Chats API response:', responseData);
 
-                    // Обрабатываем разные форматы ответа
-                    if (Array.isArray(responseData)) {
-                        chatsData = responseData;
-                    } else if (responseData && typeof responseData === 'object') {
-                        // API Platform формат
-                        if (responseData['hydra:member'] && Array.isArray(responseData['hydra:member'])) {
-                            chatsData = responseData['hydra:member'];
-                        } else if (responseData.id) {
-                            // Одиночный объект
-                            chatsData = [responseData];
-                        }
+                // Обрабатываем разные форматы ответа
+                if (Array.isArray(responseData)) {
+                    chatsData = responseData;
+                } else if (responseData && typeof responseData === 'object') {
+                    if (responseData['hydra:member'] && Array.isArray(responseData['hydra:member'])) {
+                        chatsData = responseData['hydra:member'];
+                    } else if (responseData.id) {
+                        chatsData = [responseData];
                     }
-
-                    console.log(`Parsed ${chatsData.length} chats`);
-
-                    // Добавляем тестовые сообщения для дебага
-                    if (chatsData.length > 0 && process.env.NODE_ENV === 'development') {
-                        chatsData = chatsData.map(chat => ({
-                            ...chat,
-                            messages: [
-                                ...(chat.messages || []),
-                                {
-                                    id: 999991,
-                                    text: "Тест: мое сообщение (синий справа)",
-                                    image: "",
-                                    author: currentUser || { id: 0, email: "", name: "Тест", surname: "Пользователь", phone1: "", phone2: "" },
-                                    createdAt: new Date().toISOString()
-                                },
-                                {
-                                    id: 999992,
-                                    text: "Тест: сообщение собеседника (серый слева)",
-                                    image: "",
-                                    author: chat.author.id === currentUser?.id ? chat.replyAuthor : chat.author,
-                                    createdAt: new Date().toISOString()
-                                }
-                            ].filter(m => m.author.id > 0)
-                        }));
-                    }
-                } catch (parseError) {
-                    console.error('Error parsing chats response:', parseError);
-                    chatsData = createMockChats();
                 }
+
+                console.log(`Parsed ${chatsData.length} chats`);
             } else {
-                console.warn(`Failed to fetch chats (status: ${response.status}), using mock data`);
-                chatsData = createMockChats();
+                console.warn(`Failed to fetch chats (status: ${response.status})`);
             }
 
             setChats(chatsData);
-            if (chatsData.length > 0 && !selectedChat) {
+
+            // Если есть chatId из URL и он есть в списке чатов, выбираем его
+            if (chatIdFromUrl) {
+                const chatId = parseInt(chatIdFromUrl);
+                const chatExists = chatsData.some(chat => chat.id === chatId);
+                if (chatExists) {
+                    setSelectedChat(chatId);
+                }
+            } else if (chatsData.length > 0 && !selectedChat) {
                 setSelectedChat(chatsData[0].id);
             }
         } catch (error) {
             console.error('Error fetching chats:', error);
-            const mockChats = createMockChats();
-            setChats(mockChats);
-            if (mockChats.length > 0 && !selectedChat) {
-                setSelectedChat(mockChats[0].id);
-            }
+            setError("Ошибка загрузки чатов");
         } finally {
             setIsLoading(false);
         }
-    };
-
-    const createMockChats = (): ApiChat[] => {
-        if (!currentUser) return [];
-
-        console.log('Creating mock chats for user:', currentUser.id);
-
-        return [
-            {
-                id: 1,
-                author: currentUser,
-                replyAuthor: {
-                    id: 2,
-                    email: "master@example.com",
-                    name: "Алишер",
-                    surname: "Каримов",
-                    phone1: "+992123456789",
-                    phone2: "",
-                    isOnline: true
-                },
-                messages: [
-                    {
-                        id: 1,
-                        text: "Это мое тестовое сообщение (должно быть справа синее)",
-                        image: "",
-                        author: currentUser,
-                        createdAt: new Date().toISOString()
-                    },
-                    {
-                        id: 2,
-                        text: "Это тестовое сообщение собеседника (должно быть слева серое)",
-                        image: "",
-                        author: {
-                            id: 2,
-                            email: "master@example.com",
-                            name: "Алишер",
-                            surname: "Каримов",
-                            phone1: "+992123456789",
-                            phone2: ""
-                        },
-                        createdAt: new Date().toISOString()
-                    }
-                ],
-                images: []
-            }
-        ];
     };
 
     const sendMessage = async () => {
@@ -540,12 +360,6 @@ function Chat() {
             });
             return;
         }
-
-        console.log('DEBUG - Sending message:', {
-            currentUserId: currentUser.id,
-            currentUserName: currentUser.name,
-            message: newMessage
-        });
 
         const newMessageObj: Message = {
             id: Date.now(),
@@ -563,7 +377,6 @@ function Chat() {
     };
 
     const sendMessageToServer = async (chatId: number, messageText: string) => {
-        if (!currentUser) return;
         try {
             const token = getAuthToken();
             if (!token) return;
@@ -582,13 +395,9 @@ function Chat() {
 
             if (response.ok) {
                 console.log('Сообщение успешно отправлено');
-                const newMessageData = await response.json();
-                console.log('Новое сообщение создано:', newMessageData);
-
                 fetchChatMessages(chatId);
             } else {
-                const errorText = await response.text();
-                console.error('Ошибка отправки сообщения:', response.status, errorText);
+                console.error('Ошибка отправки сообщения:', response.status);
             }
         } catch (err) {
             console.error('Ошибка отправки сообщения на сервер:', err);
@@ -623,20 +432,35 @@ function Chat() {
 
     const handleBackToChatList = () => {
         setIsMobileChatActive(false);
+        setSelectedChat(null);
     };
+
+    const handleBackToHome = () => {
+        navigate('/');
+    }
 
     const currentChat = chats.find(chat => chat.id === selectedChat);
     const currentInterlocutor = currentChat ? getInterlocutorFromChat(currentChat) : null;
     const showChatArea = selectedChat !== null && currentInterlocutor !== null;
 
-    const chatContainerClass = `${styles.chat} ${isMobileChatActive ? styles.chatAreaActive : ''}`;
-
     if (isLoading) return <div className={styles.chat}>Загрузка чатов...</div>;
 
     return (
-        <div className={chatContainerClass}>
+        <div className={`${styles.chat} ${isMobileChatActive ? styles.chatAreaActive : ''}`}>
             {/* Sidebar */}
             <div className={styles.sidebar}>
+                {window.innerWidth <= 480 && (
+                    <div className={styles.mobileNav}>
+                        <button
+                            className={styles.navBackButton}
+                            onClick={handleBackToHome}
+                            aria-label="Вернуться на главную"
+                        >
+                            Назад
+                        </button>
+                        {/*<span className={styles.navTitle}>Чаты</span>*/}
+                    </div>
+                )}
                 <div className={styles.searchBar}>
                     <input type="text" placeholder="Поиск" className={styles.searchInput} />
                 </div>
@@ -699,9 +523,11 @@ function Chat() {
                     <>
                         <div className={styles.chatHeader}>
                             <div className={styles.headerLeft}>
+                                {/* Кнопка "Назад" для всех устройств */}
                                 <button
                                     className={styles.backButton}
                                     onClick={handleBackToChatList}
+                                    aria-label="Вернуться к списку чатов"
                                 >
                                     ←
                                 </button>
@@ -771,7 +597,7 @@ function Chat() {
                     </>
                 ) : (
                     <div className={styles.noChat}>
-                        {chats.length === 0 ? "Начните чат" : "Выберите чат"}
+                        {chats.length === 0 ? "У вас пока нет чатов" : "Выберите чат для общения"}
                     </div>
                 )}
 

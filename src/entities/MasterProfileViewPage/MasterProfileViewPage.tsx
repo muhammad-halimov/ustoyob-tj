@@ -17,6 +17,89 @@ interface ProfileData {
     services: Service[];
 }
 
+interface Occupation {
+    id: number;
+    title: string;
+}
+
+interface EducationItem {
+    id?: number;
+    uniTitle?: string;
+    faculty?: string;
+    occupation?: Occupation[];
+    beginning?: string;
+    ending?: string;
+    graduated?: boolean;
+}
+
+interface ReviewApiResponse {
+    id: number;
+    rating?: number;
+    description?: string;
+    forClient?: boolean;
+    services?: { id: number; title: string };
+    images?: Array<{ id: number; image: string }>;
+    master?: { id: number };
+    client?: { id: number };
+    createdAt?: string;
+}
+
+interface GalleryItem {
+    id?: number;
+    image?: string;
+}
+
+interface GalleryResponse {
+    images?: GalleryItem[];
+}
+
+interface ServiceTicketResponse {
+    id: number;
+    title: string;
+    budget: string;
+    unit?: { title: string };
+    service?: boolean;
+    active?: boolean;
+}
+
+
+interface ReviewApiResponse {
+    id: number;
+    rating?: number;
+    description?: string;
+    forClient?: boolean;
+    services?: { id: number; title: string };
+    images?: Array<{ id: number; image: string }>;
+    master?: { id: number };
+    client?: { id: number };
+    createdAt?: string;
+}
+
+
+interface ServiceTicketResponse {
+    id: number;
+    title: string;
+    budget: string;
+    unit?: { title: string };
+    service?: boolean;
+    active?: boolean;
+}
+
+interface Occupation {
+    id: number;
+    title: string;
+}
+
+interface EducationItem {
+    id?: number;
+    uniTitle?: string;
+    faculty?: string;
+    occupation?: Occupation[];
+    beginning?: string;
+    ending?: string;
+    graduated?: boolean;
+}
+
 interface Education {
     id: string;
     institution: string;
@@ -74,20 +157,20 @@ interface Review {
 }
 
 // Интерфейсы для жалобы
-interface AppealData {
-    type: string;
-    title: string;
-    complaintReason: string;
-    supportReason?: string;
-    status?: string;
-    priority?: string;
-    administrant?: string;
-    author: string;
-    respondent: string;
-    description: string;
-    ticket?: string;
-    ticketAppeal?: boolean;
-}
+// interface AppealData {
+//     type: string;
+//     title: string;
+//     complaintReason: string;
+//     supportReason?: string;
+//     status?: string;
+//     priority?: string;
+//     administrant?: string;
+//     author: string;
+//     respondent: string;
+//     description: string;
+//     ticket?: string;
+//     ticketAppeal?: boolean;
+// }
 
 // Интерфейсы для отзыва
 interface ReviewData {
@@ -107,6 +190,20 @@ interface ServiceTicket {
     title: string;
     budget: string;
     unit: string;
+}
+
+interface UserData {
+    id: number;
+    image?: string;
+}
+
+interface GalleryItem {
+    id?: number;
+    image?: string;
+}
+
+interface GalleryResponse {
+    images?: GalleryItem[];
 }
 
 const API_BASE_URL = 'https://admin.ustoyob.tj';
@@ -194,7 +291,7 @@ function MasterProfileViewPage() {
             console.log('Master services received:', servicesData);
 
             // Обрабатываем разные форматы ответа
-            let servicesArray: any[] = [];
+            let servicesArray: ServiceTicketResponse[] = [];
 
             if (Array.isArray(servicesData)) {
                 servicesArray = servicesData;
@@ -357,7 +454,7 @@ function MasterProfileViewPage() {
                 fullName: [masterData.surname, masterData.name, masterData.patronymic]
                     .filter(Boolean)
                     .join(' ') || 'Фамилия Имя Отчество',
-                specialty: masterData.occupation?.map((occ: any) => occ.title).join(', ') || 'Специальность',
+                specialty: masterData.occupation?.map((occ: Occupation) => occ.title).join(', ') || 'Специальность',
                 rating: masterData.rating || 0,
                 reviews: 0,
                 avatar: avatarUrl,
@@ -471,7 +568,7 @@ function MasterProfileViewPage() {
             const reviewsData = await response.json();
             console.log('Raw reviews data:', reviewsData);
 
-            let reviewsArray: any[] = [];
+            let reviewsArray: ReviewApiResponse[] = [];
 
             if (Array.isArray(reviewsData)) {
                 reviewsArray = reviewsData;
@@ -487,7 +584,7 @@ function MasterProfileViewPage() {
 
             if (reviewsArray.length > 0) {
                 const transformedReviews = await Promise.all(
-                    reviewsArray.map(async (review) => {
+                    reviewsArray.map(async (review: ReviewApiResponse) => {
                         console.log('Processing review:', review);
 
                         const masterId = review.master?.id;
@@ -615,7 +712,7 @@ function MasterProfileViewPage() {
             }
 
             if (galleriesData) {
-                let galleryArray: any[] = [];
+                let galleryArray: GalleryResponse[] = [];
 
                 if (Array.isArray(galleriesData)) {
                     galleryArray = galleriesData;
@@ -636,14 +733,22 @@ function MasterProfileViewPage() {
 
                     if (galleryItems.length > 0) {
                         const workExamplesLocal = await Promise.all(
-                            galleryItems.map(async (image: any) => {
+                            galleryItems.map(async (image: GalleryItem) => {
                                 const imagePath = image.image;
+                                if (!imagePath) {
+                                    return {
+                                        id: Date.now().toString(),
+                                        image: "../fonTest6.png",
+                                        title: "Пример работы"
+                                    };
+                                }
+
                                 const imageUrl = getImageUrl(imagePath);
                                 const exists = await checkImageExists(imageUrl);
 
                                 return {
                                     id: image.id?.toString() || Date.now().toString(),
-                                    image: exists ? imageUrl : "./fonTest6.png",
+                                    image: exists ? imageUrl : "../fonTest6.png",
                                     title: "Пример работы"
                                 };
                             })
@@ -693,7 +798,7 @@ function MasterProfileViewPage() {
         return `${day}.${month}.${year}, ${randomCity}`;
     };
 
-    const getAvatarUrl = async (userData: any, userType: 'master' | 'client' = 'master'): Promise<string | null> => {
+    const getAvatarUrl = async (userData: UserData, userType: 'master' | 'client' = 'master'): Promise<string | null> => {
         if (!userData) return null;
 
         console.log(`Getting avatar URL for ${userType}:`, userData.id);
@@ -737,12 +842,12 @@ function MasterProfileViewPage() {
         return null;
     };
 
-    const transformEducation = (education: any[]): Education[] => {
+    const transformEducation = (education: EducationItem[]): Education[] => {
         return education.map(edu => ({
             id: edu.id?.toString() || Date.now().toString(),
             institution: edu.uniTitle || '',
             faculty: edu.faculty || '',
-            specialty: edu.occupation?.map((occ: any) => occ.title).join(', ') || '',
+            specialty: edu.occupation?.map((occ: Occupation) => occ.title).join(', ') || '',
             startYear: edu.beginning?.toString() || '',
             endYear: edu.ending?.toString() || '',
             currentlyStudying: !edu.graduated
@@ -750,7 +855,7 @@ function MasterProfileViewPage() {
     };
 
     const getImageUrl = (imagePath: string): string => {
-        if (!imagePath) return "./fonTest6.png";
+        if (!imagePath) return "../fonTest6.png";
 
         if (imagePath.startsWith("http")) return imagePath;
         if (imagePath.startsWith("/")) return `${API_BASE_URL}${imagePath}`;
@@ -765,14 +870,14 @@ function MasterProfileViewPage() {
         const img = e.currentTarget;
 
         if (!profileData?.id) {
-            img.src = "./fonTest6.png";
+            img.src = "../fonTest6.png";
             return;
         }
 
         const fallbackSources = [
             profileData.avatar?.includes("uploads/") ? `${API_BASE_URL}/api/${profileData.id}/profile-photo` : null,
             profileData.avatar?.includes("uploads/") ? `/uploads/avatars/${profileData.avatar.split("/").pop()}` : null,
-            "./fonTest6.png"
+            "../fonTest6.png"
         ].filter(Boolean) as string[];
 
         for (const source of fallbackSources) {
@@ -790,7 +895,7 @@ function MasterProfileViewPage() {
             }
         }
 
-        img.src = "./fonTest6.png";
+        img.src = "../fonTest6.png";
     };
 
     const getReviewerName = (review: Review) => {
@@ -811,7 +916,7 @@ function MasterProfileViewPage() {
             ];
 
             for (const path of possiblePaths) {
-                if (path && path !== "./fonTest6.png") {
+                if (path && path !== "../fonTest6.png") {
                     console.log('Trying reviewer avatar path:', path);
                     return path;
                 }
@@ -819,7 +924,7 @@ function MasterProfileViewPage() {
         }
 
         console.log('Using default avatar for reviewer');
-        return "./fonTest6.png";
+        return "../fonTest6.png";
     };
 
     const calculateAverageRating = (reviews: Review[]): number => {
@@ -838,7 +943,7 @@ function MasterProfileViewPage() {
     };
 
     const getImageUrlWithCacheBust = (url: string): string => {
-        if (!url || url === "./fonTest6.png") return url;
+        if (!url || url === "../fonTest6.png") return url;
         const timestamp = new Date().getTime();
         const separator = url.includes('?') ? '&' : '?';
         return `${url}${separator}t=${timestamp}`;
@@ -928,23 +1033,19 @@ function MasterProfileViewPage() {
                 return;
             }
 
-            // Создаем заголовок жалобы
-            const title = complaintTitle.trim() || `Жалоба на мастера ${profileData.fullName}`;
-
-            // Подготавливаем данные для отправки
-            const complaintData: AppealData = {
-                type: 'complaint',
-                title: title,
-                complaintReason: complaintReason,
+            // Используем структуру из документации API
+            const appealData = {
+                type: 'ticket', // тип жалобы
+                title: complaintTitle.trim() || `Жалоба на мастера ${profileData.fullName}`,
                 description: complaintDescription,
-                author: `/api/users/${currentUserId}`,
+                reason: complaintReason, // поле "reason" как в документации
                 respondent: `/api/users/${profileData.id}`,
-                status: 'new',
-                priority: 'medium',
-                ticketAppeal: false
+                // ticket и chat могут быть добавлены если это жалоба на конкретный тикет или чат
+                // ticket: "/api/tickets/{id}", // если жалоба связана с тикетом
+                // chat: "/api/chats/{id}", // если жалоба связана с чатом
             };
 
-            console.log('Sending complaint data:', complaintData);
+            console.log('Sending appeal data:', appealData);
 
             const response = await fetch(`${API_BASE_URL}/api/appeals`, {
                 method: 'POST',
@@ -952,20 +1053,20 @@ function MasterProfileViewPage() {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(complaintData)
+                body: JSON.stringify(appealData)
             });
 
             if (response.ok) {
-                const complaintResponse = await response.json();
-                console.log('Complaint created successfully:', complaintResponse);
+                const appealResponse = await response.json();
+                console.log('Appeal created successfully:', appealResponse);
 
                 // Загружаем фото через отдельный эндпоинт, если есть
                 if (complaintPhotos.length > 0) {
                     try {
-                        await uploadComplaintPhotos(complaintResponse.id, complaintPhotos, token);
-                        console.log('All complaint photos uploaded successfully');
+                        await uploadAppealPhotos(appealResponse.id, complaintPhotos, token);
+                        console.log('All appeal photos uploaded successfully');
                     } catch (uploadError) {
-                        console.error('Error uploading complaint photos, but complaint was created:', uploadError);
+                        console.error('Error uploading appeal photos, but appeal was created:', uploadError);
                         alert('Жалоба отправлена, но возникла ошибка при загрузке фото');
                     }
                 }
@@ -975,13 +1076,40 @@ function MasterProfileViewPage() {
 
             } else {
                 const errorText = await response.text();
-                console.error('Error creating complaint. Status:', response.status, 'Response:', errorText);
+                console.error('Error creating appeal. Status:', response.status, 'Response:', errorText);
+
+                // Попробуем парсить JSON для получения более детальной информации
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    console.log('Error JSON:', errorJson);
+
+                    if (errorJson.message) {
+                        if (errorJson.message === "Wrong complaint reason") {
+                            alert('Неверная причина жалобы. Пожалуйста, выберите другую причину из списка.');
+                            return;
+                        }
+                        alert(`Ошибка: ${errorJson.message}`);
+                        return;
+                    }
+
+                    if (errorJson.violations && Array.isArray(errorJson.violations)) {
+                        const violationMessages = errorJson.violations
+                            .map((v: any) => v.message)
+                            .join(', ');
+                        alert(`Ошибки валидации: ${violationMessages}`);
+                        return;
+                    }
+                } catch {
+                    // Не удалось распарсить JSON, показываем общую ошибку
+                }
 
                 let errorMessage = 'Ошибка при отправке жалобы';
                 if (response.status === 422) {
                     errorMessage = 'Ошибка валидации данных. Проверьте введенные данные.';
                 } else if (response.status === 400) {
                     errorMessage = 'Неверные данные для отправки жалобы.';
+                } else if (response.status === 404) {
+                    errorMessage = 'Ресурс не найден.';
                 }
 
                 alert(errorMessage);
@@ -995,39 +1123,76 @@ function MasterProfileViewPage() {
         }
     };
 
-    const uploadComplaintPhotos = async (appealId: number, photos: File[], token: string) => {
+    const uploadAppealPhotos = async (appealId: number, photos: File[], token: string) => {
         try {
             console.log(`Uploading ${photos.length} photos for appeal ${appealId}`);
 
-            for (const photo of photos) {
-                const formData = new FormData();
-                formData.append('image', photo);
+            const formData = new FormData();
 
-                console.log(`Uploading complaint photo: ${photo.name}`);
+            // Добавляем все файлы как массив
+            photos.forEach((photo) => {
+                // Вариант: добавляем как массив с префиксом []
+                formData.append('imageFile[]', photo);
+            });
 
-                const response = await fetch(`${API_BASE_URL}/api/appeals/${appealId}/upload-photo`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
-                    body: formData
-                });
+            console.log(`Uploading ${photos.length} photos at once`);
 
-                if (response.ok) {
-                    const uploadResult = await response.json();
-                    console.log('Complaint photo uploaded successfully:', uploadResult);
-                } else {
-                    const errorText = await response.text();
-                    console.error(`Error uploading photo for appeal ${appealId}:`, errorText);
+            const response = await fetch(`${API_BASE_URL}/api/appeals/${appealId}/upload-photo`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: formData
+            });
+
+            console.log(`Photos upload response status: ${response.status}`);
+
+            if (response.ok) {
+                const uploadResult = await response.json();
+                console.log('Appeal photos uploaded successfully:', uploadResult);
+                return uploadResult;
+            } else {
+                const errorText = await response.text();
+                console.error(`Error uploading photos for appeal ${appealId}:`, response.status, errorText);
+
+                // Если массовая загрузка не работает, пробуем по одному
+                console.log('Trying to upload photos one by one...');
+
+                const results = [];
+                for (const photo of photos) {
+                    try {
+                        const singleFormData = new FormData();
+                        singleFormData.append('imageFile', photo);
+
+                        const singleResponse = await fetch(`${API_BASE_URL}/api/appeals/${appealId}/upload-photo`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${token}`,
+                            },
+                            body: singleFormData
+                        });
+
+                        if (singleResponse.ok) {
+                            const result = await singleResponse.json();
+                            results.push(result);
+                            console.log(`Photo ${photo.name} uploaded successfully`);
+                        } else {
+                            console.error(`Failed to upload ${photo.name}`);
+                        }
+                    } catch (error) {
+                        console.error(`Error uploading ${photo.name}:`, error);
+                    }
                 }
+
+                return results;
             }
 
-            console.log('All complaint photos uploaded successfully');
         } catch (error) {
-            console.error('Error uploading complaint photos:', error);
+            console.error('Error uploading appeal photos:', error);
             throw error;
         }
     };
+
 
     // Функции для работы с отзывами
     const handleLeaveReview = () => {
@@ -1237,7 +1402,7 @@ function MasterProfileViewPage() {
                                 />
                             ) : (
                                 <img
-                                    src="./fonTest6.png"
+                                    src="../fonTest6.png"
                                     alt="FonTest6"
                                     className={styles.avatar_placeholder}
                                 />
@@ -1363,7 +1528,7 @@ function MasterProfileViewPage() {
 
                                                     const alternativePaths = [
                                                         `${API_BASE_URL}/uploads/gallery_images/${work.image.split('/').pop() || work.image}`,
-                                                        "./fonTest6.png"
+                                                        "../fonTest6.png"
                                                     ];
 
                                                     let currentIndex = 0;
@@ -1385,7 +1550,7 @@ function MasterProfileViewPage() {
                                                             testImg.src = nextSource;
                                                         } else {
                                                             console.log('All alternative paths failed, using placeholder');
-                                                            img.src = "./fonTest6.png";
+                                                            img.src = "../fonTest6.png";
                                                         }
                                                     };
 
@@ -1464,7 +1629,7 @@ function MasterProfileViewPage() {
                                                 onClick={() => handleClientProfileClick(review.reviewer.id)}
                                                 style={{ cursor: 'pointer' }}
                                                 onError={(e) => {
-                                                    e.currentTarget.src = "./fonTest6.png";
+                                                    e.currentTarget.src = "../fonTest6.png";
                                                 }}
                                             />
                                             <div className={styles.reviewer_main_info}>
@@ -1580,6 +1745,12 @@ function MasterProfileViewPage() {
                                     className={styles.complaintSelect}
                                 >
                                     <option value="">Выберите причину</option>
+                                    <option value="quality_issue">Проблема с качеством работы</option>
+                                    <option value="late_arrival">Опоздание мастера</option>
+                                    <option value="unprofessional_behavior">Непрофессиональное поведение</option>
+                                    <option value="price_disagreement">Несогласие с ценой</option>
+                                    <option value="communication_issue">Проблемы с коммуникацией</option>
+                                    <option value="property_damage">Повреждение имущества</option>
                                     <option value="other">Другое</option>
                                 </select>
                             </div>

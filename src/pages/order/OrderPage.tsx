@@ -1,10 +1,10 @@
-import {useParams, useNavigate, useSearchParams} from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import {useState, useEffect, useCallback} from 'react';
 import { getAuthToken, getUserRole } from '../../utils/auth';
 import styles from './OrderPage.module.scss';
-import {createChatWithAuthor} from "../../utils/chatUtils";
+import { createChatWithAuthor } from "../../utils/chatUtils";
 import AuthModal from "../../features/auth/AuthModal";
-import {fetchUserWithRole} from "../../utils/api.ts";
+import { fetchUserWithRole } from "../../utils/api.ts";
 
 interface ApiTicket {
     id: number;
@@ -12,26 +12,40 @@ interface ApiTicket {
     description: string;
     budget: number;
     unit: { id: number; title: string };
-    address: {
+    addresses: {
         id: number;
         title?: string;
-        city?: {
+        province?: {
             id: number;
             title?: string;
         };
-    } | null;
-    district?: {
-        id: number;
-        title?: string;
+        district?: {
+            id: number;
+            title?: string;
+            image?: string | null;
+        };
         city?: {
             id: number;
             title?: string;
-            province?: {
-                id: number;
-                title?: string;
-            }
+            image?: string | null;
         };
-    } | null;
+        suburb?: {
+            id: number;
+            title?: string;
+        } | null;
+        settlement?: {
+            id: number;
+            title?: string;
+        } | null;
+        village?: {
+            id: number;
+            title?: string;
+        } | null;
+        community?: {
+            id: number;
+            title?: string;
+        } | null;
+    }[];
     createdAt: string;
     master: { id: number; name?: string; surname?: string; image?: string } | null;
     author: { id: number; name?: string; surname?: string; image?: string };
@@ -68,6 +82,27 @@ interface City {
     description: string;
     image: string | null;
     districts: { id: number }[];
+}
+
+interface Review {
+    id: number;
+    master?: { id: number };
+    client?: { id: number };
+}
+
+interface Favorite {
+    id: number;
+    tickets?: { id: number }[];
+    masters?: { id: number }[];
+    clients?: { id: number }[];
+}
+
+interface UserData {
+    id: number;
+    name?: string;
+    surname?: string;
+    rating?: number;
+    image?: string;
 }
 
 const API_BASE_URL = 'https://admin.ustoyob.tj';
@@ -135,7 +170,7 @@ export default function OrderPage() {
             const reviewsData = await reviewsResponse.json();
 
             // Получаем массив отзывов
-            let reviewsArray: any[] = [];
+            let reviewsArray: Review[] = [];
             if (Array.isArray(reviewsData)) {
                 reviewsArray = reviewsData;
             } else if (reviewsData && typeof reviewsData === 'object') {
@@ -145,10 +180,10 @@ export default function OrderPage() {
             }
 
             // Фильтруем отзывы для данного пользователя
-            // Пользователь может быть как мастером (master), так и клиентом (author)
+            // Пользователь может быть как мастером (master), так и клиентом (client)
             const userReviews = reviewsArray.filter(review => {
                 const reviewMasterId = review.master?.id;
-                const reviewClientId = review.client?.id; // Изменено с author на client
+                const reviewClientId = review.client?.id;
                 return reviewMasterId === userId || reviewClientId === userId;
             });
 
@@ -232,7 +267,16 @@ export default function OrderPage() {
                 return;
             }
 
-            const reviewData: any = {
+            interface ReviewData {
+                type: string;
+                rating: number;
+                description: string;
+                ticket: string;
+                master?: string;
+                client?: string;
+            }
+
+            const reviewData: ReviewData = {
                 type: reviewType,
                 rating: selectedStars,
                 description: reviewText,
@@ -316,7 +360,6 @@ export default function OrderPage() {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,
-                        // Не устанавливаем Content-Type - браузер сам установит с boundary для FormData
                     },
                     body: formData
                 });
@@ -337,7 +380,7 @@ export default function OrderPage() {
             console.log('All photos uploaded successfully');
         } catch (error) {
             console.error('Error uploading review photos:', error);
-            throw error; // Пробрасываем ошибку дальше
+            throw error;
         }
     };
 
@@ -371,6 +414,38 @@ export default function OrderPage() {
         setReviewPhotos([]);
     };
 
+    // Функция для очистки текста от HTML-сущностей и лишних пробелов
+    const cleanText = useCallback((text: string): string => {
+        if (!text) return '';
+
+        // 1. Заменяем HTML-сущности на обычные символы
+        let cleaned = text
+            .replace(/&nbsp;/g, ' ')          // неразрывный пробел
+            .replace(/&amp;/g, '&')           // амперсанд
+            .replace(/&lt;/g, '<')            // меньше
+            .replace(/&gt;/g, '>')            // больше
+            .replace(/&quot;/g, '"')          // двойная кавычка
+            .replace(/&#039;/g, "'")          // одинарная кавычка
+            .replace(/&hellip;/g, '...')      // многоточие
+            .replace(/&mdash;/g, '—')         // тире
+            .replace(/&laquo;/g, '«')         // левая кавычка
+            .replace(/&raquo;/g, '»');        // правая кавычка
+
+        // 2. Удаляем все остальные HTML-сущности (общий паттерн)
+        cleaned = cleaned.replace(/&[a-z]+;/g, ' ');
+
+        // 3. Удаляем HTML-теги (если есть)
+        cleaned = cleaned.replace(/<[^>]*>/g, '');
+
+        // 4. Убираем лишние пробелы и переносы строк
+        cleaned = cleaned
+            .replace(/\s+/g, ' ')             // множественные пробелы -> один пробел
+            .replace(/\n\s*\n/g, '\n')        // множественные пустые строки -> одна
+            .trim();                          // убираем пробелы в начале и конце
+
+        return cleaned;
+    }, []);
+
     const checkFavoriteStatus = async () => {
         const token = getAuthToken();
         if (!token || !order) return;
@@ -384,7 +459,7 @@ export default function OrderPage() {
             });
 
             if (response.ok) {
-                const favorite = await response.json();
+                const favorite: Favorite = await response.json();
                 console.log('Favorite data:', favorite);
 
                 const isTicketInFavorites = favorite.tickets?.some((t: { id: number }) => t.id === order.id);
@@ -440,10 +515,10 @@ export default function OrderPage() {
 
             if (isCurrentlyLiked) {
                 // Снимаем лайк
-                const localFavorites = loadLocalStorageFavorites();
-                const updatedTickets = localFavorites.tickets.filter(id => id !== order?.id);
+                const updatedLocalFavorites = loadLocalStorageFavorites();
+                const updatedTickets = updatedLocalFavorites.tickets.filter(id => id !== order?.id);
                 saveLocalStorageFavorites({
-                    ...localFavorites,
+                    ...updatedLocalFavorites,
                     tickets: updatedTickets
                 });
                 setIsLiked(false);
@@ -468,8 +543,6 @@ export default function OrderPage() {
 
         setIsLikeLoading(true);
         try {
-            const ticketId = order?.id;
-
             if (!ticketId) {
                 console.error('No ticket ID to add to favorites');
                 return;
@@ -488,12 +561,12 @@ export default function OrderPage() {
             let existingTickets: string[] = [];
 
             if (currentFavoritesResponse.ok) {
-                const currentFavorite = await currentFavoritesResponse.json();
+                const currentFavorite: Favorite = await currentFavoritesResponse.json();
                 existingFavoriteId = currentFavorite.id;
 
-                existingMasters = currentFavorite.masters?.map((master: any) => `/api/users/${master.id}`) || [];
-                existingClients = currentFavorite.clients?.map((client: any) => `/api/users/${client.id}`) || [];
-                existingTickets = currentFavorite.tickets?.map((ticket: any) => `/api/tickets/${ticket.id}`) || [];
+                existingMasters = currentFavorite.masters?.map((master: { id: number }) => `/api/users/${master.id}`) || [];
+                existingClients = currentFavorite.clients?.map((client: { id: number }) => `/api/users/${client.id}`) || [];
+                existingTickets = currentFavorite.tickets?.map((ticket: { id: number }) => `/api/tickets/${ticket.id}`) || [];
 
                 console.log('Existing favorites:', {
                     masters: existingMasters,
@@ -512,7 +585,13 @@ export default function OrderPage() {
             }
 
             if (favoriteIdToUse) {
-                const updateData: any = {
+                interface FavoriteUpdateData {
+                    masters: string[];
+                    clients: string[];
+                    tickets: string[];
+                }
+
+                const updateData: FavoriteUpdateData = {
                     masters: existingMasters,
                     clients: existingClients,
                     tickets: [...existingTickets, ticketIri]
@@ -540,7 +619,13 @@ export default function OrderPage() {
                     alert('Ошибка при добавлении в избранное');
                 }
             } else {
-                const createData: any = {
+                interface FavoriteCreateData {
+                    masters: string[];
+                    clients: string[];
+                    tickets: string[];
+                }
+
+                const createData: FavoriteCreateData = {
                     masters: [],
                     clients: [],
                     tickets: [ticketIri]
@@ -558,7 +643,7 @@ export default function OrderPage() {
                 });
 
                 if (createResponse.ok) {
-                    const newFavorite = await createResponse.json();
+                    const newFavorite: Favorite = await createResponse.json();
                     setIsLiked(true);
                     setFavoriteId(newFavorite.id);
                     console.log('Successfully created favorite with ticket');
@@ -596,16 +681,22 @@ export default function OrderPage() {
 
             if (!currentFavoritesResponse.ok) return;
 
-            const currentFavorite = await currentFavoritesResponse.json();
+            const currentFavorite: Favorite = await currentFavoritesResponse.json();
 
-            const newMasters = currentFavorite.masters?.map((m: any) => `/api/users/${m.id}`) || [];
-            const newClients = currentFavorite.clients?.map((c: any) => `/api/users/${c.id}`) || [];
-            const newTickets = currentFavorite.tickets?.map((t: any) => `/api/tickets/${t.id}`) || [];
+            const newMasters = currentFavorite.masters?.map((m: { id: number }) => `/api/users/${m.id}`) || [];
+            const newClients = currentFavorite.clients?.map((c: { id: number }) => `/api/users/${c.id}`) || [];
+            const newTickets = currentFavorite.tickets?.map((t: { id: number }) => `/api/tickets/${t.id}`) || [];
 
             const removeIri = `/api/tickets/${ticketIdToRemove}`;
             const updatedTickets = newTickets.filter((ticketIri: string) => ticketIri !== removeIri);
 
-            const updateData = {
+            interface UnlikeUpdateData {
+                masters: string[];
+                clients: string[];
+                tickets: string[];
+            }
+
+            const updateData: UnlikeUpdateData = {
                 masters: newMasters,
                 clients: newClients,
                 tickets: updatedTickets
@@ -665,27 +756,51 @@ export default function OrderPage() {
     const getFullAddress = (ticketData: ApiTicket): string => {
         console.log('getFullAddress input:', ticketData);
 
-        const parts = [];
-
-        // Провинция (область)
-        if (ticketData.district?.city?.province?.title) {
-            parts.push(ticketData.district.city.province.title);
+        if (!ticketData.addresses || ticketData.addresses.length === 0) {
+            return 'Адрес не указан';
         }
 
-        // Город (из district или из address)
-        const city = ticketData.district?.city?.title || ticketData.address?.city?.title;
-        if (city) {
-            parts.push(city);
+        const address = ticketData.addresses[0];
+        const parts: string[] = [];
+
+        // Провинция (область)
+        if (address.province?.title) {
+            parts.push(address.province.title);
+        }
+
+        // Город
+        if (address.city?.title) {
+            parts.push(address.city.title);
         }
 
         // Район
-        if (ticketData.district?.title) {
-            parts.push(ticketData.district.title);
+        if (address.district?.title) {
+            parts.push(address.district.title);
+        }
+
+        // Пригород (если есть)
+        if (address.suburb?.title) {
+            parts.push(address.suburb.title);
+        }
+
+        // Поселение (если есть)
+        if (address.settlement?.title) {
+            parts.push(address.settlement.title);
+        }
+
+        // Деревня (если есть)
+        if (address.village?.title) {
+            parts.push(address.village.title);
+        }
+
+        // Сообщество (если есть)
+        if (address.community?.title) {
+            parts.push(address.community.title);
         }
 
         // Конкретный адрес
-        if (ticketData.address?.title) {
-            parts.push(ticketData.address.title);
+        if (address.title) {
+            parts.push(address.title);
         }
 
         const result = parts.length > 0 ? parts.join(', ') : 'Адрес не указан';
@@ -723,7 +838,7 @@ export default function OrderPage() {
         }
     };
 
-    const fetchOrder = async (userId: number, role: string | null, ticketType: 'client' | 'master' | null, specificTicketId?: number) => {
+    const fetchOrder = async (userId: number, role: string | null, ticketTypeParam: 'client' | 'master' | null, specificTicketId?: number) => {
         try {
             setIsLoading(true);
             setError(null);
@@ -731,17 +846,17 @@ export default function OrderPage() {
             console.log('Fetching order with params:', {
                 userId,
                 role,
-                ticketType,
+                ticketType: ticketTypeParam,
                 specificTicketId
             });
 
             let endpoint = '';
-            let targetUserId = userId;
+            const targetUserId = userId; // Изменено с let на const
 
             // Определяем endpoint и ID пользователя для запроса
-            if (ticketType === 'client') {
+            if (ticketTypeParam === 'client') {
                 endpoint = `/api/tickets/clients/${targetUserId}`;
-            } else if (ticketType === 'master') {
+            } else if (ticketTypeParam === 'master') {
                 endpoint = `/api/tickets/masters/${targetUserId}`;
             } else {
                 endpoint = `/api/tickets`;
@@ -790,7 +905,7 @@ export default function OrderPage() {
                     ticketData = ticketsData[0];
                 }
             } else {
-                ticketData = ticketsData;
+                ticketData = ticketsData as ApiTicket;
             }
 
             if (!ticketData) {
@@ -802,15 +917,15 @@ export default function OrderPage() {
             let displayUserId = 0;
             let displayUserName = '';
             let displayUserImage = '';
-            let userTypeForRating: 'client' | 'master' | null = ticketType;
+            let userTypeForRating: 'client' | 'master' | null = ticketTypeParam;
 
-            if (ticketType === 'client') {
+            if (ticketTypeParam === 'client') {
                 // Если смотрим тикеты клиента, показываем информацию о клиенте (авторе)
                 displayUserId = ticketData.author?.id || 0;
                 displayUserName = ticketData.author ? `${ticketData.author.name || ''} ${ticketData.author.surname || ''}`.trim() : 'Клиент';
                 displayUserImage = ticketData.author?.image ? formatProfileImageUrl(ticketData.author.image) : '';
                 userTypeForRating = 'client';
-            } else if (ticketType === 'master') {
+            } else if (ticketTypeParam === 'master') {
                 // Если смотрим тикеты мастера, показываем информацию о мастере
                 displayUserId = ticketData.master?.id || 0;
                 displayUserName = ticketData.master ? `${ticketData.master.name || ''} ${ticketData.master.surname || ''}`.trim() : 'Мастер';
@@ -846,9 +961,8 @@ export default function OrderPage() {
                 displayUserImage
             });
 
-            // Загружаем количество отзывов для ЭТОГО ПОЛЬЗОВАТЕЛЯ (displayUserId)
-            const reviewCountForUser = await fetchReviewCount(displayUserId); // CHANGED: Renamed variable
-            setReviewCount(reviewCountForUser); // CHANGED: Use the renamed variable
+            const reviewCountForUser = await fetchReviewCount(displayUserId);
+            setReviewCount(reviewCountForUser);
 
             // Получаем рейтинг пользователя
             const userRatingInfo = await fetchUserInfo(displayUserId, userTypeForRating);
@@ -874,19 +988,19 @@ export default function OrderPage() {
 
             const orderData: Order = {
                 id: ticketData.id,
-                title: ticketData.title || 'Без названия',
+                title: ticketData.title ? cleanText(ticketData.title) : 'Без названия',
                 price: ticketData.budget || 0,
                 unit: ticketData.unit?.title || 'tjs',
-                description: ticketData.description || 'Описание отсутствует',
+                description: ticketData.description ? cleanText(ticketData.description) : 'Описание отсутствует',
                 address: fullAddress,
                 date: formatDate(ticketData.createdAt),
                 author: displayUserName,
                 authorId: displayUserId,
                 timeAgo: getTimeAgo(ticketData.createdAt),
-                category: ticketData.category?.title || 'другое',
-                additionalComments: ticketData.notice,
+                category: ticketData.category?.title ? cleanText(ticketData.category.title) : 'другое',
+                additionalComments: ticketData.notice ? cleanText(ticketData.notice) : undefined,
                 photos: photos.length > 0 ? photos : undefined,
-                notice: ticketData.notice,
+                notice: ticketData.notice ? cleanText(ticketData.notice) : undefined,
                 rating: userRating,
                 authorImage: displayUserImage || undefined,
             };
@@ -917,7 +1031,6 @@ export default function OrderPage() {
                 headers['Authorization'] = `Bearer ${token}`;
             }
 
-            // СНАЧАЛА пытаемся получить пользователя напрямую по ID - это самый надежный способ
             try {
                 console.log(`Trying direct fetch for user ID: ${userId}`);
                 const directResponse = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
@@ -925,7 +1038,7 @@ export default function OrderPage() {
                 });
 
                 if (directResponse.ok) {
-                    const userData = await directResponse.json();
+                    const userData: UserData = await directResponse.json();
                     console.log('Direct fetch successful:', userData);
                     return formatUserInfo(userData);
                 }
@@ -933,10 +1046,8 @@ export default function OrderPage() {
                 console.log('Direct fetch failed, trying filtered fetch...', directError);
             }
 
-            // Если прямой запрос не сработал, пробуем получить через список
             let url = `${API_BASE_URL}/api/users`;
 
-            // Согласно документации API, для фильтрации по ролям нужно использовать roles[] параметр
             if (userType === 'master') {
                 url += `?roles[]=ROLE_MASTER`;
             } else if (userType === 'client') {
@@ -955,14 +1066,14 @@ export default function OrderPage() {
             const usersData = await response.json();
 
             // Проверяем разные форматы ответа
-            let usersArray: any[] = [];
+            let usersArray: UserData[] = [];
             if (Array.isArray(usersData)) {
                 usersArray = usersData;
             } else if (usersData && typeof usersData === 'object') {
                 if (usersData['hydra:member'] && Array.isArray(usersData['hydra:member'])) {
                     usersArray = usersData['hydra:member'];
                 } else if (usersData.id) {
-                    usersArray = [usersData];
+                    usersArray = [usersData as UserData];
                 }
             }
 
@@ -983,29 +1094,7 @@ export default function OrderPage() {
         }
     };
 
-// Вспомогательная функция для получения пользователя напрямую по ID
-//     const fetchUserById = async (userId: number, headers: HeadersInit): Promise<{ name: string; rating: number; image: string }> => {
-//         try {
-//             console.log(`Trying to fetch user directly by ID: ${userId}`);
-//
-//             const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
-//                 headers: headers,
-//             });
-//
-//             if (response.ok) {
-//                 const userData = await response.json();
-//                 return formatUserInfo(userData);
-//             } else {
-//                 console.log(`Failed to fetch user by ID: ${response.status}`);
-//                 return { name: 'Пользователь', rating: 0, image: '' };
-//             }
-//         } catch (error) {
-//             console.error('Error fetching user by ID:', error);
-//             return { name: 'Пользователь', rating: 0, image: '' };
-//         }
-//     };
-
-    const formatUserInfo = (userData: any): { name: string; rating: number; image: string } => {
+    const formatUserInfo = (userData: UserData): { name: string; rating: number; image: string } => {
         if (!userData) {
             return { name: 'Пользователь', rating: 0, image: '' };
         }
@@ -1067,29 +1156,20 @@ export default function OrderPage() {
         setShowReviewModal(true);
     };
 
-
     const handleRespondClick = async (authorId: number) => {
-        const token = getAuthToken();
-
-        // Если пользователь не авторизован - показываем модалку входа
-        if (!token) {
-            setShowAuthModal(true);
-            return;
-        }
-
-        // Если авторизован - создаем чат или переходим к существующему
         try {
             const chat = await createChatWithAuthor(authorId, order?.id);
+
             if (chat && chat.id) {
                 console.log('Navigating to chat:', chat.id);
                 navigate(`/chats?chatId=${chat.id}`);
             } else {
-                console.error('Failed to create chat or no chat ID returned');
-                alert('Не удалось создать чат');
+                console.error('Failed to create chat');
+                navigate(`/chats`);
             }
         } catch (error) {
             console.error('Error creating chat:', error);
-            alert('Ошибка при создании чата');
+            navigate(`/chats`);
         }
     };
 
@@ -1100,8 +1180,7 @@ export default function OrderPage() {
         }
         setShowAuthModal(false);
 
-        // После успешного входа автоматически создаем чат с CORRECT ticket ID
-        if (order?.authorId && order?.id) {
+        if (order?.authorId) {
             const createChat = async () => {
                 try {
                     const chat = await createChatWithAuthor(order.authorId, order.id);
@@ -1110,14 +1189,17 @@ export default function OrderPage() {
                         navigate(`/chats?chatId=${chat.id}`);
                     } else {
                         console.error('Failed to create chat after login');
-                        alert('Не удалось создать чат');
+                        navigate(`/chats`);
                     }
                 } catch (error) {
                     console.error('Error creating chat after login:', error);
-                    alert('Ошибка при создании чата');
+                    navigate(`/chats`);
                 }
             };
             createChat();
+        } else {
+            // Если нет order, просто идем в чаты
+            navigate(`/chats`); // Уже правильный путь
         }
     };
 
@@ -1162,7 +1244,6 @@ export default function OrderPage() {
         }
     };
 
-
     if (isLoading) return <div className={styles.loading}>Загрузка...</div>;
     if (error) return (
         <div className={styles.error}>
@@ -1190,7 +1271,7 @@ export default function OrderPage() {
 
                 <section className={styles.section}>
                     <h2 className={styles.section_about}>Описание</h2>
-                    <p className={styles.description}>{order.description}</p>
+                    <p className={styles.description}>{order.description ? cleanText(order.description) : 'Описание отсутствует'}</p>
                 </section>
 
                 <section className={styles.section}>
@@ -1212,7 +1293,9 @@ export default function OrderPage() {
                 <section className={styles.section}>
                     <h2 className={styles.section_more}>Дополнительные комментарии</h2>
                     <div className={styles.commentsContent}>
-                        <p>{order.additionalComments || 'Комментарии от заказчика (при наличии)'}</p>
+                        <p>{order.additionalComments
+                            ? cleanText(order.additionalComments)
+                            : 'Комментарии от заказчика (при наличии)'}</p>
                     </div>
                 </section>
 

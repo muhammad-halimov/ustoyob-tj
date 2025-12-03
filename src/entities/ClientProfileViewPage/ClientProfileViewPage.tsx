@@ -59,6 +59,46 @@ interface AppealData {
     ticketAppeal?: boolean;
 }
 
+// Добавляем интерфейс для пользователя
+interface UserData {
+    id: number;
+    name?: string;
+    surname?: string;
+    patronymic?: string;
+    gender?: string;
+    phone1?: string;
+    email?: string;
+    rating?: number;
+    image?: string;
+    roles?: string[];
+    occupation?: Array<{ title: string }>;
+}
+
+// Добавляем интерфейс для отзыва с сервера
+interface ReviewResponse {
+    id: number;
+    rating?: number;
+    description?: string;
+    forClient?: boolean;
+    services?: { id: number; title: string };
+    images?: Array<{ id: number; image: string }>;
+    master?: { id: number };
+    reviewer?: { id: number };
+    createdAt?: string;
+}
+
+// Добавляем интерфейс для пользователя в списке
+interface UserInList {
+    id: number;
+    roles?: string[];
+    [key: string]: unknown;
+}
+
+// Добавляем интерфейс для API ответов
+// interface HydraResponse<T> {
+//     'hydra:member'?: T[];
+// }
+
 const API_BASE_URL = 'https://admin.ustoyob.tj';
 
 function ClientProfileViewPage() {
@@ -151,7 +191,7 @@ function ClientProfileViewPage() {
         }
     };
 
-    const fetchUser = async (userId: number, userType: 'master' | 'client'): Promise<any> => {
+    const fetchUser = async (userId: number, userType: 'master' | 'client'): Promise<UserData | null> => {
         try {
             const token = getAuthToken();
             if (!token) {
@@ -171,7 +211,7 @@ function ClientProfileViewPage() {
                 });
 
                 if (directResponse.ok) {
-                    const userData = await directResponse.json();
+                    const userData: UserData = await directResponse.json();
                     console.log(`Found user ${userId} directly:`, userData);
 
                     // Проверяем, что у пользователя правильная роль
@@ -212,20 +252,23 @@ function ClientProfileViewPage() {
             console.log('All users data received');
 
             // Обрабатываем разные форматы ответа
-            let usersArray: any[] = [];
+            let usersArray: UserInList[] = [];
 
             if (Array.isArray(usersData)) {
                 usersArray = usersData;
             } else if (usersData && typeof usersData === 'object') {
-                if (usersData['hydra:member'] && Array.isArray(usersData['hydra:member'])) {
-                    usersArray = usersData['hydra:member'];
-                } else if (usersData.id) {
-                    usersArray = [usersData];
+                // Проверяем hydra формат
+                if ('hydra:member' in usersData && Array.isArray(usersData['hydra:member'])) {
+                    usersArray = usersData['hydra:member'] as UserInList[];
+                }
+                // Проверяем, что это объект с полем id типа number
+                else if ('id' in usersData && typeof usersData.id === 'number') {
+                    usersArray = [usersData as UserInList];
                 }
             }
 
             // Ищем пользователя по ID в массиве
-            const userData = usersArray.find((user: any) => user.id === userId) || null;
+            const userData = usersArray.find((user: UserInList) => user.id === userId) || null;
 
             if (userData) {
                 console.log(`Found user ${userId} in list:`, userData);
@@ -242,7 +285,7 @@ function ClientProfileViewPage() {
                     }
                 }
 
-                return userData;
+                return userData as UserData;
             } else {
                 console.log(`User ${userId} not found in the list`);
                 return null;
@@ -254,7 +297,7 @@ function ClientProfileViewPage() {
         }
     };
 
-    const getAvatarUrl = async (userData: any): Promise<string | null> => {
+    const getAvatarUrl = async (userData: UserData): Promise<string | null> => {
         if (!userData) return null;
 
         console.log('Getting avatar URL for client:', userData.id);
@@ -341,15 +384,18 @@ function ClientProfileViewPage() {
             const reviewsData = await response.json();
             console.log('Raw client reviews data:', reviewsData);
 
-            let reviewsArray: any[] = [];
+            let reviewsArray: ReviewResponse[] = [];
 
             if (Array.isArray(reviewsData)) {
                 reviewsArray = reviewsData;
             } else if (reviewsData && typeof reviewsData === 'object') {
-                if (reviewsData['hydra:member'] && Array.isArray(reviewsData['hydra:member'])) {
-                    reviewsArray = reviewsData['hydra:member'];
-                } else if (reviewsData.id) {
-                    reviewsArray = [reviewsData];
+                // Проверяем hydra формат
+                if ('hydra:member' in reviewsData && Array.isArray(reviewsData['hydra:member'])) {
+                    reviewsArray = reviewsData['hydra:member'] as ReviewResponse[];
+                }
+                // Проверяем, что это объект с полем id типа number
+                else if ('id' in reviewsData && typeof reviewsData.id === 'number') {
+                    reviewsArray = [reviewsData as ReviewResponse];
                 }
             }
 
@@ -357,12 +403,12 @@ function ClientProfileViewPage() {
 
             if (reviewsArray.length > 0) {
                 const transformedReviews = await Promise.all(
-                    reviewsArray.map(async (review) => {
+                    reviewsArray.map(async (review): Promise<Review> => {
                         console.log('Processing client review:', review);
 
                         // Получаем информацию о мастере, который оставил отзыв
                         const masterId = review.master?.id;
-                        let masterData = null;
+                        let masterData: UserData | null = null;
 
                         if (masterId) {
                             // ИСПОЛЬЗУЙТЕ НОВУЮ ФУНКЦИЮ
@@ -381,8 +427,8 @@ function ClientProfileViewPage() {
                                 name: masterData.name,
                                 surname: masterData.surname,
                                 patronymic: masterData.patronymic,
-                                profession: masterData.occupation?.map((occ: any) => occ.title).join(', '),
-                                specialization: masterData.occupation?.map((occ: any) => occ.title).join(', '),
+                                profession: masterData.occupation?.map((occ) => occ.title).join(', '),
+                                specialization: masterData.occupation?.map((occ) => occ.title).join(', '),
                                 image: masterData.image
                             } : {
                                 id: 0,
@@ -436,14 +482,14 @@ function ClientProfileViewPage() {
         const img = e.currentTarget;
 
         if (!profileData?.id) {
-            img.src = "./fonTest6.png";
+            img.src = "../fonTest6.png";
             return;
         }
 
         const fallbackSources = [
             profileData.avatar?.includes("uploads/") ? `${API_BASE_URL}/api/${profileData.id}/profile-photo` : null,
             profileData.avatar?.includes("uploads/") ? `/uploads/avatars/${profileData.avatar.split("/").pop()}` : null,
-            "./fonTest6.png"
+            "../fonTest6.png"
         ].filter(Boolean) as string[];
 
         for (const source of fallbackSources) {
@@ -461,7 +507,7 @@ function ClientProfileViewPage() {
             }
         }
 
-        img.src = "./fonTest6.png";
+        img.src = "../fonTest6.png";
     };
 
     const getReviewerAvatarUrl = (review: Review) => {
@@ -478,7 +524,7 @@ function ClientProfileViewPage() {
             ];
 
             for (const path of possiblePaths) {
-                if (path && path !== "./fonTest6.png") {
+                if (path && path !== "../fonTest6.png") {
                     console.log('Trying master avatar path:', path);
                     return path;
                 }
@@ -486,7 +532,7 @@ function ClientProfileViewPage() {
         }
 
         console.log('Using default avatar for master');
-        return "./fonTest6.png";
+        return "../fonTest6.png";
     };
 
     const getReviewerName = (review: Review) => {
@@ -585,6 +631,15 @@ function ClientProfileViewPage() {
         setReviewPhotos([]);
     };
 
+    // Интерфейс для данных отзыва
+    interface ReviewData {
+        type: string;
+        rating: number;
+        description: string;
+        client: string;
+        master: string;
+    }
+
     const handleSubmitReview = async () => {
         if (!reviewText.trim()) {
             alert('Пожалуйста, напишите комментарий');
@@ -612,7 +667,7 @@ function ClientProfileViewPage() {
             }
 
             // Мастер оставляет отзыв клиенту -> type: "client"
-            const reviewData: any = {
+            const reviewData: ReviewData = {
                 type: 'client',
                 rating: selectedStars,
                 description: reviewText,
@@ -723,7 +778,7 @@ function ClientProfileViewPage() {
             });
 
             if (response.ok) {
-                const userData = await response.json();
+                const userData: UserData = await response.json();
                 return userData.id;
             }
             return null;
@@ -919,7 +974,7 @@ function ClientProfileViewPage() {
                                     />
                                 ) : (
                                     <img
-                                        src="./fonTest6.png"
+                                        src="../fonTest6.png"
                                         alt="FonTest6"
                                         className={styles.avatar_placeholder}
                                     />
@@ -1305,11 +1360,6 @@ function ClientProfileViewPage() {
                                     className={styles.complaintSelect}
                                 >
                                     <option value="">Выберите причину</option>
-                                    {/*<option value="rude_behavior">Грубое поведение</option>*/}
-                                    {/*<option value="no_show">Неявка на встречу</option>*/}
-                                    {/*<option value="late_payment">Задержка оплаты</option>*/}
-                                    {/*<option value="false_information">Предоставление ложной информации</option>*/}
-                                    {/*<option value="inappropriate_requests">Неуместные просьбы/требования</option>*/}
                                     <option value="other">Другое</option>
                                 </select>
                             </div>

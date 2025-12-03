@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { getAuthToken, getUserRole } from '../../utils/auth';
 import styles from './FavoritePage.module.scss';
 import { useNavigate } from 'react-router-dom';
-import {createChatWithAuthor} from "../../utils/chatUtils";
+import { createChatWithAuthor } from "../../utils/chatUtils";
 
 interface FavoriteTicket {
     id: number;
@@ -124,6 +124,31 @@ interface LocalStorageFavorites {
     tickets: number[];
 }
 
+interface MasterData {
+    id: number;
+    email?: string;
+    name?: string;
+    surname?: string;
+    image?: string;
+}
+
+interface ClientData {
+    id: number;
+    email?: string;
+    name?: string;
+    surname?: string;
+    image?: string;
+}
+
+interface TicketData {
+    id: number;
+    title?: string;
+    active?: boolean;
+    author?: MasterData;
+    master?: ClientData;
+    service?: boolean;
+}
+
 const API_BASE_URL = 'https://admin.ustoyob.tj';
 
 function FavoritesPage() {
@@ -231,51 +256,56 @@ function FavoritesPage() {
 
     const fetchTicketDetailsForUnauthorized = async (ticketId: number): Promise<FavoriteTicket | null> => {
         try {
-            // Пробуем получить данные через публичные endpoints
-            const endpoints = [
-                '/api/tickets/clients',
-                '/api/tickets/masters'
-            ];
+            // Для неавторизованных используем тот же эндпоинт без токена
+            const response = await fetch(`${API_BASE_URL}/api/tickets`, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
+            });
 
-            for (const endpoint of endpoints) {
-                try {
-                    const response = await fetch(`${API_BASE_URL}${endpoint}`);
+            if (response.ok) {
+                const ticketsData: ApiTicket[] = await response.json();
+                console.log(`Found ${ticketsData.length} tickets for unauthorized user`);
 
-                    if (response.ok) {
-                        const ticketsData: ApiTicket[] = await response.json();
-                        const ticket = ticketsData.find(t => t.id === ticketId);
+                // Ищем тикет по ID
+                const ticket = ticketsData.find(t => t.id === ticketId);
 
-                        if (ticket) {
-                            console.log(`Found ticket ${ticketId} in ${endpoint} for unauthorized user:`, ticket);
+                if (ticket) {
+                    console.log(`Found ticket ${ticketId} for unauthorized user:`, ticket);
 
-                            const userType = endpoint.includes('masters') ? 'master' : 'client';
-                            const authorId = userType === 'master'
-                                ? ticket.master?.id || 0
-                                : ticket.author?.id || 0;
+                    // Определяем тип пользователя
+                    const isMasterTicket = !!ticket.master?.id;
+                    const userType = isMasterTicket ? 'master' : 'client';
+                    const authorId = isMasterTicket
+                        ? ticket.master?.id || 0
+                        : ticket.author?.id || 0;
 
-                            return {
-                                id: ticket.id,
-                                title: ticket.title || 'Без названия',
-                                price: ticket.budget || 0,
-                                unit: ticket.unit?.title || 'tjs',
-                                description: ticket.description || 'Описание отсутствует',
-                                address: getFullAddress(ticket),
-                                date: formatDate(ticket.createdAt),
-                                author: userType === 'master'
-                                    ? `${ticket.master?.name || ''} ${ticket.master?.surname || ''}`.trim() || 'Мастер'
-                                    : `${ticket.author?.name || ''} ${ticket.author?.surname || ''}`.trim() || 'Клиент',
-                                authorId: authorId,
-                                timeAgo: getTimeAgo(ticket.createdAt),
-                                category: ticket.category?.title || 'другое',
-                                status: getTicketStatus(ticket.active, ticket.service),
-                                type: userType,
-                                active: ticket.active,
-                                service: ticket.service
-                            };
-                        }
+                    // Определяем имя автора
+                    let authorName = 'Неизвестный';
+                    if (isMasterTicket && ticket.master) {
+                        authorName = `${ticket.master.name || ''} ${ticket.master.surname || ''}`.trim() || 'Мастер';
+                    } else if (ticket.author) {
+                        authorName = `${ticket.author.name || ''} ${ticket.author.surname || ''}`.trim() || 'Клиент';
                     }
-                } catch (error) {
-                    console.error(`Error fetching tickets from ${endpoint} for unauthorized:`, error);
+
+                    return {
+                        id: ticket.id,
+                        title: ticket.title || 'Без названия',
+                        price: ticket.budget || 0,
+                        unit: ticket.unit?.title || 'tjs',
+                        description: ticket.description || 'Описание отсутствует',
+                        address: getFullAddress(ticket),
+                        date: formatDate(ticket.createdAt),
+                        author: authorName,
+                        authorId: authorId,
+                        timeAgo: getTimeAgo(ticket.createdAt),
+                        category: ticket.category?.title || 'другое',
+                        status: getTicketStatus(ticket.active, ticket.service),
+                        type: userType,
+                        active: ticket.active,
+                        service: ticket.service
+                    };
                 }
             }
 
@@ -291,15 +321,18 @@ function FavoritesPage() {
     const fetchFavorites = async () => {
         try {
             const token = getAuthToken();
+            console.log('Fetching favorites, token exists:', !!token);
 
-            // Для неавторизованных пользователей загружаем только из localStorage
+            // Для неавторизованных пользователей
             if (!token) {
                 const localFavorites = loadLocalStorageFavorites();
+                console.log('Local favorites for unauthorized user:', localFavorites);
+
                 setLikedMasters(localFavorites.masters);
                 setLikedTickets(localFavorites.tickets);
 
-                // ДОБАВЬТЕ ЭТОТ КОД: загружаем детали тикетов
-                let tickets: FavoriteTicket[] = [];
+                // Загружаем детали тикетов
+                const tickets: FavoriteTicket[] = [];
                 for (const ticketId of localFavorites.tickets) {
                     const ticketDetails = await fetchTicketDetailsForUnauthorized(ticketId);
                     if (ticketDetails) {
@@ -307,11 +340,14 @@ function FavoritesPage() {
                     }
                 }
                 setFavoriteTickets(tickets);
+                console.log('Loaded tickets for unauthorized user:', tickets);
 
                 setIsLoading(false);
                 return;
             }
 
+            // Для авторизованных пользователей
+            console.log('Fetching favorites from API...');
             const response = await fetch(`${API_BASE_URL}/api/favorites/me`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -319,38 +355,49 @@ function FavoritesPage() {
                 }
             });
 
+            console.log('API response status:', response.status);
+
             if (response.ok) {
                 const favorite: Favorite = await response.json();
-                console.log('Favorite data:', favorite);
+                console.log('Favorite data from API:', favorite);
                 setFavoriteId(favorite.id);
 
-                let tickets: FavoriteTicket[] = [];
-                let masters: Master[] = [];
+                const tickets: FavoriteTicket[] = [];
+                const masters: Master[] = [];
 
-                // Обрабатываем ТОЛЬКО явно добавленные тикеты в избранное
+                // Обрабатываем тикеты
                 if (favorite.tickets && favorite.tickets.length > 0) {
-                    console.log('Processing favorite tickets:', favorite.tickets);
+                    console.log(`Found ${favorite.tickets.length} favorite tickets`);
                     for (const ticket of favorite.tickets) {
+                        console.log('Processing ticket:', ticket);
                         const ticketDetails = await fetchTicketDetails(ticket.id);
                         if (ticketDetails) {
-                            // Используем реальный статус из API
                             const status = getTicketStatus(ticket.active, ticket.service);
+                            // Получаем изображение автора
+                            const authorImage = ticket.author?.image
+                                ? formatProfileImageUrl(ticket.author.image)
+                                : ticket.master?.image
+                                    ? formatProfileImageUrl(ticket.master.image)
+                                    : undefined;
 
                             tickets.push({
                                 ...ticketDetails,
-                                active: ticket.active, // Сохраняем реальный статус
-                                service: ticket.service, // Сохраняем тип услуги
-                                status: status, // Используем вычисленный статус
-                                authorImage: ticket.author?.image ? formatProfileImageUrl(ticket.author.image) :
-                                    ticket.master?.image ? formatProfileImageUrl(ticket.master.image) : undefined
+                                active: ticket.active,
+                                service: ticket.service,
+                                status: status,
+                                authorImage: authorImage
                             });
+                        } else {
+                            console.log(`Could not fetch details for ticket ${ticket.id}`);
                         }
                     }
+                } else {
+                    console.log('No favorite tickets found in API response');
                 }
 
-                // Обрабатываем избранных мастеров
+                // Обрабатываем мастеров
                 if (favorite.masters && favorite.masters.length > 0) {
-                    console.log('Processing favorite masters:', favorite.masters);
+                    console.log(`Found ${favorite.masters.length} favorite masters`);
                     for (const master of favorite.masters) {
                         const masterDetails = await fetchMasterDetails(master.id);
                         if (masterDetails) {
@@ -363,22 +410,30 @@ function FavoritesPage() {
                 console.log('Final favorite masters:', masters);
                 setFavoriteTickets(tickets);
                 setFavoriteMasters(masters);
+
+                // Обновляем состояния лайков
+                setLikedTickets(tickets.map(t => t.id));
+                setLikedMasters(masters.map(m => m.id));
+
             } else if (response.status === 404) {
-                console.log('No favorites found');
+                console.log('No favorites found (404)');
                 setFavoriteTickets([]);
                 setFavoriteMasters([]);
                 setLikedMasters([]);
+                setLikedTickets([]);
             } else {
                 console.error('Error fetching favorites, status:', response.status);
                 setFavoriteTickets([]);
                 setFavoriteMasters([]);
                 setLikedMasters([]);
+                setLikedTickets([]);
             }
         } catch (error) {
             console.error('Error fetching favorites:', error);
             setFavoriteTickets([]);
             setFavoriteMasters([]);
             setLikedMasters([]);
+            setLikedTickets([]);
         } finally {
             setIsLoading(false);
         }
@@ -424,66 +479,65 @@ function FavoritesPage() {
     const fetchTicketDetails = async (ticketId: number): Promise<FavoriteTicket | null> => {
         try {
             const token = getAuthToken();
-            if (!token) return null;
 
-            const endpoints = [
-                '/api/tickets/clients',
-                '/api/tickets/masters'
-            ];
-
-            for (const endpoint of endpoints) {
-                try {
-                    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json'
-                        }
-                    });
-
-                    if (response.ok) {
-                        const ticketsData: ApiTicket[] = await response.json();
-                        console.log(`Found ${ticketsData.length} tickets in ${endpoint}`);
-
-                        // Ищем тикет по ID
-                        const ticket = ticketsData.find(t => t.id === ticketId);
-
-                        if (ticket) {
-                            console.log(`Found ticket ${ticketId} in ${endpoint}:`, ticket);
-
-                            const userType = endpoint.includes('masters') ? 'master' : 'client';
-                            const authorId = userType === 'master'
-                                ? ticket.master?.id || 0
-                                : ticket.author?.id || 0;
-
-                            return {
-                                id: ticket.id,
-                                title: ticket.title || 'Без названия',
-                                price: ticket.budget || 0,
-                                unit: ticket.unit?.title || 'tjs',
-                                description: ticket.description || 'Описание отсутствует',
-                                address: getFullAddress(ticket),
-                                date: formatDate(ticket.createdAt),
-                                author: userType === 'master'
-                                    ? `${ticket.master?.name || ''} ${ticket.master?.surname || ''}`.trim() || 'Мастер'
-                                    : `${ticket.author?.name || ''} ${ticket.author?.surname || ''}`.trim() || 'Клиент',
-                                authorId: authorId,
-                                timeAgo: getTimeAgo(ticket.createdAt),
-                                category: ticket.category?.title || 'другое',
-                                status: getTicketStatus(ticket.active, ticket.service), // Используем реальный статус
-                                type: userType,
-                                active: ticket.active,
-                                service: ticket.service
-                            };
-                        }
-                    } else {
-                        console.log(`Error fetching from ${endpoint}, status:`, response.status);
-                    }
-                } catch (error) {
-                    console.error(`Error fetching tickets from ${endpoint}:`, error);
+            // Для всех пользователей используем единый эндпоинт
+            const response = await fetch(`${API_BASE_URL}/api/tickets`, {
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : '',
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
                 }
+            });
+
+            if (response.ok) {
+                const ticketsData: ApiTicket[] = await response.json();
+                console.log(`Found ${ticketsData.length} tickets from API`);
+
+                // Ищем тикет по ID
+                const ticket = ticketsData.find(t => t.id === ticketId);
+
+                if (ticket) {
+                    console.log(`Found ticket ${ticketId}:`, ticket);
+
+                    // Определяем тип пользователя (автор или мастер)
+                    const isMasterTicket = !!ticket.master?.id;
+                    const userType = isMasterTicket ? 'master' : 'client';
+                    const authorId = isMasterTicket
+                        ? ticket.master?.id || 0
+                        : ticket.author?.id || 0;
+
+                    // Определяем имя автора
+                    let authorName = 'Неизвестный';
+                    if (isMasterTicket && ticket.master) {
+                        authorName = `${ticket.master.name || ''} ${ticket.master.surname || ''}`.trim() || 'Мастер';
+                    } else if (ticket.author) {
+                        authorName = `${ticket.author.name || ''} ${ticket.author.surname || ''}`.trim() || 'Клиент';
+                    }
+
+                    return {
+                        id: ticket.id,
+                        title: ticket.title || 'Без названия',
+                        price: ticket.budget || 0,
+                        unit: ticket.unit?.title || 'tjs',
+                        description: ticket.description || 'Описание отсутствует',
+                        address: getFullAddress(ticket),
+                        date: formatDate(ticket.createdAt),
+                        author: authorName,
+                        authorId: authorId,
+                        timeAgo: getTimeAgo(ticket.createdAt),
+                        category: ticket.category?.title || 'другое',
+                        status: getTicketStatus(ticket.active, ticket.service),
+                        type: userType,
+                        active: ticket.active,
+                        service: ticket.service
+                    };
+                } else {
+                    console.log(`Ticket with ID ${ticketId} not found in API response`);
+                }
+            } else {
+                console.log(`Error fetching tickets, status:`, response.status);
             }
 
-            console.log(`Ticket with ID ${ticketId} not found in any endpoint`);
             return null;
 
         } catch (error) {
@@ -493,22 +547,24 @@ function FavoritesPage() {
     };
 
     const getFullAddress = (ticket: ApiTicket): string => {
+        // Сначала проверяем district
+        const districtTitle = ticket.district?.title || '';
         const districtCity = ticket.district?.city?.title || '';
+
+        // Затем проверяем address
         const addressTitle = ticket.address?.title || '';
         const addressCity = ticket.address?.city?.title || '';
 
+        // Используем city из district или address
         const city = districtCity || addressCity;
 
-        if (city && addressTitle) {
-            return `${city}, ${addressTitle}`;
-        }
-        if (city) {
-            return city;
-        }
-        if (addressTitle) {
-            return addressTitle;
-        }
-        return 'Адрес не указан';
+        // Формируем адрес
+        const parts = [];
+        if (city) parts.push(city);
+        if (districtTitle) parts.push(districtTitle);
+        if (addressTitle && !districtTitle) parts.push(addressTitle);
+
+        return parts.length > 0 ? parts.join(', ') : 'Адрес не указан';
     };
 
     const formatDate = (dateString: string) => {
@@ -556,9 +612,10 @@ function FavoritesPage() {
     // Функция для снятия лайка с тикета
     const handleUnlikeTicket = async (ticketId: number) => {
         const token = getAuthToken();
-        if (!favoriteId) return;
+        if (!favoriteId || !token) return;
 
-        const ticketIri = `/api/tickets/${ticketId}`;
+        // ИСПРАВЛЕННАЯ СТРОКА: используем полный URL
+        const ticketIri = `${API_BASE_URL}/api/tickets/${ticketId}`;
 
         try {
             const currentFavoritesResponse = await fetch(`${API_BASE_URL}/api/favorites/me`, {
@@ -571,9 +628,10 @@ function FavoritesPage() {
             if (currentFavoritesResponse.ok) {
                 const currentFavorite = await currentFavoritesResponse.json();
 
-                const existingMasters = currentFavorite.masters?.map((master: any) => `/api/users/${master.id}`) || [];
-                const existingClients = currentFavorite.clients?.map((client: any) => `/api/users/${client.id}`) || [];
-                const existingTickets = currentFavorite.tickets?.map((ticket: any) => `/api/tickets/${ticket.id}`) || [];
+                // ИСПРАВЛЕННЫЕ СТРОКИ: используем полные URL
+                const existingMasters = currentFavorite.masters?.map((master: MasterData) => `${API_BASE_URL}/api/users/${master.id}`) || [];
+                const existingClients = currentFavorite.clients?.map((client: ClientData) => `${API_BASE_URL}/api/users/${client.id}`) || [];
+                const existingTickets = currentFavorite.tickets?.map((ticket: TicketData) => `${API_BASE_URL}/api/tickets/${ticket.id}`) || [];
 
                 const updatedTickets = existingTickets.filter((ticket: string) => ticket !== ticketIri);
 
@@ -596,13 +654,13 @@ function FavoritesPage() {
 
                 if (patchResponse.ok) {
                     setLikedTickets(prev => prev.filter(id => id !== ticketId));
+                    // Удаляем из локального состояния
+                    setFavoriteTickets(prev => prev.filter(ticket => ticket.id !== ticketId));
                     console.log('Successfully removed ticket from favorites');
                     window.dispatchEvent(new Event('favoritesUpdated'));
-
-                    // Обновляем список тикетов в избранном
-                    setFavoriteTickets(prev => prev.filter(ticket => ticket.id !== ticketId));
                 } else {
-                    console.error("PATCH error:", await patchResponse.text());
+                    const errorText = await patchResponse.text();
+                    console.error("PATCH error:", errorText);
                     alert('Ошибка при удалении из избранного');
                 }
             }
@@ -645,22 +703,30 @@ function FavoritesPage() {
 
             if (currentFavoritesResponse.ok) {
                 const currentFavorite = await currentFavoritesResponse.json();
+                console.log('Current favorite data:', currentFavorite);
                 existingFavoriteId = currentFavorite.id;
 
-                existingMasters = currentFavorite.masters?.map((master: any) => `/api/users/${master.id}`) || [];
-                existingClients = currentFavorite.clients?.map((client: any) => `/api/users/${client.id}`) || [];
-                existingTickets = currentFavorite.tickets?.map((ticket: any) => `/api/tickets/${ticket.id}`) || [];
+                // Преобразуем в правильный формат IRI
+                existingMasters = currentFavorite.masters?.map((master: MasterData) => `${API_BASE_URL}/api/users/${master.id}`) || [];
+                existingClients = currentFavorite.clients?.map((client: ClientData) => `${API_BASE_URL}/api/users/${client.id}`) || [];
+                existingTickets = currentFavorite.tickets?.map((ticket: TicketData) => `${API_BASE_URL}/api/tickets/${ticket.id}`) || [];
 
                 console.log('Existing favorites:', {
                     masters: existingMasters,
                     clients: existingClients,
                     tickets: existingTickets
                 });
+            } else if (currentFavoritesResponse.status === 404) {
+                console.log('No favorites found, will create new');
             }
 
             const favoriteIdToUse = existingFavoriteId;
-            const ticketIri = `/api/tickets/${ticketId}`;
+            // ИСПРАВЛЕННАЯ СТРОКА: используем полный URL вместо относительного пути
+            const ticketIri = `${API_BASE_URL}/api/tickets/${ticketId}`;
 
+            console.log('Ticket IRI to add:', ticketIri);
+
+            // Проверяем, не добавлен ли уже тикет
             if (existingTickets.includes(ticketIri)) {
                 console.log('Ticket already in favorites');
                 setLikedTickets(prev => [...prev, ticketId]);
@@ -668,7 +734,8 @@ function FavoritesPage() {
             }
 
             if (favoriteIdToUse) {
-                const updateData: any = {
+                // Обновляем существующее избранное
+                const updateData = {
                     masters: existingMasters,
                     clients: existingClients,
                     tickets: [...existingTickets, ticketIri]
@@ -686,17 +753,27 @@ function FavoritesPage() {
                 });
 
                 if (patchResponse.ok) {
-                    setLikedTickets(prev => prev.filter(id => id !== ticketId));
-                    setFavoriteTickets(prev => prev.filter(ticket => ticket.id !== ticketId));
-                    console.log('Successfully removed ticket from favorites');
+                    const updatedFavorite = await patchResponse.json();
+                    console.log('Successfully added ticket to favorites:', updatedFavorite);
+
+                    // Обновляем состояние
+                    setLikedTickets(prev => [...prev, ticketId]);
+
+                    // Добавляем тикет в локальный стейт
+                    const ticketDetails = await fetchTicketDetails(ticketId);
+                    if (ticketDetails) {
+                        setFavoriteTickets(prev => [...prev, ticketDetails]);
+                    }
+
                     window.dispatchEvent(new Event('favoritesUpdated'));
                 } else {
                     const errorText = await patchResponse.text();
-                    console.error('Failed to update favorite:', errorText);
+                    console.error('Failed to update favorite:', patchResponse.status, errorText);
                     alert('Ошибка при добавлении в избранное');
                 }
             } else {
-                const createData: any = {
+                // Создаем новое избранное
+                const createData = {
                     masters: [],
                     clients: [],
                     tickets: [ticketIri]
@@ -715,13 +792,21 @@ function FavoritesPage() {
 
                 if (createResponse.ok) {
                     const newFavorite = await createResponse.json();
+                    console.log('Successfully created favorite:', newFavorite);
+
                     setLikedTickets(prev => [...prev, ticketId]);
                     setFavoriteId(newFavorite.id);
-                    console.log('Successfully created favorite with ticket');
+
+                    // Добавляем тикет в локальный стейт
+                    const ticketDetails = await fetchTicketDetails(ticketId);
+                    if (ticketDetails) {
+                        setFavoriteTickets(prev => [...prev, ticketDetails]);
+                    }
+
                     window.dispatchEvent(new Event('favoritesUpdated'));
                 } else {
                     const errorText = await createResponse.text();
-                    console.error('Failed to create favorite:', errorText);
+                    console.error('Failed to create favorite:', createResponse.status, errorText);
                     alert('Ошибка при создании избранного');
                 }
             }
@@ -825,9 +910,9 @@ function FavoritesPage() {
                 const currentFavorite = await currentFavoritesResponse.json();
                 existingFavoriteId = currentFavorite.id;
 
-                existingMasters = currentFavorite.masters?.map((master: any) => `/api/users/${master.id}`) || [];
-                existingClients = currentFavorite.clients?.map((client: any) => `/api/users/${client.id}`) || [];
-                existingTickets = currentFavorite.tickets?.map((ticket: any) => `/api/tickets/${ticket.id}`) || [];
+                existingMasters = currentFavorite.masters?.map((master: MasterData) => `/api/users/${master.id}`) || [];
+                existingClients = currentFavorite.clients?.map((client: ClientData) => `/api/users/${client.id}`) || [];
+                existingTickets = currentFavorite.tickets?.map((ticket: TicketData) => `/api/tickets/${ticket.id}`) || [];
 
                 console.log('Existing favorites:', {
                     masters: existingMasters,
@@ -837,7 +922,7 @@ function FavoritesPage() {
             }
 
             const favoriteIdToUse = existingFavoriteId;
-            const masterIri = `/api/users/${masterId}`;
+            const masterIri = `${API_BASE_URL}/api/users/${masterId}`;
 
             // Проверяем, есть ли уже мастер в избранном
             const isCurrentlyLiked = existingMasters.includes(masterIri);
@@ -871,7 +956,7 @@ function FavoritesPage() {
         }
 
         if (favoriteId) {
-            const updateData: any = {
+            const updateData = {
                 masters: [...existingMasters, masterIri],
                 clients: existingClients,
                 tickets: existingTickets
@@ -898,7 +983,7 @@ function FavoritesPage() {
                 alert('Ошибка при добавлении в избранное');
             }
         } else {
-            const createData: any = {
+            const createData = {
                 masters: [masterIri],
                 clients: [],
                 tickets: []

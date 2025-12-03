@@ -45,7 +45,6 @@
     background: white;
     overflow-y: auto;
 
-    /* Скрываем сайдбар когда выбран чат */
     .chatAreaActive & {
       display: none;
     }
@@ -282,7 +281,7 @@
 
   @media (max-width: 480px) {
     width: 100%;
-    height: 100vh; // Полная высота
+    height: 100vh;
     border-radius: 0;
     display: none;
     position: fixed;
@@ -292,7 +291,6 @@
     bottom: 0;
     z-index: 20;
 
-    /* Показываем чат когда он активен */
     .chatAreaActive & {
       display: flex;
     }
@@ -325,8 +323,7 @@
 
   @media (max-width: 480px) {
     padding: 15px;
-    border-radius: 12px 12px 0 0;
-    position: relative;
+    border-radius: 0;
   }
 
   .headerLeft {
@@ -334,17 +331,31 @@
     align-items: center;
 
     .backButton {
+      background: none;
+      border: none;
+      font-size: 24px;
+      margin-right: 12px;
+      cursor: pointer;
+      color: #3A54DA;
+      padding: 0;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: background 0.2s;
+
+      &:hover {
+        background: rgba(58, 84, 218, 0.1);
+      }
+
+      /* Скрываем на десктопе */
       display: none;
 
+      /* Показываем только на мобильных при активном чате */
       @media (max-width: 480px) {
-        display: block;
-        background: none;
-        border: none;
-        font-size: 20px;
-        margin-right: 12px;
-        cursor: pointer;
-        color: #3A54DA;
-        padding: 4px;
+        display: flex;
       }
     }
 
@@ -381,9 +392,14 @@
         }
       }
 
-      .order {
+      .status {
         font-size: 14px;
-        color: #4CAF50;
+        color: #666;
+
+        .lastSeen {
+          color: #888;
+          font-size: 13px;
+        }
       }
     }
   }
@@ -405,10 +421,10 @@
   background-color: #f8f9fa;
 
   @media (max-width: 480px) {
-    padding: 15px 15px 5px 15px; // Меньше padding снизу
+    padding: 15px;
     flex: 1 1 auto;
-    min-height: 0; // Важно для flex-контейнера
-    height: calc(100vh - 130px); // Высота минус хедер и инпут
+    min-height: 0;
+    height: calc(100vh - 130px);
   }
 
   .noMessages {
@@ -419,11 +435,7 @@
 
     @media (max-width: 480px) {
       font-size: 14px;
-      padding: 20px;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
+      padding: 30px 20px;
     }
   }
 
@@ -529,10 +541,10 @@
   transition: all 0.2s ease;
 
   @media (max-width: 480px) {
-    margin: 10px 15px 15px 15px; // Меньше margin сверху
+    margin: 10px 15px 15px 15px;
     padding: 10px 15px;
     border-radius: 20px;
-    flex-shrink: 0; // Не сжимать инпут
+    flex-shrink: 0;
   }
 
   &:focus-within {
@@ -611,36 +623,7 @@
   }
 }
 
-/* Остальные стили остаются без изменений для мобильной версии */
-.modalOverlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal {
-  background: white;
-  border-radius: 12px;
-  width: 90%;
-  max-width: 500px;
-  max-height: 80vh;
-  overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-
-  @media (max-width: 480px) {
-    width: 95%;
-    margin: 20px;
-  }
-}
-
-/* Добавляем класс для управления состоянием на мобильных */
+/* Для мобильных устройств */
 @media (max-width: 480px) {
   .chatAreaActive {
     .sidebar {
@@ -650,130 +633,77 @@
     .chatArea {
       display: flex;
     }
+
+    /* Гарантируем отображение кнопки "Назад" в активном чате на мобильных */
+    .chatHeader {
+      .headerLeft {
+        .backButton {
+          display: flex !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+        }
+      }
+    }
   }
 }
 
+/* Убедимся, что кнопка всегда видима на мобильных */
+@media (max-width: 480px) {
+  .chatHeader {
+    .headerLeft {
+      .backButton {
+        display: flex !important;
+      }
+    }
+  }
+}
 
-/* === CHAT MESSAGES === */
-.chatMessages {
-  flex: 1;
-  padding: 20px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  background-color: #f8f9fa;
+.chatContainer {
+  width: 100%;
+  height: 100vh;
+}
+
+.mobileNav {
+  display: none;
 
   @media (max-width: 480px) {
-    padding: 15px;
-  }
-
-  .noMessages {
-    text-align: center;
-    color: #666;
-    font-size: 16px;
-    padding: 40px;
-
-    @media (max-width: 480px) {
-      font-size: 14px;
-      padding: 30px 20px;
-    }
-  }
-
-  .messagesContainer {
     display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-}
-
-/* === MESSAGE STYLES === */
-.message {
-  display: flex;
-  max-width: 75%;
-  position: relative;
-  animation: fadeIn 0.3s ease;
-
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(5px); }
-    to { opacity: 1; transform: translateY(0); }
+    align-items: center;
+    justify-content: space-between;
+    background: white;
+    padding: 15px;
+    border-bottom: 1px solid #e0e0e0;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
   }
 
-  /* МОИ СООБЩЕНИЯ - справа, синие */
-  &.myMessage {
-    align-self: flex-end;
-    margin-left: auto;
+  .navBackButton {
+    background: none;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    color: #3A54DA;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
 
-
-    .messageName {
-      display: none; /* Не показываем имя для своих сообщений */
+    &:before {
+      content: '←';
+      margin-right: 5px;
+      font-size: 20px;
     }
 
-    .messageText {
-      font-size: 14px;
-      line-height: 1.4;
-      margin: 0;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-
-    .messageTime {
-      font-size: 10px;
-      color: rgba(255, 255, 255, 0.8);
-      margin-top: 4px;
-      text-align: right;
+    &:hover {
+      opacity: 0.8;
     }
   }
 
-  /* СООБЩЕНИЯ СОБЕСЕДНИКА - слева, серые */
-  &.theirMessage {
-    align-self: flex-start;
-    margin-right: auto;
-
-    .messageName {
-      font-size: 12px;
-      font-weight: 600;
-      color: #666;
-      margin-bottom: 3px;
-      margin-left: 8px;
-    }
-
-
-    .messageText {
-      font-size: 14px;
-      line-height: 1.4;
-      margin: 0;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-
-    .messageTime {
-      font-size: 10px;
-      color: #888;
-      margin-top: 4px;
-      text-align: left;
-    }
-  }
-}
-
-.messageContent {
-  display: block;
-  width: 100%;
-}
-
-/* Для мобильных устройств */
-@media (max-width: 480px) {
-  .message {
-    max-width: 85%;
-
-    &.myMessage,
-    &.theirMessage {
-      .messageText {
-        font-size: 13px;
-      }
-
-      .messageContent {
-        padding: 8px 12px;
-      }
-    }
+  .navTitle {
+    font-weight: 600;
+    font-size: 18px;
+    color: #333;
   }
 }

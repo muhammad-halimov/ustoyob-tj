@@ -32,6 +32,11 @@ interface Unit {
     title: string;
 }
 
+interface ValidationViolation {
+    propertyPath: string;
+    message: string;
+}
+
 const ServicePage = () => {
     const navigate = useNavigate();
     const [categories, setCategories] = useState<Category[]>([]);
@@ -250,9 +255,9 @@ const ServicePage = () => {
                     errorMessage = errorData.detail || errorData.message || errorData.title || JSON.stringify(errorData);
 
                     if (errorData.violations) {
-                        const violationMessages = errorData.violations.map((v: any) =>
-                            `Поле "${v.propertyPath}": ${v.message}`
-                        ).join('\n');
+                        const violationMessages = errorData.violations
+                            .map((v: ValidationViolation) => `Поле "${v.propertyPath}": ${v.message}`)
+                            .join('\n');
                         errorMessage = `Ошибки валидации:\n${violationMessages}`;
                     }
                 } catch {

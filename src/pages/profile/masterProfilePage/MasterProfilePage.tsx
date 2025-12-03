@@ -97,6 +97,85 @@ interface ReviewData {
     client: string;
 }
 
+// Интерфейсы для API данных
+interface UserApiData {
+    id: number;
+    email?: string;
+    name?: string;
+    surname?: string;
+    patronymic?: string;
+    rating?: number;
+    image?: string;
+    occupation?: OccupationApiData[];
+    education?: EducationApiData[];
+    districts?: DistrictApiData[];
+    [key: string]: unknown;
+}
+
+interface OccupationApiData {
+    id: number;
+    title: string;
+    [key: string]: unknown;
+}
+
+interface EducationApiData {
+    id: number;
+    uniTitle?: string;
+    faculty?: string;
+    beginning?: number;
+    ending?: number;
+    graduated?: boolean;
+    occupation?: OccupationApiData[];
+    [key: string]: unknown;
+}
+
+interface DistrictApiData {
+    id: number;
+    title?: string;
+    city?: {
+        id: number;
+        title?: string;
+        [key: string]: unknown;
+    };
+    [key: string]: unknown;
+}
+
+interface ReviewApiData {
+    id: number;
+    master?: { id: number };
+    client?: { id: number };
+    rating?: number;
+    description?: string;
+    forClient?: boolean;
+    services?: { id: number; title: string };
+    images?: Array<{ id: number; image: string }>;
+    createdAt?: string;
+    [key: string]: unknown;
+}
+
+interface GalleryApiData {
+    id: number;
+    images?: GalleryImageApiData[];
+    [key: string]: unknown;
+}
+
+interface GalleryImageApiData {
+    id: number;
+    image: string;
+    [key: string]: unknown;
+}
+
+interface CityApiData {
+    id: number;
+    title?: string;
+    [key: string]: unknown;
+}
+
+interface ApiResponse<T> {
+    [key: string]: unknown;
+    'hydra:member'?: T[];
+}
+
 function MasterProfilePage() {
     const navigate = useNavigate();
     const [editingField, setEditingField] = useState<'fullName' | 'specialty' | null>(null);
@@ -114,7 +193,6 @@ function MasterProfilePage() {
     });
     const [reviews, setReviews] = useState<Review[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(false);
-    // const [usersCache, setUsersCache] = useState<Map<number, any>>(new Map());
     const [visibleCount, setVisibleCount] = useState(2);
     const [showReviewModal, setShowReviewModal] = useState(false);
 
@@ -194,21 +272,36 @@ function MasterProfilePage() {
             console.log('Master services received:', servicesData);
 
             // Обрабатываем разные форматы ответа
-            let servicesArray: any[] = [];
+            let servicesArray: unknown[] = [];
 
             if (Array.isArray(servicesData)) {
                 servicesArray = servicesData;
             } else if (servicesData && typeof servicesData === 'object') {
-                if (servicesData['hydra:member'] && Array.isArray(servicesData['hydra:member'])) {
-                    servicesArray = servicesData['hydra:member'];
-                } else if (servicesData.id) {
+                const apiResponse = servicesData as ApiResponse<unknown>;
+                if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
+                    servicesArray = apiResponse['hydra:member'];
+                } else if ((servicesData as { id: unknown }).id) {
                     servicesArray = [servicesData];
                 }
             }
 
             // Фильтруем только активные услуги мастера
             const masterServices = servicesArray
-                .filter(service => service.service === true && service.active === true)
+                .filter((service): service is {
+                        id: number;
+                        title: string;
+                        budget: number;
+                        unit: { id: number; title: string } | null;
+                        service: boolean;
+                        active: boolean;
+                    } =>
+                        typeof service === 'object' &&
+                        service !== null &&
+                        'service' in service &&
+                        'active' in service &&
+                        (service as { service: boolean }).service === true &&
+                        (service as { active: boolean }).active === true
+                )
                 .map(service => ({
                     id: service.id,
                     title: service.title,
@@ -234,98 +327,6 @@ function MasterProfilePage() {
     const handleShowLess = () => {
         setVisibleCount(2);
     };
-
-    // Функция для получения данных пользователя по ID (как в Search)
-    // const fetchUser = async (userId: number, userType: 'master' | 'client'): Promise<any> => {
-    //     try {
-    //         // Проверяем кэш
-    //         if (usersCache.has(userId)) {
-    //             return usersCache.get(userId) || null;
-    //         }
-    //
-    //         const token = getAuthToken();
-    //         if (!token) {
-    //             console.log('No token available for fetching user data');
-    //             return null;
-    //         }
-    //
-    //         // Определяем роль для фильтрации
-    //         const roleFilter = userType === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT';
-    //
-    //         // Используем общий endpoint с фильтром по роли
-    //         const endpoint = `/api/users?roles=${roleFilter}`;
-    //
-    //         console.log(`Fetching ${userType} data from: ${endpoint} for user ID: ${userId}`);
-    //
-    //         const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    //             method: 'GET',
-    //             headers: {
-    //                 'Authorization': `Bearer ${token}`,
-    //                 'Content-Type': 'application/json',
-    //                 'Accept': 'application/json',
-    //             },
-    //         });
-    //
-    //         if (!response.ok) {
-    //             console.warn(`Failed to fetch ${userType} data:`, response.status);
-    //             // Пробуем получить пользователя напрямую
-    //             return await fetchUserByIdDirectly(userId, token);
-    //         }
-    //
-    //         const usersData = await response.json();
-    //         console.log(`Fetched ${userType}s:`, usersData);
-    //
-    //         // Получаем массив пользователей
-    //         let usersArray: any[] = [];
-    //         if (Array.isArray(usersData)) {
-    //             usersArray = usersData;
-    //         } else if (usersData && typeof usersData === 'object') {
-    //             if (usersData['hydra:member'] && Array.isArray(usersData['hydra:member'])) {
-    //                 usersArray = usersData['hydra:member'];
-    //             }
-    //         }
-    //
-    //         // Ищем пользователя по ID в массиве
-    //         const userData = usersArray.find((user: any) => user.id === userId) || null;
-    //
-    //         if (userData) {
-    //             setUsersCache(prev => new Map(prev).set(userId, userData));
-    //             return userData;
-    //         }
-    //
-    //         // Если не нашли в списке, пробуем напрямую
-    //         console.log(`User ${userId} not found in list, trying direct fetch...`);
-    //         return await fetchUserByIdDirectly(userId, token);
-    //
-    //     } catch (error) {
-    //         console.error(`Error fetching ${userType} data:`, error);
-    //         return null;
-    //     }
-    // };
-
-// Вспомогательная функция для прямого получения пользователя
-//     const fetchUserByIdDirectly = async (userId: number, token: string): Promise<any | null> => {
-//         try {
-//             const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
-//                 method: 'GET',
-//                 headers: {
-//                     'Authorization': `Bearer ${token}`,
-//                     'Content-Type': 'application/json',
-//                     'Accept': 'application/json',
-//                 },
-//             });
-//
-//             if (response.ok) {
-//                 const userData = await response.json();
-//                 setUsersCache(prev => new Map(prev).set(userId, userData));
-//                 return userData;
-//             }
-//             return null;
-//         } catch (error) {
-//             console.error(`Error fetching user ${userId} directly:`, error);
-//             return null;
-//         }
-//     };
 
     // Функция для проверки доступности изображения
     const checkImageExists = (url: string): Promise<boolean> => {
@@ -371,7 +372,7 @@ function MasterProfilePage() {
                 throw new Error(`Failed to fetch user data: ${response.status} ${response.statusText}`);
             }
 
-            const userData = await response.json();
+            const userData: UserApiData = await response.json();
             console.log('User data received:', userData);
             console.log('User districts:', userData.districts);
 
@@ -397,7 +398,7 @@ function MasterProfilePage() {
                         });
 
                         if (cityResponse.ok) {
-                            const cityData = await cityResponse.json();
+                            const cityData: CityApiData = await cityResponse.json();
                             console.log('City data:', cityData);
 
                             // Используем название города как район работы
@@ -429,7 +430,7 @@ function MasterProfilePage() {
                 fullName: [userData.surname, userData.name, userData.patronymic]
                     .filter(Boolean)
                     .join(' ') || 'Фамилия Имя Отчество',
-                specialty: userData.occupation?.map((occ: any) => occ.title).join(', ') || 'Специальность',
+                specialty: userData.occupation?.map((occ) => occ.title).join(', ') || 'Специальность',
                 rating: userData.rating || 0,
                 reviews: 0,
                 avatar: avatarUrl,
@@ -554,84 +555,6 @@ function MasterProfilePage() {
         };
     };
 
-    // const fetchUserDirectly = async (userId: number, userType: 'master' | 'client'): Promise<any | null> => {
-    //     try {
-    //         // Проверяем кэш
-    //         if (usersCache.has(userId)) {
-    //             console.log(`Using cached data for user ${userId}`);
-    //             return usersCache.get(userId) || null;
-    //         }
-    //
-    //         const token = getAuthToken();
-    //         if (!token) {
-    //             console.log('No token available for fetching user data');
-    //             return null;
-    //         }
-    //
-    //         console.log(`Fetching ${userType} data directly for ID: ${userId}`);
-    //
-    //         // Вариант 1: Пробуем получить пользователя напрямую по ID
-    //         const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
-    //             method: 'GET',
-    //             headers: {
-    //                 'Authorization': `Bearer ${token}`,
-    //                 'Content-Type': 'application/json',
-    //                 'Accept': 'application/json',
-    //             },
-    //         });
-    //
-    //         if (response.ok) {
-    //             const userData = await response.json();
-    //             console.log(`Fetched ${userType} directly:`, userData);
-    //
-    //             // Сохраняем в кэш
-    //             setUsersCache(prev => new Map(prev).set(userId, userData));
-    //             return userData;
-    //         }
-    //
-    //         // Вариант 2: Если прямой запрос не сработал, пробуем через фильтрацию
-    //         console.log(`Direct fetch failed (${response.status}), trying filtered fetch...`);
-    //         const roleFilter = userType === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT';
-    //         const filteredResponse = await fetch(`${API_BASE_URL}/api/users?roles=${roleFilter}`, {
-    //             method: 'GET',
-    //             headers: {
-    //                 'Authorization': `Bearer ${token}`,
-    //                 'Content-Type': 'application/json',
-    //                 'Accept': 'application/json',
-    //             },
-    //         });
-    //
-    //         if (filteredResponse.ok) {
-    //             const usersData = await filteredResponse.json();
-    //             console.log(`Fetched ${userType}s list:`, usersData);
-    //
-    //             // Обрабатываем разные форматы ответа
-    //             let usersArray: any[] = [];
-    //             if (Array.isArray(usersData)) {
-    //                 usersArray = usersData;
-    //             } else if (usersData && typeof usersData === 'object') {
-    //                 if (usersData['hydra:member'] && Array.isArray(usersData['hydra:member'])) {
-    //                     usersArray = usersData['hydra:member'];
-    //                 }
-    //             }
-    //
-    //             // Ищем пользователя по ID в массиве
-    //             const userData = usersArray.find((user: any) => user.id === userId) || null;
-    //
-    //             if (userData) {
-    //                 setUsersCache(prev => new Map(prev).set(userId, userData));
-    //                 return userData;
-    //             }
-    //         }
-    //
-    //         return null;
-    //
-    //     } catch (error) {
-    //         console.error(`Error fetching ${userType} data:`, error);
-    //         return null;
-    //     }
-    // };
-
     // Функция для получения отзывов
     const fetchReviews = async () => {
         try {
@@ -690,17 +613,18 @@ function MasterProfilePage() {
             console.log('Raw reviews data:', reviewsData);
 
             // Обрабатываем разные форматы ответа
-            let reviewsArray: any[] = [];
+            let reviewsArray: ReviewApiData[] = [];
 
             if (Array.isArray(reviewsData)) {
                 reviewsArray = reviewsData;
             } else if (reviewsData && typeof reviewsData === 'object') {
                 // Если это объект с hydra:member (API Platform)
-                if (reviewsData['hydra:member'] && Array.isArray(reviewsData['hydra:member'])) {
-                    reviewsArray = reviewsData['hydra:member'];
-                } else if (reviewsData.id) {
+                const apiResponse = reviewsData as ApiResponse<ReviewApiData>;
+                if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
+                    reviewsArray = apiResponse['hydra:member'];
+                } else if ((reviewsData as { id: unknown }).id) {
                     // Если это один отзыв
-                    reviewsArray = [reviewsData];
+                    reviewsArray = [reviewsData as ReviewApiData];
                 }
             }
 
@@ -874,7 +798,7 @@ function MasterProfilePage() {
 
             console.log('Uploading portfolio photo to gallery:', galleryId);
             console.log('FormData entries:');
-            for (let [key, value] of formData.entries()) {
+            for (const [key, value] of formData.entries()) {
                 console.log(key, value);
             }
 
@@ -963,15 +887,16 @@ function MasterProfilePage() {
                         console.log(`Gallery data from ${endpoint}:`, galleriesData);
 
                         // Обрабатываем разные форматы ответа
-                        let galleryArray: any[] = [];
+                        let galleryArray: GalleryApiData[] = [];
 
                         if (Array.isArray(galleriesData)) {
                             galleryArray = galleriesData;
                         } else if (galleriesData && typeof galleriesData === 'object') {
-                            if (galleriesData['hydra:member'] && Array.isArray(galleriesData['hydra:member'])) {
-                                galleryArray = galleriesData['hydra:member'];
-                            } else if (galleriesData.id) {
-                                galleryArray = [galleriesData];
+                            const apiResponse = galleriesData as ApiResponse<GalleryApiData>;
+                            if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
+                                galleryArray = apiResponse['hydra:member'];
+                            } else if ((galleriesData as { id: unknown }).id) {
+                                galleryArray = [galleriesData as GalleryApiData];
                             }
                         }
 
@@ -1047,11 +972,11 @@ function MasterProfilePage() {
                 throw new Error('Не удалось получить данные галереи');
             }
 
-            const galleryData = await galleryResponse.json();
+            const galleryData: GalleryApiData = await galleryResponse.json();
             console.log('Current gallery data:', galleryData);
 
             // Фильтруем изображения, удаляя нужное
-            const updatedImages = galleryData.images.filter((img: any) =>
+            const updatedImages = (galleryData.images || []).filter((img) =>
                 img.id.toString() !== workExampleId
             );
 
@@ -1128,7 +1053,7 @@ function MasterProfilePage() {
             });
 
             if (response.ok) {
-                const userData = await response.json();
+                const userData: UserApiData = await response.json();
                 console.log('Current user data:', userData);
                 return userData.id;
             }
@@ -1187,7 +1112,7 @@ function MasterProfilePage() {
                 return null;
             }
 
-            let galleryData;
+            let galleryData: GalleryApiData;
             try {
                 galleryData = JSON.parse(responseText);
             } catch (e) {
@@ -1206,7 +1131,7 @@ function MasterProfilePage() {
 
     // Функция для получения правильного URL изображения
     const getImageUrl = (imagePath: string): string => {
-        if (!imagePath) return "./fonTest6.png";
+        if (!imagePath) return "../fonTest6.png";
 
         if (imagePath.startsWith("http")) return imagePath;
         if (imagePath.startsWith("/")) return `${API_BASE_URL}${imagePath}`;
@@ -1270,16 +1195,17 @@ function MasterProfilePage() {
 
             if (galleriesData) {
                 // Обрабатываем разные форматы ответа
-                let galleryArray: any[] = [];
+                let galleryArray: GalleryApiData[] = [];
 
                 if (Array.isArray(galleriesData)) {
                     galleryArray = galleriesData;
                 } else if (galleriesData && typeof galleriesData === 'object') {
-                    if (galleriesData['hydra:member'] && Array.isArray(galleriesData['hydra:member'])) {
-                        galleryArray = galleriesData['hydra:member'];
-                    } else if (galleriesData.id) {
+                    const apiResponse = galleriesData as ApiResponse<GalleryApiData>;
+                    if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
+                        galleryArray = apiResponse['hydra:member'];
+                    } else if ((galleriesData as { id: unknown }).id) {
                         // Если это одна галерея
-                        galleryArray = [galleriesData];
+                        galleryArray = [galleriesData as GalleryApiData];
                     }
                 }
 
@@ -1297,14 +1223,14 @@ function MasterProfilePage() {
                     // Преобразуем данные галереи в workExamples
                     if (galleryItems.length > 0) {
                         const workExamplesLocal = await Promise.all(
-                            galleryItems.map(async (image: any) => {
+                            galleryItems.map(async (image: GalleryImageApiData) => {
                                 const imagePath = image.image;
                                 const imageUrl = getImageUrl(imagePath);
                                 const exists = await checkImageExists(imageUrl);
 
                                 return {
                                     id: image.id?.toString() || Date.now().toString(),
-                                    image: exists ? imageUrl : "./fonTest6.png",
+                                    image: exists ? imageUrl : "../fonTest6.png",
                                     title: "Пример работы"
                                 };
                             })
@@ -1358,7 +1284,7 @@ function MasterProfilePage() {
     };
 
     // Функция для получения URL аватара с приоритетами
-    const getAvatarUrl = async (userData: any, userType: 'master' | 'client' = 'master'): Promise<string | null> => {
+    const getAvatarUrl = async (userData: UserApiData, userType: 'master' | 'client' = 'master'): Promise<string | null> => {
         if (!userData) return null;
 
         console.log(`Getting avatar URL for ${userType}:`, userData.id);
@@ -1408,12 +1334,12 @@ function MasterProfilePage() {
     };
 
     // Функция для трансформации образования
-    const transformEducation = (education: any[]): Education[] => {
+    const transformEducation = (education: EducationApiData[]): Education[] => {
         return education.map(edu => ({
             id: edu.id?.toString() || Date.now().toString(),
             institution: edu.uniTitle || '',
             faculty: edu.faculty || '',
-            specialty: edu.occupation?.map((occ: any) => occ.title).join(', ') || '',
+            specialty: edu.occupation?.map((occ) => occ.title).join(', ') || '',
             startYear: edu.beginning?.toString() || '',
             endYear: edu.ending?.toString() || '',
             currentlyStudying: !edu.graduated
@@ -1431,7 +1357,7 @@ function MasterProfilePage() {
             }
 
             // Подготавливаем данные для отправки в формате API
-            const apiData: any = {};
+            const apiData: Record<string, unknown> = {};
 
             if (updatedData.fullName !== undefined) {
                 const nameParts = updatedData.fullName.split(' ');
@@ -1447,7 +1373,7 @@ function MasterProfilePage() {
                 if (occupations) {
                     // Разделяем специальности по запятым и ищем соответствующие occupation
                     const specialtyTitles = updatedData.specialty.split(',').map(title => title.trim());
-                    const occupationIris = [];
+                    const occupationIris: string[] = [];
 
                     for (const title of specialtyTitles) {
                         if (title) {
@@ -1456,7 +1382,10 @@ function MasterProfilePage() {
 
                             if (!existingOccupation) {
                                 // Если occupation не существует, создаем новую
-                                existingOccupation = await createOccupation(token, title);
+                                const newOccupation = await createOccupation(token, title);
+                                if (newOccupation) {
+                                    existingOccupation = newOccupation;
+                                }
                             }
 
                             if (existingOccupation) {
@@ -1494,7 +1423,6 @@ function MasterProfilePage() {
                 // Если ошибка связана с occupation, попробуем альтернативный подход
                 if (errorText.includes('occupation')) {
                     console.log('Trying alternative approach for occupation update');
-                    // await updateUserDataAlternative(updatedData);
                     return;
                 }
 
@@ -1517,7 +1445,7 @@ function MasterProfilePage() {
     };
 
     // Функция для получения списка occupation
-    const fetchOccupations = async (token: string): Promise<any[] | null> => {
+    const fetchOccupations = async (token: string): Promise<OccupationApiData[] | null> => {
         try {
             const response = await fetch(`${API_BASE_URL}/api/occupations`, {
                 method: 'GET',
@@ -1528,7 +1456,7 @@ function MasterProfilePage() {
             });
 
             if (response.ok) {
-                const occupations = await response.json();
+                const occupations: OccupationApiData[] = await response.json();
                 console.log('Fetched occupations:', occupations);
                 return occupations;
             }
@@ -1540,7 +1468,7 @@ function MasterProfilePage() {
     };
 
     // Функция для создания новой occupation
-    const createOccupation = async (token: string, title: string): Promise<any | null> => {
+    const createOccupation = async (token: string, title: string): Promise<OccupationApiData | null> => {
         try {
             const response = await fetch(`${API_BASE_URL}/api/occupations`, {
                 method: 'POST',
@@ -1552,7 +1480,7 @@ function MasterProfilePage() {
             });
 
             if (response.ok) {
-                const newOccupation = await response.json();
+                const newOccupation: OccupationApiData = await response.json();
                 console.log('Created new occupation:', newOccupation);
                 return newOccupation;
             }
@@ -1587,10 +1515,10 @@ function MasterProfilePage() {
                 throw new Error('Failed to fetch user data');
             }
 
-            const userData = await userResponse.json();
+            const userData: UserApiData = await userResponse.json();
 
             // Обновляем массив образования
-            const updatedEducationArray = userData.education?.map((edu: any) =>
+            const updatedEducationArray = (userData.education || []).map((edu) =>
                 edu.id?.toString() === educationId ? {
                     ...edu,
                     uniTitle: updatedEducation.institution,
@@ -1600,7 +1528,7 @@ function MasterProfilePage() {
                     graduated: !updatedEducation.currentlyStudying,
                     occupation: updatedEducation.specialty ? [{ title: updatedEducation.specialty }] : []
                 } : edu
-            ) || [];
+            );
 
             // Отправляем обновленные данные
             const updateResponse = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
@@ -1759,7 +1687,7 @@ function MasterProfilePage() {
             }
 
             console.log('Uploading profile photo with FormData:');
-            for (let [key, value] of formData.entries()) {
+            for (const [key, value] of formData.entries()) {
                 console.log(key, value);
             }
 
@@ -1826,14 +1754,14 @@ function MasterProfilePage() {
         const img = e.currentTarget;
 
         if (!profileData?.id) {
-            img.src = "./fonTest6.png";
+            img.src = "../fonTest6.png";
             return;
         }
 
         const fallbackSources = [
             profileData.avatar?.includes("uploads/") ? `${API_BASE_URL}/api/${profileData.id}/profile-photo` : null,
             profileData.avatar?.includes("uploads/") ? `/uploads/avatars/${profileData.avatar.split("/").pop()}` : null,
-            "./fonTest6.png"
+            "../fonTest6.png"
         ].filter(Boolean) as string[];
 
         for (const source of fallbackSources) {
@@ -1851,7 +1779,7 @@ function MasterProfilePage() {
             }
         }
 
-        img.src = "./fonTest6.png";
+        img.src = "../fonTest6.png";
     };
 
     // Функция для получения полного имени пользователя из отзыва
@@ -1876,7 +1804,7 @@ function MasterProfilePage() {
 
             // Проверяем каждый путь
             for (const path of possiblePaths) {
-                if (path && path !== "./fonTest6.png") {
+                if (path && path !== "../fonTest6.png") {
                     console.log('Trying reviewer avatar path:', path);
                     return path;
                 }
@@ -1884,7 +1812,7 @@ function MasterProfilePage() {
         }
 
         console.log('Using default avatar for reviewer');
-        return "./fonTest6.png";
+        return "../fonTest6.png";
     };
 
     const calculateAverageRating = (reviews: Review[]): number => {
@@ -1906,7 +1834,7 @@ function MasterProfilePage() {
 
     // Функция для принудительного обновления изображения (обход кеша)
     const getImageUrlWithCacheBust = (url: string): string => {
-        if (!url || url === "./fonTest6.png") return url;
+        if (!url || url === "../fonTest6.png") return url;
         const timestamp = new Date().getTime();
         const separator = url.includes('?') ? '&' : '?';
         return `${url}${separator}t=${timestamp}`;
@@ -2109,7 +2037,7 @@ function MasterProfilePage() {
                                 />
                             ) : (
                                 <img
-                                    src="./fonTest6.png"
+                                    src="../fonTest6.png"
                                     alt="FonTest6"
                                     className={styles.avatar_placeholder}
                                 />

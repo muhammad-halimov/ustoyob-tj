@@ -122,17 +122,21 @@ function FilterPanel({
 
                     {/* Рейтинг */}
                     <div className={styles.filter_section}>
-                        <h3>Рейтинг</h3>
+                        <h3>Рейтинг исполнителя/заказчика</h3>
                         <div className={styles.category_select}>
                             <select
                                 value={localFilters.rating}
                                 onChange={e => handleRatingChange(e.target.value)}
                             >
-                                <option value="">Любой рейтинг</option>
+                                <option value="">Выберите рейтинг</option>
                                 <option value="5">5 звезд</option>
+                                <option value="4.5">4.5+ звезд</option>
                                 <option value="4">4+ звезды</option>
+                                <option value="3.5">3.5+ звезд</option>
                                 <option value="3">3+ звезды</option>
+                                <option value="2.5">2.5+ звезд</option>
                                 <option value="2">2+ звезды</option>
+                                <option value="1.5">1.5+ звезд</option>
                                 <option value="1">1+ звезда</option>
                             </select>
                         </div>
@@ -140,18 +144,19 @@ function FilterPanel({
 
                     {/* Количество отзывов */}
                     <div className={styles.filter_section}>
-                        <h3>Количество отзывов</h3>
+                        <h3>Количество отзывов о пользователе</h3>
                         <div className={styles.category_select}>
                             <select
                                 value={localFilters.reviewCount}
                                 onChange={e => handleReviewCountChange(e.target.value)}
                             >
-                                <option value="">Любое количество</option>
+                                <option value="">Выберите количество</option>
                                 <option value="100">100+ отзывов</option>
                                 <option value="50">50+ отзывов</option>
                                 <option value="20">20+ отзывов</option>
                                 <option value="10">10+ отзывов</option>
                                 <option value="5">5+ отзывов</option>
+                                <option value="3">3+ отзыва</option>
                                 <option value="1">С отзывами</option>
                             </select>
                         </div>
