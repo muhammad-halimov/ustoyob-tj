@@ -26,7 +26,7 @@ class TelegramBotController extends AbstractController
         $botman = BotManFactory::create($config);
 
         $botman->hears(['/start', 'start', 'старт'], function (BotMan $bot) {
-            $bot->reply('👋 Привет! Бот для уведомления о новых заявках в ТП запущен | ustoyob.tj');
+            $bot->reply('👋 Привет! Бот для уведомления о заявках в ТП запущен | ustoyob.tj');
         });
 
         $botman->hears(['hello', 'привет'], function (BotMan $bot) {
