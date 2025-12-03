@@ -16,17 +16,19 @@ readonly class AccessService
 
     public function check(User|null $user, string $grade = 'triple', bool $activeAndApproved = true) : bool
     {
-        if ($activeAndApproved)
-            if (!$user)
-                throw new TokenNotFoundException("Authentication required");
-            elseif (!$this->security->isGranted('IS_AUTHENTICATED_FULLY'))
-                throw new AccessDeniedHttpException("Authentication required. User #{$user->getId()} - {$user->getEmail()}");
-            elseif (!$this->security->getUser())
-                throw new TokenNotFoundException('Authentication required');
-            elseif (!$user->getActive())
+        if (!$user)
+            throw new TokenNotFoundException("Authentication required");
+        elseif (!$this->security->isGranted('IS_AUTHENTICATED_FULLY'))
+            throw new AccessDeniedHttpException("Authentication required. User #{$user->getId()} - {$user->getEmail()}");
+        elseif (!$this->security->getUser())
+            throw new TokenNotFoundException('Authentication required');
+
+        if ($activeAndApproved) {
+            if (!$user->getActive())
                 throw new AccessDeniedHttpException("User is not active. User #{$user->getId()} - {$user->getEmail()}");
             elseif (!$user->getApproved())
                 throw new AccessDeniedHttpException("User is not approved. User #{$user->getId()} - {$user->getEmail()}");
+        }
 
         switch ($grade) {
             case 'triple':
