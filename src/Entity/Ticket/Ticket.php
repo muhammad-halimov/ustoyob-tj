@@ -15,6 +15,7 @@ use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\Ticket\PatchTicketController;
 use App\Controller\Api\CRUD\Ticket\PostTicketController;
 use App\Controller\Api\CRUD\Ticket\PostTicketPhotoController;
+use App\Controller\Api\Filter\Address\AddressFilter;
 use App\Controller\Api\Filter\Ticket\PersonalTicketFilterController;
 use App\Dto\Appeal\Photo\AppealPhotoInput;
 use App\Dto\Ticket\TicketInput;
@@ -73,6 +74,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 #[ApiFilter(BooleanFilter::class, properties: ['active', 'service'])]
 #[ApiFilter(ExistsFilter::class, properties: ['master', 'author'])]
 #[ApiFilter(SearchFilter::class, properties: ['category', 'master', 'author', 'description'])]
+#[ApiFilter(AddressFilter::class)]
 #[ApiFilter(RangeFilter::class, properties: ['budget', 'master.rating', 'author.rating'])]
 class Ticket
 {
@@ -258,6 +260,12 @@ class Ticket
     ])]
     private Collection $addresses;
 
+    /**
+     * @var Collection<int, BlackList>
+     */
+    #[ORM\ManyToMany(targetEntity: BlackList::class, mappedBy: 'tickets')]
+    private Collection $ticketsBlackListedByAuthor;
+
     #[ORM\Column(type: 'datetime', nullable: false)]
     #[Groups([
         'masterTickets:read',
@@ -271,12 +279,6 @@ class Ticket
         'clientTickets:read',
     ])]
     protected DateTime $updatedAt;
-
-    /**
-     * @var Collection<int, BlackList>
-     */
-    #[ORM\ManyToMany(targetEntity: BlackList::class, mappedBy: 'tickets')]
-    private Collection $ticketsBlackListedByAuthor;
 
     public function getId(): ?int
     {

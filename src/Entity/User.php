@@ -18,6 +18,7 @@ use App\Controller\Api\CRUD\User\User\ConfirmAccountController;
 use App\Controller\Api\CRUD\User\User\ConfirmAccountTokenlessController;
 use App\Controller\Api\CRUD\User\User\GrantRoleController;
 use App\Controller\Api\CRUD\User\User\PostUserPhotoController;
+use App\Controller\Api\Filter\Address\AddressFilter;
 use App\Controller\Api\Filter\User\PersonalUserFilterController;
 use App\Controller\Api\Filter\User\RolesFilter;
 use App\Controller\Api\Filter\User\SocialNetworkController;
@@ -145,6 +146,7 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
 #[ApiFilter(BooleanFilter::class, properties: ['active', 'atHome'])]
 #[ApiFilter(RangeFilter::class, properties: ['rating'])]
 #[ApiFilter(SearchFilter::class, properties: ['occupation', 'gender', 'socialNetworks'])]
+#[ApiFilter(AddressFilter::class)]
 #[ApiFilter(RolesFilter::class)]
 #[ApiFilter(ExistsFilter::class, properties: ['image', 'phone1', 'phone2'])]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
