@@ -174,7 +174,7 @@ class TechSupport
     #[ApiProperty(writable: false)]
     private ?User $administrant = null;
 
-    #[ORM\ManyToOne(inversedBy: 'techSupports')]
+    #[ORM\ManyToOne(inversedBy: 'techSupportsAsAuthor')]
     #[ORM\JoinColumn(name: 'author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'techSupport:read',

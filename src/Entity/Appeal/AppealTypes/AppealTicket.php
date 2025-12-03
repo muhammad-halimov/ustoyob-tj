@@ -81,7 +81,7 @@ class AppealTicket
     ])]
     private ?User $author = null;
 
-    #[ORM\ManyToOne(inversedBy: 'appealTickets')]
+    #[ORM\ManyToOne(inversedBy: 'appealTicketsAsRespondent')]
     #[Groups([
         'appeal:ticket:read',
     ])]

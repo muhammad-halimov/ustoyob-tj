@@ -77,7 +77,7 @@ class AppealChat
     ])]
     private ?User $author = null;
 
-    #[ORM\ManyToOne(inversedBy: 'appealChats')]
+    #[ORM\ManyToOne(inversedBy: 'appealChatsAsRespondent')]
     #[Groups([
         'appeal:chat:read',
     ])]

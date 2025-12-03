@@ -189,8 +189,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->techSupportImages = new ArrayCollection();
         $this->techSupportMessages = new ArrayCollection();
         $this->techSupports = new ArrayCollection();
+        $this->techSupportsAsAuthor = new ArrayCollection();
         $this->appealTickets = new ArrayCollection();
+        $this->appealTicketsAsRespondent = new ArrayCollection();
         $this->appealChats = new ArrayCollection();
+        $this->appealChatsAsRespondent = new ArrayCollection();
         $this->addresses = new ArrayCollection();
         $this->blackLists = new ArrayCollection();
         $this->clientsBlackListedByAuthor = new ArrayCollection();
@@ -520,6 +523,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private Collection $techSupports;
 
     /**
+     * @var Collection<int, TechSupport>
+     */
+    #[ORM\OneToMany(targetEntity: TechSupport::class, mappedBy: 'author')]
+    #[Ignore]
+    private Collection $techSupportsAsAuthor;
+
+    /**
      * @var Collection<int, AppealTicket>
      */
     #[ORM\OneToMany(targetEntity: AppealTicket::class, mappedBy: 'author')]
@@ -527,11 +537,25 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private Collection $appealTickets;
 
     /**
+     * @var Collection<int, AppealTicket>
+     */
+    #[ORM\OneToMany(targetEntity: AppealTicket::class, mappedBy: 'respondent')]
+    #[Ignore]
+    private Collection $appealTicketsAsRespondent;
+
+    /**
      * @var Collection<int, AppealChat>
      */
     #[ORM\OneToMany(targetEntity: AppealChat::class, mappedBy: 'author')]
     #[Ignore]
     private Collection $appealChats;
+
+    /**
+     * @var Collection<int, AppealChat>
+     */
+    #[ORM\OneToMany(targetEntity: AppealChat::class, mappedBy: 'respondent')]
+    #[Ignore]
+    private Collection $appealChatsAsRespondent;
 
     /**
      * @var Collection<int, Address>
@@ -1315,6 +1339,35 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
+     * @return Collection<int, TechSupport>
+     */
+    public function getTechSupportsAsAuthor(): Collection
+    {
+        return $this->techSupportsAsAuthor;
+    }
+
+    public function addTechSupportAsAuthor(TechSupport $techSupport): static
+    {
+        if (!$this->techSupportsAsAuthor->contains($techSupport)) {
+            $this->techSupportsAsAuthor->add($techSupport);
+            $techSupport->setAuthor($this);
+        }
+
+        return $this;
+    }
+
+    public function removeTechSupportAsAuthor(TechSupport $techSupport): static
+    {
+        if ($this->techSupportsAsAuthor->removeElement($techSupport)) {
+            if ($techSupport->getAuthor() === $this) {
+                $techSupport->setAuthor(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
      * @return Collection<int, AppealTicket>
      */
     public function getAppealTickets(): Collection
@@ -1345,6 +1398,35 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
+     * @return Collection<int, AppealTicket>
+     */
+    public function getAppealTicketsAsRespondent(): Collection
+    {
+        return $this->appealTicketsAsRespondent;
+    }
+
+    public function addAppealTicketAsRespondent(AppealTicket $appealTicket): static
+    {
+        if (!$this->appealTicketsAsRespondent->contains($appealTicket)) {
+            $this->appealTicketsAsRespondent->add($appealTicket);
+            $appealTicket->setRespondent($this);
+        }
+
+        return $this;
+    }
+
+    public function removeAppealTicketAsRespondent(AppealTicket $appealTicket): static
+    {
+        if ($this->appealTicketsAsRespondent->removeElement($appealTicket)) {
+            if ($appealTicket->getRespondent() === $this) {
+                $appealTicket->setRespondent(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
      * @return Collection<int, AppealChat>
      */
     public function getAppealChats(): Collection
@@ -1368,6 +1450,35 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             // set the owning side to null (unless already changed)
             if ($appealChat->getAuthor() === $this) {
                 $appealChat->setAuthor(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, AppealChat>
+     */
+    public function getAppealChatsAsRespondent(): Collection
+    {
+        return $this->appealChatsAsRespondent;
+    }
+
+    public function addAppealChatAsRespondent(AppealChat $appealChat): static
+    {
+        if (!$this->appealChatsAsRespondent->contains($appealChat)) {
+            $this->appealChatsAsRespondent->add($appealChat);
+            $appealChat->setRespondent($this);
+        }
+
+        return $this;
+    }
+
+    public function removeAppealChatAsRespondent(AppealChat $appealChat): static
+    {
+        if ($this->appealChatsAsRespondent->removeElement($appealChat)) {
+            if ($appealChat->getRespondent() === $this) {
+                $appealChat->setRespondent(null);
             }
         }
 
