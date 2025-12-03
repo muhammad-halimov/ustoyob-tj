@@ -4,18 +4,18 @@ namespace App\Controller\Api\Filter\User;
 
 use App\Entity\User;
 use App\Entity\User\Favorite;
-use App\Repository\User\FavoriteRepository;
+use App\Repository\User\BlackListRepository;
 use App\Service\AccessService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
-class PersonalFavoriteFilterController extends AbstractController
+class PersonalBlackListFilterController extends AbstractController
 {
     public function __construct(
-        private readonly FavoriteRepository $favoriteRepository,
-        private readonly AccessService      $accessService,
-        private readonly Security           $security,
+        private readonly BlackListRepository $blackListRepository,
+        private readonly AccessService       $accessService,
+        private readonly Security            $security,
     ){}
 
     public function __invoke(): JsonResponse
@@ -26,10 +26,10 @@ class PersonalFavoriteFilterController extends AbstractController
         $this->accessService->check($bearerUser);
 
         /** @var Favorite $favorite */
-        $favorite = $this->favoriteRepository->findFavorites($bearerUser)[0] ?? null;
+        $favorite = $this->blackListRepository->findBlackLists($bearerUser)[0] ?? null;
 
         return empty($favorite)
             ? $this->json(['message' => 'Resource not found'], 404)
-            : $this->json($favorite, context: ['groups' => ['favorites:read']]);
+            : $this->json($favorite, context: ['groups' => ['blackLists:read']]);
     }
 }

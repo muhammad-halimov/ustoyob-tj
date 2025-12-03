@@ -3,25 +3,25 @@
 namespace App\Repository\User;
 
 use App\Entity\User;
-use App\Entity\User\Favorite;
+use App\Entity\User\BlackList;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
- * @extends ServiceEntityRepository<Favorite>
+ * @extends ServiceEntityRepository<BlackList>
  */
-class FavoriteRepository extends ServiceEntityRepository
+class BlackListRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {
-        parent::__construct($registry, Favorite::class);
+        parent::__construct($registry, BlackList::class);
     }
 
-    public function findFavorites(User $user): array
+    public function findBlackLists(User $user): array
     {
         return $this
-            ->createQueryBuilder('f')
-            ->where('f.user = :user')
+            ->createQueryBuilder('b')
+            ->where('b.author = :user')
             ->setParameter('user', $user)
             ->getQuery()
             ->getResult();

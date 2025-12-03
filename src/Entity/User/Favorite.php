@@ -102,7 +102,7 @@ class Favorite
      * @var Collection<int, User>
      */
     #[ORM\ManyToMany(targetEntity: User::class, inversedBy: 'clientsFavorites')]
-    #[ORM\JoinTable(name: 'favorite_client')]
+    #[ORM\JoinTable(name: 'favorite_clients')]
     #[Groups([
         'favorites:read'
     ])]
@@ -112,7 +112,7 @@ class Favorite
      * @var Collection<int, User>
      */
     #[ORM\ManyToMany(targetEntity: User::class, inversedBy: 'mastersFavorites')]
-    #[ORM\JoinTable(name: 'favorite_master')]
+    #[ORM\JoinTable(name: 'favorite_masters')]
     #[Groups([
         'favorites:read'
     ])]

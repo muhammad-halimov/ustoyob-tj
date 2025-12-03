@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Controller\Api\CRUD\User\Favorite;
+namespace App\Controller\Api\CRUD\User\BlackList;
 
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
-use App\Entity\User\Favorite;
-use App\Repository\User\FavoriteRepository;
+use App\Entity\User\BlackList;
+use App\Repository\User\BlackListRepository;
 use App\Service\AccessService;
 use App\Service\ExtractIriService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -14,31 +14,27 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
-class PatchFavoriteController extends AbstractController
+class PostBlackListController extends AbstractController
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly FavoriteRepository     $favoriteRepository,
+        private readonly BlackListRepository    $blackListRepository,
         private readonly ExtractIriService      $extractIriService,
         private readonly AccessService          $accessService,
         private readonly Security               $security,
     ){}
 
-    public function __invoke(int $id, Request $request): JsonResponse
+    public function __invoke(Request $request): JsonResponse
     {
         /** @var User $bearerUser */
         $bearerUser = $this->security->getUser();
 
         $this->accessService->check($bearerUser);
 
-        /** @var Favorite $favorite */
-        $favorite = $this->favoriteRepository->find($id);
+        $blackList = (new BlackList())->setAuthor($bearerUser);
 
-        if (!$favorite)
-            return $this->json(['message' => "Resource not found"], 404);
-
-        if (!$this->favoriteRepository->findFavorites($bearerUser))
-            return $this->json(['message' => "Ownership doesn't match"], 400);
+        if ($this->blackListRepository->findBlackLists($bearerUser))
+            return $this->json(['message' => "This user has blacklist, patch instead"], 400);
 
         $data = json_decode($request->getContent(), true);
 
@@ -93,30 +89,20 @@ class PatchFavoriteController extends AbstractController
             }
         }
 
-        // Очищаем только те коллекции, которые были переданы в запросе
-        if (!is_null($mastersParam)) {
-            $favorite->getMasters()->clear();
-            foreach ($masters as $master) $favorite->addMaster($master);
-        }
+        // Добавляем только те сущности, которые были переданы
+        foreach ($masters as $master) $blackList->addMaster($master);
+        foreach ($clients as $client) $blackList->addClient($client);
+        foreach ($tickets as $ticket) $blackList->addTicket($ticket);
 
-        if (!is_null($clientsParam)) {
-            $favorite->getClients()->clear();
-            foreach ($clients as $client) $favorite->addClient($client);
-        }
-
-        if (!is_null($ticketsParam)) {
-            $favorite->getTickets()->clear();
-            foreach ($tickets as $ticket) $favorite->addTicket($ticket);
-        }
-
+        $this->entityManager->persist($blackList);
         $this->entityManager->flush();
 
         return $this->json([
-            'id' => $favorite->getId(),
-            'user' => ['id' => $favorite->getUser()->getId()],
-            'tickets' => array_map(fn($ticket) => ['id' => $ticket->getId()], $favorite->getTickets()->toArray()),
-            'clients' => array_map(fn($user) => ['id' => $user->getId()], $favorite->getClients()->toArray()),
-            'masters' => array_map(fn($user) => ['id' => $user->getId()], $favorite->getMasters()->toArray()),
+            'id' => $blackList->getId(),
+            'author' => ['id' => $blackList->getAuthor()->getId()],
+            'tickets' => array_map(fn($ticket) => ['id' => $ticket->getId()], $blackList->getTickets()->toArray()),
+            'clients' => array_map(fn($user) => ['id' => $user->getId()], $blackList->getClients()->toArray()),
+            'masters' => array_map(fn($user) => ['id' => $user->getId()], $blackList->getMasters()->toArray()),
         ]);
     }
 }

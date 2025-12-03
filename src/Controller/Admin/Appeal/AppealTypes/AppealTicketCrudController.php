@@ -4,6 +4,7 @@ namespace App\Controller\Admin\Appeal\AppealTypes;
 
 use App\Controller\Admin\Appeal\AppealImageCrudController;
 use App\Entity\Appeal\AppealTypes\AppealTicket;
+use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
@@ -64,10 +65,16 @@ class AppealTicketCrudController extends AbstractCrudController
             ->setColumns(12);
 
         yield AssociationField::new('author', 'Истец')
+            ->setQueryBuilder(function (QueryBuilder $qb) {
+                return $qb->andWhere("CAST(entity.roles as text) NOT LIKE '%ROLE_ADMIN%'");
+            })
             ->setRequired(true)
             ->setColumns(12);
 
         yield AssociationField::new('respondent', 'Ответчик')
+            ->setQueryBuilder(function (QueryBuilder $qb) {
+                return $qb->andWhere("CAST(entity.roles as text) NOT LIKE '%ROLE_ADMIN%'");
+            })
             ->setRequired(true)
             ->setColumns(12);
 

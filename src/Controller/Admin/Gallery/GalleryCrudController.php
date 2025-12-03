@@ -3,6 +3,7 @@
 namespace App\Controller\Admin\Gallery;
 
 use App\Entity\Gallery\Gallery;
+use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
@@ -56,6 +57,9 @@ class GalleryCrudController extends AbstractCrudController
             ->onlyOnIndex();
 
         yield AssociationField::new('user', 'Мастер')
+            ->setQueryBuilder(function (QueryBuilder $qb) {
+                return $qb->andWhere("CAST(entity.roles as text) NOT LIKE '%ROLE_ADMIN%'");
+            })
             ->setRequired(true)
             ->setColumns(12);
 

@@ -29,7 +29,6 @@ class MasterFixture extends Fixture
         $firdawsi->setPhone1('+992 999 888-333');
         $firdawsi->setRoles(["ROLE_MASTER"]);
         $firdawsi->addOccupation($this->getReference('santexnik', Occupation::class));
-        $firdawsi->addDistrict($this->getReference('huroson', District::class));
         $firdawsi->setGender("gender_male");
 
         $firdawsi->addTicket($this->getReference('service', Ticket::class));
@@ -42,7 +41,6 @@ class MasterFixture extends Fixture
         $hujandi->setPhone1('+992 999 888-222');
         $hujandi->setRoles(["ROLE_MASTER"]);
         $hujandi->addOccupation($this->getReference('programmer', Occupation::class));
-        $hujandi->addDistrict($this->getReference('rudaki', District::class));
         $hujandi->setGender("gender_male");
 
         $hujandi->addClientReview($this->getReference('forClient', Review::class));

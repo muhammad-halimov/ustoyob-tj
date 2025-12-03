@@ -46,6 +46,9 @@ class PostChatMessageController extends AbstractController
         if ($chat->getAuthor() !== $bearerUser && $chat->getReplyAuthor() !== $bearerUser)
             return $this->json(['message' => "Ownership doesn't match"], 403);
 
+        $this->accessService->check($chat->getReplyAuthor());
+        $this->accessService->checkBlackList($chat->getAuthor(), $chat->getReplyAuthor());
+
         $chatMessage = (new ChatMessage())
             ->setText($text)
             ->setChat($chat)

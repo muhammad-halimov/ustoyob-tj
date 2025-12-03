@@ -2,7 +2,9 @@
 
 namespace App\Controller\Admin\Ticket;
 
+use App\Controller\Admin\Geography\AddressCrudController;
 use App\Entity\Ticket\Ticket;
+use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
@@ -41,7 +43,6 @@ class TicketCrudController extends AbstractCrudController
             ->setPageTitle(Crud::PAGE_DETAIL, "Информация о объявлении");
     }
 
-
     public function configureActions(Actions $actions): Actions
     {
         $actions
@@ -76,34 +77,24 @@ class TicketCrudController extends AbstractCrudController
             ->addCssClass("form-switch")
             ->setColumns(12);
 
-        yield TextField::new('title', 'Название')
-            ->setColumns(4)
-            ->setRequired(true);
-
-        yield AssociationField::new('category', 'Категория')
-            ->setRequired(true)
-            ->setColumns(3);
-
-        yield AssociationField::new('address', 'Адрес')
-            ->setRequired(true)
-            ->setColumns(3);
-
-        yield NumberField::new('budget', 'Бюджет')
-            ->setRequired(true)
-            ->setNumDecimals(1)
-            ->setColumns(1);
-
-        yield AssociationField::new('unit', 'Единицы')
+        yield CollectionField::new('userTicketImages', 'Галерея изображений')
+            ->useEntryCrudForm(TicketImageCrudController::class)
             ->hideOnIndex()
-            ->setRequired(true)
-            ->setColumns(1);
+            ->setColumns(12)
+            ->setRequired(false);
 
         yield AssociationField::new('author', 'Клиент')
+            ->setQueryBuilder(function (QueryBuilder $qb) {
+                return $qb->andWhere("CAST(entity.roles as text) NOT LIKE '%ROLE_ADMIN%'");
+            })
             ->setRequired(true)
             ->addCssClass("author-field")
             ->setColumns(6);
 
         yield AssociationField::new('master', 'Мастер')
+            ->setQueryBuilder(function (QueryBuilder $qb) {
+                return $qb->andWhere("CAST(entity.roles as text) NOT LIKE '%ROLE_ADMIN%'");
+            })
             ->setRequired(true)
             ->addCssClass("master-field")
             ->setColumns(6);
@@ -117,11 +108,29 @@ class TicketCrudController extends AbstractCrudController
             ->hideOnIndex()
             ->setColumns(6);
 
-        yield CollectionField::new('userTicketImages', 'Галерея изображений')
-            ->useEntryCrudForm(TicketImageCrudController::class)
+        yield TextField::new('title', 'Название')
+            ->setColumns(2)
+            ->setRequired(true);
+
+        yield AssociationField::new('category', 'Категория')
+            ->setRequired(true)
+            ->setColumns(2);
+
+        yield NumberField::new('budget', 'Бюджет')
+            ->setRequired(true)
+            ->setNumDecimals(1)
+            ->setColumns(1);
+
+        yield AssociationField::new('unit', 'Единицы')
             ->hideOnIndex()
-            ->setColumns(12)
-            ->setRequired(false);
+            ->setRequired(true)
+            ->setColumns(1);
+
+        yield CollectionField::new('addresses', 'Адрес')
+            ->useEntryCrudForm(AddressCrudController::class)
+            ->setRequired(false)
+            ->setFormTypeOptions(['by_reference' => false])
+            ->setColumns(6);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
             ->onlyOnIndex();

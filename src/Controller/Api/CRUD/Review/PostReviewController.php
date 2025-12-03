@@ -5,9 +5,8 @@ namespace App\Controller\Api\CRUD\Review;
 use App\Entity\Review\Review;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
-use App\Repository\TicketRepository;
-use App\Repository\UserRepository;
 use App\Service\AccessService;
+use App\Service\ExtractIriService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -18,8 +17,7 @@ class PostReviewController extends AbstractController
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly TicketRepository       $ticketRepository,
-        private readonly UserRepository         $userRepository,
+        private readonly ExtractIriService      $extractIriService,
         private readonly AccessService          $accessService,
         private readonly Security               $security,
     ){}
@@ -42,21 +40,16 @@ class PostReviewController extends AbstractController
         $masterParam = $data['master'] ?? null;
         $clientParam = $data['client'] ?? null;
 
-        // Проверка диапазона (например, от 1 до 5)
+        // Проверка диапазона
         if ($ratingParam < 1 || $ratingParam > 5) return $this->json(['message' => 'Rating must be between 1 and 5'], 400);
-
-        // Извлекаем ID только если параметры переданы
-        $ticketId = $ticketParam ? (preg_match('#/api/tickets/(\d+)#', $ticketParam, $t) ? $t[1] : $ticketParam) : null;
-        $masterId = $masterParam ? (preg_match('#/api/users/(\d+)#', $masterParam, $m) ? $m[1] : $masterParam) : null;
-        $clientId = $clientParam ? (preg_match('#/api/users/(\d+)#', $clientParam, $c) ? $c[1] : $clientParam) : null;
 
         // Загружаем сущности только если ID переданы
         /** @var Ticket|null $ticket */
-        $ticket = $ticketId ? $this->ticketRepository->find($ticketId) : null;
+        $ticket = $ticketParam ? $this->extractIriService->extract($ticketParam, Ticket::class, 'tickets'): null;
         /** @var User|null $client */
-        $client = $clientId ? $this->userRepository->find($clientId) : null;
+        $client = $clientParam ? $this->extractIriService->extract($clientParam, User::class, 'users'): null;
         /** @var User|null $master */
-        $master = $masterId ? $this->userRepository->find($masterId) : null;
+        $master = $masterParam ? $this->extractIriService->extract($masterParam, User::class, 'users'): null;
 
         $message = [
             'type' => $typeParam,

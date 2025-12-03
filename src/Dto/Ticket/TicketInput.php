@@ -2,7 +2,7 @@
 
 namespace App\Dto\Ticket;
 
-use App\Entity\Geography\District\District;
+use App\Entity\Geography\Address;
 use App\Entity\Ticket\Category;
 use App\Entity\Ticket\Unit;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -36,6 +36,6 @@ class TicketInput
     #[Assert\NotBlank(message: 'Unit is required')]
     public Unit $unit; // IRI или ID
 
-    #[Assert\NotBlank(message: 'Unit is required')]
-    public District $district; // IRI или ID
+    #[Assert\NotBlank(message: 'Address is required')]
+    public Address $address; // IRI или ID
 }

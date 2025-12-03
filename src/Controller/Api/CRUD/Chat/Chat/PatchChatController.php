@@ -38,6 +38,8 @@ class PatchChatController extends AbstractController
         if ($chat->getAuthor() !== $bearerUser && $chat->getReplyAuthor() !== $bearerUser)
             return $this->json(['message' => "Ownership doesn't match"], 400);
 
+        $this->accessService->checkBlackList($chat->getAuthor(), $chat->getReplyAuthor());
+
         $chat->setActive((bool)$data['active']);
 
         $this->entityManager->flush();

@@ -33,7 +33,7 @@ class PostFavoriteController extends AbstractController
 
         $favorite = (new Favorite())->setUser($bearerUser);
 
-        if ($this->favoriteRepository->findUserFavoriteMasters($bearerUser))
+        if ($this->favoriteRepository->findFavorites($bearerUser))
             return $this->json(['message' => "This user has favorites, patch instead"], 400);
 
         $data = json_decode($request->getContent(), true);

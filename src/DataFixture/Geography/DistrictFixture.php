@@ -26,14 +26,12 @@ class DistrictFixture extends Fixture
 
         $rudaki->setTitle("Рудаки");
         $rudaki->setDescription("Район Рудаки, Вахдат");
-        $rudaki->addTicket($this->getReference('ticket', Ticket::class));
 
         $huroson->setTitle("Хуросон");
         $huroson->setDescription("Район Хуросон, Вахдат");
 
         $sino->setTitle("Сино");
         $sino->setDescription("Район Сино, Душанбе");
-        $sino->addTicket($this->getReference('service', Ticket::class));
 
         $schevchenko->setTitle("Шевченко");
         $schevchenko->setDescription("Район Шевченко, Душанбе");

@@ -18,15 +18,15 @@ readonly class AccessService
     {
         if ($activeAndApproved)
             if (!$user)
-                throw new TokenNotFoundException('Authentication required');
+                throw new TokenNotFoundException("Authentication required");
             elseif (!$this->security->isGranted('IS_AUTHENTICATED_FULLY'))
-                throw new AccessDeniedHttpException('Authentication required');
+                throw new AccessDeniedHttpException("Authentication required. User #{$user->getId()} - {$user->getEmail()}");
             elseif (!$this->security->getUser())
                 throw new TokenNotFoundException('Authentication required');
             elseif (!$user->getActive())
-                throw new TokenNotFoundException('User is not active');
+                throw new AccessDeniedHttpException("User is not active. User #{$user->getId()} - {$user->getEmail()}");
             elseif (!$user->getApproved())
-                throw new TokenNotFoundException('User is not approved');
+                throw new AccessDeniedHttpException("User is not approved. User #{$user->getId()} - {$user->getEmail()}");
 
         switch ($grade) {
             case 'triple':
@@ -52,6 +52,20 @@ readonly class AccessService
             default:
                 throw new AccessDeniedHttpException('Role not allowed');
         }
+
+        return true;
+    }
+
+    public function checkBlackList(User|null $author, User|null $assumedUser): bool
+    {
+        $this->check($author);
+        $this->check($assumedUser);
+
+        if ($author->getBlackLists()->contains($assumedUser))
+            throw new AccessDeniedHttpException('You blacklisted this user');
+
+        if ($assumedUser->getBlackLists()->contains($author))
+            throw new AccessDeniedHttpException('You are blacklisted by this user');
 
         return true;
     }

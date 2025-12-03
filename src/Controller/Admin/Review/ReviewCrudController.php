@@ -3,6 +3,7 @@
 namespace App\Controller\Admin\Review;
 
 use App\Entity\Review\Review;
+use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
@@ -74,6 +75,9 @@ class ReviewCrudController extends AbstractCrudController
             ->setColumns(12);
 
         yield AssociationField::new('master', 'Мастер')
+            ->setQueryBuilder(function (QueryBuilder $qb) {
+                return $qb->andWhere("CAST(entity.roles as text) NOT LIKE '%ROLE_ADMIN%'");
+            })
             ->setRequired(true)
             ->setColumns(6);
 
@@ -88,6 +92,9 @@ class ReviewCrudController extends AbstractCrudController
             ->setColumns(6);
 
         yield AssociationField::new('client', 'Клиент')
+            ->setQueryBuilder(function (QueryBuilder $qb) {
+                return $qb->andWhere("CAST(entity.roles as text) NOT LIKE '%ROLE_ADMIN%'");
+            })
             ->setRequired(true)
             ->setColumns(6);
 

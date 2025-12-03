@@ -32,7 +32,7 @@ use App\Entity\Chat\Chat;
 use App\Entity\Chat\ChatImage;
 use App\Entity\Chat\ChatMessage;
 use App\Entity\Gallery\Gallery;
-use App\Entity\Geography\District\District;
+use App\Entity\Geography\Address;
 use App\Entity\Review\Review;
 use App\Entity\TechSupport\TechSupport;
 use App\Entity\TechSupport\TechSupportImage;
@@ -40,6 +40,7 @@ use App\Entity\TechSupport\TechSupportMessage;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
+use App\Entity\User\BlackList;
 use App\Entity\User\Education;
 use App\Entity\User\Favorite;
 use App\Entity\User\Occupation;
@@ -182,7 +183,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->chatImages = new ArrayCollection();
         $this->masterReviews = new ArrayCollection();
         $this->clientReviews = new ArrayCollection();
-        $this->districts = new ArrayCollection();
         $this->occupation = new ArrayCollection();
         $this->clientsFavorites = new ArrayCollection();
         $this->mastersFavorites = new ArrayCollection();
@@ -191,6 +191,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->techSupports = new ArrayCollection();
         $this->appealTickets = new ArrayCollection();
         $this->appealChats = new ArrayCollection();
+        $this->addresses = new ArrayCollection();
+        $this->blackLists = new ArrayCollection();
+        $this->clientsBlackListedByAuthor = new ArrayCollection();
+        $this->mastersBlackListedByAuthor = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -209,6 +213,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'appeal:ticket:read',
         'favorites:read',
         'techSupport:read',
+        'blackLists:read'
     ])]
     private ?int $id = null;
 
@@ -226,6 +231,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'appeal:ticket:read',
         'favorites:read',
         'techSupport:read',
+        'blackLists:read'
     ])]
     private ?string $email = null;
 
@@ -243,6 +249,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'appeal:ticket:read',
         'favorites:read',
         'techSupport:read',
+        'blackLists:read'
     ])]
     private ?string $name = null;
 
@@ -260,6 +267,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'appeal:ticket:read',
         'favorites:read',
         'techSupport:read',
+        'blackLists:read'
     ])]
     private ?string $surname = null;
 
@@ -290,6 +298,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups([
         'masters:read',
         'clients:read',
+        'blackLists:read'
     ])]
     private ?string $gender = null;
 
@@ -311,6 +320,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'appeal:ticket:read',
         'favorites:read',
         'techSupport:read',
+        'blackLists:read'
     ])]
     #[ApiProperty(writable: false)]
     private ?string $image = null;
@@ -362,6 +372,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups([
         'masters:read',
         'clients:read',
+        'blackLists:read'
     ])]
     #[ApiProperty(writable: false)]
     private array $roles = [];
@@ -465,15 +476,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private Collection $clientReviews;
 
     /**
-     * @var Collection<int, District>
-     */
-    #[ORM\ManyToMany(targetEntity: District::class, mappedBy: 'user')]
-    #[Groups([
-        'masters:read',
-    ])]
-    private Collection $districts;
-
-    /**
      * @var Collection<int, Occupation>
      */
     #[ORM\ManyToMany(targetEntity: Occupation::class, mappedBy: 'master')]
@@ -530,6 +532,34 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(targetEntity: AppealChat::class, mappedBy: 'author')]
     #[Ignore]
     private Collection $appealChats;
+
+    /**
+     * @var Collection<int, Address>
+     */
+    #[ORM\ManyToMany(targetEntity: Address::class, mappedBy: 'users', cascade: ['persist'])]
+    #[Groups([
+        'masters:read',
+        'clients:read',
+    ])]
+    private Collection $addresses;
+
+    /**
+     * @var Collection<int, BlackList>
+     */
+    #[ORM\OneToMany(targetEntity: BlackList::class, mappedBy: 'author')]
+    private Collection $blackLists;
+
+    /**
+     * @var Collection<int, BlackList>
+     */
+    #[ORM\ManyToMany(targetEntity: BlackList::class, mappedBy: 'clients')]
+    private Collection $clientsBlackListedByAuthor;
+
+    /**
+     * @var Collection<int, BlackList>
+     */
+    #[ORM\ManyToMany(targetEntity: BlackList::class, mappedBy: 'masters')]
+    private Collection $mastersBlackListedByAuthor;
 
     public function getId(): ?int
     {
@@ -1114,33 +1144,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * @return Collection<int, District>
-     */
-    public function getDistricts(): Collection
-    {
-        return $this->districts;
-    }
-
-    public function addDistrict(District $district): static
-    {
-        if (!$this->districts->contains($district)) {
-            $this->districts->add($district);
-            $district->addUser($this);
-        }
-
-        return $this;
-    }
-
-    public function removeDistrict(District $district): static
-    {
-        if ($this->districts->removeElement($district)) {
-            $district->removeUser($this);
-        }
-
-        return $this;
-    }
-
-    /**
      * @return Collection<int, Occupation>
      */
     public function getOccupation(): Collection
@@ -1401,6 +1404,117 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setTelegramChatId(?string $telegramChatId): static
     {
         $this->telegramChatId = $telegramChatId;
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Address>
+     */
+    public function getAddresses(): Collection
+    {
+        return $this->addresses;
+    }
+
+    public function addAddress(Address $address): static
+    {
+        if (!$this->addresses->contains($address)) {
+            $this->addresses->add($address);
+            $address->addUser($this);
+        }
+
+        return $this;
+    }
+
+    public function removeAddress(Address $address): static
+    {
+        if ($this->addresses->removeElement($address)) {
+            $address->removeUser($this);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, BlackList>
+     */
+    public function getBlackLists(): Collection
+    {
+        return $this->blackLists;
+    }
+
+    public function addBlackList(BlackList $blackList): static
+    {
+        if (!$this->blackLists->contains($blackList)) {
+            $this->blackLists->add($blackList);
+            $blackList->setAuthor($this);
+        }
+
+        return $this;
+    }
+
+    public function removeBlackList(BlackList $blackList): static
+    {
+        if ($this->blackLists->removeElement($blackList)) {
+            // set the owning side to null (unless already changed)
+            if ($blackList->getAuthor() === $this) {
+                $blackList->setAuthor(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, BlackList>
+     */
+    public function getClientsBlackListedByAuthor(): Collection
+    {
+        return $this->clientsBlackListedByAuthor;
+    }
+
+    public function addClientsBlackListedByAuthor(BlackList $clientsBlackListedByAuthor): static
+    {
+        if (!$this->clientsBlackListedByAuthor->contains($clientsBlackListedByAuthor)) {
+            $this->clientsBlackListedByAuthor->add($clientsBlackListedByAuthor);
+            $clientsBlackListedByAuthor->addClient($this);
+        }
+
+        return $this;
+    }
+
+    public function removeClientsBlackListedByAuthor(BlackList $clientsBlackListedByAuthor): static
+    {
+        if ($this->clientsBlackListedByAuthor->removeElement($clientsBlackListedByAuthor)) {
+            $clientsBlackListedByAuthor->removeClient($this);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, BlackList>
+     */
+    public function getMastersBlackListedByAuthor(): Collection
+    {
+        return $this->mastersBlackListedByAuthor;
+    }
+
+    public function addMastersBlackListedByAuthor(BlackList $mastersBlackListedByAuthor): static
+    {
+        if (!$this->mastersBlackListedByAuthor->contains($mastersBlackListedByAuthor)) {
+            $this->mastersBlackListedByAuthor->add($mastersBlackListedByAuthor);
+            $mastersBlackListedByAuthor->addMaster($this);
+        }
+
+        return $this;
+    }
+
+    public function removeMastersBlackListedByAuthor(BlackList $mastersBlackListedByAuthor): static
+    {
+        if ($this->mastersBlackListedByAuthor->removeElement($mastersBlackListedByAuthor)) {
+            $mastersBlackListedByAuthor->removeMaster($this);
+        }
+
         return $this;
     }
 }

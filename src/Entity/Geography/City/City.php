@@ -6,22 +6,20 @@ use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use App\Entity\Geography\AddressComponent;
 use App\Entity\Geography\Province;
-use App\Entity\Traits\CreatedAtTrait;
-use App\Entity\Traits\UpdatedAtTrait;
 use App\Repository\CityRepository;
 use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Component\HttpFoundation\File\File;
+
 use Symfony\Component\Serializer\Attribute\Groups;
-use Symfony\Component\Validator\Constraints as Assert;
 use Vich\UploaderBundle\Mapping\Annotation as Vich;
+use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\HttpFoundation\File\File;
 
 #[ORM\Entity(repositoryClass: CityRepository::class)]
-#[ORM\HasLifecycleCallbacks]
 #[Vich\Uploadable]
 #[ApiResource(
     operations: [
@@ -39,50 +37,14 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
     ],
     paginationEnabled: false,
 )]
-class City
+class City extends AddressComponent
 {
-    use UpdatedAtTrait, CreatedAtTrait;
-
-    public function __toString(): string
-    {
-        return $this->title ?? "City #$this->id";
-    }
-
-    #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
-    #[Groups([
-        'cities:read',
-        'provinces:read',
-        'masterTickets:read',
-        'clientTickets:read',
-        'districts:read',
-        'masters:read',
-    ])]
-    private ?int $id = null;
-
-    #[ORM\Column(length: 255, nullable: true)]
-    #[Groups([
-        'cities:read',
-        'provinces:read',
-        'masterTickets:read',
-        'clientTickets:read',
-        'districts:read',
-        'masters:read',
-    ])]
-    private ?string $title = null;
-
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    #[Groups([
-        'cities:read',
-    ])]
-    private ?string $description = null;
-
     #[Vich\UploadableField(mapping: 'city_photos', fileNameProperty: 'image')]
     #[Assert\Image(mimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])]
     private ?File $imageFile = null;
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[ApiProperty(writable: false)]
     #[Groups([
         'cities:read',
         'provinces:read',
@@ -91,16 +53,13 @@ class City
         'districts:read',
         'masters:read',
     ])]
-    #[ApiProperty(writable: false)]
     private ?string $image = null;
 
     #[ORM\ManyToOne(inversedBy: 'cities')]
+    #[ORM\JoinColumn(name: 'province_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'cities:read',
-        'masterTickets:read',
-        'clientTickets:read',
         'districts:read',
-        'masters:read',
     ])]
     private ?Province $province = null;
 
@@ -111,45 +70,13 @@ class City
     #[Groups([
         'cities:read',
         'provinces:read',
-        'masterTickets:read',
-        'clientTickets:read',
         'districts:read',
-        'masters:read',
     ])]
     private Collection $suburbs;
 
     public function __construct()
     {
         $this->suburbs = new ArrayCollection();
-    }
-
-    public function getId(): ?int
-    {
-        return $this->id;
-    }
-
-    public function getTitle(): ?string
-    {
-        return $this->title;
-    }
-
-    public function setTitle(?string $title): static
-    {
-        $this->title = $title;
-
-        return $this;
-    }
-
-    public function getDescription(): ?string
-    {
-        return $this->description;
-    }
-
-    public function setDescription(?string $description): static
-    {
-        $this->description = $description;
-
-        return $this;
     }
 
     public function getImage(): ?string

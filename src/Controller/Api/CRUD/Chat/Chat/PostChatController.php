@@ -50,6 +50,9 @@ class PostChatController extends AbstractController
         if ($replyAuthor === $bearerUser)
             return $this->json(['message' => 'You cannot post a chat with yourself'], 403);
 
+        $this->accessService->check($replyAuthor);
+        $this->accessService->checkBlackList($bearerUser, $replyAuthor);
+
         // Проверяем существование тикета, если он передан
         if ($ticketParam && !$ticket)
             return $this->json(['message' => 'Ticket not found'], 404);

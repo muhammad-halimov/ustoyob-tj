@@ -23,7 +23,7 @@ class ProvinceFixture extends Fixture
             $apmb,
         ];
 
-        $cdrs->setProvince("ГРРП");
+        $cdrs->setTitle("ГРРП");
         $cdrs->setDescription("
         ГРРП,
         Города и районы республиканского подчинения,
@@ -32,15 +32,15 @@ class ProvinceFixture extends Fixture
         $cdrs->addCity($this->getReference('vahdat', City::class));
         $cdrs->addCity($this->getReference('dushanbe', City::class));
 
-        $sughd->setProvince("Согдийская область");
+        $sughd->setTitle("Согдийская область");
         $sughd->setDescription("Согдийская область, северный Таджикистан");
         $sughd->addCity($this->getReference('hujand', City::class));
 
-        $hatlon->setProvince("Хатлонская область");
+        $hatlon->setTitle("Хатлонская область");
         $hatlon->setDescription("Хатлонская область, южный Таджикистан");
         $hatlon->addCity($this->getReference('bohtar', City::class));
 
-        $apmb->setProvince("ГБАО");
+        $apmb->setTitle("ГБАО");
         $apmb->setDescription("
         ГБАО,
         Горно-Бадахшанская Автономная область,

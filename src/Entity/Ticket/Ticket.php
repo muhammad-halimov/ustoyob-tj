@@ -20,9 +20,10 @@ use App\Dto\Appeal\Photo\AppealPhotoInput;
 use App\Dto\Ticket\TicketInput;
 use App\Entity\Appeal\AppealTypes\AppealTicket;
 use App\Entity\Chat\Chat;
-use App\Entity\Geography\District\District;
+use App\Entity\Geography\Address;
 use App\Entity\Review\Review;
 use App\Entity\User;
+use App\Entity\User\BlackList;
 use App\Entity\User\Favorite;
 use App\Repository\TicketRepository;
 use DateTime;
@@ -90,6 +91,8 @@ class Ticket
         $this->appealTicket = new ArrayCollection();
         $this->favorites = new ArrayCollection();
         $this->chats = new ArrayCollection();
+        $this->addresses = new ArrayCollection();
+        $this->ticketsBlackListedByAuthor = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -102,6 +105,7 @@ class Ticket
         'favorites:read',
         'appeal:ticket:read',
         'appeal:chat:read',
+        'blackLists:read'
     ])]
     private ?int $id = null;
 
@@ -113,6 +117,7 @@ class Ticket
         'favorites:read',
         'appeal:ticket:read',
         'appeal:chat:read',
+        'blackLists:read'
     ])]
     private ?string $title = null;
 
@@ -145,6 +150,7 @@ class Ticket
         'favorites:read',
         'appeal:ticket:read',
         'appeal:chat:read',
+        'blackLists:read'
     ])]
     private ?bool $service = null;
 
@@ -156,6 +162,7 @@ class Ticket
         'favorites:read',
         'appeal:ticket:read',
         'appeal:chat:read',
+        'blackLists:read'
     ])]
     private ?bool $active = null;
 
@@ -176,6 +183,7 @@ class Ticket
         'favorites:read',
         'appeal:ticket:read',
         'appeal:chat:read',
+        'blackLists:read'
     ])]
     private ?User $author = null;
 
@@ -188,6 +196,7 @@ class Ticket
         'favorites:read',
         'appeal:ticket:read',
         'appeal:chat:read',
+        'blackLists:read'
     ])]
     private ?User $master = null;
 
@@ -218,15 +227,6 @@ class Ticket
     #[Ignore]
     private Collection $reviews;
 
-    #[ORM\ManyToOne(inversedBy: 'tickets')]
-    #[ORM\JoinColumn(name: 'address_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
-    #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-    ])]
-    #[SerializedName('district')]
-    private ?District $address = null;
-
     /**
      * @var Collection<int, AppealTicket>
      */
@@ -248,6 +248,16 @@ class Ticket
     #[Ignore]
     private Collection $chats;
 
+    /**
+     * @var Collection<int, Address>
+     */
+    #[ORM\ManyToMany(targetEntity: Address::class, inversedBy: 'tickets', cascade: ['all'])]
+    #[Groups([
+        'masterTickets:read',
+        'clientTickets:read',
+    ])]
+    private Collection $addresses;
+
     #[ORM\Column(type: 'datetime', nullable: false)]
     #[Groups([
         'masterTickets:read',
@@ -261,6 +271,12 @@ class Ticket
         'clientTickets:read',
     ])]
     protected DateTime $updatedAt;
+
+    /**
+     * @var Collection<int, BlackList>
+     */
+    #[ORM\ManyToMany(targetEntity: BlackList::class, mappedBy: 'tickets')]
+    private Collection $ticketsBlackListedByAuthor;
 
     public function getId(): ?int
     {
@@ -444,18 +460,6 @@ class Ticket
         return $this;
     }
 
-    public function getAddress(): ?District
-    {
-        return $this->address;
-    }
-
-    public function setAddress(?District $address): static
-    {
-        $this->address = $address;
-
-        return $this;
-    }
-
     /**
      * @return Collection<int, AppealTicket>
      */
@@ -561,6 +565,57 @@ class Ticket
             if ($chat->getTicket() === $this) {
                 $chat->setTicket(null);
             }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Address>
+     */
+    public function getAddresses(): Collection
+    {
+        return $this->addresses;
+    }
+
+    public function addAddress(Address $address): static
+    {
+        if (!$this->addresses->contains($address)) {
+            $this->addresses->add($address);
+        }
+
+        return $this;
+    }
+
+    public function removeAddress(Address $address): static
+    {
+        $this->addresses->removeElement($address);
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, BlackList>
+     */
+    public function getTicketsBlackListedByAuthor(): Collection
+    {
+        return $this->ticketsBlackListedByAuthor;
+    }
+
+    public function addTicketsBlackListedByAuthor(BlackList $ticketsBlackListedByAuthor): static
+    {
+        if (!$this->ticketsBlackListedByAuthor->contains($ticketsBlackListedByAuthor)) {
+            $this->ticketsBlackListedByAuthor->add($ticketsBlackListedByAuthor);
+            $ticketsBlackListedByAuthor->addTicket($this);
+        }
+
+        return $this;
+    }
+
+    public function removeTicketsBlackListedByAuthor(BlackList $ticketsBlackListedByAuthor): static
+    {
+        if ($this->ticketsBlackListedByAuthor->removeElement($ticketsBlackListedByAuthor)) {
+            $ticketsBlackListedByAuthor->removeTicket($this);
         }
 
         return $this;

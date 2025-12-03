@@ -43,6 +43,8 @@ class PostChatPhotoController extends AbstractController
         if (!$imageFiles)
             return $this->json(['message' => 'No files provided'], 400);
 
+        $this->accessService->checkBlackList($chat->getAuthor(), $chat->getReplyAuthor());
+
         $imageFiles = is_array($imageFiles) ? $imageFiles : [$imageFiles];
 
         foreach ($imageFiles as $imageFile) {

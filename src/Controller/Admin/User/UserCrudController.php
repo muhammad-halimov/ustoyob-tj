@@ -3,6 +3,7 @@
 namespace App\Controller\Admin\User;
 
 use App\Controller\Admin\Field\VichImageField;
+use App\Controller\Admin\Geography\AddressCrudController;
 use App\Entity\User;
 use App\Service\AccountConfirmationService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -70,7 +71,7 @@ class UserCrudController extends AbstractCrudController
             ]);
 
         $actions
-            ->add(Crud::PAGE_INDEX, Action::new('confirmAccountRequest', 'Подтвердить пользователя')
+            ->add(Crud::PAGE_INDEX, Action::new('confirmAccountRequest', 'Подтвердить пользователя', 'fas fa-circle-check')
             ->linkToCrudAction('confirmAccountRequest'));
 
         return parent::configureActions($actions)
@@ -221,7 +222,8 @@ class UserCrudController extends AbstractCrudController
             ->addCssClass("occupation-field")
             ->hideOnIndex();
 
-        yield AssociationField::new('districts', 'Районы работ')
+        yield CollectionField::new('addresses', 'Адреса работ')
+            ->useEntryCrudForm(AddressCrudController::class)
             ->setColumns(6)
             ->setFormTypeOptions(['by_reference' => false])
             ->addCssClass("districts-field")
