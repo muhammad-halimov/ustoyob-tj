@@ -2,6 +2,7 @@
 
 namespace App\Service;
 
+use App\Entity\Ticket\Ticket;
 use App\Entity\User;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -58,16 +59,37 @@ readonly class AccessService
         return true;
     }
 
-    public function checkBlackList(User|null $author, User|null $assumedUser): bool
+    public function checkBlackList(User|null $author, User|null $assumedUser = null, Ticket|null $ticket = null): bool
     {
         $this->check($author);
         $this->check($assumedUser);
 
-        if ($author->getBlackLists()->contains($assumedUser))
-            throw new AccessDeniedHttpException('You blacklisted this user');
+        // Проверяем, не заблокировал ли author пользователя assumedUser
+        foreach ($author->getBlackLists() as $blackList) {
+            if ($blackList->getClients()->contains($assumedUser) ||
+                $blackList->getMasters()->contains($assumedUser)) {
+                throw new AccessDeniedHttpException('You blacklisted this user');
+            }
+        }
 
-        if ($assumedUser->getBlackLists()->contains($author))
-            throw new AccessDeniedHttpException('You are blacklisted by this user');
+        if ($assumedUser) {
+            // Проверяем, не заблокировал ли assumedUser пользователя author
+            foreach ($assumedUser->getBlackLists() as $blackList) {
+                if ($blackList->getClients()->contains($author) ||
+                    $blackList->getMasters()->contains($author)) {
+                    throw new AccessDeniedHttpException('You are blacklisted by this user');
+                }
+            }
+        }
+
+        // Проверяем, не заблокировал ли author этот Ticket
+        if ($ticket) {
+            foreach ($author->getBlackLists() as $blackList) {
+                if ($blackList->getTickets()->contains($ticket)) {
+                    throw new AccessDeniedHttpException('You blacklisted this ticket');
+                }
+            }
+        }
 
         return true;
     }
