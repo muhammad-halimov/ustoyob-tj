@@ -51,16 +51,16 @@ class NotifyTechSupportTelegramBotService
         $descriptionLabel = mb_substr($techSupport->getDescription(), 0, 30) . '...';
 
         return
-            "🆕Новая заявка в ТП\n\n" .
-            "📌Заголовок: <b>{$techSupport->getTitle()}</b>\n" .
-            "📂Категория: <b>$reasonLabel</b>\n" .
-            "📊Статус: <b>$statusLabel</b>\n" .
-            "⚡ Приоритет: <b>$priorityLabel</b>\n" .
-            "👤Пользователь: <b>{$techSupport->getAuthor()->getEmail()}</b>\n" .
-            "📝Описание: <b>$descriptionLabel</b>\n" .
-            "💬Сообщений: <b>{$techSupport->getTechSupportMessages()->count()}</b>\n" .
-            "🖼Фото: <b>{$techSupport->getTechSupportImages()->count()}</b>\n\n" .
-            "🔗<a href='$techSupportUrl'>Открыть в админке</a>";
+            "🆕 Новая заявка в ТП\n\n" .
+            "📌 Заголовок: <b>{$techSupport->getTitle()}</b>\n" .
+            "📂 Категория: <b>$reasonLabel</b>\n" .
+            "📊 Статус: <b>$statusLabel</b>\n" .
+            "⚡  Приоритет: <b>$priorityLabel</b>\n" .
+            "👤 Пользователь: <b>{$techSupport->getAuthor()->getEmail()}</b>\n" .
+            "📝 Описание: <b>$descriptionLabel</b>\n" .
+            "💬 Сообщений: <b>{$techSupport->getTechSupportMessages()->count()}</b>\n" .
+            "🖼 Фото: <b>{$techSupport->getTechSupportImages()->count()}</b>\n\n" .
+            "🔗 <a href='$techSupportUrl'>Открыть в админке</a>";
     }
 
     /**

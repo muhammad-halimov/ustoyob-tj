@@ -30,7 +30,7 @@ class TelegramBotController extends AbstractController
         });
 
         $botman->hears(['/id', 'id'], function (BotMan $bot) {
-            $bot->reply("🆔ID чата: {$bot->getUser()->getId()}");
+            $bot->reply("🆔 ID чата: {$bot->getUser()->getId()}");
         });
 
         $botman->fallback(function (BotMan $bot) {
