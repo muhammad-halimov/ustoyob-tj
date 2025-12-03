@@ -202,12 +202,17 @@ class UserCrudController extends AbstractCrudController
         yield $plainPassword;
 
         yield TelephoneField::new('phone1', 'Телефон 1')
-            ->setColumns(4)
+            ->setColumns(3)
             ->setRequired(false);
 
         yield TelephoneField::new('phone2', 'Телефон 2')
             ->hideOnIndex()
-            ->setColumns(4)
+            ->setColumns(3)
+            ->setRequired(false);
+
+        yield TelephoneField::new('telegramChatId', 'ID телеграм чата (админ)')
+            ->hideOnIndex()
+            ->setColumns(2)
             ->setRequired(false);
 
         yield AssociationField::new('occupation', 'Специальность')

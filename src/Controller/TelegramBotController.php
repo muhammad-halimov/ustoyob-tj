@@ -29,13 +29,22 @@ class TelegramBotController extends AbstractController
             $bot->reply('👋 Привет! Бот для уведомления о заявках в ТП запущен | ustoyob.tj');
         });
 
+        // Команда для получения Chat ID
+        $botman->hears(['/id', 'id'], function (BotMan $bot) {
+            $user = $bot->getUser();
+            $chatId = $user->getId();
+
+            $bot->reply("🆔 Ваш Chat ID: <code>$chatId</code>\n\n" .
+                "Скопируйте этот ID и добавьте в свой профиль в админке для получения уведомлений.",
+                ['parse_mode' => 'HTML']);
+        });
+
         $botman->hears(['hello', 'привет'], function (BotMan $bot) {
             $bot->reply('Hello yourself! 🎉');
         });
 
-        // Обработка ВСЕХ сообщений (fallback)
         $botman->fallback(function (BotMan $bot) {
-            $bot->reply('Попробуй: /start или start');
+            $bot->reply('Попробуй: /start, /id');
         });
 
         $botman->listen();

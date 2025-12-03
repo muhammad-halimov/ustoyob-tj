@@ -336,6 +336,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     ])]
     private ?bool $atHome = null;
 
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
+    private ?string $telegramChatId = null;
+
     #[ORM\Column(type: 'boolean', nullable: true)]
     #[Groups([
         'masters:read',
@@ -1387,6 +1390,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setApproved(?bool $approved): static
     {
         $this->approved = $approved;
+        return $this;
+    }
+
+    public function getTelegramChatId(): ?string
+    {
+        return $this->telegramChatId;
+    }
+
+    public function setTelegramChatId(?string $telegramChatId): static
+    {
+        $this->telegramChatId = $telegramChatId;
         return $this;
     }
 }

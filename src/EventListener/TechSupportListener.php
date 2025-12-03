@@ -6,7 +6,8 @@ use App\Entity\TechSupport\TechSupport;
 use App\Entity\User;
 use App\Repository\TechSupport\TechSupportRepository;
 use App\Repository\UserRepository;
-use App\Service\NotifyTechSupportService;
+use App\Service\NotifyTechSupportEmailService;
+use App\Service\NotifyTechSupportTelegramBotService;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsEntityListener;
 use Doctrine\ORM\Events;
 use Doctrine\Persistence\Event\LifecycleEventArgs;
@@ -17,9 +18,10 @@ use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 readonly class TechSupportListener
 {
     public function __construct(
-        private NotifyTechSupportService $notifyTechSupportService,
-        private TechSupportRepository    $techSupportRepository,
-        private UserRepository           $userRepository,
+        private NotifyTechSupportTelegramBotService $notifyTechSupportTelegramBotService,
+        private NotifyTechSupportEmailService       $notifyTechSupportEmailService,
+        private TechSupportRepository               $techSupportRepository,
+        private UserRepository                      $userRepository,
     ){}
 
     /**
@@ -42,7 +44,8 @@ readonly class TechSupportListener
      */
     public function postPersist(TechSupport $techSupport, LifecycleEventArgs $args): void
     {
-        $this->notifyTechSupportService->sendTechSupportEmail(user: $techSupport->getAdministrant(), techSupport: $techSupport);
+        $this->notifyTechSupportEmailService->sendTechSupportEmail(user: $techSupport->getAdministrant(), techSupport: $techSupport);
+        $this->notifyTechSupportTelegramBotService->sendTechSupportNotification(user: $techSupport->getAdministrant(), techSupport: $techSupport);
     }
 
     /**

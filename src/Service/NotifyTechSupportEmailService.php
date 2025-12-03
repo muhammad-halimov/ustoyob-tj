@@ -10,7 +10,7 @@ use Symfony\Component\Mailer\Transport;
 use Symfony\Component\Mime\Email;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
-readonly class NotifyTechSupportService
+readonly class NotifyTechSupportEmailService
 {
     public function __construct(private UrlGeneratorInterface  $urlGenerator) {}
 
