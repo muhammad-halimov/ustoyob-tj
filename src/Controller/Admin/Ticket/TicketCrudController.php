@@ -66,7 +66,7 @@ class TicketCrudController extends AbstractCrudController
     public function configureFields(string $pageName): iterable
     {
         yield IdField::new('id')
-            ->onlyOnIndex();
+            ->hideOnForm();
 
         yield BooleanField::new('active', 'Актуально')
             ->addCssClass("form-switch")
@@ -133,9 +133,9 @@ class TicketCrudController extends AbstractCrudController
             ->setColumns(6);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
-            ->onlyOnIndex();
+            ->hideOnForm();
 
         yield DateTimeField::new('createdAt', 'Создано')
-            ->onlyOnIndex();
+            ->hideOnForm();
     }
 }

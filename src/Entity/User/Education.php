@@ -9,6 +9,7 @@ use App\Repository\User\EducationRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: EducationRepository::class)]
 #[ORM\HasLifecycleCallbacks]
@@ -48,12 +49,14 @@ class Education
     #[Groups([
         'masters:read',
     ])]
+    #[Assert\PositiveOrZero(message: 'Field cannot be less than zero')]
     private ?int $beginning = null;
 
     #[ORM\Column(nullable: true)]
     #[Groups([
         'masters:read',
     ])]
+    #[Assert\PositiveOrZero(message: 'Field cannot be less than zero')]
     private ?int $ending = null;
 
     #[ORM\Column(type: 'boolean', nullable: true)]

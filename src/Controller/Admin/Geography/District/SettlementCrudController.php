@@ -20,7 +20,7 @@ class SettlementCrudController extends AbstractCrudController
     public function configureFields(string $pageName): iterable
     {
         yield IdField::new('id')
-            ->onlyOnIndex();
+            ->hideOnForm();
 
         yield TextField::new('title', 'Название')
             ->setColumns(12)
@@ -36,9 +36,9 @@ class SettlementCrudController extends AbstractCrudController
             ->setRequired(false);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
-            ->onlyOnIndex();
+            ->hideOnForm();
 
         yield DateTimeField::new('createdAt', 'Создано')
-            ->onlyOnIndex();
+            ->hideOnForm();
     }
 }

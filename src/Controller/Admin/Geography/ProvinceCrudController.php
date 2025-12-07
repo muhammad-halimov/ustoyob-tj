@@ -59,7 +59,7 @@ class ProvinceCrudController extends AbstractCrudController
         $province = $this->getContext()?->getEntity()?->getInstance();
 
         yield IdField::new('id')
-            ->onlyOnIndex();
+            ->hideOnForm();
 
         yield ChoiceField::new('title', 'Провинция')
             ->setColumns(4)
@@ -106,9 +106,9 @@ class ProvinceCrudController extends AbstractCrudController
             ->setColumns(12);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
-            ->onlyOnIndex();
+            ->hideOnForm();
 
         yield DateTimeField::new('createdAt', 'Создано')
-            ->onlyOnIndex();
+            ->hideOnForm();
     }
 }

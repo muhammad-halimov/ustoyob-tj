@@ -19,7 +19,7 @@ class ChatImageCrudController extends AbstractCrudController
     public function configureFields(string $pageName): iterable
     {
         yield IdField::new('id')
-            ->onlyOnIndex();
+            ->hideOnForm();
 
         yield AssociationField::new('author', 'Автор')
             ->setRequired(true)
@@ -39,9 +39,9 @@ class ChatImageCrudController extends AbstractCrudController
             ->setColumns(12);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
-            ->onlyOnIndex();
+            ->hideOnForm();
 
         yield DateTimeField::new('createdAt', 'Создано')
-            ->onlyOnIndex();
+            ->hideOnForm();
     }
 }

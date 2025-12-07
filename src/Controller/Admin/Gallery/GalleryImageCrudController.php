@@ -18,7 +18,7 @@ class GalleryImageCrudController extends AbstractCrudController
     public function configureFields(string $pageName): iterable
     {
         yield IdField::new('id')
-            ->onlyOnIndex();
+            ->hideOnForm();
 
         yield VichImageField::new('imageFile', 'Изображение')
             ->setHelp('
@@ -34,9 +34,9 @@ class GalleryImageCrudController extends AbstractCrudController
             ->setColumns(12);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
-            ->onlyOnIndex();
+            ->hideOnForm();
 
         yield DateTimeField::new('createdAt', 'Создано')
-            ->onlyOnIndex();
+            ->hideOnForm();
     }
 }

@@ -136,7 +136,7 @@ class UserCrudController extends AbstractCrudController
     public function configureFields(string $pageName): iterable
     {
         yield IdField::new('id')
-            ->onlyOnIndex();
+            ->hideOnForm();
 
         yield BooleanField::new('active', 'Активен')
             ->addCssClass("form-switch")
@@ -263,9 +263,9 @@ class UserCrudController extends AbstractCrudController
             ->onlyOnDetail();
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
-            ->onlyOnIndex();
+            ->hideOnForm();
 
         yield DateTimeField::new('createdAt', 'Создано')
-            ->onlyOnIndex();
+            ->hideOnForm();
     }
 }

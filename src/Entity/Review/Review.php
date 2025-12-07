@@ -28,6 +28,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\SerializedName;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: ReviewRepository::class)]
 #[ORM\HasLifecycleCallbacks]
@@ -121,6 +122,8 @@ class Review
         'reviews:read',
         'reviewsClient:read',
     ])]
+    #[Assert\PositiveOrZero(message: 'Field cannot be less than zero')]
+    #[Assert\LessThanOrEqual(value: 5, message: 'Field cannot be greater than 5')]
     private ?float $rating = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]

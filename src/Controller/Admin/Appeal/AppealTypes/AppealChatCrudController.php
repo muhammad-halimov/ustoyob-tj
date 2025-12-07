@@ -58,7 +58,7 @@ class AppealChatCrudController extends AbstractCrudController
     public function configureFields(string $pageName): iterable
     {
         yield IdField::new('id')
-            ->onlyOnIndex();
+            ->hideOnForm();
 
         yield TextField::new('title', 'Заголовок')
             ->setRequired(true)
@@ -98,9 +98,9 @@ class AppealChatCrudController extends AbstractCrudController
             ->setRequired(false);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
-            ->onlyOnIndex();
+            ->hideOnForm();
 
         yield DateTimeField::new('createdAt', 'Создано')
-            ->onlyOnIndex();
+            ->hideOnForm();
     }
 }

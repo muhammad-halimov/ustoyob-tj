@@ -57,7 +57,7 @@ class TechSupportCrudController extends AbstractCrudController
     public function configureFields(string $pageName): iterable
     {
         yield IdField::new('id')
-            ->onlyOnIndex();
+            ->hideOnForm();
 
         yield TextField::new('title', 'Заголовок')
             ->setRequired(true)

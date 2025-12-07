@@ -17,7 +17,7 @@ class TicketImageCrudController extends AbstractCrudController
     public function configureFields(string $pageName): iterable
     {
         yield IdField::new('id')
-            ->onlyOnIndex();
+            ->hideOnForm();
 
         yield VichImageField::new('imageFile', 'Фото объявления')
             ->setHelp('

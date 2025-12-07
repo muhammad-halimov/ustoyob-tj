@@ -35,6 +35,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
 use Symfony\Component\Serializer\Attribute\SerializedName;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: TicketRepository::class)]
 #[ORM\HasLifecycleCallbacks]
@@ -142,6 +143,7 @@ class Ticket
         'masterTickets:read',
         'clientTickets:read',
     ])]
+    #[Assert\PositiveOrZero(message: 'Field cannot be less than zero')]
     private ?float $budget = null;
 
     #[ORM\Column(type: 'boolean', nullable: true)]

@@ -64,7 +64,7 @@ class AppealCrudController extends AbstractCrudController
     public function configureFields(string $pageName): iterable
     {
         yield IdField::new('id')
-            ->onlyOnIndex();
+            ->hideOnForm();
 
         yield FormField::addTab('Типы жалоб', 'fas fa-list');
             yield ChoiceField::new('type', 'Тип')

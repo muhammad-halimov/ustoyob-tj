@@ -58,6 +58,7 @@ use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
 use Symfony\Component\Validator\Constraints as Assert;
+use App\Validator\Constraints as AppAssert;
 use Vich\UploaderBundle\Mapping\Annotation as Vich;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
@@ -297,6 +298,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'masterTickets:read',
         'clientTickets:read',
     ])]
+    #[Assert\PositiveOrZero(message: 'Field cannot be less than zero')]
+    #[Assert\LessThanOrEqual(value: 5, message: 'Field cannot be greater than 5')]
     private ?float $rating = null;
 
     #[ORM\Column(length: 16, nullable: true)]
@@ -331,17 +334,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?string $image = null;
 
     #[ORM\Column(length: 20, nullable: true)]
-    #[Groups([
-        'masters:read',
-        'clients:read',
-    ])]
+    #[Groups(['masters:read', 'clients:read'])]
+    #[AppAssert\PhoneConstraint]
     private ?string $phone1 = null;
 
     #[ORM\Column(length: 20, nullable: true)]
-    #[Groups([
-        'masters:read',
-        'clients:read',
-    ])]
+    #[Groups(['masters:read', 'clients:read'])]
+    #[AppAssert\PhoneConstraint]
     private ?string $phone2 = null;
 
     #[ORM\Column(type: 'boolean', nullable: true)]
@@ -704,7 +703,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function setPhone1(?string $phone1): User
     {
-        $this->phone1 = $phone1;
+        // Нормализуем при сохранении
+        if ($phone1) {
+            $cleaned = preg_replace('/[^\d+]/', '', $phone1);
+            // Добавляем +992 если нет
+            if (!str_starts_with($cleaned, '+992')) {
+                $cleaned = '+992' . $cleaned;
+            }
+            $this->phone1 = $cleaned;
+        } else {
+            $this->phone1 = null;
+        }
+
         return $this;
     }
 
@@ -715,7 +725,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function setPhone2(?string $phone2): User
     {
-        $this->phone2 = $phone2;
+        // Нормализуем при сохранении
+        if ($phone2) {
+            $cleaned = preg_replace('/[^\d+]/', '', $phone2);
+            // Добавляем +992 если нет
+            if (!str_starts_with($cleaned, '+992')) {
+                $cleaned = '+992' . $cleaned;
+            }
+            $this->phone2 = $cleaned;
+        } else {
+            $this->phone2 = null;
+        }
+
         return $this;
     }
 

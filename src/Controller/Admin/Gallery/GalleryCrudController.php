@@ -54,7 +54,7 @@ class GalleryCrudController extends AbstractCrudController
     public function configureFields(string $pageName): iterable
     {
         yield IdField::new('id')
-            ->onlyOnIndex();
+            ->hideOnForm();
 
         yield AssociationField::new('user', 'Мастер')
             ->setQueryBuilder(function (QueryBuilder $qb) {
@@ -70,9 +70,9 @@ class GalleryCrudController extends AbstractCrudController
             ->setRequired(false);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
-            ->onlyOnIndex();
+            ->hideOnForm();
 
         yield DateTimeField::new('createdAt', 'Создано')
-            ->onlyOnIndex();
+            ->hideOnForm();
     }
 }

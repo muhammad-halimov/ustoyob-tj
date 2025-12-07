@@ -29,7 +29,7 @@ class AddressCrudController extends AbstractCrudController
     public function configureFields(string $pageName): iterable
     {
         yield IdField::new('id')
-            ->onlyOnIndex();
+            ->hideOnForm();
 
         yield AssociationField::new('province', 'Область')
             ->autocomplete()
@@ -67,9 +67,9 @@ class AddressCrudController extends AbstractCrudController
             ->setRequired(false);
 
         yield DateTimeField::new('createdAt', 'Создан')
-            ->onlyOnIndex();
+            ->hideOnForm();
 
         yield DateTimeField::new('updatedAt', 'Обновлен')
-            ->onlyOnIndex();
+            ->hideOnForm();
     }
 }

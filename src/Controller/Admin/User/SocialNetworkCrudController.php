@@ -54,7 +54,7 @@ class SocialNetworkCrudController extends AbstractCrudController
     public function configureFields(string $pageName): iterable
     {
         yield IdField::new('id')
-            ->onlyOnIndex();
+            ->hideOnForm();
 
         yield ChoiceField::new('network', 'Соц. сеть')
             ->setChoices(SocialNetwork::NETWORKS)
@@ -66,9 +66,9 @@ class SocialNetworkCrudController extends AbstractCrudController
             ->setRequired(true);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
-            ->onlyOnIndex();
+            ->hideOnForm();
 
         yield DateTimeField::new('createdAt', 'Создано')
-            ->onlyOnIndex();
+            ->hideOnForm();
     }
 }
