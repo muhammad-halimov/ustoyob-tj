@@ -61,10 +61,10 @@ readonly class AccessService
 
     public function checkBlackList(User|null $author, User|null $assumedUser = null, Ticket|null $ticket = null): bool
     {
-        $this->check($author);
-
         // Проверяем, не заблокировал ли author этот Ticket
-        if ($ticket) {
+        if ($ticket && $author) {
+            $this->check($author);
+
             foreach ($author->getBlackLists() as $blackList) {
                 if ($blackList->getTickets()->contains($ticket)) {
                     throw new AccessDeniedHttpException('You blacklisted this ticket');
@@ -72,19 +72,17 @@ readonly class AccessService
             }
         }
 
-        $this->check($assumedUser);
-
-        // Проверяем, не заблокировал ли author пользователя assumedUser
-        foreach ($author->getBlackLists() as $blackList) {
-            if ($blackList->getClients()->contains($assumedUser) ||
-                $blackList->getMasters()->contains($assumedUser)) {
-                throw new AccessDeniedHttpException('You blacklisted this user');
-            }
-        }
-
         if ($assumedUser) {
-            // Проверяем, не заблокировал ли assumedUser пользователя author
-            foreach ($assumedUser->getBlackLists() as $blackList) {
+            $this->check($assumedUser);
+
+            foreach ($author->getBlackLists() as $blackList) { // Проверяем, не заблокировал ли author пользователя assumedUser
+                if ($blackList->getClients()->contains($assumedUser) ||
+                    $blackList->getMasters()->contains($assumedUser)) {
+                    throw new AccessDeniedHttpException('You blacklisted this user');
+                }
+            }
+
+            foreach ($assumedUser->getBlackLists() as $blackList) { // Проверяем, не заблокировал ли assumedUser пользователя author
                 if ($blackList->getClients()->contains($author) ||
                     $blackList->getMasters()->contains($author)) {
                     throw new AccessDeniedHttpException('You are blacklisted by this user');
