@@ -61,8 +61,7 @@ readonly class AccessService
 
     public function checkBlackList(User|null $author, User|null $assumedUser = null, Ticket|null $ticket = null): bool
     {
-        // Проверяем, не заблокировал ли author этот Ticket
-        if ($ticket && $author) {
+        if ($ticket && $author) { // Проверяем, не заблокировал ли author этот Ticket
             $this->check($author);
 
             foreach ($author->getBlackLists() as $blackList) {
