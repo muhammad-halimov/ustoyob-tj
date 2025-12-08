@@ -62,6 +62,16 @@ readonly class AccessService
     public function checkBlackList(User|null $author, User|null $assumedUser = null, Ticket|null $ticket = null): bool
     {
         $this->check($author);
+
+        // Проверяем, не заблокировал ли author этот Ticket
+        if ($ticket) {
+            foreach ($author->getBlackLists() as $blackList) {
+                if ($blackList->getTickets()->contains($ticket)) {
+                    throw new AccessDeniedHttpException('You blacklisted this ticket');
+                }
+            }
+        }
+
         $this->check($assumedUser);
 
         // Проверяем, не заблокировал ли author пользователя assumedUser
@@ -78,15 +88,6 @@ readonly class AccessService
                 if ($blackList->getClients()->contains($author) ||
                     $blackList->getMasters()->contains($author)) {
                     throw new AccessDeniedHttpException('You are blacklisted by this user');
-                }
-            }
-        }
-
-        // Проверяем, не заблокировал ли author этот Ticket
-        if ($ticket) {
-            foreach ($author->getBlackLists() as $blackList) {
-                if ($blackList->getTickets()->contains($ticket)) {
-                    throw new AccessDeniedHttpException('You blacklisted this ticket');
                 }
             }
         }
