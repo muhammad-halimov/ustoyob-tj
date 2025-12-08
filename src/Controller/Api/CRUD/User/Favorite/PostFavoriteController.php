@@ -122,7 +122,7 @@ class PostFavoriteController extends AbstractController
 
                 // Проверяем доступ к тикету
                 try {
-                    $this->accessService->check($bearerUser, $ticketInternal);
+                    $this->accessService->checkBlackList($bearerUser, ticket: $ticketInternal);
                     $tickets[] = $ticketInternal;
                 } catch (Exception $e) {
                     $messages[] = "Ticket #{$ticketInternal->getId()} skipped: " . $e->getMessage();
