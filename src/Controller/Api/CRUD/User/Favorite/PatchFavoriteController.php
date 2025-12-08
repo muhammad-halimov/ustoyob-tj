@@ -38,8 +38,9 @@ class PatchFavoriteController extends AbstractController
         if (!$favorite)
             return $this->json(['message' => "Resource not found"], 404);
 
-        if (!$this->favoriteRepository->findFavorites($bearerUser))
-            return $this->json(['message' => "Ownership doesn't match"], 400);
+        // Проверяем, что избранное принадлежит текущему пользователю
+        if ($favorite->getUser()->getId() !== $bearerUser->getId())
+            return $this->json(['message' => "Ownership doesn't match"], 403);
 
         $data = json_decode($request->getContent(), true);
 
@@ -134,9 +135,9 @@ class PatchFavoriteController extends AbstractController
                 if ($favorite->getTickets()->contains($ticketInternal))
                     continue;
 
-                // Проверяем чёрный список - если в ЧС, пропускаем без ошибки
+                // Проверяем доступ к тикету
                 try {
-                    $this->accessService->checkBlackList(author: $bearerUser, ticket: $ticketInternal);
+                    $this->accessService->check($bearerUser, $ticketInternal);
                     $tickets[] = $ticketInternal;
                 } catch (Exception $e) {
                     $messages[] = "Ticket #{$ticketInternal->getId()} skipped: " . $e->getMessage();

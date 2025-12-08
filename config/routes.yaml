@@ -4,6 +4,14 @@ controllers:
         namespace: App\Controller
     type: attribute
 
-authentication_client_token:
+api_authentication_token:
     path: /api/authentication_token
+    methods: [ 'POST' ]
+
+api_refresh_token:
+    path: /api/refresh_token
+    methods: [ 'POST' ]
+
+api_token_invalidate:
+    path: /api/invalidate_token
     methods: [ 'POST' ]

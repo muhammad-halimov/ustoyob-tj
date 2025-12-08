@@ -31,7 +31,10 @@ class PostBlackListController extends AbstractController
 
         $this->accessService->check($bearerUser);
 
-        if ($this->blackListRepository->findBlackLists($bearerUser))
+        // Проверяем, есть ли уже чёрный список у пользователя
+        $existingBlackLists = $this->blackListRepository->findBlackLists($bearerUser);
+
+        if (!empty($existingBlackLists))
             return $this->json(['message' => "This user has blacklist, patch instead"], 400);
 
         $blackList = (new BlackList())->setAuthor($bearerUser);

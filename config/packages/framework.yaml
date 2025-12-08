@@ -8,6 +8,12 @@ framework:
     #esi: true
     #fragments: true
 
+    cache:
+        default_redis_provider: "%env(REDIS_URL)%"
+        pools:
+            block_list_token_cache_pool:
+                adapter: cache.adapter.redis
+
 when@test:
     framework:
         test: true

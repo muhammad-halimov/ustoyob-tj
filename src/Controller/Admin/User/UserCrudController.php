@@ -5,7 +5,7 @@ namespace App\Controller\Admin\User;
 use App\Controller\Admin\Field\VichImageField;
 use App\Controller\Admin\Geography\AddressCrudController;
 use App\Entity\User;
-use App\Service\AccountConfirmationService;
+use App\Service\OAuth\AccountConfirmationService;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;

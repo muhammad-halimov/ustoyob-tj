@@ -17,7 +17,7 @@ class FavoriteRepository extends ServiceEntityRepository
         parent::__construct($registry, Favorite::class);
     }
 
-    public function findFavorites(User $user): array
+    public function findUserFavorites(User $user): array
     {
         return $this
             ->createQueryBuilder('f')

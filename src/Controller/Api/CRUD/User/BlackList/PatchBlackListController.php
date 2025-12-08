@@ -14,6 +14,7 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
+
 class PatchBlackListController extends AbstractController
 {
     public function __construct(
@@ -37,8 +38,9 @@ class PatchBlackListController extends AbstractController
         if (!$blackList)
             return $this->json(['message' => "Resource not found"], 404);
 
-        if (!$this->blackListRepository->findBlackLists($bearerUser))
-            return $this->json(['message' => "Ownership doesn't match"], 400);
+        // Проверяем, что чёрный список принадлежит текущему пользователю
+        if ($blackList->getAuthor()->getId() !== $bearerUser->getId())
+            return $this->json(['message' => "Ownership doesn't match"], 403);
 
         $data = json_decode($request->getContent(), true);
 

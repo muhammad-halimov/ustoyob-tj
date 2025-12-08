@@ -26,7 +26,7 @@ class PersonalFavoriteFilterController extends AbstractController
         $this->accessService->check($bearerUser);
 
         /** @var Favorite $favorite */
-        $favorite = $this->favoriteRepository->findFavorites($bearerUser)[0] ?? null;
+        $favorite = $this->favoriteRepository->findUserFavorites($bearerUser)[0] ?? null;
 
         return empty($favorite)
             ? $this->json(['message' => 'Resource not found'], 404)

@@ -32,7 +32,9 @@ class PostFavoriteController extends AbstractController
 
         $this->accessService->check($bearerUser);
 
-        if ($this->favoriteRepository->findFavorites($bearerUser))
+        // Проверяем, есть ли уже избранное у пользователя
+        $existingFavorites = $this->favoriteRepository->findUserFavorites($bearerUser);
+        if (!empty($existingFavorites))
             return $this->json(['message' => "This user has favorites, patch instead"], 400);
 
         $favorite = (new Favorite())->setUser($bearerUser);
@@ -118,9 +120,9 @@ class PostFavoriteController extends AbstractController
                     continue;
                 }
 
-                // Проверяем чёрный список - если в ЧС, пропускаем без ошибки
+                // Проверяем доступ к тикету
                 try {
-                    $this->accessService->checkBlackList(author: $bearerUser, ticket: $ticketInternal);
+                    $this->accessService->check($bearerUser, $ticketInternal);
                     $tickets[] = $ticketInternal;
                 } catch (Exception $e) {
                     $messages[] = "Ticket #{$ticketInternal->getId()} skipped: " . $e->getMessage();
