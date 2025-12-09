@@ -56,15 +56,6 @@ class Address
     ])]
     private ?Province $province = null;
 
-    #[ORM\ManyToOne(targetEntity: District::class)]
-    #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'masters:read',
-        'clients:read',
-    ])]
-    private ?District $district = null;
-
     #[ORM\ManyToOne(City::class)]
     #[Groups([
         'masterTickets:read',
@@ -73,6 +64,24 @@ class Address
         'clients:read',
     ])]
     private ?City $city = null;
+
+    #[ORM\ManyToOne(targetEntity: Suburb::class)]
+    #[Groups([
+        'masterTickets:read',
+        'clientTickets:read',
+        'masters:read',
+        'clients:read',
+    ])]
+    private ?Suburb $suburb = null;
+
+    #[ORM\ManyToOne(targetEntity: District::class)]
+    #[Groups([
+        'masterTickets:read',
+        'clientTickets:read',
+        'masters:read',
+        'clients:read',
+    ])]
+    private ?District $district = null;
 
     #[ORM\ManyToOne(Settlement::class)]
     #[Groups([
@@ -100,15 +109,6 @@ class Address
         'clients:read',
     ])]
     private ?Village $village = null;
-
-    #[ORM\ManyToOne(targetEntity: Suburb::class)]
-    #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'masters:read',
-        'clients:read',
-    ])]
-    private ?Suburb $suburb = null;
 
     /**
      * @var Collection<int, User>

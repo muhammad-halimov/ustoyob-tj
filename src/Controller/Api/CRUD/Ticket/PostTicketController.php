@@ -39,7 +39,6 @@ class PostTicketController extends AbstractController
         $this->accessService->check($bearerUser);
 
         $ticketEntity = new Ticket();
-        $addressEntity = new Address();
 
         $data = json_decode($request->getContent(), true);
 
@@ -50,101 +49,88 @@ class PostTicketController extends AbstractController
         $activeParam = (bool)$data['active'];
         $categoryParam = $data['category'];
         $unitParam = $data['unit'];
+        $addressParam = $data['address'] ?? [];
 
-        if (!$data['address'])
+        if (!is_array($addressParam) || count($addressParam) === 0)
             return $this->json(['message' => 'Address not found'], 404);
 
-        // Область
-        $provinceParam = $data['address']['province'];
-
-        // Город
-        $cityParam = $data['address']['city'] ?? null;
-        $suburbParam = $data['address']['suburb'] ?? null;
-
-        // Районы
-        $districtParam = $data['address']['district'] ?? null;
-        $communityParam = $data['address']['community'] ?? null;
-        $settlementParam = $data['address']['settlement'] ?? null;
-        $villageParam = $data['address']['village'] ?? null;
-
-        if ($cityParam && $districtParam || !$cityParam && !$districtParam)
-            return $this->json(['message' => 'Not allowed. Either city or district'], 400);
-
-        if ($cityParam && $villageParam || $cityParam && $communityParam || $cityParam && $settlementParam)
-            return $this->json(['message' => 'Not allowed. Wrong format, city allowed only with suburb'], 400);
-
-        if ($districtParam && $suburbParam)
-            return $this->json(['message' => 'Not allowed. Wrong format, district not allowed with suburb'], 400);
-
-        // Загружаем сущности только если ID переданы
         /** @var Category $category */
         $category = $this->extractIriService->extract($categoryParam, Category::class, 'categories');
         /** @var Unit $unit */
         $unit = $this->extractIriService->extract($unitParam, Unit::class, 'units');
 
-        /** @var Province $province */
-        $province = $this->extractIriService->extract($provinceParam, Province::class, 'provinces');
+        $existingAddresses = [];
 
-        $addressEntity->setProvince($province);
+        foreach ($addressParam as $addressData) {
+            if (!isset($addressData['province']))
+                return $this->json(['message' => 'Province is required'], 400);
 
-        if ($cityParam) {
-            /** @var City $city */
-            $city = $this->extractIriService->extract($cityParam, City::class, 'cities');
-            /** @var Suburb $suburb */
-            $suburb = $suburbParam ? $this->extractIriService->extract($suburbParam, Suburb::class, 'suburbs') : null;
+            $provinceParam = $addressData['province'];
+            $cityParam = $addressData['city'] ?? null;
+            $suburbParam = $addressData['suburb'] ?? null;
+            $districtParam = $addressData['district'] ?? null;
+            $communityParam = $addressData['community'] ?? null;
+            $settlementParam = $addressData['settlement'] ?? null;
+            $villageParam = $addressData['village'] ?? null;
 
-            if (!$province && !$city && !$suburb)
-                return $this->json(['message' => 'Address not found'], 404);
+            // Проверка дубликата
+            $addressKey = implode(':', [
+                $provinceParam,
+                $cityParam,
+                $suburbParam,
+                $districtParam,
+                $communityParam,
+                $settlementParam,
+                $villageParam
+            ]);
 
-            if (!$province->getCities()->contains($city) && $city)
-                return $this->json(['message' => "This city doesn't belong to this province"], 400);
+            if (in_array($addressKey, $existingAddresses, true)) {
+                return $this->json(['message' => 'Duplicate address detected'], 400);
+            }
 
-            if (!$city->getSuburbs()->contains($suburb) && $suburb)
-                return $this->json(['message' => "This suburb doesn't belong to this city"], 400);
+            $existingAddresses[] = $addressKey;
 
-            $addressEntity
-                ->setCity($city)
-                ->setSuburb($suburb);
+            /** @var Province $province */
+            $province = $this->extractIriService->extract($provinceParam, Province::class, 'provinces');
+
+            $addressEntity = new Address();
+            $addressEntity->setProvince($province);
+
+            if ($cityParam) {
+                /** @var City $city */
+                $city = $this->extractIriService->extract($cityParam, City::class, 'cities');
+                /** @var Suburb|null $suburb */
+                $suburb = $suburbParam ?
+                    $this->extractIriService->extract($suburbParam, Suburb::class, 'suburbs') : null;
+
+                $addressEntity
+                    ->setCity($city)
+                    ->setSuburb($suburb);
+            }
+
+            if ($districtParam) {
+                /** @var District $district */
+                $district = $this->extractIriService->extract($districtParam, District::class, 'districts');
+                /** @var Settlement|null $settlement */
+                $settlement = $settlementParam ?
+                    $this->extractIriService->extract($settlementParam, Settlement::class, 'settlements') : null;
+                /** @var Community|null $community */
+                $community = $communityParam ?
+                    $this->extractIriService->extract($communityParam, Community::class, 'communities') : null;
+                /** @var Village|null $village */
+                $village = $villageParam ?
+                    $this->extractIriService->extract($villageParam, Village::class, 'villages') : null;
+
+                $addressEntity
+                    ->setDistrict($district)
+                    ->setVillage($village)
+                    ->setCommunity($community)
+                    ->setSettlement($settlement);
+            }
+
+            $ticketEntity->addAddress($addressEntity);
+            $this->entityManager->persist($addressEntity);
         }
-
-        if ($districtParam) {
-            /** @var District $district */
-            $district = $this->extractIriService->extract($districtParam, District::class, 'districts');
-
-            /** @var Settlement $settlement */
-            $settlement = $settlementParam ? $this->extractIriService->extract($settlementParam, Settlement::class, 'settlements') : null;
-            /** @var Community $community */
-            $community = $communityParam ? $this->extractIriService->extract($communityParam, Community::class, 'communities') : null;
-            /** @var Village $village */
-            $village = $villageParam ? $this->extractIriService->extract($villageParam, Village::class, 'villages') : null;
-
-            if (!$province && !$district && !$village && !$settlement && !$community)
-                return $this->json(['message' => 'Address not found'], 404);
-
-            if (!$province->getDistricts()->contains($district) && $district)
-                return $this->json(['message' => "This district doesn't belong to this province"], 400);
-
-            if (!$district->getCommunities()->contains($community) && $community)
-                return $this->json(['message' => "This community doesn't belong to this district"], 400);
-
-            if (!$district->getSettlements()->contains($settlement) && $settlement)
-                return $this->json(['message' => "This settlement doesn't belong to this district"], 400);
-
-            if (!$settlement->getVillage()->contains($village) && $village)
-                return $this->json(['message' => "This village doesn't belong to this settlement"], 400);
-
-            $addressEntity
-                ->setDistrict($district)
-                ->setVillage($village)
-                ->setCommunity($community)
-                ->setSettlement($settlement);
-        }
-
-        if (!$category)
-            return $this->json(['message' => 'Category not found'], 404);
-
-        if (!$unit)
-            return $this->json(['message' => 'Unit not found'], 404);
 
         $ticketEntity
             ->setTitle($titleParam)
@@ -153,8 +139,7 @@ class PostTicketController extends AbstractController
             ->setBudget($budgetParam)
             ->setActive($activeParam)
             ->setCategory($category)
-            ->setUnit($unit)
-            ->addAddress($addressEntity);
+            ->setUnit($unit);
 
         $message = [
             'title' => $titleParam,
@@ -188,13 +173,15 @@ class PostTicketController extends AbstractController
             ];
         } else return $this->json(['message' => 'Access denied'], 403);
 
-        $this->entityManager->persist($addressEntity);
         $this->entityManager->persist($ticketEntity);
         $this->entityManager->flush();
 
         return $this->json(([
             'id' => $ticketEntity->getId(),
-            'address' => "/api/addresses/{$ticketEntity->getAddresses()->first()->getId()}"
+            'addresses' => array_map(
+                fn(Address $a) => "/api/addresses/{$a->getId()}",
+                $ticketEntity->getAddresses()->toArray()
+            )
         ] + $message), 201);
     }
 }

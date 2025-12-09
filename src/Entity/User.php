@@ -572,18 +572,21 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      * @var Collection<int, BlackList>
      */
     #[ORM\OneToMany(targetEntity: BlackList::class, mappedBy: 'author')]
+    #[Ignore]
     private Collection $blackLists;
 
     /**
      * @var Collection<int, BlackList>
      */
     #[ORM\ManyToMany(targetEntity: BlackList::class, mappedBy: 'clients')]
+    #[Ignore]
     private Collection $clientsBlackListedByAuthor;
 
     /**
      * @var Collection<int, BlackList>
      */
     #[ORM\ManyToMany(targetEntity: BlackList::class, mappedBy: 'masters')]
+    #[Ignore]
     private Collection $mastersBlackListedByAuthor;
 
     public function getId(): ?int

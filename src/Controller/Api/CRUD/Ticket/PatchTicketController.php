@@ -2,7 +2,14 @@
 
 namespace App\Controller\Api\CRUD\Ticket;
 
+use App\Entity\Geography\Address;
+use App\Entity\Geography\City\City;
+use App\Entity\Geography\City\Suburb;
+use App\Entity\Geography\District\Community;
 use App\Entity\Geography\District\District;
+use App\Entity\Geography\District\Settlement;
+use App\Entity\Geography\District\Village;
+use App\Entity\Geography\Province;
 use App\Entity\Ticket\Category;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Ticket\Unit;
@@ -20,11 +27,11 @@ class PatchTicketController extends AbstractController
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly TicketRepository       $ticketRepository,
         private readonly ExtractIriService      $extractIriService,
+        private readonly TicketRepository       $ticketRepository,
         private readonly AccessService          $accessService,
         private readonly Security               $security,
-    ){}
+    ) {}
 
     public function __invoke(int $id, Request $request): JsonResponse
     {
@@ -36,94 +43,89 @@ class PatchTicketController extends AbstractController
         /** @var Ticket $ticketEntity */
         $ticketEntity = $this->ticketRepository->find($id);
 
-        if (!$ticketEntity)
-            return $this->json(['message' => 'Ticket not found'], 404);
-
-        // Проверка владельца
-        if (in_array("ROLE_CLIENT", $bearerUser->getRoles()) && $ticketEntity->getAuthor() !== $bearerUser)
-            return $this->json(['message' => 'Access denied'], 403);
-
-        if (in_array("ROLE_MASTER", $bearerUser->getRoles()) && $ticketEntity->getMaster() !== $bearerUser)
-            return $this->json(['message' => 'Access denied'], 403);
+        if (!$ticketEntity) return $this->json(['message' => 'Ticket not found'], 404);
 
         $data = json_decode($request->getContent(), true);
 
-        $titleParam = $data['title'] ?? null;
-        $descriptionParam = $data['description'] ?? null;
-        $noticeParam = $data['notice'] ?? null;
-        $budgetParam = $data['budget'] ?? null;
-        $activeParam = isset($data['active']) ? (bool)$data['active'] : null;
+        $titleParam = $data['title'] ?? $ticketEntity->getTitle();
+        $descriptionParam = $data['description'] ?? $ticketEntity->getDescription();
+        $noticeParam = $data['notice'] ?? $ticketEntity->getNotice();
+        $budgetParam = $data['budget'] ?? $ticketEntity->getBudget();
+        $activeParam = isset($data['active']) ? (bool)$data['active'] : $ticketEntity->getActive();
         $categoryParam = $data['category'] ?? null;
         $unitParam = $data['unit'] ?? null;
-        $districtParam = $data['district'] ?? null;
+        $addressParam = $data['address'] ?? null;
 
-        // Проверка, что хотя бы одно поле передано
-        if (is_null($titleParam) && is_null($descriptionParam) && is_null($noticeParam) &&
-            is_null($budgetParam) && is_null($activeParam) && is_null($categoryParam) &&
-            is_null($unitParam) && is_null($districtParam))
-            return $this->json(['message' => 'At least one field must be provided'], 400);
+        // Извлечение Category и Unit
+        $category = $categoryParam ? $this->extractIriService->extract($categoryParam, Category::class, 'categories') : $ticketEntity->getCategory();
+        $unit = $unitParam ? $this->extractIriService->extract($unitParam, Unit::class, 'units') : $ticketEntity->getUnit();
 
-        // Обновляем title (если передан)
-        if (!is_null($titleParam)) {
-            $ticketEntity->setTitle($titleParam);
+        // Проверка и добавление адресов с исключением дубликатов
+        if ($addressParam && is_array($addressParam)) {
+            $ticketEntity->getAddresses()->clear();
+
+            $existingAddresses = [];
+            foreach ($addressParam as $addressData) {
+                $provinceParam = $addressData['province'];
+                $cityParam = $addressData['city'] ?? null;
+                $suburbParam = $addressData['suburb'] ?? null;
+                $districtParam = $addressData['district'] ?? null;
+                $communityParam = $addressData['community'] ?? null;
+                $settlementParam = $addressData['settlement'] ?? null;
+                $villageParam = $addressData['village'] ?? null;
+
+                $addressKey = implode(':', [
+                    $provinceParam, $cityParam, $suburbParam,
+                    $districtParam, $communityParam, $settlementParam, $villageParam
+                ]);
+
+                if (in_array($addressKey, $existingAddresses, true)) {
+                    return $this->json(['message' => 'Duplicate address detected'], 400);
+                }
+
+                $existingAddresses[] = $addressKey;
+
+                /** @var Province $province */
+                $province = $this->extractIriService->extract($provinceParam, Province::class, 'provinces');
+                $addressEntity = new Address();
+                $addressEntity->setProvince($province);
+
+                if ($cityParam) {
+                    /** @var City $city */
+                    $city = $this->extractIriService->extract($cityParam, City::class, 'cities');
+                    $suburb = $suburbParam ? $this->extractIriService->extract($suburbParam, Suburb::class, 'suburbs') : null;
+                    $addressEntity->setCity($city)->setSuburb($suburb);
+                }
+
+                if ($districtParam) {
+                    /** @var District $district */
+                    $district = $this->extractIriService->extract($districtParam, District::class, 'districts');
+                    $settlement = $settlementParam ? $this->extractIriService->extract($settlementParam, Settlement::class, 'settlements') : null;
+                    $community = $communityParam ? $this->extractIriService->extract($communityParam, Community::class, 'communities') : null;
+                    $village = $villageParam ? $this->extractIriService->extract($villageParam, Village::class, 'villages') : null;
+
+                    $addressEntity->setDistrict($district)
+                        ->setSettlement($settlement)
+                        ->setCommunity($community)
+                        ->setVillage($village);
+                }
+
+                $ticketEntity->addAddress($addressEntity);
+                $this->entityManager->persist($addressEntity);
+            }
         }
 
-        // Обновляем description (если передан)
-        if (!is_null($descriptionParam)) {
-            $ticketEntity->setDescription($descriptionParam);
-        }
-
-        // Обновляем notice (если передан)
-        if (!is_null($noticeParam)) {
-            $ticketEntity->setNotice($noticeParam);
-        }
-
-        // Обновляем budget (если передан)
-        if (!is_null($budgetParam)) {
-            $ticketEntity->setBudget($budgetParam);
-        }
-
-        // Обновляем active (если передан)
-        if (!is_null($activeParam)) {
-            $ticketEntity->setActive($activeParam);
-        }
-
-        // Обновляем category (если передан)
-        if (!is_null($categoryParam)) {
-            /** @var Category $category */
-            $category = $this->extractIriService->extract($categoryParam, Category::class, 'categories');
-
-            if (!$category)
-                return $this->json(['message' => 'Category not found'], 404);
-
-            $ticketEntity->setCategory($category);
-        }
-
-        // Обновляем unit (если передан)
-        if (!is_null($unitParam)) {
-            /** @var Unit $unit */
-            $unit = $this->extractIriService->extract($unitParam, Unit::class, 'units');
-
-            if (!$unit)
-                return $this->json(['message' => 'Unit not found'], 404);
-
-            $ticketEntity->setUnit($unit);
-        }
-
-        // Обновляем district (если передан)
-        if (!is_null($districtParam)) {
-            /** @var District $district */
-            $district = $this->extractIriService->extract($districtParam, District::class, 'districts');
-
-            if (!$district)
-                return $this->json(['message' => 'District not found'], 404);
-
-            $ticketEntity->setAddress($district);
-        }
+        $ticketEntity
+            ->setTitle($titleParam)
+            ->setDescription($descriptionParam)
+            ->setNotice($noticeParam)
+            ->setBudget($budgetParam)
+            ->setActive($activeParam)
+            ->setCategory($category)
+            ->setUnit($unit);
 
         $this->entityManager->flush();
 
-        // Формируем полный ответ
         $message = [
             'id' => $ticketEntity->getId(),
             'title' => $ticketEntity->getTitle(),
@@ -131,19 +133,15 @@ class PatchTicketController extends AbstractController
             'notice' => $ticketEntity->getNotice(),
             'budget' => $ticketEntity->getBudget(),
             'active' => $ticketEntity->getActive(),
-            'category' => "/api/categories/{$ticketEntity->getCategory()->getId()}",
-            'district' => "/api/districts/{$ticketEntity->getAddress()->getId()}",
-            'unit' => "/api/units/{$ticketEntity->getUnit()->getId()}",
+            'category' => $category ? "/api/categories/{$category->getId()}" : null,
+            'unit' => $unit ? "/api/units/{$unit->getId()}" : null,
+            'master' => $ticketEntity->getMaster()?->getId() ? "/api/users/{$ticketEntity->getMaster()->getId()}" : null,
+            'author' => $ticketEntity->getAuthor()?->getId() ? "/api/users/{$ticketEntity->getAuthor()->getId()}" : null,
+            'addresses' => array_map(
+                fn(Address $a) => "/api/addresses/{$a->getId()}",
+                $ticketEntity->getAddresses()->toArray()
+            )
         ];
-
-        if (in_array("ROLE_CLIENT", $bearerUser->getRoles())) {
-            $message['author'] = "/api/users/{$ticketEntity->getAuthor()->getId()}";
-            $message['service'] = false;
-        }
-        elseif (in_array("ROLE_MASTER", $bearerUser->getRoles())) {
-            $message['master'] = "/api/users/{$ticketEntity->getMaster()->getId()}";
-            $message['service'] = true;
-        }
 
         return $this->json($message);
     }

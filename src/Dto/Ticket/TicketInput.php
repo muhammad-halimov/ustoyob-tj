@@ -36,6 +36,9 @@ class TicketInput
     #[Assert\NotBlank(message: 'Unit is required')]
     public Unit $unit; // IRI или ID
 
+    /**
+     * @var Address[]
+     */
     #[Assert\NotBlank(message: 'Address is required')]
-    public Address $address; // IRI или ID
+    public array $address; // IRI или ID
 }
