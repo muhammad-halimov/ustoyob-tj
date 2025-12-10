@@ -2,6 +2,7 @@
 /.idea
 
 ###> symfony/framework-bundle ###
+/.oauth.credentials.local
 /.env.local
 /.env.local.php
 /.env.*.local
@@ -26,3 +27,4 @@
 ###< lexik/jwt-authentication-bundle ###
 
 .ai
+

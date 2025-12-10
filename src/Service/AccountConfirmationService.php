@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Service\OAuth;
+namespace App\Service;
 
 use App\Entity\User;
 use App\Entity\User\AccountConfirmationToken;

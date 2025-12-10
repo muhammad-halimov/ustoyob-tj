@@ -34,6 +34,7 @@ use App\Entity\Chat\ChatImage;
 use App\Entity\Chat\ChatMessage;
 use App\Entity\Gallery\Gallery;
 use App\Entity\Geography\Address;
+use App\Entity\OAuth\OAuthType;
 use App\Entity\Review\Review;
 use App\Entity\TechSupport\TechSupport;
 use App\Entity\TechSupport\TechSupportImage;
@@ -47,6 +48,7 @@ use App\Entity\User\Favorite;
 use App\Entity\User\Occupation;
 use App\Entity\User\SocialNetwork;
 use App\Repository\UserRepository;
+use App\Validator\Constraints as AppAssert;
 use DateTime;
 use Deprecated;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -58,7 +60,6 @@ use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
 use Symfony\Component\Validator\Constraints as Assert;
-use App\Validator\Constraints as AppAssert;
 use Vich\UploaderBundle\Mapping\Annotation as Vich;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
@@ -77,7 +78,7 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
             uriTemplate: '/users/me',
             controller: PersonalUserFilterController::class,
             normalizationContext: [
-                'groups' => ['masters:read', 'clients:read'],
+                'groups' => ['masters:read', 'clients:read', 'users:me:read'],
                 'skip_null_values' => false,
             ],
         ),
@@ -154,13 +155,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     use UpdatedAtTrait, CreatedAtTrait;
 
-    public const ROLES = [
+    public const array ROLES = [
         'Администратор' => 'ROLE_ADMIN',
         'Мастер' => 'ROLE_MASTER',
         'Клиент' => 'ROLE_CLIENT',
     ];
 
-    public const GENDERS = [
+    public const array GENDERS = [
         'Женский' => 'gender_female',
         'Мужской' => 'gender_male',
         'Не указано' => 'gender_neutral',
@@ -332,6 +333,25 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     ])]
     #[ApiProperty(writable: false)]
     private ?string $image = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    #[Groups([
+        'masters:read',
+        'clients:read',
+        'reviews:read',
+        'reviewsClient:read',
+        'galleries:read',
+        'masterTickets:read',
+        'clientTickets:read',
+        'chats:read',
+        'chatMessages:read',
+        'appeal:ticket:read',
+        'favorites:read',
+        'techSupport:read',
+        'blackLists:read'
+    ])]
+    #[ApiProperty(writable: false)]
+    private ?string $imageExternalUrl = null;
 
     #[ORM\Column(length: 20, nullable: true)]
     #[Groups(['masters:read', 'clients:read'])]
@@ -589,6 +609,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Ignore]
     private Collection $mastersBlackListedByAuthor;
 
+    #[ORM\OneToOne(targetEntity: OAuthType::class, mappedBy: 'user', cascade: ['persist', 'remove'])]
+    #[Groups([
+        'users:me:read'
+    ])]
+    private ?OAuthType $oauthType = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -699,12 +725,24 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
+    public function getImageExternalUrl(): ?string
+    {
+        return $this->imageExternalUrl;
+    }
+
+    public function setImageExternalUrl(?string $imageExternalUrl): static
+    {
+        $this->imageExternalUrl = $imageExternalUrl;
+
+        return $this;
+    }
+
     public function getPhone1(): ?string
     {
         return $this->phone1;
     }
 
-    public function setPhone1(?string $phone1): User
+    public function setPhone1(?string $phone1): static
     {
         // Нормализуем при сохранении
         if ($phone1) {
@@ -726,7 +764,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->phone2;
     }
 
-    public function setPhone2(?string $phone2): User
+    public function setPhone2(?string $phone2): static
     {
         // Нормализуем при сохранении
         if ($phone2) {
@@ -1650,6 +1688,23 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         if ($this->mastersBlackListedByAuthor->removeElement($mastersBlackListedByAuthor)) {
             $mastersBlackListedByAuthor->removeMaster($this);
+        }
+
+        return $this;
+    }
+
+    public function getOauthType(): ?OAuthType
+    {
+        return $this->oauthType;
+    }
+
+    public function setOauthType(OAuthType $oauthType): static
+    {
+        $this->oauthType = $oauthType;
+
+        // синхронизация обратной связи
+        if ($oauthType->getUser() !== $this) {
+            $oauthType->setUser($this);
         }
 
         return $this;

@@ -79,7 +79,7 @@ class TechSupport
         $this->techSupportMessages = new ArrayCollection();
     }
 
-    public const SUPPORT = [
+    public const array SUPPORT = [
         'Проблемы с аккаунтом' => 'account',
         'Проблемы с объявлениями' => 'ticket',
         'Вопросы по работе платформы' => 'platform',
@@ -90,7 +90,7 @@ class TechSupport
         'Другое' => 'other',
     ];
 
-    public const STATUSES = [
+    public const array STATUSES = [
         'Новый' => 'new',
         'Заново открыто' => 'renewed',
         'В прогрессе' => 'in_progress',
@@ -98,7 +98,7 @@ class TechSupport
         'Закрыто' => 'closed',
     ];
 
-    public const PRIORITIES = [
+    public const array PRIORITIES = [
         'Низкий' => 'low',
         'Средний' => 'normal',
         'Высокий' => 'high',

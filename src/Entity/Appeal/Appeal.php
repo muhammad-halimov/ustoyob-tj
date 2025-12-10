@@ -105,7 +105,7 @@ class Appeal
         $this->appealChat = new ArrayCollection();
     }
 
-    public const TYPES = [
+    public const array TYPES = [
         'Услуга / Объявление' => 'ticket',
         'Чат' => 'chat',
     ];

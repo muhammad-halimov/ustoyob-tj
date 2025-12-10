@@ -67,4 +67,59 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
             ->getQuery()
             ->getResult();
     }
+
+    public function findByGoogleId(string $authId): User|null
+    {
+        return $this
+            ->createQueryBuilder('u')
+            ->join('u.oauthType', 'o')
+            ->where("o.googleId = :authId")
+            ->setParameter('authId', $authId)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    public function findByVKId(string $authId): User|null
+    {
+        return $this
+            ->createQueryBuilder('u')
+            ->join('u.oauthType', 'o')
+            ->where("o.vkId = :authId")
+            ->setParameter('authId', $authId)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    public function findByTelegramId(string $authId): User|null
+    {
+        return $this
+            ->createQueryBuilder('u')
+            ->join('u.oauthType', 'o')
+            ->where("o.telegramId = :authId")
+            ->setParameter('authId', $authId)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    public function findByFacebookId(string $authId): User|null
+    {
+        return $this
+            ->createQueryBuilder('u')
+            ->join('u.oauthType', 'o')
+            ->where("o.facebookId = :authId")
+            ->setParameter('authId', $authId)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    public function findByInstagramId(string $authId): User|null
+    {
+        return $this
+            ->createQueryBuilder('u')
+            ->join('u.oauthType', 'o')
+            ->where("o.instagramId = :authId")
+            ->setParameter('authId', $authId)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
 }

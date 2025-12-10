@@ -24,6 +24,6 @@ class PersonalUserFilterController extends AbstractController
 
         return empty($bearerUser)
             ? $this->json(['message' => 'Resource not found'], 404)
-            : $this->json($bearerUser, context: ['groups' => ['masters:read', 'clients:read']]);
+            : $this->json($bearerUser, context: ['groups' => ['masters:read', 'clients:read', 'users:me:read']]);
     }
 }

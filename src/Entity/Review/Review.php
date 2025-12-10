@@ -96,7 +96,7 @@ class Review
         return $this->description[15] ?? "Review #$this->id";
     }
 
-    public const TYPES = [
+    public const array TYPES = [
         'Отзыв клиенту' => 'client',
         'Отзыв мастеру' => 'master',
     ];

@@ -3,7 +3,7 @@
 namespace App\Controller\Api\CRUD\User\User;
 
 use App\Entity\User;
-use App\Service\OAuth\AccountConfirmationService;
+use App\Service\AccountConfirmationService;
 use Random\RandomException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
