@@ -7,6 +7,7 @@ use App\Dto\OAuth\Google\GoogleCallbackOutput;
 use App\Service\OAuth\Google\GoogleOAuthService;
 use Psr\Cache\InvalidArgumentException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
@@ -26,10 +27,10 @@ class GoogleOAuthCallbackController extends AbstractController
      * @throws DecodingExceptionInterface
      * @throws ClientExceptionInterface
      */
-    public function __invoke(#[MapRequestPayload] GoogleCallbackInput $input): GoogleCallbackOutput
+    public function __invoke(#[MapRequestPayload] GoogleCallbackInput $input): JsonResponse
     {
         $result = $this->googleOAuth->handleCode(
-            $input->getCode(), // Используем getter, который декодирует
+            $input->getCode(),
             $input->state,
             $input->role
         );
@@ -38,6 +39,7 @@ class GoogleOAuthCallbackController extends AbstractController
         $output->user = $result['user'];
         $output->token = $result['token'];
 
-        return $output;
+        // Сериализуем DTO в JSON
+        return $this->json($output);
     }
 }

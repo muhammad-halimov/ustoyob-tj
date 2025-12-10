@@ -35,4 +35,4 @@ use App\Dto\ApiAuth\ApiLogout\LogoutOutput;
         )
     ]
 )]
-class ApiAuthenticationDocumentation {}
+class ApiAuthentication {}

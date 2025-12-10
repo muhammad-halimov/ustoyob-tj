@@ -33,11 +33,11 @@ use App\Dto\OAuth\Google\GoogleCallbackOutput;
         new Get(
             uriTemplate: '/auth/google/url',
             controller: GoogleOAuthUrlController::class,
-            normalizationContext: ['groups' => ['google:read']],
             input: false,
             output: GoogleAuthUrlOutput::class,
             read: false,
+            write: false
         )
     ]
 )]
-class GoogleOAuthDocumentation {}
+class GoogleOAuth {}
