@@ -246,18 +246,18 @@ class UserCrudController extends AbstractCrudController
             ->setColumns(12)
             ->setRequired(false);
 
-        yield VichImageField::new('imageFile', 'Фото профиля')
-            ->setHelp('
-                <div class="mt-3">
-                    <span class="badge badge-info">*.jpg</span>
-                    <span class="badge badge-info">*.jpeg</span>
-                    <span class="badge badge-info">*.png</span>
-                    <span class="badge badge-info">*.jiff</span>
-                    <span class="badge badge-info">*.webp</span>
-                </div>
-            ')
-            ->onlyOnForms()
-            ->setColumns(12);
+//        yield VichImageField::new('imageFile', 'Фото профиля')
+//            ->setHelp('
+//                <div class="mt-3">
+//                    <span class="badge badge-info">*.jpg</span>
+//                    <span class="badge badge-info">*.jpeg</span>
+//                    <span class="badge badge-info">*.png</span>
+//                    <span class="badge badge-info">*.jiff</span>
+//                    <span class="badge badge-info">*.webp</span>
+//                </div>
+//            ')
+//            ->onlyOnForms()
+//            ->setColumns(12);
 
         yield TextField::new('password', 'Пароль')
             ->onlyOnDetail();

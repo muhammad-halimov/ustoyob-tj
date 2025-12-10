@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Entity\OAuth;
+namespace App\Entity\User;
 
 use App\Entity\User;
 use App\Repository\User\OAuthTypeRepository;
@@ -133,5 +133,43 @@ class OAuthType
         $this->facebookId = $facebookId;
 
         return $this;
+    }
+
+    /**
+     * Проверяет, есть ли хотя бы один привязанный OAuth provider
+     */
+    public function hasAnyProvider(): bool
+    {
+        return $this->googleId !== null
+            || $this->telegramId !== null
+            || $this->vkId !== null
+            || $this->instagramId !== null
+            || $this->facebookId !== null;
+    }
+
+    /**
+     * Возвращает список активных провайдеров
+     */
+    public function getActiveProviders(): array
+    {
+        $providers = [];
+
+        if ($this->googleId !== null) {
+            $providers[] = 'google';
+        }
+        if ($this->telegramId !== null) {
+            $providers[] = 'telegram';
+        }
+        if ($this->vkId !== null) {
+            $providers[] = 'vk';
+        }
+        if ($this->instagramId !== null) {
+            $providers[] = 'instagram';
+        }
+        if ($this->facebookId !== null) {
+            $providers[] = 'facebook';
+        }
+
+        return $providers;
     }
 }

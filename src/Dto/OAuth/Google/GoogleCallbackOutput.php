@@ -7,9 +7,27 @@ use Symfony\Component\Serializer\Annotation\Groups;
 
 final class GoogleCallbackOutput
 {
-    #[Groups(['google:read'])]
-    public User $user;
+    #[Groups([
+        'google:read',
+        'masters:read',
+        'clients:read',
+        'users:me:read'
+    ])]
+    public ?User $user = null;
 
-    #[Groups(['google:read'])]
-    public string $token;
+    #[Groups([
+        'google:read',
+        'masters:read',
+        'clients:read',
+        'users:me:read'
+    ])]
+    public ?string $token = null;
+
+    #[Groups([
+        'google:read',
+        'masters:read',
+        'clients:read',
+        'users:me:read'
+    ])]
+    public ?string $message = null;
 }

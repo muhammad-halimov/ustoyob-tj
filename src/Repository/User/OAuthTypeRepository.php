@@ -2,7 +2,7 @@
 
 namespace App\Repository\User;
 
-use App\Entity\OAuth\OAuthType;
+use App\Entity\User\OAuthType;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 

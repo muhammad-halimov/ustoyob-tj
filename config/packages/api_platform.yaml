@@ -2,7 +2,7 @@ api_platform:
     eager_loading:
         enabled: false
 
-    use_symfony_listeners: true
+#    use_symfony_listeners: true
 
     # The title of the API.
     title: 'API USTOYOB.TJ'

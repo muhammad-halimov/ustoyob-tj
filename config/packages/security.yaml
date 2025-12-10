@@ -18,12 +18,14 @@ security:
             stateless: true
             provider: app_user_provider
             entry_point: jwt
-            json_login:
-                check_path: /api/authentication_token
-                username_path: email
-                password_path: password
-                success_handler: lexik_jwt_authentication.handler.authentication_success
-                failure_handler: lexik_jwt_authentication.handler.authentication_failure
+#            custom_authenticators:
+#                - App\Security\OAuthPasswordlessAuthenticator
+#            json_login:
+#                check_path: /api/authentication_token
+#                username_path: email
+#                password_path: password
+#                success_handler: lexik_jwt_authentication.handler.authentication_success
+#                failure_handler: lexik_jwt_authentication.handler.authentication_failure
             jwt: ~
             refresh_jwt:
                 check_path: /api/refresh_token

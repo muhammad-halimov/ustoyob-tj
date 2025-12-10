@@ -1,17 +1,16 @@
 <?php
 
-namespace App\Controller\Api;
+namespace App\Controller\Api\Auth;
 
+use Doctrine\Persistence\ManagerRegistry;
 use Gesdinet\JWTRefreshTokenBundle\Entity\RefreshToken;
 use Gesdinet\JWTRefreshTokenBundle\Model\RefreshTokenManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Http\Event\LogoutEvent;
-use Doctrine\Persistence\ManagerRegistry;
 
 class ApiLogoutController extends AbstractController
 {
@@ -20,8 +19,7 @@ class ApiLogoutController extends AbstractController
         private readonly ManagerRegistry              $doctrine
     ) {}
 
-    #[Route('/api/logout', name: 'api_logout', methods: ['POST'])]
-    public function logout(Request $request, EventDispatcherInterface $eventDispatcher, TokenStorageInterface $tokenStorage): JsonResponse
+    public function __invoke(Request $request, EventDispatcherInterface $eventDispatcher, TokenStorageInterface $tokenStorage): JsonResponse
     {
         $token = $tokenStorage->getToken();
 
