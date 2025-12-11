@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import styles from './AuthModal.module.scss';
-import { setAuthToken } from '../../utils/auth'; // Импортируем функцию
+import { setAuthToken, getAuthTokenExpiry, setAuthTokenExpiry, clearAuthData } from '../../utils/auth';
 
 const AuthModalState = {
     WELCOME: 'welcome',
@@ -9,7 +9,7 @@ const AuthModalState = {
     FORGOT_PASSWORD: 'forgot_password',
     VERIFY_CODE: 'verify_code',
     NEW_PASSWORD: 'new_password',
-    CONFIRM_EMAIL: 'confirm_email' // Добавили новое состояние
+    CONFIRM_EMAIL: 'confirm_email'
 } as const;
 
 type AuthModalStateType = typeof AuthModalState[keyof typeof AuthModalState];
@@ -55,6 +55,10 @@ interface ConfirmTokenResponse {
     error?: string;
 }
 
+// Константы для времени жизни токена
+const TOKEN_LIFETIME_HOURS = 1; // 1 час
+const TOKEN_REFRESH_BUFFER_MINUTES = 5; // Обновлять токен за 5 минут до истечения
+
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => {
     const [currentState, setCurrentState] = useState<AuthModalStateType>(AuthModalState.WELCOME);
     const [categories, setCategories] = useState<Category[]>([]);
@@ -72,7 +76,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
     });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string>('');
-    const [registeredEmail, setRegisteredEmail] = useState<string>(''); // Для хранения email после регистрации
+    const [registeredEmail, setRegisteredEmail] = useState<string>('');
 
     const API_BASE_URL = 'https://admin.ustoyob.tj';
 
@@ -84,8 +88,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     const data = await response.json();
                     setCategories(data);
                 }
-            } catch (error) {
-                console.error('Error loading categories:', error);
+            } catch (err) {
+                console.error('Error loading categories:', err);
             }
         };
 
@@ -105,11 +109,88 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
     const handleRoleChange = (role: 'master' | 'client') => {
         setFormData(prev => ({
             ...prev,
-            role: role
+            role
         }));
     };
 
-    // Подтверждение аккаунта по токену
+    // Функция для установки времени истечения токена
+    const setTokenExpiry = () => {
+        const expiryTime = new Date();
+        expiryTime.setHours(expiryTime.getHours() + TOKEN_LIFETIME_HOURS);
+        setAuthTokenExpiry(expiryTime.toISOString());
+
+        // Запускаем проверку истекшего токена
+        startTokenExpiryCheck();
+    };
+
+    // Функция для проверки истекшего токена
+    const checkTokenExpiry = (): boolean => {
+        const expiry = getAuthTokenExpiry();
+        if (!expiry) return true;
+
+        const now = new Date();
+        const expiryDate = new Date(expiry);
+
+        // Если токен истек или истечет в ближайшие 5 минут
+        const bufferTime = TOKEN_REFRESH_BUFFER_MINUTES * 60 * 1000; // минуты в миллисекундах
+        return expiryDate.getTime() - now.getTime() < bufferTime;
+    };
+
+    // Функция для обновления токена
+    const refreshToken = async (): Promise<boolean> => {
+        const token = localStorage.getItem('authToken');
+        if (!token) return false;
+
+        try {
+            // Здесь можно добавить логику для обновления токена через API
+            // Если API поддерживает refresh token, используйте его
+            const response = await fetch(`${API_BASE_URL}/api/refresh-token`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                const newTokenData: LoginResponse = await response.json();
+                if (newTokenData.token) {
+                    setAuthToken(newTokenData.token);
+                    setTokenExpiry();
+                    return true;
+                }
+            }
+        } catch (err) {
+            console.error('Error refreshing token:', err);
+        }
+
+        return false;
+    };
+
+    // Запуск периодической проверки токена
+    const startTokenExpiryCheck = () => {
+        // Проверяем каждую минуту
+        setInterval(() => {
+            if (checkTokenExpiry()) {
+                console.log('Token is about to expire, attempting to refresh...');
+                refreshToken().then(success => {
+                    if (!success) {
+                        console.log('Token refresh failed, clearing auth data');
+                        clearAuthData();
+                    }
+                });
+            }
+        }, 60000); // Проверка каждую минуту
+    };
+
+    // Проверяем токен при загрузке компонента
+    React.useEffect(() => {
+        if (localStorage.getItem('authToken') && checkTokenExpiry()) {
+            console.log('Token expired on page load');
+            clearAuthData();
+        }
+    }, []);
+
     const confirmAccountWithToken = async (token: string): Promise<ConfirmTokenResponse> => {
         try {
             console.log('Confirming account with token:', token);
@@ -125,24 +206,24 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
             if (response.ok) {
                 return { success: true };
-            } else {
-                let errorMessage = 'Ошибка подтверждения аккаунта';
-                const responseText = await response.text();
-
-                try {
-                    const errorData = JSON.parse(responseText);
-                    errorMessage = errorData.message || errorData.detail || errorMessage;
-                } catch {
-                    errorMessage = responseText || `HTTP error! status: ${response.status}`;
-                }
-
-                return { success: false, error: errorMessage };
             }
-        } catch (error) {
-            console.error('Confirm token error:', error);
+
+            let errorMessage = 'Ошибка подтверждения аккаунта';
+            const responseText = await response.text();
+
+            try {
+                const errorData = JSON.parse(responseText);
+                errorMessage = errorData.message || errorData.detail || errorMessage;
+            } catch {
+                errorMessage = responseText || `HTTP error! status: ${response.status}`;
+            }
+
+            return { success: false, error: errorMessage };
+        } catch (err) {
+            console.error('Confirm token error:', err);
             return {
                 success: false,
-                error: `Ошибка при подтверждении аккаунта: ${error}`
+                error: `Ошибка при подтверждении аккаунта: ${err}`
             };
         }
     };
@@ -153,7 +234,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         setError('');
 
         try {
-            // Здесь должен быть токен из формы (например, formData.code)
             if (!formData.code.trim()) {
                 throw new Error('Введите токен подтверждения');
             }
@@ -161,7 +241,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             const result = await confirmAccountWithToken(formData.code.trim());
 
             if (result.success) {
-                // Обновляем данные пользователя после подтверждения
                 const token = localStorage.getItem('authToken');
                 if (token) {
                     try {
@@ -177,17 +256,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                             const currentUserData = await userResponse.json();
                             localStorage.setItem('userData', JSON.stringify(currentUserData));
 
-                            // Проверяем статус подтверждения
-                            if (currentUserData.approved === true) {
-                                alert('Аккаунт успешно подтвержден!');
-                                // Если есть callback, вызываем его
-                                if (onLoginSuccess) {
-                                    onLoginSuccess(token, currentUserData.email);
-                                }
+                            if (currentUserData.approved === true && onLoginSuccess) {
+                                onLoginSuccess(token, currentUserData.email);
                             }
                         }
-                    } catch (error) {
-                        console.error('Error updating user data:', error);
+                    } catch (err) {
+                        console.error('Error updating user data:', err);
                     }
                 }
 
@@ -233,12 +307,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         onClose();
     };
 
-    // НОВАЯ ФУНКЦИЯ: Отправка запроса на подтверждение аккаунта
     const sendConfirmationEmail = async (email: string) => {
         try {
             console.log('Sending confirmation email to:', email);
 
-            // Получаем токен из localStorage
             const token = localStorage.getItem('authToken');
 
             if (!token) {
@@ -251,7 +323,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
             console.log('Using token for confirmation (first 20 chars):', token.substring(0, 20) + '...');
 
-            // Пробуем отправить запрос на подтверждение
             const response = await fetch(`${API_BASE_URL}/api/confirm-account-tokenless/`, {
                 method: 'POST',
                 headers: {
@@ -270,30 +341,29 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     const data: ConfirmResponse = JSON.parse(responseText);
                     console.log('Confirmation email sent successfully:', data);
                     return { success: true, data };
-                } catch (parseError) {
+                } catch {
                     console.log('Confirmation email sent, but response not JSON:', responseText);
-                    // Если ответ не JSON, но статус 200, считаем успешным
                     return { success: true, data: null };
                 }
-            } else {
-                console.warn('Failed to send confirmation email');
-                let errorMessage = 'Не удалось отправить письмо подтверждения';
-
-                try {
-                    const errorData = JSON.parse(responseText);
-                    errorMessage = errorData.detail || errorData.message || errorMessage;
-                    console.log('Error details:', errorData);
-                } catch {
-                    errorMessage = `HTTP error! status: ${response.status}`;
-                }
-
-                return { success: false, error: errorMessage };
             }
-        } catch (error) {
-            console.error('Error sending confirmation email:', error);
+
+            console.warn('Failed to send confirmation email');
+            let errorMessage = 'Не удалось отправить письмо подтверждения';
+
+            try {
+                const errorData = JSON.parse(responseText);
+                errorMessage = errorData.detail || errorData.message || errorMessage;
+                console.log('Error details:', errorData);
+            } catch {
+                errorMessage = `HTTP error! status: ${response.status}`;
+            }
+
+            return { success: false, error: errorMessage };
+        } catch (err) {
+            console.error('Error sending confirmation email:', err);
             return {
                 success: false,
-                error: `Ошибка при отправке письма подтверждения: ${error}`
+                error: `Ошибка при отправке письма подтверждения: ${err}`
             };
         }
     };
@@ -337,8 +407,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     if (errorData.code) {
                         errorMessage += ` (Код: ${errorData.code})`;
                     }
-
-                } catch (parseError) {
+                } catch {
                     console.log('Cannot parse error response as JSON, using raw text');
                     errorMessage = responseText || `HTTP error! status: ${response.status}`;
                 }
@@ -350,64 +419,60 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 throw new Error(errorMessage);
             }
 
-            try {
-                const data: LoginResponse = JSON.parse(responseText);
-                console.log('Login successful, token received:', data);
+            const data: LoginResponse = JSON.parse(responseText);
+            console.log('Login successful, token received:', data);
 
-                if (!data.token) {
-                    throw new Error('Токен не получен в ответе');
-                }
-
-                // Используем функцию из utils/auth.ts
-                setAuthToken(data.token);
-                localStorage.setItem('userEmail', formData.email);
-
-                try {
-                    const userResponse = await fetch(`${API_BASE_URL}/api/users/me`, {
-                        method: 'GET',
-                        headers: {
-                            'Authorization': `Bearer ${data.token}`,
-                            'Accept': 'application/json',
-                        },
-                    });
-
-                    if (userResponse.ok) {
-                        const userData = await userResponse.json();
-                        console.log('User data:', userData);
-                        localStorage.setItem('userData', JSON.stringify(userData));
-
-                        if (userData.roles && userData.roles.length > 0) {
-                            const roles = userData.roles;
-                            console.log('User roles:', roles);
-
-                            let userRole: 'client' | 'master' = 'client';
-
-                            const isMaster = roles.some((role: string) =>
-                                role.includes('MASTER') || role.includes('master'));
-                            const isClient = roles.some((role: string) =>
-                                role.includes('CLIENT') || role.includes('client'));
-
-                            if (isMaster) {
-                                userRole = 'master';
-                            } else if (isClient) {
-                                userRole = 'client';
-                            }
-
-                            localStorage.setItem('userRole', userRole === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT');
-                            console.log('User role determined:', userRole);
-                        }
-                    } else {
-                        console.warn('Failed to fetch user data, but login successful');
-                    }
-                } catch (userError) {
-                    console.error('Error fetching user data:', userError);
-                }
-
-                handleSuccessfulAuth(data.token, formData.email);
-
-            } catch (parseError) {
-                throw new Error('Неверный формат ответа от сервера');
+            if (!data.token) {
+                throw new Error('Токен не получен в ответе');
             }
+
+            // Сохраняем токен и устанавливаем время его истечения
+            setAuthToken(data.token);
+            setTokenExpiry();
+            localStorage.setItem('userEmail', formData.email);
+
+            try {
+                const userResponse = await fetch(`${API_BASE_URL}/api/users/me`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${data.token}`,
+                        'Accept': 'application/json',
+                    },
+                });
+
+                if (userResponse.ok) {
+                    const userData = await userResponse.json();
+                    console.log('User data:', userData);
+                    localStorage.setItem('userData', JSON.stringify(userData));
+
+                    if (userData.roles && userData.roles.length > 0) {
+                        const roles = userData.roles;
+                        console.log('User roles:', roles);
+
+                        let userRole: 'client' | 'master' = 'client';
+
+                        const isMaster = roles.some((role: string) =>
+                            role.includes('MASTER') || role.includes('master'));
+                        const isClient = roles.some((role: string) =>
+                            role.includes('CLIENT') || role.includes('client'));
+
+                        if (isMaster) {
+                            userRole = 'master';
+                        } else if (isClient) {
+                            userRole = 'client';
+                        }
+
+                        localStorage.setItem('userRole', userRole === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT');
+                        console.log('User role determined:', userRole);
+                    }
+                } else {
+                    console.warn('Failed to fetch user data, but login successful');
+                }
+            } catch (userError) {
+                console.error('Error fetching user data:', userError);
+            }
+
+            handleSuccessfulAuth(data.token, formData.email);
 
         } catch (err) {
             console.error('Login error:', err);
@@ -434,7 +499,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             return;
         }
 
-        // Объявляем email перед использованием
         const email = formData.phoneOrEmail.includes('@') ? formData.phoneOrEmail : '';
 
         if (!email) {
@@ -443,8 +507,15 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             return;
         }
 
-        const baseUserData: any = {
-            email: email,
+        // Исправляем типизацию any
+        const baseUserData: {
+            email: string;
+            name: string;
+            surname: string;
+            password: string;
+            occupation?: string[];
+        } = {
+            email,
             name: formData.firstName,
             surname: formData.lastName,
             password: formData.password,
@@ -457,7 +528,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         console.log('Step 1: Creating user with data:', baseUserData);
 
         try {
-            // ШАГ 1: Создаем пользователя
             const createResponse = await fetch(`${API_BASE_URL}/api/users`, {
                 method: 'POST',
                 headers: {
@@ -477,7 +547,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     const errorData = JSON.parse(createResponseText);
                     errorMessage = errorData.detail || errorData.message || errorMessage;
                     if (errorData.violations) {
-                        errorMessage = errorData.violations.map((v: any) => v.message).join(', ');
+                        errorMessage = errorData.violations.map((v: { message: string }) => v.message).join(', ');
                     }
                 } catch {
                     errorMessage = `HTTP error! status: ${createResponse.status}`;
@@ -488,14 +558,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             const userData = JSON.parse(createResponseText);
             console.log('User created successfully:', userData);
 
-            // Получаем ID созданного пользователя
             const userId = userData.id;
             console.log('Created user ID:', userId);
 
-            // Ждем секунду, чтобы сервер обработал запрос
             await new Promise(resolve => setTimeout(resolve, 1000));
 
-            // ШАГ 2: Получаем первый токен (для назначения роли)
             console.log('Step 2: Getting initial token for role assignment');
 
             const initialLoginResponse = await fetch(`${API_BASE_URL}/api/authentication_token`, {
@@ -505,7 +572,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     'Accept': 'application/json',
                 },
                 body: JSON.stringify({
-                    email: email,
+                    email,
                     password: formData.password
                 })
             });
@@ -527,10 +594,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             const initialLoginData: LoginResponse = JSON.parse(initialLoginResponseText);
             console.log('Initial token received:', initialLoginData.token.substring(0, 20) + '...');
 
-            // ШАГ 3: Назначаем роль
             console.log('Step 3: Assigning role via grant-role');
 
-            const roleToAssign = formData.role; // 'master' или 'client'
+            const roleToAssign = formData.role;
 
             const grantRoleData = {
                 role: roleToAssign
@@ -560,24 +626,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 } catch {
                     grantRoleError = `HTTP error! status: ${grantRoleResponse.status}`;
                 }
-
-                // Продолжаем регистрацию даже если роль не назначилась
                 console.warn('Role assignment failed:', grantRoleError);
             } else {
                 console.log('Role assigned successfully:', grantRoleResponseText);
-
-                try {
-                    const grantRoleResult = JSON.parse(grantRoleResponseText);
-                    console.log('Grant role result:', grantRoleResult);
-                } catch (e) {
-                    console.log('Grant role response (not JSON):', grantRoleResponseText);
-                }
             }
 
-            // Ждем немного, чтобы сервер обновил роль
             await new Promise(resolve => setTimeout(resolve, 1000));
 
-            // ШАГ 4: Получаем новый токен после назначения роли
             console.log('Step 4: Getting new token after role assignment');
 
             const newLoginResponse = await fetch(`${API_BASE_URL}/api/authentication_token`, {
@@ -587,7 +642,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     'Accept': 'application/json',
                 },
                 body: JSON.stringify({
-                    email: email,
+                    email,
                     password: formData.password
                 })
             });
@@ -600,7 +655,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             if (!newLoginResponse.ok) {
                 console.warn('Failed to get new token after role assignment, trying one more time...');
 
-                // Пробуем еще раз через небольшую задержку
                 await new Promise(resolve => setTimeout(resolve, 2000));
 
                 const retryLoginResponse = await fetch(`${API_BASE_URL}/api/authentication_token`, {
@@ -610,7 +664,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         'Accept': 'application/json',
                     },
                     body: JSON.stringify({
-                        email: email,
+                        email,
                         password: formData.password
                     })
                 });
@@ -618,34 +672,28 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 if (retryLoginResponse.ok) {
                     const retryLoginData: LoginResponse = await retryLoginResponse.json();
                     console.log('New token received on retry:', retryLoginData.token.substring(0, 20) + '...');
-
-                    // Сохраняем новый токен
                     finalToken = retryLoginData.token;
                 } else {
                     console.warn('Failed to get new token even on retry');
-                    // Сохраняем старый токен на всякий случай
                     finalToken = initialLoginData.token;
                 }
             } else {
                 const newLoginData: LoginResponse = JSON.parse(newLoginResponseText);
                 console.log('New token received:', newLoginData.token.substring(0, 20) + '...');
-
-                // Сохраняем новый токен
                 finalToken = newLoginData.token;
             }
 
-            // Используем функцию из utils/auth.ts
+            // Сохраняем токен с временем истечения
             setAuthToken(finalToken);
+            setTokenExpiry();
             localStorage.setItem('userEmail', email);
 
             const roleForLocalStorage = formData.role === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT';
             localStorage.setItem('userRole', roleForLocalStorage);
             console.log('User role saved to localStorage:', roleForLocalStorage);
 
-            // ШАГ 5: Отправляем письмо подтверждения с новым токеном
             console.log('Step 5: Sending confirmation email');
 
-            // Получаем актуальный токен из localStorage
             const currentToken = localStorage.getItem('authToken');
             if (currentToken) {
                 const confirmationResult = await sendConfirmationEmail(email);
@@ -659,7 +707,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 console.warn('No auth token found, cannot send confirmation email');
             }
 
-            // ШАГ 6: Проверяем данные пользователя
             console.log('Step 6: Getting user data');
 
             if (finalToken) {
@@ -678,7 +725,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         console.log('Final user roles:', currentUserData.roles);
                         localStorage.setItem('userData', JSON.stringify(currentUserData));
 
-                        // Обновляем роль из ответа API
                         if (currentUserData.roles && currentUserData.roles.length > 0) {
                             const actualRole = currentUserData.roles[0];
                             localStorage.setItem('userRole', actualRole);
@@ -697,10 +743,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             console.log('Registration successful! Role:', formData.role);
             console.log('User registered with email:', email);
 
-            // Сохраняем email для экрана подтверждения
             setRegisteredEmail(email);
-
-            // Показываем экран подтверждения
             setCurrentState(AuthModalState.CONFIRM_EMAIL);
 
         } catch (err) {
@@ -746,7 +789,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         }
     };
 
-    // НОВАЯ ФУНКЦИЯ: Повторная отправка письма подтверждения
     const handleResendConfirmation = async () => {
         setIsLoading(true);
         setError('');
@@ -756,7 +798,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 throw new Error('Email не найден');
             }
 
-            // Перед отправкой проверяем токен
             const token = localStorage.getItem('authToken');
             if (!token) {
                 throw new Error('Токен авторизации не найден. Пожалуйста, войдите заново.');
@@ -783,11 +824,105 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         }
     };
 
+    // Функция для обновления файла utils/auth.ts
+    const updateAuthUtils = () => {
+        console.log('Для полноценной работы необходимо обновить файл utils/auth.ts:');
+        console.log(`
+        // utils/auth.ts - Обновленная версия
+        
+        const AUTH_TOKEN_KEY = 'authToken';
+        const TOKEN_EXPIRY_KEY = 'tokenExpiry';
+        const USER_ROLE_KEY = 'userRole';
+        const USER_DATA_KEY = 'userData';
+        const USER_EMAIL_KEY = 'userEmail';
+
+        export const getAuthToken = (): string | null => {
+            return localStorage.getItem(AUTH_TOKEN_KEY);
+        };
+
+        export const setAuthToken = (token: string): void => {
+            localStorage.setItem(AUTH_TOKEN_KEY, token);
+        };
+
+        export const removeAuthToken = (): void => {
+            localStorage.removeItem(AUTH_TOKEN_KEY);
+        };
+
+        export const getAuthTokenExpiry = (): string | null => {
+            return localStorage.getItem(TOKEN_EXPIRY_KEY);
+        };
+
+        export const setAuthTokenExpiry = (expiry: string): void => {
+            localStorage.setItem(TOKEN_EXPIRY_KEY, expiry);
+        };
+
+        export const removeAuthTokenExpiry = (): void => {
+            localStorage.removeItem(TOKEN_EXPIRY_KEY);
+        };
+
+        export const clearAuthData = (): void => {
+            localStorage.removeItem(AUTH_TOKEN_KEY);
+            localStorage.removeItem(TOKEN_EXPIRY_KEY);
+            localStorage.removeItem(USER_ROLE_KEY);
+            localStorage.removeItem(USER_DATA_KEY);
+            localStorage.removeItem(USER_EMAIL_KEY);
+        };
+
+        export const getUserRole = (): 'client' | 'master' | null => {
+            const role = localStorage.getItem(USER_ROLE_KEY);
+            if (role === 'ROLE_MASTER') return 'master';
+            if (role === 'ROLE_CLIENT') return 'client';
+            return null;
+        };
+
+        export const setUserRole = (role: 'client' | 'master'): void => {
+            const roleValue = role === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT';
+            localStorage.setItem(USER_ROLE_KEY, roleValue);
+        };
+
+        export const getUserData = (): any => {
+            const data = localStorage.getItem(USER_DATA_KEY);
+            return data ? JSON.parse(data) : null;
+        };
+
+        export const setUserData = (data: any): void => {
+            localStorage.setItem(USER_DATA_KEY, JSON.stringify(data));
+        };
+
+        export const getIsAuthenticated = (): boolean => {
+            const token = getAuthToken();
+            if (!token) return false;
+
+            const expiry = getAuthTokenExpiry();
+            if (!expiry) return true; // Если нет информации об истечении, считаем что токен валиден
+
+            const now = new Date();
+            const expiryDate = new Date(expiry);
+            return now < expiryDate;
+        };
+
+        // Функция для автоматического выхода при истечении токена
+        export const setupTokenExpiryListener = (onTokenExpired: () => void): void => {
+            setInterval(() => {
+                if (!getIsAuthenticated()) {
+                    clearAuthData();
+                    onTokenExpired();
+                }
+            }, 60000); // Проверка каждую минуту
+        };
+        `);
+    };
+
+    // Вызываем обновление при монтировании компонента
+    React.useEffect(() => {
+        updateAuthUtils();
+    }, []);
+
     const renderWelcomeScreen = () => {
         return (
             <div className={styles.welcomeScreen}>
                 <div className={styles.welcomeButtons}>
-                    <img className={styles.enterPic} src="../Logo.svg" alt="enter" width='120'/>
+                    <img className={styles.enterPic} src="../Logo.svg" alt="enter" width="120"/>
                     <h2>Вход</h2>
                     <button
                         className={styles.primaryButton}
@@ -847,15 +982,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 <div className={styles.socialTitle}>Войти с помощью</div>
 
                 <div className={styles.socialButtons}>
-                    <a
-                        className={styles.facebookButton}
-                    >
+                    <a className={styles.facebookButton}>
                         <img src="../facebook.png" alt="Facebook" />
                     </a>
-
-                    <a
-                        className={styles.googleButton}
-                    >
+                    <a className={styles.googleButton}>
                         <img src="../google.png" alt="Google" />
                     </a>
                 </div>
@@ -1000,15 +1130,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 </button>
 
                 <div className={styles.socialButtons}>
-                    <a
-                        className={styles.facebookButton}
-                    >
+                    <a className={styles.facebookButton}>
                         <img src="../facebook.png" alt="Facebook" />
                     </a>
-
-                    <a
-                        className={styles.googleButton}
-                    >
+                    <a className={styles.googleButton}>
                         <img src="../google.png" alt="Google" />
                     </a>
                 </div>
@@ -1027,7 +1152,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         );
     };
 
-    // НОВЫЙ ЭКРАН: Подтверждение email
     const renderConfirmEmailScreen = () => {
         return (
             <div className={styles.form}>
@@ -1101,7 +1225,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
     const renderVerifyCodeScreen = () => {
         return (
-            <form onSubmit={handleConfirmToken} className={styles.form}> {/* НОВОЕ: используем handleConfirmToken */}
+            <form onSubmit={handleConfirmToken} className={styles.form}>
                 <h2>Введите код подтверждения</h2>
 
                 {error && <div className={styles.error}>{error}</div>}

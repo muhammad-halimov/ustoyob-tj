@@ -4,7 +4,7 @@ import { getAuthToken } from "../../../../utils/auth";
 interface AdBtnProps {
     text?: string;
     alwaysVisible?: boolean;
-    onClick?: () => void; // Добавляем onClick
+    onClick?: () => void;
 }
 
 export const AdBtn = ({

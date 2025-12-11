@@ -12,7 +12,7 @@ interface ApiTicket {
     notice?: string;
     budget: number;
     unit: { title: string };
-    addresses: {  // ИЗМЕНЕНО: теперь это массив
+    addresses: {
         id: number;
         title?: string;
         province?: {
@@ -867,9 +867,9 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 )}
                 <div className={styles.resultHeader}>
                     <h3>{result.title}</h3>
-                    <span className={styles.price}>{result.price} {result.unit}</span>
+                    <span className={styles.price}>{result.price} TJS {result.unit}</span>
                 </div>
-                <p className={styles.description}>{cleanText(result.description)}</p> {/* ИЗМЕНЕНО */}
+                <p className={styles.description}>{cleanText(result.description)}</p>
                 <div className={styles.resultDetails}>
                 <span className={styles.category}>
                     {result.category}

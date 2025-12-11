@@ -209,6 +209,10 @@
       font-weight: 600;
       font-size: 18px;
       margin-right: 15px;
+      img {
+        width: 50px;
+        border-radius: 50%;
+      }
 
       @media (max-width: 480px) {
         width: 45px;
@@ -706,4 +710,9 @@
     font-size: 18px;
     color: #333;
   }
+}
+
+.avatarImage {
+  width: 50px;
+  border-radius: 50%;
 }

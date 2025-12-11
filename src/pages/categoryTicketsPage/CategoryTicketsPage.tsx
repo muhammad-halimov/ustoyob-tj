@@ -10,6 +10,7 @@ interface Ticket {
     notice: string;
     budget: number;
     active: boolean;
+    service: boolean; // true - услуга от мастера, false - заказ от клиента
     category: {
         id: number;
         title: string;
@@ -37,21 +38,30 @@ interface Ticket {
         id: number;
         title: string;
     };
-    service: boolean; // true - услуга от мастера, false - заказ от клиента
-    district: {
+    district?: {
         id: number;
         title: string;
         image: string;
-        city: {
+        city?: {
             id: number;
             title: string;
             image: string;
-            province: {
+            province?: {
                 id: number;
                 title: string;
             };
         };
     };
+    addresses?: Array<{
+        id: number;
+        province?: { id: number; title: string };
+        district?: { id: number; title: string; image: string };
+        city?: { id: number; title: string; image: string };
+        settlement?: { id: number; title: string };
+        community?: { id: number; title: string };
+        village?: { id: number; title: string };
+        suburb?: { id: number; title: string };
+    }>;
     createdAt: string;
     updatedAt: string;
 }
@@ -142,37 +152,57 @@ function CategoryTicketsPage() {
             console.log('User role:', role);
             console.log('Token exists:', !!token);
 
+            // Убеждаемся, что categoryId есть
+            if (!categoryId) {
+                console.error('No category ID provided');
+                setTickets([]);
+                return;
+            }
+
             let ticketsData: Ticket[] = [];
 
             if (!token || role === null) {
-                // Для неавторизованных - получаем все тикеты
+                // Для неавторизованных - получаем все тикеты (и услуги и заказы)
                 console.log('Fetching all tickets for unauthorized user');
-                const [clientTickets, masterTickets] = await Promise.all([
-                    fetchTicketsWithoutAuth('/api/tickets/clients'),
-                    fetchTicketsWithoutAuth('/api/tickets/masters')
+                const [masterTickets, clientTickets] = await Promise.all([
+                    fetchTicketsWithParams({
+                        active: 'true',
+                        service: 'true',
+                        'exists[master]': 'true',
+                        'category': categoryId
+                    }),
+                    fetchTicketsWithParams({
+                        active: 'true',
+                        service: 'false',
+                        'exists[author]': 'true',
+                        'category': categoryId
+                    })
                 ]);
-                ticketsData = [...clientTickets, ...masterTickets];
+                ticketsData = [...masterTickets, ...clientTickets];
             } else if (role === 'client') {
                 // Для клиентов - получаем тикеты мастеров (услуги)
                 console.log('Fetching master tickets for client');
-                ticketsData = await fetchTicketsWithAuth('/api/tickets/masters', token);
+                ticketsData = await fetchTicketsWithParams({
+                    active: 'true',
+                    service: 'true',
+                    'exists[master]': 'true',
+                    'category': categoryId
+                }, token);
             } else if (role === 'master') {
                 // Для мастеров - получаем тикеты клиентов (заказы)
                 console.log('Fetching client tickets for master');
-                ticketsData = await fetchTicketsWithAuth('/api/tickets/clients', token);
+                ticketsData = await fetchTicketsWithParams({
+                    active: 'true',
+                    service: 'false',
+                    'exists[author]': 'true',
+                    'category': categoryId
+                }, token);
             }
 
             console.log('Total tickets received:', ticketsData.length);
 
-            // Фильтруем тикеты по категории и активности
-            const filteredTickets = ticketsData.filter(ticket =>
-                ticket.category?.id === Number(categoryId) &&
-                ticket.active === true
-            );
-
-            console.log('Filtered tickets by category:', filteredTickets);
-
-            const formattedTickets: FormattedTicket[] = filteredTickets.map(ticket => {
+            // Форматируем тикеты
+            const formattedTickets: FormattedTicket[] = ticketsData.map(ticket => {
                 const isMasterTicket = ticket.service === true; // service: true - услуга от мастера
                 const author = isMasterTicket ? ticket.master : ticket.author;
                 const authorId = author?.id || 0;
@@ -205,68 +235,76 @@ function CategoryTicketsPage() {
         }
     };
 
-    // Функция для получения тикетов без авторизации
-    const fetchTicketsWithoutAuth = async (endpoint: string): Promise<Ticket[]> => {
+    // Универсальная функция для получения тикетов с query-параметрами
+    const fetchTicketsWithParams = async (params: Record<string, string>, token?: string): Promise<Ticket[]> => {
         try {
             const headers: HeadersInit = {
                 'Accept': 'application/json'
             };
 
-            const response = await fetch(`${API_BASE_URL}${endpoint}?category.id=${categoryId}`, {
-                headers: headers
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                console.log(`Unauthorized ${endpoint}:`, data.length);
-                return Array.isArray(data) ? data : [];
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
             }
-            return [];
-        } catch (error) {
-            console.error(`Error fetching ${endpoint} without auth:`, error);
-            return [];
-        }
-    };
 
-    // Функция для получения тикетов с авторизацией
-    const fetchTicketsWithAuth = async (endpoint: string, token: string): Promise<Ticket[]> => {
-        try {
-            const headers: HeadersInit = {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/json'
-            };
+            // Создаем URL с query-параметрами
+            const url = new URL(`${API_BASE_URL}/api/tickets`);
 
-            const response = await fetch(`${API_BASE_URL}${endpoint}?category.id=${categoryId}`, {
+            // Добавляем параметры, убедившись, что они не undefined
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined && value !== null) {
+                    url.searchParams.append(key, value);
+                }
+            });
+
+            console.log('Fetching from URL:', url.toString());
+
+            const response = await fetch(url.toString(), {
                 headers: headers
             });
 
             if (response.ok) {
                 const data = await response.json();
-                console.log(`Authorized ${endpoint}:`, data.length);
+                console.log(`Tickets fetched with params:`, data.length);
                 return Array.isArray(data) ? data : [];
             } else {
-                console.error(`Error fetching ${endpoint}:`, response.status);
+                console.error(`Error fetching tickets: ${response.status} ${response.statusText}`);
                 return [];
             }
         } catch (error) {
-            console.error(`Error fetching ${endpoint} with auth:`, error);
+            console.error(`Error fetching tickets with params:`, error);
             return [];
         }
     };
 
     const getFullAddress = (ticket: Ticket): string => {
-        const city = ticket.district?.city?.title || '';
-        const district = ticket.district?.title || '';
+        // Проверяем addresses массив
+        if (ticket.addresses && ticket.addresses.length > 0) {
+            const address = ticket.addresses[0];
+            const parts: string[] = [];
 
-        if (city && district) {
-            return `${city}, ${district}`;
+            if (address.city?.title) parts.push(address.city.title);
+            if (address.district?.title) parts.push(address.district.title);
+            if (address.settlement?.title) parts.push(address.settlement.title);
+
+            return parts.join(', ') || 'Адрес не указан';
         }
-        if (city) {
-            return city;
+
+        // Проверяем устаревший формат district
+        if (ticket.district) {
+            const city = ticket.district?.city?.title || '';
+            const district = ticket.district?.title || '';
+
+            if (city && district) {
+                return `${city}, ${district}`;
+            }
+            if (city) {
+                return city;
+            }
+            if (district) {
+                return district;
+            }
         }
-        if (district) {
-            return district;
-        }
+
         return 'Адрес не указан';
     };
 
@@ -292,7 +330,9 @@ function CategoryTicketsPage() {
             if (diffInSeconds < 60) return 'только что';
             if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} ${getRussianWord(Math.floor(diffInSeconds / 60), ['минуту', 'минуты', 'минут'])} назад`;
             if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} ${getRussianWord(Math.floor(diffInSeconds / 3600), ['час', 'часа', 'часов'])} назад`;
-            return `${Math.floor(diffInSeconds / 86400)} ${getRussianWord(Math.floor(diffInSeconds / 86400), ['день', 'дня', 'дней'])} назад`;
+            if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)} ${getRussianWord(Math.floor(diffInSeconds / 86400), ['день', 'дня', 'дней'])} назад`;
+            if (diffInSeconds < 31536000) return `${Math.floor(diffInSeconds / 2592000)} ${getRussianWord(Math.floor(diffInSeconds / 2592000), ['месяц', 'месяца', 'месяцев'])} назад`;
+            return `${Math.floor(diffInSeconds / 31536000)} ${getRussianWord(Math.floor(diffInSeconds / 31536000), ['год', 'года', 'лет'])} назад`;
         } catch {
             return 'недавно';
         }
@@ -330,6 +370,26 @@ function CategoryTicketsPage() {
         return type === 'client' ? 'Заказ от клиента' : 'Услуга от мастера';
     };
 
+    // Если категория ID не передан
+    if (!categoryId) {
+        return (
+            <div className={styles.container}>
+                <div className={styles.header}>
+                    <h1>Ошибка</h1>
+                    <button className={styles.closeButton} onClick={handleClose}>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M18 6L6 18" stroke="#101010" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M6 6L18 18" stroke="#101010" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+                <div className={styles.noResults}>
+                    <p>Категория не выбрана</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className={styles.container}>
             <div className={styles.header}>
@@ -353,6 +413,12 @@ function CategoryTicketsPage() {
                                 : 'Нет объявлений в выбранной категории'
                             }
                         </p>
+                        <button
+                            className={styles.refreshButton}
+                            onClick={() => fetchTicketsByCategory()}
+                        >
+                            Обновить
+                        </button>
                     </div>
                 ) : (
                     tickets.map((ticket) => (
@@ -392,25 +458,39 @@ function CategoryTicketsPage() {
                                 </span>
                             </div>
                             <div className={styles.resultFooter}>
-                                <span className={styles.author}>
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <g clipPath="url(#clip0_324_2870)">
-                                            <g clipPath="url(#clip1_324_2870)">
-                                                <path d="M11.9995 12.9795C15.1641 12.9795 17.7295 10.4141 17.7295 7.24953C17.7295 4.08494 15.1641 1.51953 11.9995 1.51953C8.83494 1.51953 6.26953 4.08494 6.26953 7.24953C6.26953 10.4141 8.83494 12.9795 11.9995 12.9795Z" stroke="#5D5D5D" strokeWidth="2" strokeMiterlimit="10"/>
-                                                <path d="M1.5 23.48L1.87 21.43C2.3071 19.0625 3.55974 16.9229 5.41031 15.3828C7.26088 13.8428 9.59246 12.9997 12 13C14.4104 13.0006 16.7443 13.8465 18.5952 15.3905C20.4462 16.9345 21.6971 19.0788 22.13 21.45L22.5 23.5" stroke="#5D5D5D" strokeWidth="2" strokeMiterlimit="10"/>
+                                {/*{ticket.authorImage ? (*/}
+                                {/*    <div className={styles.authorWithImage}>*/}
+                                {/*        <img*/}
+                                {/*            src={ticket.authorImage}*/}
+                                {/*            alt={ticket.author}*/}
+                                {/*            className={styles.authorImage}*/}
+                                {/*            onError={(e) => {*/}
+                                {/*                e.currentTarget.style.display = 'none';*/}
+                                {/*            }}*/}
+                                {/*        />*/}
+                                {/*        <span className={styles.authorName}>{ticket.author}</span>*/}
+                                {/*    </div>*/}
+                                {/*) : (*/}
+                                    <span className={styles.author}>
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <g clipPath="url(#clip0_324_2870)">
+                                                <g clipPath="url(#clip1_324_2870)">
+                                                    <path d="M11.9995 12.9795C15.1641 12.9795 17.7295 10.4141 17.7295 7.24953C17.7295 4.08494 15.1641 1.51953 11.9995 1.51953C8.83494 1.51953 6.26953 4.08494 6.26953 7.24953C6.26953 10.4141 8.83494 12.9795 11.9995 12.9795Z" stroke="#5D5D5D" strokeWidth="2" strokeMiterlimit="10"/>
+                                                    <path d="M1.5 23.48L1.87 21.43C2.3071 19.0625 3.55974 16.9229 5.41031 15.3828C7.26088 13.8428 9.59246 12.9997 12 13C14.4104 13.0006 16.7443 13.8465 18.5952 15.3905C20.4462 16.9345 21.6971 19.0788 22.13 21.45L22.5 23.5" stroke="#5D5D5D" strokeWidth="2" strokeMiterlimit="10"/>
+                                                </g>
                                             </g>
-                                        </g>
-                                        <defs>
-                                            <clipPath id="clip0_324_2870">
-                                                <rect width="24" height="24" fill="white"/>
-                                            </clipPath>
-                                            <clipPath id="clip1_324_2870">
-                                                <rect width="24" height="24" fill="white"/>
-                                            </clipPath>
-                                        </defs>
-                                    </svg>
-                                    {ticket.author}
-                                </span>
+                                            <defs>
+                                                <clipPath id="clip0_324_2870">
+                                                    <rect width="24" height="24" fill="white"/>
+                                                </clipPath>
+                                                <clipPath id="clip1_324_2870">
+                                                    <rect width="24" height="24" fill="white"/>
+                                                </clipPath>
+                                            </defs>
+                                        </svg>
+                                        {ticket.author}
+                                    </span>
+                                {/*)}*/}
                                 <span className={styles.timeAgo}>{ticket.timeAgo}</span>
                             </div>
                         </div>

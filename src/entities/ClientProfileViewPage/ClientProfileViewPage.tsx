@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { getAuthToken, getUserRole } from '../../utils/auth';
 import styles from '../../pages/profile/clientProfilePage/ClientProfilePage.module.scss';
 import {fetchUserById, fetchUserWithRole} from "../../utils/api.ts";
+import AuthModal from '../../shared/ui/AuthModal/AuthModal.tsx';
 
 interface ClientProfileData {
     id: string;
@@ -112,6 +113,8 @@ function ClientProfileViewPage() {
     const [showAllReviews, setShowAllReviews] = useState(false);
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [showComplaintModal, setShowComplaintModal] = useState(false);
+    const [showAuthModal, setShowAuthModal] = useState(false);
+
 
     // Состояния для формы отзыва
     const [reviewText, setReviewText] = useState('');
@@ -574,7 +577,14 @@ function ClientProfileViewPage() {
     const handleMasterProfileClick = async (masterId: number) => {
         console.log('Navigating to master profile:', masterId);
 
-        // Можно использовать fetchUserWithRole для проверки роли
+        const token = getAuthToken();
+
+        // Если пользователь не авторизован, показываем модалку авторизации
+        if (!token) {
+            setShowAuthModal(true);
+            return;
+        }
+
         try {
             const { role } = await fetchUserWithRole(masterId);
 
@@ -582,12 +592,10 @@ function ClientProfileViewPage() {
                 navigate(`/master/${masterId}`);
             } else {
                 console.warn('User is not a master, role:', role);
-                // Все равно перенаправляем на мастер профиль
                 navigate(`/master/${masterId}`);
             }
         } catch (error) {
             console.error('Error checking user role:', error);
-            // Fallback
             navigate(`/master/${masterId}`);
         }
     };
@@ -595,7 +603,7 @@ function ClientProfileViewPage() {
     const handleLeaveReview = () => {
         const token = getAuthToken();
         if (!token) {
-            navigate('/auth');
+            setShowAuthModal(true); // Показываем модалку авторизации
             return;
         }
 
@@ -792,11 +800,20 @@ function ClientProfileViewPage() {
     const handleComplaintClick = () => {
         const token = getAuthToken();
         if (!token) {
-            navigate('/auth');
+            setShowAuthModal(true);
             return;
         }
 
         setShowComplaintModal(true);
+    };
+
+    const handleAuthModalClose = () => {
+        setShowAuthModal(false);
+    };
+
+    const handleAuthSuccess = (token: string, email?: string) => {
+        console.log('Login successful', token, email);
+        setShowAuthModal(false);
     };
 
     const handleComplaintClose = () => {
@@ -1477,6 +1494,15 @@ function ClientProfileViewPage() {
                             </button>
                         </div>
                     </div>
+                </div>
+            )}
+            {showAuthModal && (
+                <div className={styles.modalOverlay}>
+                    <AuthModal
+                        isOpen={showAuthModal}
+                        onClose={handleAuthModalClose}
+                        onLoginSuccess={handleAuthSuccess}
+                    />
                 </div>
             )}
         </div>

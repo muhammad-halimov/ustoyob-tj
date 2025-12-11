@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { getAuthToken } from '../../utils/auth';
 import styles from '../../pages/profile/ProfilePage.module.scss';
 import { fetchUserById, fetchUserWithRole } from "../../utils/api.ts";
+import AuthModal from '../../shared/ui/AuthModal/AuthModal';
 
 interface ProfileData {
     id: string;
@@ -220,6 +221,7 @@ function MasterProfileViewPage() {
     const [showComplaintModal, setShowComplaintModal] = useState(false);
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [showAllReviews, setShowAllReviews] = useState(false);
+    const [showAuthModal, setShowAuthModal] = useState(false);
 
     // Состояния для формы жалобы
     const [complaintReason, setComplaintReason] = useState('');
@@ -404,7 +406,6 @@ function MasterProfileViewPage() {
                 return;
             }
 
-            // Проверить роль пользователя - должен быть ROLE_MASTER
             if (!masterData.roles || !masterData.roles.includes('ROLE_MASTER')) {
                 console.warn('User is not a master, roles:', masterData.roles);
                 alert('Пользователь не является мастером');
@@ -960,6 +961,14 @@ function MasterProfileViewPage() {
     const handleClientProfileClick = async (clientId: number) => {
         console.log('Navigating to client profile:', clientId);
 
+        const token = getAuthToken();
+
+        // Если пользователь не авторизован, показываем модалку авторизации
+        if (!token) {
+            setShowAuthModal(true);
+            return;
+        }
+
         try {
             // Использовать fetchUserWithRole для определения роли
             const { role } = await fetchUserWithRole(clientId);
@@ -978,11 +987,20 @@ function MasterProfileViewPage() {
         }
     };
 
+    const handleAuthModalClose = () => {
+        setShowAuthModal(false);
+    };
+
+    const handleAuthSuccess = (token: string, email?: string) => {
+        console.log('Login successful', token, email);
+        setShowAuthModal(false);
+    };
+
     // Функции для работы с жалобой
     const handleComplaintClick = () => {
         const token = getAuthToken();
         if (!token) {
-            navigate('/auth');
+            setShowAuthModal(true);
             return;
         }
 
@@ -1092,11 +1110,23 @@ function MasterProfileViewPage() {
                         return;
                     }
 
+                    interface Violation {
+                        propertyPath?: string;
+                        message?: string;
+                        code?: string;
+                    }
+
                     if (errorJson.violations && Array.isArray(errorJson.violations)) {
                         const violationMessages = errorJson.violations
-                            .map((v: any) => v.message)
+                            .map((v: Violation) => v.message)
+                            .filter((message: string | undefined): message is string => Boolean(message))
                             .join(', ');
-                        alert(`Ошибки валидации: ${violationMessages}`);
+
+                        if (violationMessages) {
+                            alert(`Ошибки валидации: ${violationMessages}`);
+                        } else {
+                            alert('Произошла ошибка валидации данных.');
+                        }
                         return;
                     }
                 } catch {
@@ -1198,7 +1228,7 @@ function MasterProfileViewPage() {
     const handleLeaveReview = () => {
         const token = getAuthToken();
         if (!token) {
-            navigate('/auth');
+            setShowAuthModal(true);
             return;
         }
 
@@ -2004,6 +2034,15 @@ function MasterProfileViewPage() {
                             </button>
                         </div>
                     </div>
+                </div>
+            )}
+            {showAuthModal && (
+                <div className={styles.modalOverlay}>
+                    <AuthModal
+                        isOpen={showAuthModal}
+                        onClose={handleAuthModalClose}
+                        onLoginSuccess={handleAuthSuccess}
+                    />
                 </div>
             )}
         </div>

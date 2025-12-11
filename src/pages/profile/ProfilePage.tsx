@@ -9,7 +9,7 @@ function ProfilePage() {
     const navigate = useNavigate();
     const [userRole, setUserRole] = useState<'client' | 'master'>('master');
     const [isLoading, setIsLoading] = useState(true);
-    const API_BASE_URL = 'https://admin.ustoyob.tj';
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     useEffect(() => {
         checkUserRole();
@@ -46,7 +46,7 @@ function ProfilePage() {
     };
 
     if (isLoading) {
-        return <div className={styles.profile}>Определение типа профиля...</div>;
+        return <div className={styles.profileSet}>Определение типа профиля...</div>;
     }
 
     return userRole === 'master' ? <MasterProfilePage /> : <ClientProfilePage />;

@@ -105,7 +105,7 @@ interface UserData {
     image?: string;
 }
 
-const API_BASE_URL = 'https://admin.ustoyob.tj';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export default function OrderPage() {
     const { id } = useParams<{ id: string }>();
@@ -1210,8 +1210,14 @@ export default function OrderPage() {
             currentUserRole: getUserRole()
         });
 
+        const token = getAuthToken();
+
+        if (!token) {
+            setShowAuthModal(true);
+            return;
+        }
+
         try {
-            // Используем fetchUserWithRole для определения роли пользователя
             const { role } = await fetchUserWithRole(userId);
 
             console.log('User role determined:', role);
@@ -1266,7 +1272,7 @@ export default function OrderPage() {
                 </div>
                 <span className={styles.category}>{order.category}</span>
                 <div className={styles.priceSection}>
-                    <span className={styles.price}>{order.price} {order.unit}</span>
+                    <span className={styles.price}>{order.price} TJS {order.unit}</span>
                 </div>
 
                 <section className={styles.section}>
@@ -1311,7 +1317,7 @@ export default function OrderPage() {
                                         alt={`Фото ${index + 1}`}
                                         className={styles.photo}
                                         onError={(e) => {
-                                            (e.target as HTMLImageElement).src = './fonTest1.png';
+                                            (e.target as HTMLImageElement).src = '../fonTest1.png';
                                         }}
                                     />
                                 ))}
@@ -1325,10 +1331,13 @@ export default function OrderPage() {
                 <section className={styles.section}>
                     <div className={styles.section_photo}>
                         <img
-                            src={order.authorImage}
+                            src={order.authorImage || '../fonTest1.png'}
                             alt="authorImage"
                             onClick={() => handleProfileClick(order.authorId)}
                             style={{ cursor: 'pointer' }}
+                            onError={(e) => {
+                                (e.target as HTMLImageElement).src = '../fonTest1.png';
+                            }}
                         />
                         <div className={styles.authorSection}>
                             <div className={styles.authorInfo}>

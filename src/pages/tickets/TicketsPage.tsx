@@ -73,7 +73,7 @@ interface FormattedTicket {
     authorImage?: string;
 }
 
-const API_BASE_URL = 'https://admin.ustoyob.tj';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 function TicketsPage() {
     const navigate = useNavigate();

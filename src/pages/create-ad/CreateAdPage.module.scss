@@ -449,7 +449,7 @@
   border-radius: 12px;
   text-align: center;
   max-width: 564px;
-  height: 482px;
+  //height: 482px;
   width: 100%;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
 }
@@ -562,5 +562,194 @@
         }
       }
     }
+  }
+}
+/* Стили для выбора области */
+.province_section {
+  margin-bottom: 20px;
+}
+
+.province_section h3 {
+  font-size: 16px;
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.province_grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.province_card {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+  font-size: 14px;
+
+  &:hover {
+    border-color: #3A54DA;
+    background: #f8f9fa;
+  }
+}
+
+.province_card_selected {
+  border-color: #3A54DA;
+  background: #3A54DA;
+  color: white;
+
+  &:hover {
+    background: #0056b3;
+    border-color: #0056b3;
+  }
+}
+
+/* Стили для выбора города */
+.city_section {
+  margin-bottom: 20px;
+}
+
+.city_section h3 {
+  font-size: 16px;
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.city_grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.city_card {
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:hover {
+    border-color: #3A54DA;
+    background: #f8f9fa;
+  }
+}
+
+.city_card_selected {
+  border-color: #3A54DA;
+  background: #3A54DA;
+  color: white;
+
+  &:hover {
+    background: #3A54DA;
+    border-color: #3A54DA;
+  }
+}
+
+.city_name {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.city_districts_count {
+  font-size: 12px;
+  color: #666;
+  margin-top: 5px;
+}
+
+.city_card_selected .city_districts_count {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Стили для выбора районов */
+.district_section {
+  margin-bottom: 20px;
+}
+
+.district_section h3 {
+  font-size: 16px;
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.district_grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.district_card {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+
+  &:hover {
+    border-color: #3A54DA;
+    background: #f8f9fa;
+  }
+}
+
+.district_card_selected {
+  border-color: #3A54DA;
+  background: #3A54DA;
+  color: white;
+
+  &:hover {
+    background: #3A54DA;
+    border-color: #3A54DA;
+  }
+}
+
+.district_name {
+  font-size: 14px;
+}
+
+/* Стили для ручного ввода адреса */
+.manualAddressInput {
+  margin-bottom: 15px;
+}
+
+.addressInput {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  box-sizing: border-box;
+
+  &:focus {
+    outline: none;
+    border-color: #3A54DA;
+  }
+}
+
+/* Стили для отображения выбранных элементов */
+.selected_summary {
+  margin-top: 15px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.selected_items {
+  margin-bottom: 8px;
+  font-size: 14px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  strong {
+    color: #333;
+    margin-right: 5px;
   }
 }

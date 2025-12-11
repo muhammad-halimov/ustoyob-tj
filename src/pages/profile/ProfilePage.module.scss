@@ -1,8 +1,10 @@
 @use '../../app/styles/variables' as vars;
 @use 'sass:map';;
 
-.profile {
+.profileSet {
   //min-height: 100vh;
+  text-align: center;
+  margin: 40px auto;
 }
 
 .profile_wrap {

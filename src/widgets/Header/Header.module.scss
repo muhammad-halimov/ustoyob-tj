@@ -10,7 +10,7 @@
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.20);
   }
   .headerWrap {
-    max-width: 1540px;
+    max-width: 1350px;
     display: flex;
     justify-content: space-between;
     padding: 20px 0;
@@ -55,7 +55,7 @@
     width: 100%;
     display: block;
     .bottomHeader_wrap {
-      max-width: 1540px;
+      max-width: 1350px;
       display: flex;
       justify-content: space-between;
       padding: 20px 0;
@@ -375,9 +375,9 @@
     padding: 4px 10px;
   }
 
-  .bottomHeader {
-    svg {
-      width: 101px;
-    }
-  }
+  //.bottomHeader {
+  //  svg {
+  //    width: 101px;
+  //  }
+  //}
 }

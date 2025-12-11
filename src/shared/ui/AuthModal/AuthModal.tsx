@@ -4,6 +4,7 @@ import AuthModal from '../../../features/auth/AuthModal';
 interface AuthModalProps {
     isOpen: boolean;
     onClose: () => void;
+    onLoginSuccess?: (token: string, email?: string) => void;
 }
 
 const AuthModalWrapper: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {

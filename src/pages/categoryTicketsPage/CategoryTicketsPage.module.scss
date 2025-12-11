@@ -3,10 +3,10 @@
 
 .container {
   position: relative;
-  max-width: 1549px;
+  max-width: 1350px;
   margin: 40.45px auto;
   flex: 1;
-  padding: 20px;
+  //padding: 20px;
 }
 
 .header {
@@ -186,6 +186,19 @@
     padding: 15px;
   }
 
+  .ticketType {
+    position: absolute;
+    top: 67px;
+    right: 15px;
+    background: #3A54DA;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    z-index: 1;
+  }
+
   .header {
     h1 {
       font-size: 28px;
@@ -232,15 +245,14 @@
   }
 }
 
-.ticketType {
-  position: absolute;
-  top: 67px;
-  right: 15px;
+.refreshButton {
   background: #3A54DA;
   color: white;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  z-index: 1;
+  padding: 10px;
+  display: block;
+  cursor: pointer;
+  border: none;
+  align-items: center;
+  margin: 15px auto;
+  border-radius: 10px;
 }

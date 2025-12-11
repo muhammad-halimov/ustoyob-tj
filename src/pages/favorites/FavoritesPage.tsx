@@ -1338,7 +1338,7 @@ function FavoritesPage() {
                         <div className={styles.recommendation_item_title}>
                             <h4>{ticket.title}</h4>
                             <span className={styles.recommendation_item_price}>
-                                {ticket.price.toLocaleString('ru-RU')} {ticket.unit}
+                                {ticket.price.toLocaleString('ru-RU')} TJS {ticket.unit}
                             </span>
                             {/* Кнопка лайка для тикета */}
                             <button

@@ -26,7 +26,7 @@ interface Master {
     bio: string;
 }
 
-const API_BASE_URL = 'https://admin.ustoyob.tj';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const SearchServicePage = () => {
     const navigate = useNavigate();

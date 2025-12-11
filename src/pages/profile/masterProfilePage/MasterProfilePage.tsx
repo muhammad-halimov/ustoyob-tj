@@ -5,7 +5,7 @@ import styles from '../ProfilePage.module.scss';
 
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
-import {fetchUserById} from "../../../utils/api.ts";
+import { fetchUserById } from "../../../utils/api.ts";
 
 interface ProfileData {
     id: string;
@@ -97,6 +97,12 @@ interface ReviewData {
     client: string;
 }
 
+interface CityApiData {
+    id: number;
+    title?: string;
+    [key: string]: unknown;
+}
+
 // Интерфейсы для API данных
 interface UserApiData {
     id: number;
@@ -109,6 +115,16 @@ interface UserApiData {
     occupation?: OccupationApiData[];
     education?: EducationApiData[];
     districts?: DistrictApiData[];
+    addresses?: UserAddressApiData[];
+    [key: string]: unknown;
+}
+
+interface UserAddressApiData {
+    id: number;
+    suburb?: string | { title: string };
+    district?: string | { title: string };
+    city?: string | { title: string };
+    province?: string | { title: string };
     [key: string]: unknown;
 }
 
@@ -165,16 +181,12 @@ interface GalleryImageApiData {
     [key: string]: unknown;
 }
 
-interface CityApiData {
-    id: number;
-    title?: string;
-    [key: string]: unknown;
-}
-
 interface ApiResponse<T> {
     [key: string]: unknown;
     'hydra:member'?: T[];
 }
+
+// Удален неиспользуемый интерфейс ProvinceData
 
 function MasterProfilePage() {
     const navigate = useNavigate();
@@ -348,8 +360,6 @@ function MasterProfilePage() {
                 return;
             }
 
-            console.log('Making authenticated request to /api/users/me with token:', token);
-
             const response = await fetch(`${API_BASE_URL}/api/users/me`, {
                 method: 'GET',
                 headers: {
@@ -358,8 +368,6 @@ function MasterProfilePage() {
                     'Accept': 'application/json',
                 },
             });
-
-            console.log('Response status:', response.status);
 
             if (response.status === 401) {
                 console.log('Token is invalid or expired');
@@ -374,57 +382,164 @@ function MasterProfilePage() {
 
             const userData: UserApiData = await response.json();
             console.log('User data received:', userData);
-            console.log('User districts:', userData.districts);
 
-            // Получаем URL аватара с приоритетами
             const avatarUrl = await getAvatarUrl(userData);
 
-            // ФОРМИРУЕМ СТРОКУ С РАЙОНОМ РАБОТЫ ИЗ ДАННЫХ districts
+            // ФОРМИРУЕМ ПОЛНЫЙ АДРЕС ИЗ ДАННЫХ addresses
             let workArea = '';
 
-            if (userData.districts && userData.districts.length > 0) {
-                const district = userData.districts[0];
-                console.log('First district:', district);
+            // Добавим явную проверку типа для addresses
+            const userAddresses = userData.addresses as UserAddressApiData[] | undefined;
 
-                if (district && district.city && district.city.id) {
+            if (userAddresses && Array.isArray(userAddresses) && userAddresses.length > 0) {
+                console.log('Processing addresses for work area...');
+
+                const addressParts: string[] = [];
+
+                for (const address of userAddresses) {
                     try {
-                        // Получаем данные города по ID
-                        const cityResponse = await fetch(`${API_BASE_URL}/api/cities/${district.city.id}`, {
-                            method: 'GET',
-                            headers: {
-                                'Authorization': `Bearer ${token}`,
-                                'Content-Type': 'application/json',
-                            },
-                        });
+                        let addressString = '';
 
-                        if (cityResponse.ok) {
-                            const cityData: CityApiData = await cityResponse.json();
-                            console.log('City data:', cityData);
-
-                            // Используем название города как район работы
-                            workArea = cityData.title || '';
-
-                            // Если есть название района, добавляем его
-                            if (district.title) {
-                                workArea = `${district.title}, ${workArea}`;
+                        // Проверяем и добавляем suburb
+                        if (address.suburb) {
+                            const suburbValue = address.suburb;
+                            if (typeof suburbValue === 'string') {
+                                // Используем временную переменную для TypeScript
+                                const suburbStr: string = suburbValue;
+                                const suburbId = suburbStr.split('/').pop();
+                                if (suburbId) {
+                                    const suburbInfo = await fetchDistrictInfo(parseInt(suburbId), token);
+                                    if (suburbInfo && suburbInfo.title) {
+                                        addressString = suburbInfo.title;
+                                    }
+                                }
+                            } else if (typeof suburbValue === 'object' && suburbValue !== null && 'title' in suburbValue) {
+                                const suburbObj = suburbValue as { title: string };
+                                addressString = suburbObj.title;
                             }
-                        } else {
-                            console.error('Failed to fetch city data:', cityResponse.status);
-                            workArea = district.title || 'Город не указан';
+                        }
+
+                        // Проверяем и добавляем district
+                        if (address.district && !addressString) {
+                            const districtValue = address.district;
+                            if (typeof districtValue === 'string') {
+                                // Используем временную переменную для TypeScript
+                                const districtStr: string = districtValue;
+                                const districtId = districtStr.split('/').pop();
+                                if (districtId) {
+                                    const districtInfo = await fetchDistrictInfo(parseInt(districtId), token);
+                                    if (districtInfo && districtInfo.title) {
+                                        addressString = districtInfo.title;
+                                    }
+                                }
+                            } else if (typeof districtValue === 'object' && districtValue !== null && 'title' in districtValue) {
+                                const districtObj = districtValue as { title: string };
+                                addressString = districtObj.title;
+                            }
+                        }
+
+                        // Проверяем и добавляем city
+                        let cityName = '';
+                        if (address.city) {
+                            const cityValue = address.city;
+                            if (typeof cityValue === 'string') {
+                                // Используем временную переменную для TypeScript
+                                const cityStr: string = cityValue;
+                                const cityId = cityStr.split('/').pop();
+                                if (cityId) {
+                                    const cityInfo = await fetchCityInfo(parseInt(cityId), token);
+                                    if (cityInfo && cityInfo.title) {
+                                        cityName = cityInfo.title;
+                                    }
+                                }
+                            } else if (typeof cityValue === 'object' && cityValue !== null && 'title' in cityValue) {
+                                const cityObj = cityValue as { title: string };
+                                cityName = cityObj.title;
+                            }
+                        }
+
+                        // Проверяем и добавляем province
+                        let provinceName = '';
+                        if (address.province) {
+                            const provinceValue = address.province;
+                            if (typeof provinceValue === 'string') {
+                                // Используем временную переменную для TypeScript
+                                const provinceStr: string = provinceValue;
+                                const provinceId = provinceStr.split('/').pop();
+                                if (provinceId) {
+                                    // Загружаем провинции из API
+                                    const provinces = await fetchProvinces(token);
+                                    const province = provinces.find(p => p.id === parseInt(provinceId));
+                                    if (province && province.title) {
+                                        provinceName = province.title;
+                                    }
+                                }
+                            } else if (typeof provinceValue === 'object' && provinceValue !== null && 'title' in provinceValue) {
+                                const provinceObj = provinceValue as { title: string };
+                                provinceName = provinceObj.title;
+                            }
+                        }
+
+                        // Формируем полный адрес
+                        if (addressString && cityName) {
+                            addressParts.push(`${addressString}, ${cityName}${provinceName ? `, ${provinceName}` : ''}`);
+                        } else if (addressString) {
+                            addressParts.push(addressString);
+                        } else if (cityName) {
+                            addressParts.push(`${cityName}${provinceName ? `, ${provinceName}` : ''}`);
+                        } else if (provinceName) {
+                            addressParts.push(provinceName);
                         }
                     } catch (error) {
-                        console.error('Error fetching city data:', error);
-                        workArea = district.title || 'Город не указан';
+                        console.error('Error processing address:', error);
                     }
-                } else if (district.title) {
-                    // Если есть только название района без города
-                    workArea = district.title;
+                }
+
+                // Убираем дубликаты и объединяем
+                if (addressParts.length > 0) {
+                    const uniqueAddresses = [...new Set(addressParts)];
+                    workArea = uniqueAddresses.join(', ');
+                }
+            }
+
+            // Если не удалось получить адрес из addresses, пробуем из старого поля districts
+            if (!workArea && userData.districts && Array.isArray(userData.districts) && userData.districts.length > 0) {
+                console.log('Using old districts field for work area...');
+
+                const districtAddresses: string[] = [];
+
+                for (const districtIri of userData.districts) {
+                    try {
+                        let districtId: number | null = null;
+
+                        if (typeof districtIri === 'string') {
+                            // Используем временную переменную для TypeScript
+                            const districtStr: string = districtIri;
+                            const parts = districtStr.split('/');
+                            districtId = parseInt(parts[parts.length - 1] || '0');
+                        } else if (districtIri && typeof districtIri === 'object' && 'id' in districtIri) {
+                            const districtObj = districtIri as { id: number };
+                            districtId = districtObj.id;
+                        }
+
+                        if (districtId) {
+                            const districtInfo = await fetchDistrictInfo(districtId, token);
+                            if (districtInfo && districtInfo.title) {
+                                districtAddresses.push(districtInfo.title);
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error processing district:', error);
+                    }
+                }
+
+                if (districtAddresses.length > 0) {
+                    workArea = districtAddresses.join(', ');
                 }
             }
 
             console.log('Final work area:', workArea);
 
-            // Трансформируем данные из формата сервера в наш формат
             const transformedData: ProfileData = {
                 id: userData.id.toString(),
                 fullName: [userData.surname, userData.name, userData.patronymic]
@@ -436,7 +551,7 @@ function MasterProfilePage() {
                 avatar: avatarUrl,
                 education: transformEducation(userData.education || []),
                 workExamples: [],
-                workArea: workArea, // Используем сформированный адрес
+                workArea: workArea,
                 services: []
             };
 
@@ -444,11 +559,7 @@ function MasterProfilePage() {
 
         } catch (error) {
             console.error('Error fetching user data:', error);
-            if (error instanceof Error && error.message.includes('401')) {
-                removeAuthToken();
-                navigate('/login');
-                return;
-            }
+            // Создаем пустой профиль вместо null
             setProfileData({
                 id: '',
                 fullName: 'Фамилия Имя Отчество',
@@ -463,6 +574,93 @@ function MasterProfilePage() {
             });
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    // Функция для загрузки провинций из API
+    const fetchProvinces = async (token: string): Promise<Array<{ id: number; title: string }>> => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/provinces`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                const provincesData = await response.json();
+                console.log('Provinces loaded:', provincesData);
+
+                // Обрабатываем разные форматы ответа
+                let provincesArray: Array<{ id: number; title: string }> = [];
+
+                if (Array.isArray(provincesData)) {
+                    provincesArray = provincesData.filter((item): item is { id: number; title: string } =>
+                        item && typeof item === 'object' && 'id' in item && 'title' in item
+                    );
+                } else if (provincesData && typeof provincesData === 'object') {
+                    const apiResponse = provincesData as ApiResponse<{ id: number; title: string }>;
+                    if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
+                        provincesArray = apiResponse['hydra:member'].filter((item): item is { id: number; title: string } =>
+                            item && typeof item === 'object' && 'id' in item && 'title' in item
+                        );
+                    }
+                }
+
+                return provincesArray;
+            }
+            console.warn('Failed to fetch provinces, returning empty array');
+            return [];
+        } catch (error) {
+            console.error('Error fetching provinces:', error);
+            return [];
+        }
+    };
+
+    const fetchDistrictInfo = async (districtId: number, token: string): Promise<DistrictApiData | null> => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/districts/${districtId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                const districtData: DistrictApiData = await response.json();
+                return districtData;
+            }
+            return null;
+        } catch (error) {
+            console.error('Error fetching district info:', error);
+            return null;
+        }
+    };
+
+    const fetchCityInfo = async (cityId: number, token: string): Promise<CityApiData | null> => {
+        try {
+            console.log(`Fetching city info for ID: ${cityId}`);
+            const response = await fetch(`${API_BASE_URL}/api/cities/${cityId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                const cityData: CityApiData = await response.json();
+                console.log(`City data loaded for ID ${cityId}:`, cityData);
+                return cityData;
+            } else {
+                console.error(`Failed to fetch city ${cityId}: ${response.status}`);
+                return null;
+            }
+        } catch (error) {
+            console.error('Error fetching city info:', error);
+            return null;
         }
     };
 
@@ -526,22 +724,25 @@ function MasterProfilePage() {
             };
         }
 
-        const userData = await fetchUserById(userId);
+        try {
+            const userData = await fetchUserById(userId);
 
-        if (userData) {
-            // Получаем URL аватара для клиента/мастера
-            const avatarUrl = await getAvatarUrl(userData, userType);
+            if (userData) {
+                const avatarUrl = await getAvatarUrl(userData, userType);
 
-            const userInfo = {
-                id: userData.id,
-                email: userData.email || '',
-                name: userData.name || '',
-                surname: userData.surname || '',
-                rating: userData.rating || 0,
-                image: avatarUrl || ''
-            };
-            console.log(`User info for ${userType}:`, userInfo);
-            return userInfo;
+                const userInfo = {
+                    id: userData.id,
+                    email: userData.email || '',
+                    name: userData.name || '',
+                    surname: userData.surname || '',
+                    rating: userData.rating || 0,
+                    image: avatarUrl || ''
+                };
+                console.log(`User info for ${userType}:`, userInfo);
+                return userInfo;
+            }
+        } catch (error) {
+            console.error(`Error fetching user info for ${userType} ID ${userId}:`, error);
         }
 
         console.log(`Using fallback for ${userType} ID:`, userId);
@@ -653,11 +854,24 @@ function MasterProfilePage() {
                         console.log('Client data:', clientData);
 
                         // Определяем user и reviewer
+                        const getFullNameParts = (fullName: string) => {
+                            if (!fullName || typeof fullName !== 'string') {
+                                return { firstName: 'Мастер', lastName: '' };
+                            }
+                            const parts = fullName.trim().split(/\s+/);
+                            return {
+                                firstName: parts[1] || 'Мастер',
+                                lastName: parts[0] || ''
+                            };
+                        };
+
+                        const nameParts = getFullNameParts(profileData.fullName);
+
                         const user = masterData || {
                             id: parseInt(profileData.id),
                             email: '',
-                            name: profileData.fullName.split(' ')[1] || 'Мастер',
-                            surname: profileData.fullName.split(' ')[0] || '',
+                            name: nameParts.firstName,
+                            surname: nameParts.lastName,
                             rating: profileData.rating,
                             image: profileData.avatar || ''
                         };
@@ -1841,11 +2055,17 @@ function MasterProfilePage() {
     };
 
     const getMasterName = (review: Review) => {
-        return `${review.user.name} ${review.user.surname}`.trim();
+        if (!review.user.name && !review.user.surname) {
+            return 'Мастер';
+        }
+        return `${review.user.name || ''} ${review.user.surname || ''}`.trim();
     };
 
     const getClientName = (review: Review) => {
-        return `${review.reviewer.name} ${review.reviewer.surname}`.trim();
+        if (!review.reviewer.name && !review.reviewer.surname) {
+            return 'Клиент';
+        }
+        return `${review.reviewer.name || ''} ${review.reviewer.surname || ''}`.trim();
     };
 
     const handleClientProfileClick = (clientId: number) => {
@@ -2011,11 +2231,11 @@ function MasterProfilePage() {
     };
 
     if (isLoading) {
-        return <div className={styles.profile}>Загрузка...</div>;
+        return <div className={styles.profileSet}>Загрузка...</div>;
     }
 
     if (!profileData) {
-        return <div className={styles.profile}>Ошибка загрузки данных</div>;
+        return <div className={styles.profileSet}>Ошибка загрузки данных</div>;
     }
 
     return (

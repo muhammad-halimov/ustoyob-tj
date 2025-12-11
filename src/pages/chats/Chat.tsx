@@ -488,7 +488,7 @@ function Chat() {
                                     <div className={styles.avatar}>
                                         {interlocutor.image ? (
                                             <img
-                                                src={interlocutor.image}
+                                                src={`${API_BASE_URL}${interlocutor.image.startsWith('/') ? interlocutor.image : '/images/profile_photos/' + interlocutor.image}`}
                                                 className={styles.avatarImage}
                                                 alt={`${interlocutor.name} ${interlocutor.surname}`}
                                             />
@@ -532,10 +532,19 @@ function Chat() {
                                     ←
                                 </button>
                                 <div className={styles.avatar}>
-                                    {currentInterlocutor.name?.charAt(0)}{currentInterlocutor.surname?.charAt(0)}
-                                    {currentInterlocutor.isOnline && (
-                                        <div className={styles.onlineIndicator} />
+                                    {currentInterlocutor.image ? (
+                                        <img
+                                            src={`${API_BASE_URL}${currentInterlocutor.image.startsWith('/') ? currentInterlocutor.image : '/images/profile_photos/' + currentInterlocutor.image}`}
+                                            className={styles.avatarImage}
+                                        />
+                                    ) : (
+                                        <>
+                                            {currentInterlocutor.name?.charAt(0)}
+                                            {currentInterlocutor.surname?.charAt(0)}
+                                        </>
                                     )}
+
+                                    {currentInterlocutor.isOnline && <div className={styles.onlineIndicator} />}
                                 </div>
                                 <div className={styles.headerInfo}>
                                     <div className={styles.name}>
