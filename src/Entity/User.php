@@ -400,7 +400,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'clients:read',
     ])]
     #[ApiProperty(writable: false)]
-    private ?bool $active = null;
+    private ?bool $active = false;
 
     #[ORM\Column(type: 'boolean', nullable: true)]
     #[Groups([
@@ -408,7 +408,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'clients:read',
     ])]
     #[ApiProperty(writable: false)]
-    private ?bool $approved = null;
+    private ?bool $approved = false;
 
     /**
      * @var list<string> The user roles
