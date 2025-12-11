@@ -394,21 +394,21 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $telegramChatId = null;
 
-    #[ORM\Column(type: 'boolean', nullable: true)]
+    #[ORM\Column(type: 'boolean', nullable: false)]
     #[Groups([
         'masters:read',
         'clients:read',
     ])]
     #[ApiProperty(writable: false)]
-    private ?bool $active = false;
+    private bool $active = false;
 
-    #[ORM\Column(type: 'boolean', nullable: true)]
+    #[ORM\Column(type: 'boolean', nullable: false)]
     #[Groups([
         'masters:read',
         'clients:read',
     ])]
     #[ApiProperty(writable: false)]
-    private ?bool $approved = false;
+    private bool $approved = false;
 
     /**
      * @var list<string> The user roles
@@ -1562,23 +1562,23 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    public function getActive(): ?bool
+    public function getActive(): bool
     {
         return $this->active;
     }
 
-    public function setActive(?bool $active): static
+    public function setActive(bool $active): static
     {
         $this->active = $active;
         return $this;
     }
 
-    public function getApproved(): ?bool
+    public function getApproved(): bool
     {
         return $this->approved;
     }
 
-    public function setApproved(?bool $approved): static
+    public function setApproved(bool $approved): static
     {
         $this->approved = $approved;
         return $this;
