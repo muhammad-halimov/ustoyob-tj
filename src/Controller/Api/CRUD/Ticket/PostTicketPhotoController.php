@@ -6,7 +6,7 @@ use App\Entity\Ticket\Ticket;
 use App\Entity\Ticket\TicketImage;
 use App\Entity\User;
 use App\Repository\TicketRepository;
-use App\Service\AccessService;
+use App\Service\Extra\AccessService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Service;
+namespace App\Service\Auth;
 
 use App\Entity\User;
 use App\Entity\User\AccountConfirmationToken;
@@ -52,7 +52,7 @@ readonly class AccountConfirmationService
         );
 
         // Отправляем письмо
-        $email = (new Email())
+        $email = new Email()
             ->from($_ENV['MAILER_SENDER'])
             ->to($user->getEmail())
             ->subject("Подтверждение аккаунта на {$_ENV["FRONTEND_URL"]}")

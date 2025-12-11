@@ -6,7 +6,7 @@ use App\Entity\Review\Review;
 use App\Entity\Review\ReviewImage;
 use App\Entity\User;
 use App\Repository\ReviewRepository;
-use App\Service\AccessService;
+use App\Service\Extra\AccessService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -35,7 +35,7 @@ class PatchReviewController extends AbstractController
         if (!$review) return $this->json(['message' => 'Review not found'], 404);
 
         if ($bearerUser !== $review->getClient() && $bearerUser !== $review->getMaster())
-            return $this->json(['message' => 'Access denied'], 403);
+            return $this->json(['message' => 'Extra denied'], 403);
 
         $data = json_decode($request->getContent(), true);
 

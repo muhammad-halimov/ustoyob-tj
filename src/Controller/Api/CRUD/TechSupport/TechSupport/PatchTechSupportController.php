@@ -5,7 +5,7 @@ namespace App\Controller\Api\CRUD\TechSupport\TechSupport;
 use App\Entity\TechSupport\TechSupport;
 use App\Entity\User;
 use App\Repository\TechSupport\TechSupportRepository;
-use App\Service\AccessService;
+use App\Service\Extra\AccessService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -36,13 +36,13 @@ class PatchTechSupportController extends AbstractController
         $statusParam = $data['status'];
 
         if (!in_array("ROLE_ADMIN", $bearerUser->getRoles()) && $statusParam == 'in_progress')
-            return $this->json(['message' => 'Access denied'], 403);
+            return $this->json(['message' => 'Extra denied'], 403);
 
         if (!$techSupport)
             return $this->json(['message' => 'Tech support not found'], 404);
 
         if ($techSupport->getAuthor() !== $bearerUser && $techSupport->getAdministrant() !== $bearerUser)
-            return $this->json(['message' => 'Access denied'], 403);
+            return $this->json(['message' => 'Extra denied'], 403);
 
         if (!in_array($statusParam, array_values($techSupport::STATUSES)))
             return $this->json([

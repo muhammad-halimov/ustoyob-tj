@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controller;
+namespace App\Controller\Api\Auth;
 
 use App\Entity\User\AccountConfirmationToken;
 use DateTime;

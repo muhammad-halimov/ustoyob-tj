@@ -13,9 +13,9 @@ class PhoneConstraint extends Constraint
     // Конструктор для передачи языка
     public function __construct(
         public string $lang = 'ENG',
-        mixed $options = null,
-        array $groups = null,
-        mixed $payload = null
+        mixed         $options = null,
+        ?array        $groups = null,
+        mixed         $payload = null
     ) {
         parent::__construct($options, $groups, $payload);
     }

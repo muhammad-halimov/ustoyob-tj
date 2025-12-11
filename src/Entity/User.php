@@ -60,7 +60,7 @@ use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
 use Symfony\Component\Validator\Constraints as Assert;
-use Vich\UploaderBundle\Mapping\Annotation as Vich;
+use Vich\UploaderBundle\Mapping\Attribute as Vich;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: '`user`')]
@@ -354,13 +354,26 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?string $imageExternalUrl = null;
 
     #[ORM\Column(length: 20, nullable: true)]
-    #[Groups(['masters:read', 'clients:read'])]
+    #[Groups([
+        'masters:read',
+        'clients:read'
+    ])]
     #[AppAssert\PhoneConstraint]
+    #[Assert\Length(
+        max: 20,
+        maxMessage: 'Phone number cannot be longer than {{ limit }} characters'
+    )]
     private ?string $phone1 = null;
 
     #[ORM\Column(length: 20, nullable: true)]
-    #[Groups(['masters:read', 'clients:read'])]
-    #[AppAssert\PhoneConstraint]
+    #[Groups([
+        'masters:read',
+        'clients:read'
+    ])]
+    #[Assert\Length(
+        max: 20,
+        maxMessage: 'Phone number cannot be longer than {{ limit }} characters'
+    )]
     private ?string $phone2 = null;
 
     #[ORM\Column(type: 'boolean', nullable: true)]
@@ -766,17 +779,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function setPhone2(?string $phone2): static
     {
-        // Нормализуем при сохранении
-        if ($phone2) {
-            $cleaned = preg_replace('/[^\d+]/', '', $phone2);
-            // Добавляем +992 если нет
-            if (!str_starts_with($cleaned, '+992')) {
-                $cleaned = '+992' . $cleaned;
-            }
-            $this->phone2 = $cleaned;
-        } else {
-            $this->phone2 = null;
-        }
+        $this->phone2 = $phone2;
 
         return $this;
     }
@@ -786,9 +789,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->atHome;
     }
 
-    public function setAtHome(?bool $atHome): void
+    public function setAtHome(?bool $atHome): static
     {
         $this->atHome = $atHome;
+
+        return $this;
     }
 
     /**

@@ -5,7 +5,7 @@ namespace App\Controller\Api\Filter\TechSupport;
 use App\Entity\TechSupport\TechSupport;
 use App\Entity\User;
 use App\Repository\TechSupport\TechSupportRepository;
-use App\Service\AccessService;
+use App\Service\Extra\AccessService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;

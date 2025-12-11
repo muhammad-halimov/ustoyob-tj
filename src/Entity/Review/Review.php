@@ -35,11 +35,11 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiResource(
     operations: [
         new GetCollection(
-            uriTemplate: '/reviews',
-        ),
-        new GetCollection(
             uriTemplate: '/reviews/me',
             controller: PersonalReviewFilterController::class,
+        ),
+        new GetCollection(
+            uriTemplate: '/reviews',
         ),
         new Post(
             uriTemplate: '/reviews/{id}/upload-photo',

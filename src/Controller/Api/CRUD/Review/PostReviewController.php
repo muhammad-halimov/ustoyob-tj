@@ -5,8 +5,8 @@ namespace App\Controller\Api\CRUD\Review;
 use App\Entity\Review\Review;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
-use App\Service\AccessService;
-use App\Service\ExtractIriService;
+use App\Service\Extra\AccessService;
+use App\Service\Extra\ExtractIriService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -65,7 +65,7 @@ class PostReviewController extends AbstractController
                 return $this->json(['message' => 'Client not found'], 404);
 
             if (!in_array("ROLE_MASTER", $bearerUser->getRoles()))
-                return $this->json(['message' => 'Access denied'], 403);
+                return $this->json(['message' => 'Extra denied'], 403);
 
             if (!in_array("ROLE_CLIENT", $client->getRoles()))
                 return $this->json(['message' => "Client's role doesn't match"], 403);
@@ -98,7 +98,7 @@ class PostReviewController extends AbstractController
                 return $this->json(['message' => 'Master not found'], 404);
 
             if (!in_array("ROLE_CLIENT", $bearerUser->getRoles()))
-                return $this->json(['message' => 'Access denied'], 403);
+                return $this->json(['message' => 'Extra denied'], 403);
 
             if (!in_array("ROLE_MASTER", $master->getRoles()))
                 return $this->json(['message' => "Master's role doesn't match"], 403);

@@ -2,7 +2,6 @@
 
 namespace App\Service\Auth;
 
-use DateMalformedStringException;
 use DateTime;
 use Gesdinet\JWTRefreshTokenBundle\Generator\RefreshTokenGeneratorInterface;
 use Gesdinet\JWTRefreshTokenBundle\Model\RefreshTokenManagerInterface;
@@ -14,31 +13,25 @@ readonly class RefreshTokenService
     public function __construct(
         private RefreshTokenGeneratorInterface $refreshTokenGenerator,
         private RefreshTokenManagerInterface   $refreshTokenManager,
-        private string                         $environment,
-        private int                            $ttl = 1296000
     ) {}
 
     public function createRefreshToken(UserInterface $user): string
     {
-        $refreshToken = $this->refreshTokenGenerator->createForUserWithTtl($user, $this->ttl);
+        $refreshToken = $this->refreshTokenGenerator->createForUserWithTtl($user, $_ENV['REFRESH_TOKEN_TTL']);
         $this->refreshTokenManager->save($refreshToken);
 
         return $refreshToken->getRefreshToken();
     }
 
-    /**
-     * @throws DateMalformedStringException
-     */
     public function createRefreshTokenCookie(string $refreshTokenValue): Cookie
     {
-        $isProd = $this->environment === 'prod';
-
         return Cookie::create('refresh_token')
             ->withValue($refreshTokenValue)
-            ->withExpires(new DateTime('+' . $this->ttl . ' seconds'))
-            ->withPath('/')
-            ->withSecure($isProd)
-            ->withHttpOnly()
-            ->withSameSite($isProd ? Cookie::SAMESITE_STRICT : Cookie::SAMESITE_LAX);
+            ->withExpires(new DateTime("+{$_ENV['REFRESH_TOKEN_TTL']} seconds"))
+            ->withPath($_ENV['REFRESH_TOKEN_COOKIE_PATH'])
+            ->withSecure((bool)$_ENV['REFRESH_TOKEN_COOKIE_SECURE'])
+            ->withHttpOnly((bool)$_ENV['REFRESH_TOKEN_COOKIE_HTTP_ONLY'])
+            ->withSameSite($_ENV['REFRESH_TOKEN_COOKIE_SAME_SITE'])
+            ->withDomain($_ENV['REFRESH_TOKEN_COOKIE_DOMAIN']);
     }
 }

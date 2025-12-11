@@ -15,8 +15,6 @@ use App\Dto\ApiAuth\ApiLogout\LogoutOutput;
         new Post(
             uriTemplate: '/authentication_token',
             controller: ApiLoginController::class,
-            normalizationContext: ['groups' => ['auth:read']],
-            denormalizationContext: ['groups' => ['auth:write']],
             input: LoginInput::class,
             output: LoginOutput::class,
             read: false,
@@ -25,8 +23,6 @@ use App\Dto\ApiAuth\ApiLogout\LogoutOutput;
         new Post(
             uriTemplate: '/logout',
             controller: ApiLogoutController::class,
-            normalizationContext: ['groups' => ['auth:read']],
-            denormalizationContext: ['groups' => ['auth:write']],
             input: false,
             output: LogoutOutput::class,
             read: false,

@@ -1,20 +1,19 @@
 <?php
 
-namespace App\Controller;
+namespace App\Controller\Api\CRUD\TechSupport;
 
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Annotation\Route;
 use BotMan\BotMan\BotMan;
 use BotMan\BotMan\BotManFactory;
 use BotMan\BotMan\Drivers\DriverManager;
 use BotMan\Drivers\Telegram\TelegramDriver;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Annotation\Route;
 
 class TelegramBotController extends AbstractController
 {
     #[Route('/webhook', name: 'bot_webhook', methods: ['POST'])]
-    public function webhook(Request $request): Response
+    public function webhook(): Response
     {
         $config = [
             "telegram" => [

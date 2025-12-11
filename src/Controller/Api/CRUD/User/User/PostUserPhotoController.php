@@ -4,7 +4,7 @@ namespace App\Controller\Api\CRUD\User\User;
 
 use App\Entity\User;
 use App\Repository\UserRepository;
-use App\Service\AccessService;
+use App\Service\Extra\AccessService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;

@@ -5,7 +5,7 @@ namespace App\Controller\Api\CRUD\Chat\Message;
 use App\Entity\Chat\ChatMessage;
 use App\Entity\User;
 use App\Repository\Chat\ChatMessageRepository;
-use App\Service\AccessService;
+use App\Service\Extra\AccessService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;

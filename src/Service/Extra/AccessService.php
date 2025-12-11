@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Service;
+namespace App\Service\Extra;
 
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
@@ -10,8 +10,8 @@ use Symfony\Component\Security\Core\Exception\TokenNotFoundException;
 
 readonly class AccessService
 {
-    private const TRIPLE_ALLOWED_ROLES = ['ROLE_ADMIN', 'ROLE_CLIENT', 'ROLE_MASTER'];
-    private const DOUBLE_ALLOWED_ROLES = ['ROLE_CLIENT', 'ROLE_MASTER'];
+    private const array TRIPLE_ALLOWED_ROLES = ['ROLE_ADMIN', 'ROLE_CLIENT', 'ROLE_MASTER'];
+    private const array DOUBLE_ALLOWED_ROLES = ['ROLE_CLIENT', 'ROLE_MASTER'];
 
     public function __construct(private Security $security){}
 
@@ -34,23 +34,23 @@ readonly class AccessService
         switch ($grade) {
             case 'triple':
                 if (!array_intersect(self::TRIPLE_ALLOWED_ROLES, $user->getRoles()))
-                    throw new AccessDeniedHttpException('Access denied');
+                    throw new AccessDeniedHttpException('Extra denied');
                 break;
             case 'double':
                 if (!array_intersect(self::DOUBLE_ALLOWED_ROLES, $user->getRoles()))
-                    throw new AccessDeniedHttpException('Access denied');
+                    throw new AccessDeniedHttpException('Extra denied');
                 break;
             case 'client':
                 if (!in_array("ROLE_CLIENT", $user->getRoles()))
-                    throw new AccessDeniedHttpException('Access denied');
+                    throw new AccessDeniedHttpException('Extra denied');
                 break;
             case 'master':
                 if (!in_array("ROLE_MASTER", $user->getRoles()))
-                    throw new AccessDeniedHttpException('Access denied');
+                    throw new AccessDeniedHttpException('Extra denied');
                 break;
             case 'admin':
                 if (!in_array("ROLE_ADMIN", $user->getRoles()))
-                    throw new AccessDeniedHttpException('Access denied');
+                    throw new AccessDeniedHttpException('Extra denied');
                 break;
             default:
                 throw new AccessDeniedHttpException('Role not allowed');

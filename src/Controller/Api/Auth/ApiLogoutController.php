@@ -39,8 +39,16 @@ class ApiLogoutController extends AbstractController
             ->getRepository(RefreshToken::class)
             ->findBy(['username' => $user->getUserIdentifier()]);
 
-        foreach ($refreshTokens as $rt) $this->refreshTokenManager->delete($rt);
+        $deletedCount = 0;
 
-        return new JsonResponse(['success' => true]);
+        foreach ($refreshTokens as $rt) {
+            $this->refreshTokenManager->delete($rt);
+            $deletedCount++;
+        }
+
+        return new JsonResponse([
+            'success' => true,
+            'deleted_tokens' => $deletedCount
+        ]);
     }
 }

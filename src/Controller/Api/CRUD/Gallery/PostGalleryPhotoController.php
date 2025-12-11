@@ -6,7 +6,7 @@ use App\Entity\Gallery\Gallery;
 use App\Entity\Gallery\GalleryImage;
 use App\Entity\User;
 use App\Repository\GalleryRepository;
-use App\Service\AccessService;
+use App\Service\Extra\AccessService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;

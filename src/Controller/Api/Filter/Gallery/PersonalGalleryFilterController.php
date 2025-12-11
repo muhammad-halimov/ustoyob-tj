@@ -4,7 +4,7 @@ namespace App\Controller\Api\Filter\Gallery;
 
 use App\Entity\User;
 use App\Repository\GalleryRepository;
-use App\Service\AccessService;
+use App\Service\Extra\AccessService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;

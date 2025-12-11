@@ -5,7 +5,7 @@ namespace App\Controller\Admin\User;
 use App\Controller\Admin\Field\VichImageField;
 use App\Controller\Admin\Geography\AddressCrudController;
 use App\Entity\User;
-use App\Service\AccountConfirmationService;
+use App\Service\Auth\AccountConfirmationService;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
@@ -246,18 +246,18 @@ class UserCrudController extends AbstractCrudController
             ->setColumns(12)
             ->setRequired(false);
 
-//        yield VichImageField::new('imageFile', 'Фото профиля')
-//            ->setHelp('
-//                <div class="mt-3">
-//                    <span class="badge badge-info">*.jpg</span>
-//                    <span class="badge badge-info">*.jpeg</span>
-//                    <span class="badge badge-info">*.png</span>
-//                    <span class="badge badge-info">*.jiff</span>
-//                    <span class="badge badge-info">*.webp</span>
-//                </div>
-//            ')
-//            ->onlyOnForms()
-//            ->setColumns(12);
+        yield VichImageField::new('imageFile', 'Фото профиля')
+            ->setHelp('
+                <div class="mt-3">
+                    <span class="badge badge-info">*.jpg</span>
+                    <span class="badge badge-info">*.jpeg</span>
+                    <span class="badge badge-info">*.png</span>
+                    <span class="badge badge-info">*.jiff</span>
+                    <span class="badge badge-info">*.webp</span>
+                </div>
+            ')
+            ->onlyOnForms()
+            ->setColumns(12);
 
         yield TextField::new('password', 'Пароль')
             ->onlyOnDetail();

@@ -3,7 +3,7 @@
 namespace App\Controller\Api\Filter\User;
 
 use App\Entity\User;
-use App\Service\AccessService;
+use App\Service\Extra\AccessService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
