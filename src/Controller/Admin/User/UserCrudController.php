@@ -16,6 +16,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\DateField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\EmailField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
@@ -203,30 +204,34 @@ class UserCrudController extends AbstractCrudController
         yield $plainPassword;
 
         yield TelephoneField::new('phone1', 'Телефон 1')
-            ->setColumns(3)
+            ->setColumns(2)
             ->setRequired(false);
 
         yield TelephoneField::new('phone2', 'Телефон 2')
             ->hideOnIndex()
-            ->setColumns(3)
+            ->setColumns(2)
             ->setRequired(false);
 
         yield TelephoneField::new('telegramChatId', 'ID телеграм чата (админ)')
             ->hideOnIndex()
-            ->setColumns(2)
+            ->setColumns(4)
             ->setRequired(false);
 
-        yield AssociationField::new('occupation', 'Специальность')
+        yield CollectionField::new('addresses', 'Адреса')
+            ->useEntryCrudForm(AddressCrudController::class)
             ->setColumns(6)
+            ->setFormTypeOptions(['by_reference' => false])
+            ->addCssClass("addresses-field")
+            ->hideOnIndex();
+
+        yield AssociationField::new('occupation', 'Специальность')
+            ->setColumns(4)
             ->setFormTypeOptions(['by_reference' => false])
             ->addCssClass("occupation-field")
             ->hideOnIndex();
 
-        yield CollectionField::new('addresses', 'Адреса работ')
-            ->useEntryCrudForm(AddressCrudController::class)
-            ->setColumns(6)
-            ->setFormTypeOptions(['by_reference' => false])
-            ->addCssClass("districts-field")
+        yield DateField::new('dateOfBirth', 'Дата рождения')
+            ->setColumns(2)
             ->hideOnIndex();
 
         yield TextEditorField::new('bio', 'О себе')

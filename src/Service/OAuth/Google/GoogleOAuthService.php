@@ -6,6 +6,7 @@ use App\Entity\User;
 use App\Entity\User\OAuthType;
 use App\Repository\UserRepository;
 use App\Service\OAuth\StateStorage;
+use DateTime;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use Firebase\JWT\JWK;
@@ -28,7 +29,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * - Генерация URL для редиректа
  * - Обмен authorization code на токены
  * - Верификация ID token
- * - Получение дополнительных данных пользователя (телефон, пол)
+ * - Получение дополнительных данных пользователя (телефон, пол, дата рождения)
  * - Создание/обновление пользователей в системе
  */
 class GoogleOAuthService
@@ -63,11 +64,20 @@ class GoogleOAuthService
         $randomState = bin2hex(random_bytes(16));
         $this->stateStorage->add($randomState);
 
+        $scopes = [
+            'openid',
+            'profile',
+            'email',
+            'https://www.googleapis.com/auth/user.phonenumbers.read',
+            'https://www.googleapis.com/auth/user.gender.read',
+            'https://www.googleapis.com/auth/user.birthday.read',
+        ];
+
         $queryParams = [
             'client_id' => $_ENV['OAUTH_GOOGLE_CLIENT_ID'],
             'redirect_uri' => $_ENV['GOOGLE_REDIRECT_URI'],
             'response_type' => 'code', // Authorization Code Flow
-            'scope' => 'openid profile email https://www.googleapis.com/auth/user.phonenumbers.read https://www.googleapis.com/auth/user.gender.read',
+            'scope' => implode(' ', $scopes),
             'access_type' => 'offline', // Для получения refresh token
             'state' => $randomState,
         ];
@@ -82,7 +92,7 @@ class GoogleOAuthService
      * 1. Проверка state (защита от CSRF)
      * 2. Обмен code на токены (id_token и access_token)
      * 3. Верификация id_token и извлечение базовых данных
-     * 4. Получение дополнительных данных через People API (телефон, пол)
+     * 4. Получение дополнительных данных через People API (телефон, пол, дата рождения)
      * 5. Поиск/создание пользователя в БД
      * 6. Генерация JWT токена для нашей системы
      *
@@ -105,7 +115,7 @@ class GoogleOAuthService
 
         // Обмениваем authorization code на токены
         try {
-            $response = $this->httpClient->request('POST', $_ENV['GOOGLE_TOKEN_URI'], [
+            $data = $this->httpClient->request('POST', $_ENV['GOOGLE_TOKEN_URI'], [
                 'headers' => ['Content-Type' => 'application/x-www-form-urlencoded'],
                 'body' => http_build_query([
                     'client_id' => $_ENV['OAUTH_GOOGLE_CLIENT_ID'],
@@ -114,9 +124,7 @@ class GoogleOAuthService
                     'redirect_uri' => $_ENV['GOOGLE_REDIRECT_URI'],
                     'code' => $code,
                 ]),
-            ]);
-
-            $data = $response->toArray();
+            ])->toArray();
         } catch (ClientExceptionInterface $e) {
             throw new BadRequestHttpException('Failed to exchange code with Google. The code may be expired or invalid.', code: $e->getCode());
         }
@@ -128,7 +136,7 @@ class GoogleOAuthService
         // Верифицируем ID token и получаем базовые данные пользователя
         $userData = $this->verifyIdToken($data['id_token']);
 
-        // Получаем дополнительные данные (телефон, пол) через People API
+        // Получаем дополнительные данные (телефон, пол, дата рождения) через People API
         if (isset($data['access_token'])) {
             $userData = array_merge($userData, $this->fetchAdditionalUserDetails($data['access_token']));
         }
@@ -193,13 +201,13 @@ class GoogleOAuthService
      * Получает дополнительные данные пользователя через Google People API
      *
      * ID Token содержит только базовую информацию (email, имя, фото).
-     * Для получения телефона и пола нужен отдельный запрос к People API.
+     * Для получения телефона, пола и даты рождения нужен отдельный запрос к People API.
      *
      * Важно: не все пользователи указывают эти данные в Google аккаунте,
      * поэтому возвращаем null если данных нет.
      *
      * @param string $accessToken OAuth 2.0 access token для запроса к API
-     * @return array ['phone' => ?string, 'gender' => ?string]
+     * @return array ['phone' => ?string, 'gender' => ?string, 'birthdate' => ?string]
      * @throws ClientExceptionInterface
      * @throws DecodingExceptionInterface
      * @throws RedirectionExceptionInterface
@@ -211,16 +219,27 @@ class GoogleOAuthService
         try {
             $data = $this->httpClient->request('GET', $_ENV['GOOGLE_ACCOUNT_ADDITIONAL_INFO_URI'], [
                 'headers' => ['Authorization' => "Bearer $accessToken"],
-                'query' => ['personFields' => 'phoneNumbers,genders']
+                'query' => ['personFields' => 'phoneNumbers,genders,birthdays']
             ])->toArray();
+
+            // Извлекаем дату рождения из массива birthdays
+            $birthdate = null;
+            foreach ($data['birthdays'] ?? [] as $birthday) {
+                $date = $birthday['date'] ?? null;
+                if ($date && isset($date['year'], $date['month'], $date['day'])) {
+                    $birthdate = sprintf('%04d-%02d-%02d', $date['year'], $date['month'], $date['day']);
+                    break;
+                }
+            }
 
             return [
                 'phone' => $data['phoneNumbers'][0]['value'] ?? null,
                 'gender' => $data['genders'][0]['value'] ?? null,
+                'birthdate' => $birthdate,
             ];
         } catch (Exception) {
             // Если не удалось получить дополнительные данные - не критично
-            return ['phone' => null, 'gender' => null];
+            return ['phone' => null, 'gender' => null, 'birthdate' => null];
         }
     }
 
@@ -233,7 +252,7 @@ class GoogleOAuthService
      * 3. Создание нового - первый вход через Google
      *
      * При обновлении существующего пользователя:
-     * - Обновляем данные из Google (имя, фото, телефон, пол)
+     * - Обновляем данные из Google (имя, фото, телефон, пол, дата рождения)
      * - Привязываем Google OAuth если его не было
      *
      * @param array $googleData Данные пользователя от Google
@@ -288,15 +307,14 @@ class GoogleOAuthService
             ->setPassword('') // OAuth пользователи не имеют пароля
             ->setActive(true)
             ->setApproved(true)
-            ->setRoles($this->getRolesByType($role));
+            ->setRoles(match($role) {
+                'master' => ['ROLE_MASTER'],
+                'client' => ['ROLE_CLIENT'],
+                default => []
+            });
 
-        // Устанавливаем опциональные данные (могут отсутствовать)
-        if (!empty($googleData['phone'])) {
-            $user->setPhone2($googleData['phone']);
-        }
-        if (isset($googleData['gender'])) {
-            $user->setGender($this->mapGoogleGender($googleData['gender']));
-        }
+        // Устанавливаем опциональные данные
+        $this->setOptionalUserData($user, $googleData);
 
         $this->entityManager->persist($oauth);
         $this->entityManager->persist($user);
@@ -308,9 +326,6 @@ class GoogleOAuthService
     /**
      * Обновляет данные существующего пользователя из Google
      *
-     * Обновляем все данные, которые приходят от Google, чтобы
-     * информация о пользователе была актуальной.
-     *
      * @param User $user Пользователь для обновления
      * @param array $googleData Данные от Google
      */
@@ -318,58 +333,47 @@ class GoogleOAuthService
     {
         $user->setEmail($googleData['email'] ?? $user->getEmail());
 
-        // Обновляем основные поля через цикл для компактности
-        foreach ([
-            'given_name' => 'setName',
-            'family_name' => 'setSurname',
-            'picture' => 'setImageExternalUrl',
-        ] as $key => $method) {
-            if (isset($googleData[$key])) {
-                $user->$method($googleData[$key]);
-            }
+        if (isset($googleData['given_name'])) {
+            $user->setName($googleData['given_name']);
+        }
+        if (isset($googleData['family_name'])) {
+            $user->setSurname($googleData['family_name']);
+        }
+        if (isset($googleData['picture'])) {
+            $user->setImageExternalUrl($googleData['picture']);
         }
 
-        // Обновляем опциональные данные
+        // Устанавливаем опциональные данные
+        $this->setOptionalUserData($user, $googleData);
+    }
+
+    /**
+     * Устанавливает опциональные данные пользователя (телефон, пол, дата рождения)
+     *
+     * @param User $user Пользователь
+     * @param array $googleData Данные от Google
+     */
+    private function setOptionalUserData(User $user, array $googleData): void
+    {
         if (!empty($googleData['phone'])) {
             $user->setPhone2($googleData['phone']);
         }
+
         if (isset($googleData['gender'])) {
-            $user->setGender($this->mapGoogleGender($googleData['gender']));
+            $gender = match(strtolower($googleData['gender'])) {
+                'male' => 'gender_male',
+                'female' => 'gender_female',
+                default => 'gender_neutral'
+            };
+            $user->setGender($gender);
         }
-    }
 
-    /**
-     * Преобразует значение пола из формата Google в формат приложения
-     *
-     * Google возвращает: male, female, other, unspecified
-     * Наше приложение использует: gender_male, gender_female, gender_neutral
-     *
-     * @param string|null $gender Пол из Google
-     * @return string Пол в формате приложения
-     */
-    private function mapGoogleGender(?string $gender): string
-    {
-        return match(strtolower($gender ?? '')) {
-            'male' => 'gender_male',
-            'female' => 'gender_female',
-            default => 'gender_neutral'
-        };
-    }
-
-    /**
-     * Возвращает массив ролей на основе типа пользователя
-     *
-     * ROLE_USER добавляется автоматически в User::getRoles()
-     *
-     * @param string|null $role Тип пользователя (master/client)
-     * @return array Массив ролей для Symfony Security
-     */
-    private function getRolesByType(?string $role): array
-    {
-        return match($role) {
-            'master' => ['ROLE_MASTER'],
-            'client' => ['ROLE_CLIENT'],
-            default => [] // ROLE_USER добавится автоматически
-        };
+        if (isset($googleData['birthdate'])) {
+            try {
+                $user->setDateOfBirth(new DateTime($googleData['birthdate']));
+            } catch (Exception) {
+                // Игнорируем некорректные даты
+            }
+        }
     }
 }

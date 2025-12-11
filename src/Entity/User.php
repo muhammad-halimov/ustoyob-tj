@@ -53,6 +53,7 @@ use DateTime;
 use Deprecated;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
@@ -310,6 +311,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'blackLists:read'
     ])]
     private ?string $gender = null;
+
+    #[ORM\Column(type: Types::DATE_MUTABLE, nullable: true)]
+    #[Groups([
+        'masters:read',
+        'clients:read',
+    ])]
+    private ?DateTime $dateOfBirth = null;
 
     #[Vich\UploadableField(mapping: 'profile_photos', fileNameProperty: 'image')]
     #[Assert\Image(mimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])]
@@ -1711,6 +1719,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         if ($oauthType->getUser() !== $this) {
             $oauthType->setUser($this);
         }
+
+        return $this;
+    }
+
+    public function getDateOfBirth(): ?DateTime
+    {
+        return $this->dateOfBirth;
+    }
+
+    public function setDateOfBirth(?DateTime $dateOfBirth): static
+    {
+        $this->dateOfBirth = $dateOfBirth;
 
         return $this;
     }
