@@ -10,7 +10,6 @@ use App\Service\Notification\NotifyTechSupportEmailService;
 use App\Service\Notification\NotifyTechSupportTelegramBotService;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsEntityListener;
 use Doctrine\ORM\Events;
-use Doctrine\Persistence\Event\LifecycleEventArgs;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 #[AsEntityListener(event: Events::prePersist, entity: TechSupport::class)]
@@ -27,7 +26,7 @@ readonly class TechSupportListener
     /**
      * До создания ТП задаем наименее загруженного админа
      */
-    public function prePersist(TechSupport $techSupport, LifecycleEventArgs $args): void
+    public function prePersist(TechSupport $techSupport): void
     {
         // Устанавливаем статус "new" если не задан
         if ($techSupport->getStatus() === null) {
@@ -42,7 +41,7 @@ readonly class TechSupportListener
      * После создания ТП отправляем уведомление на почту и тг админа
      * @throws TransportExceptionInterface
      */
-    public function postPersist(TechSupport $techSupport, LifecycleEventArgs $args): void
+    public function postPersist(TechSupport $techSupport): void
     {
         $this->notifyTechSupportTelegramBotService->sendTechSupportNotification(user: $techSupport->getAdministrant(), techSupport: $techSupport);
         $this->notifyTechSupportEmailService->sendTechSupportEmail(user: $techSupport->getAdministrant(), techSupport: $techSupport);

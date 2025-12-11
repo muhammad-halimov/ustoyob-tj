@@ -39,6 +39,7 @@ class PostUserPhotoController extends AbstractController
             return $this->json(["message" => "Ownership doesn't match"], 404);
 
         $user->setImageFile($imageFile);
+        $user->setImageExternalUrl(null);
 
         $this->entityManager->persist($user);
         $this->entityManager->flush();

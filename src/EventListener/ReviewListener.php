@@ -7,7 +7,6 @@ use App\Repository\ReviewRepository;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsEntityListener;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Events;
-use Doctrine\Persistence\Event\LifecycleEventArgs;
 
 #[AsEntityListener(event: Events::postPersist, entity: Review::class)]
 #[AsEntityListener(event: Events::postUpdate, entity: Review::class)]
@@ -25,7 +24,7 @@ class ReviewListener
     /**
      * После создания отзыва пересчитываем рейтинг
      */
-    public function postPersist(Review $review, LifecycleEventArgs $args): void
+    public function postPersist(Review $review): void
     {
         $this->recalculateUserRating($review);
     }
@@ -33,7 +32,7 @@ class ReviewListener
     /**
      * После обновления отзыва пересчитываем рейтинг
      */
-    public function postUpdate(Review $review, LifecycleEventArgs $args): void
+    public function postUpdate(Review $review): void
     {
         $this->recalculateUserRating($review);
     }
@@ -41,7 +40,7 @@ class ReviewListener
     /**
      * Перед удалением сохраняем данные отзыва
      */
-    public function preRemove(Review $review, LifecycleEventArgs $args): void
+    public function preRemove(Review $review): void
     {
         // Сохраняем копию отзыва для использования в postRemove
         $this->removedReview = clone $review;
@@ -50,7 +49,7 @@ class ReviewListener
     /**
      * После удаления отзыва пересчитываем рейтинг
      */
-    public function postRemove(Review $review, LifecycleEventArgs $args): void
+    public function postRemove(): void
     {
         if ($this->removedReview) {
             $this->recalculateUserRating($this->removedReview);

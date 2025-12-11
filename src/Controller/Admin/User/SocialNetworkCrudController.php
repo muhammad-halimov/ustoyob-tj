@@ -58,11 +58,11 @@ class SocialNetworkCrudController extends AbstractCrudController
 
         yield ChoiceField::new('network', 'Соц. сеть')
             ->setChoices(SocialNetwork::NETWORKS)
-            ->setColumns(6)
+            ->setColumns(12)
             ->setRequired(true);
 
         yield TextField::new('handle', 'Ссылка')
-            ->setColumns(6)
+            ->setColumns(12)
             ->setRequired(true);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')

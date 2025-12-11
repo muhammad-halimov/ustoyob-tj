@@ -2,6 +2,7 @@
 
 namespace App\Controller\Admin\User;
 
+use App\Controller\Admin\Field\ExternalImageField;
 use App\Controller\Admin\Field\VichImageField;
 use App\Controller\Admin\Geography\AddressCrudController;
 use App\Entity\User;
@@ -242,13 +243,13 @@ class UserCrudController extends AbstractCrudController
         yield CollectionField::new('socialNetworks', 'Соц. сети')
             ->useEntryCrudForm(SocialNetworkCrudController::class)
             ->hideOnIndex()
-            ->setColumns(12)
+            ->setColumns(6)
             ->setRequired(false);
 
         yield CollectionField::new('education', 'Образование')
             ->useEntryCrudForm(EducationCrudController::class)
             ->hideOnIndex()
-            ->setColumns(12)
+            ->setColumns(6)
             ->setRequired(false);
 
         yield VichImageField::new('imageFile', 'Фото профиля')
@@ -262,7 +263,11 @@ class UserCrudController extends AbstractCrudController
                 </div>
             ')
             ->onlyOnForms()
-            ->setColumns(12);
+            ->setColumns(6);
+
+        yield ExternalImageField::new('imageExternalUrl', 'Фото профиля (внешняя ссылка)')
+            ->hideOnIndex()
+            ->setColumns(6);
 
         yield TextField::new('password', 'Пароль')
             ->onlyOnDetail();

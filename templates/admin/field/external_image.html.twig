@@ -1,0 +1,9 @@
+{% if field.value %}
+    <a href="{{ field.value }}" target="_blank">
+        <img src="{{ field.value }}"
+             alt="{{ field.label }}"
+             style="max-height: 100px; max-width: 150px; object-fit: contain;">
+    </a>
+{% else %}
+    <span style="color: #999;">No image</span>
+{% endif %}

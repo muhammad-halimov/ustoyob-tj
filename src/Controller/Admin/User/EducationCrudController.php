@@ -63,19 +63,19 @@ class EducationCrudController extends AbstractCrudController
             ->setRequired(true);
 
         yield TextField::new('faculty', 'Факультет')
-            ->setColumns(6)
+            ->setColumns(12)
             ->setRequired(true);
 
         yield AssociationField::new('occupation', 'Специальность')
-            ->setColumns(6)
+            ->setColumns(12)
             ->setRequired(true);
 
         yield IntegerField::new('beginning', 'Начало')
-            ->setColumns(6)
+            ->setColumns(12)
             ->setRequired(true);
 
         yield IntegerField::new('ending', 'Окончание')
-            ->setColumns(6);
+            ->setColumns(12);
 
         yield BooleanField::new('graduated', 'Окончено')
             ->setColumns(12);
