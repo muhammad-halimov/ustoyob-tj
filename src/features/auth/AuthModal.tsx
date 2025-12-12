@@ -9,7 +9,8 @@ const AuthModalState = {
     FORGOT_PASSWORD: 'forgot_password',
     VERIFY_CODE: 'verify_code',
     NEW_PASSWORD: 'new_password',
-    CONFIRM_EMAIL: 'confirm_email'
+    CONFIRM_EMAIL: 'confirm_email',
+    GOOGLE_ROLE_SELECT: 'google_role_select' // Новое состояние для выбора роли при Google-авторизации
 } as const;
 
 type AuthModalStateType = typeof AuthModalState[keyof typeof AuthModalState];
@@ -55,6 +56,23 @@ interface ConfirmTokenResponse {
     error?: string;
 }
 
+interface GoogleAuthUrlResponse {
+    url: string;
+}
+
+interface GoogleUserResponse {
+    user: {
+        id: number;
+        email: string;
+        name: string;
+        surname: string;
+        roles: string[];
+        [key: string]: unknown;
+    };
+    token: string;
+    message: string;
+}
+
 // Константы для времени жизни токена
 const TOKEN_LIFETIME_HOURS = 1; // 1 час
 const TOKEN_REFRESH_BUFFER_MINUTES = 5; // Обновлять токен за 5 минут до истечения
@@ -77,6 +95,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string>('');
     const [registeredEmail, setRegisteredEmail] = useState<string>('');
+    const [googleAuthCode, setGoogleAuthCode] = useState<string>('');
+    const [googleAuthState, setGoogleAuthState] = useState<string>('');
 
     const API_BASE_URL = 'https://admin.ustoyob.tj';
 
@@ -94,6 +114,24 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         };
 
         loadCategories();
+
+        // Проверяем URL на наличие параметров Google OAuth callback
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const state = urlParams.get('state');
+
+        if (code && state) {
+            console.log('Google OAuth callback detected');
+            setGoogleAuthCode(code);
+            setGoogleAuthState(state);
+
+            // Сохраняем код и состояние в состоянии компонента для дальнейшего использования
+            // Возможно, потребуется перейти к выбору роли
+            setCurrentState(AuthModalState.GOOGLE_ROLE_SELECT);
+
+            // Очищаем URL от параметров OAuth
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
     }, []);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -190,6 +228,115 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             clearAuthData();
         }
     }, []);
+
+    // Функция для инициализации Google авторизации
+    const handleGoogleAuth = async () => {
+        try {
+            setIsLoading(true);
+            setError('');
+
+            console.log('Initiating Google OAuth...');
+
+            // Получаем URL для Google авторизации
+            const response = await fetch(`${API_BASE_URL}/api/auth/google/url`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Не удалось получить URL для авторизации через Google');
+            }
+
+            const data: GoogleAuthUrlResponse = await response.json();
+            console.log('Google auth URL received:', data.url);
+
+            // Перенаправляем пользователя на страницу авторизации Google
+            window.location.href = data.url;
+
+        } catch (err) {
+            console.error('Google auth error:', err);
+            setError(err instanceof Error ? err.message : 'Ошибка при авторизации через Google');
+            setIsLoading(false);
+        }
+    };
+
+    // Функция для завершения Google авторизации
+    const completeGoogleAuth = async (selectedRole: 'master' | 'client' = 'client') => {
+        try {
+            setIsLoading(true);
+            setError('');
+
+            if (!googleAuthCode) {
+                throw new Error('Не найден код авторизации');
+            }
+
+            console.log('Completing Google auth with code:', googleAuthCode.substring(0, 20) + '...');
+            console.log('Selected role:', selectedRole);
+
+            // Отправляем запрос на сервер для завершения авторизации
+            const response = await fetch(`${API_BASE_URL}/api/auth/google/callback`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({
+                    code: googleAuthCode,
+                    state: googleAuthState || '',
+                    role: selectedRole
+                })
+            });
+
+            if (!response.ok) {
+                let errorMessage = 'Ошибка авторизации через Google';
+                const responseText = await response.text();
+
+                try {
+                    const errorData = JSON.parse(responseText);
+                    errorMessage = errorData.detail || errorData.message || errorMessage;
+                } catch {
+                    errorMessage = responseText || `HTTP error! status: ${response.status}`;
+                }
+
+                throw new Error(errorMessage);
+            }
+
+            const data: GoogleUserResponse = await response.json();
+            console.log('Google auth successful, user data:', data.user);
+
+            // Сохраняем токен и устанавливаем время его истечения
+            if (data.token) {
+                setAuthToken(data.token);
+                setTokenExpiry();
+
+                // Сохраняем данные пользователя
+                if (data.user.email) {
+                    localStorage.setItem('userEmail', data.user.email);
+                }
+
+                // Сохраняем роль пользователя
+                if (data.user.roles && data.user.roles.length > 0) {
+                    const role = data.user.roles[0];
+                    localStorage.setItem('userRole', role);
+                }
+
+                // Сохраняем полные данные пользователя
+                localStorage.setItem('userData', JSON.stringify(data.user));
+
+                // Вызываем callback успешной авторизации
+                handleSuccessfulAuth(data.token, data.user.email);
+            } else {
+                throw new Error('Токен не получен в ответе');
+            }
+
+        } catch (err) {
+            console.error('Google auth completion error:', err);
+            setError(err instanceof Error ? err.message : 'Ошибка при завершении авторизации через Google');
+            setIsLoading(false);
+        }
+    };
 
     const confirmAccountWithToken = async (token: string): Promise<ConfirmTokenResponse> => {
         try {
@@ -507,7 +654,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             return;
         }
 
-        // Исправляем типизацию any
         const baseUserData: {
             email: string;
             name: string;
@@ -824,100 +970,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         }
     };
 
-    // Функция для обновления файла utils/auth.ts
-    const updateAuthUtils = () => {
-        // console.log('Для полноценной работы необходимо обновить файл utils/auth.ts:');
-        // console.log(`
-        // // utils/auth.ts - Обновленная версия
-        //
-        // const AUTH_TOKEN_KEY = 'authToken';
-        // const TOKEN_EXPIRY_KEY = 'tokenExpiry';
-        // const USER_ROLE_KEY = 'userRole';
-        // const USER_DATA_KEY = 'userData';
-        // const USER_EMAIL_KEY = 'userEmail';
-        //
-        // export const getAuthToken = (): string | null => {
-        //     return localStorage.getItem(AUTH_TOKEN_KEY);
-        // };
-        //
-        // export const setAuthToken = (token: string): void => {
-        //     localStorage.setItem(AUTH_TOKEN_KEY, token);
-        // };
-        //
-        // export const removeAuthToken = (): void => {
-        //     localStorage.removeItem(AUTH_TOKEN_KEY);
-        // };
-        //
-        // export const getAuthTokenExpiry = (): string | null => {
-        //     return localStorage.getItem(TOKEN_EXPIRY_KEY);
-        // };
-        //
-        // export const setAuthTokenExpiry = (expiry: string): void => {
-        //     localStorage.setItem(TOKEN_EXPIRY_KEY, expiry);
-        // };
-        //
-        // export const removeAuthTokenExpiry = (): void => {
-        //     localStorage.removeItem(TOKEN_EXPIRY_KEY);
-        // };
-        //
-        // export const clearAuthData = (): void => {
-        //     localStorage.removeItem(AUTH_TOKEN_KEY);
-        //     localStorage.removeItem(TOKEN_EXPIRY_KEY);
-        //     localStorage.removeItem(USER_ROLE_KEY);
-        //     localStorage.removeItem(USER_DATA_KEY);
-        //     localStorage.removeItem(USER_EMAIL_KEY);
-        // };
-        //
-        // export const getUserRole = (): 'client' | 'master' | null => {
-        //     const role = localStorage.getItem(USER_ROLE_KEY);
-        //     if (role === 'ROLE_MASTER') return 'master';
-        //     if (role === 'ROLE_CLIENT') return 'client';
-        //     return null;
-        // };
-        //
-        // export const setUserRole = (role: 'client' | 'master'): void => {
-        //     const roleValue = role === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT';
-        //     localStorage.setItem(USER_ROLE_KEY, roleValue);
-        // };
-        //
-        // export const getUserData = (): any => {
-        //     const data = localStorage.getItem(USER_DATA_KEY);
-        //     return data ? JSON.parse(data) : null;
-        // };
-        //
-        // export const setUserData = (data: any): void => {
-        //     localStorage.setItem(USER_DATA_KEY, JSON.stringify(data));
-        // };
-        //
-        // export const getIsAuthenticated = (): boolean => {
-        //     const token = getAuthToken();
-        //     if (!token) return false;
-        //
-        //     const expiry = getAuthTokenExpiry();
-        //     if (!expiry) return true; // Если нет информации об истечении, считаем что токен валиден
-        //
-        //     const now = new Date();
-        //     const expiryDate = new Date(expiry);
-        //     return now < expiryDate;
-        // };
-        //
-        // // Функция для автоматического выхода при истечении токена
-        // export const setupTokenExpiryListener = (onTokenExpired: () => void): void => {
-        //     setInterval(() => {
-        //         if (!getIsAuthenticated()) {
-        //             clearAuthData();
-        //             onTokenExpired();
-        //         }
-        //     }, 60000); // Проверка каждую минуту
-        // };
-        // `);
-    };
-
-    // Вызываем обновление при монтировании компонента
-    React.useEffect(() => {
-        updateAuthUtils();
-    }, []);
-
     const renderWelcomeScreen = () => {
         return (
             <div className={styles.welcomeScreen}>
@@ -985,9 +1037,14 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     <a className={styles.facebookButton}>
                         <img src="../facebook.png" alt="Facebook" />
                     </a>
-                    <a className={styles.googleButton}>
+                    <button
+                        type="button"
+                        className={styles.googleButton}
+                        onClick={handleGoogleAuth}
+                        disabled={isLoading}
+                    >
                         <img src="../google.png" alt="Google" />
-                    </a>
+                    </button>
                 </div>
 
                 <div className={styles.links}>
@@ -1133,9 +1190,14 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     <a className={styles.facebookButton}>
                         <img src="../facebook.png" alt="Facebook" />
                     </a>
-                    <a className={styles.googleButton}>
+                    <button
+                        type="button"
+                        className={styles.googleButton}
+                        onClick={handleGoogleAuth}
+                        disabled={isLoading}
+                    >
                         <img src="../google.png" alt="Google" />
-                    </a>
+                    </button>
                 </div>
 
                 <div className={styles.links}>
@@ -1173,14 +1235,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 </button>
 
                 <div className={styles.links}>
-                    {/*<button*/}
-                    {/*    type="button"*/}
-                    {/*    className={styles.linkButton}*/}
-                    {/*    onClick={() => setCurrentState(AuthModalState.VERIFY_CODE)}*/}
-                    {/*    disabled={isLoading}*/}
-                    {/*>*/}
-                    {/*    У меня есть токен подтверждения*/}
-                    {/*</button>*/}
                     <button
                         type="button"
                         className={styles.linkButton}
@@ -1188,6 +1242,51 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         disabled={isLoading}
                     >
                         Перейти ко входу
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
+    const renderGoogleRoleSelectScreen = () => {
+        return (
+            <div className={styles.form}>
+                <h2>Выберите тип аккаунта</h2>
+
+                <div className={styles.successMessage}>
+                    <p>Вы успешно авторизовались через Google!</p>
+                    <p>Пожалуйста, выберите тип аккаунта:</p>
+                </div>
+
+                <div className={styles.roleSelector}>
+                    <button
+                        type="button"
+                        className={styles.roleButton}
+                        onClick={() => completeGoogleAuth('master')}
+                        disabled={isLoading}
+                    >
+                        Я специалист
+                    </button>
+                    <button
+                        type="button"
+                        className={styles.roleButton}
+                        onClick={() => completeGoogleAuth('client')}
+                        disabled={isLoading}
+                    >
+                        Я ищу специалиста
+                    </button>
+                </div>
+
+                {error && <div className={styles.error}>{error}</div>}
+
+                <div className={styles.links}>
+                    <button
+                        type="button"
+                        className={styles.linkButton}
+                        onClick={() => setCurrentState(AuthModalState.LOGIN)}
+                        disabled={isLoading}
+                    >
+                        Вернуться ко входу
                     </button>
                 </div>
             </div>
@@ -1305,6 +1404,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 return renderRegisterScreen();
             case AuthModalState.CONFIRM_EMAIL:
                 return renderConfirmEmailScreen();
+            case AuthModalState.GOOGLE_ROLE_SELECT:
+                return renderGoogleRoleSelectScreen();
             case AuthModalState.FORGOT_PASSWORD:
                 return renderForgotPasswordScreen();
             case AuthModalState.VERIFY_CODE:

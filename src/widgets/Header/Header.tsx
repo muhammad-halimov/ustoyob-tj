@@ -43,9 +43,11 @@ function Header() {
 
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [cities, setCities] = useState<City[]>([]);
+    // Используем ключ перевода, а не сам перевод
     const [selectedCity, setSelectedCity] = useState<string>(() => {
         const savedCity = localStorage.getItem('selectedCity');
-        return savedCity || t('header:location');
+        // Сохраняем ключ 'header:location' или название города
+        return savedCity || 'header:location';
     });
     const [showCityModal, setShowCityModal] = useState(false);
     const [showLangDropdown, setShowLangDropdown] = useState(false);
@@ -78,6 +80,14 @@ function Header() {
     // Флаг для текущего языка
     const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[1];
 
+    // Функция для получения отображаемого названия города
+    const getDisplayCityName = () => {
+        if (selectedCity === 'header:location') {
+            return t('header:location');
+        }
+        // Пробуем получить перевод из cities, если нет - используем сохраненное значение
+        return t(`cities:${selectedCity}`, { defaultValue: selectedCity });
+    };
 
     useEffect(() => {
         const fetchCities = async () => {
@@ -238,11 +248,14 @@ function Header() {
     };
 
     const handleCitySelect = (cityTitle: string) => {
-        setSelectedCity(cityTitle);
-        localStorage.setItem('selectedCity', cityTitle);
+        // Сохраняем название города как ключ для перевода
+        // Например, для "Душанбе" создаем ключ "dushanbe"
+        const cityKey = cityTitle.toLowerCase().replace(/\s+/g, '_');
+        setSelectedCity(cityKey);
+        localStorage.setItem('selectedCity', cityKey);
         setShowCityModal(false);
-        // window.dispatchEvent(new Event('cityChanged'));
-        window.location.reload();
+        // Вместо перезагрузки, можно обновить состояние
+        window.dispatchEvent(new Event('cityChanged'));
     };
 
     const handleLanguageChange = (langCode: Language) => {
@@ -377,9 +390,7 @@ function Header() {
                             </defs>
                         </svg>
                         <span className={styles.locate_title}>
-                            {selectedCity !== t('header:location')
-                                ? t(`cities:${selectedCity}`, selectedCity)
-                                : t('header:location')}
+                            {getDisplayCityName()}
                         </span>
                     </div>
                     <div className={styles.rightPart}>

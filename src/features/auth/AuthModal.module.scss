@@ -428,3 +428,15 @@
     cursor: not-allowed;
   }
 }
+
+.googleButton {
+  // Существующие стили
+  cursor: pointer;
+  background: none;
+  border: none;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}

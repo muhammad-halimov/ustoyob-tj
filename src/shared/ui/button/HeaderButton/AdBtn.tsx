@@ -5,11 +5,13 @@ import { useTranslation } from 'react-i18next';
 interface AdBtnProps {
     alwaysVisible?: boolean;
     onClick?: () => void;
+    text?: string;
 }
 
 export const AdBtn = ({
                           alwaysVisible = false,
-                          onClick
+                          onClick,
+                          text
                       }: AdBtnProps) => {
     const { t } = useTranslation(['header', 'common']);
     const isAuthenticated = !!getAuthToken();
@@ -24,10 +26,13 @@ export const AdBtn = ({
 
     // Получаем текст кнопки с учетом языка
     const getButtonText = () => {
+        if (text) {
+            return text;
+        }
         return t('header:postAd', 'Post ad');
     };
 
-    if (!alwaysVisible && isAuthenticated && userRole === 'ROLE_MASTER') {
+    if (!alwaysVisible && isAuthenticated && userRole === 'ROLE_MASTER' && !text) {
         return null;
     }
 

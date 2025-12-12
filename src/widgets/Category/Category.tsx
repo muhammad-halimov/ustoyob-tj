@@ -2,6 +2,7 @@ import styles from "./Category.module.scss";
 import { AdBtn } from "../../shared/ui/button/HeaderButton/AdBtn.tsx";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from 'react-i18next'; // Добавьте этот импорт
 
 interface CategoryItem {
     id: number;
@@ -16,6 +17,7 @@ export default function Category() {
     const [isMobile, setIsMobile] = useState(false);
     const [showAll, setShowAll] = useState(false);
     const navigate = useNavigate();
+    const { t } = useTranslation(['common', 'category']); // Добавьте перевод
 
     const API_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -81,9 +83,9 @@ export default function Category() {
     if (loading) {
         return (
             <div className={styles.category}>
-                <h3>Категории</h3>
+                <h3>{t('category:title', 'Категории')}</h3> {/* Используйте перевод */}
                 <div className={styles.loadingContainer}>
-                    <p>Загрузка категорий...</p>
+                    <p>{t('category:loading', 'Загрузка категорий...')}</p>
                 </div>
             </div>
         );
@@ -93,9 +95,9 @@ export default function Category() {
     if (!loading && categories.length === 0) {
         return (
             <div className={styles.category}>
-                <h3>Категории</h3>
+                <h3>{t('category:title', 'Категории')}</h3>
                 <div className={styles.noCategories}>
-                    <p>Нет доступных категорий</p>
+                    <p>{t('category:noCategories', 'Нет доступных категорий')}</p>
                 </div>
             </div>
         );
@@ -149,7 +151,7 @@ export default function Category() {
 
     return (
         <div className={styles.category}>
-            <h3>Категории</h3>
+            <h3>{t('category:title', 'Категории')}</h3>
 
             <div className={styles.category_item}>
                 {visibleItems.map((item) => (
@@ -184,8 +186,8 @@ export default function Category() {
             {shouldShowViewAll && (
                 <div className={styles.category_btn_center}>
                     <AdBtn
-                        text="Посмотреть все"
-                        alwaysVisible
+                        text={t('category:viewAll', 'Посмотреть все')} // Передаем переведенный текст
+                        alwaysVisible={true}
                         onClick={handleViewAll}
                     />
                 </div>
@@ -195,8 +197,8 @@ export default function Category() {
             {shouldShowShowLess && (
                 <div className={styles.category_btn_center}>
                     <AdBtn
-                        text="Свернуть"
-                        alwaysVisible
+                        text={t('category:showLess', 'Свернуть')} // Передаем переведенный текст
+                        alwaysVisible={true}
                         onClick={handleShowLess}
                     />
                 </div>
