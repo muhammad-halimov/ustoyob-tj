@@ -1,36 +1,106 @@
 import { getAuthToken } from './auth';
 
-const API_BASE_URL = 'https://admin.ustoyob.tj';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+// Интерфейсы для типизации
+export interface UserData {
+    id: number;
+    email: string;
+    name: string;
+    surname: string;
+    image?: string;
+    approved?: boolean;
+    active?: boolean;
+}
+
+export interface MessageData {
+    id: number;
+    text: string;
+    author: UserData;
+    createdAt: string;
+    readAt?: string;
+    isRead?: boolean;
+}
 
 export interface ChatData {
     id: number;
-    author: {
+    author: UserData;
+    replyAuthor: UserData;
+    messages: MessageData[];
+    ticket?: {
         id: number;
-        email: string;
-        name: string;
-        surname: string;
-        image?: string;
-        approved?: boolean;
-        active?: boolean;
+        title: string;
     };
-    replyAuthor: {
-        id: number;
-        email: string;
-        name: string;
-        surname: string;
-        image?: string;
-        approved?: boolean;
-        active?: boolean;
-    };
-    messages: any[];
 }
+
+export interface ChatCreationData {
+    replyAuthor: string;
+    ticket?: string;
+}
+
+export interface HydraResponse<T> {
+    'hydra:member': T[];
+    'hydra:totalItems': number;
+    'hydra:view'?: {
+        'hydra:first': string;
+        'hydra:last': string;
+        'hydra:next'?: string;
+        'hydra:previous'?: string;
+    };
+}
+
+// Интерфейсы для управления модалками
+export interface ModalCallbacks {
+    showSuccessModal: (message: string) => void;
+    showErrorModal: (message: string) => void;
+    showInfoModal: (message: string) => void;
+}
+
+// Глобальная переменная для хранения колбэков модалок
+let modalCallbacks: ModalCallbacks | null = null;
+
+// Функция для инициализации модалок
+export const initChatModals = (callbacks: ModalCallbacks) => {
+    modalCallbacks = callbacks;
+};
+
+// Функция для показа модалок с авто-закрытием
+const showModalWithAutoClose = (
+    type: 'success' | 'error' | 'info',
+    message: string,
+    autoCloseDelay: number = 3000
+) => {
+    if (!modalCallbacks) {
+        console.warn('Modal callbacks not initialized. Using alert instead:', message);
+        alert(message);
+        return;
+    }
+
+    switch (type) {
+        case 'success':
+            modalCallbacks.showSuccessModal(message);
+            break;
+        case 'error':
+            modalCallbacks.showErrorModal(message);
+            break;
+        case 'info':
+            modalCallbacks.showInfoModal(message);
+            break;
+    }
+
+    // Автоматическое закрытие через указанное время
+    setTimeout(() => {
+        // Здесь предполагается, что компонент модалки сам управляет своим состоянием
+        // или вызовете колбэк для закрытия
+    }, autoCloseDelay);
+};
 
 export const createChatWithAuthor = async (replyAuthorId: number, ticketId?: number): Promise<ChatData | null> => {
     try {
         const token = getAuthToken();
         if (!token) {
             console.log('No auth token available');
-            alert('Необходима авторизация для создания чата');
+            showModalWithAutoClose('error', 'Необходима авторизация для создания чата');
             return null;
         }
 
@@ -47,12 +117,12 @@ export const createChatWithAuthor = async (replyAuthorId: number, ticketId?: num
         const userStatus = await checkUserStatus(replyAuthorId);
         if (!userStatus.approved || !userStatus.active) {
             console.log('User is not active or approved');
-            alert('Пользователь не активен. Чаты можно создавать только с активными пользователями.');
+            showModalWithAutoClose('error', 'Пользователь не активен. Чаты можно создавать только с активными пользователями.');
             return null;
         }
 
         // Создаем новый чат
-        const chatData: any = {
+        const chatData: ChatCreationData = {
             replyAuthor: `/api/users/${replyAuthorId}`
         };
 
@@ -76,7 +146,7 @@ export const createChatWithAuthor = async (replyAuthorId: number, ticketId?: num
         if (response.ok) {
             const chatResponse: ChatData = await response.json();
             console.log('Chat created successfully:', chatResponse);
-            alert('Чат успешно создан');
+            showModalWithAutoClose('success', 'Чат успешно создан');
             return chatResponse;
         } else {
             const errorText = await response.text();
@@ -85,18 +155,18 @@ export const createChatWithAuthor = async (replyAuthorId: number, ticketId?: num
             try {
                 const errorData = JSON.parse(errorText);
                 if (errorData.detail) {
-                    alert('Ошибка при создании чата: ' + errorData.detail);
+                    showModalWithAutoClose('error', 'Ошибка при создании чата: ' + errorData.detail);
                 } else {
-                    alert('Ошибка при создании чата');
+                    showModalWithAutoClose('error', 'Ошибка при создании чата');
                 }
             } catch {
-                alert('Ошибка при создании чата');
+                showModalWithAutoClose('error', 'Ошибка при создании чата');
             }
             return null;
         }
     } catch (error) {
         console.error('Error creating chat:', error);
-        alert('Произошла ошибка при создании чата');
+        showModalWithAutoClose('error', 'Произошла ошибка при создании чата');
         return null;
     }
 };
@@ -114,7 +184,7 @@ export const checkUserStatus = async (userId: number): Promise<{ approved: boole
         });
 
         if (response.ok) {
-            const userData = await response.json();
+            const userData: UserData = await response.json();
             return {
                 approved: userData.approved || false,
                 active: userData.active || false
@@ -144,10 +214,13 @@ const findExistingChat = async (replyAuthorId: number, token: string): Promise<C
             if (Array.isArray(responseData)) {
                 chatsArray = responseData;
             } else if (responseData && typeof responseData === 'object') {
-                if (responseData['hydra:member'] && Array.isArray(responseData['hydra:member'])) {
-                    chatsArray = responseData['hydra:member'] as ChatData[];
+                // Если это Hydra-ответ
+                if ('hydra:member' in responseData && Array.isArray((responseData as HydraResponse<ChatData>)['hydra:member'])) {
+                    const hydraResponse = responseData as HydraResponse<ChatData>;
+                    chatsArray = hydraResponse['hydra:member'];
                 } else if (responseData.id) {
-                    chatsArray = [responseData];
+                    // Если это один объект
+                    chatsArray = [responseData as ChatData];
                 }
             }
 

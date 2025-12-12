@@ -16,6 +16,7 @@ import MasterProfileViewPage from "../../entities/MasterProfileViewPage/MasterPr
 import ClientProfileViewPage from "../../entities/ClientProfileViewPage/ClientProfileViewPage.tsx";
 import MyTickets from "../../pages/myTickets/MyTickets.tsx";
 import CategoryTicketsPage from "../../pages/categoryTicketsPage/CategoryTicketsPage.tsx";
+import EditServicePage from "../../pages/EditServicePage/EditServicePage.tsx";
 
 const router = createBrowserRouter([
     {
@@ -38,6 +39,7 @@ const router = createBrowserRouter([
             { path: 'master/:id', element: <MasterProfileViewPage /> },
             { path: 'client/:id', element: <ClientProfileViewPage /> },
             { path: 'category-tickets/:categoryId', element: <CategoryTicketsPage /> },
+            { path: '/profile/services/edit', element: <EditServicePage /> },
             // { path: 'profile/work-area', element: <WorkAreaPage /> },
     //         { path: 'search', element: <SearchPage /> },
     //         { path: 'create-ad', element: <CreateAdPage /> },

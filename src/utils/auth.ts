@@ -8,6 +8,13 @@ const USER_EMAIL_KEY = 'userEmail';
 // Время жизни токена (1 час)
 const TOKEN_LIFETIME_HOURS = 1;
 
+// Интерфейсы для типизации
+export interface UserOccupation {
+    id: number;
+    title: string;
+    [key: string]: unknown;
+}
+
 export interface UserData {
     id: number;
     email: string;
@@ -15,9 +22,8 @@ export interface UserData {
     surname: string;
     approved?: boolean;
     roles: string[];
-    // Добавляем другие поля, которые могут прийти из API
     image?: string;
-    occupation?: any[];
+    occupation?: UserOccupation[];
     createdAt?: string;
     updatedAt?: string;
 }
@@ -138,7 +144,7 @@ export const getUserData = (): UserData | null => {
     if (!userDataStr) return null;
 
     try {
-        return JSON.parse(userDataStr);
+        return JSON.parse(userDataStr) as UserData;
     } catch (error) {
         console.error('Error parsing user data:', error);
         return null;
@@ -177,6 +183,12 @@ export const isUserApproved = (): boolean => {
     return userData?.approved === true;
 };
 
+// Интерфейс для JWT Payload
+interface JWTPayload {
+    exp?: number;
+    [key: string]: unknown;
+}
+
 // Функция для установки времени истечения токена из JWT (если токен содержит exp)
 export const setTokenExpiryFromJWT = (token: string): void => {
     try {
@@ -185,7 +197,7 @@ export const setTokenExpiryFromJWT = (token: string): void => {
         if (!payload) return;
 
         // Декодируем base64
-        const decodedPayload = JSON.parse(atob(payload));
+        const decodedPayload = JSON.parse(atob(payload)) as JWTPayload;
 
         // Если в токене есть поле exp (expiration time в секундах)
         if (decodedPayload.exp) {

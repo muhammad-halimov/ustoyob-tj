@@ -4,6 +4,8 @@ import { AdBtn } from "../../shared/ui/button/HeaderButton/AdBtn.tsx";
 import { EnterBtn } from "../../shared/ui/button/HeaderButton/EnterBtn.tsx";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { getAuthToken, removeAuthToken } from "../../utils/auth";
+import { useTranslation } from 'react-i18next';
+import {changeLanguage, Language} from '../../locales/i18n.ts';
 
 interface City {
     id: number;
@@ -37,13 +39,16 @@ interface UserData {
 function Header() {
     const location = useLocation();
     const navigate = useNavigate();
+    const { t, i18n } = useTranslation(['header', 'common', 'cities']);
+
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [cities, setCities] = useState<City[]>([]);
     const [selectedCity, setSelectedCity] = useState<string>(() => {
         const savedCity = localStorage.getItem('selectedCity');
-        return savedCity || "Местоположение";
+        return savedCity || t('header:location');
     });
     const [showCityModal, setShowCityModal] = useState(false);
+    const [showLangDropdown, setShowLangDropdown] = useState(false);
     const [showConfirmationBanner, setShowConfirmationBanner] = useState<boolean>(() => {
         const token = getAuthToken();
         if (!token) return false;
@@ -63,11 +68,23 @@ function Header() {
     const [showLogo, setShowLogo] = useState(false);
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+    // Языки
+    const languages = [
+        { code: 'tj' as Language, name: 'ТҶ', fullName: 'Тоҷикӣ' },
+        { code: 'ru' as Language, name: 'РУ', fullName: 'Русский' },
+        { code: 'en' as Language, name: 'EN', fullName: 'English' },
+    ];
+
+    // Флаг для текущего языка
+    const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[1];
+
+
     useEffect(() => {
         const fetchCities = async () => {
             try {
                 const response = await fetch(`${API_BASE_URL}/api/cities`);
                 const data = await response.json();
+                console.log('Cities from server:', data.map((city: City) => city.title));
                 setCities(data);
             } catch (error) {
                 console.error('Error fetching cities:', error);
@@ -76,6 +93,7 @@ function Header() {
 
         fetchCities();
     }, [API_BASE_URL]);
+
 
     useEffect(() => {
         const media = window.matchMedia("(max-width: 480px)");
@@ -124,32 +142,26 @@ function Header() {
                         return;
                     }
 
-                    // ВАЖНОЕ ИЗМЕНЕНИЕ: Вместо показа плашки при ошибке, лучше ее скрыть
                     console.log('Cannot fetch user data, hiding banner for safety');
                     setShowConfirmationBanner(false);
                     return;
                 }
 
                 const userData: UserData = await response.json();
-                console.log('Fresh user data received:', userData);
-                console.log('User approved status:', userData.approved);
+                // console.log('Fresh user data received:', userData);
+                // console.log('User approved status:', userData.approved);
 
-                // Сохраняем свежие данные
                 localStorage.setItem('userData', JSON.stringify(userData));
-
-                // Показываем плашку ТОЛЬКО если пользователь НЕ подтвержден
                 setShowConfirmationBanner(userData.approved === false);
 
             } catch (error) {
                 console.error('Error checking account confirmation:', error);
-                // При ошибке сети скрываем плашку для безопасности
                 setShowConfirmationBanner(false);
             }
         };
 
         checkAccountConfirmation();
 
-        // Проверяем статус при каждом изменении маршрута
         const interval = setInterval(checkAccountConfirmation, 60000);
 
         return () => clearInterval(interval);
@@ -159,7 +171,7 @@ function Header() {
         setIsLoading(true);
         const token = getAuthToken();
         if (!token) {
-            alert('Токен авторизации не найден. Пожалуйста, войдите заново.');
+            alert(t('header:confirmationBanner.tokenError'));
             setIsLoading(false);
             return;
         }
@@ -177,23 +189,20 @@ function Header() {
             console.log('Resend confirmation response status:', response.status);
 
             if (response.ok) {
-                alert('Письмо с подтверждением отправлено повторно! Проверьте вашу почту.');
+                alert(t('header:confirmationBanner.emailSent'));
             } else if (response.status === 409) {
-                // Конфликт - возможно, письмо уже было отправлено или аккаунт уже подтвержден
                 const errorText = await response.text();
-                let errorMessage = 'Не удалось отправить письмо.';
+                let errorMessage = t('header:confirmationBanner.sendError');
 
                 try {
                     const errorData = JSON.parse(errorText);
                     errorMessage = errorData.detail || errorData.message || errorMessage;
                 } catch {
-                    // Если ответ не JSON, используем текст ответа
-                    errorMessage = errorText || `Ошибка ${response.status}`;
+                    errorMessage = errorText || `${t('common:error')} ${response.status}`;
                 }
 
-                alert(`Внимание: ${errorMessage}. Проверьте вашу почту или обновите страницу.`);
+                alert(`${t('header:confirmationBanner.warning')}: ${errorMessage}`);
 
-                // Обновляем данные пользователя, возможно аккаунт уже подтвержден
                 const refreshResponse = await fetch(`${API_BASE_URL}/api/users/me`, {
                     method: 'GET',
                     headers: {
@@ -209,20 +218,20 @@ function Header() {
                 }
             } else {
                 const errorText = await response.text();
-                let errorMessage = 'Не удалось отправить письмо. Пожалуйста, попробуйте позже.';
+                let errorMessage = t('header:confirmationBanner.sendErrorRetry');
 
                 try {
                     const errorData = JSON.parse(errorText);
                     errorMessage = errorData.detail || errorData.message || errorMessage;
                 } catch {
-                    errorMessage = `Ошибка ${response.status}: ${errorText}`;
+                    errorMessage = `${t('common:error')} ${response.status}: ${errorText}`;
                 }
 
                 alert(errorMessage);
             }
         } catch (error) {
             console.error('Error resending confirmation:', error);
-            alert('Произошла ошибка при отправке письма. Проверьте подключение к интернету.');
+            alert(t('header:confirmationBanner.networkError'));
         } finally {
             setIsLoading(false);
         }
@@ -232,6 +241,17 @@ function Header() {
         setSelectedCity(cityTitle);
         localStorage.setItem('selectedCity', cityTitle);
         setShowCityModal(false);
+        // window.dispatchEvent(new Event('cityChanged'));
+        window.location.reload();
+    };
+
+    const handleLanguageChange = (langCode: Language) => {
+        changeLanguage(langCode);
+        setShowLangDropdown(false);
+
+        setTimeout(() => {
+            window.dispatchEvent(new Event('languageChanged'));
+        }, 100);
     };
 
     const getActivePage = () => {
@@ -267,7 +287,6 @@ function Header() {
     const closeAuthModal = () => {
         setShowAuthModal(false);
 
-        // После закрытия модального окна проверяем статус подтверждения
         setTimeout(() => {
             const checkAccountConfirmation = async () => {
                 const token = getAuthToken();
@@ -318,16 +337,15 @@ function Header() {
                                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                             </svg>
                             <span>
-                            Ваш аккаунт не подтвержден.
-                            Подтвердите аккаунт по ссылке из письма, чтобы получить полный доступ к функциям сайта.
-                        </span>
+                                {t('header:confirmationBanner.message')}
+                            </span>
                         </div>
                         <button
                             onClick={handleResendConfirmationFromHeader}
                             className={styles.confirmationBannerButton}
                             disabled={isLoading}
                         >
-                            {isLoading ? 'Отправка...' : 'Отправить письмо повторно'}
+                            {isLoading ? t('header:confirmationBanner.sending') : t('header:confirmationBanner.resend')}
                         </button>
                         <button
                             onClick={() => setShowConfirmationBanner(false)}
@@ -358,47 +376,36 @@ function Header() {
                                 </clipPath>
                             </defs>
                         </svg>
-                        <span className={styles.locate_title}>{selectedCity}</span>
+                        <span className={styles.locate_title}>
+                            {selectedCity !== t('header:location')
+                                ? t(`cities:${selectedCity}`, selectedCity)
+                                : t('header:location')}
+                        </span>
                     </div>
                     <div className={styles.rightPart}>
                         <div className={styles.rightPart_lang}>
-                            <div className={styles.rightPart_lang__box}>
+                            <div className={styles.rightPart_lang__box} onClick={() => setShowLangDropdown(!showLangDropdown)}>
+                                <div className={styles.language_selector}>
+                                    <span className={styles.current_language}>{currentLanguage.name}</span>
+                                    <svg width="17" height="10" viewBox="0 0 17 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M0.707031 0.707031L8.35703 8.35703L16.007 0.707031" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
+                                    </svg>
+                                </div>
 
-                                <svg
-                                    width="46"
-                                    height="32"
-                                    viewBox="0 0 46 32"
-                                    fill="none"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    xmlnsXlink="http://www.w3.org/1999/xlink"
-                                >
-                                    <rect width="46" height="32" fill="url(#pattern0_324_1123)" />
-                                    <defs>
-                                        <pattern
-                                            id="pattern0_324_1123"
-                                            patternContentUnits="objectBoundingBox"
-                                            width="1"
-                                            height="1"
-                                        >
-                                            <use
-                                                href="#image0_324_1123"
-                                                transform="matrix(0.00444444 0 0 0.00638889 0 -0.0111111)"
-                                            />
-                                        </pattern>
-
-                                        <image
-                                            id="image0_324_1123"
-                                            width="225"
-                                            height="160"
-                                            preserveAspectRatio="none"
-                                            href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOEAAACgCAIAAAB11ZzkAAAEuUlEQVR4AezXMW4UQRBGYWuQQEIiJOJ2pByB3AfhDhyEcxCTEGC06c7sbo9n2lVd/VnjwD21XVXvf8F6efGDQG4Cy5MfBHIT4GjufEz39MRRFmQnwNHsCZmPoxzITqDV0ex7mK8uAY7WzbbKZhytkmTdPThaN9sqm3G0SpJ19+Bo3WyrbHa2o1W42CMPAY7mycIk2wQ4us3FaR4CHM2ThUm2CXB0m4vTPAQ4micLk2wTiHJ0exqnCKwJcHTNxEkuAhzNlYdp1gQ4umbiJBcBjubKwzRrAhxdM3GSi0B2R3PRMk0EAY5GUNdzDwGO7qGlNoIARyOo67mHAEf30FIbQYCjEdT13EOgiqN7dlY7FgGOjpXXjNNydMbUx9qZo2PlNeO0HJ0x9bF25uhYec047WyOzpjx6DtzdPQE68/P0foZj74hR0dPsP78HK2f8egbcnT0BOvPz9HtjJ3mIcDRPFmYZJsAR7e5OM1DgKN5sjDJNgGObnNxmocAR/NkYZJtAhzd5tJ6qq4/AY72Z6zDMQIcPcbPp/sT4Gh/xjocI8DRY/x8uj+B5fv3Hx4EMhNYnp9/efoTAPn1BJb3Xz54EMhMwPfR/t+ndDhGgKPH+Pl0fwIc7c9Yh2MEOHqMn0/3J8DR/oz3dFC7JsDRNRMnuQhwNFceplkT4OiaiZNcBDiaKw/TrAlwdM3ESS4CHM2VR+s0M9VxdKa0x9yVo2PmNtPUHJ0p7TF35eiYuc00NUdnSnvMXTk6Zm6tU1eo42iFFGvvwNHa+VbYjqMVUqy9A0dr51thO45WSLH2DhytnW/rdpnrOJo5HbNdCHD0QsFvZgIczZyO2S4EOHqh4DczAY5mTsdsFwIcvVDw20ogoo6jEdT13EOAo3toqY0gwNEI6nruIcDRPbTURhDgaAR1PfcQ4OgeWmpbCZxZx9EzabqrBwGO9qDqzjMJcPRMmu7qQYCjPai680wCHD2Tprt6EOBoD6rubCXQUsfRFkpqIglwNJK+3i0EONpCSU0kAY5G0te7hQBHWyipiSTA0Uj6ercQuDjaUqcGgSgCHI0ir28rgeXvyzsPApkJLF8//vYgkJnA8u3zTw8CmQksf/598iCQmcCe/5lav+OqQ+BMAhw9k6a7ehDgaA+q7jyTAEfPpOmuHgQ42oOqO88kwNEzabqrB4EejvaY053zEuDovNmPsjlHR0lq3jk5Om/2o2zO0VGSmndOjs6b/SibRzo6CiNzxhLgaCx/3R8T4OhjRipiCXA0lr/ujwlw9DEjFbEEOBrLX/fHBEZw9PEWKioT4GjldGvsxtEaOVbegqOV062xG0dr5Fh5C45WTrfGbpUcrZGILa4JcPSaiL+zEeBotkTMc02Ao9dE/J2NAEezJWKeawIcvSbi72wEZnQ0WwbmuU+Ao/f5eBtPgKPxGZjgPgGO3ufjbTwBjsZnYIL7BDh6n4+38QQ4ejsDb3IQ4GiOHExxmwBHb7PxJgcBjubIwRS3CXD0NhtvchDgaI4cTHGbAEdvs2l9o64vAY725ev24wQ4epyhG/oS4Ghfvm4/ToCjxxm6oS8Bjvbl6/bjBDh6nGHrDepeR4Cjr+PmU29HgKNvx1qn1xH4DwAA///QOwkCAAAABklEQVQDAN+AjMgr6UTkAAAAAElFTkSuQmCC"
-                                        />
-                                    </defs>
-                                </svg>
-                                <span className={styles.rightPart_lang__title}>RU</span>
-                                <svg width="17" height="10" viewBox="0 0 17 10" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M0.707031 0.707031L8.35703 8.35703L16.007 0.707031" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
-                                </svg>
+                                {showLangDropdown && (
+                                    <div className={styles.language_dropdown}>
+                                        {languages.map((lang) => (
+                                            <div
+                                                key={lang.code}
+                                                className={`${styles.language_option} ${currentLanguage.code === lang.code ? styles.selected : ''}`}
+                                                onClick={() => handleLanguageChange(lang.code)}
+                                            >
+                                                <span className={styles.language_code}>{lang.name}</span>
+                                                <span className={styles.language_name}>{lang.fullName}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                             <div className={styles.rightPart_buttons}>
                                 <AdBtn onClick={() => handleAdBtnClick()} />
@@ -491,7 +498,7 @@ function Header() {
                                             </clipPath>
                                         </defs>
                                     </svg>
-                                    <p>Заказы</p>
+                                    <p>{t('header:orders')}</p>
                                 </Link>
                             </li>
                             <li className={`${styles.bottomHeader_item} ${isActivePage === "favorites" ? styles.active : ""}`}>
@@ -511,7 +518,7 @@ function Header() {
                                             </clipPath>
                                         </defs>
                                     </svg>
-                                    <p>Избранное</p>
+                                    <p>{t('header:favorites')}</p>
                                 </Link>
                             </li>
                             <li className={`${styles.bottomHeader_item} ${isActivePage === "chats" ? styles.active : ""}`}>
@@ -532,7 +539,7 @@ function Header() {
                                                 </clipPath>
                                             </defs>
                                         </svg>
-                                        <p>Чаты</p>
+                                        <p>{t('header:chats')}</p>
                                     </Link>
                                 ) : (
                                     <Link
@@ -555,7 +562,7 @@ function Header() {
                                                 </clipPath>
                                             </defs>
                                         </svg>
-                                        <p>Чаты</p>
+                                        <p>{t('header:chats')}</p>
                                     </Link>
                                 )}
                             </li>
@@ -586,7 +593,7 @@ function Header() {
                                                 </clipPath>
                                             </defs>
                                         </svg>
-                                        <p>Профиль</p>
+                                        <p>{t('header:profile')}</p>
                                     </Link>
                                 ) : (
                                     <Link
@@ -618,7 +625,7 @@ function Header() {
                                                 </clipPath>
                                             </defs>
                                         </svg>
-                                        <p>Профиль</p>
+                                        <p>{t('header:profile')}</p>
                                     </Link>
                                 )}
                             </li>
@@ -629,18 +636,18 @@ function Header() {
                     <ul className={styles.bottomHeader_navList}>
                         <li className={`${styles.bottomHeader_item} ${isActivePage == "orders" ? styles.active : ""}`}>
                             <Link to="/" className={styles.navLink}>
-                                <p>Заказы</p>
+                                <p>{t('header:orders')}</p>
                             </Link>
                         </li>
                         <li className={`${styles.bottomHeader_item} ${isActivePage === "favorites" ? styles.active : ""}`}>
                             <Link to="/favorites" className={styles.navLink}>
-                                <p>Избранное</p>
+                                <p>{t('header:favorites')}</p>
                             </Link>
                         </li>
                         <li className={`${styles.bottomHeader_item} ${isActivePage === "chats" ? styles.active : ""}`}>
                             {isAuthenticated ? (
                                 <Link to="/chats" className={styles.navLink}>
-                                    <p>Чаты</p>
+                                    <p>{t('header:chats')}</p>
                                 </Link>
                             ) : (
                                 <Link
@@ -648,14 +655,14 @@ function Header() {
                                     className={styles.navLink}
                                     onClick={handleProfileClick}
                                 >
-                                    <p>Чаты</p>
+                                    <p>{t('header:chats')}</p>
                                 </Link>
                             )}
                         </li>
                         <li className={`${styles.bottomHeader_item} ${isActivePage === "profile" ? styles.active : ""}`}>
                             {isAuthenticated ? (
                                 <Link to="/profile" className={styles.navLink}>
-                                    <p>Профиль</p>
+                                    <p>{t('header:profile')}</p>
                                 </Link>
                             ) : (
                                 <Link
@@ -663,7 +670,7 @@ function Header() {
                                     className={styles.navLink}
                                     onClick={handleProfileClick}
                                 >
-                                    <p>Профиль</p>
+                                    <p>{t('header:profile')}</p>
                                 </Link>
                             )}
                         </li>
@@ -674,7 +681,7 @@ function Header() {
                 <div className={styles.modalOverlay} onClick={() => setShowCityModal(false)}>
                     <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
                         <div className={styles.modalHeader}>
-                            <h2>Выберите город</h2>
+                            <h2>{t('header:selectCity')}</h2>
                             <button className={styles.closeButton} onClick={() => setShowCityModal(false)}>
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
@@ -688,7 +695,7 @@ function Header() {
                                     className={`${styles.cityItem} ${selectedCity === city.title ? styles.selected : ''}`}
                                     onClick={() => handleCitySelect(city.title)}
                                 >
-                                    {city.title}
+                                    {t(`cities:${city.title}`, city.title)}
                                 </div>
                             ))}
                         </div>

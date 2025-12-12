@@ -1,0 +1,107 @@
+/* Стили для модального окна успеха */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modalContent {
+  background: white;
+  padding: 40px;
+  border-radius: 12px;
+  text-align: center;
+  max-width: 564px;
+  width: 100%;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.successIcon, .errorIcon {
+  margin-bottom: 24px;
+}
+
+.successTitle {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 16px 0;
+}
+
+.errorTitle {
+  font-size: 20px;
+  font-weight: 600;
+  color: #d32f2f;
+  margin: 0 0 16px 0;
+}
+
+.infoTitle {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1976d2;
+  margin: 0 0 16px 0;
+}
+
+.successMessage, .errorMessage, .infoMessage {
+  color: #666;
+  line-height: 1.5;
+  margin: 0 0 24px 0;
+  font-size: 14px;
+}
+
+.successButton {
+  width: 100%;
+  padding: 12px 24px;
+  background: #3A54DA;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+
+  &:hover {
+    background: #2a44ca;
+  }
+}
+
+.errorButton {
+  width: 100%;
+  padding: 12px 24px;
+  background: #d32f2f;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+
+  &:hover {
+    background: #c62828;
+  }
+}
+
+.infoButton {
+  width: 100%;
+  padding: 12px 24px;
+  background: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+
+  &:hover {
+    background: #1565c0;
+  }
+}

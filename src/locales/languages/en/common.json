@@ -1,0 +1,35 @@
+{
+  "app": {
+    "name": "ustoyob.tj",
+    "loading": "Loading...",
+    "error": "Error occurred",
+    "success": "Success",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "confirm": "Confirm",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "submit": "Submit",
+    "close": "Close"
+  },
+  "validation": {
+    "required": "This field is required",
+    "email": "Please enter a valid email",
+    "password": "Password must be at least 6 characters",
+    "phone": "Please enter a valid phone number",
+    "minLength": "Minimum length is {{count}} characters",
+    "maxLength": "Maximum length is {{count}} characters"
+  },
+  "messages": {
+    "noData": "No data available",
+    "loading": "Loading data...",
+    "errorLoading": "Error loading data",
+    "tryAgain": "Try again"
+  }
+}

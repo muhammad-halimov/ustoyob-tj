@@ -1,17 +1,17 @@
 import styles from './AdBtn.module.scss';
 import { getAuthToken } from "../../../../utils/auth";
+import { useTranslation } from 'react-i18next';
 
 interface AdBtnProps {
-    text?: string;
     alwaysVisible?: boolean;
     onClick?: () => void;
 }
 
 export const AdBtn = ({
-                          text = "Разместить объявление",
                           alwaysVisible = false,
                           onClick
                       }: AdBtnProps) => {
+    const { t } = useTranslation(['header', 'common']);
     const isAuthenticated = !!getAuthToken();
 
     // Получаем роль пользователя из localStorage
@@ -22,13 +22,23 @@ export const AdBtn = ({
 
     const userRole = getUserRole();
 
+    // Получаем текст кнопки с учетом языка
+    const getButtonText = () => {
+        return t('header:postAd', 'Post ad');
+    };
+
     if (!alwaysVisible && isAuthenticated && userRole === 'ROLE_MASTER') {
         return null;
     }
 
     return (
-        <button className={styles.btn} onClick={onClick}>
-            {text}
+        <button
+            className={styles.btn}
+            onClick={onClick}
+            aria-label={getButtonText()}
+            title={getButtonText()}
+        >
+            {getButtonText()}
         </button>
     );
 }

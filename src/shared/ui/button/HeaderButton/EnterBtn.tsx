@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from 'react-router-dom';
 import AuthModal from "../../../../features/auth/AuthModal.tsx";
 import { removeAuthToken } from '../../../../utils/auth';
+import { useTranslation } from 'react-i18next';
 
 type EnterBtnProps = {
     onClick?: () => void;
@@ -15,6 +16,7 @@ export function EnterBtn({ onClick, isModalOpen, onModalClose, onLoginSuccess }:
     const [internalModalOpen, setInternalModalOpen] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const navigate = useNavigate();
+    const { t } = useTranslation(['header', 'common']);
 
     const modalOpen = isModalOpen !== undefined ? isModalOpen : internalModalOpen;
 
@@ -81,13 +83,22 @@ export function EnterBtn({ onClick, isModalOpen, onModalClose, onLoginSuccess }:
         }
     };
 
+    const getButtonText = () => {
+        if (isLoggedIn) {
+            return t('header:logout');
+        }
+        return t('header:login');
+    };
+
     return (
         <>
             <button
                 className={styles.btn}
                 onClick={handleButtonClick}
+                aria-label={getButtonText()}
+                title={getButtonText()}
             >
-                {isLoggedIn ? 'Выйти' : 'Войти'}
+                {getButtonText()}
             </button>
 
             {!isLoggedIn && (

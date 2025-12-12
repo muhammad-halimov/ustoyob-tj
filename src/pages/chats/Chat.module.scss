@@ -716,3 +716,386 @@
   width: 50px;
   border-radius: 50%;
 }
+
+// Стили для работы с файлами
+.attachButton {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: #3A54DA;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background: rgba(58, 84, 218, 0.1);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  svg {
+    width: 22px;
+    height: 22px;
+    transform: rotate(45deg);
+  }
+
+  @media (max-width: 480px) {
+    width: 36px;
+    height: 36px;
+    margin-right: 8px;
+
+    svg {
+      width: 20px;
+      height: 20px;
+    }
+  }
+}
+
+.selectedFilesPreview {
+  padding: 15px 20px;
+  background: #f8f9ff;
+  border-bottom: 1px solid #e0e0e0;
+  max-height: 200px;
+  overflow-y: auto;
+
+  @media (max-width: 480px) {
+    padding: 10px 15px;
+    max-height: 150px;
+  }
+}
+
+.selectedFilesHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 14px;
+  color: #666;
+
+  @media (max-width: 480px) {
+    font-size: 13px;
+  }
+}
+
+.clearFilesButton {
+  background: none;
+  border: none;
+  color: #ff4444;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+
+  &:hover {
+    background: rgba(255, 68, 68, 0.1);
+  }
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.selectedFilesList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.selectedFileItem {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+
+  @media (max-width: 480px) {
+    padding: 8px;
+  }
+}
+
+.filePreview {
+  width: 50px;
+  height: 50px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-right: 12px;
+
+  @media (max-width: 480px) {
+    width: 40px;
+    height: 40px;
+    margin-right: 10px;
+  }
+}
+
+.filePreviewImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.fileInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.fileName {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  @media (max-width: 480px) {
+    font-size: 13px;
+  }
+}
+
+.fileSize {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 6px;
+}
+
+.uploadProgress {
+  width: 100%;
+  height: 6px;
+  background: #e0e0e0;
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.uploadProgressBar {
+  height: 100%;
+  background: #3A54DA;
+  transition: width 0.3s ease;
+}
+
+.uploadProgressText {
+  position: absolute;
+  top: -18px;
+  right: 0;
+  font-size: 11px;
+  color: #666;
+}
+
+.removeFileButton {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: #ff4444;
+  cursor: pointer;
+  padding: 4px;
+  margin-left: 10px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+
+  &:hover {
+    background: rgba(255, 68, 68, 0.1);
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+// Стили для сообщений с изображениями
+.messageImage {
+  margin-bottom: 5px;
+}
+
+.imageMessage {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 12px;
+  object-fit: contain;
+  background: #f5f5f5;
+
+  @media (max-width: 480px) {
+    max-height: 200px;
+  }
+}
+
+.myMessage .imageMessage {
+  background: #e0e0e0;
+}
+
+.theirMessage .imageMessage {
+  background: #e8edff;
+}
+
+// Overlay при загрузке файлов
+.uploadingOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.uploadingText {
+  font-size: 16px;
+  color: #3A54DA;
+  font-weight: 500;
+
+  @media (max-width: 480px) {
+    font-size: 14px;
+  }
+}
+
+// Сообщения об ошибках
+.error {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ff4444;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 300px;
+  max-width: 500px;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+  @media (max-width: 480px) {
+    min-width: 250px;
+    max-width: 90%;
+    padding: 10px 16px;
+  }
+}
+
+.closeError {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 10px;
+
+  &:hover {
+    opacity: 0.8;
+  }
+}
+
+.uploadingImage {
+  position: relative;
+  max-width: 300px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.uploadingImagePreview {
+  width: 100%;
+  height: auto;
+  opacity: 0.7;
+  filter: blur(1px);
+}
+
+.uploadingOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+}
+
+.uploadingProgress {
+  width: 80%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.uploadingProgressBar {
+  height: 100%;
+  background: #4CAF50;
+  transition: width 0.3s ease;
+}
+
+.uploadingText {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.imageError {
+  padding: 20px;
+  background: #ffebee;
+  color: #c62828;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.selectedFilesIndicator {
+  position: fixed;
+  bottom: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 10;
+  font-size: 14px;
+}
+
+.clearFilesButton {
+  background: transparent;
+  border: none;
+  color: #ff5252;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.clearFilesButton:hover {
+  color: #ff8a80;
+}

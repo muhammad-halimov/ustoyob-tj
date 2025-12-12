@@ -1,0 +1,23 @@
+{
+  "search": {
+    "placeholder": "Поиск услуг...",
+    "find": "Найти",
+    "advancedSearch": "Расширенный поиск",
+    "category": "Категория",
+    "price": "Цена",
+    "location": "Местоположение",
+    "date": "Дата",
+    "rating": "Рейтинг",
+    "sortBy": "Сортировать по",
+    "relevance": "Релевантность",
+    "newest": "Сначала новые",
+    "oldest": "Сначала старые",
+    "priceLowToHigh": "Цена: по возрастанию",
+    "priceHighToLow": "Цена: по убыванию",
+    "ratingHighToLow": "Рейтинг: по убыванию",
+    "noResults": "Ничего не найдено",
+    "tryDifferentKeywords": "Попробуйте другие ключевые слова",
+    "clearFilters": "Очистить фильтры",
+    "applyFilters": "Применить фильтры"
+  }
+}

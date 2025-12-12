@@ -826,91 +826,91 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
     // Функция для обновления файла utils/auth.ts
     const updateAuthUtils = () => {
-        console.log('Для полноценной работы необходимо обновить файл utils/auth.ts:');
-        console.log(`
-        // utils/auth.ts - Обновленная версия
-        
-        const AUTH_TOKEN_KEY = 'authToken';
-        const TOKEN_EXPIRY_KEY = 'tokenExpiry';
-        const USER_ROLE_KEY = 'userRole';
-        const USER_DATA_KEY = 'userData';
-        const USER_EMAIL_KEY = 'userEmail';
-
-        export const getAuthToken = (): string | null => {
-            return localStorage.getItem(AUTH_TOKEN_KEY);
-        };
-
-        export const setAuthToken = (token: string): void => {
-            localStorage.setItem(AUTH_TOKEN_KEY, token);
-        };
-
-        export const removeAuthToken = (): void => {
-            localStorage.removeItem(AUTH_TOKEN_KEY);
-        };
-
-        export const getAuthTokenExpiry = (): string | null => {
-            return localStorage.getItem(TOKEN_EXPIRY_KEY);
-        };
-
-        export const setAuthTokenExpiry = (expiry: string): void => {
-            localStorage.setItem(TOKEN_EXPIRY_KEY, expiry);
-        };
-
-        export const removeAuthTokenExpiry = (): void => {
-            localStorage.removeItem(TOKEN_EXPIRY_KEY);
-        };
-
-        export const clearAuthData = (): void => {
-            localStorage.removeItem(AUTH_TOKEN_KEY);
-            localStorage.removeItem(TOKEN_EXPIRY_KEY);
-            localStorage.removeItem(USER_ROLE_KEY);
-            localStorage.removeItem(USER_DATA_KEY);
-            localStorage.removeItem(USER_EMAIL_KEY);
-        };
-
-        export const getUserRole = (): 'client' | 'master' | null => {
-            const role = localStorage.getItem(USER_ROLE_KEY);
-            if (role === 'ROLE_MASTER') return 'master';
-            if (role === 'ROLE_CLIENT') return 'client';
-            return null;
-        };
-
-        export const setUserRole = (role: 'client' | 'master'): void => {
-            const roleValue = role === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT';
-            localStorage.setItem(USER_ROLE_KEY, roleValue);
-        };
-
-        export const getUserData = (): any => {
-            const data = localStorage.getItem(USER_DATA_KEY);
-            return data ? JSON.parse(data) : null;
-        };
-
-        export const setUserData = (data: any): void => {
-            localStorage.setItem(USER_DATA_KEY, JSON.stringify(data));
-        };
-
-        export const getIsAuthenticated = (): boolean => {
-            const token = getAuthToken();
-            if (!token) return false;
-
-            const expiry = getAuthTokenExpiry();
-            if (!expiry) return true; // Если нет информации об истечении, считаем что токен валиден
-
-            const now = new Date();
-            const expiryDate = new Date(expiry);
-            return now < expiryDate;
-        };
-
-        // Функция для автоматического выхода при истечении токена
-        export const setupTokenExpiryListener = (onTokenExpired: () => void): void => {
-            setInterval(() => {
-                if (!getIsAuthenticated()) {
-                    clearAuthData();
-                    onTokenExpired();
-                }
-            }, 60000); // Проверка каждую минуту
-        };
-        `);
+        // console.log('Для полноценной работы необходимо обновить файл utils/auth.ts:');
+        // console.log(`
+        // // utils/auth.ts - Обновленная версия
+        //
+        // const AUTH_TOKEN_KEY = 'authToken';
+        // const TOKEN_EXPIRY_KEY = 'tokenExpiry';
+        // const USER_ROLE_KEY = 'userRole';
+        // const USER_DATA_KEY = 'userData';
+        // const USER_EMAIL_KEY = 'userEmail';
+        //
+        // export const getAuthToken = (): string | null => {
+        //     return localStorage.getItem(AUTH_TOKEN_KEY);
+        // };
+        //
+        // export const setAuthToken = (token: string): void => {
+        //     localStorage.setItem(AUTH_TOKEN_KEY, token);
+        // };
+        //
+        // export const removeAuthToken = (): void => {
+        //     localStorage.removeItem(AUTH_TOKEN_KEY);
+        // };
+        //
+        // export const getAuthTokenExpiry = (): string | null => {
+        //     return localStorage.getItem(TOKEN_EXPIRY_KEY);
+        // };
+        //
+        // export const setAuthTokenExpiry = (expiry: string): void => {
+        //     localStorage.setItem(TOKEN_EXPIRY_KEY, expiry);
+        // };
+        //
+        // export const removeAuthTokenExpiry = (): void => {
+        //     localStorage.removeItem(TOKEN_EXPIRY_KEY);
+        // };
+        //
+        // export const clearAuthData = (): void => {
+        //     localStorage.removeItem(AUTH_TOKEN_KEY);
+        //     localStorage.removeItem(TOKEN_EXPIRY_KEY);
+        //     localStorage.removeItem(USER_ROLE_KEY);
+        //     localStorage.removeItem(USER_DATA_KEY);
+        //     localStorage.removeItem(USER_EMAIL_KEY);
+        // };
+        //
+        // export const getUserRole = (): 'client' | 'master' | null => {
+        //     const role = localStorage.getItem(USER_ROLE_KEY);
+        //     if (role === 'ROLE_MASTER') return 'master';
+        //     if (role === 'ROLE_CLIENT') return 'client';
+        //     return null;
+        // };
+        //
+        // export const setUserRole = (role: 'client' | 'master'): void => {
+        //     const roleValue = role === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT';
+        //     localStorage.setItem(USER_ROLE_KEY, roleValue);
+        // };
+        //
+        // export const getUserData = (): any => {
+        //     const data = localStorage.getItem(USER_DATA_KEY);
+        //     return data ? JSON.parse(data) : null;
+        // };
+        //
+        // export const setUserData = (data: any): void => {
+        //     localStorage.setItem(USER_DATA_KEY, JSON.stringify(data));
+        // };
+        //
+        // export const getIsAuthenticated = (): boolean => {
+        //     const token = getAuthToken();
+        //     if (!token) return false;
+        //
+        //     const expiry = getAuthTokenExpiry();
+        //     if (!expiry) return true; // Если нет информации об истечении, считаем что токен валиден
+        //
+        //     const now = new Date();
+        //     const expiryDate = new Date(expiry);
+        //     return now < expiryDate;
+        // };
+        //
+        // // Функция для автоматического выхода при истечении токена
+        // export const setupTokenExpiryListener = (onTokenExpired: () => void): void => {
+        //     setInterval(() => {
+        //         if (!getIsAuthenticated()) {
+        //             clearAuthData();
+        //             onTokenExpired();
+        //         }
+        //     }, 60000); // Проверка каждую минуту
+        // };
+        // `);
     };
 
     // Вызываем обновление при монтировании компонента

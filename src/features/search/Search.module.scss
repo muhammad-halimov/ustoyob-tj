@@ -382,3 +382,63 @@
   font-size: 12px;
   cursor: pointer;
 }
+
+.resultCard {
+  position: relative;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  background-color: white;
+  transition: all 0.3s ease;
+}
+
+.resultCard.fromSelectedCity {
+  border-left: 4px solid #3A54DA;
+  background-color: #f8f9ff;
+}
+
+.resultCard.fromSelectedCity:hover {
+  box-shadow: 0 4px 12px rgba(58, 84, 218, 0.2);
+  transform: translateY(-2px);
+}
+
+.cityBadge {
+  position: absolute;
+  top: 218px;
+  right: 17px;
+  background-color: #3A54DA;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.cityBadge span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cityBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background-color: rgba(58, 84, 218, 0.1);
+  border-radius: 4px;
+  font-size: 12px;
+  color: #3A54DA;
+  margin-bottom: 8px;
+
+  svg {
+    width: 12px;
+    height: 12px;
+  }
+}
+
+.cityName {
+  color: #666;
+  font-size: 14px;
+}

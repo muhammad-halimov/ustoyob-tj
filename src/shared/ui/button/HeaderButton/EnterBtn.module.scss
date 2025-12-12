@@ -5,7 +5,7 @@
   font-family: vars.$font-family;
   border: 2px solid map.get(vars.$colors, border-btn);
   display: block;
-  max-width: 102px;
+  //max-width: 142px;
   width: 100%;
   color: map.get(vars.$colors, actual-blue);
   font-size: map.get(vars.$font-sizes, 'lg');

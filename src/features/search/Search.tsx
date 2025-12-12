@@ -85,12 +85,14 @@ interface SearchResult {
     unit: string;
     description: string;
     address: string;
+    city?: string;
     date: string;
     author: string;
     authorId?: number;
     timeAgo: string;
     category: string;
     type: 'client' | 'master';
+    isInSelectedCity?: boolean;
 }
 
 interface ApiReview {
@@ -115,71 +117,22 @@ interface HydraResponse<T> {
     };
 }
 
-// interface Province {
-//     id: number;
-//     title: string;
-//     description?: string;
-// }
-//
-// interface Suburb {
-//     id: number;
-//     title: string;
-//     description?: string;
-// }
-//
-// interface Village {
-//     id: number;
-//     title: string;
-//     description?: string;
-// }
-
-// interface Settlement {
-//     id: number;
-//     title: string;
-//     description?: string;
-//     village?: Village[];
-// }
-//
-// interface Community {
-//     id: number;
-//     title: string;
-//     description?: string;
-// }
-
-// interface City {
-//     id: number;
-//     title: string;
-//     description?: string;
-//     image?: string;
-//     province: Province;
-//     suburbs: Suburb[];
-// }
-//
-// interface District {
-//     id: number;
-//     title: string;
-//     description?: string;
-//     image?: string;
-//     province: Province;
-//     settlements: Settlement[];
-//     communities: Community[];
-// }
-
 interface Category {
     id: number;
     name: string;
 }
 
-const API_BASE_URL = 'https://admin.ustoyob.tj';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://admin.ustoyob.tj';
 
-// Кэши вне компонента для глобального доступа
+// Кэши
 const categoriesCache = new Map<number, Category>();
-// const citiesCache = new Map<number, City>();
-// const districtsCache = new Map<number, District>();
 
 export default function Search({ onSearchResults, onFilterToggle }: SearchProps) {
     const [showFilters, setShowFilters] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedCity, setSelectedCity] = useState<string>(() => {
+        return localStorage.getItem('selectedCity') || '';
+    });
     const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
     const [showResults, setShowResults] = useState(false);
     const [filters, setFilters] = useState<FilterState>({
@@ -212,101 +165,157 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         userRole: null
     });
 
-    // Флаг для предотвращения дублирующих запросов
-    const isSearchInProgressRef = useRef(false);
-
-    // Функция сортировки тикетов
-    const sortTickets = useCallback((tickets: TypedTicket[], sortBy: string): TypedTicket[] => {
-        const sortedTickets = [...tickets];
-
-        switch (sortBy) {
-            case 'rating_desc':
-                return sortedTickets.sort((a, b) => (b.userRating || 0) - (a.userRating || 0));
-            case 'rating_asc':
-                return sortedTickets.sort((a, b) => (a.userRating || 0) - (b.userRating || 0));
-            case 'reviews_desc':
-                return sortedTickets.sort((a, b) => b.userReviewCount - a.userReviewCount);
-            case 'reviews_asc':
-                return sortedTickets.sort((a, b) => a.userReviewCount - b.userReviewCount);
-            case 'price_desc':
-                return sortedTickets.sort((a, b) => b.budget - a.budget);
-            case 'price_asc':
-                return sortedTickets.sort((a, b) => a.budget - b.budget);
-            case 'date_desc':
-                return sortedTickets.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-            case 'date_asc':
-                return sortedTickets.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-            default:
-                return sortedTickets;
-        }
-    }, []);
-
-    // Функция получения полного адреса
-    const getFormattedAddress = useCallback(async (ticket: ApiTicket): Promise<string> => {
+    // Функция для получения информации об адресе
+    const getAddressInfo = useCallback(async (ticket: ApiTicket): Promise<{
+        formatted: string;
+        cityName?: string;
+        districtName?: string;
+    }> => {
         try {
-            // Проверяем есть ли адреса в тикете
             if (!ticket.addresses || ticket.addresses.length === 0) {
-                return 'Адрес не указан';
+                return { formatted: 'Адрес не указан' };
             }
 
-            // Берем первый адрес из массива
             const address = ticket.addresses[0];
             const addressParts: string[] = [];
+            let cityName = '';
+            let districtName = '';
 
-            // 1. Провинция (область)
+            // Провинция (область)
             if (address.province?.title) {
                 addressParts.push(address.province.title);
             }
 
-            // 2. Город
+            // Город
             if (address.city?.title) {
-                addressParts.push(address.city.title);
+                cityName = address.city.title;
+                addressParts.push(cityName);
             }
 
-            // 3. Район
+            // Район
             if (address.district?.title) {
-                addressParts.push(address.district.title);
+                districtName = address.district.title;
+                addressParts.push(districtName);
             }
 
-            // 4. Пригород (если есть)
+            // Пригород (если есть)
             if (address.suburb?.title) {
                 addressParts.push(address.suburb.title);
             }
 
-            // 5. Поселение (если есть)
+            // Поселение (если есть)
             if (address.settlement?.title) {
                 addressParts.push(address.settlement.title);
             }
 
-            // 6. Деревня (если есть)
+            // Деревня (если есть)
             if (address.village?.title) {
                 addressParts.push(address.village.title);
             }
 
-            // 7. Сообщество (если есть)
+            // Сообщество (если есть)
             if (address.community?.title) {
                 addressParts.push(address.community.title);
             }
 
-            // 8. Конкретный адрес
+            // Конкретный адрес
             if (address.title) {
                 addressParts.push(address.title);
             }
 
-            // Убираем дубликаты и пустые строки
             const uniqueParts = Array.from(new Set(addressParts.filter(part => part && part.trim())));
+            const formatted = uniqueParts.length === 0 ? 'Адрес не указан' : uniqueParts.join(', ');
 
-            if (uniqueParts.length === 0) {
-                return 'Адрес не указан';
-            }
-
-            return uniqueParts.join(', ');
+            return {
+                formatted,
+                cityName: cityName || undefined,
+                districtName: districtName || undefined
+            };
 
         } catch (error) {
             console.error('Error formatting address:', error);
-            return 'Адрес не указан';
+            return { formatted: 'Адрес не указан' };
         }
     }, []);
+
+    // Функция для определения приоритета тикета по городу
+    const getTicketPriority = useCallback(async (ticket: ApiTicket): Promise<number> => {
+        if (!selectedCity || !selectedCity.trim()) {
+            return 0;
+        }
+
+        try {
+            const addressInfo = await getAddressInfo(ticket);
+            const cityName = addressInfo.cityName?.toLowerCase() || '';
+            const districtName = addressInfo.districtName?.toLowerCase() || '';
+            const fullAddress = addressInfo.formatted.toLowerCase();
+            const searchCity = selectedCity.toLowerCase();
+
+            // Проверяем несколько вариантов совпадения
+            if (cityName.includes(searchCity) ||
+                districtName.includes(searchCity) ||
+                fullAddress.includes(searchCity)) {
+                return 2; // Высший приоритет - точное совпадение города/района
+            }
+
+            // Проверяем частичное совпадение
+            const searchCityWords = searchCity.split(' ');
+            const hasPartialMatch = searchCityWords.some(word =>
+                cityName.includes(word) ||
+                districtName.includes(word) ||
+                fullAddress.includes(word)
+            );
+
+            return hasPartialMatch ? 1 : 0; // Средний приоритет для частичного совпадения
+
+        } catch (error) {
+            console.error('Error checking city priority:', error);
+            return 0;
+        }
+    }, [selectedCity, getAddressInfo]);
+
+    // Функция сортировки с учетом приоритета города
+    const sortTicketsWithPriority = useCallback(async (tickets: TypedTicket[], sortBy: string): Promise<TypedTicket[]> => {
+        // Получаем приоритет для каждого тикета
+        const ticketsWithPriority = await Promise.all(
+            tickets.map(async (ticket) => ({
+                ticket,
+                priority: await getTicketPriority(ticket)
+            }))
+        );
+
+        // Сортируем по приоритету города, затем по выбранной сортировке
+        return ticketsWithPriority
+            .sort((a, b) => {
+                // Сначала по приоритету города
+                if (a.priority !== b.priority) {
+                    return b.priority - a.priority;
+                }
+
+                // Затем по выбранной сортировке
+                switch (sortBy) {
+                    case 'rating_desc':
+                        return (b.ticket.userRating || 0) - (a.ticket.userRating || 0);
+                    case 'rating_asc':
+                        return (a.ticket.userRating || 0) - (b.ticket.userRating || 0);
+                    case 'reviews_desc':
+                        return b.ticket.userReviewCount - a.ticket.userReviewCount;
+                    case 'reviews_asc':
+                        return a.ticket.userReviewCount - b.ticket.userReviewCount;
+                    case 'price_desc':
+                        return b.ticket.budget - a.ticket.budget;
+                    case 'price_asc':
+                        return a.ticket.budget - b.ticket.budget;
+                    case 'date_desc':
+                        return new Date(b.ticket.createdAt).getTime() - new Date(a.ticket.createdAt).getTime();
+                    case 'date_asc':
+                        return new Date(a.ticket.createdAt).getTime() - new Date(b.ticket.createdAt).getTime();
+                    default:
+                        return new Date(b.ticket.createdAt).getTime() - new Date(a.ticket.createdAt).getTime();
+                }
+            })
+            .map(item => item.ticket);
+    }, [getTicketPriority]);
 
     const getTimeAgo = useCallback((dateString: string): string => {
         if (!dateString) return 'давно';
@@ -351,7 +360,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         }
     }, [userRole]);
 
-    // Оптимизированная функция получения имени пользователя без авторизации
+    // Функция получения имени пользователя
     const getUserName = useCallback(async (ticket: ApiTicket, ticketType: 'client' | 'master'): Promise<string> => {
         const userId = ticketType === 'client' ? ticket.author?.id : ticket.master?.id;
 
@@ -359,7 +368,6 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             return ticketType === 'client' ? 'Клиент не указан' : 'Мастер не назначен';
         }
 
-        // Используем данные из тикета
         if (ticketType === 'client' && ticket.author) {
             if (ticket.author.name && ticket.author.surname) {
                 return `${ticket.author.name} ${ticket.author.surname}`.trim();
@@ -381,7 +389,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         return ticketType === 'client' ? 'Клиент' : 'Мастер';
     }, []);
 
-    // Оптимизированная функция загрузки категорий
+    // Функция загрузки категорий
     const fetchCategories = useCallback(async () => {
         if (categoriesCache.size > 0) {
             setCategories(Array.from(categoriesCache.values()));
@@ -408,7 +416,6 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             if (response.ok) {
                 const categoriesData = await response.json();
 
-                // Проверяем структуру ответа
                 let formatted: Category[] = [];
                 if (Array.isArray(categoriesData)) {
                     formatted = categoriesData.map((cat: { id: number; title: string }) => ({
@@ -441,7 +448,6 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         try {
             const token = getAuthToken();
 
-            // Получаем все отзывы
             const reviewsResponse = await fetch(`${API_BASE_URL}/api/reviews`, {
                 headers: {
                     'Content-Type': 'application/json',
@@ -464,11 +470,9 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 reviewsArray = hydraData['hydra:member'];
             }
 
-            // Создаем Map для подсчета отзывов по пользователям
             const userReviewCount = new Map<number, number>();
 
             reviewsArray.forEach((review: ApiReview) => {
-                // Отзывы могут быть на мастера или клиента
                 if (review.master?.id) {
                     const count = userReviewCount.get(review.master.id) || 0;
                     userReviewCount.set(review.master.id, count + 1);
@@ -479,9 +483,6 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 }
             });
 
-            console.log('User review counts:', Array.from(userReviewCount.entries()));
-
-            // Фильтруем тикеты по количеству отзывов
             return tickets.filter(ticket => {
                 const userId = ticket.type === 'client' ? ticket.author?.id : ticket.master?.id;
                 if (!userId) return false;
@@ -496,39 +497,34 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         }
     }, []);
 
-    // Функция для очистки текста от HTML-сущностей и лишних пробелов
+    // Функция для очистки текста
     const cleanText = useCallback((text: string): string => {
         if (!text) return '';
 
-        // 1. Заменяем HTML-сущности на обычные символы
         let cleaned = text
-            .replace(/&nbsp;/g, ' ')          // неразрывный пробел
-            .replace(/&amp;/g, '&')           // амперсанд
-            .replace(/&lt;/g, '<')            // меньше
-            .replace(/&gt;/g, '>')            // больше
-            .replace(/&quot;/g, '"')          // двойная кавычка
-            .replace(/&#039;/g, "'")          // одинарная кавычка
-            .replace(/&hellip;/g, '...')      // многоточие
-            .replace(/&mdash;/g, '—')         // тире
-            .replace(/&laquo;/g, '«')         // левая кавычка
-            .replace(/&raquo;/g, '»');        // правая кавычка
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#039;/g, "'")
+            .replace(/&hellip;/g, '...')
+            .replace(/&mdash;/g, '—')
+            .replace(/&laquo;/g, '«')
+            .replace(/&raquo;/g, '»');
 
-        // 2. Удаляем все остальные HTML-сущности (общий паттерн)
         cleaned = cleaned.replace(/&[a-z]+;/g, ' ');
-
-        // 3. Удаляем HTML-теги (если есть)
         cleaned = cleaned.replace(/<[^>]*>/g, '');
 
-        // 4. Убираем лишние пробелы и переносы строк
         cleaned = cleaned
-            .replace(/\s+/g, ' ')             // множественные пробелы -> один пробел
-            .replace(/\n\s*\n/g, '\n')        // множественные пустые строки -> одна
-            .trim();                          // убираем пробелы в начале и конце
+            .replace(/\s+/g, ' ')
+            .replace(/\n\s*\n/g, '\n')
+            .trim();
 
         return cleaned;
     }, []);
 
-    // Функция получения данных о тикетах с API
+    // Функция получения тикетов с API
     const fetchAllTickets = useCallback(async (query: string = '', filterParams: FilterState) => {
         try {
             setIsLoading(true);
@@ -547,7 +543,6 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 params.append('category', filterParams.category);
             }
 
-            // Фильтрация по бюджету
             if (filterParams.minPrice || filterParams.maxPrice) {
                 if (filterParams.minPrice && filterParams.maxPrice) {
                     params.append('budget[between]', `${filterParams.minPrice}..${filterParams.maxPrice}`);
@@ -558,19 +553,13 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 }
             }
 
-            // ФИЛЬТРАЦИЯ ПО РЕЙТИНГУ - ДОБАВИТЬ ЭТО
             if (filterParams.rating) {
-                // В зависимости от типа тикета фильтруем по рейтингу автора или мастера
                 if (userRole === 'client') {
-                    // Для клиентов ищем услуги мастеров -> фильтруем по master.rating
                     params.append('master.rating[gte]', filterParams.rating);
                 } else if (userRole === 'master') {
-                    // Для мастеров ищем заказы клиентов -> фильтруем по author.rating
                     params.append('author.rating[gte]', filterParams.rating);
                 } else {
-                    // Для неавторизованных пользователей фильтруем по обоим рейтингам
                     params.append('author.rating[gte]', filterParams.rating);
-                    // ИЛИ можно сделать OR запрос, но API может не поддерживать
                 }
             }
 
@@ -603,7 +592,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
             console.log(`Loaded ${ticketsData.length} tickets from API`);
 
-            // ФИЛЬТРАЦИЯ НА КЛИЕНТЕ ПО ПОИСКОВОМУ ЗАПРОСУ
+            // Фильтрация по поисковому запросу
             if (query.trim()) {
                 const searchLower = query.trim().toLowerCase();
                 console.log(`Filtering by search query: "${searchLower}"`);
@@ -613,7 +602,6 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     const title = ticket.title?.toLowerCase() || '';
                     const category = ticket.category?.title?.toLowerCase() || '';
 
-                    // Поиск в адресах
                     let addressMatches = false;
                     if (ticket.addresses && ticket.addresses.length > 0) {
                         const address = ticket.addresses[0];
@@ -641,7 +629,6 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             // Определяем тип тикета
             const typedTickets: TypedTicket[] = ticketsData.map(ticket => {
                 const ticketType = ticket.service === true ? 'master' : 'client';
-                // Определяем правильный рейтинг пользователя
                 let userRating = 0;
                 if (ticketType === 'client') {
                     userRating = ticket.author?.rating || 0;
@@ -653,32 +640,30 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     ...ticket,
                     type: ticketType,
                     userRating,
-                    userReviewCount: 0 // Это поле нужно будет заполнить отдельно
+                    userReviewCount: 0
                 };
             });
 
-            // УБРАТЬ ДОПОЛНИТЕЛЬНУЮ ФИЛЬТРАЦИЮ ПО РЕЙТИНГУ НА КЛИЕНТЕ,
-            // ТАК КАК МЫ УЖЕ ОТФИЛЬТРОВАЛИ НА СЕРВЕРЕ
             let filteredData = typedTickets;
 
-            // ТОЛЬКО фильтрация по количеству отзывов остается на клиенте
+            // Фильтрация по количеству отзывов
             if (filterParams.reviewCount) {
                 const minReviews = parseInt(filterParams.reviewCount);
-                // Для фильтрации по отзывам нужна отдельная функция
                 filteredData = await filterByReviewCount(filteredData, minReviews);
             }
 
-            // Сортировка
-            if (filterParams.sortBy) {
-                filteredData = sortTickets(filteredData, filterParams.sortBy);
+            // Сортировка с учетом приоритета города
+            if (filterParams.sortBy || selectedCity) {
+                filteredData = await sortTicketsWithPriority(filteredData, filterParams.sortBy || 'date_desc');
             }
 
-            // Создаем результаты поиска
+            // Создаем финальные результаты
             const ticketsWithUsers: SearchResult[] = await Promise.all(
                 filteredData.map(async (ticket) => {
                     const userName = await getUserName(ticket, ticket.type);
                     const authorId = ticket.type === 'client' ? ticket.author?.id : ticket.master?.id;
-                    const address = await getFormattedAddress(ticket);
+                    const addressInfo = await getAddressInfo(ticket);
+                    const priority = await getTicketPriority(ticket);
 
                     const formattedDate = ticket.createdAt
                         ? new Date(ticket.createdAt).toLocaleDateString('ru-RU')
@@ -690,13 +675,15 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                         price: ticket.budget || 0,
                         unit: ticket.unit?.title || 'TJS',
                         description: ticket.description,
-                        address: address,
+                        address: addressInfo.formatted,
+                        city: addressInfo.cityName,
                         date: formattedDate,
                         author: userName,
                         authorId,
                         timeAgo: getTimeAgo(ticket.createdAt),
                         category: ticket.category?.title || 'другое',
-                        type: ticket.type
+                        type: ticket.type,
+                        isInSelectedCity: priority > 0
                     };
                 })
             );
@@ -709,10 +696,12 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         } finally {
             setIsLoading(false);
         }
-    }, [getFormattedAddress, getTimeAgo, sortTickets, getUserName, userRole, filterByReviewCount]);
+    }, [userRole, filterByReviewCount, selectedCity, sortTicketsWithPriority, getUserName, getAddressInfo, getTicketPriority, getTimeAgo]);
 
+    // Флаг для предотвращения дублирующих запросов
+    const isSearchInProgressRef = useRef(false);
 
-    // Оптимизированный обработчик поиска
+    // Обработчик поиска
     const handleSearch = useCallback(async () => {
         if (isSearchInProgressRef.current) {
             console.log('Search already in progress, skipping...');
@@ -826,6 +815,25 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         fetchCategories();
     }, [fetchCategories]);
 
+    // Следим за изменениями в localStorage для города
+    useEffect(() => {
+        const handleStorageChange = () => {
+            const city = localStorage.getItem('selectedCity') || '';
+            if (city !== selectedCity) {
+                setSelectedCity(city);
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, [selectedCity]);
+
+    // Загружаем город при монтировании
+    useEffect(() => {
+        const city = localStorage.getItem('selectedCity') || '';
+        setSelectedCity(city);
+    }, []);
+
     useEffect(() => {
         const debounceTimer = setTimeout(() => {
             handleSearch();
@@ -841,6 +849,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         filters.reviewCount,
         filters.sortBy,
         userRole,
+        selectedCity,
         handleSearch
     ]);
 
@@ -865,49 +874,65 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                         {getTicketTypeLabel(result.type)}
                     </div>
                 )}
+
+                {result.isInSelectedCity && (
+                    <div className={styles.cityBadge}>
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <path d="M8 1C4.13 1 1 4.13 1 8C1 11.87 4.13 15 8 15C11.87 15 15 11.87 15 8C15 4.13 11.87 1 8 1Z"
+                                  fill="#3A54DA"/>
+                            <path d="M11.53 5.53L8 9.06L6.47 7.53L5.53 8.47L8 10.94L12.47 6.47L11.53 5.53Z"
+                                  fill="white"/>
+                        </svg>
+                        <span>Your location</span>
+                    </div>
+                )}
+
                 <div className={styles.resultHeader}>
                     <h3>{result.title}</h3>
                     <span className={styles.price}>{result.price} TJS {result.unit}</span>
                 </div>
                 <p className={styles.description}>{cleanText(result.description)}</p>
                 <div className={styles.resultDetails}>
-                <span className={styles.category}>
-                    {result.category}
-                </span>
+                    <span className={styles.category}>
+                        {result.category}
+                    </span>
                     <span className={styles.address}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <circle cx="12" cy="9" r="2.5" stroke="#3A54DA" strokeWidth="2"/>
-                    </svg>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            <circle cx="12" cy="9" r="2.5" stroke="#3A54DA" strokeWidth="2"/>
+                        </svg>
                         {result.address}
-                </span>
+                        {/*{result.city && (*/}
+                        {/*    <span className={styles.cityName}> • {result.city}</span>*/}
+                        {/*)}*/}
+                    </span>
                     <span className={styles.date}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M3 8h18M21 6v14H3V6h18zM16 2v4M8 2v4" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3 8h18M21 6v14H3V6h18zM16 2v4M8 2v4" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
                         {result.date}
-                </span>
+                    </span>
                 </div>
                 <div className={styles.resultFooter}>
-                <span className={styles.author}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <g clipPath="url(#clip0_324_2870)">
-                        <g clipPath="url(#clip1_324_2870)">
-                        <path d="M11.9995 12.9795C15.1641 12.9795 17.7295 10.4141 17.7295 7.24953C17.7295 4.08494 15.1641 1.51953 11.9995 1.51953C8.83494 1.51953 6.26953 4.08494 6.26953 7.24953C6.26953 10.4141 8.83494 12.9795 11.9995 12.9795Z" stroke="#5D5D5D" strokeWidth="2" strokeMiterlimit="10"/>
-                        <path d="M1.5 23.48L1.87 21.43C2.3071 19.0625 3.55974 16.9229 5.41031 15.3828C7.26088 13.8428 9.59246 12.9997 12 13C14.4104 13.0006 16.7443 13.8465 18.5952 15.3905C20.4462 16.9345 21.6971 19.0788 22.13 21.45L22.5 23.5" stroke="#5D5D5D" strokeWidth="2" strokeMiterlimit="10"/>
-                        </g>
-                        </g>
-                        <defs>
-                        <clipPath id="clip0_324_2870">
-                        <rect width="24" height="24" fill="white"/>
-                        </clipPath>
-                        <clipPath id="clip1_324_2870">
-                        <rect width="24" height="24" fill="white"/>
-                        </clipPath>
-                        </defs>
-                    </svg>
-                    {result.author}
-                </span>
+                    <span className={styles.author}>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <g clipPath="url(#clip0_324_2870)">
+                                <g clipPath="url(#clip1_324_2870)">
+                                    <path d="M11.9995 12.9795C15.1641 12.9795 17.7295 10.4141 17.7295 7.24953C17.7295 4.08494 15.1641 1.51953 11.9995 1.51953C8.83494 1.51953 6.26953 4.08494 6.26953 7.24953C6.26953 10.4141 8.83494 12.9795 11.9995 12.9795Z" stroke="#5D5D5D" strokeWidth="2" strokeMiterlimit="10"/>
+                                    <path d="M1.5 23.48L1.87 21.43C2.3071 19.0625 3.55974 16.9229 5.41031 15.3828C7.26088 13.8428 9.59246 12.9997 12 13C14.4104 13.0006 16.7443 13.8465 18.5952 15.3905C20.4462 16.9345 21.6971 19.0788 22.13 21.45L22.5 23.5" stroke="#5D5D5D" strokeWidth="2" strokeMiterlimit="10"/>
+                                </g>
+                            </g>
+                            <defs>
+                                <clipPath id="clip0_324_2870">
+                                    <rect width="24" height="24" fill="white"/>
+                                </clipPath>
+                                <clipPath id="clip1_324_2870">
+                                    <rect width="24" height="24" fill="white"/>
+                                </clipPath>
+                            </defs>
+                        </svg>
+                        {result.author}
+                    </span>
                     <span className={styles.timeAgo}>{result.timeAgo}</span>
                 </div>
             </div>

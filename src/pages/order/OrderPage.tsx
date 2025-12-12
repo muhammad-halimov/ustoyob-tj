@@ -2,7 +2,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {useState, useEffect, useCallback} from 'react';
 import { getAuthToken, getUserRole } from '../../utils/auth';
 import styles from './OrderPage.module.scss';
-import { createChatWithAuthor } from "../../utils/chatUtils";
+import {createChatWithAuthor, initChatModals} from "../../utils/chatUtils";
 import AuthModal from "../../features/auth/AuthModal";
 import { fetchUserWithRole } from "../../utils/api.ts";
 
@@ -130,6 +130,42 @@ export default function OrderPage() {
     const specificTicketId = searchParams.get('ticket');
     const [reviewCount, setReviewCount] = useState<number>(0);
 
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [showErrorModal, setShowErrorModal] = useState(false);
+    const [showInfoModal, setShowInfoModal] = useState(false);
+    const [modalMessage, setModalMessage] = useState('');
+
+    useEffect(() => {
+        initChatModals({
+            showSuccessModal: (message: string) => {
+                setModalMessage(message);
+                setShowSuccessModal(true);
+                // Автоматическое закрытие через 3 секунды
+                setTimeout(() => setShowSuccessModal(false), 3000);
+            },
+            showErrorModal: (message: string) => {
+                setModalMessage(message);
+                setShowErrorModal(true);
+                setTimeout(() => setShowErrorModal(false), 3000);
+            },
+            showInfoModal: (message: string) => {
+                setModalMessage(message);
+                setShowInfoModal(true);
+                setTimeout(() => setShowInfoModal(false), 3000);
+            }
+        });
+
+        const role = getUserRole();
+        const loadData = async () => {
+            await fetchCities();
+            if (id) {
+                await fetchOrder(parseInt(id), role, ticketType, specificTicketId ? parseInt(specificTicketId) : undefined);
+            }
+        };
+
+        loadData();
+    }, [id, ticketType, specificTicketId]);
+
     useEffect(() => {
         if (order) {
             checkFavoriteStatus();
@@ -147,6 +183,18 @@ export default function OrderPage() {
 
         loadData();
     }, [id, ticketType, specificTicketId]);
+
+    const handleCloseSuccessModal = () => {
+        setShowSuccessModal(false);
+    };
+
+    const handleCloseErrorModal = () => {
+        setShowErrorModal(false);
+    };
+
+    const handleCloseInfoModal = () => {
+        setShowInfoModal(false);
+    };
 
     const fetchReviewCount = async (userId: number): Promise<number> => {
         try {
@@ -1606,6 +1654,59 @@ export default function OrderPage() {
                     onLoginSuccess={handleLoginSuccess}
                 />
             )}
+            {showSuccessModal && (
+                <div className={styles.modalOverlay} onClick={handleCloseSuccessModal}>
+                    <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+                        <h2 className={styles.successTitle}>Успешно!</h2>
+                        <div className={styles.successIcon}>
+                            <img src="./uspeh.png" alt="Успех"/>
+                        </div>
+                        <p className={styles.successMessage}>{modalMessage}</p>
+                        <button
+                            className={styles.successButton}
+                            onClick={handleCloseSuccessModal}
+                        >
+                            Понятно
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Модалка ошибки */}
+            {showErrorModal && (
+                <div className={styles.modalOverlay} onClick={handleCloseErrorModal}>
+                    <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+                        <h2 className={styles.errorTitle}>Ошибка</h2>
+                        <div className={styles.errorIcon}>
+                            <img src="./error.png" alt="Ошибка"/>
+                        </div>
+                        <p className={styles.errorMessage}>{modalMessage}</p>
+                        <button
+                            className={styles.errorButton}
+                            onClick={handleCloseErrorModal}
+                        >
+                            Понятно
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Модалка информации */}
+            {showInfoModal && (
+                <div className={styles.modalOverlay} onClick={handleCloseInfoModal}>
+                    <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+                        <h2 className={styles.infoTitle}>Информация</h2>
+                        <p className={styles.infoMessage}>{modalMessage}</p>
+                        <button
+                            className={styles.infoButton}
+                            onClick={handleCloseInfoModal}
+                        >
+                            Понятно
+                        </button>
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 }
