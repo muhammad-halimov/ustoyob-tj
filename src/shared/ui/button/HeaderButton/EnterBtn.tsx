@@ -1,9 +1,9 @@
-import styles from './EnterBtn.module.scss';
 import { useEffect, useState } from "react";
 import { useNavigate } from 'react-router-dom';
-import AuthModal from "../../../../features/auth/AuthModal.tsx";
-import { removeAuthToken } from '../../../../utils/auth';
 import { useTranslation } from 'react-i18next';
+import { getAuthToken, logout } from '../../../../utils/auth.ts';
+import AuthModal from "../../../../features/auth/AuthModal.tsx";
+import styles from './EnterBtn.module.scss';
 
 type EnterBtnProps = {
     onClick?: () => void;
@@ -22,7 +22,7 @@ export function EnterBtn({ onClick, isModalOpen, onModalClose, onLoginSuccess }:
 
     useEffect(() => {
         const checkAuth = () => {
-            const token = localStorage.getItem('authToken');
+            const token = getAuthToken();
             setIsLoggedIn(!!token);
         };
 
@@ -52,27 +52,33 @@ export function EnterBtn({ onClick, isModalOpen, onModalClose, onLoginSuccess }:
         window.dispatchEvent(new Event('storage'));
     };
 
-    const handleButtonClick = () => {
+    const handleButtonClick = async () => {
         onClick?.();
 
         if (isLoggedIn) {
-            handleLogout();
+            await handleLogout();
         } else if (isModalOpen === undefined) {
             setInternalModalOpen(true);
         }
     };
 
-    const handleLogout = () => {
-        removeAuthToken();
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('userRole');
-        localStorage.removeItem('userData');
-        localStorage.removeItem('userEmail');
-
-        setIsLoggedIn(false);
-        window.dispatchEvent(new Event('storage'));
-        window.dispatchEvent(new Event('logout'));
-        navigate('/');
+    const handleLogout = async () => {
+        try {
+            await logout();
+            setIsLoggedIn(false);
+            window.dispatchEvent(new Event('storage'));
+            window.dispatchEvent(new Event('logout'));
+            navigate('/');
+            window.location.reload();
+        } catch (error) {
+            console.error('Logout error:', error);
+            // В случае ошибки все равно очищаем и перенаправляем
+            setIsLoggedIn(false);
+            window.dispatchEvent(new Event('storage'));
+            window.dispatchEvent(new Event('logout'));
+            navigate('/');
+            window.location.reload();
+        }
     };
 
     const closeModal = () => {
@@ -93,7 +99,7 @@ export function EnterBtn({ onClick, isModalOpen, onModalClose, onLoginSuccess }:
     return (
         <>
             <button
-                className={styles.btn}
+                className={`${styles.btn} ${isLoggedIn ? styles.logoutBtn : ''}`}
                 onClick={handleButtonClick}
                 aria-label={getButtonText()}
                 title={getButtonText()}

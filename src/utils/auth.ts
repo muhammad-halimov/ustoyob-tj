@@ -1,3 +1,6 @@
+// utils/auth.ts
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://admin.ustoyob.tj';
+
 // Константы для хранения ключей в localStorage
 const AUTH_TOKEN_KEY = 'authToken';
 const TOKEN_EXPIRY_KEY = 'tokenExpiry';
@@ -49,6 +52,73 @@ export const removeAuthToken = (): void => {
     localStorage.removeItem(USER_DATA_KEY);
     localStorage.removeItem(USER_ROLE_KEY);
     localStorage.removeItem('selectedCity'); // Можно оставить, если нужно
+};
+
+// Функция для выхода с блокировкой токена на сервере
+export const logout = async (): Promise<boolean> => {
+    const token = getAuthToken();
+
+    // Очищаем данные на клиенте сразу
+    clearAuthData();
+
+    if (!token) {
+        console.log('No token to logout');
+        return true;
+    }
+
+    try {
+        // Отправляем запрос на сервер для инвалидации токена
+        const response = await fetch(`${API_BASE_URL}/api/logout`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            // Добавляем сам токен в тело запроса
+            body: JSON.stringify({ token })
+        });
+
+        console.log('Logout response status:', response.status);
+
+        if (response.ok) {
+            console.log('Token successfully invalidated on server');
+            return true;
+        } else {
+            console.warn('Server logout failed, but client data cleared');
+            return true; // Все равно возвращаем true, так как на клиенте очищено
+        }
+    } catch (error) {
+        console.error('Error during logout:', error);
+        // В случае ошибки сети все равно возвращаем true, так как на клиенте очищено
+        return true;
+    }
+};
+
+// Альтернативная функция для logout (без ожидания ответа от сервера)
+export const logoutSync = (): void => {
+    const token = getAuthToken();
+
+    // Немедленно очищаем данные на клиенте
+    clearAuthData();
+
+    // Асинхронно отправляем запрос на сервер для инвалидации токена
+    if (token) {
+        fetch(`${API_BASE_URL}/api/logout`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ token })
+        })
+            .then(response => {
+                console.log('Logout async response:', response.status);
+            })
+            .catch(error => {
+                console.error('Async logout error:', error);
+            });
+    }
 };
 
 // Функции для работы со временем истечения токена

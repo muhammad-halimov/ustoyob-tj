@@ -1173,14 +1173,14 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 </button>
 
                 <div className={styles.links}>
-                    <button
-                        type="button"
-                        className={styles.linkButton}
-                        onClick={() => setCurrentState(AuthModalState.VERIFY_CODE)}
-                        disabled={isLoading}
-                    >
-                        У меня есть токен подтверждения
-                    </button>
+                    {/*<button*/}
+                    {/*    type="button"*/}
+                    {/*    className={styles.linkButton}*/}
+                    {/*    onClick={() => setCurrentState(AuthModalState.VERIFY_CODE)}*/}
+                    {/*    disabled={isLoading}*/}
+                    {/*>*/}
+                    {/*    У меня есть токен подтверждения*/}
+                    {/*</button>*/}
                     <button
                         type="button"
                         className={styles.linkButton}
