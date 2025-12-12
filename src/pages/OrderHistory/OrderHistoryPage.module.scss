@@ -2,6 +2,7 @@
   max-width: 1284px;
   margin: 40px auto;
   border-radius: 10px;
+
   :global {
     .auth-modal-overlay {
       position: fixed;
@@ -25,6 +26,7 @@
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
     }
   }
+
   .create_order {
     font-size: 24px;
     text-decoration: none;
@@ -33,37 +35,320 @@
     justify-content: space-between;
     align-items: center;
     background-color: white;
-    padding: 40px;
+    padding: 32px 40px;
     border-radius: 10px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    margin-bottom: 40px;
+
+    &:hover {
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+      transform: translateY(-2px);
+    }
+
+    svg {
+      transition: transform 0.3s ease;
+    }
+
+    &:hover svg {
+      transform: rotate(90deg);
+    }
   }
+
   h3 {
-    margin: 40px 0 20px 0;
+    margin: 0 0 24px 0;
     font-size: 32px;
+    font-weight: 600;
+    color: #101010;
   }
 
-  .order_history {
+  // Стили для состояний загрузки
+  .loading, .error, .no_tickets, .not_authenticated {
+    background-color: white;
+    padding: 60px 40px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 
+    p {
+      font-size: 18px;
+      color: #585858;
+      margin: 16px 0;
+    }
+  }
+
+  .loading {
+    .spinner {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #3A54DA;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 16px;
+    }
+  }
+
+  .error {
+    .error_icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 48px;
+      height: 48px;
+      background-color: #ffebee;
+      color: #d32f2f;
+      border-radius: 50%;
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 16px;
+    }
+  }
+
+  .no_tickets, .not_authenticated {
+    .empty_icon, .not_authenticated_icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+  }
+
+  .retry_button {
+    background-color: #3A54DA;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin-top: 16px;
+
+    &:hover {
+      background-color: #2a44ca;
+    }
+  }
+
+  .create_first_order {
+    display: inline-block;
+    margin-top: 16px;
+    color: #3A54DA;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 16px;
+    padding: 8px 16px;
+    border: 2px solid #3A54DA;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+
+    &:hover {
+      background-color: #3A54DA;
+      color: white;
+    }
+  }
+
+  // Стили для списка заказов
+  .order_history {
     .order_item {
       background-color: white;
-      padding: 40px;
       border-radius: 10px;
       margin-bottom: 20px;
-      .order_item_title {
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      overflow: hidden;
+      transition: box-shadow 0.3s ease;
+
+      &:hover {
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+      }
+
+      .order_item_header {
         display: flex;
         justify-content: space-between;
-        align-items: center;
-        margin-bottom: 20px;
-        p {
-          font-size: 32px;
-          font-weight: 400;
+        align-items: flex-start;
+        padding: 32px 40px 24px;
+        border-bottom: 1px solid #f0f0f0;
+
+        .order_item_title {
+          flex: 1;
+
+          h4 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #101010;
+            margin: 0 0 8px 0;
+            line-height: 1.3;
+          }
+
+          .order_meta {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+
+            .order_date {
+              font-size: 16px;
+              color: #757575;
+            }
+          }
         }
-        span {
-          font-size: 24px;
-          color: #585858;
+
+        .order_item_status {
+          .status_badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+
+          .status_in_progress {
+            background-color: rgba(58, 84, 218, 0.1);
+            color: #3A54DA;
+          }
+
+          .status_searching {
+            background-color: rgba(255, 152, 0, 0.1);
+            color: #f57c00;
+          }
+
+          .status_completed {
+            background-color: rgba(76, 175, 80, 0.1);
+            color: #4caf50;
+          }
         }
       }
-      .order_item_status span{
-        font-size: 24px;
+
+      .order_item_content {
+        padding: 24px 40px 32px;
+
+        .order_description {
+          margin-bottom: 24px;
+
+          p {
+            font-size: 16px;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+          }
+        }
+
+        .order_details {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 24px;
+          margin-bottom: 24px;
+
+          .detail_item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+
+            .detail_label {
+              font-size: 14px;
+              color: #757575;
+              font-weight: 500;
+            }
+
+            .detail_value {
+              font-size: 16px;
+              color: #101010;
+              font-weight: 500;
+            }
+          }
+        }
+
+        .order_actions {
+          .view_details_button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 24px;
+            background-color: #3A54DA;
+            color: white;
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: 500;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+
+            &:hover {
+              background-color: #2a44ca;
+              transform: translateY(-1px);
+              box-shadow: 0 4px 12px rgba(58, 84, 218, 0.3);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .not_authenticated {
+    .not_authenticated_icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    p {
+      font-size: 18px;
+      color: #585858;
+    }
+  }
+}
+
+// Анимация для спиннера
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@media screen and (max-width: 768px) {
+  .container {
+    margin: 20px auto;
+    padding: 0 16px;
+
+    .create_order {
+      padding: 24px 20px;
+      font-size: 20px;
+      margin-bottom: 32px;
+    }
+
+    h3 {
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+
+    .loading, .error, .no_tickets, .not_authenticated {
+      padding: 40px 20px;
+    }
+
+    .order_history {
+      .order_item {
+        .order_item_header {
+          padding: 24px 20px 20px;
+          flex-direction: column;
+          gap: 16px;
+
+          .order_item_title {
+            h4 {
+              font-size: 20px;
+            }
+          }
+
+          .order_item_status {
+            align-self: flex-start;
+          }
+        }
+
+        .order_item_content {
+          padding: 20px 20px 24px;
+
+          .order_details {
+            flex-direction: column;
+            gap: 16px;
+          }
+        }
       }
     }
   }
@@ -71,24 +356,32 @@
 
 @media screen and (max-width: 480px) {
   .container {
-    padding: 0 20px;
-    span {
+    .create_order {
       font-size: 18px;
-    }
-    h3 {
-      font-size: 24px;
+      padding: 20px 16px;
     }
 
-    .order_item_title p,
-    .order_item_title span,
-    .order_item_status span {
-      font-size: 18px !important;
+    h3 {
+      font-size: 20px;
+    }
+
+    .order_history {
+      .order_item {
+        .order_item_header {
+          .order_item_title {
+            h4 {
+              font-size: 18px;
+            }
+          }
+        }
+
+        .order_item_content {
+          .view_details_button {
+            width: 100%;
+            text-align: center;
+          }
+        }
+      }
     }
   }
-
-
-}
-.not_authenticated_message {
-  text-align: center;
-  margin-top: 20px;
 }

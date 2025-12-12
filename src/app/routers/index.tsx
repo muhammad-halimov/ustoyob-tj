@@ -7,7 +7,7 @@ import ProfilePage from "../../pages/profile/ProfilePage.tsx";
 import EducationPage from "../../pages/education/EducationPage.tsx";
 import ServicesPage from "../../pages/services/ServicesPage.tsx";
 import CityPage from "../../pages/сityPage/CityPage.tsx";
-import OrderPage from "../../pages/order/OrderPage.tsx";
+import {OrderPage} from "../../pages/order/OrderPage.tsx";
 import CreateAdPage from "../../pages/create-ad/CreateAdPage";
 import OrderHistoryPage from "../../pages/OrderHistory/OrderHistoryPage";
 import SearchServicePage from "../../pages/search/SearchServicePage";
@@ -29,20 +29,20 @@ const router = createBrowserRouter([
             { path: 'favorites', element: <FavoritesPage /> },
             { path: 'chats', element: <Chat /> },
             { path: 'profile', element: <ProfilePage /> },
-            { path: '/my-tickets', element: <MyTickets /> },
+            { path: 'my-tickets', element: <MyTickets /> },
             { path: 'profile/education', element: <EducationPage /> },
-            { path: 'profile/services', element: <ServicesPage /> }, //для Мастера
+            { path: 'profile/services', element: <ServicesPage /> }, // для Мастера
             { path: 'profile/city', element: <CityPage /> },
-            { path: "/order/:id", element: <OrderPage /> },
-            { path: 'create-ad', element: <CreateAdPage /> }, //для Клиента
-            { path: 'tickets', element: <TicketsPage /> }, //для Мастера
+            { path: 'order/:id', element: <OrderPage /> },
+            { path: 'create-ad', element: <CreateAdPage /> }, // для Клиента
+            { path: 'tickets', element: <TicketsPage /> }, // для Мастера
             { path: 'master/:id', element: <MasterProfileViewPage /> },
             { path: 'client/:id', element: <ClientProfileViewPage /> },
             { path: 'category-tickets/:categoryId', element: <CategoryTicketsPage /> },
-            { path: '/profile/services/edit', element: <EditServicePage /> },
+            { path: 'profile/services/edit', element: <EditServicePage /> },
             // { path: 'profile/work-area', element: <WorkAreaPage /> },
-    //         { path: 'search', element: <SearchPage /> },
-    //         { path: 'create-ad', element: <CreateAdPage /> },
+            // { path: 'search', element: <SearchPage /> },
+            // { path: 'create-ad', element: <CreateAdPage /> },
         ],
     },
 ]);

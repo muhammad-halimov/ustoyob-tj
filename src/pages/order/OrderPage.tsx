@@ -4,7 +4,7 @@ import { getAuthToken, getUserRole } from '../../utils/auth';
 import styles from './OrderPage.module.scss';
 import {createChatWithAuthor, initChatModals} from "../../utils/chatUtils";
 import AuthModal from "../../features/auth/AuthModal";
-import { fetchUserWithRole } from "../../utils/api.ts";
+// import { fetchUserWithRole } from "../../utils/api.ts";
 
 interface ApiTicket {
     id: number;
@@ -107,8 +107,8 @@ interface UserData {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-export default function OrderPage() {
-    const { id } = useParams<{ id: string }>();
+export function OrderPage() {
+    const {id} = useParams<{ id: string }>();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const [order, setOrder] = useState<Order | null>(null);
@@ -208,7 +208,7 @@ export default function OrderPage() {
             }
 
             // Загружаем ВСЕ отзывы и фильтруем на клиенте
-            const reviewsResponse = await fetch(`${API_BASE_URL}/api/reviews`, { headers });
+            const reviewsResponse = await fetch(`${API_BASE_URL}/api/reviews`, {headers});
 
             if (!reviewsResponse.ok) {
                 console.error('Failed to fetch reviews:', reviewsResponse.status);
@@ -536,7 +536,7 @@ export default function OrderPage() {
         } catch (error) {
             console.error('Error loading favorites from localStorage:', error);
         }
-        return { masters: [], tickets: [] };
+        return {masters: [], tickets: []};
     };
 
     const saveLocalStorageFavorites = (favorites: { masters: number[], tickets: number[] }) => {
@@ -612,9 +612,15 @@ export default function OrderPage() {
                 const currentFavorite: Favorite = await currentFavoritesResponse.json();
                 existingFavoriteId = currentFavorite.id;
 
-                existingMasters = currentFavorite.masters?.map((master: { id: number }) => `/api/users/${master.id}`) || [];
-                existingClients = currentFavorite.clients?.map((client: { id: number }) => `/api/users/${client.id}`) || [];
-                existingTickets = currentFavorite.tickets?.map((ticket: { id: number }) => `/api/tickets/${ticket.id}`) || [];
+                existingMasters = currentFavorite.masters?.map((master: {
+                    id: number
+                }) => `/api/users/${master.id}`) || [];
+                existingClients = currentFavorite.clients?.map((client: {
+                    id: number
+                }) => `/api/users/${client.id}`) || [];
+                existingTickets = currentFavorite.tickets?.map((ticket: {
+                    id: number
+                }) => `/api/tickets/${ticket.id}`) || [];
 
                 console.log('Existing favorites:', {
                     masters: existingMasters,
@@ -861,11 +867,9 @@ export default function OrderPage() {
 
         if (imagePath.startsWith('/images/profile_photos/')) {
             return `${API_BASE_URL}${imagePath}`;
-        }
-        else if (imagePath.startsWith('http')) {
+        } else if (imagePath.startsWith('http')) {
             return imagePath;
-        }
-        else {
+        } else {
             return `${API_BASE_URL}/images/profile_photos/${imagePath}`;
         }
     };
@@ -877,11 +881,9 @@ export default function OrderPage() {
 
         if (imagePath.startsWith('/images/ticket_photos/')) {
             return `${API_BASE_URL}${imagePath}`;
-        }
-        else if (imagePath.startsWith('http')) {
+        } else if (imagePath.startsWith('http')) {
             return imagePath;
-        }
-        else {
+        } else {
             return `${API_BASE_URL}/images/ticket_photos/${imagePath}`;
         }
     };
@@ -1064,10 +1066,14 @@ export default function OrderPage() {
         }
     };
 
-    const fetchUserInfo = async (userId: number, userType: 'client' | 'master' | null): Promise<{ name: string; rating: number; image: string }> => {
+    const fetchUserInfo = async (userId: number, userType: 'client' | 'master' | null): Promise<{
+        name: string;
+        rating: number;
+        image: string
+    }> => {
         try {
             if (!userId || userId === 0) {
-                return { name: 'Пользователь', rating: 0, image: '' };
+                return {name: 'Пользователь', rating: 0, image: ''};
             }
 
             const headers: HeadersInit = {
@@ -1104,11 +1110,11 @@ export default function OrderPage() {
 
             console.log(`Fetching user info from filtered URL: ${url}`);
 
-            const response = await fetch(url, { headers });
+            const response = await fetch(url, {headers});
 
             if (!response.ok) {
                 console.log(`Failed to fetch users list: ${response.status}`);
-                return { name: 'Пользователь', rating: 0, image: '' };
+                return {name: 'Пользователь', rating: 0, image: ''};
             }
 
             const usersData = await response.json();
@@ -1134,17 +1140,17 @@ export default function OrderPage() {
 
             // Если пользователь не найден, возвращаем fallback
             console.log(`User ${userId} not found in list`);
-            return { name: 'Пользователь', rating: 0, image: '' };
+            return {name: 'Пользователь', rating: 0, image: ''};
 
         } catch (error) {
             console.error('Error fetching user info:', error);
-            return { name: 'Пользователь', rating: 0, image: '' };
+            return {name: 'Пользователь', rating: 0, image: ''};
         }
     };
 
     const formatUserInfo = (userData: UserData): { name: string; rating: number; image: string } => {
         if (!userData) {
-            return { name: 'Пользователь', rating: 0, image: '' };
+            return {name: 'Пользователь', rating: 0, image: ''};
         }
 
         const name = `${userData.name || ''} ${userData.surname || ''}`.trim() || 'Пользователь';
@@ -1154,17 +1160,15 @@ export default function OrderPage() {
         if (userData.image) {
             if (userData.image.startsWith('/images/profile_photos/')) {
                 image = `${API_BASE_URL}${userData.image}`;
-            }
-            else if (userData.image.startsWith('http')) {
+            } else if (userData.image.startsWith('http')) {
                 image = userData.image;
-            }
-            else {
+            } else {
                 image = `${API_BASE_URL}/images/profile_photos/${userData.image}`;
             }
         }
 
-        console.log('User info found:', { name, rating, image });
-        return { name, rating, image };
+        console.log('User info found:', {name, rating, image});
+        return {name, rating, image};
     };
 
     const formatDate = (dateString: string) => {
@@ -1205,6 +1209,14 @@ export default function OrderPage() {
     };
 
     const handleRespondClick = async (authorId: number) => {
+        const token = getAuthToken();
+
+        // Если пользователь не авторизован, показываем модалку авторизации
+        if (!token) {
+            setShowAuthModal(true);
+            return;
+        }
+
         try {
             const chat = await createChatWithAuthor(authorId, order?.id);
 
@@ -1252,51 +1264,118 @@ export default function OrderPage() {
     };
 
     const handleProfileClick = async (userId: number) => {
-        console.log('Profile click details:', {
-            userId,
-            ticketType,
-            currentUserRole: getUserRole()
-        });
-
-        const token = getAuthToken();
-
-        if (!token) {
-            setShowAuthModal(true);
-            return;
-        }
+        console.log('Profile click for user:', userId);
 
         try {
-            const { role } = await fetchUserWithRole(userId);
+            const userInfo = await getUserInfoWithoutAuth(userId);
 
-            console.log('User role determined:', role);
-
-            if (role === 'master') {
-                navigate(`/master/${userId}`);
-            } else if (role === 'client') {
-                navigate(`/client/${userId}`);
+            if (userInfo && userInfo.roles) {
+                if (userInfo.roles.includes('ROLE_MASTER')) {
+                    console.log('Navigating to master profile');
+                    navigate(`/master/${userId}`); // Используйте navigate вместо window.location.href
+                } else if (userInfo.roles.includes('ROLE_CLIENT')) {
+                    console.log('Navigating to client profile');
+                    navigate(`/client/${userId}`); // Используйте navigate вместо window.location.href
+                } else {
+                    console.log('Unknown role, defaulting to master');
+                    navigate(`/master/${userId}`); // Используйте navigate вместо window.location.href
+                }
             } else {
-                console.warn('Unknown user role, defaulting to master profile');
-                navigate(`/master/${userId}`);
+                console.log('Could not determine role, defaulting to master');
+                navigate(`/master/${userId}`); // Используйте navigate вместо window.location.href
             }
         } catch (error) {
-            console.error('Error determining user role:', error);
-
-            // Fallback логика на основе ticketType
-            if (ticketType === 'client') {
-                navigate(`/client/${userId}`);
-            } else if (ticketType === 'master') {
-                navigate(`/master/${userId}`);
-            } else {
-                // Если тип не указан, пробуем определить по текущей роли пользователя
-                const currentUserRole = getUserRole();
-                if (currentUserRole === 'master') {
-                    navigate(`/client/${userId}`);
-                } else {
-                    navigate(`/master/${userId}`);
-                }
-            }
+            console.error('Error determining role:', error);
+            navigate(`/master/${userId}`); // Используйте navigate вместо window.location.href
         }
     };
+
+    const getUserInfoWithoutAuth = async (userId: number): Promise<any> => {
+        try {
+            console.log(`Fetching user info for ID: ${userId} without auth`);
+
+            const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                return await response.json();
+            } else {
+                console.log(`User info fetch failed: ${response.status}`);
+                throw new Error(`Failed to fetch user info: ${response.status}`);
+            }
+        } catch (error) {
+            console.error('Error fetching user info:', error);
+            throw error;
+        }
+    };
+
+    // Добавим функцию для получения информации о пользователе
+    // const getUserInfo = async (userId: number): Promise<any> => {
+    //     try {
+    //         const headers: HeadersInit = {
+    //             'Content-Type': 'application/json',
+    //             'Accept': 'application/json',
+    //         };
+    //
+    //         // Пробуем с токеном если есть
+    //         const token = getAuthToken();
+    //         if (token) {
+    //             headers['Authorization'] = `Bearer ${token}`;
+    //         }
+    //
+    //         console.log(`Fetching user info for ID: ${userId}`);
+    //         const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
+    //             headers: headers,
+    //         });
+    //
+    //         if (!response.ok) {
+    //             throw new Error(`Failed to fetch user info: ${response.status}`);
+    //         }
+    //
+    //         const userData = await response.json();
+    //         console.log('User data fetched successfully:', {
+    //             id: userData.id,
+    //             name: userData.name,
+    //             surname: userData.surname,
+    //             roles: userData.roles
+    //         });
+    //
+    //         return userData;
+    //     } catch (error) {
+    //         console.error('Error in getUserInfo:', error);
+    //         throw error;
+    //     }
+    // };
+
+// Добавим вспомогательную функцию для получения данных тикета
+//     const getTicketData = async (ticketId: number): Promise<ApiTicket | null> => {
+//         try {
+//             const headers: HeadersInit = {
+//                 'Content-Type': 'application/json',
+//             };
+//
+//             const token = getAuthToken();
+//             if (token) {
+//                 headers['Authorization'] = `Bearer ${token}`;
+//             }
+//
+//             const response = await fetch(`${API_BASE_URL}/api/tickets/${ticketId}`, {
+//                 headers: headers,
+//             });
+//
+//             if (response.ok) {
+//                 return await response.json();
+//             }
+//             return null;
+//         } catch (error) {
+//             console.error('Error fetching ticket data:', error);
+//             return null;
+//         }
+//     };
 
     if (isLoading) return <div className={styles.loading}>Загрузка...</div>;
     if (error) return (
@@ -1320,7 +1399,7 @@ export default function OrderPage() {
                 </div>
                 <span className={styles.category}>{order.category}</span>
                 <div className={styles.priceSection}>
-                    <span className={styles.price}>{order.price} TJS {order.unit}</span>
+                    <span className={styles.price}>{order.price} TJS, {order.unit}</span>
                 </div>
 
                 <section className={styles.section}>
@@ -1331,7 +1410,8 @@ export default function OrderPage() {
                 <section className={styles.section}>
                     <div className={styles.address}>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="#3A54DA" strokeWidth="2"/>
+                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"
+                                  stroke="#3A54DA" strokeWidth="2"/>
                             <circle cx="12" cy="9" r="2.5" stroke="#3A54DA" strokeWidth="2"/>
                         </svg>
                         {order.address}
@@ -1382,7 +1462,7 @@ export default function OrderPage() {
                             src={order.authorImage || '../fonTest1.png'}
                             alt="authorImage"
                             onClick={() => handleProfileClick(order.authorId)}
-                            style={{ cursor: 'pointer' }}
+                            style={{cursor: 'pointer'}}
                             onError={(e) => {
                                 (e.target as HTMLImageElement).src = '../fonTest1.png';
                             }}
@@ -1391,7 +1471,7 @@ export default function OrderPage() {
                             <div className={styles.authorInfo}>
                                 <h3
                                     onClick={() => handleProfileClick(order.authorId)}
-                                    style={{ cursor: 'pointer' }}
+                                    style={{cursor: 'pointer'}}
                                 >
                                     {order.author}
                                 </h3>
@@ -1404,10 +1484,13 @@ export default function OrderPage() {
                 <section className={styles.rate}>
                     <div className={styles.rate_wrap}>
                         <div className={styles.rate_item}>
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                 xmlns="http://www.w3.org/2000/svg">
                                 <g clipPath="url(#clip0_324_2272)">
                                     <g clipPath="url(#clip1_324_2272)">
-                                        <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                        <path
+                                            d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z"
+                                            stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
                                         <path d="M12 19V18.98" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
                                     </g>
                                 </g>
@@ -1423,9 +1506,12 @@ export default function OrderPage() {
                             <p>{rating}</p>
                         </div>
                         <div className={styles.rate_item}>
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                 xmlns="http://www.w3.org/2000/svg">
                                 <g clipPath="url(#clip0_214_6840)">
-                                    <path d="M12 1.48047C6.2 1.48047 1.5 5.75047 1.5 11.0005C1.52866 13.0157 2.23294 14.9631 3.5 16.5305L2.5 21.5305L9.16 20.2005C10.1031 20.4504 11.0744 20.5781 12.05 20.5805C17.85 20.5805 22.55 16.3005 22.55 11.0305C22.55 5.76047 17.8 1.48047 12 1.48047Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                    <path
+                                        d="M12 1.48047C6.2 1.48047 1.5 5.75047 1.5 11.0005C1.52866 13.0157 2.23294 14.9631 3.5 16.5305L2.5 21.5305L9.16 20.2005C10.1031 20.4504 11.0744 20.5781 12.05 20.5805C17.85 20.5805 22.55 16.3005 22.55 11.0305C22.55 5.76047 17.8 1.48047 12 1.48047Z"
+                                        stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
                                 </g>
                                 <defs>
                                     <clipPath id="clip0_214_6840">
@@ -1436,11 +1522,15 @@ export default function OrderPage() {
                             <p>{reviewCount}</p>
                         </div>
                         <div className={styles.rate_item}>
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                 xmlns="http://www.w3.org/2000/svg">
                                 <g clipPath="url(#clip0_214_6844)">
                                     <g clipPath="url(#clip1_214_6844)">
-                                        <path d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                        <path d="M6.27002 11.9997L10.09 15.8197L17.73 8.17969" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                        <path
+                                            d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z"
+                                            stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                        <path d="M6.27002 11.9997L10.09 15.8197L17.73 8.17969" stroke="#3A54DA"
+                                              strokeWidth="2" strokeMiterlimit="10"/>
                                     </g>
                                 </g>
                                 <defs>
@@ -1463,7 +1553,8 @@ export default function OrderPage() {
                                 onClick={handleLikeClick}
                                 title={isLiked ? "Удалить из избранного" : "Добавить в избранное"}
                             >
-                                <svg width="64" height="44" viewBox="0 0 64 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <svg width="64" height="44" viewBox="0 0 64 44" fill="none"
+                                     xmlns="http://www.w3.org/2000/svg">
                                     <rect
                                         x="1"
                                         y="1"
@@ -1491,7 +1582,8 @@ export default function OrderPage() {
                                 </svg>
                             </div>
 
-                            <button className={styles.respondButton} onClick={() => order?.authorId && handleRespondClick(order.authorId)}>
+                            <button className={styles.respondButton}
+                                    onClick={() => order?.authorId && handleRespondClick(order.authorId)}>
                                 Откликнуться
                             </button>
                         </div>
@@ -1501,7 +1593,8 @@ export default function OrderPage() {
                             onClick={() => {
                                 const token = getAuthToken();
                                 if (!token) {
-                                    handleRespondClick(order?.authorId);
+
+                                    setShowAuthModal(true);
                                 } else {
                                     handleLeaveReview();
                                 }
@@ -1583,10 +1676,14 @@ export default function OrderPage() {
                                             className={`${styles.star} ${star <= selectedStars ? styles.active : ''}`}
                                             onClick={() => handleStarClick(star)}
                                         >
-                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"
+                                                 xmlns="http://www.w3.org/2000/svg">
                                                 <g clipPath="url(#clip0_248_13358)">
-                                                    <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10"/>
-                                                    <path d="M12 19V18.98" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10"/>
+                                                    <path
+                                                        d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z"
+                                                        stroke="currentColor" strokeWidth="2" strokeMiterlimit="10"/>
+                                                    <path d="M12 19V18.98" stroke="currentColor" strokeWidth="2"
+                                                          strokeMiterlimit="10"/>
                                                 </g>
                                                 <defs>
                                                     <clipPath id="clip0_248_13358">
@@ -1606,12 +1703,17 @@ export default function OrderPage() {
                                 className={styles.closeButton}
                                 onClick={handleCloseModal}
                             >
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                     xmlns="http://www.w3.org/2000/svg">
                                     <g clipPath="url(#clip0_551_2371)">
                                         <g clipPath="url(#clip1_551_2371)">
-                                            <path d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z" stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
-                                            <path d="M16.7705 7.22998L7.23047 16.77" stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
-                                            <path d="M7.23047 7.22998L16.7705 16.77" stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
+                                            <path
+                                                d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z"
+                                                stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
+                                            <path d="M16.7705 7.22998L7.23047 16.77" stroke="#101010" strokeWidth="2"
+                                                  strokeMiterlimit="10"/>
+                                            <path d="M7.23047 7.22998L16.7705 16.77" stroke="#101010" strokeWidth="2"
+                                                  strokeMiterlimit="10"/>
                                         </g>
                                     </g>
                                     <defs>
@@ -1630,11 +1732,16 @@ export default function OrderPage() {
                                 onClick={handleSubmitReview}
                             >
                                 Отправить
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                     xmlns="http://www.w3.org/2000/svg">
                                     <g clipPath="url(#clip0_551_2758)">
-                                        <path d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z" stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
-                                        <path d="M6.26953 12H17.7295" stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
-                                        <path d="M12.96 7.22998L17.73 12L12.96 16.77" stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
+                                        <path
+                                            d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z"
+                                            stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
+                                        <path d="M6.26953 12H17.7295" stroke="white" strokeWidth="2"
+                                              strokeMiterlimit="10"/>
+                                        <path d="M12.96 7.22998L17.73 12L12.96 16.77" stroke="white" strokeWidth="2"
+                                              strokeMiterlimit="10"/>
                                     </g>
                                     <defs>
                                         <clipPath id="clip0_551_2758">

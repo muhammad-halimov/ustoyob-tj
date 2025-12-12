@@ -122,7 +122,7 @@ const EditServicePage = () => {
 
     const [manualAddress, setManualAddress] = useState<string>('');
 
-    const API_BASE_URL = 'https://admin.ustoyob.tj';
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     useEffect(() => {
         // Загружаем данные для формы

@@ -314,7 +314,7 @@ function TicketsPage() {
                             {/*</div>*/}
                             <div className={styles.resultHeader}>
                                 <h3>{ticket.title}</h3>
-                                <span className={styles.price}>{ticket.price.toLocaleString('ru-RU')} {ticket.unit}</span>
+                                <span className={styles.price}>{ticket.price.toLocaleString('ru-RU')} TJS, {ticket.unit}</span>
                             </div>
                             <p className={styles.description}>{ticket.description}</p>
                             <div className={styles.resultDetails}>

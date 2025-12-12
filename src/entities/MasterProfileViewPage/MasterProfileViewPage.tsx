@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
 import { getAuthToken } from '../../utils/auth';
 import styles from '../../pages/profile/ProfilePage.module.scss';
-import { fetchUserById } from "../../utils/api.ts";
+// import { fetchUserById } from "../../utils/api.ts";
 import AuthModal from '../../shared/ui/AuthModal/AuthModal';
 
 // Базовый интерфейс для пользователя
@@ -12,7 +12,14 @@ interface UserBasicInfo {
     name?: string;
     surname?: string;
     rating?: number;
-    image?: string;
+    image?: string | null;
+}
+
+interface UserUpdateResponse {
+    id: number;
+    rating: number;
+    updatedAt: string;
+    [key: string]: unknown;
 }
 
 // Интерфейсы данных
@@ -100,14 +107,28 @@ interface ServiceTicket {
 // Интерфейсы для API ответов
 interface ReviewApiResponse {
     id: number;
+    type?: string;
     rating?: number;
     description?: string;
     forClient?: boolean;
     services?: { id: number; title: string };
     images?: Array<{ id: number; image: string }>;
-    master?: { id: number };
-    client?: { id: number };
+    master?: {
+        id: number;
+        name?: string;
+        surname?: string;
+        email?: string;
+        image?: string;
+    };
+    client?: {
+        id: number;
+        name?: string;
+        surname?: string;
+        email?: string;
+        image?: string;
+    };
     createdAt?: string;
+    [key: string]: unknown;
 }
 
 interface ServiceTicketResponse {
@@ -186,12 +207,11 @@ interface UserAddressApiData {
     [key: string]: unknown;
 }
 
-const API_BASE_URL = 'https://admin.ustoyob.tj';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 function MasterProfileViewPage() {
     const { id } = useParams<{ id: string }>();
     const masterId = id ? parseInt(id) : null;
-    const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(true);
     const [profileData, setProfileData] = useState<ProfileData | null>(null);
     const [reviews, setReviews] = useState<Review[]>([]);
@@ -199,6 +219,198 @@ function MasterProfileViewPage() {
     const [showAllReviews, setShowAllReviews] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [services, setServices] = useState<ServiceTicket[]>([]);
+
+    // Функция для расчета среднего рейтинга из отзывов
+    const calculateAverageRating = useCallback((reviewsList: Review[]): number => {
+        if (!reviewsList || reviewsList.length === 0) return 0;
+
+        // Фильтруем только валидные рейтинги
+        const validReviews = reviewsList.filter(review => {
+            return review.rating !== undefined &&
+                review.rating !== null &&
+                !isNaN(review.rating) &&
+                review.rating >= 0 &&
+                review.rating <= 5;
+        });
+
+        if (validReviews.length === 0) return 0;
+
+        const totalRating = validReviews.reduce((sum, review) => sum + review.rating, 0);
+        const averageRating = totalRating / validReviews.length;
+
+        // Округляем до одного знака после запятой, но не меньше 0.1
+        const roundedRating = Math.max(0.1, Math.round(averageRating * 10) / 10);
+
+        return Math.min(5, roundedRating); // Ограничиваем максимум 5
+    }, []);
+
+    // Функция для обновления рейтинга пользователя на сервере
+    const updateUserRating = async (userId: number, newRating: number): Promise<boolean> => {
+        const MAX_RETRIES = 3;
+        const RETRY_DELAY = 1000; // 1 секунда
+
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                const token = getAuthToken();
+
+                if (!token) {
+                    console.warn(`Attempt ${attempt}: No token available for updating rating`);
+                    if (attempt === MAX_RETRIES) return false;
+                    await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+                    continue;
+                }
+
+                // Валидация данных
+                if (newRating < 0 || newRating > 5) {
+                    console.error(`Invalid rating value: ${newRating}. Must be between 0 and 5.`);
+                    return false;
+                }
+
+                console.log(`Attempt ${attempt}: Updating rating for user ${userId} to ${newRating}`);
+
+                const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/merge-patch+json',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        rating: newRating,
+                        updatedAt: new Date().toISOString()
+                    }),
+                });
+
+                if (response.status === 401) {
+                    console.warn(`Attempt ${attempt}: Unauthorized to update rating`);
+                    if (attempt === MAX_RETRIES) return false;
+                    await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+                    continue;
+                }
+
+                if (response.status === 403) {
+                    console.error(`Attempt ${attempt}: Forbidden to update rating`);
+                    return false;
+                }
+
+                if (response.status === 404) {
+                    console.error(`Attempt ${attempt}: User ${userId} not found`);
+                    return false;
+                }
+
+                if (response.status === 422) {
+                    const errorData = await response.json();
+                    console.error(`Attempt ${attempt}: Validation error:`, errorData);
+                    return false;
+                }
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`Attempt ${attempt}: Failed to update rating: ${response.status}`, errorText);
+                    if (attempt === MAX_RETRIES) return false;
+                    await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+                    continue;
+                }
+
+                const updatedUser: UserUpdateResponse = await response.json();
+                console.log(`Successfully updated rating for user ${userId}: ${updatedUser.rating} (attempt ${attempt})`);
+
+                // Проверяем, что рейтинг действительно обновился
+                if (Math.abs(updatedUser.rating - newRating) > 0.01) {
+                    console.warn(`Rating mismatch: sent ${newRating}, received ${updatedUser.rating}`);
+                }
+
+                return true;
+
+            } catch (error) {
+                console.error(`Attempt ${attempt}: Error updating user rating:`, error);
+                if (attempt === MAX_RETRIES) return false;
+                await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+            }
+        }
+
+        return false;
+    };
+
+    // Функция для обработки загрузки отзывов с обновлением рейтинга
+    const processReviewsAndUpdateRating = useCallback(async (reviewsList: Review[], userId: number) => {
+        try {
+            // Рассчитываем новый средний рейтинг
+            const newAverageRating = calculateAverageRating(reviewsList);
+
+            console.log(`Calculated new average rating: ${newAverageRating} from ${reviewsList.length} reviews`);
+
+            // Получаем текущий рейтинг из профиля
+            const currentRating = profileData?.rating || 0;
+
+            // Обновляем только если есть значительные изменения (больше 0.1) или если отзывов не было
+            const hasSignificantChange = Math.abs(newAverageRating - currentRating) > 0.1;
+            const hadNoReviewsBefore = reviewsList.length > 0 && (currentRating === 0 || !profileData?.reviews);
+
+            if (hasSignificantChange || hadNoReviewsBefore || reviewsList.length === 0) {
+                // Обновляем локальное состояние профиля
+                if (profileData) {
+                    setProfileData(prev => prev ? {
+                        ...prev,
+                        rating: newAverageRating,
+                        reviews: reviewsList.length
+                    } : null);
+                }
+
+                // Обновляем рейтинг на сервере
+                if (newAverageRating >= 0 && newAverageRating <= 5) {
+                    const updateSuccess = await updateUserRating(userId, newAverageRating);
+
+                    if (updateSuccess) {
+                        console.log(`Rating successfully updated to ${newAverageRating} for user ${userId}`);
+
+                        // Обновляем список отзывов с новыми данными
+                        setReviews(prevReviews =>
+                            prevReviews.map(review => ({
+                                ...review,
+                                user: {
+                                    ...review.user,
+                                    rating: newAverageRating
+                                }
+                            }))
+                        );
+                    } else {
+                        console.warn(`Failed to update rating on server for user ${userId}, but local state updated`);
+                    }
+                } else {
+                    console.error(`Invalid calculated rating: ${newAverageRating}. Skipping update.`);
+                }
+            } else {
+                console.log(`Rating change is insignificant (${newAverageRating} vs ${currentRating}). Skipping update.`);
+            }
+
+        } catch (error) {
+            console.error('Error in processReviewsAndUpdateRating:', error);
+        }
+    }, [calculateAverageRating, profileData]);
+
+    // Функция debounce
+    const debounce = useCallback(<T extends (...args: unknown[]) => unknown>(
+        func: T,
+        delay: number
+    ): ((...args: Parameters<T>) => void) => {
+        let timeoutId: NodeJS.Timeout;
+        return (...args: Parameters<T>) => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => func(...args), delay);
+        };
+    }, []);
+
+    // Debounced версия обновления рейтинга
+    const debouncedUpdateRating = useCallback(debounce(async (...args: unknown[]) => {
+        if (args.length >= 2 && typeof args[0] === 'number' && Array.isArray(args[1])) {
+            const masterId = args[0] as number;
+            const reviewsList = args[1] as Review[];
+            if (masterId && reviewsList.length > 0) {
+                await processReviewsAndUpdateRating(reviewsList, masterId);
+            }
+        }
+    }, 500), [processReviewsAndUpdateRating]);
 
     useEffect(() => {
         if (masterId) {
@@ -214,6 +426,11 @@ function MasterProfileViewPage() {
         }
     }, [profileData?.id]);
 
+    useEffect(() => {
+        if (reviews.length > 0 && masterId) {
+            debouncedUpdateRating(masterId, reviews);
+        }
+    }, [reviews, masterId, debouncedUpdateRating]);
 
     const getAddressId = (address: UserAddressApiData | null | undefined): number => {
         if (!address) return Date.now();
@@ -225,16 +442,13 @@ function MasterProfileViewPage() {
         return Date.now();
     };
 
-    // Функция для получения названия из объекта или строки
     const getTitle = (item: unknown): string => {
         if (!item) return '';
 
-        // Если это строка
         if (typeof item === 'string') {
             return item.trim();
         }
 
-        // Если это объект с полем title
         if (typeof item === 'object' && item !== null && 'title' in item) {
             const titleValue = (item as { title: unknown }).title;
             if (typeof titleValue === 'string') {
@@ -245,9 +459,7 @@ function MasterProfileViewPage() {
         return '';
     };
 
-    // Функция для форматирования адреса
     const formatAddress = (address: UserAddressApiData): FormattedAddress => {
-        // Проверяем, что адрес это объект
         if (!address || typeof address !== 'object' || address === null) {
             return {
                 id: Date.now(),
@@ -264,7 +476,6 @@ function MasterProfileViewPage() {
         const community = getTitle(address.community);
         const village = getTitle(address.village);
 
-        // Собираем полный адрес из непустых частей
         const addressParts = [
             province,
             city,
@@ -290,15 +501,12 @@ function MasterProfileViewPage() {
         };
     };
 
-    // Функция для получения всех адресов мастера
     const getAllAddresses = (addresses: unknown): FormattedAddress[] => {
-        // Проверяем, что addresses это массив
         if (!addresses || !Array.isArray(addresses) || addresses.length === 0) {
             return [];
         }
 
         return addresses.map((item: unknown) => {
-            // Проверяем, что это объект
             if (!item || typeof item !== 'object' || item === null) {
                 return {
                     id: Date.now(),
@@ -306,7 +514,6 @@ function MasterProfileViewPage() {
                 };
             }
 
-            // Приводим к типу UserAddressApiData
             const address = item as UserAddressApiData;
             return formatAddress(address);
         });
@@ -317,27 +524,27 @@ function MasterProfileViewPage() {
         try {
             const token = getAuthToken();
 
-            if (!token) {
-                console.log('No token available for fetching services');
-                setServices([]);
-                return;
+            const headers: HeadersInit = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            };
+
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
             }
 
-            // Используем правильный endpoint для получения услуг (тикетов) мастера
             const endpoint = `/api/tickets?service=true&master.id=${masterId}&active=true`;
             console.log('Fetching master services from:', endpoint);
 
             const response = await fetch(`${API_BASE_URL}${endpoint}`, {
                 method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
+                headers: headers,
             });
 
-            if (response.status === 401) {
-                navigate('/');
+            // Обработка ошибок авторизации
+            if (response.status === 401 || response.status === 403) {
+                console.log('Access denied for services, showing empty list');
+                setServices([]);
                 return;
             }
 
@@ -352,25 +559,20 @@ function MasterProfileViewPage() {
 
             let servicesArray: ServiceTicketResponse[] = [];
 
-            // Обрабатываем разные форматы ответа
             if (Array.isArray(servicesData)) {
                 servicesArray = servicesData;
             } else if (servicesData && typeof servicesData === 'object') {
-                // Проверяем, есть ли hydra:member
                 if (servicesData['hydra:member'] && Array.isArray(servicesData['hydra:member'])) {
                     servicesArray = servicesData['hydra:member'];
                 } else if (servicesData.id) {
-                    // Если это один объект
                     servicesArray = [servicesData];
                 }
             }
 
             console.log(`Found ${servicesArray.length} services for master ${masterId}`);
 
-            // Преобразуем услуги в нужный формат
             const masterServices: ServiceTicket[] = servicesArray
                 .filter(service => {
-                    // Фильтруем только услуги, принадлежащие текущему мастеру
                     const isService = service.service === true;
                     const belongsToMaster = service.master?.id === masterId;
                     const isActive = service.active !== false;
@@ -399,7 +601,6 @@ function MasterProfileViewPage() {
         }
     };
 
-    // Функция для получения URL аватара
     const getAvatarUrl = async (userData: UserApiData): Promise<string | null> => {
         if (!userData || !userData.image) return null;
 
@@ -416,47 +617,81 @@ function MasterProfileViewPage() {
         return null;
     };
 
-    // Загрузка данных мастера
     const fetchMasterData = async (masterId: number) => {
         try {
             setIsLoading(true);
             const token = getAuthToken();
 
-            if (!token) {
-                navigate('/');
+            const headers: HeadersInit = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            };
+
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            console.log(`Fetching master ${masterId}...`);
+
+            const response = await fetch(`${API_BASE_URL}/api/users/${masterId}`, {
+                method: 'GET',
+                headers: headers,
+            });
+
+            // Обработка ошибок авторизации
+            if (response.status === 401 || response.status === 403) {
+                console.log(`Access denied (${response.status}) for user ${masterId}`);
+                // Можно попробовать публичный эндпоинт или продолжить без данных
+                // Но если API возвращает данные даже при 401, оставляем как есть
+            }
+
+            if (!response.ok) {
+                console.error(`Failed to fetch master ${masterId}: ${response.status} ${response.statusText}`);
+
+                // Показываем базовую информацию даже при ошибке
+                const fallbackData: ProfileData = {
+                    id: masterId.toString(),
+                    fullName: 'Мастер',
+                    specialty: 'Специалист',
+                    rating: 0,
+                    reviews: 0,
+                    avatar: null,
+                    education: [],
+                    workExamples: [],
+                    workArea: 'Адрес не указан',
+                    addresses: [],
+                    services: []
+                };
+
+                setProfileData(fallbackData);
                 return;
             }
 
-            const rawMasterData = await fetchUserById(masterId);
+            const rawMasterData = await response.json();
 
             if (!rawMasterData) {
-                console.error('Master not found');
+                console.error('Empty response from server');
                 setProfileData(null);
                 return;
             }
 
             console.log('Master data received:', rawMasterData);
 
-            // Приводим данные к UserApiData
             const masterData = rawMasterData as UserApiData;
 
             const avatarUrl = await getAvatarUrl(masterData);
 
-            // Получаем все адреса мастера
             const formattedAddresses = getAllAddresses(masterData.addresses);
 
-            // Берем первый адрес для отображения в основной информации
             const primaryAddress = formattedAddresses.length > 0
                 ? formattedAddresses[0].fullAddress
                 : 'Адрес не указан';
 
-            // Преобразуем education в правильный формат
             let educationArray: EducationApiData[] = [];
             if (masterData.education && Array.isArray(masterData.education)) {
                 educationArray = masterData.education as EducationApiData[];
             }
 
-            // Получаем специальность
             let specialty = 'Специальность';
             if (masterData.occupation && Array.isArray(masterData.occupation)) {
                 const occupations = masterData.occupation as Occupation[];
@@ -489,205 +724,174 @@ function MasterProfileViewPage() {
         }
     };
 
-    // Вспомогательная функция для создания UserBasicInfo из UserApiData
-    const createUserBasicInfo = async (userData: UserApiData | null, defaultName: string = 'Пользователь'): Promise<UserBasicInfo> => {
-        if (!userData) {
-            return {
-                id: 0,
-                name: defaultName,
-                surname: '',
-                rating: 0
-            };
-        }
-
-        return {
-            id: userData.id,
-            email: userData.email || '',
-            name: userData.name || defaultName,
-            surname: userData.surname || '',
-            rating: typeof userData.rating === 'number' ? userData.rating : 0,
-            image: await getAvatarUrl(userData) || ''
-        };
+    const checkImageExists = (url: string): Promise<boolean> => {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve(true);
+            img.onerror = () => resolve(false);
+            img.src = url;
+        });
     };
 
-    // Загрузка отзывов
+    const transformEducation = (education: EducationApiData[]): Education[] => {
+        return education.map(edu => ({
+            id: edu.id?.toString() || Date.now().toString(),
+            institution: edu.uniTitle || '',
+            faculty: edu.faculty || '',
+            specialty: edu.occupation?.map((occ: Occupation) => occ.title).join(', ') || '',
+            startYear: edu.beginning?.toString() || '',
+            endYear: edu.ending?.toString() || '',
+            currentlyStudying: !edu.graduated
+        }));
+    };
+
+    // Загрузка отзывов с обновлением рейтинга
     const fetchReviews = async (masterId: number) => {
         try {
             setReviewsLoading(true);
             const token = getAuthToken();
 
-            if (!token) {
-                console.log('No token available for fetching reviews');
-                setReviews([]);
-                return;
+            const headers: HeadersInit = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            };
+
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
             }
 
             console.log('Fetching reviews for master ID:', masterId);
+            console.log('Master ID type:', typeof masterId, 'value:', masterId);
 
-            const endpoint = `/api/reviews?master=${masterId}`;
-            console.log('Fetching reviews from endpoint:', endpoint);
-
+            const endpoint = `/api/reviews`;
             const response = await fetch(`${API_BASE_URL}${endpoint}`, {
                 method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
+                headers: headers,
             });
 
-            if (response.status === 401) {
-                console.log('Unauthorized, redirecting to login');
-                navigate('/');
+            // Обработка ошибок авторизации
+            if (response.status === 401 || response.status === 403) {
+                console.log('Access denied for reviews, showing empty list');
+                setReviews([]);
+                await processReviewsAndUpdateRating([], masterId);
                 return;
             }
 
             if (response.status === 404) {
                 console.log('No reviews found (404)');
                 setReviews([]);
+                await processReviewsAndUpdateRating([], masterId);
                 return;
             }
 
             if (!response.ok) {
                 console.error(`Failed to fetch reviews: ${response.status} ${response.statusText}`);
                 setReviews([]);
+                await processReviewsAndUpdateRating([], masterId);
                 return;
             }
 
             const reviewsData = await response.json();
-            console.log('Raw reviews data structure:', reviewsData);
+            console.log('Reviews data received:', reviewsData);
 
             let reviewsArray: ReviewApiResponse[] = [];
 
             if (Array.isArray(reviewsData)) {
                 reviewsArray = reviewsData;
-                console.log(`Got ${reviewsArray.length} reviews as array`);
             } else if (reviewsData && typeof reviewsData === 'object') {
                 if (reviewsData['hydra:member'] && Array.isArray(reviewsData['hydra:member'])) {
                     reviewsArray = reviewsData['hydra:member'];
-                    console.log(`Got ${reviewsArray.length} reviews from hydra:member`);
                 } else if (reviewsData.id) {
                     reviewsArray = [reviewsData];
-                    console.log('Got single review object');
-                } else {
-                    console.log('No reviews found in response');
                 }
             }
 
-            if (reviewsArray.length > 0) {
-                console.log('Processing reviews:', reviewsArray);
+            console.log(`Total reviews found: ${reviewsArray.length}`);
 
-                const transformedReviews = await Promise.all(
-                    reviewsArray.map(async (review: ReviewApiResponse) => {
-                        console.log('Processing review:', review);
+            // Детальное логирование каждого отзыва
+            reviewsArray.forEach((review, index) => {
+                console.log(`Review ${index}:`, {
+                    id: review.id,
+                    type: review.type,
+                    master: review.master,
+                    masterIdInReview: review.master?.id,
+                    requestedMasterId: masterId,
+                    isMasterType: review.type === "master",
+                    masterIdsMatch: review.master?.id === masterId
+                });
+            });
 
-                        // Получаем данные клиента (автора отзыва)
-                        let clientData: UserApiData | null = null;
-                        if (review.client?.id) {
-                            try {
-                                clientData = await fetchUserById(review.client.id);
-                            } catch (error) {
-                                console.error('Error fetching client data:', error);
-                            }
-                        }
-
-                        // Получаем данные мастера
-                        let masterData: UserApiData | null = null;
-                        if (review.master?.id) {
-                            try {
-                                masterData = await fetchUserById(review.master.id);
-                            } catch (error) {
-                                console.error('Error fetching master data:', error);
-                            }
-                        }
-
-                        // Создаем базовую информацию о пользователях
-                        const clientBasicInfo = await createUserBasicInfo(clientData, 'Клиент');
-                        const masterBasicInfo = await createUserBasicInfo(masterData, 'Мастер');
-
-                        // Определяем кто оставил отзыв (клиент или другой мастер)
-                        const isReviewForCurrentMaster = review.master?.id === masterId;
-
-                        // Если отзыв о текущем мастере, то автор - клиент
-                        if (isReviewForCurrentMaster) {
-                            const author = clientBasicInfo;
-                            const masterProfile = masterBasicInfo;
-
-                            const transformedReview: Review = {
-                                id: review.id,
-                                rating: review.rating || 0,
-                                description: review.description || '',
-                                forReviewer: review.forClient || false,
-                                services: review.services || { id: 0, title: 'Услуга' },
-                                images: review.images || [],
-                                user: masterProfile,
-                                reviewer: author,
-                                vacation: profileData?.specialty,
-                                worker: `${author.name || ''} ${author.surname || ''}`.trim() || 'Пользователь',
-                                date: review.createdAt ?
-                                    new Date(review.createdAt).toLocaleDateString('ru-RU', {
-                                        day: 'numeric',
-                                        month: 'long',
-                                        year: 'numeric'
-                                    }) :
-                                    getFormattedDate()
-                            };
-
-                            return transformedReview;
-                        } else {
-                            // Отзыв о другом мастере или другой тип отзыва
-                            const author = masterBasicInfo.id !== 0 ? masterBasicInfo : clientBasicInfo;
-                            const targetUser = clientBasicInfo.id !== 0 ? clientBasicInfo : masterBasicInfo;
-
-                            const transformedReview: Review = {
-                                id: review.id,
-                                rating: review.rating || 0,
-                                description: review.description || '',
-                                forReviewer: review.forClient || false,
-                                services: review.services || { id: 0, title: 'Услуга' },
-                                images: review.images || [],
-                                user: targetUser,
-                                reviewer: author,
-                                vacation: profileData?.specialty,
-                                worker: `${author.name || ''} ${author.surname || ''}`.trim() || 'Пользователь',
-                                date: review.createdAt ?
-                                    new Date(review.createdAt).toLocaleDateString('ru-RU', {
-                                        day: 'numeric',
-                                        month: 'long',
-                                        year: 'numeric'
-                                    }) :
-                                    getFormattedDate()
-                            };
-
-                            return transformedReview;
-                        }
-                    })
-                );
-
-                console.log('Transformed reviews:', transformedReviews);
-                setReviews(transformedReviews);
-
-                if (profileData) {
-                    setProfileData(prev => prev ? {
-                        ...prev,
-                        reviews: transformedReviews.length
-                    } : null);
+            const masterReviews = reviewsArray.filter(review => {
+                // Проверяем тип отзыва
+                if (review.type !== "master") {
+                    console.log(`Review ${review.id} filtered out: not master type (type: ${review.type})`);
+                    return false;
                 }
 
-            } else {
-                console.log('No reviews to display');
-                setReviews([]);
-            }
+                const reviewMaster = review.master as { id?: number } | undefined;
+                const masterIdInReview = reviewMaster?.id;
+
+                console.log(`Checking review ${review.id}: master.id = ${masterIdInReview}, requested = ${masterId}, match = ${masterIdInReview === masterId}`);
+
+                return masterIdInReview === masterId;
+            });
+
+            console.log(`Found ${masterReviews.length} reviews for master ${masterId}`);
+
+            const transformedReviews: Review[] = masterReviews.map(review => {
+                const client = review.client as {
+                    id?: number;
+                    name?: string;
+                    surname?: string;
+                    email?: string;
+                    image?: string | null;
+                } || {};
+
+                const clientId = client.id || 0;
+                const clientName = client.name || 'Клиент';
+                const clientSurname = client.surname || '';
+                const clientEmail = client.email || '';
+                const clientImage = client.image || null;
+
+                return {
+                    id: review.id,
+                    user: {
+                        id: masterId,
+                        rating: review.rating || 0
+                    },
+                    reviewer: {
+                        id: clientId,
+                        name: clientName,
+                        surname: clientSurname,
+                        email: clientEmail,
+                        image: clientImage
+                    },
+                    rating: review.rating || 0,
+                    description: review.description || '',
+                    forReviewer: false,
+                    services: review.services || { id: 0, title: '' },
+                    images: review.images || [],
+                    date: review.createdAt ? new Date(review.createdAt).toLocaleDateString('ru-RU') : ''
+                };
+            });
+
+            console.log('Transformed reviews:', transformedReviews);
+
+            setReviews(transformedReviews);
+
+            await processReviewsAndUpdateRating(transformedReviews, masterId);
 
         } catch (error) {
             console.error('Error fetching reviews:', error);
             setReviews([]);
+            if (masterId) {
+                await processReviewsAndUpdateRating([], masterId);
+            }
         } finally {
             setReviewsLoading(false);
         }
     };
 
-    // Загрузка галереи работ
     const fetchUserGallery = async (masterId: number) => {
         try {
             const token = getAuthToken();
@@ -740,7 +944,7 @@ function MasterProfileViewPage() {
                 console.log(`Found ${galleryItems.length} images in gallery`);
 
                 if (galleryItems.length > 0) {
-                    const workExamplesLocal = await Promise.all(
+                    const workExamplesLocal: WorkExample[] = await Promise.all(
                         galleryItems.map(async (image: GalleryItem, index: number) => {
                             let imageUrl = "../fonTest6.png";
 
@@ -786,7 +990,6 @@ function MasterProfileViewPage() {
         }
     };
 
-    // Вспомогательная функция для обновления примеров работ
     const updateWorkExamples = (workExamples: WorkExample[]) => {
         setProfileData(prev => prev ? {
             ...prev,
@@ -794,42 +997,29 @@ function MasterProfileViewPage() {
         } : null);
     };
 
-    // Вспомогательные функции
-    const checkImageExists = (url: string): Promise<boolean> => {
-        return new Promise((resolve) => {
-            const img = new Image();
-            img.onload = () => resolve(true);
-            img.onerror = () => resolve(false);
-            img.src = url;
-        });
-    };
+    const getReviewerAvatarUrl = (review: Review | ReviewApiResponse) => {
+        let imagePath: string | null | undefined = null;
 
-    const transformEducation = (education: EducationApiData[]): Education[] => {
-        return education.map(edu => ({
-            id: edu.id?.toString() || Date.now().toString(),
-            institution: edu.uniTitle || '',
-            faculty: edu.faculty || '',
-            specialty: edu.occupation?.map((occ: Occupation) => occ.title).join(', ') || '',
-            startYear: edu.beginning?.toString() || '',
-            endYear: edu.ending?.toString() || '',
-            currentlyStudying: !edu.graduated
-        }));
-    };
+        try {
+            // Если это ReviewApiResponse
+            if ('client' in review && review.client) {
+                const client = review.client as { image?: string | null };
+                imagePath = client.image;
+            }
+            // Если это обычный Review
+            else if ('reviewer' in review && review.reviewer) {
+                const reviewer = review.reviewer as { image?: string | null };
+                imagePath = reviewer.image;
+            }
+        } catch (error) {
+            console.error('Error getting reviewer avatar:', error);
+        }
 
-    const getFormattedDate = (): string => {
-        const now = new Date();
-        const day = now.getDate().toString().padStart(2, '0');
-        const month = (now.getMonth() + 1).toString().padStart(2, '0');
-        const year = now.getFullYear();
-        return `${day}.${month}.${year}`;
-    };
-
-    const getReviewerAvatarUrl = (review: Review) => {
-        if (review.reviewer.image && review.reviewer.image !== "../fonTest6.png") {
+        if (imagePath && imagePath !== "../fonTest6.png") {
             const possiblePaths = [
-                review.reviewer.image,
-                `${API_BASE_URL}/images/profile_photos/${review.reviewer.image}`,
-                `${API_BASE_URL}/${review.reviewer.image}`
+                imagePath,
+                `${API_BASE_URL}/images/profile_photos/${imagePath}`,
+                `${API_BASE_URL}/${imagePath}`
             ];
 
             for (const path of possiblePaths) {
@@ -840,12 +1030,40 @@ function MasterProfileViewPage() {
         return "../fonTest6.png";
     };
 
-    const getClientName = (review: Review) => {
-        if (!review.reviewer.name && !review.reviewer.surname) {
-            return 'Клиент';
+    const getClientName = (review: Review | ReviewApiResponse): string => {
+        // Если это ReviewApiResponse, то проверяем client
+        if ('client' in review && review.client) {
+            const client = review.client as {
+                name?: string;
+                surname?: string;
+                [key: string]: unknown;
+            };
+            const name = client.name || '';
+            const surname = client.surname || '';
+            if (!name && !surname) {
+                return 'Клиент';
+            }
+            return `${name} ${surname}`.trim();
         }
-        return `${review.reviewer.name || ''} ${review.reviewer.surname || ''}`.trim();
+
+        // Если это обычный Review, используем reviewer
+        if ('reviewer' in review && review.reviewer) {
+            const reviewer = review.reviewer as {
+                name?: string;
+                surname?: string;
+                [key: string]: unknown;
+            };
+            const name = reviewer.name || '';
+            const surname = reviewer.surname || '';
+            if (!name && !surname) {
+                return 'Клиент';
+            }
+            return `${name} ${surname}`.trim();
+        }
+
+        return 'Клиент';
     };
+
 
     const getImageUrlWithCacheBust = (url: string): string => {
         if (!url || url === "../fonTest6.png") return url;
@@ -993,44 +1211,6 @@ function MasterProfileViewPage() {
                                     <div key={address.id} className={styles.address_item}>
                                         <div className={styles.address_full}>
                                             {address.fullAddress}
-                                        </div>
-                                        <div className={styles.address_details}>
-                                            {address.province && (
-                                                <div className={styles.address_detail}>
-                                                    <span className={styles.address_label}>Провинция:</span>
-                                                    <span className={styles.address_value}>{address.province}</span>
-                                                </div>
-                                            )}
-                                            {address.district && (
-                                                <div className={styles.address_detail}>
-                                                    <span className={styles.address_label}>Район:</span>
-                                                    <span className={styles.address_value}>{address.district}</span>
-                                                </div>
-                                            )}
-                                            {address.suburb && (
-                                                <div className={styles.address_detail}>
-                                                    <span className={styles.address_label}>Микрорайон:</span>
-                                                    <span className={styles.address_value}>{address.suburb}</span>
-                                                </div>
-                                            )}
-                                            {address.settlement && (
-                                                <div className={styles.address_detail}>
-                                                    <span className={styles.address_label}>Поселение:</span>
-                                                    <span className={styles.address_value}>{address.settlement}</span>
-                                                </div>
-                                            )}
-                                            {address.community && (
-                                                <div className={styles.address_detail}>
-                                                    <span className={styles.address_label}>Община:</span>
-                                                    <span className={styles.address_value}>{address.community}</span>
-                                                </div>
-                                            )}
-                                            {address.village && (
-                                                <div className={styles.address_detail}>
-                                                    <span className={styles.address_label}>Деревня:</span>
-                                                    <span className={styles.address_value}>{address.village}</span>
-                                                </div>
-                                            )}
                                         </div>
                                     </div>
                                 ))}

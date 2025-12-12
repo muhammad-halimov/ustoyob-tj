@@ -122,7 +122,7 @@ interface Category {
     name: string;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://admin.ustoyob.tj';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // Кэши
 const categoriesCache = new Map<number, Category>();
@@ -889,7 +889,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
                 <div className={styles.resultHeader}>
                     <h3>{result.title}</h3>
-                    <span className={styles.price}>{result.price} TJS {result.unit}</span>
+                    <span className={styles.price}>{result.price} TJS, {result.unit}</span>
                 </div>
                 <p className={styles.description}>{cleanText(result.description)}</p>
                 <div className={styles.resultDetails}>

@@ -89,11 +89,11 @@ interface ReviewResponse {
 }
 
 // Добавляем интерфейс для пользователя в списке
-interface UserInList {
-    id: number;
-    roles?: string[];
-    [key: string]: unknown;
-}
+// interface UserInList {
+//     id: number;
+//     roles?: string[];
+//     [key: string]: unknown;
+// }
 
 // Добавляем интерфейс для API ответов
 // interface HydraResponse<T> {
@@ -152,12 +152,12 @@ function ClientProfileViewPage() {
     const fetchClientData = async (clientId: number) => {
         try {
             setIsLoading(true);
-            const token = getAuthToken();
-
-            if (!token) {
-                navigate('/');
-                return;
-            }
+            // const token = getAuthToken();
+            //
+            // if (!token) {
+            //     navigate('/');
+            //     return;
+            // }
 
             // Получаем данные клиента
             const clientData = await fetchUser(clientId, 'client');
@@ -197,28 +197,27 @@ function ClientProfileViewPage() {
     const fetchUser = async (userId: number, userType: 'master' | 'client'): Promise<UserData | null> => {
         try {
             const token = getAuthToken();
-            if (!token) {
-                console.log('No token available for fetching user data');
-                return null;
+
+            const headers: HeadersInit = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            };
+
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
             }
 
-            // ПОДХОД 1: Прямой запрос по ID пользователя
             try {
                 const directResponse = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
                     method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                    },
+                    headers: headers,
                 });
 
                 if (directResponse.ok) {
                     const userData: UserData = await directResponse.json();
                     console.log(`Found user ${userId} directly:`, userData);
 
-                    // Проверяем, что у пользователя правильная роль
-                    if (userData.roles) {
+                    if (token && userData.roles) {
                         const hasRole = userType === 'master'
                             ? userData.roles.includes('ROLE_MASTER')
                             : userData.roles.includes('ROLE_CLIENT');
@@ -230,69 +229,15 @@ function ClientProfileViewPage() {
                     }
 
                     return userData;
+                } else if (directResponse.status === 401 || directResponse.status === 403) {
+                    console.log(`Access denied (${directResponse.status}) for user ${userId}, trying public data`);
                 }
             } catch (directError) {
-                console.log('Direct fetch failed, trying alternative approach:', directError);
+                console.log('Direct fetch failed:', directError);
             }
 
-            // ПОДХОД 2: Получаем всех пользователей и фильтруем на клиенте
-            console.log('Trying to fetch all users and filter locally');
-            const response = await fetch(`${API_BASE_URL}/api/users`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                console.warn(`Failed to fetch users:`, response.status);
-                return null;
-            }
-
-            const usersData = await response.json();
-            console.log('All users data received');
-
-            // Обрабатываем разные форматы ответа
-            let usersArray: UserInList[] = [];
-
-            if (Array.isArray(usersData)) {
-                usersArray = usersData;
-            } else if (usersData && typeof usersData === 'object') {
-                // Проверяем hydra формат
-                if ('hydra:member' in usersData && Array.isArray(usersData['hydra:member'])) {
-                    usersArray = usersData['hydra:member'] as UserInList[];
-                }
-                // Проверяем, что это объект с полем id типа number
-                else if ('id' in usersData && typeof usersData.id === 'number') {
-                    usersArray = [usersData as UserInList];
-                }
-            }
-
-            // Ищем пользователя по ID в массиве
-            const userData = usersArray.find((user: UserInList) => user.id === userId) || null;
-
-            if (userData) {
-                console.log(`Found user ${userId} in list:`, userData);
-
-                // Проверяем роль пользователя
-                if (userData.roles) {
-                    const hasRole = userType === 'master'
-                        ? userData.roles.includes('ROLE_MASTER')
-                        : userData.roles.includes('ROLE_CLIENT');
-
-                    if (!hasRole) {
-                        console.warn(`User ${userId} does not have required role ${userType}`);
-                        return null;
-                    }
-                }
-
-                return userData as UserData;
-            } else {
-                console.log(`User ${userId} not found in the list`);
-                return null;
-            }
+            console.log('Could not fetch user data, using fallback');
+            return null;
 
         } catch (error) {
             console.error(`Error fetching ${userType} data:`, error);
@@ -347,28 +292,32 @@ function ClientProfileViewPage() {
             setReviewsLoading(true);
             const token = getAuthToken();
 
-            if (!token) {
-                console.log('No token available for fetching reviews');
-                return;
+            const headers: HeadersInit = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            };
+
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
             }
 
             console.log('Fetching reviews for client ID:', clientId);
 
-            // ЭТОТ ENDPOINT ДОЛЖЕН РАБОТАТЬ, ОСТАВЬТЕ ЕГО
             const endpoint = `/api/reviews/clients/${clientId}`;
 
             const response = await fetch(`${API_BASE_URL}${endpoint}`, {
                 method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
+                headers: headers,
             });
 
-            if (response.status === 401) {
-                console.log('Unauthorized, redirecting to login');
-                navigate('/');
+            // Если 401 или 403, это нормально для неавторизованного пользователя
+            if (response.status === 401 || response.status === 403) {
+                console.log('Unauthorized access to reviews, showing empty list or trying public endpoint');
+                setReviews([]);
+                setProfileData(prev => prev ? {
+                    ...prev,
+                    reviews: 0
+                } : null);
                 return;
             }
 
@@ -575,8 +524,6 @@ function ClientProfileViewPage() {
     };
 
     const handleMasterProfileClick = async (masterId: number) => {
-        console.log('Navigating to master profile:', masterId);
-
         const token = getAuthToken();
 
         // Если пользователь не авторизован, показываем модалку авторизации
@@ -603,7 +550,7 @@ function ClientProfileViewPage() {
     const handleLeaveReview = () => {
         const token = getAuthToken();
         if (!token) {
-            setShowAuthModal(true); // Показываем модалку авторизации
+            setShowAuthModal(true);
             return;
         }
 
