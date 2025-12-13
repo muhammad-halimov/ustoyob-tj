@@ -31,15 +31,17 @@ class ApiLoginController extends AbstractController
 
         // Проверка пароля
         if ($oauthType !== null && $oauthType->hasAnyProvider()) {
-            if (!empty($input->password) && !empty($user->getPassword()))
-                if (!$passwordHasher->isPasswordValid($user, $input->password))
-                    throw new UnauthorizedHttpException('', 'Invalid credentials');
-        } else {
-            if (empty($input->password))
-                throw new UnauthorizedHttpException('', 'Password is required');
+            // Пользователь зарегистрирован через OAuth - запрещаем вход по паролю
+            throw new UnauthorizedHttpException('', 'This account uses OAuth authentication. Please login via: ' . implode(', ', $oauthType->getActiveProviders()));
+        }
 
-            if (empty($user->getPassword()) || !$passwordHasher->isPasswordValid($user, $input->password))
-                throw new UnauthorizedHttpException('', 'Invalid credentials');
+        // Обычная регистрация - пароль обязателен
+        if (empty($input->password)) {
+            throw new UnauthorizedHttpException('', 'Password is required');
+        }
+
+        if (empty($user->getPassword()) || !$passwordHasher->isPasswordValid($user, $input->password)) {
+            throw new UnauthorizedHttpException('', 'Invalid credentials');
         }
 
         // Создаем JWT

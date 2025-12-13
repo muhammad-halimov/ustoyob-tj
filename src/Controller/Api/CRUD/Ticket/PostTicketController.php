@@ -99,9 +99,24 @@ class PostTicketController extends AbstractController
             if ($cityParam) {
                 /** @var City $city */
                 $city = $this->extractIriService->extract($cityParam, City::class, 'cities');
+
+                // Проверка принадлежности города к провинции
+                if ($city->getProvince()?->getId() !== $province->getId()) {
+                    return $this->json([
+                        'message' => 'City does not belong to the specified province'
+                    ], 400);
+                }
+
                 /** @var Suburb|null $suburb */
                 $suburb = $suburbParam ?
                     $this->extractIriService->extract($suburbParam, Suburb::class, 'suburbs') : null;
+
+                // Проверка принадлежности suburb к городу
+                if ($suburb && $suburb->getCities()?->getId() !== $city->getId()) {
+                    return $this->json([
+                        'message' => 'Suburb does not belong to the specified city'
+                    ], 400);
+                }
 
                 $addressEntity
                     ->setCity($city)
@@ -111,15 +126,53 @@ class PostTicketController extends AbstractController
             if ($districtParam) {
                 /** @var District $district */
                 $district = $this->extractIriService->extract($districtParam, District::class, 'districts');
-                /** @var Settlement|null $settlement */
-                $settlement = $settlementParam ?
-                    $this->extractIriService->extract($settlementParam, Settlement::class, 'settlements') : null;
+
+                // Проверка принадлежности района к провинции
+                if ($district->getProvince()?->getId() !== $province->getId()) {
+                    return $this->json([
+                        'message' => 'District does not belong to the specified province'
+                    ], 400);
+                }
+
                 /** @var Community|null $community */
                 $community = $communityParam ?
                     $this->extractIriService->extract($communityParam, Community::class, 'communities') : null;
+
+                // Проверка принадлежности community к району
+                if ($community && $community->getDistrict()?->getId() !== $district->getId()) {
+                    return $this->json([
+                        'message' => 'Community does not belong to the specified district'
+                    ], 400);
+                }
+
+                /** @var Settlement|null $settlement */
+                $settlement = $settlementParam ?
+                    $this->extractIriService->extract($settlementParam, Settlement::class, 'settlements') : null;
+
+                // Проверка принадлежности settlement к району
+                if ($settlement && $settlement->getDistrict()?->getId() !== $district->getId()) {
+                    return $this->json([
+                        'message' => 'Settlement does not belong to the specified district'
+                    ], 400);
+                }
+
                 /** @var Village|null $village */
                 $village = $villageParam ?
                     $this->extractIriService->extract($villageParam, Village::class, 'villages') : null;
+
+                // Проверка принадлежности village к settlement
+                if ($village && $settlement && $village->getSettlement()?->getId() !== $settlement->getId()) {
+                    return $this->json([
+                        'message' => 'Village does not belong to the specified settlement'
+                    ], 400);
+                }
+
+                // Если указана деревня без settlement
+                if ($village && !$settlement) {
+                    return $this->json([
+                        'message' => 'Settlement is required when village is specified'
+                    ], 400);
+                }
 
                 $addressEntity
                     ->setDistrict($district)
@@ -177,11 +230,11 @@ class PostTicketController extends AbstractController
         $this->entityManager->flush();
 
         return $this->json(([
-            'id' => $ticketEntity->getId(),
-            'addresses' => array_map(
-                fn(Address $a) => "/api/addresses/{$a->getId()}",
-                $ticketEntity->getAddresses()->toArray()
-            )
-        ] + $message), 201);
+                'id' => $ticketEntity->getId(),
+                'addresses' => array_map(
+                    fn(Address $a) => "/api/addresses/{$a->getId()}",
+                    $ticketEntity->getAddresses()->toArray()
+                )
+            ] + $message), 201);
     }
 }

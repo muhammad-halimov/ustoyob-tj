@@ -266,6 +266,7 @@ class Ticket
      * @var Collection<int, BlackList>
      */
     #[ORM\ManyToMany(targetEntity: BlackList::class, mappedBy: 'tickets')]
+    #[Ignore]
     private Collection $ticketsBlackListedByAuthor;
 
     #[ORM\Column(type: 'datetime', nullable: false)]

@@ -24,11 +24,11 @@ class Settlement extends AddressComponent
         'districts:read',
         'provinces:read',
     ])]
-    private Collection $village;
+    private Collection $villages;
 
     public function __construct()
     {
-        $this->village = new ArrayCollection();
+        $this->villages = new ArrayCollection();
     }
 
     public function getDistrict(): ?District
@@ -46,15 +46,15 @@ class Settlement extends AddressComponent
     /**
      * @return Collection<int, Village>
      */
-    public function getVillage(): Collection
+    public function getVillages(): Collection
     {
-        return $this->village;
+        return $this->villages;
     }
 
     public function addVillage(Village $village): static
     {
-        if (!$this->village->contains($village)) {
-            $this->village->add($village);
+        if (!$this->villages->contains($village)) {
+            $this->villages->add($village);
             $village->setSettlement($this);
         }
 
@@ -63,7 +63,7 @@ class Settlement extends AddressComponent
 
     public function removeVillage(Village $village): static
     {
-        if ($this->village->removeElement($village)) {
+        if ($this->villages->removeElement($village)) {
             // set the owning side to null (unless already changed)
             if ($village->getSettlement() === $this) {
                 $village->setSettlement(null);

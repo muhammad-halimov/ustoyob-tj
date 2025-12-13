@@ -12,14 +12,14 @@ use App\Dto\ApiAuth\ApiLogout\LogoutOutput;
 
 #[ApiResource(
     operations: [
-        new Post(
-            uriTemplate: '/authentication_token',
-            controller: ApiLoginController::class,
-            input: LoginInput::class,
-            output: LoginOutput::class,
-            read: false,
-            write: false,
-        ),
+//        new Post(
+//            uriTemplate: '/authentication_token',
+//            controller: ApiLoginController::class,
+//            input: LoginInput::class,
+//            output: LoginOutput::class,
+//            read: false,
+//            write: false,
+//        ),
         new Post(
             uriTemplate: '/logout',
             controller: ApiLogoutController::class,

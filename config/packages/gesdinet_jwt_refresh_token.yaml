@@ -1,22 +1,22 @@
 gesdinet_jwt_refresh_token:
     refresh_token_class: App\Entity\RefreshToken
-#    return_expiration: true
-#    single_use: true
-#    ttl: 1296000
-#    cookie:
-#        enabled: true
-#        http_only: true
-#        path: /
-#
-#when@prod:
-#    gesdinet_jwt_refresh_token:
-#        cookie:
-#            domain: "%env(REFRESH_TOKEN_COOKIE_DOMAIN)%"
-#            same_site: strict
-#            secure: true
-#
-#when@dev:
-#    gesdinet_jwt_refresh_token:
-#        cookie:
-#            same_site: lax
-#            secure: false
+    return_expiration: true
+    single_use: true
+    ttl: "%env(int:REFRESH_TOKEN_TTL)%"
+    cookie:
+        enabled: true
+        http_only: "%env(bool:REFRESH_TOKEN_COOKIE_HTTP_ONLY)%"
+        path: "%env(bool:REFRESH_TOKEN_COOKIE_PATH)%"
+
+when@prod:
+    gesdinet_jwt_refresh_token:
+        cookie:
+            domain: "%env(REFRESH_TOKEN_COOKIE_DOMAIN)%"
+            same_site: strict
+            secure: true
+
+when@dev:
+    gesdinet_jwt_refresh_token:
+        cookie:
+            same_site: lax
+            secure: false

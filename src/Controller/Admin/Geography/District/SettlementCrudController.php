@@ -29,7 +29,7 @@ class SettlementCrudController extends AbstractCrudController
         yield TextEditorField::new('description', 'Описание')
             ->setColumns(12);
 
-        yield CollectionField::new('village', 'Село')
+        yield CollectionField::new('villages', 'Село')
             ->useEntryCrudForm(VillageCrudController::class)
             ->hideOnIndex()
             ->setColumns(12)
