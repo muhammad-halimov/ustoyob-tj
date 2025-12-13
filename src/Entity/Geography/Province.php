@@ -10,6 +10,7 @@ use App\Repository\ProvinceRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 
 #[ORM\Entity(repositoryClass: ProvinceRepository::class)]
 #[ApiResource(
@@ -30,7 +31,7 @@ use Doctrine\ORM\Mapping as ORM;
 )]
 class Province extends AddressComponent
 {
-    public const PROVINCES = [
+    public const array PROVINCES = [
         'Душанбе' => 'Лушанбе',
         'ГРРП' => 'ГРРП',
         'ГБАО' => 'ГБАО',
@@ -42,12 +43,18 @@ class Province extends AddressComponent
      * @var Collection<int, City>
      */
     #[ORM\OneToMany(targetEntity: City::class, mappedBy: 'province', cascade: ['persist'])]
+    #[Groups([
+        'provinces:read',
+    ])]
     private Collection $cities;
 
     /**
      * @var Collection<int, District>
      */
     #[ORM\OneToMany(targetEntity: District::class, mappedBy: 'province', cascade: ['persist'])]
+    #[Groups([
+        'provinces:read',
+    ])]
     private Collection $districts;
 
     public function __construct()
