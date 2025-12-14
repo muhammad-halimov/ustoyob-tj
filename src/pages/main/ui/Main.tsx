@@ -30,7 +30,7 @@ interface MainPageProps {
 export function MainPage({ onOpenAuthModal }: MainPageProps) {
     const [showResults, setShowResults] = useState(false);
     const [modalMessage, setModalMessage] = useState<string | null>(null);
-    // const [showAuthModal, setShowAuthModal] = useState(false);
+    const [showAuthModal, setShowAuthModal] = useState(false);
 
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -250,11 +250,11 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
             )}
 
             {/* Этот блок можно убрать, если он не нужен */}
-            {/*{showAuthModal && (*/}
-            {/*    <div style={{ display: 'none' }}>*/}
-            {/*        /!* Триггер для модалки *!/*/}
-            {/*    </div>*/}
-            {/*)}*/}
+            {showAuthModal && (
+                <div style={{ display: 'none' }}>
+                    {/* Триггер для модалки */}
+                </div>
+            )}
             <CookieConsentBanner/>
         </div>
     );
