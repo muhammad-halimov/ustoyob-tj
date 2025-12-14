@@ -46,6 +46,29 @@ export function EnterBtn({ onClick, isModalOpen, onModalClose, onLoginSuccess }:
     };
 
     useEffect(() => {
+        const checkUserStatus = async () => {
+            const token = getAuthToken();
+            const loggedIn = !!token;
+            setIsLoggedIn(loggedIn);
+
+            if (loggedIn) {
+                try {
+                    // Получаем данные пользователя для отображения имени
+                    const userDataStr = localStorage.getItem('userData');
+                    if (userDataStr) {
+                        const userData = JSON.parse(userDataStr);
+                        if (userData.name) {
+                            setUserName(userData.name);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error parsing user data:', error);
+                }
+            } else {
+                setUserName('');
+            }
+        };
+
         checkUserStatus();
 
         const handleAuthChange = () => {
@@ -56,11 +79,13 @@ export function EnterBtn({ onClick, isModalOpen, onModalClose, onLoginSuccess }:
         window.addEventListener('storage', handleAuthChange);
         window.addEventListener('login', handleAuthChange);
         window.addEventListener('logout', handleAuthChange);
+        window.addEventListener('roleSelected', handleAuthChange); // Добавьте это
 
         return () => {
             window.removeEventListener('storage', handleAuthChange);
             window.removeEventListener('login', handleAuthChange);
             window.removeEventListener('logout', handleAuthChange);
+            window.removeEventListener('roleSelected', handleAuthChange); // И это
         };
     }, []);
 

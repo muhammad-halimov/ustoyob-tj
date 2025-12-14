@@ -52,7 +52,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
     const location = useLocation();
     const navigate = useNavigate();
     const { t, i18n } = useTranslation(['header', 'common', 'cities']);
-    const [needsRoleSelection, setNeedsRoleSelection] = useState(false);
+    // const [needsRoleSelection, setNeedsRoleSelection] = useState(false);
 
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [cities, setCities] = useState<City[]>([]);
@@ -111,13 +111,6 @@ function Header({ onOpenAuthModal }: HeaderProps) {
         fetchCities();
     }, [API_BASE_URL]);
 
-    useEffect(() => {
-        checkIfNeedsRoleSelection();
-
-        // Обновляем при изменении пути
-        const interval = setInterval(checkIfNeedsRoleSelection, 30000);
-        return () => clearInterval(interval);
-    }, [location.pathname]);
 
     useEffect(() => {
         const media = window.matchMedia("(max-width: 480px)");
@@ -126,6 +119,33 @@ function Header({ onOpenAuthModal }: HeaderProps) {
         media.addEventListener("change", handler);
         return () => media.removeEventListener("change", handler);
     }, []);
+
+    useEffect(() => {
+        const checkForRoleSelection = async () => {
+            const token = getAuthToken();
+            if (token) {
+                const needsRole = await checkIfNeedsRoleSelection(token);
+                if (needsRole && onOpenAuthModal) {
+                    onOpenAuthModal();
+                }
+            }
+        };
+
+        checkForRoleSelection();
+
+        const handleAuthChange = () => {
+            setTimeout(() => {
+                checkForRoleSelection();
+            }, 1000);
+        };
+
+        window.addEventListener('login', handleAuthChange);
+
+        return () => {
+            window.removeEventListener('login', handleAuthChange);
+        };
+    }, [onOpenAuthModal]);
+
 
     useEffect(() => {
         const checkAccountConfirmation = async () => {
@@ -183,22 +203,25 @@ function Header({ onOpenAuthModal }: HeaderProps) {
         return () => clearInterval(interval);
     }, [location.pathname]);
 
-    const checkIfNeedsRoleSelection = async () => {
-        const token = getAuthToken();
-        if (!token) {
-            setNeedsRoleSelection(false);
-            return;
-        }
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const token = getAuthToken();
+            if (token) {
+                checkIfNeedsRoleSelection(token);
+            }
+        }, 30000);
+        return () => clearInterval(interval);
+    }, [location.pathname]);
 
+    // Функция для проверки необходимости выбора роли
+    const checkIfNeedsRoleSelection = async (token: string): Promise<boolean> => {
         try {
             const response = await fetch(`${API_BASE_URL}/api/users/me`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token.trim()}`,
                     'Accept': 'application/json',
-                    'Content-Type': 'application/json',
                 },
-                credentials: 'include',
             });
 
             if (response.ok) {
@@ -208,15 +231,15 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                 const isGoogleAuth = !!userData.oauthType?.googleId;
                 const hasRole = userData.roles && userData.roles.length > 0;
 
-                setNeedsRoleSelection(isGoogleAuth && !hasRole);
-            } else {
-                setNeedsRoleSelection(false);
+                return isGoogleAuth && !hasRole;
             }
+            return false;
         } catch (error) {
             console.error('Error checking user role:', error);
-            setNeedsRoleSelection(false);
+            return false;
         }
     };
+
 
     const handleResendConfirmationFromHeader = async () => {
         setIsLoading(true);
@@ -330,14 +353,6 @@ function Header({ onOpenAuthModal }: HeaderProps) {
         if (!token) {
             e.preventDefault();
             handleEnterBtnClick();
-        } else if (needsRoleSelection) {
-            e.preventDefault();
-            // Открываем модалку выбора роли
-            if (onOpenAuthModal) {
-                onOpenAuthModal();
-            } else {
-                setShowAuthModal(true);
-            }
         }
     };
 
@@ -370,6 +385,15 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                         const userData: UserData = await response.json();
                         localStorage.setItem('userData', JSON.stringify(userData));
                         setShowConfirmationBanner(userData.approved === false);
+
+                        const isGoogleAuth = !!userData.oauthType?.googleId;
+                        const hasRole = userData.roles && userData.roles.length > 0;
+
+                        if (isGoogleAuth && !hasRole) {
+                            setTimeout(() => {
+                                setShowAuthModal(true);
+                            }, 100);
+                        }
                     }
                 } catch (error) {
                     console.error('Error checking confirmation:', error);
