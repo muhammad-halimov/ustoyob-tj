@@ -17,6 +17,7 @@ import ClientProfileViewPage from "../../entities/ClientProfileViewPage/ClientPr
 import MyTickets from "../../pages/myTickets/MyTickets.tsx";
 import CategoryTicketsPage from "../../pages/categoryTicketsPage/CategoryTicketsPage.tsx";
 import EditServicePage from "../../pages/EditServicePage/EditServicePage.tsx";
+import GoogleOAuthPage from "../../pages/GoogleOAuthPage/GoogleOAuthPage.tsx";
 
 const router = createBrowserRouter([
     {
@@ -31,19 +32,20 @@ const router = createBrowserRouter([
             { path: 'profile', element: <ProfilePage /> },
             { path: 'my-tickets', element: <MyTickets /> },
             { path: 'profile/education', element: <EducationPage /> },
-            { path: 'profile/services', element: <ServicesPage /> }, // для Мастера
+            { path: 'profile/services', element: <ServicesPage /> },
             { path: 'profile/city', element: <CityPage /> },
             { path: 'order/:id', element: <OrderPage /> },
-            { path: 'create-ad', element: <CreateAdPage /> }, // для Клиента
-            { path: 'tickets', element: <TicketsPage /> }, // для Мастера
+            { path: 'create-ad', element: <CreateAdPage /> },
+            { path: 'tickets', element: <TicketsPage /> },
             { path: 'master/:id', element: <MasterProfileViewPage /> },
             { path: 'client/:id', element: <ClientProfileViewPage /> },
             { path: 'category-tickets/:categoryId', element: <CategoryTicketsPage /> },
             { path: 'profile/services/edit', element: <EditServicePage /> },
-            // { path: 'profile/work-area', element: <WorkAreaPage /> },
-            // { path: 'search', element: <SearchPage /> },
-            // { path: 'create-ad', element: <CreateAdPage /> },
         ],
+    },
+    {
+        path: '/auth/google',
+        element: <GoogleOAuthPage />,
     },
 ]);
 

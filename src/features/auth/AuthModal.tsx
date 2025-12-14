@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from './AuthModal.module.scss';
 import { setAuthToken, getAuthTokenExpiry, setAuthTokenExpiry, clearAuthData } from '../../utils/auth';
 
@@ -92,7 +92,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-    React.useEffect(() => {
+    useEffect(() => {
         const loadCategories = async () => {
             try {
                 const response = await fetch(`${API_BASE_URL}/api/occupations`);
@@ -107,17 +107,94 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
         loadCategories();
 
-        // Проверяем URL на наличие параметров Google OAuth callback
+        // Проверяем URL параметры ТОЛЬКО для открытия модалки
         const urlParams = new URLSearchParams(window.location.search);
-        const code = urlParams.get('code');
-        const state = urlParams.get('state');
+        const showAuthModal = urlParams.get('showAuthModal');
+        const oauth = urlParams.get('oauth');
+        const oauthError = urlParams.get('oauth_error');
 
-        if (code && state) {
-            console.log('Google OAuth callback detected');
-            setGoogleAuthCode(code);
-            setGoogleAuthState(state);
-            setCurrentState(AuthModalState.GOOGLE_ROLE_SELECT);
+        console.log('AuthModal - URL params:', { showAuthModal, oauth, oauthError });
+
+        // 1. Обработка ошибок OAuth
+        if (oauthError) {
+            console.error('OAuth error from URL:', oauthError);
+            setError(`Ошибка авторизации: ${decodeURIComponent(oauthError)}`);
+            // Очищаем URL
             window.history.replaceState({}, document.title, window.location.pathname);
+
+            // Если модалка закрыта, открываем её для показа ошибки
+            if (!isOpen && showAuthModal === 'true') {
+                // Здесь нужно как-то открыть модалку через callback
+                console.log('Should open modal for error display');
+            }
+        }
+
+        // 2. Проверяем флаг из URL для открытия модалки после OAuth
+        if (showAuthModal === 'true' && oauth === 'google') {
+            console.log('URL flag: should process Google OAuth in modal');
+
+            // Проверяем, есть ли данные в localStorage
+            const savedCode = localStorage.getItem('googleAuthCode');
+            const savedState = localStorage.getItem('googleAuthState');
+
+            if (savedCode && savedState) {
+                console.log('Found Google auth data in localStorage');
+                setGoogleAuthCode(savedCode);
+                setGoogleAuthState(savedState);
+                setCurrentState(AuthModalState.GOOGLE_ROLE_SELECT);
+
+                // Если модалка закрыта - нужно её открыть
+                if (!isOpen) {
+                    console.log('Modal is closed, should open it for role selection');
+                    // Здесь нужен callback для открытия модалки
+                }
+
+                // Очищаем URL параметры
+                window.history.replaceState({}, document.title, window.location.pathname);
+            } else {
+                console.log('No Google auth data found in localStorage, checking sessionStorage');
+                // Проверяем sessionStorage как запасной вариант
+                const sessionCode = sessionStorage.getItem('googleAuthCode');
+                const sessionState = sessionStorage.getItem('googleAuthState');
+
+                if (sessionCode && sessionState) {
+                    console.log('Found Google auth data in sessionStorage');
+                    // Переносим в localStorage
+                    localStorage.setItem('googleAuthCode', sessionCode);
+                    localStorage.setItem('googleAuthState', sessionState);
+                    setGoogleAuthCode(sessionCode);
+                    setGoogleAuthState(sessionState);
+                    setCurrentState(AuthModalState.GOOGLE_ROLE_SELECT);
+
+                    // Очищаем sessionStorage
+                    sessionStorage.removeItem('googleAuthCode');
+                    sessionStorage.removeItem('googleAuthState');
+
+                    // Если модалка закрыта - нужно её открыть
+                    if (!isOpen) {
+                        console.log('Modal is closed, should open it for role selection');
+                        // Здесь нужен callback для открытия модалки
+                    }
+
+                    // Очищаем URL параметры
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            }
+        }
+
+        // 3. Проверяем localStorage на наличие данных Google (если модалка уже открыта)
+        if (isOpen && currentState !== AuthModalState.GOOGLE_ROLE_SELECT) {
+            const savedCode = localStorage.getItem('googleAuthCode');
+            const savedState = localStorage.getItem('googleAuthState');
+
+            if (savedCode && savedState && !googleAuthCode && !googleAuthState) {
+                console.log('Found saved Google auth data while modal is open, switching to role selection');
+                setGoogleAuthCode(savedCode);
+                setGoogleAuthState(savedState);
+                setCurrentState(AuthModalState.GOOGLE_ROLE_SELECT);
+
+                // Не очищаем данные сразу - они понадобятся для completeGoogleAuth
+            }
         }
 
         // Загружаем скрипт Telegram Widget
@@ -139,7 +216,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
         // Обработка сообщений от Telegram Widget
         const handleTelegramAuth = (event: MessageEvent) => {
-            // Проверяем, что сообщение от Telegram Widget
             if (event.origin !== 'https://oauth.telegram.org') {
                 return;
             }
@@ -150,7 +226,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
                 if (data.event === 'auth_callback') {
                     const authData = data.auth;
-                    // Отправляем данные на ваш сервер для обработки
                     handleTelegramCallback(authData);
                 }
             } catch (err) {
@@ -166,12 +241,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
         return () => {
             window.removeEventListener('message', handleTelegramAuth);
-            // Очищаем интервал при размонтировании
             if (refreshIntervalId) {
                 clearInterval(refreshIntervalId);
             }
         };
-    }, []);
+    }, [isOpen]);
 
     // Функция для периодического обновления токена
     const startPeriodicTokenRefresh = () => {
@@ -449,7 +523,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         }, 60000); // Проверка каждую минуту
     };
 
-    React.useEffect(() => {
+    useEffect(() => {
         if (localStorage.getItem('authToken') && checkTokenExpiry()) {
             console.log('Token expired on page load');
             clearAuthData();
@@ -461,23 +535,43 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             setIsLoading(true);
             setError('');
 
-            console.log('Initiating Google OAuth...');
+            console.log('Initiating Google OAuth from modal...');
 
-            const response = await fetch(`${API_BASE_URL}/api/auth/google/url`, {
+            // URL для редиректа после авторизации (отдельная страница)
+            const redirectUri = `${window.location.origin}/auth/google`;
+            console.log('Redirect URI:', redirectUri);
+
+            // Получаем URL от бэкенда
+            const response = await fetch(`${API_BASE_URL}/api/auth/google/url?redirect_uri=${encodeURIComponent(redirectUri)}`, {
                 method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                },
+                headers: { 'Accept': 'application/json' },
             });
 
             if (!response.ok) {
-                throw new Error('Не удалось получить URL для авторизации через Google');
+                // Если не поддерживает параметр, получаем без него
+                const fallbackResponse = await fetch(`${API_BASE_URL}/api/auth/google/url`, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' },
+                });
+
+                if (!fallbackResponse.ok) {
+                    throw new Error('Не удалось получить URL для авторизации через Google');
+                }
+
+                const data: GoogleAuthUrlResponse = await fallbackResponse.json();
+                console.log('Google auth URL received (fallback):', data.url);
+
+                // Закрываем модалку и перенаправляем
+                onClose();
+                window.location.href = data.url;
+            } else {
+                const data: GoogleAuthUrlResponse = await response.json();
+                console.log('Google auth URL received:', data.url);
+
+                // Закрываем модалку и перенаправляем
+                onClose();
+                window.location.href = data.url;
             }
-
-            const data: GoogleAuthUrlResponse = await response.json();
-            console.log('Google auth URL received:', data.url);
-
-            window.location.href = data.url;
 
         } catch (err) {
             console.error('Google auth error:', err);
@@ -491,12 +585,15 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             setIsLoading(true);
             setError('');
 
-            if (!googleAuthCode) {
-                throw new Error('Не найден код авторизации');
-            }
+            console.log('Completing Google auth with role:', selectedRole);
 
-            console.log('Completing Google auth with code:', googleAuthCode.substring(0, 20) + '...');
-            console.log('Selected role:', selectedRole);
+            // Проверяем наличие данных
+            const savedCode = localStorage.getItem('googleAuthCode');
+            const savedState = localStorage.getItem('googleAuthState');
+
+            if (!savedCode || !savedState) {
+                throw new Error('Данные авторизации не найдены. Пожалуйста, попробуйте войти снова.');
+            }
 
             const response = await fetch(`${API_BASE_URL}/api/auth/google/callback`, {
                 method: 'POST',
@@ -505,15 +602,17 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     'Accept': 'application/json',
                 },
                 body: JSON.stringify({
-                    code: googleAuthCode,
-                    state: googleAuthState || '',
+                    code: savedCode,
+                    state: savedState,
                     role: selectedRole
                 })
             });
 
+            const responseText = await response.text();
+            console.log('Google auth response status:', response.status);
+
             if (!response.ok) {
                 let errorMessage = 'Ошибка авторизации через Google';
-                const responseText = await response.text();
 
                 try {
                     const errorData = JSON.parse(responseText);
@@ -525,25 +624,31 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 throw new Error(errorMessage);
             }
 
-            const data: GoogleUserResponse = await response.json();
+            const data: GoogleUserResponse = JSON.parse(responseText);
             console.log('Google auth successful, user data:', data.user);
 
             if (data.token) {
+                // Сохраняем токен и данные пользователя
                 setAuthToken(data.token);
                 setTokenExpiry();
 
-                if (data.user.email) {
-                    localStorage.setItem('userEmail', data.user.email);
+                if (data.user) {
+                    localStorage.setItem('userData', JSON.stringify(data.user));
+                    if (data.user.email) {
+                        localStorage.setItem('userEmail', data.user.email);
+                    }
+                    if (data.user.roles && data.user.roles.length > 0) {
+                        localStorage.setItem('userRole', data.user.roles[0]);
+                    }
                 }
 
-                if (data.user.roles && data.user.roles.length > 0) {
-                    const role = data.user.roles[0];
-                    localStorage.setItem('userRole', role);
-                }
+                // Очищаем временные данные
+                localStorage.removeItem('googleAuthCode');
+                localStorage.removeItem('googleAuthState');
+                sessionStorage.removeItem('googleAuthCode');
+                sessionStorage.removeItem('googleAuthState');
 
-                localStorage.setItem('userData', JSON.stringify(data.user));
-
-                handleSuccessfulAuth(data.token, data.user.email);
+                handleSuccessfulAuth(data.token, data.user?.email);
             } else {
                 throw new Error('Токен не получен в ответе');
             }
@@ -983,6 +1088,64 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         );
     };
 
+    // const renderGoogleRoleSelectScreen = () => {
+    //     return (
+    //         <div className={styles.form}>
+    //             <h2>Выберите тип аккаунта</h2>
+    //
+    //             <div className={styles.successMessage}>
+    //                 <p>Вы успешно авторизовались через Google!</p>
+    //                 <p>Пожалуйста, выберите тип аккаунта:</p>
+    //             </div>
+    //
+    //             <div className={styles.roleSelector}>
+    //                 <button
+    //                     type="button"
+    //                     className={styles.roleButton}
+    //                     onClick={() => completeGoogleAuth('master')}
+    //                     disabled={isLoading}
+    //                 >
+    //                     Я специалист
+    //                 </button>
+    //                 <button
+    //                     type="button"
+    //                     className={styles.roleButton}
+    //                     onClick={() => completeGoogleAuth('client')}
+    //                     disabled={isLoading}
+    //                 >
+    //                     Я ищу специалиста
+    //                 </button>
+    //             </div>
+    //
+    //             {error && <div className={styles.error}>{error}</div>}
+    //
+    //             {isLoading && (
+    //                 <div className={styles.loadingMessage}>
+    //                     Завершение авторизации...
+    //                 </div>
+    //             )}
+    //
+    //             <div className={styles.links}>
+    //                 <button
+    //                     type="button"
+    //                     className={styles.linkButton}
+    //                     onClick={() => {
+    //                         setCurrentState(AuthModalState.LOGIN);
+    //                         // Очищаем данные Google авторизации при возврате
+    //                         setGoogleAuthCode('');
+    //                         setGoogleAuthState('');
+    //                         localStorage.removeItem('googleAuthCode');
+    //                         localStorage.removeItem('googleAuthState');
+    //                     }}
+    //                     disabled={isLoading}
+    //                 >
+    //                     Вернуться ко входу
+    //                 </button>
+    //             </div>
+    //         </div>
+    //     );
+    // };
+
     const renderLoginScreen = () => {
         return (
             <form onSubmit={handleLogin} className={styles.form}>
@@ -1286,11 +1449,22 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
                 {error && <div className={styles.error}>{error}</div>}
 
+                {isLoading && (
+                    <div className={styles.loadingMessage}>
+                        Завершение авторизации...
+                    </div>
+                )}
+
                 <div className={styles.links}>
                     <button
                         type="button"
                         className={styles.linkButton}
-                        onClick={() => setCurrentState(AuthModalState.LOGIN)}
+                        onClick={() => {
+                            setCurrentState(AuthModalState.LOGIN);
+                            // Очищаем данные Google авторизации при возврате
+                            setGoogleAuthCode('');
+                            setGoogleAuthState('');
+                        }}
                         disabled={isLoading}
                     >
                         Вернуться ко входу

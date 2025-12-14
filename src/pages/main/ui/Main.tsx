@@ -1,15 +1,13 @@
 import styles from "./Main.module.scss";
 import Search from "../../../features/search/Search.tsx";
 import { AdBtn } from "../../../shared/ui/button/HeaderButton/AdBtn.tsx";
-// import About from "../../../widgets/About/About.tsx";
 import Category from "../../../widgets/Category/Category.tsx";
 import Reviews from "../../../widgets/Reviews/Reviews.tsx";
 import Recommendations from "../../../widgets/Recommendations/Recommendations.tsx";
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { getUserRole } from "../../../utils/auth.ts";
 
-// import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
 
 interface SearchResult {
@@ -24,19 +22,112 @@ interface SearchResult {
     timeAgo: string;
 }
 
-export function MainPage() {
+interface MainPageProps {
+    onOpenAuthModal?: () => void;
+}
+
+export function MainPage({ onOpenAuthModal }: MainPageProps) {
     const [showResults, setShowResults] = useState(false);
     const [modalMessage, setModalMessage] = useState<string | null>(null);
+    const [showAuthModal, setShowAuthModal] = useState(false);
+
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
 
     const userRole = getUserRole();
 
-    // const masters = [
-    //     { id: 1, name: "Поиск проверенных мастеров", title: "Найдите специалиста нужного профиля в пару кликов: стройка, ремонт, сантехника и многое другое." },
-    //     { id: 2, name: "Поиск проверенных мастеров2", title: "Найдите специалиста нужного профиля в пару кликов: стройка, ремонт, сантехника и многое другое." },
-    //     { id: 3, name: "Поиск проверенных мастеров3", title: "Найдите специалиста нужного профиля в пару кликов: стройка, ремонт, сантехника и многое другое." },
-    //     { id: 4, name: "Поиск проверенных мастеров4", title: "Найдите специалиста нужного профиля в пару кликов: стройка, ремонт, сантехника и многое другое." },
-    // ];
+    useEffect(() => {
+        const checkUrlParams = () => {
+            const showAuthModalParam = searchParams.get('showAuthModal');
+            const oauthSourceParam = searchParams.get('oauthSource');
+            const oauthErrorParam = searchParams.get('oauth_error');
+
+            console.log('URL params check:', {
+                showAuthModal: showAuthModalParam,
+                oauthSource: oauthSourceParam,
+                oauthError: oauthErrorParam
+            });
+
+            if (oauthErrorParam) {
+                setModalMessage(`Ошибка авторизации: ${decodeURIComponent(oauthErrorParam)}`);
+
+                const newParams = new URLSearchParams(searchParams);
+                newParams.delete('oauth_error');
+                setSearchParams(newParams);
+            }
+
+            if (showAuthModalParam === 'true') {
+                console.log('Should open auth modal, source:', oauthSourceParam);
+
+                if (oauthSourceParam === 'google') {
+                    const googleCode = localStorage.getItem('googleAuthCode');
+                    const googleState = localStorage.getItem('googleAuthState');
+
+                    console.log('Google auth data in localStorage:', {
+                        code: googleCode ? 'present' : 'missing',
+                        state: googleState ? 'present' : 'missing'
+                    });
+
+                    if (googleCode && googleState) {
+                        setShowAuthModal(true);
+
+                        // Открываем модалку авторизации
+                        if (onOpenAuthModal) {
+                            onOpenAuthModal();
+                        }
+                    }
+                }
+
+                // Очищаем URL параметры
+                const newParams = new URLSearchParams(searchParams);
+                newParams.delete('showAuthModal');
+                newParams.delete('oauthSource');
+                setSearchParams(newParams, { replace: true });
+            }
+        };
+
+        checkUrlParams();
+
+        const hasAuthParams = searchParams.has('showAuthModal') ||
+            searchParams.has('oauth_error') ||
+            searchParams.has('code') ||
+            searchParams.has('state');
+
+        if (hasAuthParams) {
+            checkUrlParams();
+        }
+
+    }, [searchParams, setSearchParams, onOpenAuthModal]);
+
+    useEffect(() => {
+        const checkGoogleAuthData = () => {
+            const googleCode = localStorage.getItem('googleAuthCode');
+            const googleState = localStorage.getItem('googleAuthState');
+
+            if (googleCode && googleState && !userRole) {
+                console.log('Found Google auth data, should show role selection');
+                setShowAuthModal(true);
+
+                if (onOpenAuthModal) {
+                    onOpenAuthModal();
+                }
+            }
+        };
+
+        checkGoogleAuthData();
+
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === 'googleAuthCode' || e.key === 'googleAuthState') {
+                checkGoogleAuthData();
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+        };
+    }, [userRole, onOpenAuthModal]);
 
     const worker = [
         { id: 1, name: "Заказчики", title: "Здесь клиенты находят проверенных специалистов для ремонта, строительства и других услуг", img: "./clientTest.jpg" },
@@ -57,7 +148,11 @@ export function MainPage() {
         } else if (workerType === "client" && userRole === "client") {
             navigate("/create-ad");
         } else if (!userRole) {
-            setModalMessage("Пожалуйста, авторизуйтесь.");
+            if (onOpenAuthModal) {
+                onOpenAuthModal();
+            } else {
+                setModalMessage("Пожалуйста, авторизуйтесь.");
+            }
         } else {
             setModalMessage(`Вы должны быть ${workerType === "master" ? "мастером" : "заказчиком"} для этой операции.`);
         }
@@ -126,7 +221,6 @@ export function MainPage() {
                 </>
             )}
 
-            {/* Модалка */}
             {modalMessage && (
                 <div className={styles.modalOverlay} onClick={() => setModalMessage(null)}>
                     <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
@@ -135,7 +229,7 @@ export function MainPage() {
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <g clipPath="url(#clip0_551_2371)">
                                     <g clipPath="url(#clip1_551_2371)">
-                                        <path d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z" stroke="#101010" stroke-width="2" stroke-miterlimit="10"/>
+                                        <path d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z" stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
                                         <path d="M16.7705 7.22998L7.23047 16.77" stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
                                         <path d="M7.23047 7.22998L16.7705 16.77" stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
                                     </g>
@@ -151,6 +245,13 @@ export function MainPage() {
                             </svg>
                         </button>
                     </div>
+                </div>
+            )}
+
+            {/* Этот блок можно убрать, если он не нужен */}
+            {showAuthModal && (
+                <div style={{ display: 'none' }}>
+                    {/* Триггер для модалки */}
                 </div>
             )}
         </div>

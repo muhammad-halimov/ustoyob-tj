@@ -5,7 +5,11 @@ import { EnterBtn } from "../../shared/ui/button/HeaderButton/EnterBtn.tsx";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { getAuthToken, removeAuthToken } from "../../utils/auth";
 import { useTranslation } from 'react-i18next';
-import {changeLanguage, Language} from '../../locales/i18n.ts';
+import { changeLanguage, Language } from '../../locales/i18n.ts';
+
+interface HeaderProps {
+    onOpenAuthModal?: () => void; // Добавьте этот интерфейс
+}
 
 interface City {
     id: number;
@@ -36,17 +40,15 @@ interface UserData {
     roles: string[];
 }
 
-function Header() {
+function Header({ onOpenAuthModal }: HeaderProps) { // Принимаем пропс
     const location = useLocation();
     const navigate = useNavigate();
     const { t, i18n } = useTranslation(['header', 'common', 'cities']);
 
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [cities, setCities] = useState<City[]>([]);
-    // Используем ключ перевода, а не сам перевод
     const [selectedCity, setSelectedCity] = useState<string>(() => {
         const savedCity = localStorage.getItem('selectedCity');
-        // Сохраняем ключ 'header:location' или название города
         return savedCity || 'header:location';
     });
     const [showCityModal, setShowCityModal] = useState(false);
@@ -70,22 +72,18 @@ function Header() {
     const [showLogo, setShowLogo] = useState(false);
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-    // Языки
     const languages = [
         { code: 'tj' as Language, name: 'ТҶ', fullName: 'Тоҷикӣ' },
         { code: 'ru' as Language, name: 'РУ', fullName: 'Русский' },
         { code: 'en' as Language, name: 'EN', fullName: 'English' },
     ];
 
-    // Флаг для текущего языка
     const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[1];
 
-    // Функция для получения отображаемого названия города
     const getDisplayCityName = () => {
         if (selectedCity === 'header:location') {
             return t('header:location');
         }
-        // Пробуем получить перевод из cities, если нет - используем сохраненное значение
         return t(`cities:${selectedCity}`, { defaultValue: selectedCity });
     };
 
@@ -104,14 +102,11 @@ function Header() {
         fetchCities();
     }, [API_BASE_URL]);
 
-
     useEffect(() => {
         const media = window.matchMedia("(max-width: 480px)");
-
         setShowLogo(media.matches);
         const handler = () => setShowLogo(media.matches);
         media.addEventListener("change", handler);
-
         return () => media.removeEventListener("change", handler);
     }, []);
 
@@ -158,9 +153,6 @@ function Header() {
                 }
 
                 const userData: UserData = await response.json();
-                // console.log('Fresh user data received:', userData);
-                // console.log('User approved status:', userData.approved);
-
                 localStorage.setItem('userData', JSON.stringify(userData));
                 setShowConfirmationBanner(userData.approved === false);
 
@@ -171,9 +163,7 @@ function Header() {
         };
 
         checkAccountConfirmation();
-
         const interval = setInterval(checkAccountConfirmation, 60000);
-
         return () => clearInterval(interval);
     }, [location.pathname]);
 
@@ -248,13 +238,10 @@ function Header() {
     };
 
     const handleCitySelect = (cityTitle: string) => {
-        // Сохраняем название города как ключ для перевода
-        // Например, для "Душанбе" создаем ключ "dushanbe"
         const cityKey = cityTitle.toLowerCase().replace(/\s+/g, '_');
         setSelectedCity(cityKey);
         localStorage.setItem('selectedCity', cityKey);
         setShowCityModal(false);
-        // Вместо перезагрузки, можно обновить состояние
         window.dispatchEvent(new Event('cityChanged'));
     };
 
@@ -289,12 +276,16 @@ function Header() {
     const handleProfileClick = (e: React.MouseEvent) => {
         if (!isAuthenticated) {
             e.preventDefault();
-            setShowAuthModal(true);
+            handleEnterBtnClick();
         }
     };
 
     const handleEnterBtnClick = () => {
-        setShowAuthModal(true);
+        if (onOpenAuthModal) {
+            onOpenAuthModal();
+        } else {
+            setShowAuthModal(true);
+        }
     };
 
     const closeAuthModal = () => {
@@ -333,7 +324,6 @@ function Header() {
 
     return (
         <header className={styles.header}>
-            {/* Плашка подтверждения аккаунта */}
             {showConfirmationBanner && isAuthenticated && (
                 <div className={styles.confirmationBanner}>
                     <div className={styles.confirmationBannerContent}>
