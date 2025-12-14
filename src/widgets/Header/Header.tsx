@@ -70,7 +70,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
         if (userDataStr) {
             try {
                 const userData: UserData = JSON.parse(userDataStr);
-                return userData.approved === false;
+                return userData.approved === false ? true : false;
             } catch {
                 return false;
             }
