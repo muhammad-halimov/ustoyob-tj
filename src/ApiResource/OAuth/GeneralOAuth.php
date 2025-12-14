@@ -7,7 +7,7 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\OAuth\Google\GoogleOAuthCallbackController;
 use App\Controller\Api\OAuth\Google\GoogleOAuthUrlController;
-use App\Controller\Api\OAuth\Meta\Facebook\FacebbokOAuthUrlController;
+use App\Controller\Api\OAuth\Meta\Facebook\FacebokOAuthUrlController;
 use App\Controller\Api\OAuth\Meta\Facebook\FacebookOAuthCallbackController;
 use App\Controller\Api\OAuth\Meta\Instagram\InstagramOAuthCallbackController;
 use App\Controller\Api\OAuth\Meta\Instagram\InstagramOAuthUrlController;
@@ -91,7 +91,7 @@ use App\Dto\OAuth\GeneralCallbackOutput;
         ),
         new Get(
             uriTemplate: '/auth/facebook/url',
-            controller: FacebbokOAuthUrlController::class,
+            controller: FacebokOAuthUrlController::class,
             input: false,
             output: GeneralAuthUrlOutput::class,
             read: false,

@@ -2,25 +2,13 @@
 
 namespace App\Controller\Api\OAuth\Google;
 
-use App\Dto\OAuth\GeneralAuthUrlOutput;
+use App\Controller\Api\OAuth\AbstractOAuthUrlController;
 use App\Service\OAuth\Google\GoogleOAuthService;
-use Psr\Cache\InvalidArgumentException;
-use Random\RandomException;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\JsonResponse;
 
-class GoogleOAuthUrlController extends AbstractController
+class GoogleOAuthUrlController extends AbstractOAuthUrlController
 {
-    public function __construct(private readonly GoogleOAuthService $googleOAuth) {}
-
-    /**
-     * @throws RandomException
-     * @throws InvalidArgumentException
-     */
-    public function __invoke(GeneralAuthUrlOutput $output): JsonResponse
+    public function __construct(GoogleOAuthService $oauthService)
     {
-        $output->url = ($this->googleOAuth->generateGoogleOAuthRedirectUri());
-
-        return $this->json($output);
+        parent::__construct($oauthService);
     }
 }
