@@ -1,0 +1,155 @@
+.cookieBanner {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 95%;
+  max-width: 1150px;
+  background: #3A54DA;
+  color: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  animation: slideUp 0.5s ease-out;
+
+  @media (max-width: 768px) {
+    width: 95%;
+    bottom: 10px;
+    padding: 20px;
+  }
+
+  @media (max-width: 480px) {
+    padding: 16px;
+    border-radius: 12px;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translate(-50%, 100%);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+.cookieContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+  }
+}
+
+.cookieText {
+  flex: 1;
+}
+
+.cookieTitle {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  @media (max-width: 480px) {
+    font-size: 16px;
+    justify-content: center;
+  }
+}
+
+.cookieDescription {
+  font-size: 14px;
+  line-height: 1.5;
+  opacity: 0.9;
+  margin: 0;
+
+  @media (max-width: 480px) {
+    font-size: 13px;
+  }
+}
+
+.learnMoreLink {
+  background: none;
+  border: none;
+  color: #ffd700;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0 4px;
+  font-size: inherit;
+  display: inline;
+
+  &:hover {
+    color: #fff;
+    text-decoration: none;
+  }
+}
+
+.cookieButtons {
+  display: flex;
+  gap: 12px;
+  flex-shrink: 0;
+
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+
+  @media (max-width: 480px) {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+.declineButton,
+.acceptButton {
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+  min-width: 120px;
+
+  @media (max-width: 480px) {
+    padding: 10px 20px;
+    min-width: auto;
+    width: 100%;
+  }
+}
+
+.declineButton {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.5);
+  }
+}
+
+.acceptButton {
+  background: white;
+  color: #3A54DA;
+  border: 2px solid white;
+
+  &:hover {
+    background: #f8f9fa;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
