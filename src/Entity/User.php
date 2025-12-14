@@ -444,16 +444,23 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      * @var string|null The hashed password
      */
     #[ORM\Column]
-    private ?string $password = null;
-
-    #[Ignore]
-    #[Assert\NotBlank(message: "Password cannot be empty")]
     #[Assert\Length(
         min: 8,
         minMessage: "Password must be at least {{ limit }} characters long"
     )]
     #[Assert\Regex(
-        pattern: "/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/",
+        pattern: "/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#\$%\^&\*]).+$/",
+        message: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (!@#$%^&*)"
+    )]
+    private ?string $password = null;
+
+    #[Ignore]
+    #[Assert\Length(
+        min: 8,
+        minMessage: "Password must be at least {{ limit }} characters long"
+    )]
+    #[Assert\Regex(
+        pattern: "/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#\$%\^&\*]).+$/",
         message: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (!@#$%^&*)"
     )]
     private ?string $plainPassword = null;
