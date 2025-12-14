@@ -1,21 +1,33 @@
 <?php
 
-namespace App\Dto\OAuth\Google;
+namespace App\Dto\OAuth;
 
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
-final class GoogleCallbackInput
+final class GeneralCallbackInput
 {
-    #[Groups(['google:write'])]
+    #[Groups([
+        'google:write',
+        'instagram:write',
+        'facebook:write'
+    ])]
     #[Assert\NotBlank]
     private string $code;
 
-    #[Groups(['google:write'])]
+    #[Groups([
+        'google:write',
+        'instagram:write',
+        'facebook:write'
+    ])]
     #[Assert\NotBlank]
     public string $state;
 
-    #[Groups(['google:write'])]
+    #[Groups([
+        'google:write',
+        'instagram:write',
+        'facebook:write'
+    ])]
     public ?string $role = null;
 
     public function getCode(): string
@@ -27,5 +39,10 @@ final class GoogleCallbackInput
     public function setCode(string $code): void
     {
         $this->code = $code;
+    }
+
+    public function getState(): string
+    {
+        return explode('#', $this->state, 2)[0];
     }
 }

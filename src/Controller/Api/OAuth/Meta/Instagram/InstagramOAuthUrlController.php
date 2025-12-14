@@ -1,17 +1,17 @@
 <?php
 
-namespace App\Controller\Api\OAuth\Google;
+namespace App\Controller\Api\OAuth\Meta\Instagram;
 
 use App\Dto\OAuth\GeneralAuthUrlOutput;
-use App\Service\OAuth\Google\GoogleOAuthService;
+use App\Service\OAuth\Meta\Instagram\InstagramOAuthService;
 use Psr\Cache\InvalidArgumentException;
 use Random\RandomException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
-class GoogleOAuthUrlController extends AbstractController
+class InstagramOAuthUrlController extends AbstractController
 {
-    public function __construct(private readonly GoogleOAuthService $googleOAuth) {}
+    public function __construct(private readonly InstagramOAuthService $instagramOAuth) {}
 
     /**
      * @throws RandomException
@@ -19,7 +19,7 @@ class GoogleOAuthUrlController extends AbstractController
      */
     public function __invoke(GeneralAuthUrlOutput $output): JsonResponse
     {
-        $output->url = ($this->googleOAuth->generateGoogleOAuthRedirectUri());
+        $output->url = ($this->instagramOAuth->generateInstagramOAuthRedirectUri());
 
         return $this->json($output);
     }

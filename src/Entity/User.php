@@ -225,7 +225,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     ])]
     private ?int $id = null;
 
-    #[ORM\Column(length: 180)]
+    #[ORM\Column(length: 180, unique: true, nullable: true)]
     #[Groups([
         'masters:read',
         'clients:read',
@@ -242,6 +242,24 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'blackLists:read'
     ])]
     private ?string $email = null;
+
+    #[ORM\Column(length: 64, nullable: true)]
+    #[Groups([
+        'masters:read',
+        'clients:read',
+        'reviews:read',
+        'reviewsClient:read',
+        'galleries:read',
+        'masterTickets:read',
+        'clientTickets:read',
+        'chats:read',
+        'chatMessages:read',
+        'appeal:ticket:read',
+        'favorites:read',
+        'techSupport:read',
+        'blackLists:read'
+    ])]
+    private ?string $username = null;
 
     #[ORM\Column(length: 32, nullable: true)]
     #[Groups([
@@ -342,7 +360,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ApiProperty(writable: false)]
     private ?string $image = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups([
         'masters:read',
         'clients:read',
@@ -649,6 +667,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setEmail(string $email): static
     {
         $this->email = $email;
+
+        return $this;
+    }
+
+    public function getUsername(): ?string
+    {
+        return $this->username;
+    }
+
+    public function setUsername(?string $username): static
+    {
+        $this->username = $username;
 
         return $this;
     }

@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Controller\Api\OAuth\Google;
+namespace App\Controller\Api\OAuth\Meta\Instagram;
 
 use App\Dto\OAuth\GeneralCallbackInput;
 use App\Dto\OAuth\GeneralCallbackOutput;
 use App\Service\Auth\RefreshTokenService;
-use App\Service\OAuth\Google\GoogleOAuthService;
+use App\Service\OAuth\Meta\Instagram\InstagramOAuthService;
 use Psr\Cache\InvalidArgumentException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -16,11 +16,11 @@ use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 
-class GoogleOAuthCallbackController extends AbstractController
+class InstagramOAuthCallbackController extends AbstractController
 {
     public function __construct(
-        private readonly GoogleOAuthService $googleOAuth,
-        private readonly RefreshTokenService $refreshTokenService,
+        private readonly InstagramOAuthService $instagramOAuth,
+        private readonly RefreshTokenService   $refreshTokenService,
     ) {}
 
     /**
@@ -33,9 +33,9 @@ class GoogleOAuthCallbackController extends AbstractController
      */
     public function __invoke(#[MapRequestPayload] GeneralCallbackInput $input): JsonResponse
     {
-        $result = $this->googleOAuth->handleCode(
+        $result = $this->instagramOAuth->handleCode(
             $input->getCode(),
-            $input->state,
+            $input->getState(),
             $input->role
         );
 

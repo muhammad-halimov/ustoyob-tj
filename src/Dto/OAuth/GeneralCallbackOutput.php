@@ -1,14 +1,16 @@
 <?php
 
-namespace App\Dto\OAuth\Google;
+namespace App\Dto\OAuth;
 
 use App\Entity\User;
 use Symfony\Component\Serializer\Annotation\Groups;
 
-final class GoogleCallbackOutput
+final class GeneralCallbackOutput
 {
     #[Groups([
         'google:read',
+        'instagram:read',
+        'facebook:read',
         'masters:read',
         'clients:read',
         'users:me:read'
@@ -17,6 +19,8 @@ final class GoogleCallbackOutput
 
     #[Groups([
         'google:read',
+        'instagram:read',
+        'facebook:read',
         'masters:read',
         'clients:read',
         'users:me:read'
@@ -25,6 +29,8 @@ final class GoogleCallbackOutput
 
     #[Groups([
         'google:read',
+        'instagram:read',
+        'facebook:read',
         'masters:read',
         'clients:read',
         'users:me:read'
