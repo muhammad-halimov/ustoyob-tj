@@ -259,7 +259,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'techSupport:read',
         'blackLists:read'
     ])]
-    private ?string $username = null;
+    private ?string $login = null;
 
     #[ORM\Column(length: 32, nullable: true)]
     #[Groups([
@@ -444,6 +444,15 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      * @var string|null The hashed password
      */
     #[ORM\Column]
+    #[Assert\NotBlank(message: "Password cannot be empty")]
+    #[Assert\Length(
+        min: 8,
+        minMessage: "Password must be at least {{ limit }} characters long"
+    )]
+    #[Assert\Regex(
+        pattern: "/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#\$%\^&\*]).+$/",
+        message: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (!@#$%^&*)"
+    )]
     private ?string $password = null;
 
     #[Ignore]
@@ -671,14 +680,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    public function getUsername(): ?string
+    public function getLogin(): ?string
     {
-        return $this->username;
+        return $this->login;
     }
 
-    public function setUsername(?string $username): static
+    public function setLogin(?string $login): static
     {
-        $this->username = $username;
+        $this->login = $login;
 
         return $this;
     }

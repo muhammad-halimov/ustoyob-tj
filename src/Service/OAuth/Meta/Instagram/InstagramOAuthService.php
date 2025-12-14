@@ -103,7 +103,7 @@ class InstagramOAuthService extends AbstractOAuthService implements OAuthService
 
         $user = (new User())
             ->setOauthType($oauth)
-            ->setUsername($userData['username'])
+            ->setLogin($userData['username'])
             ->setName(explode(' ', $userData['name'], 2)[0] ?? '')
             ->setSurname(explode(' ', $userData['name'], 2)[1] ?? '')
             ->setImageExternalUrl($userData['profile_picture_url'] ?? '')
@@ -127,7 +127,7 @@ class InstagramOAuthService extends AbstractOAuthService implements OAuthService
     public function updateUserData(User $user, array $userData): void
     {
         if (isset($userData['username'])) {
-            $user->setUsername($userData['username']);
+            $user->setLogin($userData['username']);
         }
         if (isset($userData['name'])) {
             $user->setName(explode(' ', $userData['name'], 2)[0]);
