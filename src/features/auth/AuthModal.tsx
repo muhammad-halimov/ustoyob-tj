@@ -89,7 +89,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
     const [googleAuthCode, setGoogleAuthCode] = useState<string>('');
     const [googleAuthState, setGoogleAuthState] = useState<string>('');
     const [refreshIntervalId, setRefreshIntervalId] = useState<NodeJS.Timeout | null>(null);
-    const [needsRoleSelection, setNeedsRoleSelection] = useState(false);
+    // const [needsRoleSelection, setNeedsRoleSelection] = useState(false);
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
