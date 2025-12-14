@@ -444,6 +444,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      * @var string|null The hashed password
      */
     #[ORM\Column]
+    private ?string $password = null;
+
+    #[Ignore]
     #[Assert\NotBlank(message: "Password cannot be empty")]
     #[Assert\Length(
         min: 8,
@@ -453,9 +456,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         pattern: "/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#\$%\^&\*]).+$/",
         message: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (!@#$%^&*)"
     )]
-    private ?string $password = null;
-
-    #[Ignore]
     private ?string $plainPassword = null;
 
     /**
