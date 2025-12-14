@@ -453,7 +453,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         minMessage: "Password must be at least {{ limit }} characters long"
     )]
     #[Assert\Regex(
-        pattern: "/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#\$%\^&\*]).+$/",
+        pattern: "/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/",
         message: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (!@#$%^&*)"
     )]
     private ?string $plainPassword = null;
