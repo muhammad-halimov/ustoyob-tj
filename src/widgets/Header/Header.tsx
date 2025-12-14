@@ -205,11 +205,9 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                 const userData: UserData = await response.json();
                 localStorage.setItem('userData', JSON.stringify(userData));
 
-                // Проверяем, авторизован ли через Google и имеет ли роль
-                const isGoogleAuth = userData.oauthType?.googleId;
+                const isGoogleAuth = !!userData.oauthType?.googleId;
                 const hasRole = userData.roles && userData.roles.length > 0;
 
-                // Если авторизован через Google и нет роли - нужен выбор роли
                 setNeedsRoleSelection(isGoogleAuth && !hasRole);
             } else {
                 setNeedsRoleSelection(false);
