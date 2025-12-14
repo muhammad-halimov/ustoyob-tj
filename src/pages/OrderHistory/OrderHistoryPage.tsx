@@ -219,7 +219,6 @@ const OrderHistoryPage = () => {
 
     const closeAuthModal = () => {
         setShowAuthModal(false);
-        window.location.reload();
     };
 
     // Функция для форматирования даты

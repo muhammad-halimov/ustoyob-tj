@@ -440,3 +440,32 @@
     cursor: not-allowed;
   }
 }
+
+.telegramButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+
+
+  img {
+    width: 62px;
+    height: 62px;
+  }
+}
+
+.telegramWidgetContainer {
+  margin: 15px 0;
+
+  iframe {
+    border-radius: 20px !important;
+    overflow: hidden;
+    border: none;
+  }
+}
+
+.socialButtons {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin: 20px 0;
+}

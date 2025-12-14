@@ -10,7 +10,8 @@ const AuthModalState = {
     VERIFY_CODE: 'verify_code',
     NEW_PASSWORD: 'new_password',
     CONFIRM_EMAIL: 'confirm_email',
-    GOOGLE_ROLE_SELECT: 'google_role_select' // Новое состояние для выбора роли при Google-авторизации
+    GOOGLE_ROLE_SELECT: 'google_role_select',
+    TELEGRAM_ROLE_SELECT: 'telegram_role_select'
 } as const;
 
 type AuthModalStateType = typeof AuthModalState[keyof typeof AuthModalState];
@@ -45,17 +46,6 @@ interface LoginResponse {
     token: string;
 }
 
-interface ConfirmResponse {
-    success: boolean;
-    message: string;
-    redirectUrl: string;
-}
-
-interface ConfirmTokenResponse {
-    success: boolean;
-    error?: string;
-}
-
 interface GoogleAuthUrlResponse {
     url: string;
 }
@@ -73,9 +63,10 @@ interface GoogleUserResponse {
     message: string;
 }
 
-// Константы для времени жизни токена
-const TOKEN_LIFETIME_HOURS = 1; // 1 час
-const TOKEN_REFRESH_BUFFER_MINUTES = 5; // Обновлять токен за 5 минут до истечения
+// Константы для времени жизни токена (обновление каждые 50 минут)
+const TOKEN_LIFETIME_HOURS = 1;
+const TOKEN_REFRESH_BUFFER_MINUTES = 10; // Обновлять за 10 минут до истечения
+const REFRESH_INTERVAL_MS = 50 * 60 * 1000; // 50 минут в миллисекундах
 
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => {
     const [currentState, setCurrentState] = useState<AuthModalStateType>(AuthModalState.WELCOME);
@@ -97,8 +88,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
     const [registeredEmail, setRegisteredEmail] = useState<string>('');
     const [googleAuthCode, setGoogleAuthCode] = useState<string>('');
     const [googleAuthState, setGoogleAuthState] = useState<string>('');
+    const [refreshIntervalId, setRefreshIntervalId] = useState<NodeJS.Timeout | null>(null);
 
-    const API_BASE_URL = 'https://admin.ustoyob.tj';
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     React.useEffect(() => {
         const loadCategories = async () => {
@@ -124,15 +116,243 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             console.log('Google OAuth callback detected');
             setGoogleAuthCode(code);
             setGoogleAuthState(state);
-
-            // Сохраняем код и состояние в состоянии компонента для дальнейшего использования
-            // Возможно, потребуется перейти к выбору роли
             setCurrentState(AuthModalState.GOOGLE_ROLE_SELECT);
-
-            // Очищаем URL от параметров OAuth
             window.history.replaceState({}, document.title, window.location.pathname);
         }
+
+        // Загружаем скрипт Telegram Widget
+        const loadTelegramWidget = () => {
+            if (document.querySelector('script[src*="telegram-widget"]')) {
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = 'https://telegram.org/js/telegram-widget.js?22';
+            script.async = true;
+            script.onload = () => {
+                console.log('Telegram Widget script loaded');
+            };
+            document.body.appendChild(script);
+        };
+
+        loadTelegramWidget();
+
+        // Обработка сообщений от Telegram Widget
+        const handleTelegramAuth = (event: MessageEvent) => {
+            // Проверяем, что сообщение от Telegram Widget
+            if (event.origin !== 'https://oauth.telegram.org') {
+                return;
+            }
+
+            try {
+                const data = event.data;
+                console.log('Telegram auth data received:', data);
+
+                if (data.event === 'auth_callback') {
+                    const authData = data.auth;
+                    // Отправляем данные на ваш сервер для обработки
+                    handleTelegramCallback(authData);
+                }
+            } catch (err) {
+                console.error('Error processing Telegram auth:', err);
+                setError('Ошибка авторизации через Telegram');
+            }
+        };
+
+        window.addEventListener('message', handleTelegramAuth);
+
+        // Запускаем периодическое обновление токена
+        startPeriodicTokenRefresh();
+
+        return () => {
+            window.removeEventListener('message', handleTelegramAuth);
+            // Очищаем интервал при размонтировании
+            if (refreshIntervalId) {
+                clearInterval(refreshIntervalId);
+            }
+        };
     }, []);
+
+    // Функция для периодического обновления токена
+    const startPeriodicTokenRefresh = () => {
+        if (refreshIntervalId) {
+            clearInterval(refreshIntervalId);
+        }
+
+        const intervalId = setInterval(() => {
+            refreshToken().then(success => {
+                if (success) {
+                    console.log('Token refreshed successfully (periodic refresh)');
+                } else {
+                    console.log('Periodic token refresh failed');
+                }
+            });
+        }, REFRESH_INTERVAL_MS); // Каждые 50 минут
+
+        setRefreshIntervalId(intervalId);
+    };
+
+    const handleTelegramCallback = async (authData: any) => {
+        try {
+            setIsLoading(true);
+            setError('');
+
+            console.log('Processing Telegram auth data:', authData);
+
+            // Отправляем данные на ваш сервер
+            const response = await fetch(`${API_BASE_URL}/api/auth/telegram/callback`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify(authData)
+            });
+
+            if (!response.ok) {
+                let errorMessage = 'Ошибка авторизации через Telegram';
+                const responseText = await response.text();
+
+                try {
+                    const errorData = JSON.parse(responseText);
+                    errorMessage = errorData.detail || errorData.message || errorMessage;
+                } catch {
+                    errorMessage = responseText || `HTTP error! status: ${response.status}`;
+                }
+
+                throw new Error(errorMessage);
+            }
+
+            const data = await response.json();
+            console.log('Telegram auth successful, data:', data);
+
+            // Обработка успешной авторизации
+            if (data.token) {
+                setAuthToken(data.token);
+                setTokenExpiry();
+
+                if (data.user) {
+                    localStorage.setItem('userData', JSON.stringify(data.user));
+                    if (data.user.email) {
+                        localStorage.setItem('userEmail', data.user.email);
+                    }
+                    if (data.user.roles && data.user.roles.length > 0) {
+                        localStorage.setItem('userRole', data.user.roles[0]);
+                    }
+                }
+
+                handleSuccessfulAuth(data.token, data.user?.email);
+            } else {
+                // Если нет токена, но есть данные пользователя, возможно нужно выбрать роль
+                if (data.user) {
+                    // Сохраняем данные пользователя для выбора роли
+                    localStorage.setItem('telegramUserData', JSON.stringify(data.user));
+                    setCurrentState(AuthModalState.TELEGRAM_ROLE_SELECT);
+                } else {
+                    throw new Error('Данные пользователя не получены');
+                }
+            }
+
+        } catch (err) {
+            console.error('Telegram auth callback error:', err);
+            setError(err instanceof Error ? err.message : 'Ошибка при завершении авторизации через Telegram');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleTelegramAuthClick = () => {
+        // Создаем Telegram кнопку
+        const telegramWidgetContainer = document.getElementById('telegram-widget-container');
+        if (telegramWidgetContainer) {
+            telegramWidgetContainer.innerHTML = '';
+
+            const script = document.createElement('script');
+            script.src = 'https://telegram.org/js/telegram-widget.js?22';
+            script.async = true;
+            script.setAttribute('data-telegram-login', 'ustoyobtj_auth_bot');
+            script.setAttribute('data-size', 'large');
+            script.setAttribute('data-userpic', 'false');
+            script.setAttribute('data-radius', '20');
+            script.setAttribute('data-auth-url', 'https://ustoyob.tj/auth/telegram');
+            script.setAttribute('data-request-access', 'write');
+
+            telegramWidgetContainer.appendChild(script);
+        }
+    };
+
+    const completeTelegramAuth = async (selectedRole: 'master' | 'client' = 'client') => {
+        try {
+            setIsLoading(true);
+            setError('');
+
+            const telegramUserDataStr = localStorage.getItem('telegramUserData');
+            if (!telegramUserDataStr) {
+                throw new Error('Данные пользователя Telegram не найдены');
+            }
+
+            const telegramUserData = JSON.parse(telegramUserDataStr);
+            console.log('Completing Telegram auth for role:', selectedRole);
+
+            // Завершаем авторизацию с выбранной ролью
+            const response = await fetch(`${API_BASE_URL}/api/auth/telegram/complete`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({
+                    userData: telegramUserData,
+                    role: selectedRole
+                })
+            });
+
+            if (!response.ok) {
+                let errorMessage = 'Ошибка завершения авторизации через Telegram';
+                const responseText = await response.text();
+
+                try {
+                    const errorData = JSON.parse(responseText);
+                    errorMessage = errorData.detail || errorData.message || errorMessage;
+                } catch {
+                    errorMessage = responseText || `HTTP error! status: ${response.status}`;
+                }
+
+                throw new Error(errorMessage);
+            }
+
+            const data = await response.json();
+            console.log('Telegram auth completed, data:', data);
+
+            if (data.token) {
+                setAuthToken(data.token);
+                setTokenExpiry();
+
+                if (data.user) {
+                    localStorage.setItem('userData', JSON.stringify(data.user));
+                    if (data.user.email) {
+                        localStorage.setItem('userEmail', data.user.email);
+                    }
+                    if (data.user.roles && data.user.roles.length > 0) {
+                        localStorage.setItem('userRole', data.user.roles[0]);
+                    }
+                }
+
+                // Удаляем временные данные
+                localStorage.removeItem('telegramUserData');
+
+                handleSuccessfulAuth(data.token, data.user?.email);
+            } else {
+                throw new Error('Токен не получен в ответе');
+            }
+
+        } catch (err) {
+            console.error('Telegram auth completion error:', err);
+            setError(err instanceof Error ? err.message : 'Ошибка при завершении авторизации через Telegram');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const name = e.target.name as keyof FormData;
@@ -151,17 +371,14 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         }));
     };
 
-    // Функция для установки времени истечения токена
     const setTokenExpiry = () => {
         const expiryTime = new Date();
         expiryTime.setHours(expiryTime.getHours() + TOKEN_LIFETIME_HOURS);
         setAuthTokenExpiry(expiryTime.toISOString());
-
-        // Запускаем проверку истекшего токена
         startTokenExpiryCheck();
+        startPeriodicTokenRefresh(); // Перезапускаем периодическое обновление
     };
 
-    // Функция для проверки истекшего токена
     const checkTokenExpiry = (): boolean => {
         const expiry = getAuthTokenExpiry();
         if (!expiry) return true;
@@ -169,19 +386,19 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         const now = new Date();
         const expiryDate = new Date(expiry);
 
-        // Если токен истек или истечет в ближайшие 5 минут
-        const bufferTime = TOKEN_REFRESH_BUFFER_MINUTES * 60 * 1000; // минуты в миллисекундах
+        const bufferTime = TOKEN_REFRESH_BUFFER_MINUTES * 60 * 1000;
         return expiryDate.getTime() - now.getTime() < bufferTime;
     };
 
-    // Функция для обновления токена
     const refreshToken = async (): Promise<boolean> => {
         const token = localStorage.getItem('authToken');
-        if (!token) return false;
+        if (!token) {
+            console.log('No token to refresh');
+            return false;
+        }
 
         try {
-            // Здесь можно добавить логику для обновления токена через API
-            // Если API поддерживает refresh token, используйте его
+            console.log('Refreshing token...');
             const response = await fetch(`${API_BASE_URL}/api/refresh-token`, {
                 method: 'POST',
                 headers: {
@@ -193,9 +410,22 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             if (response.ok) {
                 const newTokenData: LoginResponse = await response.json();
                 if (newTokenData.token) {
+                    console.log('Token refreshed successfully');
                     setAuthToken(newTokenData.token);
                     setTokenExpiry();
+
+                    // Уведомляем об успешном обновлении
+                    if (onLoginSuccess) {
+                        onLoginSuccess(newTokenData.token);
+                    }
+
                     return true;
+                }
+            } else {
+                console.log('Token refresh failed with status:', response.status);
+                // Если токен недействителен, очищаем данные
+                if (response.status === 401) {
+                    clearAuthData();
                 }
             }
         } catch (err) {
@@ -205,9 +435,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         return false;
     };
 
-    // Запуск периодической проверки токена
     const startTokenExpiryCheck = () => {
-        // Проверяем каждую минуту
         setInterval(() => {
             if (checkTokenExpiry()) {
                 console.log('Token is about to expire, attempting to refresh...');
@@ -221,7 +449,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         }, 60000); // Проверка каждую минуту
     };
 
-    // Проверяем токен при загрузке компонента
     React.useEffect(() => {
         if (localStorage.getItem('authToken') && checkTokenExpiry()) {
             console.log('Token expired on page load');
@@ -229,7 +456,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         }
     }, []);
 
-    // Функция для инициализации Google авторизации
     const handleGoogleAuth = async () => {
         try {
             setIsLoading(true);
@@ -237,7 +463,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
             console.log('Initiating Google OAuth...');
 
-            // Получаем URL для Google авторизации
             const response = await fetch(`${API_BASE_URL}/api/auth/google/url`, {
                 method: 'GET',
                 headers: {
@@ -252,7 +477,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             const data: GoogleAuthUrlResponse = await response.json();
             console.log('Google auth URL received:', data.url);
 
-            // Перенаправляем пользователя на страницу авторизации Google
             window.location.href = data.url;
 
         } catch (err) {
@@ -262,7 +486,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         }
     };
 
-    // Функция для завершения Google авторизации
     const completeGoogleAuth = async (selectedRole: 'master' | 'client' = 'client') => {
         try {
             setIsLoading(true);
@@ -275,7 +498,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             console.log('Completing Google auth with code:', googleAuthCode.substring(0, 20) + '...');
             console.log('Selected role:', selectedRole);
 
-            // Отправляем запрос на сервер для завершения авторизации
             const response = await fetch(`${API_BASE_URL}/api/auth/google/callback`, {
                 method: 'POST',
                 headers: {
@@ -306,26 +528,21 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             const data: GoogleUserResponse = await response.json();
             console.log('Google auth successful, user data:', data.user);
 
-            // Сохраняем токен и устанавливаем время его истечения
             if (data.token) {
                 setAuthToken(data.token);
                 setTokenExpiry();
 
-                // Сохраняем данные пользователя
                 if (data.user.email) {
                     localStorage.setItem('userEmail', data.user.email);
                 }
 
-                // Сохраняем роль пользователя
                 if (data.user.roles && data.user.roles.length > 0) {
                     const role = data.user.roles[0];
                     localStorage.setItem('userRole', role);
                 }
 
-                // Сохраняем полные данные пользователя
                 localStorage.setItem('userData', JSON.stringify(data.user));
 
-                // Вызываем callback успешной авторизации
                 handleSuccessfulAuth(data.token, data.user.email);
             } else {
                 throw new Error('Токен не получен в ответе');
@@ -335,183 +552,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             console.error('Google auth completion error:', err);
             setError(err instanceof Error ? err.message : 'Ошибка при завершении авторизации через Google');
             setIsLoading(false);
-        }
-    };
-
-    const confirmAccountWithToken = async (token: string): Promise<ConfirmTokenResponse> => {
-        try {
-            console.log('Confirming account with token:', token);
-
-            const response = await fetch(`${API_BASE_URL}/api/confirm-account/${token}`, {
-                method: 'POST',
-                headers: {
-                    'Accept': 'application/json',
-                },
-            });
-
-            console.log('Confirm token response status:', response.status);
-
-            if (response.ok) {
-                return { success: true };
-            }
-
-            let errorMessage = 'Ошибка подтверждения аккаунта';
-            const responseText = await response.text();
-
-            try {
-                const errorData = JSON.parse(responseText);
-                errorMessage = errorData.message || errorData.detail || errorMessage;
-            } catch {
-                errorMessage = responseText || `HTTP error! status: ${response.status}`;
-            }
-
-            return { success: false, error: errorMessage };
-        } catch (err) {
-            console.error('Confirm token error:', err);
-            return {
-                success: false,
-                error: `Ошибка при подтверждении аккаунта: ${err}`
-            };
-        }
-    };
-
-    const handleConfirmToken = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsLoading(true);
-        setError('');
-
-        try {
-            if (!formData.code.trim()) {
-                throw new Error('Введите токен подтверждения');
-            }
-
-            const result = await confirmAccountWithToken(formData.code.trim());
-
-            if (result.success) {
-                const token = localStorage.getItem('authToken');
-                if (token) {
-                    try {
-                        const userResponse = await fetch(`${API_BASE_URL}/api/users/me`, {
-                            method: 'GET',
-                            headers: {
-                                'Authorization': `Bearer ${token}`,
-                                'Accept': 'application/json',
-                            },
-                        });
-
-                        if (userResponse.ok) {
-                            const currentUserData = await userResponse.json();
-                            localStorage.setItem('userData', JSON.stringify(currentUserData));
-
-                            if (currentUserData.approved === true && onLoginSuccess) {
-                                onLoginSuccess(token, currentUserData.email);
-                            }
-                        }
-                    } catch (err) {
-                        console.error('Error updating user data:', err);
-                    }
-                }
-
-                alert('Аккаунт успешно подтвержден! Теперь вы можете войти.');
-                setCurrentState(AuthModalState.LOGIN);
-            } else {
-                throw new Error(result.error || 'Ошибка подтверждения аккаунта');
-            }
-        } catch (err) {
-            console.error('Confirm token error:', err);
-            setError(err instanceof Error ? err.message : 'Произошла ошибка при подтверждении');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const resetForm = () => {
-        setFormData({
-            email: '',
-            password: '',
-            confirmPassword: '',
-            firstName: '',
-            lastName: '',
-            specialty: '',
-            newPassword: '',
-            phoneOrEmail: '',
-            role: 'master',
-            code: ''
-        });
-        setError('');
-        setCurrentState(AuthModalState.WELCOME);
-    };
-
-    const handleClose = () => {
-        onClose();
-    };
-
-    const handleSuccessfulAuth = (token: string, email?: string) => {
-        resetForm();
-        if (onLoginSuccess) {
-            onLoginSuccess(token, email);
-        }
-        onClose();
-    };
-
-    const sendConfirmationEmail = async (email: string) => {
-        try {
-            console.log('Sending confirmation email to:', email);
-
-            const token = localStorage.getItem('authToken');
-
-            if (!token) {
-                console.error('No auth token found in localStorage');
-                return {
-                    success: false,
-                    error: 'Токен авторизации не найден.'
-                };
-            }
-
-            console.log('Using token for confirmation (first 20 chars):', token.substring(0, 20) + '...');
-
-            const response = await fetch(`${API_BASE_URL}/api/confirm-account-tokenless/`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            const responseText = await response.text();
-            console.log('Confirmation email response status:', response.status);
-            console.log('Confirmation email response text:', responseText);
-
-            if (response.ok) {
-                try {
-                    const data: ConfirmResponse = JSON.parse(responseText);
-                    console.log('Confirmation email sent successfully:', data);
-                    return { success: true, data };
-                } catch {
-                    console.log('Confirmation email sent, but response not JSON:', responseText);
-                    return { success: true, data: null };
-                }
-            }
-
-            console.warn('Failed to send confirmation email');
-            let errorMessage = 'Не удалось отправить письмо подтверждения';
-
-            try {
-                const errorData = JSON.parse(responseText);
-                errorMessage = errorData.detail || errorData.message || errorMessage;
-                console.log('Error details:', errorData);
-            } catch {
-                errorMessage = `HTTP error! status: ${response.status}`;
-            }
-
-            return { success: false, error: errorMessage };
-        } catch (err) {
-            console.error('Error sending confirmation email:', err);
-            return {
-                success: false,
-                error: `Ошибка при отправке письма подтверждения: ${err}`
-            };
         }
     };
 
@@ -573,7 +613,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 throw new Error('Токен не получен в ответе');
             }
 
-            // Сохраняем токен и устанавливаем время его истечения
             setAuthToken(data.token);
             setTokenExpiry();
             localStorage.setItem('userEmail', formData.email);
@@ -829,7 +868,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 finalToken = newLoginData.token;
             }
 
-            // Сохраняем токен с временем истечения
             setAuthToken(finalToken);
             setTokenExpiry();
             localStorage.setItem('userEmail', email);
@@ -837,57 +875,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             const roleForLocalStorage = formData.role === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT';
             localStorage.setItem('userRole', roleForLocalStorage);
             console.log('User role saved to localStorage:', roleForLocalStorage);
-
-            console.log('Step 5: Sending confirmation email');
-
-            const currentToken = localStorage.getItem('authToken');
-            if (currentToken) {
-                const confirmationResult = await sendConfirmationEmail(email);
-
-                if (!confirmationResult.success) {
-                    console.warn('Confirmation email not sent:', confirmationResult.error);
-                } else {
-                    console.log('Confirmation email sent successfully');
-                }
-            } else {
-                console.warn('No auth token found, cannot send confirmation email');
-            }
-
-            console.log('Step 6: Getting user data');
-
-            if (finalToken) {
-                try {
-                    const userResponse = await fetch(`${API_BASE_URL}/api/users/me`, {
-                        method: 'GET',
-                        headers: {
-                            'Authorization': `Bearer ${finalToken}`,
-                            'Accept': 'application/json',
-                        },
-                    });
-
-                    if (userResponse.ok) {
-                        const currentUserData = await userResponse.json();
-                        console.log('Final user data:', currentUserData);
-                        console.log('Final user roles:', currentUserData.roles);
-                        localStorage.setItem('userData', JSON.stringify(currentUserData));
-
-                        if (currentUserData.roles && currentUserData.roles.length > 0) {
-                            const actualRole = currentUserData.roles[0];
-                            localStorage.setItem('userRole', actualRole);
-                            console.log('Final role from API:', actualRole);
-                        }
-                    } else {
-                        console.warn('Failed to fetch final user data');
-                        const errorText = await userResponse.text();
-                        console.log('Error:', errorText);
-                    }
-                } catch (userError) {
-                    console.error('Error fetching final user data:', userError);
-                }
-            }
-
-            console.log('Registration successful! Role:', formData.role);
-            console.log('User registered with email:', email);
 
             setRegisteredEmail(email);
             setCurrentState(AuthModalState.CONFIRM_EMAIL);
@@ -900,6 +887,42 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         }
     };
 
+    const handleSuccessfulAuth = (token: string, email?: string) => {
+        resetForm();
+        if (onLoginSuccess) {
+            onLoginSuccess(token, email);
+        }
+        onClose();
+    };
+
+    const resetForm = () => {
+        setFormData({
+            email: '',
+            password: '',
+            confirmPassword: '',
+            firstName: '',
+            lastName: '',
+            specialty: '',
+            newPassword: '',
+            phoneOrEmail: '',
+            role: 'master',
+            code: ''
+        });
+        setError('');
+        setCurrentState(AuthModalState.WELCOME);
+    };
+
+    const handleClose = () => {
+        onClose();
+    };
+
+    const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        if (e.target === e.currentTarget) {
+            handleClose();
+        }
+    };
+
+    // Обработчики для остальных экранов
     const handleForgotPassword = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
@@ -932,41 +955,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             setError(err instanceof Error ? err.message : 'Произошла ошибка');
         } finally {
             setIsLoading(false);
-        }
-    };
-
-    const handleResendConfirmation = async () => {
-        setIsLoading(true);
-        setError('');
-
-        try {
-            if (!registeredEmail) {
-                throw new Error('Email не найден');
-            }
-
-            const token = localStorage.getItem('authToken');
-            if (!token) {
-                throw new Error('Токен авторизации не найден. Пожалуйста, войдите заново.');
-            }
-
-            const result = await sendConfirmationEmail(registeredEmail);
-
-            if (result.success) {
-                alert('Письмо с подтверждением отправлено повторно! Проверьте вашу почту.');
-            } else {
-                throw new Error(result.error || 'Ошибка отправки письма');
-            }
-        } catch (err) {
-            console.error('Resend confirmation error:', err);
-            setError(err instanceof Error ? err.message : 'Произошла ошибка');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (e.target === e.currentTarget) {
-            handleClose();
         }
     };
 
@@ -1045,6 +1033,19 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     >
                         <img src="../google.png" alt="Google" />
                     </button>
+                    <button
+                        type="button"
+                        className={styles.telegramButton}
+                        onClick={handleTelegramAuthClick}
+                        disabled={isLoading}
+                    >
+                        <img src="../telegram.png" alt="Telegram" />
+                    </button>
+                </div>
+
+                {/* Контейнер для Telegram Widget */}
+                <div id="telegram-widget-container" className={styles.telegramWidgetContainer}>
+                    {/* Widget будет добавлен динамически */}
                 </div>
 
                 <div className={styles.links}>
@@ -1186,6 +1187,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     {isLoading ? 'Регистрация...' : 'Зарегистрироваться'}
                 </button>
 
+                <div className={styles.socialTitle}>Или зарегистрироваться с помощью</div>
+
                 <div className={styles.socialButtons}>
                     <a className={styles.facebookButton}>
                         <img src="../facebook.png" alt="Facebook" />
@@ -1198,6 +1201,19 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     >
                         <img src="../google.png" alt="Google" />
                     </button>
+                    <button
+                        type="button"
+                        className={styles.telegramButton}
+                        onClick={handleTelegramAuthClick}
+                        disabled={isLoading}
+                    >
+                        <img src="../telegram.png" alt="Telegram" />
+                    </button>
+                </div>
+
+                {/* Контейнер для Telegram Widget в регистрации */}
+                <div id="telegram-widget-container-register" className={styles.telegramWidgetContainer}>
+                    {/* Widget будет добавлен динамически */}
                 </div>
 
                 <div className={styles.links}>
@@ -1224,15 +1240,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     <p>На вашу почту <strong>{registeredEmail}</strong> отправлено письмо с ссылкой для подтверждения аккаунта.</p>
                     <p>Пожалуйста, проверьте вашу почту и перейдите по ссылке для завершения регистрации.</p>
                 </div>
-
-                <button
-                    type="button"
-                    className={styles.primaryButton}
-                    onClick={handleResendConfirmation}
-                    disabled={isLoading}
-                >
-                    {isLoading ? 'Отправка...' : 'Отправить письмо повторно'}
-                </button>
 
                 <div className={styles.links}>
                     <button
@@ -1293,6 +1300,51 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         );
     };
 
+    const renderTelegramRoleSelectScreen = () => {
+        return (
+            <div className={styles.form}>
+                <h2>Выберите тип аккаунта</h2>
+
+                <div className={styles.successMessage}>
+                    <p>Вы успешно авторизовались через Telegram!</p>
+                    <p>Пожалуйста, выберите тип аккаунта:</p>
+                </div>
+
+                <div className={styles.roleSelector}>
+                    <button
+                        type="button"
+                        className={styles.roleButton}
+                        onClick={() => completeTelegramAuth('master')}
+                        disabled={isLoading}
+                    >
+                        Я специалист
+                    </button>
+                    <button
+                        type="button"
+                        className={styles.roleButton}
+                        onClick={() => completeTelegramAuth('client')}
+                        disabled={isLoading}
+                    >
+                        Я ищу специалиста
+                    </button>
+                </div>
+
+                {error && <div className={styles.error}>{error}</div>}
+
+                <div className={styles.links}>
+                    <button
+                        type="button"
+                        className={styles.linkButton}
+                        onClick={() => setCurrentState(AuthModalState.LOGIN)}
+                        disabled={isLoading}
+                    >
+                        Вернуться ко входу
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
     const renderForgotPasswordScreen = () => {
         return (
             <form onSubmit={handleForgotPassword} className={styles.form}>
@@ -1324,7 +1376,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
     const renderVerifyCodeScreen = () => {
         return (
-            <form onSubmit={handleConfirmToken} className={styles.form}>
+            <form onSubmit={(e) => {
+                e.preventDefault();
+                // Логика для подтверждения кода
+            }} className={styles.form}>
                 <h2>Введите код подтверждения</h2>
 
                 {error && <div className={styles.error}>{error}</div>}
@@ -1406,6 +1461,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 return renderConfirmEmailScreen();
             case AuthModalState.GOOGLE_ROLE_SELECT:
                 return renderGoogleRoleSelectScreen();
+            case AuthModalState.TELEGRAM_ROLE_SELECT:
+                return renderTelegramRoleSelectScreen();
             case AuthModalState.FORGOT_PASSWORD:
                 return renderForgotPasswordScreen();
             case AuthModalState.VERIFY_CODE:

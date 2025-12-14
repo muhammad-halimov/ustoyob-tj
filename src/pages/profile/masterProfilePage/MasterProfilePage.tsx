@@ -2841,7 +2841,7 @@ function MasterProfilePage() {
                                                 </div>
                                             </div>
                                             <span className={styles.service_price}>
-                                                {service.budget} {service.unit?.title || 'TJS'}
+                                                {service.budget} TJS, {service.unit?.title || 'TJS'}
                                             </span>
                                         </div>
                                     ))}

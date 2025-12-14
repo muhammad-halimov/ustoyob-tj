@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import {useState, useEffect, useCallback} from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getAuthToken, getUserRole } from '../../utils/auth';
 import styles from './CategoryTicketsPage.module.scss';
@@ -83,7 +83,7 @@ interface FormattedTicket {
     authorImage?: string;
 }
 
-const API_BASE_URL = 'https://admin.ustoyob.tj';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 function CategoryTicketsPage() {
     const navigate = useNavigate();
@@ -141,6 +141,33 @@ function CategoryTicketsPage() {
             setCategoryName('Категория');
         }
     };
+
+    // Функция для очистки текста
+    const cleanText = useCallback((text: string): string => {
+        if (!text) return '';
+
+        let cleaned = text
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#039;/g, "'")
+            .replace(/&hellip;/g, '...')
+            .replace(/&mdash;/g, '—')
+            .replace(/&laquo;/g, '«')
+            .replace(/&raquo;/g, '»');
+
+        cleaned = cleaned.replace(/&[a-z]+;/g, ' ');
+        cleaned = cleaned.replace(/<[^>]*>/g, '');
+
+        cleaned = cleaned
+            .replace(/\s+/g, ' ')
+            .replace(/\n\s*\n/g, '\n')
+            .trim();
+
+        return cleaned;
+    }, []);
 
     const fetchTicketsByCategory = async () => {
         try {
@@ -436,9 +463,9 @@ function CategoryTicketsPage() {
 
                             <div className={styles.resultHeader}>
                                 <h3>{ticket.title}</h3>
-                                <span className={styles.price}>{ticket.price.toLocaleString('ru-RU')} {ticket.unit}</span>
+                                <span className={styles.price}>{ticket.price.toLocaleString('ru-RU')} TJS, {ticket.unit}</span>
                             </div>
-                            <p className={styles.description}>{ticket.description}</p>
+                            <p className={styles.description}>{cleanText(ticket.description)}</p>
                             <div className={styles.resultDetails}>
                                 <span className={styles.category}>
                                     {ticket.category}
