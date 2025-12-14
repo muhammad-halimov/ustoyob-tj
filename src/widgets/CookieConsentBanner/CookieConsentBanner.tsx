@@ -21,10 +21,10 @@ const CookieConsentBanner: React.FC = () => {
         setIsVisible(false);
     };
 
-    const handleDecline = () => {
-        localStorage.setItem('cookieConsent', 'declined');
-        setIsVisible(false);
-    };
+    // const handleDecline = () => {
+    //     localStorage.setItem('cookieConsent', 'declined');
+    //     setIsVisible(false);
+    // };
 
     // const handleLearnMore = () => {
     //     // window.open('/privacy-policy', '_blank');
@@ -51,12 +51,12 @@ const CookieConsentBanner: React.FC = () => {
                 </div>
 
                 <div className={styles.cookieButtons}>
-                    <button
-                        className={styles.declineButton}
-                        onClick={handleDecline}
-                    >
-                        Отклонить
-                    </button>
+                    {/*<button*/}
+                    {/*    className={styles.declineButton}*/}
+                    {/*    onClick={handleDecline}*/}
+                    {/*>*/}
+                    {/*    Отклонить*/}
+                    {/*</button>*/}
                     <button
                         className={styles.acceptButton}
                         onClick={handleAccept}

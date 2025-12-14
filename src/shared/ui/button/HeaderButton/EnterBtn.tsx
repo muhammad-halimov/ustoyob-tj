@@ -15,28 +15,52 @@ type EnterBtnProps = {
 export function EnterBtn({ onClick, isModalOpen, onModalClose, onLoginSuccess }: EnterBtnProps) {
     const [internalModalOpen, setInternalModalOpen] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [userName, setUserName] = useState<string>('');
     const navigate = useNavigate();
     const { t } = useTranslation(['header', 'common']);
 
     const modalOpen = isModalOpen !== undefined ? isModalOpen : internalModalOpen;
 
+    // Функция для проверки статуса пользователя
+    const checkUserStatus = async () => {
+        const token = getAuthToken();
+        const loggedIn = !!token;
+        setIsLoggedIn(loggedIn);
+
+        if (loggedIn) {
+            try {
+                // Получаем данные пользователя для отображения имени
+                const userDataStr = localStorage.getItem('userData');
+                if (userDataStr) {
+                    const userData = JSON.parse(userDataStr);
+                    if (userData.name) {
+                        setUserName(userData.name);
+                    }
+                }
+            } catch (error) {
+                console.error('Error parsing user data:', error);
+            }
+        } else {
+            setUserName('');
+        }
+    };
+
     useEffect(() => {
-        const checkAuth = () => {
-            const token = getAuthToken();
-            setIsLoggedIn(!!token);
+        checkUserStatus();
+
+        const handleAuthChange = () => {
+            checkUserStatus();
         };
 
-        checkAuth();
-
-        const handleStorageChange = () => checkAuth();
-        const handleLogout = () => setIsLoggedIn(false);
-
-        window.addEventListener('storage', handleStorageChange);
-        window.addEventListener('logout', handleLogout);
+        // Слушаем события авторизации
+        window.addEventListener('storage', handleAuthChange);
+        window.addEventListener('login', handleAuthChange);
+        window.addEventListener('logout', handleAuthChange);
 
         return () => {
-            window.removeEventListener('storage', handleStorageChange);
-            window.removeEventListener('logout', handleLogout);
+            window.removeEventListener('storage', handleAuthChange);
+            window.removeEventListener('login', handleAuthChange);
+            window.removeEventListener('logout', handleAuthChange);
         };
     }, []);
 
@@ -45,11 +69,16 @@ export function EnterBtn({ onClick, isModalOpen, onModalClose, onLoginSuccess }:
         setIsLoggedIn(true);
         closeModal();
 
+        // Обновляем данные пользователя
+        setTimeout(() => {
+            checkUserStatus();
+        }, 500);
+
         if (onLoginSuccess) {
             onLoginSuccess();
         }
 
-        window.dispatchEvent(new Event('storage'));
+        window.dispatchEvent(new Event('login'));
     };
 
     const handleButtonClick = async () => {
@@ -66,15 +95,14 @@ export function EnterBtn({ onClick, isModalOpen, onModalClose, onLoginSuccess }:
         try {
             await logout();
             setIsLoggedIn(false);
-            window.dispatchEvent(new Event('storage'));
+            setUserName('');
             window.dispatchEvent(new Event('logout'));
             navigate('/');
             window.location.reload();
         } catch (error) {
             console.error('Logout error:', error);
-            // В случае ошибки все равно очищаем и перенаправляем
             setIsLoggedIn(false);
-            window.dispatchEvent(new Event('storage'));
+            setUserName('');
             window.dispatchEvent(new Event('logout'));
             navigate('/');
             window.location.reload();
@@ -91,7 +119,7 @@ export function EnterBtn({ onClick, isModalOpen, onModalClose, onLoginSuccess }:
 
     const getButtonText = () => {
         if (isLoggedIn) {
-            return t('header:logout');
+            return userName ? `${t('header:logout')} (${userName})` : t('header:logout');
         }
         return t('header:login');
     };

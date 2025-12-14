@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styles from './AuthModal.module.scss';
-import { setAuthToken, getAuthTokenExpiry, setAuthTokenExpiry, clearAuthData } from '../../utils/auth';
+import { setAuthToken, getAuthTokenExpiry, setAuthTokenExpiry, clearAuthData, getAuthToken } from '../../utils/auth';
 
 const AuthModalState = {
     WELCOME: 'welcome',
@@ -89,8 +89,34 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
     const [googleAuthCode, setGoogleAuthCode] = useState<string>('');
     const [googleAuthState, setGoogleAuthState] = useState<string>('');
     const [refreshIntervalId, setRefreshIntervalId] = useState<NodeJS.Timeout | null>(null);
+    const [needsRoleSelection, setNeedsRoleSelection] = useState(false);
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+    // Функция проверки необходимости выбора роли
+    const checkRoleSelectionNeeded = async (token: string): Promise<boolean> => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/users/me`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token.trim()}`,
+                    'Accept': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                const userData = await response.json();
+                // Проверяем наличие Google ID и отсутствие ролей
+                const isGoogleAuth = userData.oauthType?.googleId;
+                const hasRole = userData.roles && userData.roles.length > 0;
+                return isGoogleAuth && !hasRole;
+            }
+            return false;
+        } catch (error) {
+            console.error('Error checking role selection:', error);
+            return false;
+        }
+    };
 
     useEffect(() => {
         const loadCategories = async () => {
@@ -124,7 +150,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
             // Если модалка закрыта, открываем её для показа ошибки
             if (!isOpen && showAuthModal === 'true') {
-                // Здесь нужно как-то открыть модалку через callback
                 console.log('Should open modal for error display');
             }
         }
@@ -146,7 +171,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 // Если модалка закрыта - нужно её открыть
                 if (!isOpen) {
                     console.log('Modal is closed, should open it for role selection');
-                    // Здесь нужен callback для открытия модалки
                 }
 
                 // Очищаем URL параметры
@@ -173,7 +197,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     // Если модалка закрыта - нужно её открыть
                     if (!isOpen) {
                         console.log('Modal is closed, should open it for role selection');
-                        // Здесь нужен callback для открытия модалки
                     }
 
                     // Очищаем URL параметры
@@ -192,8 +215,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 setGoogleAuthCode(savedCode);
                 setGoogleAuthState(savedState);
                 setCurrentState(AuthModalState.GOOGLE_ROLE_SELECT);
-
-                // Не очищаем данные сразу - они понадобятся для completeGoogleAuth
             }
         }
 
@@ -245,6 +266,23 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 clearInterval(refreshIntervalId);
             }
         };
+    }, [isOpen]);
+
+    // Отдельный useEffect для проверки необходимости выбора роли при открытии модалки
+    useEffect(() => {
+        const checkForPendingGoogleAuth = async () => {
+            if (isOpen) {
+                const token = getAuthToken();
+                if (token) {
+                    const needsRoleSelect = await checkRoleSelectionNeeded(token);
+                    if (needsRoleSelect) {
+                        setCurrentState(AuthModalState.GOOGLE_ROLE_SELECT);
+                    }
+                }
+            }
+        };
+
+        checkForPendingGoogleAuth();
     }, [isOpen]);
 
     // Функция для периодического обновления токена
@@ -722,45 +760,53 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             setTokenExpiry();
             localStorage.setItem('userEmail', formData.email);
 
-            try {
-                const userResponse = await fetch(`${API_BASE_URL}/api/users/me`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${data.token}`,
-                        'Accept': 'application/json',
-                    },
-                });
+            // Получаем данные пользователя
+            const userResponse = await fetch(`${API_BASE_URL}/api/users/me`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${data.token}`,
+                    'Accept': 'application/json',
+                },
+            });
 
-                if (userResponse.ok) {
-                    const userData = await userResponse.json();
-                    console.log('User data:', userData);
-                    localStorage.setItem('userData', JSON.stringify(userData));
+            if (userResponse.ok) {
+                const userData = await userResponse.json();
+                console.log('User data:', userData);
+                localStorage.setItem('userData', JSON.stringify(userData));
 
-                    if (userData.roles && userData.roles.length > 0) {
-                        const roles = userData.roles;
-                        console.log('User roles:', roles);
+                // Проверяем, нужен ли выбор роли для Google авторизации
+                const isGoogleAuth = userData.oauthType?.googleId;
+                const hasRole = userData.roles && userData.roles.length > 0;
 
-                        let userRole: 'client' | 'master' = 'client';
-
-                        const isMaster = roles.some((role: string) =>
-                            role.includes('MASTER') || role.includes('master'));
-                        const isClient = roles.some((role: string) =>
-                            role.includes('CLIENT') || role.includes('client'));
-
-                        if (isMaster) {
-                            userRole = 'master';
-                        } else if (isClient) {
-                            userRole = 'client';
-                        }
-
-                        localStorage.setItem('userRole', userRole === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT');
-                        console.log('User role determined:', userRole);
-                    }
-                } else {
-                    console.warn('Failed to fetch user data, but login successful');
+                if (isGoogleAuth && !hasRole) {
+                    // Показываем выбор роли
+                    setCurrentState(AuthModalState.GOOGLE_ROLE_SELECT);
+                    setIsLoading(false);
+                    return;
                 }
-            } catch (userError) {
-                console.error('Error fetching user data:', userError);
+
+                if (userData.roles && userData.roles.length > 0) {
+                    const roles = userData.roles;
+                    console.log('User roles:', roles);
+
+                    let userRole: 'client' | 'master' = 'client';
+
+                    const isMaster = roles.some((role: string) =>
+                        role.includes('MASTER') || role.includes('master'));
+                    const isClient = roles.some((role: string) =>
+                        role.includes('CLIENT') || role.includes('client'));
+
+                    if (isMaster) {
+                        userRole = 'master';
+                    } else if (isClient) {
+                        userRole = 'client';
+                    }
+
+                    localStorage.setItem('userRole', userRole === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT');
+                    console.log('User role determined:', userRole);
+                }
+            } else {
+                console.warn('Failed to fetch user data, but login successful');
             }
 
             handleSuccessfulAuth(data.token, formData.email);
@@ -768,7 +814,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         } catch (err) {
             console.error('Login error:', err);
             setError(err instanceof Error ? err.message : 'Произошла ошибка при авторизации');
-        } finally {
             setIsLoading(false);
         }
     };
@@ -992,12 +1037,26 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         }
     };
 
-    const handleSuccessfulAuth = (token: string, email?: string) => {
-        resetForm();
-        if (onLoginSuccess) {
-            onLoginSuccess(token, email);
+    const handleSuccessfulAuth = async (token: string, email?: string) => {
+        // Проверяем, нужен ли выбор роли
+        const needsRoleSelect = await checkRoleSelectionNeeded(token);
+
+        if (needsRoleSelect) {
+            setAuthToken(token);
+            setTokenExpiry();
+
+            setCurrentState(AuthModalState.GOOGLE_ROLE_SELECT);
+
+            if (onLoginSuccess) {
+                onLoginSuccess(token, email);
+            }
+        } else {
+            resetForm();
+            if (onLoginSuccess) {
+                onLoginSuccess(token, email);
+            }
+            onClose();
         }
-        onClose();
     };
 
     const resetForm = () => {
@@ -1087,64 +1146,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             </div>
         );
     };
-
-    // const renderGoogleRoleSelectScreen = () => {
-    //     return (
-    //         <div className={styles.form}>
-    //             <h2>Выберите тип аккаунта</h2>
-    //
-    //             <div className={styles.successMessage}>
-    //                 <p>Вы успешно авторизовались через Google!</p>
-    //                 <p>Пожалуйста, выберите тип аккаунта:</p>
-    //             </div>
-    //
-    //             <div className={styles.roleSelector}>
-    //                 <button
-    //                     type="button"
-    //                     className={styles.roleButton}
-    //                     onClick={() => completeGoogleAuth('master')}
-    //                     disabled={isLoading}
-    //                 >
-    //                     Я специалист
-    //                 </button>
-    //                 <button
-    //                     type="button"
-    //                     className={styles.roleButton}
-    //                     onClick={() => completeGoogleAuth('client')}
-    //                     disabled={isLoading}
-    //                 >
-    //                     Я ищу специалиста
-    //                 </button>
-    //             </div>
-    //
-    //             {error && <div className={styles.error}>{error}</div>}
-    //
-    //             {isLoading && (
-    //                 <div className={styles.loadingMessage}>
-    //                     Завершение авторизации...
-    //                 </div>
-    //             )}
-    //
-    //             <div className={styles.links}>
-    //                 <button
-    //                     type="button"
-    //                     className={styles.linkButton}
-    //                     onClick={() => {
-    //                         setCurrentState(AuthModalState.LOGIN);
-    //                         // Очищаем данные Google авторизации при возврате
-    //                         setGoogleAuthCode('');
-    //                         setGoogleAuthState('');
-    //                         localStorage.removeItem('googleAuthCode');
-    //                         localStorage.removeItem('googleAuthState');
-    //                     }}
-    //                     disabled={isLoading}
-    //                 >
-    //                     Вернуться ко входу
-    //                 </button>
-    //             </div>
-    //         </div>
-    //     );
-    // };
 
     const renderLoginScreen = () => {
         return (
