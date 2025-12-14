@@ -628,12 +628,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             // Проверяем наличие данных
             const savedCode = localStorage.getItem('googleAuthCode');
             const savedState = localStorage.getItem('googleAuthState');
-            const pendingToken = localStorage.getItem('pendingGoogleToken');
 
             let response;
 
             if (savedCode && savedState) {
-                // Первая авторизация через Google
+                // ВСЕГДА отправляем запрос с кодом авторизации
                 response = await fetch(`${API_BASE_URL}/api/auth/google/callback`, {
                     method: 'POST',
                     headers: {
@@ -646,102 +645,50 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         role: selectedRole
                     })
                 });
-            } else if (pendingToken) {
-                // Повторный выбор роли (уже есть токен)
-                response = await fetch(`${API_BASE_URL}/api/users/grant-role`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'Authorization': `Bearer ${pendingToken}`
-                    },
-                    body: JSON.stringify({
-                        role: selectedRole
-                    })
-                });
 
-                if (response.ok) {
+                const responseText = await response.text();
+                console.log('Google auth response status:', response.status);
+
+                if (!response.ok) {
+                    let errorMessage = 'Ошибка авторизации через Google';
+                    try {
+                        const errorData = JSON.parse(responseText);
+                        errorMessage = errorData.detail || errorData.message || errorMessage;
+                    } catch {
+                        errorMessage = responseText || `HTTP error! status: ${response.status}`;
+                    }
+                    throw new Error(errorMessage);
+                }
+
+                const data: GoogleUserResponse = JSON.parse(responseText);
+                console.log('Google auth successful, user data:', data.user);
+
+                if (data.token) {
+                    // Сохраняем токен и данные пользователя
+                    setAuthToken(data.token);
+                    setTokenExpiry();
+
+                    if (data.user) {
+                        localStorage.setItem('userData', JSON.stringify(data.user));
+                        if (data.user.email) {
+                            localStorage.setItem('userEmail', data.user.email);
+                        }
+                        if (data.user.roles && data.user.roles.length > 0) {
+                            localStorage.setItem('userRole', data.user.roles[0]);
+                        }
+                    }
+
                     // Очищаем временные данные
-                    localStorage.removeItem('pendingGoogleToken');
                     localStorage.removeItem('googleAuthCode');
                     localStorage.removeItem('googleAuthState');
                     sessionStorage.removeItem('googleAuthCode');
                     sessionStorage.removeItem('googleAuthState');
+                    localStorage.removeItem('pendingGoogleToken'); // Удаляем на всякий случай
 
-                    // Получаем новый токен с ролью
-                    const userDataStr = localStorage.getItem('userData');
-                    if (userDataStr) {
-                        const userData = JSON.parse(userDataStr);
-                        if (userData.email) {
-                            const email = userData.email;
-
-                            // Получаем новый токен с ролью
-                            const loginResponse = await fetch(`${API_BASE_URL}/api/authentication_token`, {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'Accept': 'application/json',
-                                },
-                                body: JSON.stringify({
-                                    email: email,
-                                    password: '' // Для Google auth пароль не нужен
-                                })
-                            });
-
-                            if (loginResponse.ok) {
-                                const loginData: LoginResponse = await loginResponse.json();
-                                handleSuccessfulAuth(loginData.token, email);
-                                return;
-                            }
-                        }
-                    }
+                    handleSuccessfulAuth(data.token, data.user?.email);
                 }
             } else {
                 throw new Error('Данные авторизации не найдены');
-            }
-
-            const responseText = await response.text();
-            console.log('Google auth response status:', response.status);
-
-            if (!response.ok) {
-                let errorMessage = 'Ошибка авторизации через Google';
-                try {
-                    const errorData = JSON.parse(responseText);
-                    errorMessage = errorData.detail || errorData.message || errorMessage;
-                } catch {
-                    errorMessage = responseText || `HTTP error! status: ${response.status}`;
-                }
-                throw new Error(errorMessage);
-            }
-
-            const data: GoogleUserResponse = JSON.parse(responseText);
-            console.log('Google auth successful, user data:', data.user);
-
-            if (data.token) {
-                // Сохраняем токен и данные пользователя
-                setAuthToken(data.token);
-                setTokenExpiry();
-
-                if (data.user) {
-                    localStorage.setItem('userData', JSON.stringify(data.user));
-                    if (data.user.email) {
-                        localStorage.setItem('userEmail', data.user.email);
-                    }
-                    if (data.user.roles && data.user.roles.length > 0) {
-                        localStorage.setItem('userRole', data.user.roles[0]);
-                    }
-                }
-
-                // Очищаем временные данные
-                localStorage.removeItem('googleAuthCode');
-                localStorage.removeItem('googleAuthState');
-                sessionStorage.removeItem('googleAuthCode');
-                sessionStorage.removeItem('googleAuthState');
-                localStorage.removeItem('pendingGoogleToken');
-
-                handleSuccessfulAuth(data.token, data.user?.email);
-            } else {
-                throw new Error('Токен не получен в ответе');
             }
 
         } catch (err) {
@@ -1117,33 +1064,51 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 const isGoogleAuth = !!userData.oauthType?.googleId;
                 const hasRole = userData.roles && userData.roles.length > 0;
 
+                console.log('User data after Google auth:', {
+                    isGoogleAuth,
+                    hasRole,
+                    roles: userData.roles,
+                    oauthType: userData.oauthType
+                });
+
+                // Если это Google авторизация И НЕТ ролей - показываем выбор роли
                 if (isGoogleAuth && !hasRole) {
-                    // Если это Google авторизация и нет роли - показываем выбор роли
+                    console.log('Google user needs role selection');
                     setCurrentState(AuthModalState.GOOGLE_ROLE_SELECT);
 
-                    // Сохраняем токен для использования при выборе роли
-                    localStorage.setItem('pendingGoogleToken', token);
+                    // Очищаем временные данные Google авторизации
+                    localStorage.removeItem('googleAuthCode');
+                    localStorage.removeItem('googleAuthState');
+                    sessionStorage.removeItem('googleAuthCode');
+                    sessionStorage.removeItem('googleAuthState');
 
                     // НЕ закрываем модалку - остаемся на экране выбора роли
                     if (onLoginSuccess) {
                         onLoginSuccess(token, email);
                     }
                     return;
+                } else {
+                    console.log('Google user already has role or not Google auth');
+                    // Если роли уже есть или это не Google авторизация, закрываем модалку
+                    resetForm();
+                    if (onLoginSuccess) {
+                        onLoginSuccess(token, email);
+                    }
+                    onClose();
+
+                    // Уведомляем приложение об авторизации
+                    window.dispatchEvent(new Event('login'));
                 }
             }
         } catch (error) {
             console.error('Error fetching user data:', error);
+            // В случае ошибки все равно закрываем модалку
+            resetForm();
+            if (onLoginSuccess) {
+                onLoginSuccess(token, email);
+            }
+            onClose();
         }
-
-        // Если выбор роли не нужен, закрываем модалку
-        resetForm();
-        if (onLoginSuccess) {
-            onLoginSuccess(token, email);
-        }
-        onClose();
-
-        // Уведомляем приложение об авторизации
-        window.dispatchEvent(new Event('login'));
     };
 
     const resetForm = () => {
@@ -1161,6 +1126,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         });
         setError('');
         setCurrentState(AuthModalState.WELCOME);
+
+        // Очищаем временные данные Google авторизации
+        localStorage.removeItem('googleAuthCode');
+        localStorage.removeItem('googleAuthState');
+        localStorage.removeItem('pendingGoogleToken');
+        sessionStorage.removeItem('googleAuthCode');
+        sessionStorage.removeItem('googleAuthState');
     };
 
     const handleClose = () => {

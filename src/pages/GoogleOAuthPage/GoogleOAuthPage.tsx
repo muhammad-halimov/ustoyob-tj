@@ -11,14 +11,12 @@ const GoogleOAuthPage: React.FC = () => {
         console.log('GoogleOAuthPage useEffect triggered');
 
         const processOAuth = async () => {
-            // Получаем параметры из URL
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
             const state = urlParams.get('state');
             const error = urlParams.get('error');
 
             console.log('Google OAuth received:', { code, state, error });
-            console.log('Full URL search:', window.location.search);
 
             if (error) {
                 console.error('Google OAuth error:', error);
@@ -34,14 +32,9 @@ const GoogleOAuthPage: React.FC = () => {
                     localStorage.setItem('googleAuthCode', code);
                     localStorage.setItem('googleAuthState', state);
 
-                    // Также сохраняем в sessionStorage для надежности
-                    sessionStorage.setItem('googleAuthCode', code);
-                    sessionStorage.setItem('googleAuthState', state);
-
-                    console.log('Saved Google auth data to localStorage');
                     console.log('Navigating to home with auth modal flag...');
 
-                    // Перенаправляем на главную с флагом для открытия модалки
+                    // ВСЕГДА перенаправляем на главную с флагом
                     navigate('/?showAuthModal=true&oauth=google');
 
                 } catch (err) {
@@ -50,7 +43,6 @@ const GoogleOAuthPage: React.FC = () => {
                 }
             } else {
                 console.log('No code or state found in URL');
-                console.log('Navigating to home...');
                 navigate('/');
             }
         };

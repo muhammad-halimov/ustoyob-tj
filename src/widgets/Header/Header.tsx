@@ -125,7 +125,9 @@ function Header({ onOpenAuthModal }: HeaderProps) {
             const token = getAuthToken();
             if (token) {
                 const needsRole = await checkIfNeedsRoleSelection(token);
+                console.log('Needs role selection:', needsRole);
                 if (needsRole && onOpenAuthModal) {
+                    console.log('Opening modal for role selection');
                     onOpenAuthModal();
                 }
             }
@@ -230,6 +232,14 @@ function Header({ onOpenAuthModal }: HeaderProps) {
 
                 const isGoogleAuth = !!userData.oauthType?.googleId;
                 const hasRole = userData.roles && userData.roles.length > 0;
+
+                console.log('Role check for user:', {
+                    id: userData.id,
+                    isGoogleAuth,
+                    hasRole,
+                    roles: userData.roles,
+                    oauthType: userData.oauthType
+                });
 
                 return isGoogleAuth && !hasRole;
             }
