@@ -8,33 +8,58 @@ const GoogleOAuthPage: React.FC = () => {
     console.log('Current URL:', window.location.href);
 
     useEffect(() => {
-        console.log('GoogleOAuthPage useEffect triggered');
-
         const processOAuth = async () => {
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
             const state = urlParams.get('state');
             const error = urlParams.get('error');
 
-            console.log('Google OAuth received:', { code, state, error });
-
             if (error) {
-                console.error('Google OAuth error:', error);
                 navigate('/?oauth_error=' + encodeURIComponent(error));
                 return;
             }
 
             if (code && state) {
                 try {
-                    console.log('Saving Google auth data to localStorage');
-
-                    // Сохраняем код и state в localStorage
+                    // Сохраняем данные
                     localStorage.setItem('googleAuthCode', code);
                     localStorage.setItem('googleAuthState', state);
+                    sessionStorage.setItem('googleAuthCode', code);
+                    sessionStorage.setItem('googleAuthState', state);
 
-                    console.log('Navigating to home with auth modal flag...');
+                    // НЕМЕДЛЕННО проверяем существование пользователя
+                    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+                    const checkResponse = await fetch(`${API_BASE_URL}/api/auth/google/callback`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            code,
+                            state
+                            // Не отправляем роль!
+                        })
+                    });
 
-                    // ВСЕГДА перенаправляем на главную с флагом
+                    if (checkResponse.ok) {
+                        const data = await checkResponse.json();
+                        const hasRole = data.user.roles && data.user.roles.length > 0;
+
+                        if (hasRole) {
+                            // Пользователь уже существует с ролью
+                            console.log('User exists with role, auto-login');
+
+                            // Сохраняем токен
+                            localStorage.setItem('authToken', data.token);
+
+                            // Сразу перенаправляем на главную
+                            navigate('/');
+                            return;
+                        }
+                    }
+
+                    // Если пользователь не существует или без роли - показываем модалку
                     navigate('/?showAuthModal=true&oauth=google');
 
                 } catch (err) {
@@ -42,7 +67,6 @@ const GoogleOAuthPage: React.FC = () => {
                     navigate('/?oauth_error=' + encodeURIComponent('Ошибка обработки авторизации'));
                 }
             } else {
-                console.log('No code or state found in URL');
                 navigate('/');
             }
         };
