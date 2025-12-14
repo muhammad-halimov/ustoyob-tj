@@ -171,9 +171,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
 
                 const userData: UserData = await response.json();
                 localStorage.setItem('userData', JSON.stringify(userData));
-                const shouldShowBanner = userData.approved === false;
-                setShowConfirmationBanner(shouldShowBanner);
-
+                setShowConfirmationBanner(userData.approved === false ? true : false);
             } catch (error) {
                 console.error('Error checking account confirmation:', error);
                 setShowConfirmationBanner(false);
@@ -269,8 +267,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                 if (refreshResponse.ok) {
                     const userData: UserData = await refreshResponse.json();
                     localStorage.setItem('userData', JSON.stringify(userData));
-                    const shouldShowBanner = userData.approved === false;
-                    setShowConfirmationBanner(shouldShowBanner);
+                    setShowConfirmationBanner(userData.approved === false ? true : false);
                 }
             } else {
                 const errorText = await response.text();
@@ -374,8 +371,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                     if (response.ok) {
                         const userData: UserData = await response.json();
                         localStorage.setItem('userData', JSON.stringify(userData));
-                        const shouldShowBanner = userData.approved === false;
-                        setShowConfirmationBanner(shouldShowBanner);
+                        setShowConfirmationBanner(userData.approved === false ? true : false);
                     }
                 } catch (error) {
                     console.error('Error checking confirmation:', error);
@@ -487,8 +483,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                                             if (userDataStr) {
                                                 try {
                                                     const userData: UserData = JSON.parse(userDataStr);
-                                                    const shouldShowBanner = userData.approved === false;
-                                                    setShowConfirmationBanner(shouldShowBanner);
+                                                    setShowConfirmationBanner(userData.approved === false ? true : false);
                                                 } catch (error) {
                                                     console.error('Error parsing user data:', error);
                                                 }
@@ -537,8 +532,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                                     if (userDataStr) {
                                         try {
                                             const userData: UserData = JSON.parse(userDataStr);
-                                            const shouldShowBanner = userData.approved === false;
-                                            setShowConfirmationBanner(shouldShowBanner);
+                                            setShowConfirmationBanner(userData.approved === false ? true : false);
                                         } catch (error) {
                                             console.error('Error parsing user data:', error);
                                         }
