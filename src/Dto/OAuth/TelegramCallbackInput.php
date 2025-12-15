@@ -25,6 +25,5 @@ final class TelegramCallbackInput
     public ?string $photoUrl = null;
 
     #[Groups(['telegram:write'])]
-    #[Assert\NotBlank(message: "Role should not be blank.")]
     public string $role;
 }

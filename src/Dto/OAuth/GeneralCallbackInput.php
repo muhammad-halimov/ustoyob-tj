@@ -28,7 +28,6 @@ final class GeneralCallbackInput
         'instagram:write',
         'facebook:write'
     ])]
-    #[Assert\NotBlank(message: "Role should not be blank.")]
     public string $role;
 
     public function getCode(): string
