@@ -63,6 +63,13 @@ interface GoogleUserResponse {
     message: string;
 }
 
+interface GoogleAuthData {
+    code: string;
+    state: string;
+    userData?: GoogleUserResponse['user'];
+    token?: string;
+}
+
 // Константы для времени жизни токена (обновление каждые 50 минут)
 const TOKEN_LIFETIME_HOURS = 1;
 const TOKEN_REFRESH_BUFFER_MINUTES = 10; // Обновлять за 10 минут до истечения
@@ -86,10 +93,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string>('');
     const [registeredEmail, setRegisteredEmail] = useState<string>('');
-    const [googleAuthCode, setGoogleAuthCode] = useState<string>('');
-    const [googleAuthState, setGoogleAuthState] = useState<string>('');
     const [refreshIntervalId, setRefreshIntervalId] = useState<NodeJS.Timeout | null>(null);
-    // const [needsRoleSelection, setNeedsRoleSelection] = useState(false);
+    const [pendingGoogleData, setPendingGoogleData] = useState<GoogleAuthData | null>(null);
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -115,6 +120,47 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         } catch (error) {
             console.error('Error checking role selection:', error);
             return false;
+        }
+    };
+
+    // Функция для проверки существующего Google пользователя
+    const checkExistingGoogleUser = async (data: GoogleAuthData): Promise<{
+        exists: boolean;
+        hasRole: boolean;
+        token?: string;
+        userData?: GoogleUserResponse['user'];
+    }> => {
+        try {
+            // Отправляем запрос без роли для проверки
+            const response = await fetch(`${API_BASE_URL}/api/auth/google/callback`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({
+                    code: data.code,
+                    state: data.state
+                    // Не отправляем роль - сервер вернет существующего пользователя
+                })
+            });
+
+            if (response.ok) {
+                const responseData: GoogleUserResponse = await response.json();
+                const hasRole = responseData.user.roles && responseData.user.roles.length > 0;
+
+                return {
+                    exists: true,
+                    hasRole,
+                    token: responseData.token,
+                    userData: responseData.user
+                };
+            }
+
+            return { exists: false, hasRole: false };
+        } catch (error) {
+            console.error('Error checking existing Google user:', error);
+            return { exists: false, hasRole: false };
         }
     };
 
@@ -151,16 +197,15 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
         // 2. Обработка Google OAuth
         const handleGoogleOAuth = async () => {
-            // Проверяем, есть ли данные в localStorage
-            const savedCode = localStorage.getItem('googleAuthCode');
-            const savedState = localStorage.getItem('googleAuthState');
+            // Получаем свежие данные из localStorage (сохраняются в GoogleOAuthPage)
+            const savedData = localStorage.getItem('googleAuthData');
 
-            if (savedCode && savedState) {
-                console.log('Found Google auth data in localStorage, checking user...');
+            if (savedData) {
+                console.log('Found Google auth data, checking user...');
+                const googleData: GoogleAuthData = JSON.parse(savedData);
 
-                // ПРОВЕРЯЕМ существование пользователя перед показом модалки
                 try {
-                    const checkResult = await checkExistingGoogleUser(savedCode, savedState);
+                    const checkResult = await checkExistingGoogleUser(googleData);
 
                     if (checkResult.exists && checkResult.hasRole && checkResult.token) {
                         // Пользователь уже существует с ролью - авторизуем автоматически
@@ -169,27 +214,15 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         setAuthToken(checkResult.token);
                         setTokenExpiry();
 
-                        // Получаем данные пользователя
-                        const userResponse = await fetch(`${API_BASE_URL}/api/users/me`, {
-                            method: 'GET',
-                            headers: {
-                                'Authorization': `Bearer ${checkResult.token}`,
-                                'Accept': 'application/json',
-                            },
-                        });
-
-                        if (userResponse.ok) {
-                            const userData = await userResponse.json();
-                            localStorage.setItem('userData', JSON.stringify(userData));
-
-                            if (userData.roles && userData.roles.length > 0) {
-                                localStorage.setItem('userRole', userData.roles[0]);
+                        if (checkResult.userData) {
+                            localStorage.setItem('userData', JSON.stringify(checkResult.userData));
+                            if (checkResult.userData.roles && checkResult.userData.roles.length > 0) {
+                                localStorage.setItem('userRole', checkResult.userData.roles[0]);
                             }
                         }
 
                         // Очищаем временные данные
-                        localStorage.removeItem('googleAuthCode');
-                        localStorage.removeItem('googleAuthState');
+                        localStorage.removeItem('googleAuthData');
 
                         // Очищаем URL и закрываем если открыта
                         window.history.replaceState({}, document.title, window.location.pathname);
@@ -208,17 +241,17 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     } else if (checkResult.exists && !checkResult.hasRole) {
                         // Пользователь существует, но без роли
                         console.log('Google user exists but needs role selection');
-                        setGoogleAuthCode(savedCode);
-                        setGoogleAuthState(savedState);
+
+                        // Сохраняем данные для использования при выборе роли
+                        setPendingGoogleData(googleData);
                         setCurrentState(AuthModalState.GOOGLE_ROLE_SELECT);
 
                         // Очищаем URL
                         window.history.replaceState({}, document.title, window.location.pathname);
                     } else {
-                        // Пользователь не существует
-                        console.log('Google user does not exist, showing role selection');
-                        setGoogleAuthCode(savedCode);
-                        setGoogleAuthState(savedState);
+                        // Пользователь не существует - сохраняем данные для создания
+                        console.log('Google user does not exist, showing role selection for new user');
+                        setPendingGoogleData(googleData);
                         setCurrentState(AuthModalState.GOOGLE_ROLE_SELECT);
 
                         // Очищаем URL
@@ -226,28 +259,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     }
                 } catch (error) {
                     console.error('Error checking Google user:', error);
-                    // В случае ошибки всё равно показываем выбор роли
-                    setGoogleAuthCode(savedCode);
-                    setGoogleAuthState(savedState);
-                    setCurrentState(AuthModalState.GOOGLE_ROLE_SELECT);
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                }
-            } else {
-                console.log('No Google auth data found in localStorage, checking sessionStorage');
-                // Проверяем sessionStorage как запасной вариант
-                const sessionCode = sessionStorage.getItem('googleAuthCode');
-                const sessionState = sessionStorage.getItem('googleAuthState');
-
-                if (sessionCode && sessionState) {
-                    console.log('Found Google auth data in sessionStorage');
-                    // Переносим в localStorage и проверяем
-                    localStorage.setItem('googleAuthCode', sessionCode);
-                    localStorage.setItem('googleAuthState', sessionState);
-                    // Очищаем sessionStorage
-                    sessionStorage.removeItem('googleAuthCode');
-                    sessionStorage.removeItem('googleAuthState');
-                    // Рекурсивно вызываем обработку
-                    handleGoogleOAuth();
+                    setError('Ошибка проверки пользователя');
+                    localStorage.removeItem('googleAuthData');
                 }
             }
         };
@@ -258,15 +271,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             handleGoogleOAuth();
         }
 
-        // 3. Проверяем localStorage на наличие данных Google (если модалка уже открыта)
+        // 3. Проверяем наличие данных Google в состоянии (если модалка уже открыта)
         if (isOpen && currentState !== AuthModalState.GOOGLE_ROLE_SELECT) {
-            const savedCode = localStorage.getItem('googleAuthCode');
-            const savedState = localStorage.getItem('googleAuthState');
-
-            if (savedCode && savedState && !googleAuthCode && !googleAuthState) {
-                console.log('Found saved Google auth data while modal is open, switching to role selection');
-                setGoogleAuthCode(savedCode);
-                setGoogleAuthState(savedState);
+            const savedData = localStorage.getItem('googleAuthData');
+            if (savedData) {
+                const googleData: GoogleAuthData = JSON.parse(savedData);
+                setPendingGoogleData(googleData);
                 setCurrentState(AuthModalState.GOOGLE_ROLE_SELECT);
             }
         }
@@ -357,7 +367,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         setRefreshIntervalId(intervalId);
     };
 
-    const handleTelegramCallback = async (authData: any) => {
+    const handleTelegramCallback = async (authData: unknown) => {
         try {
             setIsLoading(true);
             setError('');
@@ -678,14 +688,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
             console.log('Completing Google auth with role:', selectedRole);
 
-            const savedCode = localStorage.getItem('googleAuthCode');
-            const savedState = localStorage.getItem('googleAuthState');
-
-            if (!savedCode || !savedState) {
+            if (!pendingGoogleData) {
                 throw new Error('Данные авторизации не найдены');
             }
 
-            // Всегда отправляем запрос с ролью
+            // Отправляем запрос с ролью (новый код и state каждый раз)
             const response = await fetch(`${API_BASE_URL}/api/auth/google/callback`, {
                 method: 'POST',
                 headers: {
@@ -693,8 +700,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     'Accept': 'application/json',
                 },
                 body: JSON.stringify({
-                    code: savedCode,
-                    state: savedState,
+                    code: pendingGoogleData.code,
+                    state: pendingGoogleData.state,
                     role: selectedRole
                 })
             });
@@ -707,6 +714,14 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 try {
                     const errorData = JSON.parse(responseText);
                     errorMessage = errorData.detail || errorData.message || errorMessage;
+
+                    // Если ошибка "Invalid state", предлагаем начать заново
+                    if (errorMessage.includes('state') || errorMessage.includes('invalid')) {
+                        errorMessage = 'Сессия истекла. Пожалуйста, войдите снова через Google.';
+                        // Очищаем старые данные
+                        localStorage.removeItem('googleAuthData');
+                        setPendingGoogleData(null);
+                    }
                 } catch {
                     errorMessage = responseText || `HTTP error! status: ${response.status}`;
                 }
@@ -731,11 +746,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     }
                 }
 
-                // Очищаем временные данные
-                localStorage.removeItem('googleAuthCode');
-                localStorage.removeItem('googleAuthState');
-                sessionStorage.removeItem('googleAuthCode');
-                sessionStorage.removeItem('googleAuthState');
+                // Очищаем все временные данные
+                localStorage.removeItem('googleAuthData');
+                setPendingGoogleData(null);
 
                 handleSuccessfulAuth(data.token, data.user?.email);
             } else {
@@ -746,43 +759,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             console.error('Google auth completion error:', err);
             setError(err instanceof Error ? err.message : 'Ошибка при завершении авторизации через Google');
             setIsLoading(false);
-        }
-    };
-
-    const checkExistingGoogleUser = async (code: string, state: string): Promise<{exists: boolean, hasRole: boolean, token?: string}> => {
-        try {
-            // Пробуем авторизоваться без роли (или с пустой ролью)
-            const response = await fetch(`${API_BASE_URL}/api/auth/google/callback`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify({
-                    code,
-                    state,
-                    // Не отправляем роль - сервер вернет существующего пользователя
-                })
-            });
-
-            if (response.ok) {
-                const data: GoogleUserResponse = await response.json();
-                console.log('Existing Google user check:', data.user);
-
-                // Проверяем наличие ролей
-                const hasRole = data.user.roles && data.user.roles.length > 0;
-
-                return {
-                    exists: true,
-                    hasRole,
-                    token: data.token
-                };
-            }
-
-            return { exists: false, hasRole: false };
-        } catch (error) {
-            console.error('Error checking existing Google user:', error);
-            return { exists: false, hasRole: false };
         }
     };
 
@@ -1182,12 +1158,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         setError('');
         setCurrentState(AuthModalState.WELCOME);
 
-        // Очищаем временные данные Google авторизации
-        localStorage.removeItem('googleAuthCode');
-        localStorage.removeItem('googleAuthState');
-        localStorage.removeItem('pendingGoogleToken');
-        sessionStorage.removeItem('googleAuthCode');
-        sessionStorage.removeItem('googleAuthState');
+        // Очищаем временные данные
+        localStorage.removeItem('googleAuthData');
+        setPendingGoogleData(null);
     };
 
     const handleClose = () => {
@@ -1543,6 +1516,25 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     <p>Пожалуйста, выберите тип аккаунта:</p>
                 </div>
 
+                {error && (
+                    <div className={styles.error}>
+                        {error}
+                        {error.includes('Сессия истекла') && (
+                            <button
+                                type="button"
+                                className={styles.linkButton}
+                                onClick={() => {
+                                    resetForm();
+                                    setCurrentState(AuthModalState.LOGIN);
+                                }}
+                                style={{ marginLeft: '10px', fontSize: '14px' }}
+                            >
+                                Войти снова
+                            </button>
+                        )}
+                    </div>
+                )}
+
                 <div className={styles.roleSelector}>
                     <button
                         type="button"
@@ -1562,8 +1554,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     </button>
                 </div>
 
-                {error && <div className={styles.error}>{error}</div>}
-
                 {isLoading && (
                     <div className={styles.loadingMessage}>
                         Завершение авторизации...
@@ -1575,10 +1565,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         type="button"
                         className={styles.linkButton}
                         onClick={() => {
+                            resetForm();
                             setCurrentState(AuthModalState.LOGIN);
-                            // Очищаем данные Google авторизации при возврате
-                            setGoogleAuthCode('');
-                            setGoogleAuthState('');
                         }}
                         disabled={isLoading}
                     >
@@ -1599,6 +1587,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     <p>Пожалуйста, выберите тип аккаунта:</p>
                 </div>
 
+                {error && <div className={styles.error}>{error}</div>}
+
                 <div className={styles.roleSelector}>
                     <button
                         type="button"
@@ -1617,8 +1607,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         Я ищу специалиста
                     </button>
                 </div>
-
-                {error && <div className={styles.error}>{error}</div>}
 
                 <div className={styles.links}>
                     <button
