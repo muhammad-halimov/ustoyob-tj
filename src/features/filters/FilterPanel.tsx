@@ -8,6 +8,7 @@ export interface FilterState {
     rating: string;
     reviewCount: string;
     sortBy: string;
+    city: string; // Добавляем город
 }
 
 interface FilterPanelProps {
@@ -17,6 +18,7 @@ interface FilterPanelProps {
     filters: FilterState;
     onResetFilters: () => void;
     categories: { id: number; name: string }[];
+    cities: { id: number; name: string }[]; // Добавляем города
 }
 
 function FilterPanel({
@@ -25,7 +27,8 @@ function FilterPanel({
                          onFilterChange,
                          filters,
                          onResetFilters,
-                         categories
+                         categories,
+                         cities // Добавляем пропс для городов
                      }: FilterPanelProps) {
     const [localFilters, setLocalFilters] = useState<FilterState>(filters);
 
@@ -50,6 +53,10 @@ function FilterPanel({
         setLocalFilters(prev => ({ ...prev, category: value }));
     };
 
+    const handleCityChange = (value: string) => {
+        setLocalFilters(prev => ({ ...prev, city: value }));
+    };
+
     const handleApplyFilters = () => {
         onFilterChange(localFilters);
         setShowFilters(false);
@@ -62,7 +69,8 @@ function FilterPanel({
             category: '',
             rating: '',
             reviewCount: '',
-            sortBy: ''
+            sortBy: '',
+            city: '' // Сбрасываем город
         };
         setLocalFilters(resetFilters);
         onResetFilters();
@@ -99,6 +107,26 @@ function FilterPanel({
                             </div>
                         </div>
                     </div>
+
+                    {/* Город */}
+                    {cities.length > 0 && (
+                        <div className={styles.filter_section}>
+                            <h3>Город</h3>
+                            <div className={styles.category_select}>
+                                <select
+                                    value={localFilters.city}
+                                    onChange={e => handleCityChange(e.target.value)}
+                                >
+                                    <option value="">Все города</option>
+                                    {cities.map(city => (
+                                        <option key={city.id} value={city.name.toLowerCase()}>
+                                            {city.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Категория */}
                     {categories.length > 0 && (

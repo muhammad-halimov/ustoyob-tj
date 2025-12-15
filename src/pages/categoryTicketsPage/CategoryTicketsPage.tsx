@@ -61,6 +61,7 @@ interface Ticket {
         community?: { id: number; title: string };
         village?: { id: number; title: string };
         suburb?: { id: number; title: string };
+        title?: string; // Улица/дом/квартира
     }>;
     createdAt: string;
     updatedAt: string;
@@ -73,6 +74,7 @@ interface FormattedTicket {
     unit: string;
     description: string;
     address: string;
+    fullAddress: string; // Добавляем поле для полного адреса
     date: string;
     author: string;
     timeAgo: string;
@@ -169,6 +171,124 @@ function CategoryTicketsPage() {
         return cleaned;
     }, []);
 
+    // Функция для получения полного адреса
+    const getFullAddress = useCallback((ticket: Ticket): string => {
+        // Проверяем addresses массив (новый формат)
+        if (ticket.addresses && ticket.addresses.length > 0) {
+            const address = ticket.addresses[0];
+            const parts: string[] = [];
+
+            // Добавляем все компоненты адреса в правильном порядке
+            if (address.province?.title) {
+                parts.push(address.province.title);
+            }
+            if (address.city?.title) {
+                parts.push(address.city.title);
+            }
+            if (address.district?.title) {
+                parts.push(address.district.title);
+            }
+            if (address.settlement?.title) {
+                parts.push(address.settlement.title);
+            }
+            if (address.community?.title) {
+                parts.push(address.community.title);
+            }
+            if (address.village?.title) {
+                parts.push(address.village.title);
+            }
+            if (address.suburb?.title) {
+                parts.push(address.suburb.title);
+            }
+            // Конкретный адрес (улица, дом, квартира)
+            if (address.title) {
+                parts.push(address.title);
+            }
+
+            // Удаляем дубликаты и пустые значения
+            const uniqueParts = Array.from(new Set(parts.filter(part => part && part.trim())));
+
+            if (uniqueParts.length === 0) {
+                return 'Адрес не указан';
+            }
+
+            return uniqueParts.join(', ');
+        }
+
+        // Проверяем устаревший формат district
+        if (ticket.district) {
+            const parts: string[] = [];
+
+            // Добавляем в правильном порядке
+            if (ticket.district.city?.province?.title) {
+                parts.push(ticket.district.city.province.title);
+            }
+            if (ticket.district.city?.title) {
+                parts.push(ticket.district.city.title);
+            }
+            if (ticket.district?.title) {
+                parts.push(ticket.district.title);
+            }
+
+            const uniqueParts = Array.from(new Set(parts.filter(part => part && part.trim())));
+
+            if (uniqueParts.length === 0) {
+                return 'Адрес не указан';
+            }
+
+            return uniqueParts.join(', ');
+        }
+
+        return 'Адрес не указан';
+    }, []);
+
+    // Функция для получения краткого адреса (город, район)
+    const getShortAddress = useCallback((ticket: Ticket): string => {
+        // Проверяем addresses массив
+        if (ticket.addresses && ticket.addresses.length > 0) {
+            const address = ticket.addresses[0];
+            const parts: string[] = [];
+
+            // Только город и район
+            if (address.city?.title) {
+                parts.push(address.city.title);
+            }
+            if (address.district?.title) {
+                parts.push(address.district.title);
+            }
+
+            const uniqueParts = Array.from(new Set(parts.filter(part => part && part.trim())));
+
+            if (uniqueParts.length === 0) {
+                return 'Адрес не указан';
+            }
+
+            return uniqueParts.join(', ');
+        }
+
+        // Проверяем устаревший формат
+        if (ticket.district) {
+            const parts: string[] = [];
+
+            if (ticket.district.city?.title) {
+                parts.push(ticket.district.city.title);
+            }
+            if (ticket.district?.title) {
+                parts.push(ticket.district.title);
+            }
+
+            const uniqueParts = Array.from(new Set(parts.filter(part => part && part.trim())));
+
+            if (uniqueParts.length === 0) {
+                return 'Адрес не указан';
+            }
+
+            return uniqueParts.join(', ');
+        }
+
+        return 'Адрес не указан';
+    }, []);
+
     const fetchTicketsByCategory = async () => {
         try {
             setIsLoading(true);
@@ -235,13 +355,17 @@ function CategoryTicketsPage() {
                 const authorId = author?.id || 0;
                 const authorName = author ? `${author.name || ''} ${author.surname || ''}`.trim() : 'Пользователь';
 
+                const fullAddress = getFullAddress(ticket);
+                const shortAddress = getShortAddress(ticket);
+
                 return {
                     id: ticket.id,
                     title: ticket.title || 'Без названия',
                     price: ticket.budget || 0,
                     unit: ticket.unit?.title || 'TJS',
                     description: ticket.description || 'Описание отсутствует',
-                    address: getFullAddress(ticket),
+                    address: shortAddress, // Краткий адрес для основного отображения
+                    fullAddress: fullAddress, // Полный адрес
                     date: formatDate(ticket.createdAt),
                     author: authorName,
                     authorId: authorId,
@@ -301,38 +425,6 @@ function CategoryTicketsPage() {
             console.error(`Error fetching tickets with params:`, error);
             return [];
         }
-    };
-
-    const getFullAddress = (ticket: Ticket): string => {
-        // Проверяем addresses массив
-        if (ticket.addresses && ticket.addresses.length > 0) {
-            const address = ticket.addresses[0];
-            const parts: string[] = [];
-
-            if (address.city?.title) parts.push(address.city.title);
-            if (address.district?.title) parts.push(address.district.title);
-            if (address.settlement?.title) parts.push(address.settlement.title);
-
-            return parts.join(', ') || 'Адрес не указан';
-        }
-
-        // Проверяем устаревший формат district
-        if (ticket.district) {
-            const city = ticket.district?.city?.title || '';
-            const district = ticket.district?.title || '';
-
-            if (city && district) {
-                return `${city}, ${district}`;
-            }
-            if (city) {
-                return city;
-            }
-            if (district) {
-                return district;
-            }
-        }
-
-        return 'Адрес не указан';
     };
 
     const formatDate = (dateString: string) => {
@@ -466,6 +558,8 @@ function CategoryTicketsPage() {
                                 <span className={styles.price}>{ticket.price.toLocaleString('ru-RU')} TJS, {ticket.unit}</span>
                             </div>
                             <p className={styles.description}>{cleanText(ticket.description)}</p>
+
+                            {/* Блок с адресом - всегда полный адрес */}
                             <div className={styles.resultDetails}>
                                 <span className={styles.category}>
                                     {ticket.category}
@@ -475,7 +569,7 @@ function CategoryTicketsPage() {
                                         <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                         <circle cx="12" cy="9" r="2.5" stroke="#3A54DA" strokeWidth="2"/>
                                     </svg>
-                                    {ticket.address}
+                                    {ticket.fullAddress} {/* Показываем полный адрес */}
                                 </span>
                                 <span className={styles.date}>
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -484,40 +578,34 @@ function CategoryTicketsPage() {
                                     {ticket.date}
                                 </span>
                             </div>
+
+                            {/* Блок с полным адресом (дополнительный) */}
+                            {/*<div className={styles.fullAddressContainer}>*/}
+                            {/*    <span className={styles.fullAddress}>*/}
+                            {/*        {ticket.fullAddress}*/}
+                            {/*    </span>*/}
+                            {/*</div>*/}
+
                             <div className={styles.resultFooter}>
-                                {/*{ticket.authorImage ? (*/}
-                                {/*    <div className={styles.authorWithImage}>*/}
-                                {/*        <img*/}
-                                {/*            src={ticket.authorImage}*/}
-                                {/*            alt={ticket.author}*/}
-                                {/*            className={styles.authorImage}*/}
-                                {/*            onError={(e) => {*/}
-                                {/*                e.currentTarget.style.display = 'none';*/}
-                                {/*            }}*/}
-                                {/*        />*/}
-                                {/*        <span className={styles.authorName}>{ticket.author}</span>*/}
-                                {/*    </div>*/}
-                                {/*) : (*/}
-                                    <span className={styles.author}>
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                            <g clipPath="url(#clip0_324_2870)">
-                                                <g clipPath="url(#clip1_324_2870)">
-                                                    <path d="M11.9995 12.9795C15.1641 12.9795 17.7295 10.4141 17.7295 7.24953C17.7295 4.08494 15.1641 1.51953 11.9995 1.51953C8.83494 1.51953 6.26953 4.08494 6.26953 7.24953C6.26953 10.4141 8.83494 12.9795 11.9995 12.9795Z" stroke="#5D5D5D" strokeWidth="2" strokeMiterlimit="10"/>
-                                                    <path d="M1.5 23.48L1.87 21.43C2.3071 19.0625 3.55974 16.9229 5.41031 15.3828C7.26088 13.8428 9.59246 12.9997 12 13C14.4104 13.0006 16.7443 13.8465 18.5952 15.3905C20.4462 16.9345 21.6971 19.0788 22.13 21.45L22.5 23.5" stroke="#5D5D5D" strokeWidth="2" strokeMiterlimit="10"/>
-                                                </g>
+                                <span className={styles.author}>
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <g clipPath="url(#clip0_324_2870)">
+                                            <g clipPath="url(#clip1_324_2870)">
+                                                <path d="M11.9995 12.9795C15.1641 12.9795 17.7295 10.4141 17.7295 7.24953C17.7295 4.08494 15.1641 1.51953 11.9995 1.51953C8.83494 1.51953 6.26953 4.08494 6.26953 7.24953C6.26953 10.4141 8.83494 12.9795 11.9995 12.9795Z" stroke="#5D5D5D" strokeWidth="2" strokeMiterlimit="10"/>
+                                                <path d="M1.5 23.48L1.87 21.43C2.3071 19.0625 3.55974 16.9229 5.41031 15.3828C7.26088 13.8428 9.59246 12.9997 12 13C14.4104 13.0006 16.7443 13.8465 18.5952 15.3905C20.4462 16.9345 21.6971 19.0788 22.13 21.45L22.5 23.5" stroke="#5D5D5D" strokeWidth="2" strokeMiterlimit="10"/>
                                             </g>
-                                            <defs>
-                                                <clipPath id="clip0_324_2870">
-                                                    <rect width="24" height="24" fill="white"/>
-                                                </clipPath>
-                                                <clipPath id="clip1_324_2870">
-                                                    <rect width="24" height="24" fill="white"/>
-                                                </clipPath>
-                                            </defs>
-                                        </svg>
-                                        {ticket.author}
-                                    </span>
-                                {/*)}*/}
+                                        </g>
+                                        <defs>
+                                            <clipPath id="clip0_324_2870">
+                                                <rect width="24" height="24" fill="white"/>
+                                            </clipPath>
+                                            <clipPath id="clip1_324_2870">
+                                                <rect width="24" height="24" fill="white"/>
+                                            </clipPath>
+                                        </defs>
+                                    </svg>
+                                    {ticket.author}
+                                </span>
                                 <span className={styles.timeAgo}>{ticket.timeAgo}</span>
                             </div>
                         </div>

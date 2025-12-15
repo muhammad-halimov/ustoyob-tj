@@ -1,0 +1,164 @@
+.locationSelector {
+  width: 100%;
+}
+
+.addressSection {
+  margin-bottom: 24px;
+}
+
+.addressInput {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.addressField {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+  background-color: #f9f9f9;
+  cursor: default;
+
+  &:read-only {
+    color: #333;
+  }
+}
+
+.addressHint {
+  font-size: 12px;
+  color: #666;
+  margin: 4px 0 0;
+}
+
+.sectionTitle {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #333;
+}
+
+.provinceSection,
+.citySection,
+.suburbSection,
+.districtSection {
+  margin-bottom: 24px;
+  padding: 20px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.provinceGrid,
+.cityGrid,
+.districtGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.provinceCard,
+.cityCard,
+.districtCard {
+  padding: 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+
+  &:hover {
+    border-color: #3A54DA;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(58, 84, 218, 0.15);
+  }
+
+  &.selected {
+    border-color: #3A54DA;
+    background-color: #3A54DA;
+    color: white;
+  }
+
+  &.selected .cityInfo {
+    color: white;
+  }
+}
+
+.cityCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cityName {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.cityInfo {
+  font-size: 12px;
+  color: #666;
+}
+
+.districtCard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.districtName {
+  font-weight: 500;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+  font-size: 16px;
+}
+
+.selected_summary {
+  margin-top: 16px;
+  padding: 12px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.selected_items {
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #495057;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  strong {
+    color: #212529;
+    margin-right: 4px;
+  }
+}
+
+@media (max-width: 768px) {
+  .provinceGrid,
+  .cityGrid,
+  .districtGrid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+
+  .provinceCard,
+  .cityCard,
+  .districtCard {
+    padding: 12px;
+    font-size: 13px;
+  }
+
+  .sectionTitle {
+    font-size: 16px;
+  }
+}

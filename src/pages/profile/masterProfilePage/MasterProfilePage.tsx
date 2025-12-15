@@ -109,11 +109,11 @@ interface ReviewData {
     client: string;
 }
 
-interface CityApiData {
-    id: number;
-    title?: string;
-    [key: string]: unknown;
-}
+// interface CityApiData {
+//     id: number;
+//     title?: string;
+//     [key: string]: unknown;
+// }
 
 // Интерфейсы для API данных
 interface UserApiData {
@@ -568,93 +568,13 @@ function MasterProfilePage() {
 
                 for (const address of userAddresses) {
                     try {
-                        let addressString = '';
+                        console.log('Processing address:', address);
 
-                        // Проверяем и добавляем suburb
-                        if (address.suburb) {
-                            const suburbValue = address.suburb;
-                            if (typeof suburbValue === 'string') {
-                                const suburbStr: string = suburbValue;
-                                const suburbId = suburbStr.split('/').pop();
-                                if (suburbId) {
-                                    const suburbInfo = await fetchDistrictInfo(parseInt(suburbId), token);
-                                    if (suburbInfo && suburbInfo.title) {
-                                        addressString = suburbInfo.title;
-                                    }
-                                }
-                            } else if (typeof suburbValue === 'object' && suburbValue !== null && 'title' in suburbValue) {
-                                const suburbObj = suburbValue as { title: string };
-                                addressString = suburbObj.title;
-                            }
-                        }
+                        // Получаем полный текст адреса
+                        const addressText = await getFullAddressText(address, token);
 
-                        // Проверяем и добавляем district
-                        if (address.district && !addressString) {
-                            const districtValue = address.district;
-                            if (typeof districtValue === 'string') {
-                                const districtStr: string = districtValue;
-                                const districtId = districtStr.split('/').pop();
-                                if (districtId) {
-                                    const districtInfo = await fetchDistrictInfo(parseInt(districtId), token);
-                                    if (districtInfo && districtInfo.title) {
-                                        addressString = districtInfo.title;
-                                    }
-                                }
-                            } else if (typeof districtValue === 'object' && districtValue !== null && 'title' in districtValue) {
-                                const districtObj = districtValue as { title: string };
-                                addressString = districtObj.title;
-                            }
-                        }
-
-                        // Проверяем и добавляем city
-                        let cityName = '';
-                        if (address.city) {
-                            const cityValue = address.city;
-                            if (typeof cityValue === 'string') {
-                                const cityStr: string = cityValue;
-                                const cityId = cityStr.split('/').pop();
-                                if (cityId) {
-                                    const cityInfo = await fetchCityInfo(parseInt(cityId), token);
-                                    if (cityInfo && cityInfo.title) {
-                                        cityName = cityInfo.title;
-                                    }
-                                }
-                            } else if (typeof cityValue === 'object' && cityValue !== null && 'title' in cityValue) {
-                                const cityObj = cityValue as { title: string };
-                                cityName = cityObj.title;
-                            }
-                        }
-
-                        // Проверяем и добавляем province
-                        let provinceName = '';
-                        if (address.province) {
-                            const provinceValue = address.province;
-                            if (typeof provinceValue === 'string') {
-                                const provinceStr: string = provinceValue;
-                                const provinceId = provinceStr.split('/').pop();
-                                if (provinceId) {
-                                    // Загружаем провинции из API
-                                    const provinces = await fetchProvinces(token);
-                                    const province = provinces.find(p => p.id === parseInt(provinceId));
-                                    if (province && province.title) {
-                                        provinceName = province.title;
-                                    }
-                                }
-                            } else if (typeof provinceValue === 'object' && provinceValue !== null && 'title' in provinceValue) {
-                                const provinceObj = provinceValue as { title: string };
-                                provinceName = provinceObj.title;
-                            }
-                        }
-
-                        // Формируем полный адрес
-                        if (addressString && cityName) {
-                            addressParts.push(`${addressString}, ${cityName}${provinceName ? `, ${provinceName}` : ''}`);
-                        } else if (addressString) {
-                            addressParts.push(addressString);
-                        } else if (cityName) {
-                            addressParts.push(`${cityName}${provinceName ? `, ${provinceName}` : ''}`);
-                        } else if (provinceName) {
-                            addressParts.push(provinceName);
+                        if (addressText) {
+                            addressParts.push(addressText);
                         }
                     } catch (error) {
                         console.error('Error processing address:', error);
@@ -665,41 +585,6 @@ function MasterProfilePage() {
                 if (addressParts.length > 0) {
                     const uniqueAddresses = [...new Set(addressParts)];
                     workArea = uniqueAddresses.join(', ');
-                }
-            }
-
-            // Если не удалось получить адрес из addresses, пробуем из старого поля districts
-            if (!workArea && userData.districts && Array.isArray(userData.districts) && userData.districts.length > 0) {
-                console.log('Using old districts field for work area...');
-
-                const districtAddresses: string[] = [];
-
-                for (const districtIri of userData.districts) {
-                    try {
-                        let districtId: number | null = null;
-
-                        if (typeof districtIri === 'string') {
-                            const districtStr: string = districtIri;
-                            const parts = districtStr.split('/');
-                            districtId = parseInt(parts[parts.length - 1] || '0');
-                        } else if (districtIri && typeof districtIri === 'object' && 'id' in districtIri) {
-                            const districtObj = districtIri as { id: number };
-                            districtId = districtObj.id;
-                        }
-
-                        if (districtId) {
-                            const districtInfo = await fetchDistrictInfo(districtId, token);
-                            if (districtInfo && districtInfo.title) {
-                                districtAddresses.push(districtInfo.title);
-                            }
-                        }
-                    } catch (error) {
-                        console.error('Error processing district:', error);
-                    }
-                }
-
-                if (districtAddresses.length > 0) {
-                    workArea = districtAddresses.join(', ');
                 }
             }
 
@@ -742,50 +627,177 @@ function MasterProfilePage() {
         }
     };
 
-    // Функция для загрузки провинций из API
-    const fetchProvinces = async (token: string): Promise<Array<{ id: number; title: string }>> => {
+    // Добавляем функцию для получения полного текста адреса
+    const getFullAddressText = async (address: UserAddressApiData, token: string): Promise<string> => {
+        const addressParts: string[] = [];
+
         try {
-            const response = await fetch(`${API_BASE_URL}/api/provinces`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (response.ok) {
-                const provincesData = await response.json();
-                console.log('Provinces loaded:', provincesData);
-
-                // Обрабатываем разные форматы ответа
-                let provincesArray: Array<{ id: number; title: string }> = [];
-
-                if (Array.isArray(provincesData)) {
-                    provincesArray = provincesData.filter((item): item is { id: number; title: string } =>
-                        item && typeof item === 'object' && 'id' in item && 'title' in item
-                    );
-                } else if (provincesData && typeof provincesData === 'object') {
-                    const apiResponse = provincesData as ApiResponse<{ id: number; title: string }>;
-                    if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
-                        provincesArray = apiResponse['hydra:member'].filter((item): item is { id: number; title: string } =>
-                            item && typeof item === 'object' && 'id' in item && 'title' in item
-                        );
+            // Обрабатываем province
+            if (address.province) {
+                const provinceValue = address.province;
+                if (typeof provinceValue === 'string') {
+                    const provinceStr: string = provinceValue;
+                    const provinceId = provinceStr.split('/').pop();
+                    if (provinceId) {
+                        const provinceInfo = await fetchResourceInfo(parseInt(provinceId), 'provinces', token);
+                        if (provinceInfo && provinceInfo.title) {
+                            addressParts.push(provinceInfo.title);
+                        }
                     }
+                } else if (typeof provinceValue === 'object' && provinceValue !== null && 'title' in provinceValue) {
+                    const provinceObj = provinceValue as { title: string };
+                    addressParts.push(provinceObj.title);
                 }
-
-                return provincesArray;
             }
-            console.warn('Failed to fetch provinces, returning empty array');
-            return [];
+
+            // Обрабатываем city
+            if (address.city) {
+                const cityValue = address.city;
+                if (typeof cityValue === 'string') {
+                    const cityStr: string = cityValue;
+                    const cityId = cityStr.split('/').pop();
+                    if (cityId) {
+                        const cityInfo = await fetchResourceInfo(parseInt(cityId), 'cities', token);
+                        if (cityInfo && cityInfo.title) {
+                            addressParts.push(cityInfo.title);
+                        }
+                    }
+                } else if (typeof cityValue === 'object' && cityValue !== null && 'title' in cityValue) {
+                    const cityObj = cityValue as { title: string };
+                    addressParts.push(cityObj.title);
+                }
+            }
+
+            // Обрабатываем district
+            if (address.district) {
+                const districtValue = address.district;
+                if (typeof districtValue === 'string') {
+                    const districtStr: string = districtValue;
+                    const districtId = districtStr.split('/').pop();
+                    if (districtId) {
+                        const districtInfo = await fetchResourceInfo(parseInt(districtId), 'districts', token);
+                        if (districtInfo && districtInfo.title) {
+                            addressParts.push(districtInfo.title);
+                        }
+                    }
+                } else if (typeof districtValue === 'object' && districtValue !== null && 'title' in districtValue) {
+                    const districtObj = districtValue as { title: string };
+                    addressParts.push(districtObj.title);
+                }
+            }
+
+            // Обрабатываем suburb
+            if (address.suburb) {
+                const suburbValue = address.suburb;
+                if (typeof suburbValue === 'string') {
+                    const suburbStr: string = suburbValue;
+                    const suburbId = suburbStr.split('/').pop();
+                    if (suburbId) {
+                        const suburbInfo = await fetchResourceInfo(parseInt(suburbId), 'suburbs', token);
+                        if (suburbInfo && suburbInfo.title) {
+                            addressParts.push(suburbInfo.title);
+                        }
+                    }
+                } else if (typeof suburbValue === 'object' && suburbValue !== null && 'title' in suburbValue) {
+                    const suburbObj = suburbValue as { title: string };
+                    addressParts.push(suburbObj.title);
+                }
+            }
+
+            // Обрабатываем settlement (поселок)
+            if (address.settlement) {
+                const settlementValue = address.settlement;
+                if (typeof settlementValue === 'string') {
+                    const settlementStr: string = settlementValue;
+                    const settlementId = settlementStr.split('/').pop();
+                    if (settlementId) {
+                        const settlementInfo = await fetchResourceInfo(parseInt(settlementId), 'settlements', token);
+                        if (settlementInfo && settlementInfo.title) {
+                            addressParts.push(settlementInfo.title);
+                        }
+                    }
+                } else if (typeof settlementValue === 'object' && settlementValue !== null && 'title' in settlementValue) {
+                    const settlementObj = settlementValue as { title: string };
+                    addressParts.push(settlementObj.title);
+                }
+            }
+
+            // Обрабатываем community (ПГТ)
+            if (address.community) {
+                const communityValue = address.community;
+                if (typeof communityValue === 'string') {
+                    const communityStr: string = communityValue;
+                    const communityId = communityStr.split('/').pop();
+                    if (communityId) {
+                        const communityInfo = await fetchResourceInfo(parseInt(communityId), 'communities', token);
+                        if (communityInfo && communityInfo.title) {
+                            addressParts.push(communityInfo.title);
+                        }
+                    }
+                } else if (typeof communityValue === 'object' && communityValue !== null && 'title' in communityValue) {
+                    const communityObj = communityValue as { title: string };
+                    addressParts.push(communityObj.title);
+                }
+            }
+
+            // Обрабатываем village (село)
+            if (address.village) {
+                const villageValue = address.village;
+                if (typeof villageValue === 'string') {
+                    const villageStr: string = villageValue;
+                    const villageId = villageStr.split('/').pop();
+                    if (villageId) {
+                        const villageInfo = await fetchResourceInfo(parseInt(villageId), 'villages', token);
+                        if (villageInfo && villageInfo.title) {
+                            addressParts.push(villageInfo.title);
+                        }
+                    }
+                } else if (typeof villageValue === 'object' && villageValue !== null && 'title' in villageValue) {
+                    const villageObj = villageValue as { title: string };
+                    addressParts.push(villageObj.title);
+                }
+            }
+
         } catch (error) {
-            console.error('Error fetching provinces:', error);
-            return [];
+            console.error('Error getting full address text:', error);
         }
+
+        return addressParts.join(', ');
     };
 
-    const fetchDistrictInfo = async (districtId: number, token: string): Promise<DistrictApiData | null> => {
+    // Универсальная функция для получения информации о ресурсе
+    const fetchResourceInfo = async (resourceId: number, resourceType: string, token: string): Promise<any> => {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/districts/${districtId}`, {
+            console.log(`Fetching ${resourceType} info for ID: ${resourceId}`);
+
+            let endpoint = '';
+            switch (resourceType) {
+                case 'provinces':
+                    endpoint = `/api/provinces/${resourceId}`;
+                    break;
+                case 'cities':
+                    endpoint = `/api/cities/${resourceId}`;
+                    break;
+                case 'districts':
+                    endpoint = `/api/districts/${resourceId}`;
+                    break;
+                case 'suburbs':
+                    endpoint = `/api/suburbs/${resourceId}`;
+                    break;
+                case 'settlements':
+                    endpoint = `/api/settlements/${resourceId}`;
+                    break;
+                case 'communities':
+                    endpoint = `/api/communities/${resourceId}`;
+                    break;
+                case 'villages':
+                    endpoint = `/api/villages/${resourceId}`;
+                    break;
+                default:
+                    return null;
+            }
+
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -794,40 +806,105 @@ function MasterProfilePage() {
             });
 
             if (response.ok) {
-                const districtData: DistrictApiData = await response.json();
-                return districtData;
-            }
-            return null;
-        } catch (error) {
-            console.error('Error fetching district info:', error);
-            return null;
-        }
-    };
-
-    const fetchCityInfo = async (cityId: number, token: string): Promise<CityApiData | null> => {
-        try {
-            console.log(`Fetching city info for ID: ${cityId}`);
-            const response = await fetch(`${API_BASE_URL}/api/cities/${cityId}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (response.ok) {
-                const cityData: CityApiData = await response.json();
-                console.log(`City data loaded for ID ${cityId}:`, cityData);
-                return cityData;
+                const data = await response.json();
+                console.log(`${resourceType} data loaded:`, data);
+                return data;
             } else {
-                console.error(`Failed to fetch city ${cityId}: ${response.status}`);
+                console.error(`Failed to fetch ${resourceType} ${resourceId}: ${response.status}`);
                 return null;
             }
         } catch (error) {
-            console.error('Error fetching city info:', error);
+            console.error(`Error fetching ${resourceType} info:`, error);
             return null;
         }
     };
+
+    // Функция для загрузки провинций из API
+    // const fetchProvinces = async (token: string): Promise<Array<{ id: number; title: string }>> => {
+    //     try {
+    //         const response = await fetch(`${API_BASE_URL}/api/provinces`, {
+    //             method: 'GET',
+    //             headers: {
+    //                 'Authorization': `Bearer ${token}`,
+    //                 'Content-Type': 'application/json',
+    //             },
+    //         });
+    //
+    //         if (response.ok) {
+    //             const provincesData = await response.json();
+    //             console.log('Provinces loaded:', provincesData);
+    //
+    //             // Обрабатываем разные форматы ответа
+    //             let provincesArray: Array<{ id: number; title: string }> = [];
+    //
+    //             if (Array.isArray(provincesData)) {
+    //                 provincesArray = provincesData.filter((item): item is { id: number; title: string } =>
+    //                     item && typeof item === 'object' && 'id' in item && 'title' in item
+    //                 );
+    //             } else if (provincesData && typeof provincesData === 'object') {
+    //                 const apiResponse = provincesData as ApiResponse<{ id: number; title: string }>;
+    //                 if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
+    //                     provincesArray = apiResponse['hydra:member'].filter((item): item is { id: number; title: string } =>
+    //                         item && typeof item === 'object' && 'id' in item && 'title' in item
+    //                     );
+    //                 }
+    //             }
+    //
+    //             return provincesArray;
+    //         }
+    //         console.warn('Failed to fetch provinces, returning empty array');
+    //         return [];
+    //     } catch (error) {
+    //         console.error('Error fetching provinces:', error);
+    //         return [];
+    //     }
+    // };
+
+    // const fetchDistrictInfo = async (districtId: number, token: string): Promise<DistrictApiData | null> => {
+    //     try {
+    //         const response = await fetch(`${API_BASE_URL}/api/districts/${districtId}`, {
+    //             method: 'GET',
+    //             headers: {
+    //                 'Authorization': `Bearer ${token}`,
+    //                 'Content-Type': 'application/json',
+    //             },
+    //         });
+    //
+    //         if (response.ok) {
+    //             const districtData: DistrictApiData = await response.json();
+    //             return districtData;
+    //         }
+    //         return null;
+    //     } catch (error) {
+    //         console.error('Error fetching district info:', error);
+    //         return null;
+    //     }
+    // };
+    //
+    // const fetchCityInfo = async (cityId: number, token: string): Promise<CityApiData | null> => {
+    //     try {
+    //         console.log(`Fetching city info for ID: ${cityId}`);
+    //         const response = await fetch(`${API_BASE_URL}/api/cities/${cityId}`, {
+    //             method: 'GET',
+    //             headers: {
+    //                 'Authorization': `Bearer ${token}`,
+    //                 'Content-Type': 'application/json',
+    //             },
+    //         });
+    //
+    //         if (response.ok) {
+    //             const cityData: CityApiData = await response.json();
+    //             console.log(`City data loaded for ID ${cityId}:`, cityData);
+    //             return cityData;
+    //         } else {
+    //             console.error(`Failed to fetch city ${cityId}: ${response.status}`);
+    //             return null;
+    //         }
+    //     } catch (error) {
+    //         console.error('Error fetching city info:', error);
+    //         return null;
+    //     }
+    // };
 
     const updateUserRating = async (rating: number) => {
         if (!profileData?.id) return;
@@ -2351,6 +2428,19 @@ function MasterProfilePage() {
         }
     };
 
+    const handleNavigateToCityPage = () => {
+        if (profileData) {
+            navigate('/profile/city', {
+                state: {
+                    profileData: profileData,
+                    workArea: profileData.workArea
+                }
+            });
+        } else {
+            navigate('/profile/city');
+        }
+    };
+
     if (isLoading) {
         return <div className={styles.profileSet}>Загрузка...</div>;
     }
@@ -2746,10 +2836,11 @@ function MasterProfilePage() {
                         <div className={styles.section_content}>
                             {profileData.workArea ? (
                                 <div className={styles.work_area}>
-                                    <span>{profileData.workArea}</span>
+                                    <span className={styles.work_area_text}>{profileData.workArea}</span>
                                     <button
                                         className={styles.edit_icon}
-                                        onClick={() => navigate('/profile/city')}
+                                        onClick={handleNavigateToCityPage}
+                                        title="Редактировать адрес"
                                     >
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <path d="M7.2302 20.59L2.4502 21.59L3.4502 16.81L17.8902 2.29001C18.1407 2.03889 18.4385 1.83982 18.7663 1.70424C19.0941 1.56865 19.4455 1.49925 19.8002 1.50001C20.5163 1.50001 21.203 1.78447 21.7094 2.29082C22.2157 2.79717 22.5002 3.48392 22.5002 4.20001C22.501 4.55474 22.4315 4.90611 22.296 5.23391C22.1604 5.56171 21.9613 5.85945 21.7102 6.11001L7.2302 20.59Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
@@ -2758,7 +2849,7 @@ function MasterProfilePage() {
                                 </div>
                             ) : (
                                 <div className={styles.empty_state}>
-                                    <span>Добавить город</span>
+                                    <span>Укажите район работы</span>
                                     <button
                                         className={styles.add_button}
                                         onClick={() => navigate('/profile/city')}

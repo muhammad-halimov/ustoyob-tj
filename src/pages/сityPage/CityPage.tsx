@@ -1,4 +1,4 @@
-import {useState, useEffect, type ChangeEvent} from 'react';
+import { useState, useEffect, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAuthToken } from '../../utils/auth';
 import styles from './CityPage.module.scss';
@@ -8,11 +8,6 @@ interface City {
     title: string;
     description: string;
     image: string;
-    province: {
-        id: number;
-        title: string;
-        description: string;
-    };
     suburbs: Array<{
         id: number;
         title: string;
@@ -25,16 +20,11 @@ interface District {
     title: string;
     description: string;
     image: string;
-    province: {
-        id: number;
-        title: string;
-        description: string;
-    };
     settlements: Array<{
         id: number;
         title: string;
         description: string;
-        village: Array<{
+        villages: Array<{
             id: number;
             title: string;
             description: string;
@@ -51,6 +41,8 @@ interface Province {
     id: number;
     title: string;
     description: string;
+    cities: City[];
+    districts: District[];
 }
 
 interface AddressApiData {
@@ -59,38 +51,61 @@ interface AddressApiData {
     district?: string | { id: number; title: string };
     city?: string | { id: number; title: string };
     suburb?: string | { id: number; title: string };
+    settlement?: string | { id: number; title: string };
+    community?: string | { id: number; title: string };
+    village?: string | { id: number; title: string };
+}
+
+interface UserApiData {
+    id: number;
+    email?: string;
+    name?: string;
+    surname?: string;
+    patronymic?: string;
+    rating?: number;
+    image?: string;
+    atHome?: boolean;
+    addresses?: AddressApiData[];
+    [key: string]: unknown;
 }
 
 function CityPage() {
     const navigate = useNavigate();
-    const [cities, setCities] = useState<City[]>([]);
     const [provinces, setProvinces] = useState<Province[]>([]);
-    const [districts, setDistricts] = useState<District[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [remoteWork, setRemoteWork] = useState(false);
     const [manualAddress, setManualAddress] = useState<string>('');
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+    const [userDataLoaded, setUserDataLoaded] = useState(false);
 
+    // Состояния выбора
     const [selectedProvinceId, setSelectedProvinceId] = useState<number | null>(null);
     const [selectedCityId, setSelectedCityId] = useState<number | null>(null);
+    const [selectedDistrictId, setSelectedDistrictId] = useState<number | null>(null);
     const [selectedSuburbIds, setSelectedSuburbIds] = useState<number[]>([]);
-    const [selectedDistrictIds, setSelectedDistrictIds] = useState<number[]>([]);
+    const [selectedSettlementId, setSelectedSettlementId] = useState<number | null>(null);
+    const [selectedCommunityId, setSelectedCommunityId] = useState<number | null>(null);
+    const [selectedVillageId, setSelectedVillageId] = useState<number | null>(null);
 
-    useEffect(() => {
-        fetchUserData();
-        fetchProvinces();
-        fetchCities();
-        fetchDistricts();
-    }, []);
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://admin.ustoyob.tj';
+
+    // Получаем выбранную провинцию
+    const selectedProvince = selectedProvinceId
+        ? provinces.find(p => p.id === selectedProvinceId)
+        : null;
 
     // Получаем города выбранной провинции
-    const citiesInSelectedProvince = selectedProvinceId
-        ? cities.filter(city => city.province.id === selectedProvinceId)
+    const citiesInSelectedProvince = selectedProvince
+        ? selectedProvince.cities || []
+        : [];
+
+    // Получаем районы (districts) выбранной провинции
+    const districtsInSelectedProvince = selectedProvince
+        ? selectedProvince.districts || []
         : [];
 
     // Получаем выбранный город
     const selectedCity = selectedCityId
-        ? cities.find(city => city.id === selectedCityId)
+        ? citiesInSelectedProvince.find(city => city.id === selectedCityId)
         : null;
 
     // Получаем районы (suburbs) выбранного города
@@ -98,88 +113,141 @@ function CityPage() {
         ? selectedCity.suburbs || []
         : [];
 
-    // Получаем районы (districts) выбранной провинции
-    const districtsInSelectedProvince = selectedProvinceId
-        ? districts.filter(district => district.province.id === selectedProvinceId)
+    // Получаем выбранный район (district)
+    const selectedDistrict = selectedDistrictId
+        ? districtsInSelectedProvince.find(district => district.id === selectedDistrictId)
+        : null;
+
+    // Получаем поселения (settlements) выбранного района
+    const settlementsInSelectedDistrict = selectedDistrict
+        ? selectedDistrict.settlements || []
         : [];
 
-    // Получаем выбранные районы города
-    const selectedSuburbs = suburbsInSelectedCity.filter(
-        suburb => selectedSuburbIds.includes(suburb.id)
-    );
+    // Получаем ПГТ (communities) выбранного района
+    const communitiesInSelectedDistrict = selectedDistrict
+        ? selectedDistrict.communities || []
+        : [];
 
-    // Получаем выбранные общие районы
-    const selectedDistricts = districtsInSelectedProvince.filter(
-        district => selectedDistrictIds.includes(district.id)
-    );
+    // Получаем выбранное поселение
+    const selectedSettlement = selectedSettlementId
+        ? settlementsInSelectedDistrict.find(s => s.id === selectedSettlementId)
+        : null;
 
-    // Эффект для обновления адреса при выборе районов
+    // Получаем деревни (villages) выбранного поселения
+    const villagesInSelectedSettlement = selectedSettlement
+        ? selectedSettlement.villages || []
+        : [];
+
     useEffect(() => {
-        let address = '';
+        fetchProvinces().then(() => {
+            fetchUserData();
+        });
+    }, []);
 
-        if (selectedProvinceId) {
-            const province = provinces.find(p => p.id === selectedProvinceId);
-            if (province) {
-                address = province.title;
+    // Эффект для восстановления адреса после загрузки провинций
+    useEffect(() => {
+        if (provinces.length > 0 && userDataLoaded) {
+            updateAddressFromSelections();
+        }
+    }, [provinces, userDataLoaded, selectedProvinceId, selectedCityId, selectedDistrictId]);
+
+    const updateAddressFromSelections = () => {
+        const addressParts: string[] = [];
+
+        // Добавляем провинцию
+        if (selectedProvince) {
+            addressParts.push(selectedProvince.title);
+        }
+
+        // Добавляем город и его кварталы
+        if (selectedCity) {
+            addressParts.push(selectedCity.title);
+
+            // Добавляем выбранные районы города (suburbs) - кварталы
+            if (selectedSuburbIds.length > 0) {
+                const suburbTitles = suburbsInSelectedCity
+                    .filter(s => selectedSuburbIds.includes(s.id))
+                    .map(s => s.title);
+
+                // Если выбраны несколько кварталов, добавляем их через запятую
+                if (suburbTitles.length > 0) {
+                    addressParts.push(...suburbTitles);
+                }
+            }
+        }
+        // Добавляем район (district) и его вложенные элементы
+        else if (selectedDistrict) {
+            addressParts.push(selectedDistrict.title);
+
+            // Добавляем выбранное ПГТ или поселение
+            if (selectedCommunityId) {
+                const community = communitiesInSelectedDistrict.find(c => c.id === selectedCommunityId);
+                if (community) {
+                    addressParts.push(community.title); // ПГТ
+                }
+            } else if (selectedSettlementId) {
+                const settlement = settlementsInSelectedDistrict.find(s => s.id === selectedSettlementId);
+                if (settlement) {
+                    addressParts.push(settlement.title); // Поселок
+
+                    // Добавляем выбранную деревню
+                    if (selectedVillageId) {
+                        const village = villagesInSelectedSettlement.find(v => v.id === selectedVillageId);
+                        if (village) {
+                            addressParts.push(village.title); // Село
+                        }
+                    }
+                }
             }
         }
 
-        if (selectedCityId) {
-            const city = cities.find(c => c.id === selectedCityId);
-            if (city) {
-                address = city.title;
-            }
+        // Обновляем ручной адрес
+        if (addressParts.length > 0) {
+            const newAddress = addressParts.join(', ');
+            setManualAddress(newAddress);
         }
+    };
 
-        // Добавляем выбранные районы города
-        if (selectedSuburbs.length > 0) {
-            const suburbTitles = selectedSuburbs.map(s => s.title);
-            const cityTitle = selectedCity?.title || '';
-            address = `${suburbTitles.join(', ')}${cityTitle ? `, ${cityTitle}` : ''}`;
-        }
-
-        // Добавляем выбранные общие районы
-        if (selectedDistricts.length > 0) {
-            if (address) {
-                address += ', ';
-            }
-            const districtTitles = selectedDistricts.map(d => d.title);
-            address += districtTitles.join(', ');
-        }
-
-        // Если выбраны и районы города и общие районы
-        if (selectedSuburbs.length > 0 && selectedDistricts.length > 0) {
-            const suburbTitles = selectedSuburbs.map(s => s.title);
-            const districtTitles = selectedDistricts.map(d => d.title);
-            const cityTitle = selectedCity?.title || '';
-            address = `${suburbTitles.join(', ')}, ${districtTitles.join(', ')}${cityTitle ? `, ${cityTitle}` : ''}`;
-        }
-
-        // Если ничего не выбрано, но есть ручной адрес
-        if (!address && manualAddress) {
-            address = manualAddress;
-        }
-
-        setManualAddress(address);
-    }, [selectedSuburbIds, selectedDistrictIds, selectedCityId, selectedProvinceId, provinces, cities]);
-
-    // Эффект для обработки изменений выбранных ID
+    // Эффекты для сброса зависимых выборов
     useEffect(() => {
         if (selectedProvinceId) {
             setSelectedCityId(null);
+            setSelectedDistrictId(null);
             setSelectedSuburbIds([]);
-            setSelectedDistrictIds([]);
+            setSelectedSettlementId(null);
+            setSelectedCommunityId(null);
+            setSelectedVillageId(null);
         }
     }, [selectedProvinceId]);
 
     useEffect(() => {
         if (selectedCityId) {
+            setSelectedDistrictId(null);
+            setSelectedSettlementId(null);
+            setSelectedCommunityId(null);
+            setSelectedVillageId(null);
             setSelectedSuburbIds([]);
-            setSelectedDistrictIds([]);
         }
     }, [selectedCityId]);
 
-    const fetchProvinces = async () => {
+    useEffect(() => {
+        if (selectedDistrictId) {
+            setSelectedCityId(null);
+            setSelectedSuburbIds([]);
+            setSelectedSettlementId(null);
+            setSelectedCommunityId(null);
+            setSelectedVillageId(null);
+        }
+    }, [selectedDistrictId]);
+
+    useEffect(() => {
+        if (selectedSettlementId) {
+            setSelectedCommunityId(null);
+            setSelectedVillageId(null);
+        }
+    }, [selectedSettlementId]);
+
+    const fetchProvinces = async (): Promise<void> => {
         try {
             setIsLoading(true);
             const token = getAuthToken();
@@ -195,7 +263,6 @@ function CityPage() {
 
             if (response.ok) {
                 const provincesData = await response.json();
-                console.log('Provinces loaded:', provincesData);
                 setProvinces(provincesData);
             } else {
                 console.error('Failed to fetch provinces:', response.status);
@@ -204,56 +271,6 @@ function CityPage() {
             console.error('Error fetching provinces:', error);
         } finally {
             setIsLoading(false);
-        }
-    };
-
-    const fetchCities = async () => {
-        try {
-            const token = getAuthToken();
-            if (!token) return;
-
-            const response = await fetch(`${API_BASE_URL}/api/cities`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (response.ok) {
-                const citiesData = await response.json();
-                console.log('Cities loaded:', citiesData);
-                setCities(citiesData);
-            } else {
-                console.error('Failed to fetch cities:', response.status);
-            }
-        } catch (error) {
-            console.error('Error fetching cities:', error);
-        }
-    };
-
-    const fetchDistricts = async () => {
-        try {
-            const token = getAuthToken();
-            if (!token) return;
-
-            const response = await fetch(`${API_BASE_URL}/api/districts`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (response.ok) {
-                const districtsData = await response.json();
-                console.log('Districts loaded:', districtsData);
-                setDistricts(districtsData);
-            } else {
-                console.error('Failed to fetch districts:', response.status);
-            }
-        } catch (error) {
-            console.error('Error fetching districts:', error);
         }
     };
 
@@ -274,178 +291,179 @@ function CityPage() {
             });
 
             if (response.ok) {
-                const userData = await response.json();
-                console.log('User data loaded:', userData);
+                const userData: UserApiData = await response.json();
+                console.log('User data loaded for address restoration:', userData);
 
-                // Восстанавливаем настройку удаленной работы (используем atHome вместо remotely)
+                // Восстанавливаем настройку удаленной работы
                 setRemoteWork(userData.atHome || false);
 
-                // Восстанавливаем выбранные районы из addresses
-                if (userData.addresses && userData.addresses.length > 0) {
-                    console.log('User addresses found:', userData.addresses);
+                // Восстанавливаем выбранные адреса с безопасной проверкой
+                const userAddresses = userData.addresses as AddressApiData[] | undefined;
 
-                    const districtIds: number[] = [];
-                    const suburbIds: number[] = [];
+                if (userAddresses && Array.isArray(userAddresses) && userAddresses.length > 0) {
+                    console.log('User addresses found:', userAddresses);
 
-                    userData.addresses.forEach((address: AddressApiData) => {
-                        // Обрабатываем district
-                        if (address.district) {
-                            if (typeof address.district === 'string') {
-                                const parts = address.district.split('/');
-                                const id = parseInt(parts[parts.length - 1] || '0');
-                                if (id) districtIds.push(id);
-                            } else if (address.district && typeof address.district === 'object' && 'id' in address.district) {
-                                districtIds.push(address.district.id);
-                            }
-                        }
-
-                        // Обрабатываем suburb
-                        if (address.suburb) {
-                            if (typeof address.suburb === 'string') {
-                                const parts = address.suburb.split('/');
-                                const id = parseInt(parts[parts.length - 1] || '0');
-                                if (id) suburbIds.push(id);
-                            } else if (address.suburb && typeof address.suburb === 'object' && 'id' in address.suburb) {
-                                suburbIds.push(address.suburb.id);
-                            }
-                        }
-                    });
-
-                    console.log('Restoring district IDs:', districtIds);
-                    console.log('Restoring suburb IDs:', suburbIds);
-
-                    if (districtIds.length > 0) {
-                        setSelectedDistrictIds(districtIds);
-                    }
-
-                    if (suburbIds.length > 0) {
-                        setSelectedSuburbIds(suburbIds);
-                    }
-
-                    // Восстанавливаем город и провинцию из первого адреса
-                    if (userData.addresses[0]) {
-                        const firstAddress = userData.addresses[0];
-
-                        // Город
-                        if (firstAddress.city) {
-                            if (typeof firstAddress.city === 'string') {
-                                const parts = firstAddress.city.split('/');
-                                const cityId = parseInt(parts[parts.length - 1] || '0');
-                                if (cityId) setSelectedCityId(cityId);
-                            } else if (firstAddress.city && typeof firstAddress.city === 'object' && 'id' in firstAddress.city) {
-                                setSelectedCityId(firstAddress.city.id);
-                            }
-                        }
-
-                        // Провинция
-                        if (firstAddress.province) {
-                            if (typeof firstAddress.province === 'string') {
-                                const parts = firstAddress.province.split('/');
-                                const provinceId = parseInt(parts[parts.length - 1] || '0');
-                                if (provinceId) setSelectedProvinceId(provinceId);
-                            } else if (firstAddress.province && typeof firstAddress.province === 'object' && 'id' in firstAddress.province) {
-                                setSelectedProvinceId(firstAddress.province.id);
-                            }
-                        }
-                    }
-                } else if (userData.districts && userData.districts.length > 0) {
-                    // Для обратной совместимости с полем districts
-                    console.log('Old districts field found:', userData.districts);
-
-                    const districtIds: number[] = [];
-
-                    userData.districts.forEach((districtIri: string | { id: number }) => {
-                        if (typeof districtIri === 'string') {
-                            const parts = districtIri.split('/');
-                            const id = parseInt(parts[parts.length - 1] || '0');
-                            if (id) districtIds.push(id);
-                        } else if (districtIri && typeof districtIri === 'object' && 'id' in districtIri) {
-                            districtIds.push(districtIri.id);
-                        }
-                    });
-
-                    if (districtIds.length > 0) {
-                        setSelectedDistrictIds(districtIds);
-                        // Загружаем информацию о районах для определения провинции
-                        loadDistrictsInfo(districtIds, token);
-                    }
+                    // Ждем немного, чтобы провинции точно загрузились
+                    setTimeout(() => {
+                        // Берем первый адрес для восстановления
+                        const firstAddress = userAddresses[0];
+                        restoreAddressFromData(firstAddress);
+                        setUserDataLoaded(true);
+                    }, 100);
+                } else {
+                    setUserDataLoaded(true);
                 }
             } else {
                 console.error('Failed to fetch user data:', response.status);
+                setUserDataLoaded(true);
             }
         } catch (error) {
             console.error('Error fetching user data:', error);
+            setUserDataLoaded(true);
         }
     };
 
-    const loadDistrictsInfo = async (districtIds: number[], token: string) => {
-        try {
-            // Загружаем информацию о каждом районе
-            const districtsPromises = districtIds.map(id =>
-                fetch(`${API_BASE_URL}/api/districts/${id}`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                }).then(res => res.ok ? res.json() : null)
-            );
+    const getResourceId = (resource: string | { id: number; title: string }): number | null => {
+        if (typeof resource === 'string') {
+            const parts = resource.split('/');
+            const id = parseInt(parts[parts.length - 1] || '0');
+            return id || null;
+        } else if (resource && typeof resource === 'object' && 'id' in resource) {
+            return resource.id;
+        }
+        return null;
+    };
 
-            const districtsData = await Promise.all(districtsPromises);
-            const validDistricts = districtsData.filter(Boolean) as District[];
+    const restoreAddressFromData = (address: AddressApiData) => {
+        console.log('Restoring address from data:', address);
 
-            if (validDistricts.length > 0) {
-                // Определяем провинцию по первому району
-                const firstDistrict = validDistricts[0];
-                if (firstDistrict.province && firstDistrict.province.id) {
-                    setSelectedProvinceId(firstDistrict.province.id);
-                }
+        // Восстанавливаем провинцию
+        if (address.province) {
+            const provinceId = getResourceId(address.province);
+            console.log('Restoring province ID:', provinceId);
+            if (provinceId) {
+                setSelectedProvinceId(provinceId);
+
+                // Даем время на обновление состояния, затем восстанавливаем вложенные элементы
+                setTimeout(() => {
+                    const province = provinces.find(p => p.id === provinceId);
+                    if (!province) {
+                        console.log('Province not found:', provinceId);
+                        return;
+                    }
+
+                    console.log('Province found:', province.title);
+                    console.log('Available cities:', province.cities);
+                    console.log('Available districts:', province.districts);
+
+                    // Проверяем, есть ли город
+                    if (address.city) {
+                        const cityId = getResourceId(address.city);
+                        console.log('Restoring city ID:', cityId);
+                        if (cityId) {
+                            const cityExists = province.cities?.some(city => city.id === cityId);
+                            if (cityExists) {
+                                setSelectedCityId(cityId);
+                                console.log('City restored:', cityId);
+
+                                // Даем время на обновление, затем восстанавливаем кварталы
+                                setTimeout(() => {
+                                    if (address.suburb) {
+                                        const suburbId = getResourceId(address.suburb);
+                                        console.log('Restoring suburb ID:', suburbId);
+                                        if (suburbId) {
+                                            setSelectedSuburbIds([suburbId]);
+                                        }
+                                    }
+                                }, 50);
+                            }
+                        }
+                    }
+                    // Проверяем, есть ли район (district)
+                    else if (address.district) {
+                        const districtId = getResourceId(address.district);
+                        console.log('Restoring district ID:', districtId);
+                        if (districtId) {
+                            const districtExists = province.districts?.some(district => district.id === districtId);
+                            if (districtExists) {
+                                setSelectedDistrictId(districtId);
+                                console.log('District restored:', districtId);
+
+                                // Даем время на обновление, затем восстанавливаем вложенные элементы
+                                setTimeout(() => {
+                                    // Восстанавливаем ПГТ или поселение
+                                    if (address.community) {
+                                        const communityId = getResourceId(address.community);
+                                        console.log('Restoring community ID:', communityId);
+                                        if (communityId) {
+                                            setSelectedCommunityId(communityId);
+                                        }
+                                    } else if (address.settlement) {
+                                        const settlementId = getResourceId(address.settlement);
+                                        console.log('Restoring settlement ID:', settlementId);
+                                        if (settlementId) {
+                                            setSelectedSettlementId(settlementId);
+
+                                            // Восстанавливаем деревню (село)
+                                            setTimeout(() => {
+                                                if (address.village) {
+                                                    const villageId = getResourceId(address.village);
+                                                    console.log('Restoring village ID:', villageId);
+                                                    if (villageId) {
+                                                        setSelectedVillageId(villageId);
+                                                    }
+                                                }
+                                            }, 50);
+                                        }
+                                    }
+                                }, 50);
+                            }
+                        }
+                    }
+                }, 100);
             }
-        } catch (error) {
-            console.error('Error loading districts info:', error);
         }
     };
 
     // Обработчики выбора
     const handleProvinceSelect = (provinceId: number) => {
-        console.log('Province selected:', provinceId);
         setSelectedProvinceId(provinceId);
     };
 
     const handleCitySelect = (cityId: number) => {
-        console.log('City selected:', cityId);
         setSelectedCityId(cityId);
     };
 
+    const handleDistrictSelect = (districtId: number) => {
+        setSelectedDistrictId(districtId);
+    };
+
     const handleSuburbSelect = (suburbId: number) => {
-        console.log('Suburb toggle:', suburbId);
         setSelectedSuburbIds(prev => {
             if (prev.includes(suburbId)) {
-                // Удаляем из выбранных
                 return prev.filter(id => id !== suburbId);
             } else {
-                // Добавляем к выбранным
                 return [...prev, suburbId];
             }
         });
     };
 
-    const handleDistrictSelect = (districtId: number) => {
-        console.log('District toggle:', districtId);
-        setSelectedDistrictIds(prev => {
-            if (prev.includes(districtId)) {
-                // Удаляем из выбранных
-                return prev.filter(id => id !== districtId);
-            } else {
-                // Добавляем к выбранным
-                return [...prev, districtId];
-            }
-        });
+    const handleSettlementSelect = (settlementId: number) => {
+        setSelectedSettlementId(settlementId);
+        setSelectedCommunityId(null); // Сбрасываем выбор ПГТ
+    };
+
+    const handleCommunitySelect = (communityId: number) => {
+        setSelectedCommunityId(communityId);
+        setSelectedSettlementId(null); // Сбрасываем выбор поселения
+    };
+
+    const handleVillageSelect = (villageId: number) => {
+        setSelectedVillageId(villageId);
     };
 
     const handleManualAddressChange = (e: ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value;
-        setManualAddress(value);
+        setManualAddress(e.target.value);
     };
 
     const handleSaveAddress = async () => {
@@ -479,54 +497,65 @@ function CityPage() {
 
             // Подготавливаем данные для обновления
             const updateData: Record<string, unknown> = {
-                atHome: remoteWork // Используем atHome вместо remotely
+                atHome: remoteWork
             };
 
-            // Собираем все выбранные районы для поля addresses
+            // Собираем адреса
             const addresses: Array<Record<string, unknown>> = [];
 
-            // Добавляем районы города
-            selectedSuburbIds.forEach(suburbId => {
-                addresses.push({
-                    suburb: `/api/districts/${suburbId}`,
-                    ...(selectedCityId && { city: `/api/cities/${selectedCityId}` }),
-                    ...(selectedProvinceId && { province: `/api/provinces/${selectedProvinceId}` })
-                });
-            });
-
-            // Добавляем общие районы
-            selectedDistrictIds.forEach(districtId => {
-                addresses.push({
-                    district: `/api/districts/${districtId}`,
-                    ...(selectedProvinceId && { province: `/api/provinces/${selectedProvinceId}` })
-                });
-            });
-
-            // Если выбраны только город, но есть районы у города
-            if (selectedCityId && addresses.length === 0) {
-                const city = cities.find(c => c.id === selectedCityId);
-                if (city && city.suburbs && city.suburbs.length > 0) {
-                    // Берем все районы города
-                    city.suburbs.forEach(suburb => {
+            if (selectedCityId) {
+                // Если выбран город
+                if (selectedSuburbIds.length > 0) {
+                    // Добавляем каждый выбранный район города (квартал) как отдельный адрес
+                    selectedSuburbIds.forEach(suburbId => {
                         addresses.push({
-                            suburb: `/api/districts/${suburb.id}`,
+                            suburb: `/api/suburbs/${suburbId}`,
                             city: `/api/cities/${selectedCityId}`,
                             ...(selectedProvinceId && { province: `/api/provinces/${selectedProvinceId}` })
                         });
                     });
-                } else if (selectedProvinceId) {
-                    // Если у города нет районов, но есть провинция
+                } else {
+                    // Добавляем сам город
                     addresses.push({
                         city: `/api/cities/${selectedCityId}`,
-                        province: `/api/provinces/${selectedProvinceId}`
+                        ...(selectedProvinceId && { province: `/api/provinces/${selectedProvinceId}` })
+                    });
+                }
+            } else if (selectedDistrictId) {
+                // Если выбран район (district)
+                if (selectedCommunityId) {
+                    // Добавляем ПГТ
+                    addresses.push({
+                        community: `/api/communities/${selectedCommunityId}`,
+                        district: `/api/districts/${selectedDistrictId}`,
+                        ...(selectedProvinceId && { province: `/api/provinces/${selectedProvinceId}` })
+                    });
+                } else if (selectedSettlementId) {
+                    // Добавляем поселение (поселок)
+                    const addressEntry: Record<string, unknown> = {
+                        settlement: `/api/settlements/${selectedSettlementId}`,
+                        district: `/api/districts/${selectedDistrictId}`,
+                        ...(selectedProvinceId && { province: `/api/provinces/${selectedProvinceId}` })
+                    };
+
+                    // Добавляем деревню (село), если выбрана
+                    if (selectedVillageId) {
+                        addressEntry.village = `/api/villages/${selectedVillageId}`;
+                    }
+
+                    addresses.push(addressEntry);
+                } else {
+                    // Добавляем сам район
+                    addresses.push({
+                        district: `/api/districts/${selectedDistrictId}`,
+                        ...(selectedProvinceId && { province: `/api/provinces/${selectedProvinceId}` })
                     });
                 }
             }
 
-            // Если есть адреса, добавляем их в поле addresses
+            // Если есть адреса, добавляем их
             if (addresses.length > 0) {
                 updateData.addresses = addresses;
-                console.log('Saving addresses:', addresses);
             }
 
             console.log('Sending update data:', updateData);
@@ -541,38 +570,12 @@ function CityPage() {
             });
 
             if (updateResponse.ok) {
-                console.log('Address updated successfully');
                 alert('Адрес успешно сохранен!');
                 navigate('/profile');
             } else {
                 const errorText = await updateResponse.text();
                 console.error('Failed to update address:', errorText);
-
-                try {
-                    const errorJson = JSON.parse(errorText) as {
-                        violations?: Array<{ propertyPath: string; message: string }>;
-                        detail?: string;
-                        message?: string;
-                    };
-
-                    console.error('Error details:', errorJson);
-
-                    // Проверяем, есть ли более подробная информация об ошибке
-                    if (errorJson.violations && errorJson.violations.length > 0) {
-                        const violations = errorJson.violations.map((v) =>
-                            `${v.propertyPath}: ${v.message}`
-                        ).join(', ');
-                        alert(`Ошибка валидации: ${violations}`);
-                    } else if (errorJson.detail) {
-                        alert(`Ошибка: ${errorJson.detail}`);
-                    } else if (errorJson.message) {
-                        alert(`Ошибка: ${errorJson.message}`);
-                    } else {
-                        alert('Ошибка при сохранении адреса');
-                    }
-                } catch {
-                    alert('Ошибка при сохранении адреса');
-                }
+                alert('Ошибка при сохранении адреса');
             }
         } catch (error) {
             console.error('Error saving address:', error);
@@ -583,20 +586,14 @@ function CityPage() {
     const handleRemoteWorkToggle = () => {
         const newRemoteWork = !remoteWork;
         setRemoteWork(newRemoteWork);
-
-        // Сохраняем немедленно без ожидания сохранения адреса
         saveRemoteWorkSetting(newRemoteWork);
     };
 
     const saveRemoteWorkSetting = async (newRemoteWork: boolean) => {
         try {
             const token = getAuthToken();
-            if (!token) {
-                console.error('No auth token');
-                return;
-            }
+            if (!token) return;
 
-            // Получаем текущего пользователя
             const userResponse = await fetch(`${API_BASE_URL}/api/users/me`, {
                 method: 'GET',
                 headers: {
@@ -605,20 +602,10 @@ function CityPage() {
                 },
             });
 
-            if (!userResponse.ok) {
-                console.error('Failed to fetch user data');
-                return;
-            }
+            if (!userResponse.ok) return;
 
             const userData = await userResponse.json();
             const userId = userData.id;
-
-            console.log(`Saving remote work setting: ${newRemoteWork} for user ${userId}`);
-
-            // Обновляем только поле atHome (вместо remotely)
-            const updateData = {
-                atHome: newRemoteWork
-            };
 
             const updateResponse = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
                 method: 'PATCH',
@@ -626,43 +613,14 @@ function CityPage() {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/merge-patch+json',
                 },
-                body: JSON.stringify(updateData),
+                body: JSON.stringify({ atHome: newRemoteWork }),
             });
 
-            if (updateResponse.ok) {
-                console.log('Remote work setting updated successfully');
-
-                // Получаем обновленные данные пользователя для проверки
-                const updatedUserResponse = await fetch(`${API_BASE_URL}/api/users/me`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                });
-
-                if (updatedUserResponse.ok) {
-                    const updatedUser = await updatedUserResponse.json();
-                    // Убеждаемся, что состояние синхронизировано с сервером
-                    setRemoteWork(updatedUser.atHome || false);
-                } else {
-                    // Если не удалось получить обновленные данные, все равно обновляем локальное состояние
-                    setRemoteWork(newRemoteWork);
-                }
-            } else {
-                const errorText = await updateResponse.text();
-                console.error('Failed to update remote work setting:', errorText);
-
-                // Возвращаем переключатель в исходное состояние
+            if (!updateResponse.ok) {
                 setRemoteWork(!newRemoteWork);
-
-                // Показываем пользователю, что сохранение не удалось
                 alert('Не удалось сохранить настройку удаленной работы');
             }
         } catch (error) {
-            console.error('Error saving remote work setting:', error);
-
-            // Возвращаем переключатель в исходное состояние
             setRemoteWork(!newRemoteWork);
             alert('Ошибка при сохранении настройки удаленной работы');
         }
@@ -684,11 +642,13 @@ function CityPage() {
                                 <label>Точный адрес</label>
                                 <input
                                     type="text"
-                                    placeholder="район, город, область"
+                                    placeholder="Область, Город/Район, Квартал/ПГТ/Поселок, Село"
                                     className={styles.address_field}
                                     value={manualAddress}
                                     onChange={handleManualAddressChange}
+                                    readOnly
                                 />
+                                <p className={styles.address_hint}>Адрес автоматически формируется из выбранных элементов</p>
                             </div>
                         </div>
 
@@ -696,7 +656,7 @@ function CityPage() {
                             <button
                                 className={styles.save_button}
                                 onClick={handleSaveAddress}
-                                disabled={!manualAddress.trim()}
+                                disabled={!manualAddress.trim() || !selectedProvinceId}
                             >
                                 Сохранить
                             </button>
@@ -719,27 +679,9 @@ function CityPage() {
                             </label>
                         </div>
                     </div>
-
-                    {/* Информация о выбранных элементах */}
-                    {(selectedSuburbIds.length > 0 || selectedDistrictIds.length > 0) && (
-                        <div className={styles.selected_summary}>
-                            <h4>Выбрано:</h4>
-                            {selectedSuburbIds.length > 0 && (
-                                <div className={styles.selected_items}>
-                                    <strong>Районы города:</strong> {selectedSuburbs.map(s => s.title).join(', ')}
-                                    {selectedCity && ` (${selectedCity.title})`}
-                                </div>
-                            )}
-                            {selectedDistrictIds.length > 0 && (
-                                <div className={styles.selected_items}>
-                                    <strong>Районы области:</strong> {selectedDistricts.map(d => d.title).join(', ')}
-                                </div>
-                            )}
-                        </div>
-                    )}
                 </div>
 
-                {/* Шаг 1: Выбор области (Провинции) */}
+                {/* Шаг 1: Выбор области */}
                 <div className={styles.province_section}>
                     <h3>Выберите область (Провинцию)</h3>
                     <div className={styles.province_list}>
@@ -765,44 +707,74 @@ function CityPage() {
                     </div>
                 </div>
 
-                {/* Шаг 2: Выбор города (только после выбора области) */}
-                {selectedProvinceId && (
-                    <div className={styles.city_list_section}>
-                        <div className={styles.city_section_header}>
-                            <h3>Выберите город в {provinces.find(p => p.id === selectedProvinceId)?.title}</h3>
-                        </div>
-                        <div className={styles.city_list_page}>
-                            {citiesInSelectedProvince.length > 0 ? (
-                                <div className={styles.city_grid}>
-                                    {citiesInSelectedProvince.map(city => (
-                                        <button
-                                            key={city.id}
-                                            className={`${styles.city_card} ${
-                                                selectedCityId === city.id ? styles.city_card_selected : ''
-                                            }`}
-                                            onClick={() => handleCitySelect(city.id)}
-                                        >
-                                            <div className={styles.city_name}>{city.title}</div>
-                                            {city.suburbs && city.suburbs.length > 0 && (
-                                                <div className={styles.city_districts_count}>
-                                                    {city.suburbs.length} районов
-                                                </div>
-                                            )}
-                                        </button>
-                                    ))}
+                {/* Шаг 2: Выбор города или района (в одной строке) */}
+                {selectedProvince && (
+                    <div className={styles.combined_section}>
+                        <h3>Населенные пункты в {selectedProvince.title}</h3>
+
+                        <div className={styles.combined_container}>
+                            {/* Города */}
+                            {citiesInSelectedProvince.length > 0 && (
+                                <div className={styles.cities_container}>
+                                    <h4>Города</h4>
+                                    <div className={styles.city_grid}>
+                                        {citiesInSelectedProvince.map(city => (
+                                            <button
+                                                key={city.id}
+                                                className={`${styles.city_card} ${
+                                                    selectedCityId === city.id ? styles.city_card_selected : ''
+                                                }`}
+                                                onClick={() => handleCitySelect(city.id)}
+                                            >
+                                                <div className={styles.city_name}>{city.title}</div>
+                                                {city.suburbs && city.suburbs.length > 0 && (
+                                                    <div className={styles.city_districts_count}>
+                                                        {city.suburbs.length} кварталов
+                                                    </div>
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
-                            ) : (
-                                <div className={styles.no_data}>Города не найдены в выбранной области</div>
+                            )}
+
+                            {/* Районы (districts) */}
+                            {districtsInSelectedProvince.length > 0 && (
+                                <div className={styles.districts_container}>
+                                    <h4>Районы</h4>
+                                    <div className={styles.district_grid}>
+                                        {districtsInSelectedProvince.map(district => (
+                                            <button
+                                                key={district.id}
+                                                className={`${styles.district_card} ${
+                                                    selectedDistrictId === district.id ? styles.district_card_selected : ''
+                                                }`}
+                                                onClick={() => handleDistrictSelect(district.id)}
+                                            >
+                                                <div className={styles.district_name}>{district.title}</div>
+                                                <div className={styles.district_info}>
+                                                    {district.settlements && district.settlements.length > 0 && (
+                                                        <span>Поселков: {district.settlements.length}</span>
+                                                    )}
+                                                    {district.communities && district.communities.length > 0 && (
+                                                        <span>ПГТ: {district.communities.length}</span>
+                                                    )}
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                             )}
                         </div>
                     </div>
                 )}
 
-                {/* Шаг 3A: Выбор районов города (suburbs) если город выбран и у него есть районы */}
-                {selectedCityId && suburbsInSelectedCity.length > 0 && (
-                    <div className={styles.district_section}>
-                        <div className={styles.district_section_header}>
-                            <h3>Выберите районы города {selectedCity?.title} (можно выбрать несколько)</h3>
+                {/* Шаг 3A: Кварталы (suburbs) выбранного города */}
+                {selectedCity && suburbsInSelectedCity.length > 0 && (
+                    <div className={styles.suburbs_section}>
+                        <div className={styles.section_header}>
+                            <h3>Кварталы города {selectedCity.title} (можно выбрать несколько)</h3>
+                            <p className={styles.subtitle}>Выберите кварталы, в которых вы работаете</p>
                         </div>
                         <div className={styles.district_grid}>
                             {suburbsInSelectedCity.map(suburb => (
@@ -820,25 +792,78 @@ function CityPage() {
                     </div>
                 )}
 
-                {/* Шаг 3B: Выбор общих районы (districts) если в провинции есть районы */}
-                {selectedProvinceId && districtsInSelectedProvince.length > 0 && (
-                    <div className={styles.district_section}>
-                        <div className={styles.district_section_header}>
-                            <h3>Выберите районы в области {provinces.find(p => p.id === selectedProvinceId)?.title} (можно выбрать несколько)</h3>
+                {/* Шаг 3B: ПГТ и поселения выбранного района */}
+                {selectedDistrict && (
+                    <div className={styles.nested_selection_section}>
+                        <h3>Населенные пункты в районе {selectedDistrict.title}</h3>
+                        <p className={styles.subtitle}>Выберите ПГТ или поселок</p>
+
+                        <div className={styles.nested_type_selector}>
+                            {/* ПГТ (communities) */}
+                            {communitiesInSelectedDistrict.length > 0 && (
+                                <div className={styles.communities_container}>
+                                    <h4>ПГТ (Поселки городского типа)</h4>
+                                    <div className={styles.district_grid}>
+                                        {communitiesInSelectedDistrict.map(community => (
+                                            <button
+                                                key={community.id}
+                                                className={`${styles.district_card} ${
+                                                    selectedCommunityId === community.id ? styles.district_card_selected : ''
+                                                }`}
+                                                onClick={() => handleCommunitySelect(community.id)}
+                                            >
+                                                <div className={styles.district_name}>{community.title}</div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Поселения (settlements) */}
+                            {settlementsInSelectedDistrict.length > 0 && (
+                                <div className={styles.settlements_container}>
+                                    <h4>Поселки</h4>
+                                    <div className={styles.district_grid}>
+                                        {settlementsInSelectedDistrict.map(settlement => (
+                                            <button
+                                                key={settlement.id}
+                                                className={`${styles.district_card} ${
+                                                    selectedSettlementId === settlement.id ? styles.district_card_selected : ''
+                                                }`}
+                                                onClick={() => handleSettlementSelect(settlement.id)}
+                                            >
+                                                <div className={styles.district_name}>{settlement.title}</div>
+                                                {settlement.villages && settlement.villages.length > 0 && (
+                                                    <div className={styles.settlement_info}>
+                                                        {settlement.villages.length} сёл
+                                                    </div>
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
-                        <div className={styles.district_grid}>
-                            {districtsInSelectedProvince.map(district => (
-                                <button
-                                    key={district.id}
-                                    className={`${styles.district_card} ${
-                                        selectedDistrictIds.includes(district.id) ? styles.district_card_selected : ''
-                                    }`}
-                                    onClick={() => handleDistrictSelect(district.id)}
-                                >
-                                    <div className={styles.district_name}>{district.title}</div>
-                                </button>
-                            ))}
-                        </div>
+
+                        {/* Шаг 4: Села (villages) выбранного поселения */}
+                        {selectedSettlement && villagesInSelectedSettlement.length > 0 && (
+                            <div className={styles.villages_section}>
+                                <h4>Села в поселке {selectedSettlement.title}</h4>
+                                <div className={styles.district_grid}>
+                                    {villagesInSelectedSettlement.map(village => (
+                                        <button
+                                            key={village.id}
+                                            className={`${styles.district_card} ${
+                                                selectedVillageId === village.id ? styles.district_card_selected : ''
+                                            }`}
+                                            onClick={() => handleVillageSelect(village.id)}
+                                        >
+                                            <div className={styles.district_name}>{village.title}</div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

@@ -122,10 +122,16 @@ interface Category {
     name: string;
 }
 
+interface City {
+    id: number;
+    name: string;
+}
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // Кэши
 const categoriesCache = new Map<number, Category>();
+const citiesCache = new Map<number, City>();
 
 export default function Search({ onSearchResults, onFilterToggle }: SearchProps) {
     const [showFilters, setShowFilters] = useState(false);
@@ -141,10 +147,12 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         category: '',
         rating: '',
         reviewCount: '',
-        sortBy: ''
+        sortBy: '',
+        city: '' // Добавляем город в фильтры
     });
     const [isLoading, setIsLoading] = useState(false);
     const [categories, setCategories] = useState<Category[]>([]);
+    const [cities, setCities] = useState<City[]>([]); // Состояние для городов
     const [userRole, setUserRole] = useState<'client' | 'master' | null>(null);
     const navigate = useNavigate();
 
@@ -160,10 +168,140 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             category: '',
             rating: '',
             reviewCount: '',
-            sortBy: ''
+            sortBy: '',
+            city: ''
         },
         userRole: null
     });
+
+    // Функция для загрузки городов из API
+    const fetchCities = useCallback(async () => {
+        if (citiesCache.size > 0) {
+            setCities(Array.from(citiesCache.values()));
+            return;
+        }
+
+        try {
+            const token = getAuthToken();
+            const headers: HeadersInit = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            };
+
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            // Загружаем города из адресов тикетов или отдельного эндпоинта
+            const response = await fetch(`${API_BASE_URL}/api/cities`, {
+                method: 'GET',
+                headers: headers,
+            });
+
+            if (response.ok) {
+                const citiesData = await response.json();
+                let formatted: City[] = [];
+
+                if (Array.isArray(citiesData)) {
+                    formatted = citiesData.map((city: { id: number; title: string }) => ({
+                        id: city.id,
+                        name: city.title
+                    }));
+                } else if (citiesData && typeof citiesData === 'object' && 'hydra:member' in citiesData) {
+                    const hydraMember = (citiesData as { 'hydra:member': { id: number; title: string }[] })['hydra:member'];
+                    if (Array.isArray(hydraMember)) {
+                        formatted = hydraMember.map((city: { id: number; title: string }) => ({
+                            id: city.id,
+                            name: city.title
+                        }));
+                    }
+                }
+
+                // Удаляем дубликаты по имени
+                const uniqueCities = formatted.reduce((acc: City[], current) => {
+                    if (!acc.find(city => city.name.toLowerCase() === current.name.toLowerCase())) {
+                        acc.push(current);
+                    }
+                    return acc;
+                }, []);
+
+                // Сортируем по алфавиту
+                uniqueCities.sort((a, b) => a.name.localeCompare(b.name));
+
+                uniqueCities.forEach((city: City) => {
+                    citiesCache.set(city.id, city);
+                });
+
+                setCities(uniqueCities);
+            }
+        } catch (error) {
+            console.error('Error fetching cities:', error);
+            // Если нет отдельного эндпоинта для городов, попробуем получить города из тикетов
+            await extractCitiesFromTickets();
+        }
+    }, []);
+
+    // Функция для извлечения городов из существующих тикетов
+    const extractCitiesFromTickets = useCallback(async () => {
+        try {
+            const token = getAuthToken();
+            const headers: HeadersInit = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            };
+
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const response = await fetch(`${API_BASE_URL}/api/tickets?active=true&itemsPerPage=100`, {
+                method: 'GET',
+                headers: headers,
+            });
+
+            if (response.ok) {
+                const ticketsData = await response.json();
+                let tickets: ApiTicket[] = [];
+
+                if (Array.isArray(ticketsData)) {
+                    tickets = ticketsData;
+                } else if (ticketsData && typeof ticketsData === 'object' && 'hydra:member' in ticketsData) {
+                    const hydraMember = (ticketsData as { 'hydra:member': ApiTicket[] })['hydra:member'];
+                    if (Array.isArray(hydraMember)) {
+                        tickets = hydraMember;
+                    }
+                }
+
+                // Извлекаем уникальные города из адресов тикетов
+                const citiesMap = new Map<string, City>();
+
+                tickets.forEach(ticket => {
+                    ticket.addresses?.forEach(address => {
+                        if (address.city?.title) {
+                            const cityName = address.city.title.trim();
+                            if (!citiesMap.has(cityName.toLowerCase())) {
+                                citiesMap.set(cityName.toLowerCase(), {
+                                    id: address.city.id,
+                                    name: cityName
+                                });
+                            }
+                        }
+                    });
+                });
+
+                const uniqueCities = Array.from(citiesMap.values());
+                uniqueCities.sort((a, b) => a.name.localeCompare(b.name));
+
+                uniqueCities.forEach((city: City) => {
+                    citiesCache.set(city.id, city);
+                });
+
+                setCities(uniqueCities);
+            }
+        } catch (error) {
+            console.error('Error extracting cities from tickets:', error);
+        }
+    }, []);
 
     // Функция для получения информации об адресе
     const getAddressInfo = useCallback(async (ticket: ApiTicket): Promise<{
@@ -237,6 +375,33 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             return { formatted: 'Адрес не указан' };
         }
     }, []);
+
+    // Функция для фильтрации по городу
+    const filterByCity = useCallback(async (tickets: TypedTicket[], cityFilter: string): Promise<TypedTicket[]> => {
+        if (!cityFilter || !cityFilter.trim()) {
+            return tickets;
+        }
+
+        const filteredTickets = await Promise.all(
+            tickets.map(async (ticket) => {
+                const addressInfo = await getAddressInfo(ticket);
+                const cityName = addressInfo.cityName?.toLowerCase() || '';
+                const districtName = addressInfo.districtName?.toLowerCase() || '';
+                const fullAddress = addressInfo.formatted.toLowerCase();
+                const searchCity = cityFilter.toLowerCase();
+
+                // Проверяем несколько вариантов совпадения
+                const matchesCity =
+                    cityName.includes(searchCity) ||
+                    districtName.includes(searchCity) ||
+                    fullAddress.includes(searchCity);
+
+                return matchesCity ? ticket : null;
+            })
+        );
+
+        return filteredTickets.filter((ticket): ticket is TypedTicket => ticket !== null);
+    }, [getAddressInfo]);
 
     // Функция для определения приоритета тикета по городу
     const getTicketPriority = useCallback(async (ticket: ApiTicket): Promise<number> => {
@@ -646,6 +811,12 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
             let filteredData = typedTickets;
 
+            // Фильтрация по городу
+            if (filterParams.city) {
+                filteredData = await filterByCity(filteredData, filterParams.city);
+                console.log(`After city filtering: ${filteredData.length} tickets`);
+            }
+
             // Фильтрация по количеству отзывов
             if (filterParams.reviewCount) {
                 const minReviews = parseInt(filterParams.reviewCount);
@@ -696,7 +867,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         } finally {
             setIsLoading(false);
         }
-    }, [userRole, filterByReviewCount, selectedCity, sortTicketsWithPriority, getUserName, getAddressInfo, getTicketPriority, getTimeAgo]);
+    }, [userRole, filterByCity, filterByReviewCount, selectedCity, sortTicketsWithPriority, getUserName, getAddressInfo, getTicketPriority, getTimeAgo]);
 
     // Флаг для предотвращения дублирующих запросов
     const isSearchInProgressRef = useRef(false);
@@ -722,7 +893,8 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             currentSearch.filters.category !== previousSearch.filters.category ||
             currentSearch.filters.rating !== previousSearch.filters.rating ||
             currentSearch.filters.reviewCount !== previousSearch.filters.reviewCount ||
-            currentSearch.filters.sortBy !== previousSearch.filters.sortBy;
+            currentSearch.filters.sortBy !== previousSearch.filters.sortBy ||
+            currentSearch.filters.city !== previousSearch.filters.city; // Добавляем проверку города
         const hasRoleChanged = currentSearch.userRole !== previousSearch.userRole;
 
         if (!hasQueryChanged && !hasFiltersChanged && !hasRoleChanged) {
@@ -735,7 +907,8 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             !filters.maxPrice &&
             !filters.category &&
             !filters.rating &&
-            !filters.reviewCount) {
+            !filters.reviewCount &&
+            !filters.city) { // Добавляем город в проверку
             console.log('Clearing results - no search criteria');
             setShowResults(false);
             setSearchResults([]);
@@ -785,7 +958,8 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             category: '',
             rating: '',
             reviewCount: '',
-            sortBy: ''
+            sortBy: '',
+            city: '' // Сбрасываем город
         });
         setShowResults(false);
         setSearchResults([]);
@@ -798,7 +972,8 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 category: '',
                 rating: '',
                 reviewCount: '',
-                sortBy: ''
+                sortBy: '',
+                city: ''
             },
             userRole
         };
@@ -813,7 +988,8 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         const role = getUserRole();
         setUserRole(role);
         fetchCategories();
-    }, [fetchCategories]);
+        fetchCities(); // Загружаем города
+    }, [fetchCategories, fetchCities]);
 
     // Следим за изменениями в localStorage для города
     useEffect(() => {
@@ -848,6 +1024,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         filters.rating,
         filters.reviewCount,
         filters.sortBy,
+        filters.city, // Добавляем город в зависимости
         userRole,
         selectedCity,
         handleSearch
@@ -902,9 +1079,6 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                             <circle cx="12" cy="9" r="2.5" stroke="#3A54DA" strokeWidth="2"/>
                         </svg>
                         {result.address}
-                        {/*{result.city && (*/}
-                        {/*    <span className={styles.cityName}> • {result.city}</span>*/}
-                        {/*)}*/}
                     </span>
                     <span className={styles.date}>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -949,6 +1123,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     filters={filters}
                     onResetFilters={handleResetFilters}
                     categories={categories}
+                    cities={cities} // Передаем города в FilterPanel
                 />
 
                 <div className={styles.search_content}>
@@ -957,7 +1132,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                             {getSearchTitle}
                         </h2>
 
-                        {(filters.minPrice || filters.maxPrice || filters.category || filters.rating || filters.reviewCount) && (
+                        {(filters.minPrice || filters.maxPrice || filters.category || filters.rating || filters.reviewCount || filters.city) && (
                             <div className={styles.active_filters}>
                                 <span>Активные фильтры:</span>
                                 {filters.minPrice && <span className={styles.filter_tag}>От {filters.minPrice} TJS</span>}
@@ -969,6 +1144,11 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                                 )}
                                 {filters.rating && <span className={styles.filter_tag}>{filters.rating}+ звезд</span>}
                                 {filters.reviewCount && <span className={styles.filter_tag}>{filters.reviewCount}+ отзывов</span>}
+                                {filters.city && (
+                                    <span className={styles.filter_tag}>
+                                        {cities.find(city => city.name.toLowerCase() === filters.city)?.name || filters.city}
+                                    </span>
+                                )}
                                 <button
                                     className={styles.clear_filters_btn}
                                     onClick={handleResetFilters}

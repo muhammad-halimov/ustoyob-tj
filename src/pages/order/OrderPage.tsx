@@ -289,26 +289,6 @@ export function OrderPage() {
                 return;
             }
 
-            // ПРАВИЛЬНАЯ ЛОГИКА СОГЛАСНО ВАШИМ ПРАВИЛАМ:
-            let reviewType = '';
-            let masterIri = '';
-            let clientIri = '';
-
-            if (userRole === 'master') {
-                // Мастер оставляет отзыв клиенту -> type: "client"
-                reviewType = 'client';
-                masterIri = `/api/users/${currentUserId}`;
-                clientIri = `/api/users/${order.authorId}`;
-            } else if (userRole === 'client') {
-                // Клиент оставляет отзыв мастеру -> type: "master"
-                reviewType = 'master';
-                clientIri = `/api/users/${currentUserId}`;
-                masterIri = `/api/users/${order.authorId}`;
-            } else {
-                alert('Неизвестная роль пользователя');
-                return;
-            }
-
             // Проверяем что не оставляем отзыв самому себе
             if (currentUserId === order.authorId) {
                 alert('Нельзя оставлять отзыв самому себе');
@@ -325,72 +305,101 @@ export function OrderPage() {
             }
 
             const reviewData: ReviewData = {
-                type: reviewType,
+                type: '', // Будет установлено ниже
                 rating: selectedStars,
                 description: reviewText,
-                ticket: `/api/tickets/${order.id}`, // Тикет обязателен в нашем случае
+                ticket: `/api/tickets/${order.id}`,
             };
 
-            // Добавляем master или client в зависимости от типа
-            if (reviewType === 'master') {
-                reviewData.master = masterIri;
-            } else if (reviewType === 'client') {
-                reviewData.client = clientIri;
+            // Определяем тип отзыва и IRI пользователей
+            if (userRole === 'master') {
+                // Мастер оставляет отзыв клиенту
+                reviewData.type = 'client';
+                reviewData.master = `/api/users/${currentUserId}`;
+                reviewData.client = `/api/users/${order.authorId}`;
+            } else if (userRole === 'client') {
+                // Клиент оставляет отзыв мастеру
+                reviewData.type = 'master';
+                reviewData.client = `/api/users/${currentUserId}`;
+                reviewData.master = `/api/users/${order.authorId}`;
+            } else {
+                alert('Неизвестная роль пользователя');
+                return;
             }
 
             console.log('Sending review data:', reviewData);
 
+            // Отправка отзыва
             const response = await fetch(`${API_BASE_URL}/api/reviews`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json',
                 },
                 body: JSON.stringify(reviewData)
             });
 
-            if (response.ok) {
+            if (response.ok || response.status === 201) {
                 const reviewResponse = await response.json();
                 console.log('Review created successfully:', reviewResponse);
 
-                // Загружаем фото через отдельный эндпоинт
-                if (reviewPhotos.length > 0) {
+                // Загружаем фото если есть
+                if (reviewPhotos.length > 0 && reviewResponse.id) {
                     try {
                         await uploadReviewPhotos(reviewResponse.id, reviewPhotos, token);
                         console.log('All photos uploaded successfully');
                     } catch (uploadError) {
                         console.error('Error uploading photos, but review was created:', uploadError);
-                        alert('Отзыв отправлен, но возникла ошибка при загрузке фото');
+                        // Не показываем alert для пользователя, т.к. отзыв уже создан
                     }
                 }
 
-                // Обновляем количество отзывов для автора заказа
+                // Обновляем количество отзывов
                 if (order?.authorId) {
                     const updatedCount = await fetchReviewCount(order.authorId);
                     setReviewCount(updatedCount);
                 }
 
                 handleCloseModal();
-                alert('Отзыв успешно отправлен!');
+
+                // Показываем уведомление об успехе
+                setModalMessage('Отзыв успешно отправлен!');
+                setShowSuccessModal(true);
+                setTimeout(() => setShowSuccessModal(false), 3000);
+
             } else {
                 const errorText = await response.text();
                 console.error('Error creating review. Status:', response.status, 'Response:', errorText);
 
                 let errorMessage = 'Ошибка при отправке отзыва';
                 if (response.status === 422) {
-                    errorMessage = 'Ошибка валидации данных. Проверьте введенные данные.';
+                    try {
+                        const errorData = JSON.parse(errorText);
+                        if (errorData.violations && errorData.violations.length > 0) {
+                            errorMessage = errorData.violations.map((v: any) => v.message).join(', ');
+                        }
+                    } catch (e) {
+                        errorMessage = 'Ошибка валидации данных';
+                    }
                 } else if (response.status === 400) {
-                    errorMessage = 'Неверные данные для отправки отзыва.';
+                    errorMessage = 'Неверные данные для отправки отзыва';
                 } else if (response.status === 404) {
-                    errorMessage = 'Ресурс не найден. Возможно, заказ или пользователь не существуют.';
+                    errorMessage = 'Ресурс не найден';
+                } else if (response.status === 403) {
+                    errorMessage = 'Нет доступа для отправки отзыва';
                 }
 
-                alert(errorMessage);
+                setModalMessage(errorMessage);
+                setShowErrorModal(true);
+                setTimeout(() => setShowErrorModal(false), 3000);
             }
 
         } catch (error) {
             console.error('Error submitting review:', error);
-            alert('Произошла непредвиденная ошибка при отправке отзыва');
+            setModalMessage('Произошла непредвиденная ошибка при отправке отзыва');
+            setShowErrorModal(true);
+            setTimeout(() => setShowErrorModal(false), 3000);
         }
     };
 
@@ -400,7 +409,7 @@ export function OrderPage() {
 
             for (const photo of photos) {
                 const formData = new FormData();
-                formData.append('image', photo);
+                formData.append('imageFile', photo); // Поле должно быть 'imageFile' согласно API
 
                 console.log(`Uploading photo: ${photo.name}`);
 
@@ -408,20 +417,18 @@ export function OrderPage() {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,
+                        // Не указываем Content-Type, FormData установит его автоматически
                     },
                     body: formData
                 });
 
-                if (response.ok) {
+                if (response.ok || response.status === 201) {
                     const uploadResult = await response.json();
                     console.log('Photo uploaded successfully:', uploadResult);
                 } else {
                     const errorText = await response.text();
                     console.error(`Error uploading photo for review ${reviewId}:`, errorText);
-
-                    if (response.status === 422) {
-                        console.error('Validation error for photo upload');
-                    }
+                    throw new Error(`Failed to upload photo: ${response.status}`);
                 }
             }
 
@@ -1763,10 +1770,10 @@ export function OrderPage() {
             )}
             {showSuccessModal && (
                 <div className={styles.modalOverlay} onClick={handleCloseSuccessModal}>
-                    <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+                    <div className={`${styles.modalContent} ${styles.successModal}`} onClick={(e) => e.stopPropagation()}>
                         <h2 className={styles.successTitle}>Успешно!</h2>
                         <div className={styles.successIcon}>
-                            <img src="./uspeh.png" alt="Успех"/>
+                            <img src="../uspeh.png" alt="Успех"/>
                         </div>
                         <p className={styles.successMessage}>{modalMessage}</p>
                         <button
@@ -1785,7 +1792,7 @@ export function OrderPage() {
                     <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
                         <h2 className={styles.errorTitle}>Ошибка</h2>
                         <div className={styles.errorIcon}>
-                            <img src="./error.png" alt="Ошибка"/>
+                            <img src="../error.png" alt="Ошибка"/>
                         </div>
                         <p className={styles.errorMessage}>{modalMessage}</p>
                         <button

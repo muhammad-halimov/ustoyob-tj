@@ -241,9 +241,9 @@ const OrderHistoryPage = () => {
             return 'Завершен';
         }
         if (ticket.master) {
-            return 'В работе';
+            return 'Актуальный';
         }
-        return 'Поиск исполнителя';
+        return 'Актуальный';
     };
 
     // Функция для получения форматированного бюджета

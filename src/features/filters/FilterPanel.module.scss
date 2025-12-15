@@ -3,6 +3,7 @@
 
 .filters_panel {
   max-width: 450px;
+  max-block-size: fit-content;
   width: 100%;
   //min-width: 400px;
   background: map.get(vars.$colors, background-primary);

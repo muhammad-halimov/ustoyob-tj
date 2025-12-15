@@ -19,7 +19,21 @@ interface Master {
         title: string;
         city: {
             title: string;
+            province?: {
+                title: string;
+            };
         };
+    }>;
+    addresses?: Array<{
+        id: number;
+        province?: { id: number; title: string };
+        district?: { id: number; title: string; image: string };
+        city?: { id: number; title: string; image: string };
+        settlement?: { id: number; title: string };
+        community?: { id: number; title: string };
+        village?: { id: number; title: string };
+        suburb?: { id: number; title: string };
+        title?: string; // Улица/дом/квартира
     }>;
     rating: number;
     reviewCount: number;
@@ -112,6 +126,126 @@ const SearchServicePage = () => {
             setIsLoading(false);
         }
     };
+
+    // Функция для получения полного адреса
+    const getMasterAddress = (master: Master): string => {
+        // Сначала проверяем addresses массив (новый формат)
+        if (master.addresses && master.addresses.length > 0) {
+            const address = master.addresses[0];
+            const parts: string[] = [];
+
+            // Добавляем все компоненты адреса в правильном порядке
+            if (address.province?.title) {
+                parts.push(address.province.title);
+            }
+            if (address.city?.title) {
+                parts.push(address.city.title);
+            }
+            if (address.district?.title) {
+                parts.push(address.district.title);
+            }
+            if (address.settlement?.title) {
+                parts.push(address.settlement.title);
+            }
+            if (address.community?.title) {
+                parts.push(address.community.title);
+            }
+            if (address.village?.title) {
+                parts.push(address.village.title);
+            }
+            if (address.suburb?.title) {
+                parts.push(address.suburb.title);
+            }
+            // Конкретный адрес (улица, дом, квартира)
+            if (address.title) {
+                parts.push(address.title);
+            }
+
+            // Удаляем дубликаты и пустые значения
+            const uniqueParts = Array.from(new Set(parts.filter(part => part && part.trim())));
+
+            if (uniqueParts.length === 0) {
+                return 'Адрес не указан';
+            }
+
+            return uniqueParts.join(', ');
+        }
+
+        // Проверяем устаревший формат districts
+        if (master.districts && master.districts.length > 0) {
+            const district = master.districts[0];
+            const parts: string[] = [];
+
+            // Добавляем в правильном порядке
+            if (district.city?.province?.title) {
+                parts.push(district.city.province.title);
+            }
+            if (district.city?.title) {
+                parts.push(district.city.title);
+            }
+            if (district.title) {
+                parts.push(district.title);
+            }
+
+            const uniqueParts = Array.from(new Set(parts.filter(part => part && part.trim())));
+
+            if (uniqueParts.length === 0) {
+                return 'Адрес не указан';
+            }
+
+            return uniqueParts.join(', ');
+        }
+
+        return 'Адрес не указан';
+    };
+
+    // Функция для получения краткого адреса (город, район)
+    // const getMasterShortAddress = (master: Master): string => {
+    //     // Проверяем addresses массив
+    //     if (master.addresses && master.addresses.length > 0) {
+    //         const address = master.addresses[0];
+    //         const parts: string[] = [];
+    //
+    //         // Только город и район
+    //         if (address.city?.title) {
+    //             parts.push(address.city.title);
+    //         }
+    //         if (address.district?.title) {
+    //             parts.push(address.district.title);
+    //         }
+    //
+    //         const uniqueParts = Array.from(new Set(parts.filter(part => part && part.trim())));
+    //
+    //         if (uniqueParts.length === 0) {
+    //             return 'Адрес не указан';
+    //         }
+    //
+    //         return uniqueParts.join(', ');
+    //     }
+    //
+    //     // Проверяем устаревший формат
+    //     if (master.districts && master.districts.length > 0) {
+    //         const district = master.districts[0];
+    //         const parts: string[] = [];
+    //
+    //         if (district.city?.title) {
+    //             parts.push(district.city.title);
+    //         }
+    //         if (district.title) {
+    //             parts.push(district.title);
+    //         }
+    //
+    //         const uniqueParts = Array.from(new Set(parts.filter(part => part && part.trim())));
+    //
+    //         if (uniqueParts.length === 0) {
+    //             return 'Адрес не указан';
+    //         }
+    //
+    //         return uniqueParts.join(', ');
+    //     }
+    //
+    //     return 'Адрес не указан';
+    // };
 
     // Функции для работы с лайками
     const handleLike = async (masterId: number) => {
@@ -436,16 +570,6 @@ const SearchServicePage = () => {
             return 'Мастера по выбранной категории';
         }
         return 'Все мастера';
-    };
-
-    const getMasterAddress = (master: Master) => {
-        const district = master.districts?.[0];
-        if (!district) return 'Адрес не указан';
-
-        const city = district.city?.title || '';
-        const districtTitle = district.title || '';
-
-        return [city, districtTitle].filter(Boolean).join(', ');
     };
 
     return (

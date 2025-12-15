@@ -7,7 +7,6 @@
   padding: 20px;
 }
 
-
 .orderCard {
   background: white;
   border-radius: 12px;
@@ -18,7 +17,6 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  //margin-bottom: 20px;
 }
 
 .orderTitle {
@@ -27,6 +25,8 @@
   color: #333;
   margin: 0;
   flex: 1;
+  overflow: hidden;
+  max-width: 70%;
 }
 
 .category {
@@ -50,9 +50,18 @@
 .section {
   margin-bottom: 30px;
 
+  .section_about {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: map.get(vars.$colors, text-black);
+  }
+
   .section_more {
     font-size: 24px;
     font-weight: 600;
+    margin-bottom: 10px;
+    color: map.get(vars.$colors, text-black);
   }
 
   .commentsContent {
@@ -67,12 +76,14 @@
   .section_photo {
     display: flex;
     align-items: center;
+
     img {
       margin-right: 16px;
       width: 80px;
       height: 80px;
       border-radius: 50%;
       object-fit: cover;
+      cursor: pointer;
     }
   }
 
@@ -89,11 +100,8 @@
   color: map.get(vars.$colors, text-black);
   font-size: 20px;
   font-weight: 400;
-}
-
-.divider {
-  border: none;
-  border-top: 1px solid #e9ecef;
+  overflow: hidden;
+  max-width: 70%;
 }
 
 .address {
@@ -114,10 +122,15 @@
   align-items: center;
   gap: 10px;
   color: map.get(vars.$colors, text-black);
+  font-size: 20px;
 
   svg {
     flex-shrink: 0;
   }
+}
+
+.photosContent {
+  margin-top: 10px;
 }
 
 .photos {
@@ -125,8 +138,6 @@
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 15px;
   margin-top: 15px;
-  height: 146px;
-  max-width: 148px;
 }
 
 .photo {
@@ -136,14 +147,20 @@
   border-radius: 8px;
 }
 
+.authorSection {
+  display: flex;
+  flex-direction: column;
+}
+
 .authorInfo {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
 
   h3 {
     margin: 0;
     color: #333;
+    font-size: 24px;
+    cursor: pointer;
   }
 }
 
@@ -154,26 +171,34 @@
 
 .rate {
   margin-top: 30px;
+
   .rate_wrap {
     display: flex;
     flex-direction: column;
   }
+
   &_item {
     display: flex;
     align-items: center;
     font-size: 24px;
+
     svg {
       margin-right: 16px;
     }
+
+    p {
+      margin: 0;
+    }
   }
+
   &_item:not(:last-child) {
     margin-bottom: 10px;
   }
+
   &_item:last-child {
     margin-bottom: 40px;
   }
 }
-
 
 .actionButtons {
   display: flex;
@@ -214,9 +239,16 @@
   width: 64px;
   height: 44px;
   cursor: pointer;
+  transition: all 0.2s ease;
 
   svg {
     display: block;
+    transition: all 0.2s ease;
+  }
+
+  &.loading {
+    opacity: 0.7;
+    cursor: not-allowed;
   }
 }
 
@@ -235,32 +267,23 @@
   &:hover {
     background: #2a44ca;
   }
-
-  .favoriteButton {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 64px;
-    height: 44px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-
-    svg {
-      display: block;
-      transition: all 0.2s ease;
-    }
-  }
 }
 
-
-
-.error {
+.loading {
   text-align: center;
   padding: 50px;
   font-size: 18px;
 }
 
 .error {
+  text-align: center;
+  padding: 50px;
+  font-size: 18px;
+
+  p {
+    margin-bottom: 20px;
+  }
+
   button {
     margin-top: 15px;
     padding: 10px 20px;
@@ -269,33 +292,15 @@
     border: none;
     border-radius: 6px;
     cursor: pointer;
+    font-size: 16px;
+
+    &:hover {
+      background: #2a44ca;
+    }
   }
 }
 
-@media (max-width: 768px) {
-  .container {
-    padding: 15px;
-  }
-
-  .orderCard {
-    padding: 20px;
-  }
-
-  .orderHeader {
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .orderTitle {
-    font-size: 24px;
-  }
-
-  .buttons {
-    flex-direction: column;
-  }
-}
-
-
+/* ===== МОДАЛЬНЫЕ ОКНА ===== */
 
 .modalOverlay {
   position: fixed;
@@ -308,8 +313,10 @@
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  animation: fadeIn 0.3s ease;
 }
 
+/* Модалка отзыва */
 .reviewModal {
   background: white;
   border-radius: 12px;
@@ -318,6 +325,7 @@
   max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
+  animation: slideIn 0.3s ease;
 }
 
 .modalHeader {
@@ -328,6 +336,7 @@
     font-size: 20px;
     font-weight: 600;
     text-align: center;
+    color: #333;
   }
 }
 
@@ -341,10 +350,11 @@
 .photoSection,
 .ratingSection {
   label {
-    display: block;
+    //display: block;
     margin-bottom: 8px;
     font-weight: 500;
     color: #333;
+    font-size: 14px;
   }
 }
 
@@ -356,20 +366,15 @@
   border-radius: 10px;
   resize: vertical;
   font-family: inherit;
+  border: none;
+  font-size: 14px;
 
   &:focus {
     outline: none;
-    //border-color: #3A54DA;
   }
-}
 
-.photoSection {
-  label {
-    text-align: center;
-    display: flex;
-    margin-bottom: 8px;
-    font-weight: 500;
-    color: #333;
+  &::placeholder {
+    color: #999;
   }
 }
 
@@ -416,6 +421,11 @@
   align-items: center;
   justify-content: center;
   line-height: 1;
+  padding: 0;
+
+  &:hover {
+    background: #ff3333;
+  }
 }
 
 .photoUpload {
@@ -431,7 +441,6 @@
 .photoUploadButton {
   width: 100%;
   height: 100%;
-  //border: 2px dashed #3A54DA;
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -441,6 +450,7 @@
   cursor: pointer;
   transition: all 0.2s;
   background: #F2F2F5;
+  border: none;
 
   &:hover {
     background: #e6e6e8;
@@ -454,6 +464,7 @@
   border-radius: 10px;
   background-color: #F2F2F5;
   max-width: 200px;
+  justify-content: center;
 }
 
 .star {
@@ -463,6 +474,8 @@
   color: #A6A6A6;
   transition: color 0.2s;
   cursor: pointer;
+  padding: 0;
+  line-height: 1;
 
   &.active {
     color: #FFC107;
@@ -486,14 +499,17 @@
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 }
 
 .closeButton {
   background: #f5f5f5;
   color: #333;
-  display: flex;
-  align-items: center;
+
   svg {
     margin-right: 10px;
   }
@@ -506,8 +522,7 @@
 .submitButton {
   background: #3A54DA;
   color: white;
-  display: flex;
-  align-items: center;
+
   svg {
     margin-left: 10px;
   }
@@ -522,12 +537,153 @@
   }
 }
 
-.loading {
+/* Стили для модалок уведомлений */
+.successModal,
+.errorModal,
+.infoModal {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  width: 90%;
+  max-width: 400px;
   text-align: center;
-  //margin-top: 40px;
+  animation: slideIn 0.3s ease;
+
+  h2 {
+    margin: 0 0 20px 0;
+    font-size: 24px;
+    font-weight: 600;
+  }
 }
 
-@media screen and (max-width: 480px){
+.successTitle {
+  color: #000000;
+}
+
+.errorTitle {
+  color: #000000;
+}
+
+.infoTitle {
+  color: #000000;
+}
+
+.successIcon,
+.errorIcon {
+  //margin: 20px auto;
+  //width: 80px;
+  //height: 80px;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+}
+
+.successIcon {
+  //img {
+  //  filter: invert(58%) sepia(67%) saturate(394%) hue-rotate(91deg) brightness(91%) contrast(87%);
+  //}
+}
+
+.errorIcon {
+  img {
+    filter: invert(37%) sepia(65%) saturate(1791%) hue-rotate(340deg) brightness(94%) contrast(88%);
+  }
+}
+
+.successMessage {
+  color: #27ae60;
+  font-size: 16px;
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+.errorMessage {
+  color: #c0392b;
+  font-size: 16px;
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+.infoMessage {
+  color: #34495e;
+  font-size: 16px;
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+.successButton,
+.errorButton,
+.infoButton {
+  padding: 12px 24px;
+  border-radius: 8px;
+  border: none;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  color: white;
+}
+
+.successButton {
+  background: #3A54DA;
+}
+
+.errorButton {
+  background: #3A54DA;
+
+}
+
+.infoButton {
+  background: #3A54DA;
+
+}
+
+/* Анимации */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+  .container {
+    padding: 15px;
+  }
+
+  .orderCard {
+    padding: 20px;
+  }
+
+  .orderHeader {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .actionButtons {
+    width: 100%;
+  }
+}
+
+@media screen and (max-width: 480px) {
   .orderTitle {
     font-size: 18px !important;
   }
@@ -544,12 +700,15 @@
     margin: 5px 0 5px 0;
   }
 
-  .section h2 {
+  .section h2,
+  .section .section_about,
+  .section .section_more {
     font-size: 18px !important;
   }
 
   .description,
-  .address {
+  .address,
+  .published {
     font-size: 16px !important;
   }
 
@@ -563,28 +722,56 @@
 
   .rate_item svg {
     width: 20px !important;
-    margin-right: 4px !important;
+    margin-right: 8px !important;
   }
 
-  .actionButtons {
+  .authorInfo h3 {
+    font-size: 18px !important;
+  }
+
+  /* Адаптивность модалок */
+  .reviewModal,
+  .successModal,
+  .errorModal,
+  .infoModal {
+    padding: 20px;
+    margin: 10px;
+  }
+
+  .successIcon,
+  .errorIcon {
+    width: 60px;
+    height: 60px;
+  }
+
+  .successMessage,
+  .errorMessage,
+  .infoMessage {
+    font-size: 14px;
+  }
+
+  .stars {
+    padding: 15px;
+  }
+
+  .star {
+    font-size: 24px;
+  }
+
+  .modalActions {
+    flex-direction: column;
+  }
+
+  .closeButton,
+  .submitButton,
+  .successButton,
+  .errorButton,
+  .infoButton {
     width: 100%;
   }
 }
 
-.modalOverlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-// Если хотите добавить сообщение над модалкой:
+/* Стили для аутентификации */
 .authMessageOverlay {
   background-color: white;
   border-radius: 12px;

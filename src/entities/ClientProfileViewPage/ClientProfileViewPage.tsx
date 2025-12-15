@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getAuthToken, getUserRole } from '../../utils/auth';
 import styles from '../../pages/profile/clientProfilePage/ClientProfilePage.module.scss';
-import {fetchUserById, fetchUserWithRole} from "../../utils/api.ts";
+import { fetchUserWithRole } from "../../utils/api.ts";
 import AuthModal from '../../shared/ui/AuthModal/AuthModal.tsx';
 
 interface ClientProfileData {
@@ -44,22 +44,6 @@ interface Review {
     createdAt?: string;
 }
 
-// Интерфейсы для жалобы
-interface AppealData {
-    type: string;
-    title: string;
-    complaintReason: string;
-    supportReason?: string;
-    status?: string;
-    priority?: string;
-    administrant?: string;
-    author: string;
-    respondent: string;
-    description: string;
-    ticket?: string;
-    ticketAppeal?: boolean;
-}
-
 // Добавляем интерфейс для пользователя
 interface UserData {
     id: number;
@@ -75,32 +59,99 @@ interface UserData {
     occupation?: Array<{ title: string }>;
 }
 
-// Добавляем интерфейс для отзыва с сервера
+// Обновляем интерфейс для отзыва с сервера согласно API документации
 interface ReviewResponse {
     id: number;
+    type?: string;
     rating?: number;
     description?: string;
-    forClient?: boolean;
-    services?: { id: number; title: string };
-    images?: Array<{ id: number; image: string }>;
-    master?: { id: number };
-    reviewer?: { id: number };
+    ticket?: {
+        id: number;
+        title: string;
+        service: boolean;
+        active: boolean;
+        author: {
+            id: number;
+            email: string;
+            login: string;
+            name: string;
+            surname: string;
+            image: string;
+            imageExternalUrl: string;
+        };
+        master: {
+            id: number;
+            email: string;
+            login: string;
+            name: string;
+            surname: string;
+            image: string;
+            imageExternalUrl: string;
+        };
+    };
+    master?: {
+        id: number;
+        email: string;
+        login: string;
+        name: string;
+        surname: string;
+        image: string;
+        imageExternalUrl: string;
+    };
+    client?: {
+        id: number;
+        email: string;
+        login: string;
+        name: string;
+        surname: string;
+        image: string;
+        imageExternalUrl: string;
+    };
+    images?: Array<{
+        id: number;
+        image: string;
+    }>;
     createdAt?: string;
+    updatedAt?: string;
 }
 
-// Добавляем интерфейс для пользователя в списке
+// Интерфейс для жалобы
+// interface AppealData {
+//     type: string;
+//     title: string;
+//     complaintReason: string;
+//     supportReason?: string;
+//     status?: string;
+//     priority?: string;
+//     administrant?: string;
+//     author: string;
+//     respondent: string;
+//     description: string;
+//     ticket?: string;
+//     ticketAppeal?: boolean;
+// }
+
+// Интерфейс для пользователя в списке
 // interface UserInList {
 //     id: number;
 //     roles?: string[];
 //     [key: string]: unknown;
 // }
-
-// Добавляем интерфейс для API ответов
+//
+// // Интерфейс для API ответов
 // interface HydraResponse<T> {
 //     'hydra:member'?: T[];
+//     'hydra:totalItems'?: number;
+//     'hydra:view'?: {
+//         '@id': string;
+//         '@type': string;
+//         'hydra:first'?: string;
+//         'hydra:last'?: string;
+//         'hydra:next'?: string;
+//     };
 // }
 
-const API_BASE_URL = 'https://admin.ustoyob.tj';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 function ClientProfileViewPage() {
     const { id } = useParams<{ id: string }>();
@@ -114,7 +165,6 @@ function ClientProfileViewPage() {
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [showComplaintModal, setShowComplaintModal] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
-
 
     // Состояния для формы отзыва
     const [reviewText, setReviewText] = useState('');
@@ -147,6 +197,53 @@ function ClientProfileViewPage() {
             img.onerror = () => resolve(false);
             img.src = url;
         });
+    };
+
+    const [complaintReasons, setComplaintReasons] = useState<Array<{
+        id: number;
+        complaint_code: string;
+        complaint_human: string;
+    }>>([]);
+
+    // В useEffect добавьте:
+    useEffect(() => {
+        fetchComplaintReasons();
+    }, []);
+
+    const fetchComplaintReasons = async () => {
+        try {
+            const token = getAuthToken();
+            const headers: HeadersInit = {
+                'Accept': 'application/json',
+            };
+
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const response = await fetch(`${API_BASE_URL}/api/appeals/reasons`, {
+                method: 'GET',
+                headers: headers,
+            });
+
+            if (response.ok) {
+                const reasons = await response.json();
+                console.log('Available complaint reasons:', reasons);
+                setComplaintReasons(reasons);
+            } else {
+                console.error('Failed to fetch complaint reasons');
+                // Устанавливаем дефолтные причины
+                setComplaintReasons([
+                    { id: 1, complaint_code: 'other', complaint_human: 'Другое' }
+                ]);
+            }
+        } catch (error) {
+            console.error('Error fetching complaint reasons:', error);
+            // Устанавливаем дефолтные причины при ошибке
+            setComplaintReasons([
+                { id: 1, complaint_code: 'other', complaint_human: 'Другое' }
+            ]);
+        }
     };
 
     const fetchClientData = async (clientId: number) => {
@@ -252,31 +349,33 @@ function ClientProfileViewPage() {
         console.log('Client image data:', userData.image);
 
         if (userData.image) {
-            const serverUrl = `${API_BASE_URL}/images/profile_photos/${userData.image}`;
-            console.log('Checking server avatar for client:', serverUrl);
-
-            if (await checkImageExists(serverUrl)) {
-                console.log('Using server avatar for client');
-                return serverUrl;
+            // Извлекаем имя файла если это полный путь
+            let imagePath = userData.image;
+            if (imagePath.includes('/')) {
+                imagePath = imagePath.split('/').pop() || imagePath;
             }
 
-            const alternativeUrl = `${API_BASE_URL}/${userData.image}`;
-            console.log('Checking alternative avatar URL for client:', alternativeUrl);
+            const mainAvatarPath = `${API_BASE_URL}/images/profile_photos/${imagePath}`;
+            console.log('Main avatar path for client:', mainAvatarPath);
 
-            if (await checkImageExists(alternativeUrl)) {
-                console.log('Using alternative avatar URL for client');
-                return alternativeUrl;
+            // Проверяем основной путь /images/profile_photos/
+            if (await checkImageExists(mainAvatarPath)) {
+                console.log('Using main avatar path for client');
+                return mainAvatarPath;
             }
 
-            const clientPaths = [
-                `${API_BASE_URL}/uploads/profile_photos/${userData.image}`,
-                `${API_BASE_URL}/uploads/clients/${userData.image}`,
-                `${API_BASE_URL}/images/clients/${userData.image}`
+            // Проверяем другие возможные пути
+            const alternativePaths = [
+                `${API_BASE_URL}/${userData.image}`,
+                userData.image, // оригинальное значение
+                `${API_BASE_URL}/uploads/profile_photos/${imagePath}`,
+                `${API_BASE_URL}/uploads/clients/${imagePath}`,
+                `${API_BASE_URL}/images/clients/${imagePath}`
             ];
 
-            for (const path of clientPaths) {
+            for (const path of alternativePaths) {
                 console.log('Checking client avatar path:', path);
-                if (await checkImageExists(path)) {
+                if (path && await checkImageExists(path)) {
                     console.log('Using client avatar from:', path);
                     return path;
                 }
@@ -303,7 +402,8 @@ function ClientProfileViewPage() {
 
             console.log('Fetching reviews for client ID:', clientId);
 
-            const endpoint = `/api/reviews/clients/${clientId}`;
+            // Согласно документации, нужно фильтровать отзывы по client
+            const endpoint = `/api/reviews?client=${clientId}`;
 
             const response = await fetch(`${API_BASE_URL}${endpoint}`, {
                 method: 'GET',
@@ -312,12 +412,27 @@ function ClientProfileViewPage() {
 
             // Если 401 или 403, это нормально для неавторизованного пользователя
             if (response.status === 401 || response.status === 403) {
-                console.log('Unauthorized access to reviews, showing empty list or trying public endpoint');
-                setReviews([]);
-                setProfileData(prev => prev ? {
-                    ...prev,
-                    reviews: 0
-                } : null);
+                console.log('Unauthorized access to reviews, trying without auth');
+                // Пробуем без авторизации
+                const publicResponse = await fetch(`${API_BASE_URL}/api/reviews?client=${clientId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                });
+
+                if (publicResponse.ok) {
+                    const reviewsData = await publicResponse.json();
+                    processReviewsData(reviewsData, clientId);
+                } else {
+                    console.log('No reviews found or access denied');
+                    setReviews([]);
+                    setProfileData(prev => prev ? {
+                        ...prev,
+                        reviews: 0
+                    } : null);
+                }
                 return;
             }
 
@@ -334,88 +449,7 @@ function ClientProfileViewPage() {
             }
 
             const reviewsData = await response.json();
-            console.log('Raw client reviews data:', reviewsData);
-
-            let reviewsArray: ReviewResponse[] = [];
-
-            if (Array.isArray(reviewsData)) {
-                reviewsArray = reviewsData;
-            } else if (reviewsData && typeof reviewsData === 'object') {
-                // Проверяем hydra формат
-                if ('hydra:member' in reviewsData && Array.isArray(reviewsData['hydra:member'])) {
-                    reviewsArray = reviewsData['hydra:member'] as ReviewResponse[];
-                }
-                // Проверяем, что это объект с полем id типа number
-                else if ('id' in reviewsData && typeof reviewsData.id === 'number') {
-                    reviewsArray = [reviewsData as ReviewResponse];
-                }
-            }
-
-            console.log(`Processing ${reviewsArray.length} client reviews`);
-
-            if (reviewsArray.length > 0) {
-                const transformedReviews = await Promise.all(
-                    reviewsArray.map(async (review): Promise<Review> => {
-                        console.log('Processing client review:', review);
-
-                        // Получаем информацию о мастере, который оставил отзыв
-                        const masterId = review.master?.id;
-                        let masterData: UserData | null = null;
-
-                        if (masterId) {
-                            // ИСПОЛЬЗУЙТЕ НОВУЮ ФУНКЦИЮ
-                            masterData = await fetchUserById(masterId);
-                        }
-
-                        const transformedReview: Review = {
-                            id: review.id,
-                            rating: review.rating || 0,
-                            description: review.description || '',
-                            forReviewer: review.forClient || false,
-                            services: review.services || { id: 0, title: 'Услуга' },
-                            images: review.images || [],
-                            master: masterData ? {
-                                id: masterData.id,
-                                name: masterData.name,
-                                surname: masterData.surname,
-                                patronymic: masterData.patronymic,
-                                profession: masterData.occupation?.map((occ) => occ.title).join(', '),
-                                specialization: masterData.occupation?.map((occ) => occ.title).join(', '),
-                                image: masterData.image
-                            } : {
-                                id: 0,
-                                name: 'Мастер',
-                                surname: '',
-                                profession: 'Специалист',
-                                specialization: 'Специалист'
-                            },
-                            reviewer: {
-                                id: review.reviewer?.id || 0
-                            },
-                            createdAt: review.createdAt
-                        };
-
-                        return transformedReview;
-                    })
-                );
-
-                console.log('All transformed client reviews:', transformedReviews);
-                setReviews(transformedReviews);
-
-                // Обновляем счетчик отзывов в профиле
-                setProfileData(prev => prev ? {
-                    ...prev,
-                    reviews: transformedReviews.length
-                } : null);
-
-            } else {
-                console.log('No client reviews data found');
-                setReviews([]);
-                setProfileData(prev => prev ? {
-                    ...prev,
-                    reviews: 0
-                } : null);
-            }
+            processReviewsData(reviewsData, clientId);
 
         } catch (error) {
             console.error('Error fetching client reviews:', error);
@@ -429,36 +463,132 @@ function ClientProfileViewPage() {
         }
     };
 
+    // Вспомогательная функция для обработки данных отзывов
+    const processReviewsData = (reviewsData: any, clientId: number) => {
+        console.log('Raw reviews data:', reviewsData);
+
+        let reviewsArray: ReviewResponse[] = [];
+
+        if (Array.isArray(reviewsData)) {
+            reviewsArray = reviewsData;
+        } else if (reviewsData && typeof reviewsData === 'object') {
+            // Проверяем hydra формат
+            if ('hydra:member' in reviewsData && Array.isArray(reviewsData['hydra:member'])) {
+                reviewsArray = reviewsData['hydra:member'] as ReviewResponse[];
+            }
+            // Проверяем, что это объект с полем id типа number
+            else if ('id' in reviewsData && typeof reviewsData.id === 'number') {
+                reviewsArray = [reviewsData as ReviewResponse];
+            }
+        }
+
+        // Фильтруем отзывы только для данного клиента (на всякий случай)
+        const clientReviews = reviewsArray.filter(review => {
+            // Проверяем, что отзыв относится к клиенту
+            const reviewClientId = review.client?.id;
+            return reviewClientId === clientId;
+        });
+
+        console.log(`Processing ${clientReviews.length} reviews for client ${clientId}`);
+
+        if (clientReviews.length > 0) {
+            const transformedReviews = clientReviews.map((review): Review => {
+                console.log('Processing review:', review);
+
+                // Получаем информацию о мастере, который оставил отзыв
+                const masterData = review.master ? {
+                    id: review.master.id,
+                    name: review.master.name,
+                    surname: review.master.surname,
+                    image: review.master.image
+                } : null;
+
+                const transformedReview: Review = {
+                    id: review.id,
+                    rating: review.rating || 0,
+                    description: review.description || '',
+                    forReviewer: review.type === 'client' || false, // Если тип 'client', значит отзыв о клиенте
+                    services: { id: 0, title: 'Услуга' }, // В API нет информации об услугах в отзыве
+                    images: review.images || [],
+                    master: masterData ? {
+                        id: masterData.id,
+                        name: masterData.name,
+                        surname: masterData.surname,
+                        patronymic: '',
+                        profession: '',
+                        specialization: '',
+                        image: masterData.image
+                    } : {
+                        id: 0,
+                        name: 'Мастер',
+                        surname: '',
+                        profession: 'Специалист',
+                        specialization: 'Специалист'
+                    },
+                    reviewer: {
+                        id: review.master?.id || 0
+                    },
+                    createdAt: review.createdAt
+                };
+
+                return transformedReview;
+            });
+
+            console.log('All transformed reviews:', transformedReviews);
+            setReviews(transformedReviews);
+
+            // Обновляем счетчик отзывов в профиле
+            setProfileData(prev => prev ? {
+                ...prev,
+                reviews: transformedReviews.length
+            } : null);
+
+        } else {
+            console.log('No reviews data found for this client');
+            setReviews([]);
+            setProfileData(prev => prev ? {
+                ...prev,
+                reviews: 0
+            } : null);
+        }
+    };
+
     const handleImageError = async (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
         console.log('Image loading error, trying fallback sources');
         const img = e.currentTarget;
+        const originalSrc = img.src;
 
-        if (!profileData?.id) {
-            img.src = "../fonTest6.png";
-            return;
-        }
+        // Если это аватар клиента
+        if (img.classList.contains(styles.avatar) && profileData?.id && profileData.avatar) {
+            const avatarPaths = [
+                `${API_BASE_URL}/images/profile_photos/${profileData.avatar.split('/').pop()}`,
+                `${API_BASE_URL}/api/${profileData.id}/profile-photo`,
+                profileData.avatar?.includes("uploads/") ? `/uploads/avatars/${profileData.avatar.split("/").pop()}` : null,
+            ].filter(Boolean) as string[];
 
-        const fallbackSources = [
-            profileData.avatar?.includes("uploads/") ? `${API_BASE_URL}/api/${profileData.id}/profile-photo` : null,
-            profileData.avatar?.includes("uploads/") ? `/uploads/avatars/${profileData.avatar.split("/").pop()}` : null,
-            "../fonTest6.png"
-        ].filter(Boolean) as string[];
-
-        for (const source of fallbackSources) {
-            if (source && source !== img.src) {
-                try {
-                    if (await checkImageExists(source)) {
-                        img.src = source;
-                        console.log('Fallback image loaded:', source);
-                        return;
+            for (const source of avatarPaths) {
+                if (source && source !== originalSrc) {
+                    try {
+                        if (await checkImageExists(source)) {
+                            img.src = source;
+                            console.log('Fallback avatar loaded:', source);
+                            return;
+                        }
+                    } catch {
+                        console.log('Fallback avatar failed:', source);
+                        continue;
                     }
-                } catch {
-                    console.log('Fallback image failed:', source);
-                    continue;
                 }
             }
         }
 
+        // Если это аватар мастера в отзыве
+        if (img.classList.contains(styles.reviewer_avatar)) {
+            img.src = "../fonTest6.png";
+            return;
+        }
+
+        // Общий fallback
         img.src = "../fonTest6.png";
     };
 
@@ -466,8 +596,22 @@ function ClientProfileViewPage() {
         if (review.master?.image) {
             console.log('Master image from data:', review.master.image);
 
+            // Проверяем, является ли image полным URL или только именем файла
+            let imagePath = review.master.image;
+
+            // Если это полный URL, извлекаем имя файла
+            if (imagePath.includes('/')) {
+                imagePath = imagePath.split('/').pop() || imagePath;
+            }
+
+            // Основной путь к аватарам пользователей
+            const mainAvatarPath = `${API_BASE_URL}/images/profile_photos/${imagePath}`;
+
+            // Проверяем все возможные пути в правильном порядке
             const possiblePaths = [
-                review.master.image,
+                mainAvatarPath, // Основной путь /images/profile_photos/
+                review.master.image, // Оригинальное значение из данных
+                `${API_BASE_URL}${review.master.image}`, // Если это относительный путь
                 `${API_BASE_URL}/images/profile_photos/${review.master.image}`,
                 `${API_BASE_URL}/uploads/profile_photos/${review.master.image}`,
                 `${API_BASE_URL}/uploads/masters/${review.master.image}`,
@@ -475,7 +619,10 @@ function ClientProfileViewPage() {
                 `${API_BASE_URL}/${review.master.image}`
             ];
 
-            for (const path of possiblePaths) {
+            // Удаляем дубликаты
+            const uniquePaths = Array.from(new Set(possiblePaths.filter(Boolean)));
+
+            for (const path of uniquePaths) {
                 if (path && path !== "../fonTest6.png") {
                     console.log('Trying master avatar path:', path);
                     return path;
@@ -586,15 +733,6 @@ function ClientProfileViewPage() {
         setReviewPhotos([]);
     };
 
-    // Интерфейс для данных отзыва
-    interface ReviewData {
-        type: string;
-        rating: number;
-        description: string;
-        client: string;
-        master: string;
-    }
-
     const handleSubmitReview = async () => {
         if (!reviewText.trim()) {
             alert('Пожалуйста, напишите комментарий');
@@ -613,7 +751,6 @@ function ClientProfileViewPage() {
                 return;
             }
 
-            // const userRole = getUserRole();
             const currentUserId = await getCurrentUserId();
 
             if (!currentUserId || !profileData) {
@@ -621,13 +758,15 @@ function ClientProfileViewPage() {
                 return;
             }
 
-            // Мастер оставляет отзыв клиенту -> type: "client"
-            const reviewData: ReviewData = {
-                type: 'client',
+            // Согласно документации, структура данных должна быть такой
+            const reviewData = {
+                type: 'client', // Тип отзыва: 'client' (отзыв о клиенте)
                 rating: selectedStars,
                 description: reviewText,
                 client: `/api/users/${profileData.id}`,
-                master: `/api/users/${currentUserId}`
+                master: `/api/users/${currentUserId}`,
+                // ticket может быть обязательным, нужно проверить
+                // ticket: `/api/tickets/{ticket_id}`
             };
 
             console.log('Sending review data:', reviewData);
@@ -637,11 +776,12 @@ function ClientProfileViewPage() {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json',
                 },
                 body: JSON.stringify(reviewData)
             });
 
-            if (response.ok) {
+            if (response.ok || response.status === 201) {
                 const reviewResponse = await response.json();
                 console.log('Review created successfully:', reviewResponse);
 
@@ -670,9 +810,21 @@ function ClientProfileViewPage() {
 
                 let errorMessage = 'Ошибка при отправке отзыва';
                 if (response.status === 422) {
-                    errorMessage = 'Ошибка валидации данных. Проверьте введенные данные.';
+                    try {
+                        const errorData = JSON.parse(errorText);
+                        if (errorData.violations && errorData.violations.length > 0) {
+                            errorMessage = errorData.violations.map((v: any) => v.message).join(', ');
+                        }
+                    } catch (e) {
+                        errorMessage = 'Ошибка валидации данных';
+                    }
                 } else if (response.status === 400) {
-                    errorMessage = 'Неверные данные для отправки отзыва.';
+                    // Возможно, требуется поле ticket
+                    if (errorText.includes('ticket')) {
+                        errorMessage = 'Для отправки отзыва требуется указать тикет. Пожалуйста, свяжитесь с администрацией.';
+                    } else {
+                        errorMessage = 'Неверные данные для отправки отзыва';
+                    }
                 } else if (response.status === 404) {
                     errorMessage = 'Ресурс не найден. Возможно, пользователь не существует.';
                 }
@@ -692,7 +844,7 @@ function ClientProfileViewPage() {
 
             for (const photo of photos) {
                 const formData = new FormData();
-                formData.append('image', photo);
+                formData.append('imageFile', photo); // Поле должно быть 'imageFile' согласно API
 
                 console.log(`Uploading photo: ${photo.name}`);
 
@@ -704,12 +856,13 @@ function ClientProfileViewPage() {
                     body: formData
                 });
 
-                if (response.ok) {
+                if (response.ok || response.status === 201) {
                     const uploadResult = await response.json();
                     console.log('Photo uploaded successfully:', uploadResult);
                 } else {
                     const errorText = await response.text();
                     console.error(`Error uploading photo for review ${reviewId}:`, errorText);
+                    throw new Error(`Failed to upload photo: ${response.status}`);
                 }
             }
 
@@ -807,20 +960,107 @@ function ClientProfileViewPage() {
                 return;
             }
 
-            // Создаем заголовок жалобы
+            // Проверяем, что не отправляем жалобу самому себе
+            if (currentUserId.toString() === profileData.id) {
+                alert('Нельзя отправить жалобу самому себе');
+                return;
+            }
+
             const title = complaintTitle.trim() || `Жалоба на клиента ${profileData.fullName}`;
 
-            // Подготавливаем данные для отправки
-            const complaintData: AppealData = {
-                type: 'complaint',
+            // Пробуем получить существующий чат с пользователем
+            let chatIri: string | null = null;
+
+            try {
+                // Ищем чаты с этим пользователем
+                const chatsResponse = await fetch(`${API_BASE_URL}/api/chats`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json',
+                    },
+                });
+
+                if (chatsResponse.ok) {
+                    const chatsData = await chatsResponse.json();
+
+                    // Ищем чат где replyAuthor или author соответствует нашему пользователю
+                    let chatsArray: any[] = [];
+                    if (Array.isArray(chatsData)) {
+                        chatsArray = chatsData;
+                    } else if (chatsData && typeof chatsData === 'object') {
+                        if ('hydra:member' in chatsData && Array.isArray(chatsData['hydra:member'])) {
+                            chatsArray = chatsData['hydra:member'];
+                        }
+                    }
+
+                    // Ищем чат с нужным пользователем
+                    const foundChat = chatsArray.find((chat: any) => {
+                        const replyAuthorId = chat.replyAuthor?.id;
+                        const authorId = chat.author?.id;
+                        const targetUserId = parseInt(profileData.id);
+
+                        return replyAuthorId === targetUserId || authorId === targetUserId;
+                    });
+
+                    if (foundChat) {
+                        chatIri = `/api/chats/${foundChat.id}`;
+                        console.log('Found existing chat:', foundChat.id);
+                    }
+                }
+            } catch (error) {
+                console.error('Error searching for chat:', error);
+            }
+
+            // Если чат не найден, пробуем создать его
+            if (!chatIri) {
+                try {
+                    // Создаем чат с пользователем для жалобы
+                    const chatData = {
+                        replyAuthor: `/api/users/${profileData.id}`,
+                        active: true,
+                        // Можем добавить фиктивное сообщение
+                        messages: []
+                    };
+
+                    const createChatResponse = await fetch(`${API_BASE_URL}/api/chats`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify(chatData)
+                    });
+
+                    if (createChatResponse.ok || createChatResponse.status === 201) {
+                        const chatResponse = await createChatResponse.json();
+                        chatIri = `/api/chats/${chatResponse.id}`;
+                        console.log('Created new chat for complaint:', chatResponse.id);
+                    }
+                } catch (error) {
+                    console.error('Error creating chat:', error);
+                }
+            }
+
+            // Если все равно не удалось получить chatIri, используем фиктивный ID
+            if (!chatIri) {
+                // Попробуем использовать тип 'ticket' с фиктивным тикетом
+                // или попросим бэкенд предоставить правильный формат
+                alert('Не удалось создать чат для жалобы. Пожалуйста, свяжитесь с администрацией другим способом.');
+                return;
+            }
+
+            // Создаем жалобу с типом 'chat'
+            const complaintData = {
+                type: 'chat',
                 title: title,
-                complaintReason: complaintReason,
                 description: complaintDescription,
-                author: `/api/users/${currentUserId}`,
+                reason: complaintReason,
                 respondent: `/api/users/${profileData.id}`,
-                status: 'new',
-                priority: 'medium',
-                ticketAppeal: false
+                chat: chatIri,
+                // Добавляем автора, если требуется
+                // author: `/api/users/${currentUserId}`
             };
 
             console.log('Sending complaint data:', complaintData);
@@ -830,18 +1070,20 @@ function ClientProfileViewPage() {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json',
                 },
                 body: JSON.stringify(complaintData)
             });
 
-            if (response.ok) {
+            if (response.ok || response.status === 201) {
                 const complaintResponse = await response.json();
                 console.log('Complaint created successfully:', complaintResponse);
 
                 // Загружаем фото через отдельный эндпоинт, если есть
                 if (complaintPhotos.length > 0) {
                     try {
-                        await uploadComplaintPhotos(complaintResponse.id, complaintPhotos, token);
+                        const appealId = complaintResponse.id;
+                        await uploadAppealPhotos(appealId, complaintPhotos, token);
                         console.log('All complaint photos uploaded successfully');
                     } catch (uploadError) {
                         console.error('Error uploading complaint photos, but complaint was created:', uploadError);
@@ -858,9 +1100,21 @@ function ClientProfileViewPage() {
 
                 let errorMessage = 'Ошибка при отправке жалобы';
                 if (response.status === 422) {
-                    errorMessage = 'Ошибка валидации данных. Проверьте введенные данные.';
+                    try {
+                        const errorData = JSON.parse(errorText);
+                        if (errorData.violations && errorData.violations.length > 0) {
+                            errorMessage = errorData.violations.map((v: any) => v.message).join(', ');
+                        }
+                    } catch (e) {
+                        errorMessage = 'Ошибка валидации данных';
+                    }
                 } else if (response.status === 400) {
-                    errorMessage = 'Неверные данные для отправки жалобы.';
+                    // Пробуем другой подход - используем тип 'ticket' с фиктивным тикетом
+                    if (errorText.includes('Missing')) {
+                        errorMessage = 'Требуется привязка к тикету или чату. Пожалуйста, свяжитесь с администрацией другим способом.';
+                    }
+                } else if (response.status === 403) {
+                    errorMessage = 'Нет доступа для отправки жалобы';
                 }
 
                 alert(errorMessage);
@@ -874,15 +1128,15 @@ function ClientProfileViewPage() {
         }
     };
 
-    const uploadComplaintPhotos = async (appealId: number, photos: File[], token: string) => {
+    const uploadAppealPhotos = async (appealId: number, photos: File[], token: string) => {
         try {
             console.log(`Uploading ${photos.length} photos for appeal ${appealId}`);
 
             for (const photo of photos) {
                 const formData = new FormData();
-                formData.append('image', photo);
+                formData.append('imageFile', photo); // Поле должно быть 'imageFile' согласно API
 
-                console.log(`Uploading complaint photo: ${photo.name}`);
+                console.log(`Uploading appeal photo: ${photo.name}`);
 
                 const response = await fetch(`${API_BASE_URL}/api/appeals/${appealId}/upload-photo`, {
                     method: 'POST',
@@ -892,18 +1146,19 @@ function ClientProfileViewPage() {
                     body: formData
                 });
 
-                if (response.ok) {
+                if (response.ok || response.status === 201) {
                     const uploadResult = await response.json();
-                    console.log('Complaint photo uploaded successfully:', uploadResult);
+                    console.log('Appeal photo uploaded successfully:', uploadResult);
                 } else {
                     const errorText = await response.text();
                     console.error(`Error uploading photo for appeal ${appealId}:`, errorText);
+                    throw new Error(`Failed to upload appeal photo: ${response.status}`);
                 }
             }
 
-            console.log('All complaint photos uploaded successfully');
+            console.log('All appeal photos uploaded successfully');
         } catch (error) {
-            console.error('Error uploading complaint photos:', error);
+            console.error('Error uploading appeal photos:', error);
             throw error;
         }
     };
@@ -1322,9 +1577,14 @@ function ClientProfileViewPage() {
                                     value={complaintReason}
                                     onChange={(e) => setComplaintReason(e.target.value)}
                                     className={styles.complaintSelect}
+                                    required
                                 >
                                     <option value="">Выберите причину</option>
-                                    <option value="other">Другое</option>
+                                    {complaintReasons.map((reason) => (
+                                        <option key={reason.id} value={reason.complaint_code}>
+                                            {reason.complaint_human}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
 
