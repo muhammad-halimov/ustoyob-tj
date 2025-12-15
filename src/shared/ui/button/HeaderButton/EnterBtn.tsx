@@ -144,7 +144,7 @@ export function EnterBtn({ onClick, isModalOpen, onModalClose, onLoginSuccess }:
 
     const getButtonText = () => {
         if (isLoggedIn) {
-            return userName ? `${t('header:logout')} (${userName})` : t('header:logout');
+            return userName ? `${t('header:logout')}` : t('header:logout');
         }
         return t('header:login');
     };

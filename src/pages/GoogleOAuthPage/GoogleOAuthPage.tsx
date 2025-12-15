@@ -8,88 +8,49 @@ const GoogleOAuthPage: React.FC = () => {
     console.log('Current URL:', window.location.href);
 
     useEffect(() => {
+        console.log('GoogleOAuthPage useEffect triggered');
+
         const processOAuth = async () => {
+            // Получаем параметры из URL
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
             const state = urlParams.get('state');
             const error = urlParams.get('error');
 
             console.log('Google OAuth received:', { code, state, error });
+            console.log('Full URL search:', window.location.search);
 
             if (error) {
+                console.error('Google OAuth error:', error);
                 navigate('/?oauth_error=' + encodeURIComponent(error));
                 return;
             }
 
             if (code && state) {
                 try {
-                    console.log('Processing Google OAuth data...');
+                    console.log('Saving Google auth data to localStorage');
 
-                    // ВАЖНО: Сразу отправляем на сервер, не сохраняя в localStorage
-                    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+                    // Сохраняем код и state в localStorage
+                    localStorage.setItem('googleAuthCode', code);
+                    localStorage.setItem('googleAuthState', state);
 
-                    // Отправляем код и state на сервер для проверки пользователя
-                    const response = await fetch(`${API_BASE_URL}/api/auth/google/callback`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                        },
-                        body: JSON.stringify({ code, state })
-                    });
+                    // Также сохраняем в sessionStorage для надежности
+                    sessionStorage.setItem('googleAuthCode', code);
+                    sessionStorage.setItem('googleAuthState', state);
 
-                    if (response.ok) {
-                        const data = await response.json();
-                        const hasRole = data.user.roles && data.user.roles.length > 0;
+                    console.log('Saved Google auth data to localStorage');
+                    console.log('Navigating to home with auth modal flag...');
 
-                        if (hasRole) {
-                            // Пользователь уже существует с ролью
-                            console.log('User exists with role, auto-login');
-
-                            // Сохраняем токен и данные
-                            localStorage.setItem('authToken', data.token);
-                            localStorage.setItem('userData', JSON.stringify(data.user));
-
-                            if (data.user.roles && data.user.roles.length > 0) {
-                                localStorage.setItem('userRole', data.user.roles[0]);
-                            }
-
-                            // Сразу перенаправляем на главную
-                            navigate('/');
-
-                            // Отправляем событие о логине
-                            window.dispatchEvent(new Event('login'));
-                        } else {
-                            // Пользователь без роли - сохраняем данные и открываем модалку
-                            console.log('User needs role selection');
-                            localStorage.setItem('googleAuthData', JSON.stringify({
-                                code,
-                                state,
-                                userData: data.user,
-                                token: data.token
-                            }));
-
-                            // Открываем модалку для выбора роли
-                            navigate('/?showAuthModal=true&oauth=google');
-                        }
-                    } else {
-                        // Ошибка при авторизации
-                        const errorText = await response.text();
-                        let errorMessage = 'Ошибка авторизации через Google';
-                        try {
-                            const errorData = JSON.parse(errorText);
-                            errorMessage = errorData.detail || errorData.message || errorMessage;
-                        } catch {
-                            errorMessage = errorText || `HTTP error! status: ${response.status}`;
-                        }
-                        navigate('/?oauth_error=' + encodeURIComponent(errorMessage));
-                    }
+                    // Перенаправляем на главную с флагом для открытия модалки
+                    navigate('/?showAuthModal=true&oauth=google');
 
                 } catch (err) {
                     console.error('Error processing Google OAuth:', err);
                     navigate('/?oauth_error=' + encodeURIComponent('Ошибка обработки авторизации'));
                 }
             } else {
+                console.log('No code or state found in URL');
+                console.log('Navigating to home...');
                 navigate('/');
             }
         };
