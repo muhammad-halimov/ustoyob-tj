@@ -121,12 +121,14 @@ class FacebookOAuthService extends AbstractOAuthService implements OAuthServiceI
             return $existingUser;
         }
 
+        $domain = preg_replace('/^https?:\/\//', '', $_ENV['FRONTEND_URL']);
+
         $oauth = new OAuthType();
         $oauth->setFacebookId($facebookId);
 
         $user = (new User())
             ->setOauthType($oauth)
-            ->setEmail($userData['email'] ?? '')
+            ->setEmail($userData['email'] ?? "facebook.$facebookId@$domain")
             ->setName(explode(' ', $userData['name'], 2)[0] ?? '')
             ->setSurname(explode(' ', $userData['name'], 2)[1] ?? '')
             ->setImageExternalUrl($userData['picture']['data']['url'] ?? '')
@@ -142,7 +144,7 @@ class FacebookOAuthService extends AbstractOAuthService implements OAuthServiceI
             ->setRoles(match($role) {
                 'master' => ['ROLE_MASTER'],
                 'client' => ['ROLE_CLIENT'],
-                default => []
+                default => ['ROLE_USER'],
             });
 
         if (isset($userData['birthday'])) {

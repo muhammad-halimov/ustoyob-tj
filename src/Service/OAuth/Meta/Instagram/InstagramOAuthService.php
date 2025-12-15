@@ -98,6 +98,8 @@ class InstagramOAuthService extends AbstractOAuthService implements OAuthService
             return $user;
         }
 
+        $domain = preg_replace('/^https?:\/\//', '', $_ENV['FRONTEND_URL']);
+
         $oauth = new OAuthType();
         $oauth->setInstagramId($instagramId);
 
@@ -107,14 +109,16 @@ class InstagramOAuthService extends AbstractOAuthService implements OAuthService
             ->setName(explode(' ', $userData['name'], 2)[0] ?? '')
             ->setSurname(explode(' ', $userData['name'], 2)[1] ?? '')
             ->setImageExternalUrl($userData['profile_picture_url'] ?? '')
+            ->setEmail("instagram.$instagramId@$domain")
             ->setPassword('')
             ->setActive(true)
             ->setApproved(true)
             ->setBio($userData['biography'])
+            ->setGender('gender_neutral')
             ->setRoles(match($role) {
                 'master' => ['ROLE_MASTER'],
                 'client' => ['ROLE_CLIENT'],
-                default => []
+                default => ['ROLE_USER'],
             });
 
         $this->entityManager->persist($oauth);

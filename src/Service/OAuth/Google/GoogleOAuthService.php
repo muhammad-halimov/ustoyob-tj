@@ -212,7 +212,7 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
             ->setRoles(match($role) {
                 'master' => ['ROLE_MASTER'],
                 'client' => ['ROLE_CLIENT'],
-                default => []
+                default => ['ROLE_USER'],
             });
 
         $this->setOptionalUserData($user, $userData);

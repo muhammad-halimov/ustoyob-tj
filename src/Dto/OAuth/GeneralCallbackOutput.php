@@ -3,7 +3,7 @@
 namespace App\Dto\OAuth;
 
 use App\Entity\User;
-use Symfony\Component\Serializer\Annotation\Groups;
+use Symfony\Component\Serializer\Attribute\Groups;
 
 final class GeneralCallbackOutput
 {
@@ -11,6 +11,7 @@ final class GeneralCallbackOutput
         'google:read',
         'instagram:read',
         'facebook:read',
+        'telegram:read',
         'masters:read',
         'clients:read',
         'users:me:read'
@@ -21,6 +22,7 @@ final class GeneralCallbackOutput
         'google:read',
         'instagram:read',
         'facebook:read',
+        'telegram:read',
         'masters:read',
         'clients:read',
         'users:me:read'
@@ -31,6 +33,7 @@ final class GeneralCallbackOutput
         'google:read',
         'instagram:read',
         'facebook:read',
+        'telegram:read',
         'masters:read',
         'clients:read',
         'users:me:read'

@@ -41,10 +41,7 @@ abstract class AbstractOAuthService implements
         $randomState = bin2hex(random_bytes(16));
         $this->stateStorage->add($randomState);
 
-        $queryParams = array_merge(
-            $this->getAuthParams(),
-            ['state' => $randomState]
-        );
+        $queryParams = array_merge($this->getAuthParams(), ['state' => $randomState]);
 
         return $this->getAuthUri() . '?' . http_build_query($queryParams, '', '&', PHP_QUERY_RFC3986);
     }

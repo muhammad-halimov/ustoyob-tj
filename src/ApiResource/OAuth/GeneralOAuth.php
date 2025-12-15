@@ -11,9 +11,11 @@ use App\Controller\Api\OAuth\Meta\Facebook\FacebokOAuthUrlController;
 use App\Controller\Api\OAuth\Meta\Facebook\FacebookOAuthCallbackController;
 use App\Controller\Api\OAuth\Meta\Instagram\InstagramOAuthCallbackController;
 use App\Controller\Api\OAuth\Meta\Instagram\InstagramOAuthUrlController;
+use App\Controller\Api\OAuth\Telegram\TelegramOAuthCallbackController;
 use App\Dto\OAuth\GeneralAuthUrlOutput;
 use App\Dto\OAuth\GeneralCallbackInput;
 use App\Dto\OAuth\GeneralCallbackOutput;
+use App\Dto\OAuth\TelegramCallbackInput;
 
 #[ApiResource(
     operations: [
@@ -96,6 +98,25 @@ use App\Dto\OAuth\GeneralCallbackOutput;
             output: GeneralAuthUrlOutput::class,
             read: false,
             write: false
+        ),
+
+        // Telgeram
+        new Post(
+            uriTemplate: '/auth/telegram/callback',
+            controller: TelegramOAuthCallbackController::class,
+            normalizationContext: ['groups' => [
+                'telegram:read',
+                'masters:read',
+                'clients:read',
+                'users:me:read'
+            ],
+                'skip_null_values' => false
+            ],
+            denormalizationContext: ['groups' => ['telegram:write']],
+            input: TelegramCallbackInput::class,
+            output: GeneralCallbackOutput::class,
+            read: false,
+            write: false,
         ),
     ]
 )]

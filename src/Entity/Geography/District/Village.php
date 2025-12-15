@@ -10,7 +10,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ApiResource(operations: [])]
 class Village extends AddressComponent
 {
-    #[ORM\ManyToOne(inversedBy: 'village')]
+    #[ORM\ManyToOne(inversedBy: 'villages')]
     private ?Settlement $settlement = null;
 
     public function getSettlement(): ?Settlement
