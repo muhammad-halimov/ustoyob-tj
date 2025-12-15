@@ -28,7 +28,7 @@ final class GeneralCallbackInput
         'instagram:write',
         'facebook:write'
     ])]
-    public string $role;
+    public ?string $role = null;
 
     public function getCode(): string
     {

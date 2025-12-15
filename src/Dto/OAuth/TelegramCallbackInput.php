@@ -25,5 +25,5 @@ final class TelegramCallbackInput
     public ?string $photoUrl = null;
 
     #[Groups(['telegram:write'])]
-    public string $role;
+    public ?string $role = null;
 }
