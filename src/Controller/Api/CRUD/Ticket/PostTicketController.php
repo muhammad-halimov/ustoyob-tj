@@ -62,7 +62,7 @@ class PostTicketController extends AbstractController
         $existingAddresses = [];
 
         foreach ($addressParam as $addressData) {
-            if (!isset($addressData['province']))
+            if (!$addressData['province'])
                 return $this->json(['message' => 'Province is required'], 400);
 
             $provinceParam = $addressData['province'];

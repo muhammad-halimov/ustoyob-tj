@@ -32,7 +32,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
 class Province extends AddressComponent
 {
     public const array PROVINCES = [
-        'Душанбе' => 'Лушанбе',
+        'Душанбе' => 'Душанбе',
         'ГРРП' => 'ГРРП',
         'ГБАО' => 'ГБАО',
         'Согдийская область' => 'Согдийская область',
