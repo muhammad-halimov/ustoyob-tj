@@ -42,17 +42,28 @@ class PostTicketController extends AbstractController
 
         $data = json_decode($request->getContent(), true);
 
+        // Проверка валидности JSON
+        if (!is_array($data)) {
+            return $this->json(['message' => 'Invalid JSON data'], 400);
+        }
+
+        // Проверка обязательных полей
+        if (!isset($data['title'], $data['description'], $data['category'], $data['unit'])) {
+            return $this->json(['message' => 'Missing required fields'], 400);
+        }
+
         $titleParam = $data['title'];
         $descriptionParam = $data['description'];
-        $noticeParam = $data['notice'];
-        $budgetParam = $data['budget'];
-        $activeParam = (bool)$data['active'];
+        $noticeParam = $data['notice'] ?? null;
+        $budgetParam = $data['budget'] ?? null;
+        $activeParam = isset($data['active']) ? (bool)$data['active'] : true;
         $categoryParam = $data['category'];
         $unitParam = $data['unit'];
         $addressParam = $data['address'] ?? [];
 
-        if (!is_array($addressParam) || count($addressParam) === 0)
+        if (!is_array($addressParam) || count($addressParam) === 0) {
             return $this->json(['message' => 'Address not found'], 404);
+        }
 
         /** @var Category $category */
         $category = $this->extractIriService->extract($categoryParam, Category::class, 'categories');
@@ -62,8 +73,9 @@ class PostTicketController extends AbstractController
         $existingAddresses = [];
 
         foreach ($addressParam as $addressData) {
-            if (!$addressData['province'])
+            if (!isset($addressData['province']) || !$addressData['province']) {
                 return $this->json(['message' => 'Province is required'], 400);
+            }
 
             $provinceParam = $addressData['province'];
             $cityParam = $addressData['city'] ?? null;
@@ -224,7 +236,9 @@ class PostTicketController extends AbstractController
                 'master' => "/api/users/{$bearerUser->getId()}",
                 'service' => true,
             ];
-        } else return $this->json(['message' => 'Extra denied'], 403);
+        } else {
+            return $this->json(['message' => 'Access denied'], 403);
+        }
 
         $this->entityManager->persist($ticketEntity);
         $this->entityManager->flush();
