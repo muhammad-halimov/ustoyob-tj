@@ -56,7 +56,7 @@ class PostTicketController extends AbstractController
         $descriptionParam = $data['description'];
         $noticeParam = $data['notice'] ?? null;
         $budgetParam = $data['budget'] ?? null;
-        $activeParam = isset($data['active']) ? (bool)$data['active'] : true;
+        $activeParam = !isset($data['active']) || $data['active'];
         $categoryParam = $data['category'];
         $unitParam = $data['unit'];
         $addressParam = $data['address'] ?? [];
