@@ -61,6 +61,11 @@ class PostTicketController extends AbstractController
         $unitParam = $data['unit'];
         $addressParam = $data['address'] ?? [];
 
+        // Если address передан как объект, преобразуем в массив
+        if (!empty($addressParam) && !isset($addressParam[0])) {
+            $addressParam = [$addressParam];
+        }
+
         if (!is_array($addressParam) || count($addressParam) === 0) {
             return $this->json(['message' => 'Address not found'], 404);
         }

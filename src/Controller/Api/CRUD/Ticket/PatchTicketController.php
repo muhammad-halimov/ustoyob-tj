@@ -43,9 +43,16 @@ class PatchTicketController extends AbstractController
         /** @var Ticket $ticketEntity */
         $ticketEntity = $this->ticketRepository->find($id);
 
-        if (!$ticketEntity) return $this->json(['message' => 'Ticket not found'], 404);
+        if (!$ticketEntity) {
+            return $this->json(['message' => 'Ticket not found'], 404);
+        }
 
         $data = json_decode($request->getContent(), true);
+
+        // Проверка валидности JSON
+        if (!is_array($data)) {
+            return $this->json(['message' => 'Invalid JSON data'], 400);
+        }
 
         $titleParam = $data['title'] ?? $ticketEntity->getTitle();
         $descriptionParam = $data['description'] ?? $ticketEntity->getDescription();
@@ -62,12 +69,18 @@ class PatchTicketController extends AbstractController
 
         // Проверка и добавление адресов с исключением дубликатов
         if ($addressParam && is_array($addressParam)) {
+            // Если address передан как объект, преобразуем в массив
+            if (!isset($addressParam[0])) {
+                $addressParam = [$addressParam];
+            }
+
             $ticketEntity->getAddresses()->clear();
 
             $existingAddresses = [];
             foreach ($addressParam as $addressData) {
-                if (!isset($addressData['province']))
+                if (!isset($addressData['province']) || !$addressData['province']) {
                     return $this->json(['message' => 'Province is required'], 400);
+                }
 
                 $provinceParam = $addressData['province'];
                 $cityParam = $addressData['city'] ?? null;
