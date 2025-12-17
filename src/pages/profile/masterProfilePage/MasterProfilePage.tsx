@@ -305,7 +305,7 @@ function MasterProfilePage() {
     const [services, setServices] = useState<ServiceTicket[]>([]);
     const [servicesLoading, setServicesLoading] = useState(false);
 
-    const API_BASE_URL = 'https://admin.ustoyob.tj';
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     // Проверка аутентификации при загрузке компонента
     useEffect(() => {
@@ -2428,19 +2428,6 @@ function MasterProfilePage() {
         }
     };
 
-    const handleNavigateToCityPage = () => {
-        if (profileData) {
-            navigate('/profile/city', {
-                state: {
-                    profileData: profileData,
-                    workArea: profileData.workArea
-                }
-            });
-        } else {
-            navigate('/profile/city');
-        }
-    };
-
     if (isLoading) {
         return <div className={styles.profileSet}>Загрузка...</div>;
     }
@@ -2839,7 +2826,7 @@ function MasterProfilePage() {
                                     <span className={styles.work_area_text}>{profileData.workArea}</span>
                                     <button
                                         className={styles.edit_icon}
-                                        onClick={handleNavigateToCityPage}
+                                        onClick={() => navigate('/profile/city')}
                                         title="Редактировать адрес"
                                     >
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -2872,14 +2859,14 @@ function MasterProfilePage() {
                                     {services.map(service => (
                                         <div key={service.id} className={styles.service_item}>
                                             <div className={styles.service_header}>
-                                                <span className={styles.service_name}>
-                                                    {service.title}
-                                                    {service.description && (
-                                                        <div className={styles.service_description}>
-                                                            {service.description}
-                                                        </div>
-                                                    )}
-                                                </span>
+                            <span className={styles.service_name}>
+                                {service.title}
+                                {service.description && (
+                                    <div className={styles.service_description}>
+                                        {service.description}
+                                    </div>
+                                )}
+                            </span>
                                                 <div className={styles.service_actions}>
                                                     <button
                                                         className={styles.edit_service_btn}
@@ -2932,10 +2919,21 @@ function MasterProfilePage() {
                                                 </div>
                                             </div>
                                             <span className={styles.service_price}>
-                                                {service.budget} TJS, {service.unit?.title || 'TJS'}
-                                            </span>
+                            {service.budget} TJS, {service.unit?.title || 'TJS'}
+                        </span>
                                         </div>
                                     ))}
+
+                                    {/* Кнопка добавления новой услуги */}
+                                    <div className={styles.add_service_container}>
+                                        <button
+                                            className={styles.add_button}
+                                            onClick={() => navigate('/profile/services')}
+                                            title="Добавить новую услугу"
+                                        >
+                                            +
+                                        </button>
+                                    </div>
                                 </div>
                             ) : (
                                 <div className={styles.empty_state}>
@@ -2945,7 +2943,7 @@ function MasterProfilePage() {
                                         onClick={() => navigate('/profile/services')}
                                     >
                                         +
-                                    </button>
+                                </button>
                                 </div>
                             )}
                         </div>

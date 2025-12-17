@@ -637,7 +637,7 @@ function CityPage() {
 
                     <div className={styles.address_input}>
                         <div className={styles.address_input_city}>
-                            <img src="../fonTest7.png" alt="fonTest7"/>
+                            {/*<img src="../fonTest7.png" alt="fonTest7"/>*/}
                             <div className={styles.address_input_adress}>
                                 <label>Точный адрес</label>
                                 <input

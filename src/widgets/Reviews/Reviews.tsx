@@ -50,7 +50,7 @@ interface Review {
     updatedAt: string;
 }
 
-const API_BASE_URL = 'https://admin.ustoyob.tj';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 function Reviews() {
     const [isMobile, setIsMobile] = useState(false);
@@ -214,7 +214,7 @@ function Reviews() {
 
     return (
         <div className={style.reviews}>
-            <h3>Отзывы ({reviews.length})</h3>
+            <h3>Отзывы</h3>
 
             {/* MOBILE SWIPER */}
             {isMobile ? (
