@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import FilterPanel, { FilterState } from "../filters/FilterPanel.tsx";
 import { getAuthToken, getUserRole } from "../../utils/auth";
 import { useNavigate } from "react-router-dom";
+import {cleanText} from "../../utils/cleanText.ts";
 
 // Интерфейсы
 interface ApiTicket {
@@ -662,32 +663,6 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         }
     }, []);
 
-    // Функция для очистки текста
-    const cleanText = useCallback((text: string): string => {
-        if (!text) return '';
-
-        let cleaned = text
-            .replace(/&nbsp;/g, ' ')
-            .replace(/&amp;/g, '&')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/&quot;/g, '"')
-            .replace(/&#039;/g, "'")
-            .replace(/&hellip;/g, '...')
-            .replace(/&mdash;/g, '—')
-            .replace(/&laquo;/g, '«')
-            .replace(/&raquo;/g, '»');
-
-        cleaned = cleaned.replace(/&[a-z]+;/g, ' ');
-        cleaned = cleaned.replace(/<[^>]*>/g, '');
-
-        cleaned = cleaned
-            .replace(/\s+/g, ' ')
-            .replace(/\n\s*\n/g, '\n')
-            .trim();
-
-        return cleaned;
-    }, []);
 
     // Функция получения тикетов с API
     const fetchAllTickets = useCallback(async (query: string = '', filterParams: FilterState) => {

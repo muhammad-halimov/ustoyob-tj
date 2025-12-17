@@ -6,6 +6,7 @@ import styles from '../ProfilePage.module.scss';
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
 import { fetchUserById } from "../../../utils/api.ts";
+import {cleanText} from "../../../utils/cleanText.ts";
 
 interface ProfileData {
     id: string;
@@ -2863,7 +2864,7 @@ function MasterProfilePage() {
                                 {service.title}
                                 {service.description && (
                                     <div className={styles.service_description}>
-                                        {service.description}
+                                        {cleanText(service.description)}
                                     </div>
                                 )}
                             </span>
