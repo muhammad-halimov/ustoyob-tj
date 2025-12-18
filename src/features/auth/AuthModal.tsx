@@ -99,8 +99,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-
-
     // Эффект для загрузки категорий и настройки Telegram
     useEffect(() => {
         const loadCategories = async () => {
@@ -159,7 +157,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         return () => {
             window.removeEventListener('message', handleTelegramAuth);
         };
-    }, [API_BASE_URL]); // Исправлено: добавлена зависимость
+    }, [API_BASE_URL]);
 
     // Отдельный эффект для проверки сохраненного токена
     useEffect(() => {
@@ -177,9 +175,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 setCurrentState(AuthModalState.GOOGLE_ROLE_SELECT);
             }
         }
-    }, []); // Этот эффект должен быть отдельным
-
-
+    }, []);
 
     // Отдельный эффект для обработки Google OAuth callback из URL
     useEffect(() => {
@@ -204,10 +200,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 try {
                     console.log('Processing Google OAuth callback with fresh code/state...');
 
-                    // ВАЖНО: Не сохраняем код/state в localStorage
-                    // Сразу отправляем запрос с этими свежими данными
+                    // 1. Проверяем, есть ли сохраненная роль в localStorage
+                    const savedRole = localStorage.getItem('googleSelectedRole') as 'master' | 'client' | null;
 
-                    // 1. Пробуем получить пользователя без роли
+                    // 2. Отправляем запрос на сервер с кодом, state и ролью (если есть)
                     const response = await fetch(`${API_BASE_URL}/api/auth/google/callback`, {
                         method: 'POST',
                         headers: {
@@ -216,8 +212,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         },
                         body: JSON.stringify({
                             code,
-                            state
-                            // Не отправляем роль - сервер вернет существующего пользователя
+                            state,
+                            role: savedRole // Отправляем роль, если она была сохранена
                         })
                     });
 
@@ -243,6 +239,23 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                             return;
                         }
 
+                        // Если ошибка 422 и связана с ролью, показываем экран выбора роли
+                        if (response.status === 422 && errorMessage.includes('role')) {
+                            console.log('User needs to select role');
+
+                            // Сохраняем код и state для повторного использования
+                            localStorage.setItem('googleAuthCode', code);
+                            localStorage.setItem('googleAuthState', state);
+
+                            // Переходим на экран выбора роли
+                            setCurrentState(AuthModalState.GOOGLE_ROLE_SELECT);
+
+                            // Очищаем URL
+                            window.history.replaceState({}, document.title, window.location.pathname);
+                            setIsLoading(false);
+                            return;
+                        }
+
                         throw new Error(errorMessage);
                     }
 
@@ -251,7 +264,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
                     // Проверяем наличие роли у пользователя
                     const hasRole = data.user.roles && data.user.roles.length > 0;
-                    const isGoogleAuth = data.user.oauthType?.googleId;
 
                     if (hasRole) {
                         // У пользователя уже есть роль - сохраняем данные и авторизуем
@@ -259,10 +271,15 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         saveUserData(data);
                         handleSuccessfulAuth(data.token, data.user?.email);
 
+                        // Очищаем временные данные
+                        localStorage.removeItem('googleAuthCode');
+                        localStorage.removeItem('googleAuthState');
+                        localStorage.removeItem('googleSelectedRole');
+
                         // Очищаем URL
                         window.history.replaceState({}, document.title, window.location.pathname);
-                    } else if (isGoogleAuth) {
-                        // Это Google пользователь без роли - показываем выбор роли
+                    } else {
+                        // У пользователя нет роли - показываем выбор роли
                         console.log('Google user needs role selection (new user)');
 
                         // Сохраняем данные Google авторизации для последующего использования
@@ -272,14 +289,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
                         // Переходим на экран выбора роли
                         setCurrentState(AuthModalState.GOOGLE_ROLE_SELECT);
-
-                        // Очищаем URL
-                        window.history.replaceState({}, document.title, window.location.pathname);
-                    } else {
-                        // Обычный пользователь
-                        console.log('Regular user without Google OAuth');
-                        saveUserData(data);
-                        handleSuccessfulAuth(data.token, data.user?.email);
 
                         // Очищаем URL
                         window.history.replaceState({}, document.title, window.location.pathname);
@@ -303,14 +312,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         if (code && state) {
             console.log('Found Google OAuth params in URL, processing immediately...');
             handleGoogleCallback();
-
-            // Если модалка не открыта, нужно её открыть для отображения процесса
-            if (!isOpen) {
-                // Здесь можно вызвать callback для открытия модалки
-                console.log('Modal should be opened for auth process');
-            }
         }
-    }, [isOpen, API_BASE_URL]); // Этот эффект также должен быть отдельным
+    }, [isOpen, API_BASE_URL]);
 
     // Функция для сохранения данных пользователя
     const saveUserData = (data: GoogleUserResponse | TelegramAuthResponse) => {
@@ -341,9 +344,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         localStorage.removeItem('googleAuthCode');
         localStorage.removeItem('googleAuthState');
         localStorage.removeItem('googleUserData');
+        localStorage.removeItem('googleSelectedRole');
         sessionStorage.removeItem('googleAuthCode');
         sessionStorage.removeItem('googleAuthState');
     };
+
+    // ВОССТАНАВЛИВАЕМ недостающие функции:
 
     const handleTelegramCallback = async (authData: any) => {
         try {
@@ -510,9 +516,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             localStorage.removeItem('googleAuthState');
             sessionStorage.removeItem('googleAuthCode');
             sessionStorage.removeItem('googleAuthState');
-            localStorage.removeItem('googleAuthCode');
-            localStorage.removeItem('googleAuthState');
-            localStorage.removeItem('googleRole');
+            localStorage.removeItem('googleSelectedRole');
 
             // Получаем URL для Google OAuth
             const response = await fetch(`${API_BASE_URL}/api/auth/google/url`, {
@@ -538,47 +542,49 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         }
     };
 
-    const completeGoogleAuth = async (selectedRole: 'master' | 'client') => {
-        try {
-            setIsLoading(true);
-            setError('');
-
-            const code = localStorage.getItem('googleAuthCode');
-            const state = localStorage.getItem('googleAuthState');
-
-            if (!code || !state) throw new Error('Нет данных Google OAuth');
-
-            const res = await fetch(`${API_BASE_URL}/api/auth/google/callback`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify({ code, state, role: selectedRole })
-            });
-
-            if (!res.ok) {
-                const errorText = await res.text();
-                throw new Error(`Ошибка назначения роли: ${errorText}`);
-            }
-
-            const data: GoogleUserResponse = await res.json();
-
-            // Сохраняем данные пользователя
-            saveUserData(data);
-            handleSuccessfulAuth(data.token, data.user.email);
-
-            // Чистим временные данные
-            localStorage.removeItem('googleAuthCode');
-            localStorage.removeItem('googleAuthState');
-            localStorage.removeItem('googleUserData');
-
-        } catch (err) {
-            console.error(err);
-            setError(err instanceof Error ? err.message : 'Ошибка авторизации Google');
-            setIsLoading(false);
-        }
-    };
+    // const completeGoogleAuth = async (selectedRole: 'master' | 'client') => {
+    //     try {
+    //         setIsLoading(true);
+    //         setError('');
+    //
+    //         const code = localStorage.getItem('googleAuthCode');
+    //         const state = localStorage.getItem('googleAuthState');
+    //
+    //         if (!code || !state) throw new Error('Нет данных Google OAuth');
+    //
+    //         // Сохраняем выбранную роль в localStorage для будущих сессий
+    //         localStorage.setItem('googleSelectedRole', selectedRole);
+    //
+    //         const res = await fetch(`${API_BASE_URL}/api/auth/google/callback`, {
+    //             method: 'POST',
+    //             headers: {
+    //                 'Content-Type': 'application/json',
+    //                 'Accept': 'application/json',
+    //             },
+    //             body: JSON.stringify({
+    //                 code,
+    //                 state,
+    //                 role: selectedRole
+    //             })
+    //         });
+    //
+    //         if (!res.ok) {
+    //             const errorText = await res.text();
+    //             throw new Error(`Ошибка назначения роли: ${errorText}`);
+    //         }
+    //
+    //         const data: GoogleUserResponse = await res.json();
+    //
+    //         // Сохраняем данные пользователя
+    //         saveUserData(data);
+    //         handleSuccessfulAuth(data.token, data.user.email);
+    //
+    //     } catch (err) {
+    //         console.error(err);
+    //         setError(err instanceof Error ? err.message : 'Ошибка авторизации Google');
+    //         setIsLoading(false);
+    //     }
+    // };
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -800,6 +806,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         sessionStorage.removeItem('googleAuthState');
     };
 
+
+
     const handleClose = () => {
         onClose();
     };
@@ -810,7 +818,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         }
     };
 
-    // Остальные функции без изменений...
+    const handleGoogleAuthWithRole = () => {
+        // Показываем экран выбора роли перед началом OAuth
+        setCurrentState(AuthModalState.GOOGLE_ROLE_SELECT);
+    };
 
     const renderWelcomeScreen = () => {
         return (
@@ -879,7 +890,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     <button
                         type="button"
                         className={styles.googleButton}
-                        onClick={handleGoogleAuth}
+                        onClick={handleGoogleAuthWithRole}
                         disabled={isLoading}
                     >
                         <img src="../google.png" alt="Google" />
@@ -1043,7 +1054,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     <button
                         type="button"
                         className={styles.googleButton}
-                        onClick={handleGoogleAuth}
+                        onClick={handleGoogleAuthWithRole} // ИЗМЕНЕНО: используем handleGoogleAuthWithRole вместо handleGoogleAuth
                         disabled={isLoading}
                     >
                         <img src="../google.png" alt="Google" />
@@ -1101,43 +1112,49 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         );
     };
 
-    // Убираем экран выбора роли для Google, т.к. теперь это автоматически
     const renderGoogleRoleSelectScreen = () => {
         return (
             <div className={styles.form}>
                 <h2>Выберите тип аккаунта</h2>
 
                 <div className={styles.successMessage}>
-                    <p>Вы успешно авторизовались через Google!</p>
+                    <p>Вы собираетесь войти через Google.</p>
                     <p>Пожалуйста, выберите тип аккаунта:</p>
                 </div>
 
                 <div className={styles.roleSelector}>
                     <button
                         type="button"
-                        className={styles.roleButton}
-                        onClick={() => completeGoogleAuth('master')}
-                        disabled={isLoading}
+                        className={formData.role === 'master' ? styles.roleButtonActive : styles.roleButton}
+                        onClick={() => handleRoleChange('master')}
                     >
                         Я специалист
                     </button>
                     <button
                         type="button"
-                        className={styles.roleButton}
-                        onClick={() => completeGoogleAuth('client')}
-                        disabled={isLoading}
+                        className={formData.role === 'client' ? styles.roleButtonActive : styles.roleButton}
+                        onClick={() => handleRoleChange('client')}
                     >
                         Я ищу специалиста
                     </button>
                 </div>
 
-                {error && <div className={styles.error}>{error}</div>}
+                <div className={styles.inputGroup}>
+                    <button
+                        type="button"
+                        className={styles.primaryButton}
+                        onClick={() => {
+                            // Сохраняем выбранную роль и начинаем OAuth
+                            localStorage.setItem('googleSelectedRole', formData.role);
+                            handleGoogleAuth();
+                        }}
+                        disabled={isLoading}
+                    >
+                        {isLoading ? 'Начало авторизации...' : 'Продолжить с Google'}
+                    </button>
+                </div>
 
-                {isLoading && (
-                    <div className={styles.loadingMessage}>
-                        Назначение роли...
-                    </div>
-                )}
+                {error && <div className={styles.error}>{error}</div>}
 
                 <div className={styles.links}>
                     <button
@@ -1146,9 +1163,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         onClick={() => {
                             setCurrentState(AuthModalState.LOGIN);
                             // Очищаем временные данные
-                            localStorage.removeItem('googleAuthCode');
-                            localStorage.removeItem('googleAuthState');
-                            localStorage.removeItem('googleUserData');
+                            localStorage.removeItem('googleSelectedRole');
                         }}
                         disabled={isLoading}
                     >
@@ -1204,8 +1219,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         );
     };
 
-    // Остальные функции рендеринга...
-
     const renderContent = () => {
         switch (currentState) {
             case AuthModalState.WELCOME:
@@ -1220,12 +1233,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 return renderGoogleRoleSelectScreen();
             case AuthModalState.TELEGRAM_ROLE_SELECT:
                 return renderTelegramRoleSelectScreen();
-            case AuthModalState.FORGOT_PASSWORD:
-                // return renderForgotPasswordScreen();
-            case AuthModalState.VERIFY_CODE:
-                // return renderVerifyCodeScreen();
-            case AuthModalState.NEW_PASSWORD:
-                // return renderNewPasswordScreen();
             default:
                 return renderWelcomeScreen();
         }
