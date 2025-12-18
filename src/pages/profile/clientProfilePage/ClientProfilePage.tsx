@@ -1,7 +1,9 @@
-import {useState, useRef, useEffect, type ChangeEvent, useCallback, useMemo} from 'react';
+import {useState, useRef, useEffect, type ChangeEvent, useCallback} from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAuthToken } from '../../../utils/auth';
 import styles from './ClientProfilePage.module.scss';
+
+import ReviewList, { Review as ReviewWidget } from '../../../widgets/RenderReviews/RenderReviews';
 
 interface Review {
     id: number;
@@ -38,6 +40,7 @@ interface UserData {
     middleName?: string;
     gender: string;
     phone: string;
+    phone2: string;
     email: string;
     rating: number;
     isVerified: boolean;
@@ -54,10 +57,12 @@ function ClientProfilePage() {
     const [userData, setUserData] = useState<UserData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [reviewsLoading, setReviewsLoading] = useState(false);
-    const [editingField, setEditingField] = useState<'fullName' | 'gender' | 'phone' | 'email' | null>(null);
+    const [editingField, setEditingField] = useState<'fullName' | 'gender' | 'phone' | 'phone2' | 'email' | null>(null);
     const [tempValue, setTempValue] = useState('');
     const [editingFieldHeader, setEditingFieldHeader] = useState(false);
     const [tempValueHeader, setTempValueHeader] = useState('');
+    const REVIEWS_PREVIEW_LIMIT = 2;
+    const [showAllReviews, setShowAllReviews] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -65,14 +70,6 @@ function ClientProfilePage() {
         if (!userData) return 'Фамилия Имя Отчество';
         return `${userData.lastName} ${userData.firstName} ${userData.middleName || ''}`.trim();
     }, [userData]);
-
-    const getFormattedDate = useCallback((): string => {
-        const now = new Date();
-        const day = now.getDate().toString().padStart(2, '0');
-        const month = (now.getMonth() + 1).toString().padStart(2, '0');
-        const year = now.getFullYear();
-        return `${day}.${month}.${year}`;
-    }, []);
 
     const checkImageExists = useCallback((url: string): Promise<boolean> => {
         return new Promise((resolve) => {
@@ -138,35 +135,26 @@ function ClientProfilePage() {
         try {
             setReviewsLoading(true);
             const token = getAuthToken();
+            if (!token) return [];
 
-            if (!token) {
-                console.error('No auth token available');
-                return [];
-            }
-
-            const response = await fetch(`${API_BASE_URL}/api/reviews/clients/${userId}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            console.log('Reviews response status:', response.status);
+            const response = await fetch(
+                `${API_BASE_URL}/api/reviews?client.id=${userId}`,
+                {
+                    method: 'GET',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        Accept: 'application/json',
+                    },
+                }
+            );
 
             if (!response.ok) {
-                if (response.status === 404) {
-                    console.log('No reviews found for client (404)');
-                    return [];
-                }
-                console.warn('Error fetching reviews:', response.status);
+                console.warn('Failed to fetch reviews:', response.status);
                 return [];
             }
 
             const reviews = await response.json();
-            console.log('Reviews fetched successfully:', reviews);
             return reviews;
-
         } catch (error) {
             console.error('Error fetching client reviews:', error);
             return [];
@@ -174,33 +162,6 @@ function ClientProfilePage() {
             setReviewsLoading(false);
         }
     }, []);
-
-    // const tryAlternativeReviewEndpoint = async (userId: number, token: string) => {
-    //     const alternativeEndpoints = [
-    //         `${API_BASE_URL}/api/users/${userId}/reviews?forClient=true`,
-    //         `${API_BASE_URL}/api/reviews?forReviewer=false&reviewer.id=${userId}`,
-    //     ];
-    //
-    //     for (const endpoint of alternativeEndpoints) {
-    //         try {
-    //             const response = await fetch(endpoint, {
-    //                 method: 'GET',
-    //                 headers: {
-    //                     'Authorization': `Bearer ${token}`,
-    //                     'Content-Type': 'application/json',
-    //                 },
-    //             });
-    //
-    //             if (response.ok) {
-    //                 return await response.json();
-    //             }
-    //         } catch (error) {
-    //             continue;
-    //         }
-    //     }
-    //
-    //     return [];
-    // };
 
     // Основная функция загрузки данных
     const fetchUserData = useCallback(async () => {
@@ -234,7 +195,8 @@ function ClientProfilePage() {
                 middleName: userDataFromApi.patronymic || '',
                 gender: userDataFromApi.gender || 'gender_male',
                 phone: userDataFromApi.phone1 || '+0 000 000 00 00',
-                email: userDataFromApi.email || 'адрес емаил',
+                phone2: userDataFromApi.phone2 || '+0 000 000 00 00',
+                email: userDataFromApi.email || 'E-mail',
                 rating: userDataFromApi.rating || 0,
                 isVerified: userDataFromApi.isVerified || true,
                 avatar: avatarUrl,
@@ -303,6 +265,8 @@ function ClientProfilePage() {
                 apiData.gender = value;
             } else if (field === 'phone') {
                 apiData.phone1 = value;
+            } else if (field === 'phone2') {
+                apiData.phone2 = value;
             } else if (field === 'email') {
                 apiData.email = value;
             }
@@ -332,8 +296,10 @@ function ClientProfilePage() {
                 } : null);
             } else if (field === 'gender') {
                 setUserData(prev => prev ? { ...prev, gender: value } : null);
-            } else if (field === 'phone') {
+            } else if (field === 'phone1') {
                 setUserData(prev => prev ? { ...prev, phone: value } : null);
+            } else if (field === 'phone2') {
+                setUserData(prev => prev ? { ...prev, phone2: value } : null);
             } else if (field === 'email') {
                 setUserData(prev => prev ? { ...prev, email: value } : null);
             }
@@ -344,7 +310,7 @@ function ClientProfilePage() {
         }
     }, [userData?.id, navigate]);
 
-    const handleEditStart = useCallback((field: 'fullName' | 'gender' | 'phone' | 'email') => {
+    const handleEditStart = useCallback((field: 'fullName' | 'gender' | 'phone' | 'phone2' | 'email') => {
         setEditingField(field);
         if (field === 'fullName') {
             setTempValue(getFullName());
@@ -352,6 +318,8 @@ function ClientProfilePage() {
             setTempValue(userData?.gender || 'gender_male');
         } else if (field === 'phone') {
             setTempValue(userData?.phone || '');
+        } else if (field === 'phone2') {
+            setTempValue(userData?.phone2 || '');
         } else if (field === 'email') {
             setTempValue(userData?.email || '');
         }
@@ -372,6 +340,8 @@ function ClientProfilePage() {
             hasChanged = trimmedValue !== userData.gender;
         } else if (editingField === 'phone') {
             hasChanged = trimmedValue !== userData.phone;
+        } else if (editingField === 'phone2') {
+            hasChanged = trimmedValue !== userData.phone2;
         } else if (editingField === 'email') {
             hasChanged = trimmedValue !== userData.email;
         }
@@ -393,120 +363,8 @@ function ClientProfilePage() {
         }
     }, [handleInputSave]);
 
-    const getReviewerAvatarUrl = useCallback((review: Review) => {
-        if (!review.master?.image) return "./fonTest5.png";
 
-        const possiblePaths = [
-            review.master.image,
-            `${API_BASE_URL}/images/profile_photos/${review.master.image}`,
-            `${API_BASE_URL}/uploads/profile_photos/${review.master.image}`,
-        ].filter(path => path && !path.includes("./fonTest"));
 
-        return possiblePaths[0] || "./fonTest5.png";
-    }, []);
-
-    const getReviewerName = useCallback((review: Review) => {
-        return `${review.master?.surname || ''} ${review.master?.name || ''} ${review.master?.patronymic || ''}`.trim() || 'Специалист';
-    }, []);
-
-    const getReviewerProfession = useCallback((review: Review) => {
-        return review.master?.profession || review.master?.specialization || 'Специалист';
-    }, []);
-
-    const formatReviewDate = useCallback((dateString?: string) => {
-        if (!dateString) return getFormattedDate();
-        try {
-            return new Date(dateString).toLocaleDateString('ru-RU');
-        } catch {
-            return getFormattedDate();
-        }
-    }, [getFormattedDate]);
-
-    // Мемоизированный рендер отзывов
-    const renderReviews = useMemo(() => {
-        if (reviewsLoading) {
-            return <div className={styles.loading}>Загрузка отзывов...</div>;
-        }
-
-        if (!userData?.reviews || userData.reviews.length === 0) {
-            return <div className={styles.no_reviews}>Пока нет отзывов от специалистов</div>;
-        }
-
-        return userData.reviews.map((review) => {
-            const reviewerName = getReviewerName(review);
-            const reviewerProfession = getReviewerProfession(review);
-            const reviewDate = formatReviewDate(review.createdAt);
-
-            return (
-                <div key={review.id} className={styles.review_item}>
-                    <div className={styles.review_header}>
-                        <div className={styles.reviewer_info}>
-                            <img
-                                src={getReviewerAvatarUrl(review)}
-                                alt={reviewerName}
-                                className={styles.reviewer_avatar}
-                                onError={(e) => {
-                                    e.currentTarget.src = "./fonTest5.png";
-                                }}
-                                loading="lazy"
-                            />
-                            <div className={styles.reviewer_main_info}>
-                                <div className={styles.reviewer_name}>{reviewerName}</div>
-                                <div className={styles.review_vacation}><span className={styles.review_worker}>{getFullName()}</span> {reviewerProfession}</div>
-                                <div className={styles.review_rating_main}>
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <g clipPath="url(#clip0_324_2272)">
-                                            <g clipPath="url(#clip1_324_2272)">
-                                                <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
-                                            </g>
-                                        </g>
-                                    </svg>
-                                    <span className={styles.rating_value}>{review.rating}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className={styles.review_details}>
-                        <div className={styles.review_worker_date}>
-                            <span className={styles.review_date}>{reviewDate}</span>
-                            <div className={styles.review_rating_secondary}>
-                                <span>Поставил </span>
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <g clipPath="url(#clip0_324_2272)">
-                                        <g clipPath="url(#clip1_324_2272)">
-                                            <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
-                                        </g>
-                                    </g>
-                                </svg>
-                                <span className={styles.rating_value}>{review.rating}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {review.description && (
-                        <div className={styles.review_text}>
-                            {review.description.replace(/<[^>]*>/g, '')}
-                        </div>
-                    )}
-
-                    {review.images && review.images.length > 0 && (
-                        <div className={styles.review_images}>
-                            {review.images.map((image) => (
-                                <img
-                                    key={image.id}
-                                    src={`${API_BASE_URL}${image.image}`}
-                                    alt="Отзыв"
-                                    className={styles.review_image}
-                                    loading="lazy"
-                                />
-                            ))}
-                        </div>
-                    )}
-                </div>
-            );
-        });
-    }, [userData?.reviews, reviewsLoading, getReviewerName, getReviewerProfession, formatReviewDate, getReviewerAvatarUrl, getFullName]);
 
     const handleAvatarClick = useCallback(() => {
         fileInputRef.current?.click();
@@ -595,7 +453,7 @@ function ClientProfilePage() {
     }, []);
 
     // Мемоизированный рендер редактируемых полей
-    const renderEditableField = useCallback((field: 'fullName' | 'gender' | 'phone' | 'email', label: string, value: string) => {
+    const renderEditableField = useCallback((field: 'fullName' | 'gender' | 'phone' | 'phone2' | 'email', label: string, value: string) => {
         if (editingField === field) {
             if (field === 'gender') {
                 return (
@@ -615,7 +473,11 @@ function ClientProfilePage() {
             } else {
                 return (
                     <input
-                        type={field === 'email' ? 'email' : field === 'phone' ? 'tel' : 'text'}
+                        type={field === 'email'
+                            ? 'email'
+                            : field === 'phone' || field === 'phone2'
+                                ? 'tel'
+                                : 'text'}
                         value={tempValue}
                         onChange={(e) => setTempValue(e.target.value)}
                         onBlur={handleInputSave}
@@ -743,7 +605,7 @@ function ClientProfilePage() {
                                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                     <g clipPath="url(#clip0_188_2958)">
                                                         <g clipPath="url(#clip1_188_2958)">
-                                                            <path d="M7.2302 20.59L2.4502 21.59L3.4502 16.81L17.8902 2.29001C18.1407 2.03889 18.4385 1.83982 18.7663 1.70424C19.0941 1.56865 19.4455 1.49925 19.8002 1.50001C20.5163 1.50001 21.203 1.78447 21.7094 2.29082C22.2157 2.79717 22.5002 3.48392 22.5002 4.20001C22.501 4.55474 22.4315 4.90611 22.296 5.23391C22.1604 5.56171 21.9613 5.85945 21.7102 6.11001L7.2302 20.59Z" stroke="#3A54DA" stroke-width="2" stroke-miterlimit="10"/>
+                                                            <path d="M7.2302 20.59L2.4502 21.59L3.4502 16.81L17.8902 2.29001C18.1407 2.03889 18.4385 1.83982 18.7663 1.70424C19.0941 1.56865 19.4455 1.49925 19.8002 1.50001C20.5163 1.50001 21.203 1.78447 21.7094 2.29082C22.2157 2.79717 22.5002 3.48392 22.5002 4.20001C22.501 4.55474 22.4315 4.90611 22.296 5.23391C22.1604 5.56171 21.9613 5.85945 21.7102 6.11001L7.2302 20.59Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
                                                         </g>
                                                     </g>
                                                 </svg>
@@ -796,17 +658,21 @@ function ClientProfilePage() {
                             </div>
                         </div>
 
-                        <div className={styles.data_item_sex}>
-                            <div className={styles.data_label}>Пол</div>
-                            {renderEditableField('gender', 'Пол', userData.gender)}
-                        </div>
+                        <div className={styles.data_item_phone}>
+                            <div className={styles.data_item_sex}>
+                                <div className={styles.data_label}>Пол</div>
+                                {renderEditableField('gender', 'Пол', userData.gender)}
+                            </div>
 
-                        <div className={styles.data_item}>
-                            <div className={styles.data_label}>номер телефона</div>
-                            {renderEditableField('phone', 'Номер телефона', userData.phone)}
-                            <p className={styles.data_hint}>
-                                Не показываем номер мастерам без вашего одобрения
-                            </p>
+                            <div className={styles.data_item}>
+                                <div className={styles.data_label}>Основной номер</div>
+                                {renderEditableField('phone', 'Основной номер', userData.phone)}
+                            </div>
+
+                            <div className={styles.data_item}>
+                                <div className={styles.data_label}>Дополнительный номер</div>
+                                {renderEditableField('phone2', 'Дополнительный номер', userData.phone2)}
+                            </div>
                         </div>
 
                         <div className={styles.data_item}>
@@ -826,15 +692,14 @@ function ClientProfilePage() {
                     </p>
 
                     <div className={styles.reviews_list}>
-                        {renderReviews}
-                    </div>
-
-                    <div className={styles.reviews_actions}>
-                        {userData.reviews.length > 2 && (
-                            <button className={styles.show_all_reviews_btn}>
-                                Показать все отзывы
-                            </button>
-                        )}
+                        <ReviewList
+                            reviews={userData.reviews as unknown as ReviewWidget[]}
+                            showAll={showAllReviews}
+                            onToggleShowAll={() => setShowAllReviews(prev => !prev)}
+                            previewLimit={REVIEWS_PREVIEW_LIMIT}
+                            getFullName={getFullName}
+                            loading={reviewsLoading}
+                        />
                     </div>
                 </div>
             </div>
