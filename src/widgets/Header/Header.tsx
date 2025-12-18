@@ -90,10 +90,20 @@ function Header({ onOpenAuthModal }: HeaderProps) {
     const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[1];
 
     const getDisplayCityName = () => {
-        if (selectedCity === 'header:location') {
+        if (!selectedCity || selectedCity === 'header:location') {
             return t('header:location');
         }
-        return t(`cities:${selectedCity}`, { defaultValue: selectedCity });
+
+        // Для отображения переведенного названия города
+        const translationKey = `cities:${selectedCity}`;
+        const translatedName = t(translationKey);
+
+        // Если перевод не найден (вернется ключ), используем сохраненное значение
+        if (translatedName === translationKey) {
+            return selectedCity;
+        }
+
+        return translatedName;
     };
 
     useEffect(() => {
@@ -322,7 +332,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
     };
 
     const handleCitySelect = (cityTitle: string) => {
-        const cityKey = cityTitle.toLowerCase().replace(/\s+/g, '_');
+        const cityKey = cityTitle;
         setSelectedCity(cityKey);
         localStorage.setItem('selectedCity', cityKey);
         setShowCityModal(false);
@@ -791,7 +801,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                                     className={`${styles.cityItem} ${selectedCity === city.title ? styles.selected : ''}`}
                                     onClick={() => handleCitySelect(city.title)}
                                 >
-                                    {t(`cities:${city.title}`, city.title)}
+                                    {t(`cities:${city.title}`, { defaultValue: city.title })}
                                 </div>
                             ))}
                         </div>
