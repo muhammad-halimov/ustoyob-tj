@@ -1024,8 +1024,8 @@ function MasterProfilePage() {
 
             console.log('Fetching reviews for master ID:', profileData.id);
 
-            // Используем правильный endpoint для отзывов мастера
-            const endpoint = `/api/reviews/masters/${profileData.id}`;
+            // ИСПРАВЛЕННЫЙ ENDPOINT: используем правильный запрос с фильтрами
+            const endpoint = `/api/reviews?exists[master]=true&master=${profileData.id}`;
 
             console.log(`Trying endpoint: ${endpoint}`);
 
@@ -1082,9 +1082,19 @@ function MasterProfilePage() {
             console.log(`Processing ${reviewsArray.length} reviews`);
 
             if (reviewsArray.length > 0) {
+                // Фильтруем отзывы, чтобы оставить только те, где master.id совпадает
+                const masterReviews = reviewsArray.filter(review => {
+                    const reviewMasterId = review.master?.id;
+                    const isForCurrentMaster = reviewMasterId?.toString() === profileData.id;
+                    console.log(`Review ${review.id}: master ID ${reviewMasterId}, is for current master: ${isForCurrentMaster}`);
+                    return isForCurrentMaster;
+                });
+
+                console.log(`Found ${masterReviews.length} reviews for master ${profileData.id}`);
+
                 // Преобразуем данные отзывов в нашу структуру
                 const transformedReviews = await Promise.all(
-                    reviewsArray.map(async (review) => {
+                    masterReviews.map(async (review) => {
                         console.log('Processing review:', review);
 
                         // Получаем данные мастера и клиента из отзыва
@@ -1181,7 +1191,7 @@ function MasterProfilePage() {
                 }
 
             } else {
-                console.log('No reviews data found');
+                console.log('No reviews data found for this master');
                 setReviews([]);
 
                 // Обновляем счетчик отзывов
