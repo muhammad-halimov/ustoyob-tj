@@ -41,18 +41,11 @@ const GoogleOAuthPage: React.FC = () => {
             }
 
             try {
-                const payload: any = { code, state };
-
-                // Если есть роль в localStorage (например, пользователь новый)
-                const role = localStorage.getItem('googleRole');
-                if (role) {
-                    payload.role = role;
-                }
-
+                // Пробуем авторизоваться без роли
                 const res = await fetch(`${API_BASE_URL}/api/auth/google/callback`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({ code, state })
                 });
 
                 if (!res.ok) {
@@ -62,16 +55,18 @@ const GoogleOAuthPage: React.FC = () => {
 
                 const data: GoogleUserResponse = await res.json();
 
-                // Сохраняем токен и пользователя
-                localStorage.setItem('token', data.token);
-                localStorage.setItem('user', JSON.stringify(data.user));
-
-                // Проверяем роль
+                // Проверяем наличие роли у пользователя
                 if (data.user.roles && data.user.roles.length > 0) {
-                    navigate('/'); // Есть роль — просто логиним
+                    // У пользователя уже есть роль - сохраняем и авторизуем
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    navigate('/');
                 } else {
-                    // Новый пользователь без роли — показываем выбор роли
-                    navigate('/?select_role=true');
+                    // Новый пользователь без роли - сохраняем данные и показываем выбор роли
+                    localStorage.setItem('googleAuthCode', code);
+                    localStorage.setItem('googleAuthState', state);
+                    localStorage.setItem('googleUserData', JSON.stringify(data.user));
+                    navigate('/?google_role_select=true');
                 }
 
             } catch (err) {
@@ -82,7 +77,6 @@ const GoogleOAuthPage: React.FC = () => {
 
         processOAuth();
     }, [navigate]);
-
 
     return (
         <div style={{
