@@ -245,8 +245,23 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             }
         };
 
-        // Проверяем URL параметры ВСЕГДА, даже если модалка не открыта
-        // Это нужно для обработки callback сразу после возврата с Google
+        useEffect(() => {
+            const token = localStorage.getItem('token');
+            const userStr = localStorage.getItem('user');
+
+            if (token && userStr) {
+                const user = JSON.parse(userStr);
+                setUserData(user);
+                setAuthToken(token);
+
+                if (user.roles && user.roles.length > 0) {
+                    handleSuccessfulAuth(token, user.email);
+                } else {
+                    setCurrentState(AuthModalState.GOOGLE_ROLE_SELECT);
+                }
+            }
+        }, []);
+
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
         const state = urlParams.get('state');
@@ -503,6 +518,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             localStorage.removeItem('googleAuthState');
             sessionStorage.removeItem('googleAuthCode');
             sessionStorage.removeItem('googleAuthState');
+            localStorage.removeItem('googleAuthCode');
+            localStorage.removeItem('googleAuthState');
+            localStorage.removeItem('googleRole');
 
             // Получаем URL для Google OAuth
             const response = await fetch(`${API_BASE_URL}/api/auth/google/url`, {
@@ -528,9 +546,36 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         }
     };
 
-    // Эта функция теперь НЕ ИСПОЛЬЗУЕТСЯ для Google
-    // const completeGoogleAuth = async (selectedRole: 'master' | 'client' = 'client') => {
-    //     // Эта функция больше не нужна, т.к. мы сразу обрабатываем всё в handleGoogleCallback
+    // const completeGoogleAuth = async (selectedRole: 'master' | 'client') => {
+    //     try {
+    //         const code = localStorage.getItem('googleAuthCode');
+    //         const state = localStorage.getItem('googleAuthState');
+    //
+    //         if (!code || !state) throw new Error('Нет данных Google OAuth');
+    //
+    //         const res = await fetch(`${API_BASE_URL}/api/auth/google/callback`, {
+    //             method: 'POST',
+    //             headers: { 'Content-Type': 'application/json' },
+    //             body: JSON.stringify({ code, state, role: selectedRole })
+    //         });
+    //
+    //         if (!res.ok) throw new Error('Ошибка назначения роли');
+    //
+    //         const data: GoogleUserResponse = await res.json();
+    //
+    //         localStorage.setItem('token', data.token);
+    //         localStorage.setItem('user', JSON.stringify(data.user));
+    //
+    //         handleSuccessfulAuth(data.token, data.user.email);
+    //
+    //         // Чистим временные данные
+    //         localStorage.removeItem('googleAuthCode');
+    //         localStorage.removeItem('googleAuthState');
+    //
+    //     } catch (err) {
+    //         console.error(err);
+    //         setError(err instanceof Error ? err.message : 'Ошибка авторизации Google');
+    //     }
     // };
 
     const handleLogin = async (e: React.FormEvent) => {

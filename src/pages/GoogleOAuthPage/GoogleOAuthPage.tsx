@@ -1,6 +1,25 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+interface GoogleUserResponse {
+    user: {
+        id: number;
+        email: string;
+        name: string;
+        surname: string;
+        roles: string[];
+        oauthType?: {
+            googleId: string;
+            [key: string]: unknown;
+        };
+        [key: string]: unknown;
+    };
+    token: string;
+    message: string;
+}
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 const GoogleOAuthPage: React.FC = () => {
     const navigate = useNavigate();
 
@@ -8,55 +27,62 @@ const GoogleOAuthPage: React.FC = () => {
     console.log('Current URL:', window.location.href);
 
     useEffect(() => {
-        console.log('GoogleOAuthPage useEffect triggered');
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const state = urlParams.get('state');
+        const error = urlParams.get('error');
+
+        if (!code || !state) return;
 
         const processOAuth = async () => {
-            // Получаем параметры из URL
-            const urlParams = new URLSearchParams(window.location.search);
-            const code = urlParams.get('code');
-            const state = urlParams.get('state');
-            const error = urlParams.get('error');
-
-            console.log('Google OAuth received:', { code, state, error });
-            console.log('Full URL search:', window.location.search);
-
             if (error) {
-                console.error('Google OAuth error:', error);
                 navigate('/?oauth_error=' + encodeURIComponent(error));
                 return;
             }
 
-            if (code && state) {
-                try {
-                    console.log('Saving Google auth data to localStorage');
+            try {
+                const payload: any = { code, state };
 
-                    // Сохраняем код и state в localStorage
-                    localStorage.setItem('googleAuthCode', code);
-                    localStorage.setItem('googleAuthState', state);
-
-                    // Также сохраняем в sessionStorage для надежности
-                    sessionStorage.setItem('googleAuthCode', code);
-                    sessionStorage.setItem('googleAuthState', state);
-
-                    console.log('Saved Google auth data to localStorage');
-                    console.log('Navigating to home with auth modal flag...');
-
-                    // Перенаправляем на главную с флагом для открытия модалки
-                    navigate('/?showAuthModal=true&oauth=google');
-
-                } catch (err) {
-                    console.error('Error processing Google OAuth:', err);
-                    navigate('/?oauth_error=' + encodeURIComponent('Ошибка обработки авторизации'));
+                // Если есть роль в localStorage (например, пользователь новый)
+                const role = localStorage.getItem('googleRole');
+                if (role) {
+                    payload.role = role;
                 }
-            } else {
-                console.log('No code or state found in URL');
-                console.log('Navigating to home...');
-                navigate('/');
+
+                const res = await fetch(`${API_BASE_URL}/api/auth/google/callback`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!res.ok) {
+                    const text = await res.text();
+                    throw new Error(text || 'Ошибка Google OAuth');
+                }
+
+                const data: GoogleUserResponse = await res.json();
+
+                // Сохраняем токен и пользователя
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('user', JSON.stringify(data.user));
+
+                // Проверяем роль
+                if (data.user.roles && data.user.roles.length > 0) {
+                    navigate('/'); // Есть роль — просто логиним
+                } else {
+                    // Новый пользователь без роли — показываем выбор роли
+                    navigate('/?select_role=true');
+                }
+
+            } catch (err) {
+                console.error('Google OAuth error:', err);
+                navigate('/?oauth_error=' + encodeURIComponent(err instanceof Error ? err.message : 'Ошибка'));
             }
         };
 
         processOAuth();
     }, [navigate]);
+
 
     return (
         <div style={{
