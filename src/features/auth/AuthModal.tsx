@@ -99,6 +99,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+    // Эффект для загрузки категорий и настройки Telegram
     useEffect(() => {
         const loadCategories = async () => {
             try {
@@ -114,7 +115,70 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
         loadCategories();
 
-        // Обработка Google OAuth callback из URL
+        // Загружаем скрипт Telegram Widget
+        const loadTelegramWidget = () => {
+            if (document.querySelector('script[src*="telegram-widget"]')) {
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = 'https://telegram.org/js/telegram-widget.js?22';
+            script.async = true;
+            script.onload = () => {
+                console.log('Telegram Widget script loaded');
+            };
+            document.body.appendChild(script);
+        };
+
+        loadTelegramWidget();
+
+        // Обработка сообщений от Telegram Widget
+        const handleTelegramAuth = (event: MessageEvent) => {
+            if (event.origin !== 'https://oauth.telegram.org') {
+                return;
+            }
+
+            try {
+                const data = event.data;
+                console.log('Telegram auth data received:', data);
+
+                if (data.event === 'auth_callback') {
+                    const authData = data.auth;
+                    handleTelegramCallback(authData);
+                }
+            } catch (err) {
+                console.error('Error processing Telegram auth:', err);
+                setError('Ошибка авторизации через Telegram');
+            }
+        };
+
+        window.addEventListener('message', handleTelegramAuth);
+
+        return () => {
+            window.removeEventListener('message', handleTelegramAuth);
+        };
+    }, [API_BASE_URL]); // Исправлено: добавлена зависимость
+
+    // Отдельный эффект для проверки сохраненного токена
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        const userStr = localStorage.getItem('user');
+
+        if (token && userStr) {
+            const user = JSON.parse(userStr);
+            setUserData(user);
+            setAuthToken(token);
+
+            if (user.roles && user.roles.length > 0) {
+                handleSuccessfulAuth(token, user.email);
+            } else {
+                setCurrentState(AuthModalState.GOOGLE_ROLE_SELECT);
+            }
+        }
+    }, []); // Этот эффект должен быть отдельным
+
+    // Отдельный эффект для обработки Google OAuth callback из URL
+    useEffect(() => {
         const handleGoogleCallback = async () => {
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
@@ -245,23 +309,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             }
         };
 
-        useEffect(() => {
-            const token = localStorage.getItem('token');
-            const userStr = localStorage.getItem('user');
-
-            if (token && userStr) {
-                const user = JSON.parse(userStr);
-                setUserData(user);
-                setAuthToken(token);
-
-                if (user.roles && user.roles.length > 0) {
-                    handleSuccessfulAuth(token, user.email);
-                } else {
-                    setCurrentState(AuthModalState.GOOGLE_ROLE_SELECT);
-                }
-            }
-        }, []);
-
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
         const state = urlParams.get('state');
@@ -276,50 +323,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 console.log('Modal should be opened for auth process');
             }
         }
-
-        // Загружаем скрипт Telegram Widget
-        const loadTelegramWidget = () => {
-            if (document.querySelector('script[src*="telegram-widget"]')) {
-                return;
-            }
-
-            const script = document.createElement('script');
-            script.src = 'https://telegram.org/js/telegram-widget.js?22';
-            script.async = true;
-            script.onload = () => {
-                console.log('Telegram Widget script loaded');
-            };
-            document.body.appendChild(script);
-        };
-
-        loadTelegramWidget();
-
-        // Обработка сообщений от Telegram Widget
-        const handleTelegramAuth = (event: MessageEvent) => {
-            if (event.origin !== 'https://oauth.telegram.org') {
-                return;
-            }
-
-            try {
-                const data = event.data;
-                console.log('Telegram auth data received:', data);
-
-                if (data.event === 'auth_callback') {
-                    const authData = data.auth;
-                    handleTelegramCallback(authData);
-                }
-            } catch (err) {
-                console.error('Error processing Telegram auth:', err);
-                setError('Ошибка авторизации через Telegram');
-            }
-        };
-
-        window.addEventListener('message', handleTelegramAuth);
-
-        return () => {
-            window.removeEventListener('message', handleTelegramAuth);
-        };
-    }, [isOpen]);
+    }, [isOpen, API_BASE_URL]); // Этот эффект также должен быть отдельным
 
     // Функция для сохранения данных пользователя
     const saveUserData = (data: GoogleUserResponse | TelegramAuthResponse) => {
