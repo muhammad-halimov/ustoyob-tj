@@ -27,15 +27,34 @@ class Address
     {
         $parts = [];
 
-        if ($this->province) $parts[] = $this->province->getTitle();
-        if ($this->city) $parts[] = $this->city->getTitle();
-        if ($this->district) $parts[] = $this->district->getTitle();
-        if ($this->suburb) $parts[] = $this->suburb->getTitle();
-        if ($this->settlement) $parts[] = $this->settlement->getTitle();
-        if ($this->community) $parts[] = $this->community->getTitle();
-        if ($this->village) $parts[] = $this->village->getTitle();
+        if ($this->province) $parts[] = $this->province->getTranslations()->first()->getTitle();
+        if ($this->city) $parts[] = $this->city->getTranslations()->first()->getTitle();
+        if ($this->district) $parts[] = $this->district->getTranslations()->first()->getTitle();
+        if ($this->suburb) $parts[] = $this->suburb->getTranslations()->first()->getTitle();
+        if ($this->settlement) $parts[] = $this->settlement->getTranslations()->first()->getTitle();
+        if ($this->community) $parts[] = $this->community->getTranslations()->first()->getTitle();
+        if ($this->village) $parts[] = $this->village->getTranslations()->first()->getTitle();
 
         return !empty($parts) ? implode(', ', $parts) : 'Адрес #' . ($this->id ?? 'новый');
+    }
+
+    public function __toArray(): array
+    {
+        return [
+            'province' => $this->province?->__toArray(),
+            'district' => $this->district?->__toArray(),
+            'city' => $this->city?->__toArray(),
+            'settlement' => $this->settlement?->__toArray(),
+            'community' => $this->community?->__toArray(),
+            'village' => $this->village?->__toArray(),
+            'suburb' => $this->suburb?->__toArray(),
+        ];
+    }
+
+    public function __construct()
+    {
+        $this->users = new ArrayCollection();
+        $this->tickets = new ArrayCollection();
     }
 
     #[ORM\Id, ORM\GeneratedValue, ORM\Column]
@@ -124,12 +143,6 @@ class Address
     #[Ignore]
     private Collection $tickets;
 
-    public function __construct()
-    {
-        $this->users = new ArrayCollection();
-        $this->tickets = new ArrayCollection();
-    }
-
     public function getId(): ?int { return $this->id; }
     public function getProvince(): ?Province { return $this->province; }
     public function setProvince(?Province $province): self { $this->province = $province; return $this; }
@@ -145,18 +158,7 @@ class Address
     public function setVillage(?Village $village): self { $this->village = $village; return $this; }
     public function getSuburb(): ?Suburb { return $this->suburb; }
     public function setSuburb(?Suburb $suburb): self { $this->suburb = $suburb; return $this; }
-    public function __toArray(): array
-    {
-        return [
-            'province' => $this->province?->toArray(),
-            'district' => $this->district?->toArray(),
-            'city' => $this->city?->toArray(),
-            'settlement' => $this->settlement?->toArray(),
-            'community' => $this->community?->toArray(),
-            'village' => $this->village?->toArray(),
-            'suburb' => $this->suburb?->toArray(),
-        ];
-    }
+
     /**
      * @return Collection<int, User>
      */
@@ -186,7 +188,6 @@ class Address
     {
         return $this->tickets;
     }
-
     public function addTicket(Ticket $ticket): static
     {
         if (!$this->tickets->contains($ticket)) {
@@ -196,7 +197,6 @@ class Address
 
         return $this;
     }
-
     public function removeTicket(Ticket $ticket): static
     {
         if ($this->tickets->removeElement($ticket)) {

@@ -2,57 +2,52 @@
 
 namespace App\DataFixture\Geography;
 
-use App\Entity\Geography\City\City;
 use App\Entity\Geography\District\District;
-use App\Entity\Ticket\Ticket;
+use App\Entity\Geography\Translation;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
+use Doctrine\Common\Collections\ArrayCollection;
+use ReflectionClass;
 
 class DistrictFixture extends Fixture
 {
     public function load(ObjectManager $manager): void
     {
-        $rudaki = new District();
-        $huroson = new District();
-        $sino = new District();
-        $schevchenko = new District();
-
-        $districts = [
-            $rudaki,
-            $huroson,
-            $sino,
-            $schevchenko,
+        $districtsData = [
+            ['Rudaki', ['tj'=>'Рудаки','ru'=>'Рудаки','eng'=>'Rudaki'], 'Район Рудаки, Вахдат', 'vahdat'],
+            ['Huroson', ['tj'=>'Хуросон','ru'=>'Хуросон','eng'=>'Huroson'], 'Район Хуросон, Вахдат', 'vahdat'],
+            ['Sino', ['tj'=>'Сино','ru'=>'Сино','eng'=>'Sino'], 'Район Сино, Душанбе', 'dushanbe'],
+            ['Schevchenko', ['tj'=>'Шевченко','ru'=>'Шевченко','eng'=>'Schevchenko'], 'Район Шевченко, Душанбе', 'dushanbe'],
         ];
 
-        $rudaki->setTitle("Рудаки");
-        $rudaki->setDescription("Район Рудаки, Вахдат");
+        foreach ($districtsData as [$ref, $translations, $desc, $cityRef]) {
+            $district = new District();
+            $district->setDescription($desc);
 
-        $huroson->setTitle("Хуросон");
-        $huroson->setDescription("Район Хуросон, Вахдат");
+            $reflection = new ReflectionClass($district);
+            /** @noinspection PhpStatementHasEmptyBodyInspection */
+            while (!$reflection->hasProperty('translations') && $reflection = $reflection->getParentClass());
+            $property = $reflection->getProperty('translations');
+            $property->setValue($district, new ArrayCollection());
 
-        $sino->setTitle("Сино");
-        $sino->setDescription("Район Сино, Душанбе");
+            foreach ($translations as $locale => $title) {
+                $translation = (new Translation())
+                    ->setTitle($title)
+                    ->setLocale($locale)
+                    ->setAddress($district);
 
-        $schevchenko->setTitle("Шевченко");
-        $schevchenko->setDescription("Район Шевченко, Душанбе");
+                $district->addTranslation($translation);
+            }
 
-        foreach ($districts as $district) {
             $manager->persist($district);
+            $this->addReference(strtolower($ref), $district);
         }
-
-        $this->addReference('rudaki', $rudaki);
-        $this->addReference('huroson', $huroson);
-        $this->addReference('sino', $sino);
-        $this->addReference('schevchenko', $schevchenko);
 
         $manager->flush();
     }
 
     public function getDependencies(): array
     {
-        return [
-            City::class,
-            Ticket::class,
-        ];
+        return [CityFixture::class];
     }
 }

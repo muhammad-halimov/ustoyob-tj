@@ -2,13 +2,13 @@
 
 namespace App\Controller\Admin\Geography\District;
 
+use App\Controller\Admin\Geography\TranslationCrudController;
 use App\Entity\Geography\District\Settlement;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
 class SettlementCrudController extends AbstractCrudController
 {
@@ -22,9 +22,11 @@ class SettlementCrudController extends AbstractCrudController
         yield IdField::new('id')
             ->hideOnForm();
 
-        yield TextField::new('title', 'Название')
+        yield CollectionField::new('translations', 'Название')
+            ->useEntryCrudForm(TranslationCrudController::class)
+            ->setFormTypeOptions(['by_reference' => false])
             ->setColumns(12)
-            ->setRequired(true);
+            ->setRequired(false);
 
         yield TextEditorField::new('description', 'Описание')
             ->setColumns(12);

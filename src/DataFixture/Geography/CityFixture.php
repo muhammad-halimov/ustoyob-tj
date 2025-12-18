@@ -3,51 +3,81 @@
 namespace App\DataFixture\Geography;
 
 use App\Entity\Geography\City\City;
+use App\Entity\Geography\Translation;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
+use Doctrine\Common\Collections\ArrayCollection;
+use ReflectionClass;
 
 class CityFixture extends Fixture
 {
     public function load(ObjectManager $manager): void
     {
-        $vahdat = new City();
-        $dushanbe = new City();
-        $hujand = new City();
-        $bohtar = new City();
-        $murghob = new City();
-
-        $cities = [
-            $vahdat,
-            $dushanbe,
-            $hujand,
-            $bohtar,
-            $murghob,
+        $citiesData = [
+            'Vahdat' => [
+                'translations' => [
+                    'tj' => 'Ваҳдат',
+                    'ru' => 'Вахдат',
+                    'eng' => 'Vahdat',
+                ],
+                'description' => 'Вахдат, ГРРП',
+            ],
+            'Dushanbe' => [
+                'translations' => [
+                    'tj' => 'Душанбе',
+                    'ru' => 'Душанбе',
+                    'eng' => 'Dushanbe',
+                ],
+                'description' => 'Душанбе, республиканская столица',
+            ],
+            'Hujand' => [
+                'translations' => [
+                    'tj' => 'Хуҷанд',
+                    'ru' => 'Ходжент',
+                    'eng' => 'Hujand',
+                ],
+                'description' => 'Ходжент, Согдийская область',
+            ],
+            'Bohtar' => [
+                'translations' => [
+                    'tj' => 'Бохтар',
+                    'ru' => 'Бохтар',
+                    'eng' => 'Bohtar',
+                ],
+                'description' => 'Бохтар, Хатлонская область',
+            ],
+            'Murghob' => [
+                'translations' => [
+                    'tj' => 'Мурғоб',
+                    'ru' => 'Мургаб',
+                    'eng' => 'Murghob',
+                ],
+                'description' => 'Мургаб, ГБАО',
+            ],
         ];
 
-        $vahdat->setTitle("Вахдат");
-        $vahdat->setDescription("Вахдат, ГРРП");
+        foreach ($citiesData as $key => $data) {
+            $city = new City();
+            $city->setDescription($data['description']);
 
-        $dushanbe->setTitle("Душанбе");
-        $dushanbe->setDescription("Душанбе, республиканская столица");
+            $reflection = new ReflectionClass($city);
+            /** @noinspection PhpStatementHasEmptyBodyInspection */
+            while (!$reflection->hasProperty('translations') && $reflection = $reflection->getParentClass());
+            $property = $reflection->getProperty('translations');
+            $property->setValue($city, new ArrayCollection());
 
-        $hujand->setTitle("Ходжент");
-        $hujand->setDescription("Ходжент, Согдийская область");
+            foreach ($data['translations'] as $locale => $title) {
+                $translation = (new Translation())
+                    ->setTitle($title)
+                    ->setLocale($locale)
+                    ->setAddress($city);
 
-        $bohtar->setTitle("Бохтар");
-        $bohtar->setDescription("Бохтар, Хатлонская область");
+                $city->addTranslation($translation);
+            }
 
-        $murghob->setTitle("Мургаб");
-        $murghob->setDescription("Мургаб, ГБАО");
-
-        foreach ($cities as $city) {
             $manager->persist($city);
+            $this->addReference(strtolower($key), $city);
         }
-
-        $this->addReference('vahdat', $vahdat);
-        $this->addReference('dushanbe', $dushanbe);
-        $this->addReference('hujand', $hujand);
-        $this->addReference('bohtar', $bohtar);
-        $this->addReference('murghob', $murghob);
 
         $manager->flush();
     }

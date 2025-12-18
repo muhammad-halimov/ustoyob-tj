@@ -6,6 +6,8 @@ use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use App\Controller\Api\Filter\Geography\City\CitiesFilterController;
+use App\Controller\Api\Filter\Geography\City\CityFilterController;
 use App\Entity\Geography\AddressComponent;
 use App\Entity\Geography\Province;
 use App\Repository\CityRepository;
@@ -13,11 +15,10 @@ use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
-
-use Symfony\Component\Serializer\Attribute\Groups;
-use Vich\UploaderBundle\Mapping\Attribute as Vich;
-use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\HttpFoundation\File\File;
+use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Validator\Constraints as Assert;
+use Vich\UploaderBundle\Mapping\Attribute as Vich;
 
 #[ORM\Entity(repositoryClass: CityRepository::class)]
 #[Vich\Uploadable]
@@ -26,9 +27,11 @@ use Symfony\Component\HttpFoundation\File\File;
         new Get(
             uriTemplate: '/cities/{id}',
             requirements: ['id' => '\d+'],
+            controller: CityFilterController::class,
         ),
         new GetCollection(
             uriTemplate: '/cities',
+            controller: CitiesFilterController::class,
         ),
     ],
     normalizationContext: [
@@ -39,6 +42,11 @@ use Symfony\Component\HttpFoundation\File\File;
 )]
 class City extends AddressComponent
 {
+    public function __construct()
+    {
+        $this->suburbs = new ArrayCollection();
+    }
+
     #[Vich\UploadableField(mapping: 'city_photos', fileNameProperty: 'image')]
     #[Assert\Image(mimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])]
     private ?File $imageFile = null;
@@ -73,11 +81,6 @@ class City extends AddressComponent
         'districts:read',
     ])]
     private Collection $suburbs;
-
-    public function __construct()
-    {
-        $this->suburbs = new ArrayCollection();
-    }
 
     public function getImage(): ?string
     {

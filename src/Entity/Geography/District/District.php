@@ -5,6 +5,8 @@ use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use App\Controller\Api\Filter\Geography\District\DistrictFilterController;
+use App\Controller\Api\Filter\Geography\District\DistrictsFilterController;
 use App\Entity\Geography\AddressComponent;
 use App\Entity\Geography\Province;
 use App\Repository\DistrictRepository;
@@ -25,9 +27,11 @@ use Symfony\Component\HttpFoundation\File\File;
         new Get(
             uriTemplate: '/districts/{id}',
             requirements: ['id' => '\d+'],
+            controller: DistrictFilterController::class,
         ),
         new GetCollection(
             uriTemplate: '/districts',
+            controller: DistrictsFilterController::class,
         ),
     ],
     normalizationContext: [

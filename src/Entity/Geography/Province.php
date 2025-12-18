@@ -4,6 +4,8 @@ namespace App\Entity\Geography;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use App\Controller\Api\Filter\Geography\Province\ProvinceFilterController;
+use App\Controller\Api\Filter\Geography\Province\ProvincesFilterController;
 use App\Entity\Geography\City\City;
 use App\Entity\Geography\District\District;
 use App\Repository\ProvinceRepository;
@@ -18,9 +20,11 @@ use Symfony\Component\Serializer\Attribute\Groups;
         new Get(
             uriTemplate: '/provinces/{id}',
             requirements: ['id' => '\d+'],
+            controller: ProvinceFilterController::class,
         ),
         new GetCollection(
             uriTemplate: '/provinces',
+            controller: ProvincesFilterController::class,
         ),
     ],
     normalizationContext: [
@@ -31,6 +35,12 @@ use Symfony\Component\Serializer\Attribute\Groups;
 )]
 class Province extends AddressComponent
 {
+    public function __construct()
+    {
+        $this->cities = new ArrayCollection();
+        $this->districts = new ArrayCollection();
+    }
+
     public const array PROVINCES = [
         'Душанбе' => 'Душанбе',
         'ГРРП' => 'ГРРП',
@@ -56,12 +66,6 @@ class Province extends AddressComponent
         'provinces:read',
     ])]
     private Collection $districts;
-
-    public function __construct()
-    {
-        $this->cities = new ArrayCollection();
-        $this->districts = new ArrayCollection();
-    }
 
     /**
      * @return Collection<int, City>

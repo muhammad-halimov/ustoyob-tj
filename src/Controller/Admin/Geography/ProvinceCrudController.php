@@ -10,7 +10,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
@@ -61,10 +61,11 @@ class ProvinceCrudController extends AbstractCrudController
         yield IdField::new('id')
             ->hideOnForm();
 
-        yield ChoiceField::new('title', 'Провинция')
+        yield CollectionField::new('translations', 'Название')
+            ->useEntryCrudForm(TranslationCrudController::class)
+            ->setFormTypeOptions(['by_reference' => false])
             ->setColumns(4)
-            ->setChoices(Province::PROVINCES)
-            ->setRequired(true);
+            ->setRequired(false);
 
         yield AssociationField::new('cities', 'Города')
             ->setColumns(4)

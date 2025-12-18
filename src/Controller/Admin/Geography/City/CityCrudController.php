@@ -3,6 +3,7 @@
 namespace App\Controller\Admin\Geography\City;
 
 use App\Controller\Admin\Field\VichImageField;
+use App\Controller\Admin\Geography\TranslationCrudController;
 use App\Entity\Geography\City\City;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
@@ -13,7 +14,6 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
 class CityCrudController extends AbstractCrudController
 {
@@ -58,9 +58,11 @@ class CityCrudController extends AbstractCrudController
         yield IdField::new('id')
             ->hideOnForm();
 
-        yield TextField::new('title', 'Название')
+        yield CollectionField::new('translations', 'Название')
+            ->useEntryCrudForm(TranslationCrudController::class)
+            ->setFormTypeOptions(['by_reference' => false])
             ->setColumns(6)
-            ->setRequired(true);
+            ->setRequired(false);
 
         yield AssociationField::new('province', 'Провинция')
             ->setColumns(6);
