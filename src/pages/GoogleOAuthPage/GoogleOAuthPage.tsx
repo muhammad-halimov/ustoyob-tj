@@ -1,26 +1,33 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     setAuthToken,
     setAuthTokenExpiry,
     setUserData,
     setUserEmail,
-    setUserRole,
+    setUserRole
 } from '../../utils/auth';
 
-const GoogleOAuthPage: React.FC = () => {
+function GoogleOAuthPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     useEffect(() => {
         const processGoogleCallback = async () => {
+            console.log('GoogleOAuthPage: Processing callback...');
+
             const code = searchParams.get('code');
             const state = searchParams.get('state');
             const error = searchParams.get('error');
+            const scope = searchParams.get('scope');
+
+            console.log('Received params:', { code: !!code, state: !!state, error, scope });
 
             // Очищаем URL сразу
-            window.history.replaceState({}, '', window.location.pathname);
+            if (code || error) {
+                window.history.replaceState({}, '', window.location.pathname);
+            }
 
             if (error) {
                 console.error('Google OAuth error:', error);
@@ -35,6 +42,8 @@ const GoogleOAuthPage: React.FC = () => {
             }
 
             try {
+                console.log('Sending Google callback to server...');
+
                 // 1. Отправляем код на сервер для получения токена
                 const response = await fetch(`${API_BASE_URL}/api/auth/google/callback`, {
                     method: 'POST',
@@ -42,15 +51,22 @@ const GoogleOAuthPage: React.FC = () => {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json',
                     },
-                    body: JSON.stringify({ code, state })
+                    body: JSON.stringify({
+                        code,
+                        state,
+                        // Можно добавить scope если нужно
+                        scope: scope || ''
+                    })
                 });
 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    throw new Error(`HTTP error! status: ${response.status}, ${errorText}`);
+                    console.error('Server error response:', errorText);
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
                 const data = await response.json();
+                console.log('Server response data:', data);
 
                 if (data.token && data.user) {
                     // 2. Сохраняем данные пользователя
@@ -78,21 +94,26 @@ const GoogleOAuthPage: React.FC = () => {
                         expiryTime.setHours(expiryTime.getHours() + 1);
                         setAuthTokenExpiry(expiryTime.toISOString());
 
+                        // Имитируем событие login
+                        window.dispatchEvent(new Event('login'));
+
                         // Перенаправляем на главную
+                        console.log('Google auth successful, redirecting to home...');
                         navigate('/', { replace: true });
                     } else {
                         // Нет роли - показываем выбор роли
+                        console.log('User needs role selection');
                         // Сохраняем данные для выбора роли
                         sessionStorage.setItem('googleUserData', JSON.stringify(data.user));
                         sessionStorage.setItem('googleAuthToken', data.token);
                         navigate('/?google_role_select=true', { replace: true });
                     }
                 } else {
-                    throw new Error('Invalid response format');
+                    throw new Error('Invalid response format: missing token or user data');
                 }
             } catch (err) {
                 console.error('Google OAuth processing error:', err);
-                navigate('/?error=oauth_failed');
+                navigate('/?error=oauth_failed&message=' + encodeURIComponent(err instanceof Error ? err.message : 'Unknown error'));
             }
         };
 
