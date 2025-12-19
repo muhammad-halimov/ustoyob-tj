@@ -2,8 +2,8 @@
 
 namespace App\Controller\Api\Filter\Geography\City;
 
+use App\Entity\Extra\Translation;
 use App\Entity\Geography\City\City;
-use App\Entity\Geography\Translation;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;

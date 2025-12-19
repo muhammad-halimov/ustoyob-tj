@@ -2,8 +2,8 @@
 
 namespace App\Repository\User;
 
+use App\Entity\Extra\BlackList;
 use App\Entity\User;
-use App\Entity\User\BlackList;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 

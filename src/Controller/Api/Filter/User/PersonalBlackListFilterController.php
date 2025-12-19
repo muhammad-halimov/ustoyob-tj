@@ -2,8 +2,8 @@
 
 namespace App\Controller\Api\Filter\User;
 
+use App\Entity\Extra\Favorite;
 use App\Entity\User;
-use App\Entity\User\Favorite;
 use App\Repository\User\BlackListRepository;
 use App\Service\Extra\AccessService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;

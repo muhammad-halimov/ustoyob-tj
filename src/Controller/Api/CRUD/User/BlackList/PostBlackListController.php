@@ -2,9 +2,9 @@
 
 namespace App\Controller\Api\CRUD\User\BlackList;
 
+use App\Entity\Extra\BlackList;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
-use App\Entity\User\BlackList;
 use App\Repository\User\BlackListRepository;
 use App\Service\Extra\AccessService;
 use App\Service\Extra\ExtractIriService;

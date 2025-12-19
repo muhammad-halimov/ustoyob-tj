@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Entity\User;
+namespace App\Entity\Extra;
 
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
@@ -18,8 +18,8 @@ use App\Entity\User;
 use App\Repository\User\BlackListRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-use Symfony\Component\Serializer\Attribute\Groups;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 
 #[ORM\Entity(repositoryClass: BlackListRepository::class)]
 #[ORM\HasLifecycleCallbacks]

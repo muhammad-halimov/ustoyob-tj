@@ -2,9 +2,9 @@
 
 namespace App\Controller\Api\CRUD\User\Favorite;
 
+use App\Entity\Extra\Favorite;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
-use App\Entity\User\Favorite;
 use App\Repository\User\FavoriteRepository;
 use App\Service\Extra\AccessService;
 use App\Service\Extra\ExtractIriService;

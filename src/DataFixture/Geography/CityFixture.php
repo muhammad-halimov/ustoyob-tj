@@ -2,11 +2,11 @@
 
 namespace App\DataFixture\Geography;
 
+use App\Entity\Extra\Translation;
 use App\Entity\Geography\City\City;
-use App\Entity\Geography\Translation;
 use Doctrine\Bundle\FixturesBundle\Fixture;
-use Doctrine\Persistence\ObjectManager;
 use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Persistence\ObjectManager;
 use ReflectionClass;
 
 class CityFixture extends Fixture

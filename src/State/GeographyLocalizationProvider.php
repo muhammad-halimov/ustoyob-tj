@@ -4,13 +4,14 @@ namespace App\State;
 
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
+use App\Entity\Extra\Translation;
 use App\Entity\Ticket\Ticket;
-use App\Entity\Geography\Translation;
+use App\Entity\User;
 use App\Service\Extra\LocalizationService;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
-readonly class TicketGeographyLocalizationProvider implements ProviderInterface
+readonly class GeographyLocalizationProvider implements ProviderInterface
 {
     public function __construct(
         private ProviderInterface $decorated,
@@ -32,12 +33,12 @@ readonly class TicketGeographyLocalizationProvider implements ProviderInterface
 
         // Применяем локализацию к результату
         if (is_iterable($result)) {
-            foreach ($result as $ticket) {
-                if ($ticket instanceof Ticket) {
-                    $this->localizationService->apply($ticket, $locale);
+            foreach ($result as $entity) {
+                if ($entity instanceof Ticket || $entity instanceof User) {
+                    $this->localizationService->apply($entity, $locale);
                 }
             }
-        } elseif ($result instanceof Ticket) {
+        } elseif ($result instanceof Ticket || $result instanceof User) {
             $this->localizationService->apply($result, $locale);
         }
 

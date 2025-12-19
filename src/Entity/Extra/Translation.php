@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Entity\Geography;
+namespace App\Entity\Extra;
 
+use App\Entity\Geography\AddressComponent;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Repository\Geography\TranslationRepository;

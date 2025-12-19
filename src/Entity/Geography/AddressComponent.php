@@ -1,6 +1,7 @@
 <?php
 namespace App\Entity\Geography;
 
+use App\Entity\Extra\Translation;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use Doctrine\Common\Collections\ArrayCollection;

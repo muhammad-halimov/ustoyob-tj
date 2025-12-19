@@ -21,13 +21,13 @@ use App\Dto\Appeal\Photo\AppealPhotoInput;
 use App\Dto\Ticket\TicketInput;
 use App\Entity\Appeal\AppealTypes\AppealTicket;
 use App\Entity\Chat\Chat;
+use App\Entity\Extra\BlackList;
+use App\Entity\Extra\Favorite;
 use App\Entity\Geography\Address;
 use App\Entity\Review\Review;
 use App\Entity\User;
-use App\Entity\User\BlackList;
-use App\Entity\User\Favorite;
 use App\Repository\TicketRepository;
-use App\State\TicketGeographyLocalizationProvider;
+use App\State\GeographyLocalizationProvider;
 use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -48,7 +48,7 @@ use Symfony\Component\Validator\Constraints as Assert;
         ),
         new GetCollection(
             uriTemplate: '/tickets',
-            provider: TicketGeographyLocalizationProvider::class,
+            provider: GeographyLocalizationProvider::class,
         ),
         new Post(
             uriTemplate: '/tickets',

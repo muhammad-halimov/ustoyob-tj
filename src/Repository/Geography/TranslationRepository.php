@@ -2,7 +2,7 @@
 
 namespace App\Repository\Geography;
 
-use App\Entity\Geography\Translation;
+use App\Entity\Extra\Translation;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 

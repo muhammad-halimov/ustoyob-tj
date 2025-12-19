@@ -32,6 +32,9 @@ use App\Entity\Appeal\AppealTypes\AppealTicket;
 use App\Entity\Chat\Chat;
 use App\Entity\Chat\ChatImage;
 use App\Entity\Chat\ChatMessage;
+use App\Entity\Extra\BlackList;
+use App\Entity\Extra\Favorite;
+use App\Entity\Extra\OAuthType;
 use App\Entity\Gallery\Gallery;
 use App\Entity\Geography\Address;
 use App\Entity\Review\Review;
@@ -41,14 +44,11 @@ use App\Entity\TechSupport\TechSupportMessage;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
-use App\Entity\User\BlackList;
 use App\Entity\User\Education;
-use App\Entity\User\Favorite;
-use App\Entity\User\OAuthType;
 use App\Entity\User\Occupation;
 use App\Entity\User\SocialNetwork;
 use App\Repository\UserRepository;
-use App\State\UserGeographyLocalizationProvider;
+use App\State\GeographyLocalizationProvider;
 use App\Validator\Constraints as AppAssert;
 use DateTime;
 use Deprecated;
@@ -91,7 +91,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
                 'groups' => ['clients:read', 'masters:read'],
                 'skip_null_values' => false,
             ],
-            provider: UserGeographyLocalizationProvider::class,
+            provider: GeographyLocalizationProvider::class,
         ),
         new GetCollection(
             uriTemplate: '/users',
@@ -99,7 +99,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
                 'groups' => ['clients:read', 'masters:read'],
                 'skip_null_values' => false,
             ],
-            provider: UserGeographyLocalizationProvider::class,
+            provider: GeographyLocalizationProvider::class,
         ),
         new Post(
             uriTemplate: '/users',

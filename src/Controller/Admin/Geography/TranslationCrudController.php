@@ -2,7 +2,7 @@
 
 namespace App\Controller\Admin\Geography;
 
-use App\Entity\Geography\Translation;
+use App\Entity\Extra\Translation;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;

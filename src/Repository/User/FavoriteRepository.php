@@ -2,8 +2,8 @@
 
 namespace App\Repository\User;
 
+use App\Entity\Extra\Favorite;
 use App\Entity\User;
-use App\Entity\User\Favorite;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 

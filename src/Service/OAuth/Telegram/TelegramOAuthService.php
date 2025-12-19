@@ -3,8 +3,8 @@
 namespace App\Service\OAuth\Telegram;
 
 use App\Dto\OAuth\TelegramCallbackInput;
+use App\Entity\Extra\OAuthType;
 use App\Entity\User;
-use App\Entity\User\OAuthType;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;

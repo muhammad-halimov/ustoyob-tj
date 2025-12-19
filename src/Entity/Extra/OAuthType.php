@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Entity\User;
+namespace App\Entity\Extra;
 
 use App\Entity\User;
 use App\Repository\User\OAuthTypeRepository;

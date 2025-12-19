@@ -2,8 +2,8 @@
 
 namespace App\Service\OAuth\Google;
 
+use App\Entity\Extra\OAuthType;
 use App\Entity\User;
-use App\Entity\User\OAuthType;
 use App\Service\OAuth\AbstractOAuthService;
 use App\Service\OAuth\Interface\OAuthServiceInterface;
 use DateTime;
