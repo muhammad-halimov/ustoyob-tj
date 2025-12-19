@@ -29,12 +29,10 @@ use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Random\RandomException;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
-use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 class UserCrudController extends AbstractCrudController
 {
     public function __construct(
-        private readonly UserPasswordHasherInterface $passwordEncoder,
         private readonly AccountConfirmationService  $accountConfirmationService,
     ){}
 
@@ -115,26 +113,6 @@ class UserCrudController extends AbstractCrudController
         return $currentPage;
     }
 
-    public function persistEntity(EntityManagerInterface $entityManager, $entityInstance): void
-    {
-        if ($entityInstance instanceof User && $entityInstance->getPlainPassword()) {
-            $this->addFlash('info', 'Пароль изменен и сохранен!');
-            $entityInstance->setPassword($this->passwordEncoder->hashPassword($entityInstance, $entityInstance->getPlainPassword()));
-        }
-
-        parent::persistEntity($entityManager, $entityInstance);
-    }
-
-    public function updateEntity(EntityManagerInterface $entityManager, $entityInstance): void
-    {
-        if ($entityInstance instanceof User && $entityInstance->getPlainPassword()) {
-            $this->addFlash('info', 'Пароль изменен и сохранен!');
-            $entityInstance->setPassword($this->passwordEncoder->hashPassword($entityInstance, $entityInstance->getPlainPassword()));
-        }
-
-        parent::updateEntity($entityManager, $entityInstance);
-    }
-
     public function configureFields(string $pageName): iterable
     {
         yield IdField::new('id')
@@ -189,20 +167,9 @@ class UserCrudController extends AbstractCrudController
             ->setChoices(User::GENDERS)
             ->setColumns(4);
 
-        $plainPassword = TextField::new('plainPassword')
-            ->setRequired(false)
-            ->onlyOnForms();
-
-        if (crud::PAGE_NEW === $pageName) {
-            $plainPassword->setLabel('Пароль')
-                ->setRequired(true)
-                ->setColumns(4);
-        } else {
-            $plainPassword->setLabel('Новый пароль')
-                ->setColumns(4);
-        }
-
-        yield $plainPassword;
+        yield TextField::new('password', 'Пароль')
+            ->setColumns(4)
+            ->hideOnIndex();
 
         yield TelephoneField::new('phone1', 'Телефон 1')
             ->setColumns(2)
@@ -268,9 +235,6 @@ class UserCrudController extends AbstractCrudController
         yield ExternalImageField::new('imageExternalUrl', 'Фото профиля (внешняя ссылка)')
             ->hideOnIndex()
             ->setColumns(6);
-
-        yield TextField::new('password', 'Пароль')
-            ->onlyOnDetail();
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
             ->hideOnForm();
