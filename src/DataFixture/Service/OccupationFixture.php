@@ -2,40 +2,65 @@
 
 namespace App\DataFixture\Service;
 
+use App\Entity\Extra\Translation;
 use App\Entity\User\Occupation;
 use Doctrine\Bundle\FixturesBundle\Fixture;
+use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Persistence\ObjectManager;
+use ReflectionClass;
 
 class OccupationFixture extends Fixture
 {
     public function load(ObjectManager $manager): void
     {
-        $santexnik = new Occupation();
-        $programmer = new Occupation();
-        $metalist = new Occupation();
-
-        $occupations = [
-            $santexnik,
-            $programmer,
-            $metalist
+        $occupationsData = [
+            'santexnik' => [
+                'translations' => [
+                    'tj' => 'Сантехники',
+                    'ru' => 'Сантехник',
+                    'eng' => 'Plumber',
+                ],
+                'description' => "Кори сантехникӣ\nСантехнические работы\nPlumbing works",
+            ],
+            'programmer' => [
+                'translations' => [
+                    'tj' => 'Барномасоз',
+                    'ru' => 'Программист',
+                    'eng' => 'Programmer',
+                ],
+                'description' => "Барномасозӣ, амнияти кибернетикӣ, devops\nПрограммирование, кибербезопасность, devops\nProgramming, cybersecurity, devops",
+            ],
+            'metalist' => [
+                'translations' => [
+                    'tj' => 'Слесар',
+                    'ru' => 'Слесарь',
+                    'eng' => 'Metalworker',
+                ],
+                'description' => "Кор бо металл ва механизмҳо\nРаботы с металлом и механизмами\nMetal and mechanical works",
+            ],
         ];
 
-        $santexnik->setTitle("Сантехник");
-        $santexnik->setDescription("Сантехнические работы");
+        foreach ($occupationsData as $key => $data) {
+            $occupation = new Occupation();
 
-        $programmer->setTitle("Программист");
-        $programmer->setDescription("Программирование, кибербезопасность, devops");
+            $reflection = new ReflectionClass($occupation);
+            /** @noinspection PhpStatementHasEmptyBodyInspection */
+            while (!$reflection->hasProperty('translations') && $reflection = $reflection->getParentClass());
+            $property = $reflection->getProperty('translations');
+            $property->setValue($occupation, new ArrayCollection());
 
-        $metalist->setTitle("Слесарь");
-        $metalist->setDescription("Работы с металлом и механизмами");
+            foreach ($data['translations'] as $locale => $title) {
+                $translation = (new Translation())
+                    ->setTitle($title)
+                    ->setLocale($locale)
+                    ->setOccupation($occupation->setDescription($data['description']));
 
-        foreach ($occupations as $occupation) {
+                $occupation->addTranslation($translation);
+            }
+
             $manager->persist($occupation);
+            $this->addReference($key, $occupation);
         }
-
-        $this->addReference('santexnik', $santexnik);
-        $this->addReference('programmer', $programmer);
-        $this->addReference('metalist', $metalist);
 
         $manager->flush();
     }

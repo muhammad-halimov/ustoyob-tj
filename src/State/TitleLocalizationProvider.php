@@ -5,13 +5,12 @@ namespace App\State;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\Entity\Extra\Translation;
-use App\Entity\Ticket\Ticket;
-use App\Entity\User;
+use App\Entity\User\Occupation;
 use App\Service\Extra\LocalizationService;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
-readonly class GeographyLocalizationProvider implements ProviderInterface
+readonly class TitleLocalizationProvider implements ProviderInterface
 {
     public function __construct(
         private ProviderInterface $decorated,
@@ -21,7 +20,6 @@ readonly class GeographyLocalizationProvider implements ProviderInterface
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
     {
-        // Получаем данные от стандартного провайдера (с применением всех фильтров)
         $result = $this->decorated->provide($operation, $uriVariables, $context);
 
         $request = $this->requestStack->getCurrentRequest();
@@ -31,16 +29,18 @@ readonly class GeographyLocalizationProvider implements ProviderInterface
             throw new NotFoundHttpException("Locale not found");
         }
 
-        // Применяем локализацию к результату
-        if (is_iterable($result)) {
+        if (is_iterable($result))
             foreach ($result as $entity) {
-                if ($entity instanceof Ticket || $entity instanceof User) {
-                    $this->localizationService->applyForUserOrTicket($entity, $locale);
+                $this->localizationService->localizeEntity($entity, $locale);
+
+                if ($entity instanceof Occupation) {
+                    foreach ($entity->getCategories() as $category) {
+                        $this->localizationService->localizeEntity($category, $locale);
+                    }
+                } elseif ($entity->getOccupations() !== null) {
+                    $this->localizationService->localizeEntity($entity->getOccupations(), $locale);
                 }
             }
-        } elseif ($result instanceof Ticket || $result instanceof User) {
-            $this->localizationService->applyForUserOrTicket($result, $locale);
-        }
 
         return $result;
     }

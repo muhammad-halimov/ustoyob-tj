@@ -2,43 +2,73 @@
 
 namespace App\DataFixture\Service;
 
+use App\Entity\Extra\Translation;
 use App\Entity\Ticket\Category;
 use App\Entity\Ticket\Ticket;
 use Doctrine\Bundle\FixturesBundle\Fixture;
+use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Persistence\ObjectManager;
+use ReflectionClass;
 
 class CategoryFixture extends Fixture
 {
     public function load(ObjectManager $manager): void
     {
-        $santexnika = new Category();
-        $it = new Category();
-        $beauty = new Category();
-
-        $categories = [
-            $santexnika,
-            $it,
-            $beauty
+        $categoriesData = [
+            'santexnika' => [
+                'translations' => [
+                    'tj' => 'Сантехника',
+                    'ru' => 'Сантехника',
+                    'eng' => 'Plumbing',
+                ],
+                'description' => "Кори сантехникӣ\nСантехнические работы\nPlumbing works",
+                'ticket' => 'ticket',
+            ],
+            'it' => [
+                'translations' => [
+                    'tj' => 'ТИ',
+                    'ru' => 'IT',
+                    'eng' => 'IT',
+                ],
+                'description' => "Барномасозӣ, амнияти кибернетикӣ, devops\nПрограммирование, кибербезопасность, devops\nProgramming, cybersecurity, devops",
+                'ticket' => 'service',
+            ],
+            'beauty' => [
+                'translations' => [
+                    'tj' => 'Зебоӣ ва саломатӣ',
+                    'ru' => 'Красота и здоровье',
+                    'eng' => 'Beauty and Health',
+                ],
+                'description' => "Хизматҳои зебоӣ ва саломатӣ\nУслуги красоты и здоровья\nBeauty and health services",
+                'ticket' => null,
+            ],
         ];
 
-        $santexnika->setTitle("Сантехника");
-        $santexnika->setDescription("Сантехнические работы");
-        $santexnika->addUserTicket($this->getReference('ticket', Ticket::class));
+        foreach ($categoriesData as $key => $data) {
+            $category = new Category();
 
-        $it->setTitle("IT");
-        $it->setDescription("Программирование, кибербезопасность, devops");
-        $it->addUserTicket($this->getReference('service', Ticket::class));
+            if ($data['ticket'] !== null) {
+                $category->addUserTicket($this->getReference($data['ticket'], Ticket::class));
+            }
 
-        $beauty->setTitle("Красота и здоровье");
-        $beauty->setDescription("Красота и здоровье");
+            $reflection = new ReflectionClass($category);
+            /** @noinspection PhpStatementHasEmptyBodyInspection */
+            while (!$reflection->hasProperty('translations') && $reflection = $reflection->getParentClass());
+            $property = $reflection->getProperty('translations');
+            $property->setValue($category, new ArrayCollection());
 
-        foreach ($categories as $category) {
+            foreach ($data['translations'] as $locale => $title) {
+                $translation = (new Translation())
+                    ->setTitle($title)
+                    ->setLocale($locale)
+                    ->setCategory($category->setDescription($data['description']));
+
+                $category->addTranslation($translation);
+            }
+
             $manager->persist($category);
+            $this->addReference($key, $category);
         }
-
-        $this->addReference('santexnika', $santexnika);
-        $this->addReference('it', $it);
-        $this->addReference('beauty', $beauty);
 
         $manager->flush();
     }

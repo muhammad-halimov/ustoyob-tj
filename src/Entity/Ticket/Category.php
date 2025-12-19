@@ -14,6 +14,7 @@ use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User\Occupation;
 use App\Repository\CategoryRepository;
+use App\State\TitleLocalizationProvider;
 use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -33,6 +34,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
         new Get(
             uriTemplate: '/categories/{id}',
             requirements: ['id' => '\d+'],
+            provider: TitleLocalizationProvider::class,
         ),
         new GetCollection(
             uriTemplate: '/categories',
@@ -41,7 +43,8 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
             uriTemplate: '/categories',
             security:
                 "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER')"
+                 is_granted('ROLE_MASTER')",
+            provider: TitleLocalizationProvider::class,
         )
     ],
     normalizationContext: [
@@ -50,14 +53,24 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
     ],
     paginationEnabled: false,
 )]
-#[ApiFilter(SearchFilter::class, properties: ['occupations', 'description', 'title'])]
+#[ApiFilter(SearchFilter::class, properties: ['occupations', 'description' => 'partial', 'title'])]
 class Category
 {
     use UpdatedAtTrait, CreatedAtTrait;
 
     public function __toString(): string
     {
-        return $this->title ?? "Category #$this->id";
+        if ($this->translations->isEmpty()) return "Category #$this->id";
+
+        $titles = [];
+
+        foreach ($this->translations as $translation) {
+            $title = $translation->getTitle();
+
+            if ($title !== null && $title !== '') $titles[] = $title;
+        }
+
+        return !empty($titles) ? implode(', ', $titles) : "Category #$this->id";
     }
 
     public function __construct()
@@ -84,6 +97,7 @@ class Category
         'clientTickets:read',
         'occupations:read'
     ])]
+    #[ApiProperty(writable: false)]
     private ?string $title = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
@@ -145,7 +159,7 @@ class Category
 
     public function getDescription(): ?string
     {
-        return $this->description;
+        return strip_tags($this->description);
     }
 
     public function setDescription(?string $description): static

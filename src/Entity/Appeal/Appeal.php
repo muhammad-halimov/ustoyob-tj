@@ -75,8 +75,8 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 #[ApiFilter(SearchFilter::class, properties: [
     'type',
     'appealTicket',
-    'appealTicket.title',
-    'appealTicket.description',
+    'appealTicket.title' => 'partial',
+    'appealTicket.description' => 'partial',
     'appealTicket.reason',
     'appealTicket.ticket',
     'appealTicket.ticket.title',
@@ -85,8 +85,8 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
     'appealTicket.respondent',
 
     'appealChat',
-    'appealChat.title',
-    'appealChat.description',
+    'appealChat.title' => 'partial',
+    'appealChat.description' => 'partial',
     'appealChat.reason',
     'appealChat.chat',
     'appealChat.author',

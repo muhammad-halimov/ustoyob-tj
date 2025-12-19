@@ -6,11 +6,13 @@ use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use App\Entity\Extra\Translation;
 use App\Entity\Ticket\Category;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\User\OccupationRepository;
+use App\State\TitleLocalizationProvider;
 use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -31,9 +33,11 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
         new Get(
             uriTemplate: '/occupations/{id}',
             requirements: ['id' => '\d+'],
+            provider: TitleLocalizationProvider::class,
         ),
         new GetCollection(
             uriTemplate: '/occupations',
+            provider: TitleLocalizationProvider::class,
         ),
     ],
     normalizationContext: [
@@ -110,11 +114,18 @@ class Occupation
     ])]
     private Collection $categories;
 
+    /**
+     * @var Collection<int, Translation>
+     */
+    #[ORM\OneToMany(targetEntity: Translation::class, mappedBy: 'occupation',cascade: ['persist'])]
+    private Collection $translations;
+
     public function __construct()
     {
         $this->education = new ArrayCollection();
         $this->master = new ArrayCollection();
         $this->categories = new ArrayCollection();
+        $this->translations = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -251,6 +262,36 @@ class Occupation
             // set the owning side to null (unless already changed)
             if ($category->getOccupations() === $this) {
                 $category->setOccupations(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Translation>
+     */
+    public function getTranslations(): Collection
+    {
+        return $this->translations;
+    }
+
+    public function addTranslation(Translation $translation): static
+    {
+        if (!$this->translations->contains($translation)) {
+            $this->translations->add($translation);
+            $translation->setOccupation($this);
+        }
+
+        return $this;
+    }
+
+    public function removeTranslation(Translation $translation): static
+    {
+        if ($this->translations->removeElement($translation)) {
+            // set the owning side to null (unless already changed)
+            if ($translation->getOccupation() === $this) {
+                $translation->setOccupation(null);
             }
         }
 

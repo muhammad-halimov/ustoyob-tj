@@ -26,3 +26,11 @@ services:
             $decorated: '@.inner'
         tags:
             - { name: 'api_platform.state_provider' }
+
+    App\State\TitleLocalizationProvider:
+        decorates: 'api_platform.doctrine.orm.state.collection_provider'
+        arguments:
+            # noinspection MissingServiceYaml
+            $decorated: '@.inner'
+        tags:
+            - { name: 'api_platform.state_provider' }

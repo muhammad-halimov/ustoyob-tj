@@ -84,7 +84,7 @@ use Symfony\Component\Validator\Constraints as Assert;
     'type',
     'master',
     'client',
-    'description',
+    'description' => 'partial',
     'services',
     'services.title',
 ])]

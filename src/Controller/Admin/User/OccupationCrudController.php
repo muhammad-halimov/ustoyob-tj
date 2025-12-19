@@ -2,6 +2,7 @@
 
 namespace App\Controller\Admin\User;
 
+use App\Controller\Admin\Extra\TranslationCrudController;
 use App\Controller\Admin\Field\VichImageField;
 use App\Entity\User\Occupation;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
@@ -9,10 +10,10 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
 class OccupationCrudController extends AbstractCrudController
 {
@@ -57,9 +58,11 @@ class OccupationCrudController extends AbstractCrudController
         yield IdField::new('id')
             ->hideOnForm();
 
-        yield TextField::new('title', 'Название')
+        yield CollectionField::new('translations', 'Название')
+            ->useEntryCrudForm(TranslationCrudController::class)
+            ->setFormTypeOptions(['by_reference' => false])
             ->setColumns(6)
-            ->setRequired(true);
+            ->setRequired(false);
 
         yield AssociationField::new('categories', 'Категории работ')
             ->setFormTypeOptions(['by_reference' => false])

@@ -8,7 +8,7 @@ use Doctrine\Common\Collections\Collection;
 
 class LocalizationService
 {
-    public function apply(User|Ticket $entity, string $locale): void
+    public function applyForUserOrTicket(User|Ticket $entity, string $locale): void
     {
         foreach ($entity->getAddresses() as $address) {
 
@@ -69,12 +69,9 @@ class LocalizationService
      * - нет ?-> на first()
      * - нет fatal error
      */
-    private function localizeEntity(object $entity, string $locale): void
+    public function localizeEntity(object $entity, string $locale): void
     {
-        if (
-            !method_exists($entity, 'getTranslations')
-            || !method_exists($entity, 'setTitle')
-        ) {
+        if (!method_exists($entity, 'getTranslations') || !method_exists($entity, 'setTitle')) {
             return;
         }
 
@@ -90,8 +87,7 @@ class LocalizationService
         $title =
             ($translation && method_exists($translation, 'getTitle'))
                 ? $translation->getTitle()
-                : (
-            $fallback && method_exists($fallback, 'getTitle')
+                : ($fallback && method_exists($fallback, 'getTitle')
                 ? $fallback->getTitle()
                 : 'Unknown'
             );

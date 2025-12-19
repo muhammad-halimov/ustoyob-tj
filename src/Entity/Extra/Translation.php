@@ -6,9 +6,11 @@ use App\Entity\Geography\AddressComponent;
 use App\Entity\Ticket\Category;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
+use App\Entity\User\Occupation;
 use App\Repository\Geography\TranslationRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Serializer\Attribute\Ignore;
 
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Entity(repositoryClass: TranslationRepository::class)]
@@ -47,7 +49,7 @@ class Translation
         'masters:read',
         'clients:read',
     ])]
-    private ?string $locale = null;
+    private ?string $locale = 'tj';
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
@@ -63,11 +65,18 @@ class Translation
 
     #[ORM\ManyToOne(inversedBy: 'translations')]
     #[ORM\JoinColumn(name: 'address_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    #[Ignore]
     private ?AddressComponent $address = null;
 
     #[ORM\ManyToOne(inversedBy: 'translations')]
     #[ORM\JoinColumn(name: 'category_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    #[Ignore]
     private ?Category $category = null;
+
+    #[ORM\ManyToOne(inversedBy: 'translations')]
+    #[ORM\JoinColumn(name: 'occupation_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    #[Ignore]
+    private ?Occupation $occupation = null;
 
     public function getId(): ?int
     {
@@ -118,6 +127,18 @@ class Translation
     public function setCategory(?Category $category): static
     {
         $this->category = $category;
+
+        return $this;
+    }
+
+    public function getOccupation(): ?Occupation
+    {
+        return $this->occupation;
+    }
+
+    public function setOccupation(?Occupation $occupation): static
+    {
+        $this->occupation = $occupation;
 
         return $this;
     }
