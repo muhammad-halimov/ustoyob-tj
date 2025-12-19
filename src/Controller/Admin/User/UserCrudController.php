@@ -163,12 +163,13 @@ class UserCrudController extends AbstractCrudController
             ->setRequired(false);
 
         yield ChoiceField::new('gender', 'Пол')
-            ->setRequired(true)
+            ->setRequired(false)
             ->setChoices(User::GENDERS)
             ->setColumns(4);
 
         yield TextField::new('password', 'Пароль')
             ->setColumns(4)
+            ->setRequired(false)
             ->hideOnIndex();
 
         yield TelephoneField::new('phone1', 'Телефон 1')

@@ -5,6 +5,7 @@ namespace App\State;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\Entity\Extra\Translation;
+use App\Entity\Ticket\Category;
 use App\Entity\User\Occupation;
 use App\Service\Extra\LocalizationService;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -37,7 +38,7 @@ readonly class TitleLocalizationProvider implements ProviderInterface
                     foreach ($entity->getCategories() as $category) {
                         $this->localizationService->localizeEntity($category, $locale);
                     }
-                } elseif ($entity->getOccupations() !== null) {
+                } elseif ($entity instanceof Category && $entity->getOccupations() !== null) {
                     $this->localizationService->localizeEntity($entity->getOccupations(), $locale);
                 }
             }
