@@ -2,16 +2,17 @@
 
 namespace App\Controller\Admin\Ticket;
 
+use App\Controller\Admin\Extra\TranslationCrudController;
 use App\Controller\Admin\Field\VichImageField;
 use App\Entity\Ticket\Category;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
+use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
 class CategoryCrudController extends AbstractCrudController
 {
@@ -56,9 +57,11 @@ class CategoryCrudController extends AbstractCrudController
         yield IdField::new('id')
             ->hideOnForm();
 
-        yield TextField::new('title', 'Название')
-            ->setRequired(true)
-            ->setColumns(12);
+        yield CollectionField::new('translations', 'Название')
+            ->useEntryCrudForm(TranslationCrudController::class)
+            ->setFormTypeOptions(['by_reference' => false])
+            ->setColumns(12)
+            ->setRequired(false);
 
         yield TextEditorField::new('description', 'Описание')
             ->setColumns(12)

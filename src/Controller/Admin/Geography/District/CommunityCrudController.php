@@ -2,7 +2,7 @@
 
 namespace App\Controller\Admin\Geography\District;
 
-use App\Controller\Admin\Geography\TranslationCrudController;
+use App\Controller\Admin\Extra\TranslationCrudController;
 use App\Entity\Geography\District\Community;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;

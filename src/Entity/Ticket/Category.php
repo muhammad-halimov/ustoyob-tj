@@ -9,6 +9,7 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
+use App\Entity\Extra\Translation;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User\Occupation;
@@ -62,6 +63,7 @@ class Category
     public function __construct()
     {
         $this->userTickets = new ArrayCollection();
+        $this->translations = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -108,7 +110,7 @@ class Category
     /**
      * @var Collection<int, Ticket>
      */
-    #[ORM\OneToMany(targetEntity: Ticket::class, mappedBy: 'category')]
+    #[ORM\OneToMany(targetEntity: Ticket::class, mappedBy: 'category', cascade: ['persist'])]
     #[Ignore]
     private Collection $userTickets;
 
@@ -117,6 +119,12 @@ class Category
         'categories:read',
     ])]
     private ?Occupation $occupations = null;
+
+    /**
+     * @var Collection<int, Translation>
+     */
+    #[ORM\OneToMany(targetEntity: Translation::class, mappedBy: 'category', cascade: ['persist'])]
+    private Collection $translations;
 
     public function getId(): ?int
     {
@@ -212,6 +220,36 @@ class Category
     public function setOccupations(?Occupation $occupations): static
     {
         $this->occupations = $occupations;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Translation>
+     */
+    public function getTranslations(): Collection
+    {
+        return $this->translations;
+    }
+
+    public function addTranslation(Translation $translation): static
+    {
+        if (!$this->translations->contains($translation)) {
+            $this->translations->add($translation);
+            $translation->setCategory($this);
+        }
+
+        return $this;
+    }
+
+    public function removeTranslation(Translation $translation): static
+    {
+        if ($this->translations->removeElement($translation)) {
+            // set the owning side to null (unless already changed)
+            if ($translation->getCategory() === $this) {
+                $translation->setCategory(null);
+            }
+        }
 
         return $this;
     }

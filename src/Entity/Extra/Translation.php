@@ -3,6 +3,7 @@
 namespace App\Entity\Extra;
 
 use App\Entity\Geography\AddressComponent;
+use App\Entity\Ticket\Category;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Repository\Geography\TranslationRepository;
@@ -61,8 +62,12 @@ class Translation
     private ?string $title = null;
 
     #[ORM\ManyToOne(inversedBy: 'translations')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(name: 'address_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     private ?AddressComponent $address = null;
+
+    #[ORM\ManyToOne(inversedBy: 'translations')]
+    #[ORM\JoinColumn(name: 'category_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    private ?Category $category = null;
 
     public function getId(): ?int
     {
@@ -101,6 +106,18 @@ class Translation
     public function setAddress(?AddressComponent $address): static
     {
         $this->address = $address;
+
+        return $this;
+    }
+
+    public function getCategory(): ?Category
+    {
+        return $this->category;
+    }
+
+    public function setCategory(?Category $category): static
+    {
+        $this->category = $category;
 
         return $this;
     }

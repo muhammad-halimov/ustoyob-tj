@@ -2,14 +2,13 @@
 
 namespace App\Controller\Admin\Geography\City;
 
-use App\Controller\Admin\Geography\TranslationCrudController;
+use App\Controller\Admin\Extra\TranslationCrudController;
 use App\Entity\Geography\City\Suburb;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
 class SuburbCrudController extends AbstractCrudController
 {

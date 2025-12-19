@@ -2,8 +2,8 @@
 
 namespace App\Controller\Admin\Geography\District;
 
+use App\Controller\Admin\Extra\TranslationCrudController;
 use App\Controller\Admin\Field\VichImageField;
-use App\Controller\Admin\Geography\TranslationCrudController;
 use App\Entity\Geography\District\District;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;

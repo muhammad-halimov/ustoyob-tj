@@ -2,6 +2,7 @@
 
 namespace App\Controller\Admin\Geography;
 
+use App\Controller\Admin\Extra\TranslationCrudController;
 use App\Entity\Geography\Province;
 use App\Repository\CityRepository;
 use App\Repository\DistrictRepository;

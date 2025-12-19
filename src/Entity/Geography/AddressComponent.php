@@ -112,15 +112,27 @@ abstract class AddressComponent
     }
 
     /**
-     * @return Collection<int, Translation>|null
+     * @return Collection
      */
-    public function getTranslations(): ?Collection
+    public function getTranslations(): Collection
     {
+        if ($this->translations === null) {
+            $this->translations = new ArrayCollection();
+        }
+
         return $this->translations;
     }
 
     public function addTranslation(?Translation $translation): static
     {
+        if ($translation === null) {
+            return $this;
+        }
+
+        if ($this->translations === null) {
+            $this->translations = new ArrayCollection();
+        }
+
         if (!$this->translations->contains($translation)) {
             $this->translations->add($translation);
             $translation->setAddress($this);
@@ -131,8 +143,11 @@ abstract class AddressComponent
 
     public function removeTranslation(?Translation $translation): static
     {
+        if ($this->translations === null) {
+            $this->translations = new ArrayCollection();
+        }
+
         if ($this->translations->removeElement($translation)) {
-            // set the owning side to null (unless already changed)
             if ($translation->getAddress() === $this) {
                 $translation->setAddress(null);
             }

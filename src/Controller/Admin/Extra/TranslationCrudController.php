@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controller\Admin\Geography;
+namespace App\Controller\Admin\Extra;
 
 use App\Entity\Extra\Translation;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
