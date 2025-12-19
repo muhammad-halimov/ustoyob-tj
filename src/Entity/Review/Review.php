@@ -123,7 +123,7 @@ class Review
         'reviewsClient:read',
     ])]
     #[Assert\PositiveOrZero(message: 'Field cannot be less than zero')]
-    #[Assert\LessThanOrEqual(value: 5, message: 'Field cannot be greater than 5')]
+    #[Assert\LessThanOrEqual(value: 5.0, message: 'Field cannot be greater than 5')]
     private ?float $rating = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
