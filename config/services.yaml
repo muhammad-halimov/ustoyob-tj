@@ -19,7 +19,15 @@ services:
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
 
-    App\State\TicketLocalizationProvider:
+    App\State\TicketGeographyLocalizationProvider:
+        decorates: 'api_platform.doctrine.orm.state.collection_provider'
+        arguments:
+            # noinspection MissingServiceYaml
+            $decorated: '@.inner'
+        tags:
+            - { name: 'api_platform.state_provider' }
+
+    App\State\UserGeographyLocalizationProvider:
         decorates: 'api_platform.doctrine.orm.state.collection_provider'
         arguments:
             # noinspection MissingServiceYaml

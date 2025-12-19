@@ -48,6 +48,7 @@ use App\Entity\User\OAuthType;
 use App\Entity\User\Occupation;
 use App\Entity\User\SocialNetwork;
 use App\Repository\UserRepository;
+use App\State\UserGeographyLocalizationProvider;
 use App\Validator\Constraints as AppAssert;
 use DateTime;
 use Deprecated;
@@ -90,6 +91,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
                 'groups' => ['clients:read', 'masters:read'],
                 'skip_null_values' => false,
             ],
+            provider: UserGeographyLocalizationProvider::class,
         ),
         new GetCollection(
             uriTemplate: '/users',
@@ -97,6 +99,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
                 'groups' => ['clients:read', 'masters:read'],
                 'skip_null_values' => false,
             ],
+            provider: UserGeographyLocalizationProvider::class,
         ),
         new Post(
             uriTemplate: '/users',

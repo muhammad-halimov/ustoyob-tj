@@ -27,7 +27,7 @@ use App\Entity\User;
 use App\Entity\User\BlackList;
 use App\Entity\User\Favorite;
 use App\Repository\TicketRepository;
-use App\State\TicketLocalizationProvider;
+use App\State\TicketGeographyLocalizationProvider;
 use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -48,7 +48,7 @@ use Symfony\Component\Validator\Constraints as Assert;
         ),
         new GetCollection(
             uriTemplate: '/tickets',
-            provider: TicketLocalizationProvider::class,
+            provider: TicketGeographyLocalizationProvider::class,
         ),
         new Post(
             uriTemplate: '/tickets',
