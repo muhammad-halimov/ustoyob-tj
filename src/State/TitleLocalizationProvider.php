@@ -30,18 +30,18 @@ readonly class TitleLocalizationProvider implements ProviderInterface
             throw new NotFoundHttpException("Locale not found");
         }
 
-        if (is_iterable($result))
-            foreach ($result as $entity) {
+        foreach ($result as $entity) {
+            if ($entity instanceof Category || $entity instanceof Occupation) {
                 $this->localizationService->localizeEntity($entity, $locale);
-
-                if ($entity instanceof Occupation) {
-                    foreach ($entity->getCategories() as $category) {
-                        $this->localizationService->localizeEntity($category, $locale);
-                    }
-                } elseif ($entity instanceof Category && $entity->getOccupations() !== null) {
-                    $this->localizationService->localizeEntity($entity->getOccupations(), $locale);
-                }
             }
+
+            if ($entity instanceof Occupation) {
+                foreach ($entity->getCategories() as $category)
+                    $this->localizationService->localizeEntity($category, $locale);
+            } elseif ($entity instanceof Category && $entity->getOccupations() !== null) {
+                $this->localizationService->localizeEntity($entity->getOccupations(), $locale);
+            }
+        }
 
         return $result;
     }

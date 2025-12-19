@@ -2,14 +2,16 @@
 
 namespace App\Service\Extra;
 
-use App\Entity\Ticket\Ticket;
-use App\Entity\User;
 use Doctrine\Common\Collections\Collection;
 
 class LocalizationService
 {
-    public function applyForUserOrTicket(User|Ticket $entity, string $locale): void
+    public function localizeGeography(object $entity, string $locale): void
     {
+        if (!method_exists($entity, 'getAddresses')) {
+            return;
+        }
+
         foreach ($entity->getAddresses() as $address) {
 
             // Province

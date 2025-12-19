@@ -52,7 +52,17 @@ class Occupation
 
     public function __toString(): string
     {
-        return $this->title ?? "Occupation #$this->id";
+        if ($this->translations->isEmpty()) return "Occupation #$this->id";
+
+        $titles = [];
+
+        foreach ($this->translations as $translation) {
+            $title = $translation->getTitle();
+
+            if ($title !== null && $title !== '') $titles[] = $title;
+        }
+
+        return !empty($titles) ? implode(', ', $titles) : "Occupation #$this->id";
     }
 
     #[ORM\Id]

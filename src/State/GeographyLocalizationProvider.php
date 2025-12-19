@@ -32,14 +32,20 @@ readonly class GeographyLocalizationProvider implements ProviderInterface
         }
 
         // Применяем локализацию к результату
-        if (is_iterable($result)) {
-            foreach ($result as $entity) {
-                if ($entity instanceof Ticket || $entity instanceof User) {
-                    $this->localizationService->applyForUserOrTicket($entity, $locale);
+        foreach ($result as $entity) {
+            if ($entity instanceof Ticket || $entity instanceof User) {
+                $this->localizationService->localizeGeography($entity, $locale);
+            }
+
+            if ($entity instanceof Ticket) {
+                $this->localizationService->localizeEntity($entity->getCategory(), $locale);
+            }
+
+            if ($entity instanceof User) {
+                foreach ($entity->getOccupation() as $occupation) {
+                    $this->localizationService->localizeEntity($occupation, $locale);
                 }
             }
-        } elseif ($result instanceof Ticket || $result instanceof User) {
-            $this->localizationService->applyForUserOrTicket($result, $locale);
         }
 
         return $result;

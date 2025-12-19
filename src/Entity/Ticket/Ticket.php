@@ -28,6 +28,7 @@ use App\Entity\Review\Review;
 use App\Entity\User;
 use App\Repository\TicketRepository;
 use App\State\GeographyLocalizationProvider;
+use App\State\TitleLocalizationProvider;
 use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
