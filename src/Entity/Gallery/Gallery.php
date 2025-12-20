@@ -100,6 +100,7 @@ class Gallery
     private Collection $userServiceGalleryItems;
 
     #[ORM\ManyToOne(inversedBy: 'galleries')]
+    #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'galleries:read',
     ])]

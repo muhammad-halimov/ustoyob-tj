@@ -46,6 +46,7 @@ class GalleryImage
     private ?string $image = null;
 
     #[ORM\ManyToOne(inversedBy: 'userServiceGalleryItems')]
+    #[ORM\JoinColumn(name: 'gallery_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Ignore]
     private ?Gallery $gallery = null;
 
