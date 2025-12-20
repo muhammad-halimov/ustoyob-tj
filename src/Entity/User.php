@@ -446,7 +446,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /**
      * @var string|null The hashed password
      */
-    #[ORM\Column]
+    #[ORM\Column(nullable: true)]
     #[Assert\Length(
         min: 8,
         minMessage: "Password must be at least {{ limit }} characters long"
@@ -507,7 +507,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /**
      * @var Collection<int, Gallery>
      */
-    #[ORM\OneToMany(targetEntity: Gallery::class, mappedBy: 'user')]
+    #[ORM\OneToMany(targetEntity: Gallery::class, mappedBy: 'user', cascade: ['all'])]
     #[Ignore]
     private Collection $galleries;
 
