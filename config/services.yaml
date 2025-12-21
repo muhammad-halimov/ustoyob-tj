@@ -59,3 +59,10 @@ services:
             $decorated: '@.inner'
         tags:
             - { name: 'api_platform.state_provider' }
+
+    App\Serializer\UserContextBuilder:
+        decorates: 'api_platform.serializer.context_builder'
+        arguments:
+            # noinspection MissingServiceYaml
+            $decorated: '@.inner'
+            $security: '@security.helper'

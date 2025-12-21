@@ -172,31 +172,27 @@ class UserCrudController extends AbstractCrudController
             ->setRequired(false)
             ->hideOnIndex();
 
-        yield TelephoneField::new('phone1', 'Телефон 1')
-            ->setColumns(2)
-            ->setRequired(false);
-
-        yield TelephoneField::new('phone2', 'Телефон 2')
-            ->hideOnIndex()
-            ->setColumns(2)
-            ->setRequired(false);
-
         yield TelephoneField::new('telegramChatId', 'ID телеграм чата (админ)')
             ->hideOnIndex()
             ->setColumns(4)
             ->setRequired(false);
 
-        yield CollectionField::new('addresses', 'Адреса')
-            ->useEntryCrudForm(AddressCrudController::class)
-            ->setColumns(6)
-            ->setFormTypeOptions(['by_reference' => false])
-            ->addCssClass("addresses-field")
-            ->hideOnIndex();
-
         yield AssociationField::new('occupation', 'Специальность')
             ->setColumns(4)
             ->setFormTypeOptions(['by_reference' => false])
             ->addCssClass("occupation-field")
+            ->hideOnIndex();
+
+        yield CollectionField::new('phones', 'Телефоны')
+            ->useEntryCrudForm(PhoneCrudController::class)
+            ->setColumns(5)
+            ->setFormTypeOptions(['by_reference' => false]);
+
+        yield CollectionField::new('addresses', 'Адреса')
+            ->useEntryCrudForm(AddressCrudController::class)
+            ->setColumns(5)
+            ->setFormTypeOptions(['by_reference' => false])
+            ->addCssClass("addresses-field")
             ->hideOnIndex();
 
         yield DateField::new('dateOfBirth', 'Дата рождения')

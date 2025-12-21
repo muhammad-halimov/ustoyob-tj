@@ -46,10 +46,10 @@ use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User\Education;
 use App\Entity\User\Occupation;
+use App\Entity\User\Phone;
 use App\Entity\User\SocialNetwork;
 use App\Repository\UserRepository;
 use App\State\Localization\Geography\UserGeographyLocalizationProvider;
-use App\Validator\Constraints as AppAssert;
 use DateTime;
 use Deprecated;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -69,6 +69,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
 #[Vich\Uploadable]
 #[ORM\HasLifecycleCallbacks]
 #[ORM\UniqueConstraint(name: 'UNIQ_IDENTIFIER_EMAIL', fields: ['email'])]
+#[ORM\UniqueConstraint(name: 'UNIQ_IDENTIFIER_LOGIN', fields: ['login'])]
 #[ApiResource(
     operations: [
         new GetCollection(
@@ -88,7 +89,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
             uriTemplate: '/users/{id}',
             requirements: ['id' => '\d+'],
             normalizationContext: [
-                'groups' => ['clients:read', 'masters:read'],
+                'groups' => ['clients:read', 'masters:read', 'user:public:read'],
                 'skip_null_values' => false,
             ],
             provider: UserGeographyLocalizationProvider::class,
@@ -96,7 +97,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
         new GetCollection(
             uriTemplate: '/users',
             normalizationContext: [
-                'groups' => ['clients:read', 'masters:read'],
+                'groups' => ['clients:read', 'masters:read', 'user:public:read'],
                 'skip_null_values' => false,
             ],
             provider: UserGeographyLocalizationProvider::class,
@@ -206,6 +207,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->blackLists = new ArrayCollection();
         $this->clientsBlackListedByAuthor = new ArrayCollection();
         $this->mastersBlackListedByAuthor = new ArrayCollection();
+        $this->phones = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -224,7 +226,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'appeal:ticket:read',
         'favorites:read',
         'techSupport:read',
-        'blackLists:read'
+        'blackLists:read',
+
+        'user:public:read',
     ])]
     private ?int $id = null;
 
@@ -242,7 +246,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'appeal:ticket:read',
         'favorites:read',
         'techSupport:read',
-        'blackLists:read'
+        'blackLists:read',
     ])]
     private ?string $email = null;
 
@@ -260,7 +264,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'appeal:ticket:read',
         'favorites:read',
         'techSupport:read',
-        'blackLists:read'
+        'blackLists:read',
+
+        'user:public:read',
     ])]
     private ?string $login = null;
 
@@ -278,7 +284,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'appeal:ticket:read',
         'favorites:read',
         'techSupport:read',
-        'blackLists:read'
+        'blackLists:read',
+
+        'user:public:read',
     ])]
     private ?string $name = null;
 
@@ -296,7 +304,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'appeal:ticket:read',
         'favorites:read',
         'techSupport:read',
-        'blackLists:read'
+        'blackLists:read',
+
+        'user:public:read',
     ])]
     private ?string $surname = null;
 
@@ -304,6 +314,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups([
         'masters:read',
         'clients:read',
+
+        'user:public:read'
     ])]
     private ?string $patronymic = null;
 
@@ -311,6 +323,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups([
         'masters:read',
         'clients:read',
+
+        'user:public:read',
     ])]
     private ?string $bio = null;
 
@@ -320,6 +334,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'clients:read',
         'masterTickets:read',
         'clientTickets:read',
+
+        'user:public:read'
     ])]
     #[Assert\PositiveOrZero(message: 'Field cannot be less than zero')]
     #[Assert\LessThanOrEqual(value: 5, message: 'Field cannot be greater than 5')]
@@ -329,7 +345,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups([
         'masters:read',
         'clients:read',
-        'blackLists:read'
+        'blackLists:read',
+
+        'user:public:read',
     ])]
     private ?string $gender = null;
 
@@ -337,6 +355,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups([
         'masters:read',
         'clients:read',
+
+        'user:public:read',
     ])]
     private ?DateTime $dateOfBirth = null;
 
@@ -358,7 +378,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'appeal:ticket:read',
         'favorites:read',
         'techSupport:read',
-        'blackLists:read'
+        'blackLists:read',
+
+        'user:public:read',
     ])]
     #[ApiProperty(writable: false)]
     private ?string $image = null;
@@ -377,38 +399,30 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'appeal:ticket:read',
         'favorites:read',
         'techSupport:read',
-        'blackLists:read'
+        'blackLists:read',
+
+        'user:public:read',
     ])]
     #[ApiProperty(writable: false)]
     private ?string $imageExternalUrl = null;
 
-    #[ORM\Column(length: 20, nullable: true)]
+    /**
+     * @var Collection<int, Phone>
+     */
+    #[ORM\OneToMany(targetEntity: Phone::class, mappedBy: 'owner', cascade: ['persist', 'remove'])]
     #[Groups([
         'masters:read',
-        'clients:read'
+        'clients:read',
+        'users:me:read',
     ])]
-    #[AppAssert\PhoneConstraint]
-    #[Assert\Length(
-        max: 20,
-        maxMessage: 'Phone number cannot be longer than {{ limit }} characters'
-    )]
-    private ?string $phone1 = null;
-
-    #[ORM\Column(length: 20, nullable: true)]
-    #[Groups([
-        'masters:read',
-        'clients:read'
-    ])]
-    #[Assert\Length(
-        max: 20,
-        maxMessage: 'Phone number cannot be longer than {{ limit }} characters'
-    )]
-    private ?string $phone2 = null;
+    private Collection $phones;
 
     #[ORM\Column(type: 'boolean', nullable: true)]
     #[Groups([
         'masters:read',
         'clients:read',
+
+        'user:public:read',
     ])]
     private ?bool $atHome = null;
 
@@ -419,6 +433,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups([
         'masters:read',
         'clients:read',
+
+        'user:public:read'
     ])]
     #[ApiProperty(writable: false)]
     private bool $active = false;
@@ -427,6 +443,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups([
         'masters:read',
         'clients:read',
+
+        'user:public:read'
     ])]
     #[ApiProperty(writable: false)]
     private bool $approved = false;
@@ -632,6 +650,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups([
         'masters:read',
         'clients:read',
+
+        'user:public:read',
     ])]
     private Collection $addresses;
 
@@ -793,40 +813,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setImageExternalUrl(?string $imageExternalUrl): static
     {
         $this->imageExternalUrl = $imageExternalUrl;
-
-        return $this;
-    }
-
-    public function getPhone1(): ?string
-    {
-        return $this->phone1;
-    }
-
-    public function setPhone1(?string $phone1): static
-    {
-        // Нормализуем при сохранении
-        if ($phone1) {
-            $cleaned = preg_replace('/[^\d+]/', '', $phone1);
-            // Добавляем +992 если нет
-            if (!str_starts_with($cleaned, '+992')) {
-                $cleaned = '+992' . $cleaned;
-            }
-            $this->phone1 = $cleaned;
-        } else {
-            $this->phone1 = null;
-        }
-
-        return $this;
-    }
-
-    public function getPhone2(): ?string
-    {
-        return $this->phone2;
-    }
-
-    public function setPhone2(?string $phone2): static
-    {
-        $this->phone2 = $phone2;
 
         return $this;
     }
@@ -1754,6 +1740,36 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setDateOfBirth(?DateTime $dateOfBirth): static
     {
         $this->dateOfBirth = $dateOfBirth;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Phone>
+     */
+    public function getPhones(): Collection
+    {
+        return $this->phones;
+    }
+
+    public function addPhone(Phone $phone): static
+    {
+        if (!$this->phones->contains($phone)) {
+            $this->phones->add($phone);
+            $phone->setOwner($this);
+        }
+
+        return $this;
+    }
+
+    public function removePhone(Phone $phone): static
+    {
+        if ($this->phones->removeElement($phone)) {
+            // set the owning side to null (unless already changed)
+            if ($phone->getOwner() === $this) {
+                $phone->setOwner(null);
+            }
+        }
 
         return $this;
     }
