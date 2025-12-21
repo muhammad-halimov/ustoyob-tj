@@ -71,11 +71,15 @@ class TicketCrudController extends AbstractCrudController
         yield BooleanField::new('active', 'Актуально')
             ->addCssClass("form-switch")
             ->setRequired(true)
-            ->setColumns(12);
+            ->setColumns(2);
 
         yield BooleanField::new('service', 'Услуга')
             ->addCssClass("form-switch")
-            ->setColumns(12);
+            ->setColumns(2);
+
+        yield BooleanField::new('negotiableBudget', 'Договорная цена')
+            ->addCssClass("form-switch")
+            ->setColumns(2);
 
         yield CollectionField::new('userTicketImages', 'Галерея изображений')
             ->useEntryCrudForm(TicketImageCrudController::class)
@@ -117,7 +121,7 @@ class TicketCrudController extends AbstractCrudController
             ->setColumns(2);
 
         yield NumberField::new('budget', 'Бюджет')
-            ->setRequired(true)
+            ->addCssClass("budget-field")
             ->setNumDecimals(1)
             ->setColumns(1);
 

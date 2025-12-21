@@ -12,7 +12,7 @@ use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\User\OccupationRepository;
-use App\State\TitleLocalizationProvider;
+use App\State\Localization\Title\OccupationTitleLocalizationProvider;
 use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -33,11 +33,11 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
         new Get(
             uriTemplate: '/occupations/{id}',
             requirements: ['id' => '\d+'],
-            provider: TitleLocalizationProvider::class,
+            provider: OccupationTitleLocalizationProvider::class,
         ),
         new GetCollection(
             uriTemplate: '/occupations',
-            provider: TitleLocalizationProvider::class,
+            provider: OccupationTitleLocalizationProvider::class,
         ),
     ],
     normalizationContext: [

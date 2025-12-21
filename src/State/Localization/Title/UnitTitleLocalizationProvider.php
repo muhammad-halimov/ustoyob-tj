@@ -1,17 +1,16 @@
 <?php
 
-namespace App\State;
+namespace App\State\Localization\Title;
 
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\Entity\Extra\Translation;
-use App\Entity\Ticket\Ticket;
-use App\Entity\User;
+use App\Entity\Ticket\Unit;
 use App\Service\Extra\LocalizationService;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
-readonly class GeographyLocalizationProvider implements ProviderInterface
+readonly class UnitTitleLocalizationProvider implements ProviderInterface
 {
     public function __construct(
         private ProviderInterface $decorated,
@@ -21,7 +20,6 @@ readonly class GeographyLocalizationProvider implements ProviderInterface
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
     {
-        // Получаем данные от стандартного провайдера (с применением всех фильтров)
         $result = $this->decorated->provide($operation, $uriVariables, $context);
 
         $request = $this->requestStack->getCurrentRequest();
@@ -31,20 +29,9 @@ readonly class GeographyLocalizationProvider implements ProviderInterface
             throw new NotFoundHttpException("Locale not found");
         }
 
-        // Применяем локализацию к результату
         foreach ($result as $entity) {
-            if ($entity instanceof Ticket || $entity instanceof User) {
-                $this->localizationService->localizeGeography($entity, $locale);
-            }
-
-            if ($entity instanceof Ticket) {
-                $this->localizationService->localizeEntity($entity->getCategory(), $locale);
-            }
-
-            if ($entity instanceof User) {
-                foreach ($entity->getOccupation() as $occupation) {
-                    $this->localizationService->localizeEntity($occupation, $locale);
-                }
+            if ($entity instanceof Unit) {
+                $this->localizationService->localizeEntity($entity, $locale);
             }
         }
 

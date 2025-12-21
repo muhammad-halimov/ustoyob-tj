@@ -14,7 +14,7 @@ use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User\Occupation;
 use App\Repository\CategoryRepository;
-use App\State\TitleLocalizationProvider;
+use App\State\Localization\Title\CategoryTitleLocalizationProvider;
 use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -34,7 +34,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
         new Get(
             uriTemplate: '/categories/{id}',
             requirements: ['id' => '\d+'],
-            provider: TitleLocalizationProvider::class,
+            provider: CategoryTitleLocalizationProvider::class,
         ),
         new GetCollection(
             uriTemplate: '/categories',
@@ -44,7 +44,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
             security:
                 "is_granted('ROLE_ADMIN') or
                  is_granted('ROLE_MASTER')",
-            provider: TitleLocalizationProvider::class,
+            provider: CategoryTitleLocalizationProvider::class,
         )
     ],
     normalizationContext: [

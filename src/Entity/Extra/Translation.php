@@ -4,6 +4,7 @@ namespace App\Entity\Extra;
 
 use App\Entity\Geography\AddressComponent;
 use App\Entity\Ticket\Category;
+use App\Entity\Ticket\Unit;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User\Occupation;
@@ -78,6 +79,11 @@ class Translation
     #[Ignore]
     private ?Occupation $occupation = null;
 
+    #[ORM\ManyToOne(inversedBy: 'translations')]
+    #[ORM\JoinColumn(name: 'unit_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    #[Ignore]
+    private ?Unit $unit = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -139,6 +145,18 @@ class Translation
     public function setOccupation(?Occupation $occupation): static
     {
         $this->occupation = $occupation;
+
+        return $this;
+    }
+
+    public function getUnit(): ?Unit
+    {
+        return $this->unit;
+    }
+
+    public function setUnit(?Unit $unit): static
+    {
+        $this->unit = $unit;
 
         return $this;
     }

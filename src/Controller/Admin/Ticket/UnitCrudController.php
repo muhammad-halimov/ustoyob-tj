@@ -2,13 +2,14 @@
 
 namespace App\Controller\Admin\Ticket;
 
+use App\Controller\Admin\Extra\TranslationCrudController;
 use App\Entity\Ticket\Unit;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
+use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
 class UnitCrudController extends AbstractCrudController
 {
@@ -33,12 +34,14 @@ class UnitCrudController extends AbstractCrudController
         yield IdField::new('id')
             ->hideOnForm();
 
-        yield TextField::new('title', 'Единица измерения')
-            ->setRequired(true)
-            ->setColumns(12);
+        yield CollectionField::new('translations', 'Название')
+            ->useEntryCrudForm(TranslationCrudController::class)
+            ->setFormTypeOptions(['by_reference' => false])
+            ->setColumns(6)
+            ->setRequired(false);
 
         yield TextEditorField::new('description', 'Описание')
-            ->setColumns(12);
+            ->setColumns(6);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
             ->hideOnForm();

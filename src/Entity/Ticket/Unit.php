@@ -5,9 +5,11 @@ namespace App\Entity\Ticket;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use App\Entity\Extra\Translation;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Repository\UnitRepository;
+use App\State\Localization\Title\UnitTitleLocalizationProvider;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
@@ -22,9 +24,11 @@ use Symfony\Component\Serializer\Attribute\Ignore;
         new Get(
             uriTemplate: '/units/{id}',
             requirements: ['id' => '\d+'],
+            provider: UnitTitleLocalizationProvider::class,
         ),
         new GetCollection(
             uriTemplate: '/units',
+            provider: UnitTitleLocalizationProvider::class,
         ),
     ],
     normalizationContext: [
@@ -39,7 +43,23 @@ class Unit
 
     public function __toString(): string
     {
-        return $this->title ?? "Unit #$this->id";
+        if ($this->translations->isEmpty()) return "Unit #$this->id";
+
+        $titles = [];
+
+        foreach ($this->translations as $translation) {
+            $title = $translation->getTitle();
+
+            if ($title !== null && $title !== '') $titles[] = $title;
+        }
+
+        return !empty($titles) ? implode(', ', $titles) : "Unit #$this->id";
+    }
+
+    public function __construct()
+    {
+        $this->userTickets = new ArrayCollection();
+        $this->translations = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -73,10 +93,11 @@ class Unit
     #[Ignore]
     private Collection $userTickets;
 
-    public function __construct()
-    {
-        $this->userTickets = new ArrayCollection();
-    }
+    /**
+     * @var Collection<int, Translation>
+     */
+    #[ORM\OneToMany(targetEntity: Translation::class, mappedBy: 'unit', cascade: ['persist'])]
+    private Collection $translations;
 
     public function getId(): ?int
     {
@@ -131,6 +152,36 @@ class Unit
             // set the owning side to null (unless already changed)
             if ($userTicket->getUnit() === $this) {
                 $userTicket->setUnit(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Translation>
+     */
+    public function getTranslations(): Collection
+    {
+        return $this->translations;
+    }
+
+    public function addTranslation(Translation $translation): static
+    {
+        if (!$this->translations->contains($translation)) {
+            $this->translations->add($translation);
+            $translation->setUnit($this);
+        }
+
+        return $this;
+    }
+
+    public function removeTranslation(Translation $translation): static
+    {
+        if ($this->translations->removeElement($translation)) {
+            // set the owning side to null (unless already changed)
+            if ($translation->getUnit() === $this) {
+                $translation->setUnit(null);
             }
         }
 

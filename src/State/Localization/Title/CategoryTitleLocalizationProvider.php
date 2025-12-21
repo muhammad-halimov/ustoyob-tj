@@ -1,17 +1,16 @@
 <?php
 
-namespace App\State;
+namespace App\State\Localization\Title;
 
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\Entity\Extra\Translation;
 use App\Entity\Ticket\Category;
-use App\Entity\User\Occupation;
 use App\Service\Extra\LocalizationService;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
-readonly class TitleLocalizationProvider implements ProviderInterface
+readonly class CategoryTitleLocalizationProvider implements ProviderInterface
 {
     public function __construct(
         private ProviderInterface $decorated,
@@ -31,15 +30,11 @@ readonly class TitleLocalizationProvider implements ProviderInterface
         }
 
         foreach ($result as $entity) {
-            if ($entity instanceof Category || $entity instanceof Occupation) {
+            if ($entity instanceof Category) {
                 $this->localizationService->localizeEntity($entity, $locale);
-            }
 
-            if ($entity instanceof Occupation) {
-                foreach ($entity->getCategories() as $category)
-                    $this->localizationService->localizeEntity($category, $locale);
-            } elseif ($entity instanceof Category && $entity->getOccupations() !== null) {
-                $this->localizationService->localizeEntity($entity->getOccupations(), $locale);
+                if ($entity->getOccupations() !== null)
+                    $this->localizationService->localizeEntity($entity->getOccupations(), $locale);
             }
         }
 

@@ -27,8 +27,7 @@ use App\Entity\Geography\Address;
 use App\Entity\Review\Review;
 use App\Entity\User;
 use App\Repository\TicketRepository;
-use App\State\GeographyLocalizationProvider;
-use App\State\TitleLocalizationProvider;
+use App\State\Localization\Geography\TicketGeographyLocalizationProvider;
 use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -49,7 +48,7 @@ use Symfony\Component\Validator\Constraints as Assert;
         ),
         new GetCollection(
             uriTemplate: '/tickets',
-            provider: GeographyLocalizationProvider::class,
+            provider: TicketGeographyLocalizationProvider::class,
         ),
         new Post(
             uriTemplate: '/tickets',
@@ -148,6 +147,13 @@ class Ticket
     ])]
     #[Assert\PositiveOrZero(message: 'Field cannot be less than zero')]
     private ?float $budget = null;
+
+    #[ORM\Column(type: 'boolean', nullable: true)]
+    #[Groups([
+        'masterTickets:read',
+        'clientTickets:read',
+    ])]
+    private ?bool $negotiableBudget = null;
 
     #[ORM\Column(type: 'boolean', nullable: true)]
     #[Groups([
@@ -335,6 +341,17 @@ class Ticket
     {
         $this->budget = $budget;
 
+        return $this;
+    }
+
+    public function getNegotiableBudget(): ?bool
+    {
+        return $this->negotiableBudget;
+    }
+
+    public function setNegotiableBudget(?bool $negotiableBudget): static
+    {
+        $this->negotiableBudget = $negotiableBudget;
         return $this;
     }
 

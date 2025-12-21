@@ -5,9 +5,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function loadAndChangeChoices() {
     const serviceOption = document.getElementById('Ticket_service');
+    const negotiationOption = document.getElementById('Ticket_negotiableBudget');
 
     const authorDropDown = document.querySelector('.author-field');
     const masterDropDown = document.querySelector('.master-field');
+    const budgetDropDown = document.getElementById('Ticket_budget');
 
     const disableDropDown = (dropDown) => {
         dropDown.style.pointerEvents = 'none';
@@ -22,18 +24,28 @@ async function loadAndChangeChoices() {
     };
 
     const updateDropDowns = () => {
+        if (negotiationOption.checked) {
+            disableDropDown(budgetDropDown);
+            budgetDropDown.value = null;
+        } else {
+            // Если ничего не выбрано — отключаем
+            enableDropDown(budgetDropDown);
+        }
+
         if (serviceOption.checked) {
             disableDropDown(authorDropDown);
             enableDropDown(masterDropDown);
         } else {
             // Если ничего не выбрано — отключаем
             enableDropDown(authorDropDown);
+
             disableDropDown(masterDropDown);
         }
     };
 
     // Обработчики переключения
     serviceOption.addEventListener('change', updateDropDowns);
+    negotiationOption.addEventListener('change', updateDropDowns);
 
     updateDropDowns();
 }
