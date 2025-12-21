@@ -34,8 +34,15 @@ readonly class TicketGeographyLocalizationProvider implements ProviderInterface
         foreach ($result as $entity) {
             if ($entity instanceof Ticket) {
                 $this->localizationService->localizeGeography($entity, $locale);
-                $this->localizationService->localizeEntity($entity->getCategory(), $locale);
-                $this->localizationService->localizeEntity($entity->getUnit(), $locale);
+
+                if ($entity->getCategory())
+                    $this->localizationService->localizeEntity($entity->getCategory(), $locale);
+
+                if ($entity->getUnit())
+                    $this->localizationService->localizeEntity($entity->getUnit(), $locale);
+
+                if ($entity->getSubcategory())
+                    $this->localizationService->localizeEntity($entity->getSubcategory(), $locale);
             }
         }
 

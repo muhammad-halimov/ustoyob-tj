@@ -26,6 +26,7 @@ use App\Entity\Extra\Favorite;
 use App\Entity\Geography\Address;
 use App\Entity\Review\Review;
 use App\Entity\User;
+use App\Entity\User\Occupation;
 use App\Repository\TicketRepository;
 use App\State\Localization\Geography\TicketGeographyLocalizationProvider;
 use DateTime;
@@ -186,6 +187,14 @@ class Ticket
         'clientTickets:read',
     ])]
     private ?Category $category = null;
+
+    #[ORM\ManyToOne(inversedBy: 'tickets')]
+    #[ORM\JoinColumn(name: 'subcategory_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    #[Groups([
+        'masterTickets:read',
+        'clientTickets:read',
+    ])]
+    private ?Occupation $subcategory = null;
 
     #[ORM\ManyToOne(inversedBy: 'userTickets')]
     #[ORM\JoinColumn(name: 'author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
@@ -642,6 +651,18 @@ class Ticket
         if ($this->ticketsBlackListedByAuthor->removeElement($ticketsBlackListedByAuthor)) {
             $ticketsBlackListedByAuthor->removeTicket($this);
         }
+
+        return $this;
+    }
+
+    public function getSubcategory(): ?Occupation
+    {
+        return $this->subcategory;
+    }
+
+    public function setSubcategory(?Occupation $subcategory): static
+    {
+        $this->subcategory = $subcategory;
 
         return $this;
     }

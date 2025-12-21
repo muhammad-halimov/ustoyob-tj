@@ -132,7 +132,7 @@ class Category
     #[Groups([
         'categories:read',
     ])]
-    private ?Occupation $occupations = null;
+    private ?Occupation $occupation = null;
 
     /**
      * @var Collection<int, Translation>
@@ -226,14 +226,14 @@ class Category
         return $this;
     }
 
-    public function getOccupations(): ?Occupation
+    public function getOccupation(): ?Occupation
     {
-        return $this->occupations;
+        return $this->occupation;
     }
 
-    public function setOccupations(?Occupation $occupations): static
+    public function setOccupation(?Occupation $occupations): static
     {
-        $this->occupations = $occupations;
+        $this->occupation = $occupations;
 
         return $this;
     }

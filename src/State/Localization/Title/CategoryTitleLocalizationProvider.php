@@ -33,8 +33,8 @@ readonly class CategoryTitleLocalizationProvider implements ProviderInterface
             if ($entity instanceof Category) {
                 $this->localizationService->localizeEntity($entity, $locale);
 
-                if ($entity->getOccupations() !== null)
-                    $this->localizationService->localizeEntity($entity->getOccupations(), $locale);
+                if ($entity->getOccupation() !== null)
+                    $this->localizationService->localizeEntity($entity->getOccupation(), $locale);
             }
         }
 

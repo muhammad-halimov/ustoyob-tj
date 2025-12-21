@@ -33,6 +33,8 @@ class TicketInput
     #[Assert\NotBlank(message: 'Category is required')]
     public Category $category; // IRI или ID
 
+    public ?Category $subcategory = null; // IRI или ID
+
     #[Assert\NotBlank(message: 'Unit is required')]
     public Unit $unit; // IRI или ID
 

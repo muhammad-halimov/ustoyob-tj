@@ -660,6 +660,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups([
         'users:me:read'
     ])]
+    #[ApiProperty(writable: false)]
     private ?OAuthType $oauthType = null;
 
     public function getId(): ?int

@@ -79,13 +79,7 @@ class TicketCrudController extends AbstractCrudController
 
         yield BooleanField::new('negotiableBudget', 'Договорная цена')
             ->addCssClass("form-switch")
-            ->setColumns(2);
-
-        yield CollectionField::new('userTicketImages', 'Галерея изображений')
-            ->useEntryCrudForm(TicketImageCrudController::class)
-            ->hideOnIndex()
-            ->setColumns(12)
-            ->setRequired(false);
+            ->setColumns(8);
 
         yield AssociationField::new('author', 'Клиент')
             ->setQueryBuilder(function (QueryBuilder $qb) {
@@ -113,12 +107,15 @@ class TicketCrudController extends AbstractCrudController
             ->setColumns(6);
 
         yield TextField::new('title', 'Название')
-            ->setColumns(2)
+            ->setColumns(3)
             ->setRequired(true);
 
         yield AssociationField::new('category', 'Категория')
             ->setRequired(true)
-            ->setColumns(2);
+            ->setColumns(3);
+
+        yield AssociationField::new('subcategory', 'Подкатегория')
+            ->setColumns(4);
 
         yield NumberField::new('budget', 'Бюджет')
             ->addCssClass("budget-field")
@@ -129,6 +126,12 @@ class TicketCrudController extends AbstractCrudController
             ->hideOnIndex()
             ->setRequired(true)
             ->setColumns(1);
+
+        yield CollectionField::new('userTicketImages', 'Галерея изображений')
+            ->useEntryCrudForm(TicketImageCrudController::class)
+            ->hideOnIndex()
+            ->setColumns(6)
+            ->setRequired(false);
 
         yield CollectionField::new('addresses', 'Адрес')
             ->useEntryCrudForm(AddressCrudController::class)

@@ -14,6 +14,7 @@ use App\Entity\Ticket\Category;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Ticket\Unit;
 use App\Entity\User;
+use App\Entity\User\Occupation;
 use App\Service\Extra\AccessService;
 use App\Service\Extra\ExtractIriService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -58,6 +59,7 @@ class PostTicketController extends AbstractController
         $budgetParam = $data['budget'] ?? null;
         $activeParam = !isset($data['active']) || $data['active'];
         $categoryParam = $data['category'];
+        $subcategoryParam = $data['subcategory'] ?? null;
         $unitParam = $data['unit'];
         $addressParam = $data['address'] ?? [];
 
@@ -72,8 +74,18 @@ class PostTicketController extends AbstractController
 
         /** @var Category $category */
         $category = $this->extractIriService->extract($categoryParam, Category::class, 'categories');
+
+        /** @var Occupation $subcategory */
+        $subcategory = $subcategoryParam
+            ? $this->extractIriService->extract($subcategoryParam, Occupation::class, 'occupations')
+            : null;
+
         /** @var Unit $unit */
         $unit = $this->extractIriService->extract($unitParam, Unit::class, 'units');
+
+        if ($subcategory && $subcategory !== $category->getOccupation()) {
+            return $this->json(['message' => "Subcategory doesn't belong to this category"], 404);
+        }
 
         $existingAddresses = [];
 
@@ -209,6 +221,7 @@ class PostTicketController extends AbstractController
             ->setBudget($budgetParam)
             ->setActive($activeParam)
             ->setCategory($category)
+            ->setSubcategory($subcategory)
             ->setUnit($unit);
 
         $message = [

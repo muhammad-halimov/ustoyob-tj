@@ -73,6 +73,8 @@ class LocalizationService
      */
     public function localizeEntity(object $entity, string $locale): void
     {
+        if (!$entity) return;
+
         if (!method_exists($entity, 'getTranslations') || !method_exists($entity, 'setTitle')) {
             return;
         }

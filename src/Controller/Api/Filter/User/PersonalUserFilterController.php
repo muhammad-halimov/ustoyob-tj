@@ -25,7 +25,12 @@ class PersonalUserFilterController extends AbstractController
 
         $this->accessService->check($bearerUser, activeAndApproved: false);
 
-        $this->localizationService->localizeGeography($bearerUser, $request->request->get('locale') ?? 'tj');
+        $locale = $request->request->get('locale') ?? 'tj';
+
+        $this->localizationService->localizeGeography($bearerUser, $locale);
+
+        if ($bearerUser->getOccupation())
+            $this->localizationService->localizeEntity($bearerUser->getOccupation(), $locale);
 
         return empty($bearerUser)
             ? $this->json(['message' => 'Resource not found'], 404)

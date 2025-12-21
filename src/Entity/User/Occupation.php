@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use App\Entity\Extra\Translation;
 use App\Entity\Ticket\Category;
+use App\Entity\Ticket\Ticket;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
@@ -72,6 +73,9 @@ class Occupation
         'masters:read',
         'occupations:read',
         'categories:read',
+
+        'masterTickets:read',
+        'clientTickets:read',
     ])]
     private ?int $id = null;
 
@@ -80,6 +84,9 @@ class Occupation
         'masters:read',
         'occupations:read',
         'categories:read',
+
+        'masterTickets:read',
+        'clientTickets:read',
     ])]
     private ?string $title = null;
 
@@ -95,8 +102,12 @@ class Occupation
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
+        'masters:read',
         'occupations:read',
         'categories:read',
+
+        'masterTickets:read',
+        'clientTickets:read',
     ])]
     #[ApiProperty(writable: false)]
     private ?string $image = null;
@@ -118,7 +129,7 @@ class Occupation
     /**
      * @var Collection<int, Category>
      */
-    #[ORM\OneToMany(targetEntity: Category::class, mappedBy: 'occupations')]
+    #[ORM\OneToMany(targetEntity: Category::class, mappedBy: 'occupation')]
     #[Groups([
         'occupations:read',
     ])]
@@ -130,12 +141,20 @@ class Occupation
     #[ORM\OneToMany(targetEntity: Translation::class, mappedBy: 'occupation',cascade: ['persist'])]
     private Collection $translations;
 
+    /**
+     * @var Collection<int, Ticket>
+     */
+    #[ORM\OneToMany(targetEntity: Ticket::class, mappedBy: 'subcategory', cascade: ['persist'])]
+    #[Ignore]
+    private Collection $tickets;
+
     public function __construct()
     {
         $this->education = new ArrayCollection();
         $this->master = new ArrayCollection();
         $this->categories = new ArrayCollection();
         $this->translations = new ArrayCollection();
+        $this->tickets = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -260,7 +279,7 @@ class Occupation
     {
         if (!$this->categories->contains($category)) {
             $this->categories->add($category);
-            $category->setOccupations($this);
+            $category->setOccupation($this);
         }
 
         return $this;
@@ -270,8 +289,8 @@ class Occupation
     {
         if ($this->categories->removeElement($category)) {
             // set the owning side to null (unless already changed)
-            if ($category->getOccupations() === $this) {
-                $category->setOccupations(null);
+            if ($category->getOccupation() === $this) {
+                $category->setOccupation(null);
             }
         }
 
@@ -302,6 +321,36 @@ class Occupation
             // set the owning side to null (unless already changed)
             if ($translation->getOccupation() === $this) {
                 $translation->setOccupation(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Ticket>
+     */
+    public function getTickets(): Collection
+    {
+        return $this->tickets;
+    }
+
+    public function addTicket(Ticket $ticket): static
+    {
+        if (!$this->tickets->contains($ticket)) {
+            $this->tickets->add($ticket);
+            $ticket->setSubcategory($this);
+        }
+
+        return $this;
+    }
+
+    public function removeTicket(Ticket $ticket): static
+    {
+        if ($this->tickets->removeElement($ticket)) {
+            // set the owning side to null (unless already changed)
+            if ($ticket->getSubcategory() === $this) {
+                $ticket->setSubcategory(null);
             }
         }
 
