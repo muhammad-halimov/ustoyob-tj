@@ -6,7 +6,8 @@ import {
     setAuthTokenExpiry,
     setUserData,
     setUserEmail,
-    setUserRole
+    setUserRole,
+    setUserOccupation,
 } from '../../utils/auth';
 
 const AuthModalState = {
@@ -63,6 +64,7 @@ interface GoogleUserResponse {
         name: string;
         surname: string;
         roles: string[];
+        occupation?: Array<{id: number; title: string; [key: string]: unknown}>;
         oauthType?: {
             googleId: string;
             [key: string]: unknown;
@@ -156,9 +158,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
     const handleGoogleCallback = async (code: string, state: string) => {
         try {
             setIsCheckingProfile(true);
-
-            // Сначала проверяем, есть ли у пользователя уже профиль
-            console.log('Checking if user already has profile...');
 
             // Сохраняем callback данные
             setGoogleCallbackData({ code, state });
@@ -373,17 +372,21 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             if (data.user.roles && data.user.roles.length > 0) {
                 const roles = data.user.roles.map(r => r.toLowerCase());
 
-                if (roles.includes('role_master') || roles.includes('master') || roles.includes('role_master')) {
+                if (roles.includes('role_master') || roles.includes('master')) {
                     setUserRole('master');
-                } else if (roles.includes('role_client') || roles.includes('client') || roles.includes('role_client')) {
+                } else if (roles.includes('role_client') || roles.includes('client')) {
                     setUserRole('client');
                 } else {
-                    // Используем роль из формы как fallback
                     setUserRole(formData.role);
                 }
             } else {
-                // Если ролей нет, используем роль из формы
                 setUserRole(formData.role);
+            }
+
+            // Сохраняем occupation если есть
+            if (data.user.occupation) {
+                console.log('User occupation from OAuth:', data.user.occupation);
+                setUserOccupation(data.user.occupation);
             }
 
             console.log('Final user role set to:', getUserRole());
@@ -543,6 +546,52 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         setAuthTokenExpiry(expiryTime.toISOString());
     };
 
+    // Новая функция для получения данных пользователя
+    const fetchUserData = async (token: string): Promise<void> => {
+        try {
+            const userResponse = await fetch(`${API_BASE_URL}/api/users/me`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json',
+                }
+            });
+
+            if (userResponse.ok) {
+                const userData = await userResponse.json();
+                console.log('User data from /me endpoint:', userData);
+
+                // Сохраняем данные пользователя
+                setUserData(userData);
+
+                if (userData.email) {
+                    setUserEmail(userData.email);
+                }
+
+                // Определяем роль
+                if (userData.roles && userData.roles.length > 0) {
+                    const roles = userData.roles.map((r: string) => r.toLowerCase());
+
+                    if (roles.includes('role_master') || roles.includes('master')) {
+                        setUserRole('master');
+                    } else if (roles.includes('role_client') || roles.includes('client')) {
+                        setUserRole('client');
+                    }
+                }
+
+                // Сохраняем occupation если есть
+                if (userData.occupation) {
+                    console.log('User occupation from API:', userData.occupation);
+                    setUserOccupation(userData.occupation);
+                }
+            } else {
+                console.warn('Could not fetch user data from /me endpoint');
+            }
+        } catch (err) {
+            console.error('Error fetching user data:', err);
+        }
+    };
+
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
@@ -591,8 +640,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 throw new Error('Токен не получен в ответе');
             }
 
+            // Сохраняем токен
             setAuthToken(data.token);
             setTokenExpiry();
+
+            // ПОЛУЧАЕМ И СОХРАНЯЕМ ДАННЫЕ ПОЛЬЗОВАТЕЛЯ С OCCUPATION
+            await fetchUserData(data.token);
+
             handleSuccessfulAuth(data.token, formData.email);
 
         } catch (err) {
@@ -628,11 +682,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             return;
         }
 
+        // Подготавливаем данные пользователя
         const baseUserData: {
             email: string;
             name: string;
             surname: string;
             password: string;
+            roles?: string[];
             occupation?: string[];
         } = {
             email,
@@ -641,9 +697,16 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             password: formData.password,
         };
 
+        // ДОБАВЛЯЕМ РОЛЬ в регистрации
+        baseUserData.roles = formData.role === 'master' ? ['ROLE_MASTER', 'ROLE_USER'] : ['ROLE_CLIENT', 'ROLE_USER'];
+
+        // Добавляем occupation для мастера
         if (formData.role === 'master' && formData.specialty) {
             baseUserData.occupation = [`${API_BASE_URL}/api/occupations/${formData.specialty}`];
+            console.log('Adding occupation for master:', baseUserData.occupation);
         }
+
+        console.log('Sending registration data:', baseUserData);
 
         try {
             const createResponse = await fetch(`${API_BASE_URL}/api/users`, {
@@ -656,6 +719,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             });
 
             const createResponseText = await createResponse.text();
+            console.log('Registration response:', createResponse.status, createResponseText);
 
             if (!createResponse.ok) {
                 let errorMessage = 'Ошибка регистрации';
@@ -663,14 +727,17 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     const errorData = JSON.parse(createResponseText);
                     errorMessage = errorData.detail || errorData.message || errorMessage;
                     if (errorData.violations) {
-                        errorMessage = errorData.violations.map((v: { message: string }) => v.message).join(', ');
+                        errorMessage = errorData.violations.map((v: { propertyPath: string; message: string }) =>
+                            `${v.propertyPath}: ${v.message}`
+                        ).join(', ');
                     }
                 } catch {
-                    errorMessage = `HTTP error! status: ${createResponse.status}`;
+                    errorMessage = `HTTP error! status: ${createResponse.status}, response: ${createResponseText}`;
                 }
                 throw new Error(errorMessage);
             }
 
+            // Логин после регистрации
             const loginResponse = await fetch(`${API_BASE_URL}/api/authentication_token`, {
                 method: 'POST',
                 headers: {
@@ -684,13 +751,21 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             });
 
             if (!loginResponse.ok) {
+                const errorText = await loginResponse.text();
+                console.error('Login after registration error:', errorText);
                 throw new Error('Не удалось авторизоваться после регистрации');
             }
 
             const loginData: LoginResponse = await loginResponse.json();
 
+            // Сохраняем токен и данные
             setAuthToken(loginData.token);
             setTokenExpiry();
+            setUserRole(formData.role);
+
+            // Получаем и сохраняем данные пользователя
+            await fetchUserData(loginData.token);
+
             setRegisteredEmail(email);
             setCurrentState(AuthModalState.CONFIRM_EMAIL);
 
@@ -703,16 +778,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
     };
 
     const handleSuccessfulAuth = (token: string, email?: string) => {
-        setAuthToken(token);
-        setTokenExpiry();
-
         if (email) {
             setUserEmail(email);
         }
 
-        const existingRole = localStorage.getItem('userRole');
+        const existingRole = getUserRole();
         if (!existingRole && email) {
-            console.log('New Google OAuth user, setting role from form:', formData.role);
+            console.log('New OAuth user, setting role from form:', formData.role);
             setUserRole(formData.role);
         }
 
@@ -870,7 +942,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
                 {error && <div className={styles.error}>{error}</div>}
                 <div className={styles.roleSelector}>
-                    {/*<p className={styles.roleLabel}>Для авторизации через Google выберите тип аккаунта:</p>*/}
                     <button
                         type="button"
                         className={formData.role === 'master' ? styles.roleButtonActive : styles.roleButton}

@@ -7,6 +7,7 @@ const TOKEN_EXPIRY_KEY = 'tokenExpiry';
 const USER_ROLE_KEY = 'userRole';
 const USER_DATA_KEY = 'userData';
 const USER_EMAIL_KEY = 'userEmail';
+const USER_OCCUPATION_KEY = 'userOccupation'; // Новая константа
 
 // Время жизни токена (1 час)
 const TOKEN_LIFETIME_HOURS = 1;
@@ -51,7 +52,8 @@ export const removeAuthToken = (): void => {
     localStorage.removeItem(USER_EMAIL_KEY);
     localStorage.removeItem(USER_DATA_KEY);
     localStorage.removeItem(USER_ROLE_KEY);
-    localStorage.removeItem('selectedCity'); // Можно оставить, если нужно
+    localStorage.removeItem(USER_OCCUPATION_KEY); // Добавляем очистку occupation
+    localStorage.removeItem('selectedCity');
 };
 
 // Функция для выхода с блокировкой токена на сервере
@@ -67,7 +69,6 @@ export const logout = async (): Promise<boolean> => {
     }
 
     try {
-        // Отправляем запрос на сервер для инвалидации токена
         const response = await fetch(`${API_BASE_URL}/api/logout`, {
             method: 'POST',
             headers: {
@@ -75,7 +76,6 @@ export const logout = async (): Promise<boolean> => {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
             },
-            // Добавляем сам токен в тело запроса
             body: JSON.stringify({ token })
         });
 
@@ -86,11 +86,10 @@ export const logout = async (): Promise<boolean> => {
             return true;
         } else {
             console.warn('Server logout failed, but client data cleared');
-            return true; // Все равно возвращаем true, так как на клиенте очищено
+            return true;
         }
     } catch (error) {
         console.error('Error during logout:', error);
-        // В случае ошибки сети все равно возвращаем true, так как на клиенте очищено
         return true;
     }
 };
@@ -133,10 +132,8 @@ export const setAuthTokenExpiry = (expiry?: string): void => {
     let expiryDate: Date;
 
     if (expiry) {
-        // Используем переданную дату истечения
         expiryDate = new Date(expiry);
     } else {
-        // Создаем новую дату истечения (текущее время + 1 час)
         expiryDate = new Date();
         expiryDate.setHours(expiryDate.getHours() + TOKEN_LIFETIME_HOURS);
     }
@@ -152,7 +149,7 @@ export const removeAuthTokenExpiry = (): void => {
 // Функция проверки, не истек ли токен
 export const isTokenExpired = (): boolean => {
     const expiry = getAuthTokenExpiry();
-    if (!expiry) return true; // Если нет информации об истечении, считаем истекшим
+    if (!expiry) return true;
 
     const now = new Date();
     const expiryDate = new Date(expiry);
@@ -166,7 +163,7 @@ export const isTokenAboutToExpire = (bufferMinutes: number = 5): boolean => {
 
     const now = new Date();
     const expiryDate = new Date(expiry);
-    const bufferTime = bufferMinutes * 60 * 1000; // минуты в миллисекундах
+    const bufferTime = bufferMinutes * 60 * 1000;
 
     return expiryDate.getTime() - now.getTime() < bufferTime;
 };
@@ -176,7 +173,6 @@ export const isAuthenticated = (): boolean => {
     const token = getAuthToken();
     if (!token) return false;
 
-    // Проверяем, не истек ли токен
     return !isTokenExpired();
 };
 
@@ -187,6 +183,7 @@ export const clearAuthData = (): void => {
     localStorage.removeItem(USER_EMAIL_KEY);
     localStorage.removeItem(USER_DATA_KEY);
     localStorage.removeItem(USER_ROLE_KEY);
+    localStorage.removeItem(USER_OCCUPATION_KEY); // Добавляем очистку occupation
 };
 
 // Функции для работы с ролью пользователя
@@ -237,7 +234,31 @@ export const setUserEmail = (email: string): void => {
     localStorage.setItem(USER_EMAIL_KEY, email);
 };
 
-// Функция для обновления данных пользователя (например, после подтверждения аккаунта)
+// Функции для работы с occupation пользователя
+export const getUserOccupation = (): UserOccupation[] | null => {
+    if (typeof window === 'undefined') return null;
+    const occupationStr = localStorage.getItem(USER_OCCUPATION_KEY);
+    if (!occupationStr) return null;
+
+    try {
+        return JSON.parse(occupationStr) as UserOccupation[];
+    } catch (error) {
+        console.error('Error parsing user occupation:', error);
+        return null;
+    }
+};
+
+export const setUserOccupation = (occupation: UserOccupation[]): void => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(USER_OCCUPATION_KEY, JSON.stringify(occupation));
+};
+
+export const clearUserOccupation = (): void => {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem(USER_OCCUPATION_KEY);
+};
+
+// Функция для обновления данных пользователя
 export const updateUserData = (updates: Partial<UserData>): UserData | null => {
     const currentData = getUserData();
     if (!currentData) return null;
@@ -259,26 +280,21 @@ interface JWTPayload {
     [key: string]: unknown;
 }
 
-// Функция для установки времени истечения токена из JWT (если токен содержит exp)
+// Функция для установки времени истечения токена из JWT
 export const setTokenExpiryFromJWT = (token: string): void => {
     try {
-        // JWT токен состоит из трех частей, разделенных точками
         const payload = token.split('.')[1];
         if (!payload) return;
 
-        // Декодируем base64
         const decodedPayload = JSON.parse(atob(payload)) as JWTPayload;
 
-        // Если в токене есть поле exp (expiration time в секундах)
         if (decodedPayload.exp) {
-            // Преобразуем секунды в миллисекунды
             const expiryDate = new Date(decodedPayload.exp * 1000);
             setAuthTokenExpiry(expiryDate.toISOString());
             console.log('Token expiry set from JWT:', expiryDate);
         }
     } catch (error) {
         console.error('Error parsing JWT token:', error);
-        // Если не удалось распарсить JWT, используем стандартное время
         setAuthTokenExpiry();
     }
 };
@@ -290,12 +306,10 @@ export const setupTokenRefresh = async (
 ): Promise<void> => {
     if (typeof window === 'undefined') return;
 
-    // Проверяем токен каждую минуту
     setInterval(async () => {
         const token = getAuthToken();
         if (!token) return;
 
-        // Если токен истек
         if (isTokenExpired()) {
             console.log('Token has expired');
             if (onTokenExpired) {
@@ -306,13 +320,11 @@ export const setupTokenRefresh = async (
             return;
         }
 
-        // Если токен скоро истечет (за 5 минут)
         if (isTokenAboutToExpire()) {
             console.log('Token is about to expire, attempting refresh...');
 
             let refreshSuccess = false;
 
-            // Если предоставлена функция для обновления токена
             if (onTokenAboutToExpire) {
                 try {
                     refreshSuccess = await onTokenAboutToExpire();
@@ -321,7 +333,6 @@ export const setupTokenRefresh = async (
                 }
             }
 
-            // Если обновление не удалось, очищаем данные
             if (!refreshSuccess) {
                 console.log('Token refresh failed, clearing auth data');
                 clearAuthData();
@@ -330,7 +341,7 @@ export const setupTokenRefresh = async (
                 }
             }
         }
-    }, 60000); // Проверка каждую минуту (60000 мс)
+    }, 60000);
 };
 
 // Вспомогательная функция для получения полного имени пользователя
@@ -349,7 +360,6 @@ export const hasRole = (role: 'client' | 'master' | string): boolean => {
     const userRole = getUserRole();
     if (!userRole) return false;
 
-    // Если передана строка с ROLE_, преобразуем для сравнения
     if (role.includes('ROLE_')) {
         if (role === 'ROLE_CLIENT') return userRole === 'client';
         if (role === 'ROLE_MASTER') return userRole === 'master';
