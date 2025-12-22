@@ -135,9 +135,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         const code = urlParams.get('code');
         const state = urlParams.get('state');
         const oauthError = urlParams.get('error');
+        const scope = urlParams.get('scope'); // Google может вернуть scope
 
         // Очищаем URL от параметров OAuth
-        if (code || state || oauthError) {
+        if (code || state || oauthError || scope) {
             window.history.replaceState({}, '', window.location.pathname);
         }
 
@@ -147,10 +148,17 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             return;
         }
 
-        // Если есть код авторизации Google, сохраняем данные и показываем выбор роли
+        // Если есть код авторизации Google
         if (code && state) {
-            console.log('Google callback received:', { code, state });
-            setGoogleCallbackData({ code, state });
+            console.log('Google callback received:', { code, state, scope });
+
+            // Сохраняем данные в правильном формате
+            setGoogleCallbackData({
+                code,
+                state
+            });
+
+            // Показываем выбор роли (на всякий случай, если state не удалось декодировать)
             setShowRoleSelectionBeforeGoogle(true);
             setCurrentState(AuthModalState.LOGIN);
         }
@@ -216,89 +224,22 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         };
     }, [API_BASE_URL]);
 
-    // Функция для завершения Google авторизации с выбранной ролью
-    const completeGoogleAuthWithRole = async (selectedRole: 'master' | 'client') => {
-        try {
-            setIsLoading(true);
-            setError('');
-
-            // Используем данные из callback или из sessionStorage
-            const code = googleCallbackData?.code || sessionStorage.getItem('googleAuthCode');
-            const state = googleCallbackData?.state || sessionStorage.getItem('googleAuthState');
-
-            if (!code || !state) {
-                throw new Error('Нет данных Google OAuth');
-            }
-
-            console.log('Completing Google auth with role:', selectedRole, 'specialty:', pendingGoogleAuthSpecialty);
-
-            // Подготавливаем данные для отправки в формате, который ожидает сервер
-            const requestData: {
-                code: string;
-                state: string;
-                role: string;
-                occupation?: string;
-            } = {
-                code,
-                state,
-                role: selectedRole === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT'
-            };
-
-            // Если выбрана роль мастера и есть специальность, добавляем её
-            if (selectedRole === 'master' && pendingGoogleAuthSpecialty) {
-                requestData.occupation = `${API_BASE_URL}/api/occupations/${pendingGoogleAuthSpecialty}`;
-            }
-
-            console.log('Sending Google callback request:', requestData);
-
-            // Отправляем запрос на сервер с кодом, state, ролью и специальностью
-            const response = await fetch(`${API_BASE_URL}/api/auth/google/callback`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify(requestData)
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Server error response:', errorText);
-                throw new Error(`Ошибка авторизации Google: ${errorText}`);
-            }
-
-            const data: GoogleUserResponse = await response.json();
-            console.log('Google auth completed successfully:', data);
-
-            // Сохраняем данные пользователя
-            saveUserData(data);
-            handleSuccessfulAuth(data.token, data.user.email);
-
-            // Очищаем временные данные
-            setGoogleCallbackData(null);
-            sessionStorage.removeItem('googleAuthCode');
-            sessionStorage.removeItem('googleAuthState');
-
-        } catch (err) {
-            console.error('Google auth completion error:', err);
-            setError(err instanceof Error ? err.message : 'Ошибка завершения авторизации Google');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
     // Новая функция для начала Google авторизации с выбором роли
     const handleGoogleAuthWithRole = () => {
         try {
-            // Генерируем state с CSRF токеном (без роли)
-            const csrfToken = Math.random().toString(36).substring(2);
-            const state = JSON.stringify({ t: csrfToken });
+            // Сохраняем выбранную роль и специальность
+            const authData = {
+                role: pendingGoogleAuthRole,
+                specialty: pendingGoogleAuthSpecialty || '',
+                timestamp: Date.now(),
+                csrf: Math.random().toString(36).substring(2)
+            };
 
-            // Сохраняем выбранную роль для последующего использования
-            sessionStorage.setItem('pendingGoogleRole', pendingGoogleAuthRole);
-            if (pendingGoogleAuthRole === 'master' && pendingGoogleAuthSpecialty) {
-                sessionStorage.setItem('pendingGoogleSpecialty', pendingGoogleAuthSpecialty);
-            }
+            // Кодируем данные в base64 для передачи через state
+            const state = btoa(JSON.stringify(authData));
+
+            // Сохраняем локально на всякий случай
+            sessionStorage.setItem('googleAuthData', JSON.stringify(authData));
 
             // Получаем URL для Google OAuth с переданным state
             fetch(`${API_BASE_URL}/api/auth/google/url?state=${encodeURIComponent(state)}`, {
@@ -325,6 +266,87 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         } catch (err) {
             console.error('Google auth error:', err);
             setError(err instanceof Error ? err.message : 'Ошибка при авторизации через Google');
+        }
+    };
+
+    // Функция для завершения Google авторизации с выбранной ролью
+    const completeGoogleAuthWithRole = async (selectedRole: 'master' | 'client') => {
+        try {
+            setIsLoading(true);
+            setError('');
+
+            if (!googleCallbackData?.code || !googleCallbackData?.state) {
+                throw new Error('Нет данных Google OAuth');
+            }
+
+            console.log('Completing Google auth with:', googleCallbackData);
+
+            // Пытаемся декодировать данные из state
+            let decodedState = null;
+            try {
+                decodedState = JSON.parse(atob(googleCallbackData.state));
+                console.log('Decoded state:', decodedState);
+            } catch (e) {
+                console.warn('Could not decode state, using default role');
+            }
+
+            // Определяем роль: из декодированного state или из выбранной пользователем
+            const role = decodedState?.role || selectedRole;
+            const specialty = decodedState?.specialty || pendingGoogleAuthSpecialty;
+
+            console.log('Using role:', role, 'specialty:', specialty);
+
+            // Подготавливаем данные для отправки
+            const requestData: {
+                code: string;
+                state: string;
+                role: string;
+                occupation?: string;
+            } = {
+                code: googleCallbackData.code,
+                state: googleCallbackData.state, // Отправляем оригинальный state
+                role: role === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT'
+            };
+
+            // Если выбрана роль мастера и есть специальность, добавляем её
+            if (role === 'master' && specialty) {
+                requestData.occupation = `${API_BASE_URL}/api/occupations/${specialty}`;
+            }
+
+            console.log('Sending Google callback request:', requestData);
+
+            // Отправляем запрос на сервер
+            const response = await fetch(`${API_BASE_URL}/api/auth/google/callback`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify(requestData)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Server error response:', errorText);
+                throw new Error(`Ошибка авторизации Google: ${errorText}`);
+            }
+
+            const data: GoogleUserResponse = await response.json();
+            console.log('Google auth completed successfully:', data);
+
+            // Сохраняем данные пользователя
+            saveUserData(data);
+            handleSuccessfulAuth(data.token, data.user.email);
+
+            // Очищаем временные данные
+            setGoogleCallbackData(null);
+            sessionStorage.removeItem('googleAuthData');
+
+        } catch (err) {
+            console.error('Google auth completion error:', err);
+            setError(err instanceof Error ? err.message : 'Ошибка завершения авторизации Google');
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -453,38 +475,30 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 setUserEmail(data.user.email);
             }
 
-            // Проверяем и устанавливаем роль
+            // ВАЖНО: Используем роль, которую вернул сервер
+            // Сервер должен установить правильную роль на основе отправленных данных
             if (data.user.roles && data.user.roles.length > 0) {
-                console.log('User roles:', data.user.roles);
+                console.log('User roles from server:', data.user.roles);
                 const role = data.user.roles[0];
 
-                if (role.includes('MASTER') || role.includes('master')) {
+                if (role.includes('MASTER') || role.includes('ROLE_MASTER')) {
                     setUserRole('master');
-                } else if (role.includes('CLIENT') || role.includes('client')) {
+                } else if (role.includes('CLIENT') || role.includes('ROLE_CLIENT')) {
                     setUserRole('client');
-                } else if (role.includes('USER')) {
-                    // Если только ROLE_USER, используем сохраненную роль
-                    const pendingRole = sessionStorage.getItem('pendingGoogleRole') as 'master' | 'client' | null;
-                    if (pendingRole) {
-                        setUserRole(pendingRole);
-                    } else {
-                        setUserRole('client'); // По умолчанию
-                    }
+                } else {
+                    // Если сервер вернул только ROLE_USER, устанавливаем клиента по умолчанию
+                    setUserRole('client');
                 }
+            } else {
+                // Если ролей нет, устанавливаем клиента по умолчанию
+                setUserRole('client');
             }
-
-            // Очищаем временные данные
-            sessionStorage.removeItem('pendingGoogleRole');
-            sessionStorage.removeItem('pendingGoogleSpecialty');
         }
 
         // Очищаем все временные данные
-        localStorage.removeItem('googleAuthCode');
-        localStorage.removeItem('googleAuthState');
-        localStorage.removeItem('googleUserData');
-        localStorage.removeItem('googleSelectedRole');
-        sessionStorage.removeItem('googleAuthCode');
-        sessionStorage.removeItem('googleAuthState');
+        sessionStorage.removeItem('googleAuthData');
+        sessionStorage.removeItem('pendingGoogleRole');
+        sessionStorage.removeItem('pendingGoogleSpecialty');
     };
 
     const handleTelegramCallback = async (authData: TelegramAuthCallbackData) => {
