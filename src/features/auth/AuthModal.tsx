@@ -960,25 +960,25 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     </button>
                 </div>
 
-                {formData.role === 'master' && (
-                    <div className={styles.inputGroup}>
-                        <div className={styles.selectWrapper}>
-                            <select
-                                name="specialty"
-                                value={formData.specialty}
-                                onChange={handleInputChange}
-                                disabled={isLoading}
-                            >
-                                <option value="">Выберите специальность (для специалиста)</option>
-                                {categories.map(category => (
-                                    <option key={category.id} value={category.id}>
-                                        {category.title}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-                )}
+                {/*{formData.role === 'master' && (*/}
+                {/*    <div className={styles.inputGroup}>*/}
+                {/*        <div className={styles.selectWrapper}>*/}
+                {/*            <select*/}
+                {/*                name="specialty"*/}
+                {/*                value={formData.specialty}*/}
+                {/*                onChange={handleInputChange}*/}
+                {/*                disabled={isLoading}*/}
+                {/*            >*/}
+                {/*                <option value="">Выберите специальность (для специалиста)</option>*/}
+                {/*                {categories.map(category => (*/}
+                {/*                    <option key={category.id} value={category.id}>*/}
+                {/*                        {category.title}*/}
+                {/*                    </option>*/}
+                {/*                ))}*/}
+                {/*            </select>*/}
+                {/*        </div>*/}
+                {/*    </div>*/}
+                {/*)}*/}
 
                 <div className={styles.inputGroup}>
                     <input
