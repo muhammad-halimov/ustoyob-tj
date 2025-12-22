@@ -4,6 +4,7 @@ namespace App\Service\OAuth\Google;
 
 use App\Entity\Extra\OAuthType;
 use App\Entity\User;
+use App\Entity\User\Phone;
 use App\Service\OAuth\AbstractOAuthService;
 use App\Service\OAuth\Interface\OAuthServiceInterface;
 use DateTime;
@@ -249,7 +250,7 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
     private function setOptionalUserData(User $user, array $googleData): void
     {
         if (!empty($googleData['phone'])) {
-            $user->setPhone2($googleData['phone']);
+            $user->addPhone(new Phone()->setPhone($googleData['phone']));
         }
 
         if (isset($googleData['gender'])) {

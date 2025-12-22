@@ -30,6 +30,9 @@ readonly class UserGeographyLocalizationProvider implements ProviderInterface
             throw new NotFoundHttpException("Locale not found");
         }
 
+        // Проверяем, это массив с одним элементом или коллекция
+        $isSingleWrappedInArray = is_array($result) && count($result) === 1 && isset($result[0]) && $result[0] instanceof User;
+
         // Применяем локализацию к результату
         foreach ($result as $entity) {
             if ($entity instanceof User) {
@@ -41,6 +44,7 @@ readonly class UserGeographyLocalizationProvider implements ProviderInterface
             }
         }
 
-        return $result;
+        // Если был один User в массиве, возвращаем его напрямую
+        return $isSingleWrappedInArray ? $result[0] : $result;
     }
 }

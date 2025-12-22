@@ -29,6 +29,9 @@ readonly class OccupationTitleLocalizationProvider implements ProviderInterface
             throw new NotFoundHttpException("Locale not found");
         }
 
+        // Проверяем, это массив с одним элементом или коллекция
+        $isSingleWrappedInArray = is_array($result) && count($result) === 1 && isset($result[0]) && $result[0] instanceof Occupation;
+
         foreach ($result as $entity) {
             if ($entity instanceof Occupation) {
                 $this->localizationService->localizeEntity($entity, $locale);
@@ -38,6 +41,6 @@ readonly class OccupationTitleLocalizationProvider implements ProviderInterface
             }
         }
 
-        return $result;
+        return $isSingleWrappedInArray ? $result[0] : $result;
     }
 }

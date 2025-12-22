@@ -29,12 +29,15 @@ readonly class UnitTitleLocalizationProvider implements ProviderInterface
             throw new NotFoundHttpException("Locale not found");
         }
 
+        // Проверяем, это массив с одним элементом или коллекция
+        $isSingleWrappedInArray = is_array($result) && count($result) === 1 && isset($result[0]) && $result[0] instanceof Unit;
+
         foreach ($result as $entity) {
             if ($entity instanceof Unit) {
                 $this->localizationService->localizeEntity($entity, $locale);
             }
         }
 
-        return $result;
+        return $isSingleWrappedInArray ? $result[0] : $result;
     }
 }
