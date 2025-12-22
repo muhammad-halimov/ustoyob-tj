@@ -710,6 +710,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             setUserEmail(email);
         }
 
+        const existingRole = localStorage.getItem('userRole');
+        if (!existingRole && email) {
+            console.log('New Google OAuth user, setting role from form:', formData.role);
+            setUserRole(formData.role);
+        }
+
         resetForm();
         if (onLoginSuccess) {
             onLoginSuccess(token, email);
@@ -857,12 +863,51 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             );
         }
 
-        // Обычный экран логина
+        // Обычный экран логина С ВЫБОРОМ РОЛИ ДЛЯ GOOGLE
         return (
             <form onSubmit={handleLogin} className={styles.form}>
                 <h2>Вход</h2>
 
                 {error && <div className={styles.error}>{error}</div>}
+                <div className={styles.roleSelector}>
+                    {/*<p className={styles.roleLabel}>Для авторизации через Google выберите тип аккаунта:</p>*/}
+                    <button
+                        type="button"
+                        className={formData.role === 'master' ? styles.roleButtonActive : styles.roleButton}
+                        onClick={() => handleRoleChange('master')}
+                        disabled={isLoading}
+                    >
+                        Я специалист
+                    </button>
+                    <button
+                        type="button"
+                        className={formData.role === 'client' ? styles.roleButtonActive : styles.roleButton}
+                        onClick={() => handleRoleChange('client')}
+                        disabled={isLoading}
+                    >
+                        Я ищу специалиста
+                    </button>
+                </div>
+
+                {formData.role === 'master' && (
+                    <div className={styles.inputGroup}>
+                        <div className={styles.selectWrapper}>
+                            <select
+                                name="specialty"
+                                value={formData.specialty}
+                                onChange={handleInputChange}
+                                disabled={isLoading}
+                            >
+                                <option value="">Выберите специальность (для специалиста)</option>
+                                {categories.map(category => (
+                                    <option key={category.id} value={category.id}>
+                                        {category.title}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                )}
 
                 <div className={styles.inputGroup}>
                     <input
@@ -886,6 +931,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         placeholder="Введите пароль"
                     />
                 </div>
+
                 <button
                     type="submit"
                     className={styles.primaryButton}
@@ -913,6 +959,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     >
                         <img src="../telegram.png" alt="Telegram" />
                     </button>
+                </div>
+
+                <div className={styles.socialNote}>
+                    <p>При авторизации через Google будет использован выбранный тип аккаунта: <strong>{formData.role === 'master' ? 'специалист' : 'клиент'}</strong></p>
                 </div>
 
                 <div id="telegram-widget-container" className={styles.telegramWidgetContainer}>
