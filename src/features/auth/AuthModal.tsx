@@ -308,10 +308,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             } = {
                 code: googleCallbackData.code,
                 state: googleCallbackData.state,
-                role: roleFormats.format1 // Пробуем первый формат
+                role: selectedRole
             };
 
-            // Если выбрана роль мастера и есть специальность
             if (selectedRole === 'master' && pendingGoogleAuthSpecialty) {
                 requestData.occupation = `${API_BASE_URL}/api/occupations/${pendingGoogleAuthSpecialty}`;
             }

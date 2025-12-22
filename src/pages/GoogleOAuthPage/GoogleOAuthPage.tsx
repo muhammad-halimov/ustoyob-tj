@@ -26,7 +26,6 @@ const GoogleOAuthPage = () => {
             }
 
             try {
-                // ВАЖНО: Проверяем, есть ли сохраненная роль
                 const savedRole = sessionStorage.getItem('pendingGoogleRole') || 'client';
                 const savedSpecialty = sessionStorage.getItem('pendingGoogleSpecialty');
 
@@ -41,10 +40,9 @@ const GoogleOAuthPage = () => {
                 } = {
                     code,
                     state,
-                    role: savedRole === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT'
+                    role: savedRole
                 };
 
-                // Если есть специальность для мастера
                 if (savedRole === 'master' && savedSpecialty) {
                     requestData.occupation = `${API_BASE_URL}/api/occupations/${savedSpecialty}`;
                 }
