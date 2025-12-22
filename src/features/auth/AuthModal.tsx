@@ -229,21 +229,15 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
     const handleGoogleAuthWithRole = () => {
         try {
             // Сохраняем выбранную роль и специальность
-            const authData = {
-                role: pendingGoogleAuthRole,
-                specialty: pendingGoogleAuthSpecialty || '',
-                timestamp: Date.now(),
-                csrf: Math.random().toString(36).substring(2)
-            };
+            sessionStorage.setItem('pendingGoogleRole', pendingGoogleAuthRole);
+            if (pendingGoogleAuthRole === 'master' && pendingGoogleAuthSpecialty) {
+                sessionStorage.setItem('pendingGoogleSpecialty', pendingGoogleAuthSpecialty);
+            }
 
-            // Кодируем данные в base64 для передачи через state
-            const state = btoa(JSON.stringify(authData));
+            console.log('Saved role to sessionStorage:', pendingGoogleAuthRole);
 
-            // Сохраняем локально на всякий случай
-            sessionStorage.setItem('googleAuthData', JSON.stringify(authData));
-
-            // Получаем URL для Google OAuth с переданным state
-            fetch(`${API_BASE_URL}/api/auth/google/url?state=${encodeURIComponent(state)}`, {
+            // Получаем URL для Google OAuth
+            fetch(`${API_BASE_URL}/api/auth/google/url?state=${encodeURIComponent(pendingGoogleAuthRole)}`, {
                 method: 'GET',
                 headers: { 'Accept': 'application/json' },
             })
@@ -254,7 +248,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     return response.json();
                 })
                 .then((data: GoogleAuthUrlResponse) => {
-                    console.log('Redirecting to Google OAuth:', data.url);
+                    console.log('Redirecting to Google OAuth with role:', pendingGoogleAuthRole);
+                    console.log('Redirect URL:', data.url);
+
                     // Закрываем модалку и перенаправляем на Google
                     onClose();
                     window.location.href = data.url;
@@ -262,11 +258,19 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 .catch(err => {
                     console.error('Google auth error:', err);
                     setError(err instanceof Error ? err.message : 'Ошибка при авторизации через Google');
+
+                    // Очищаем сохраненные данные при ошибке
+                    sessionStorage.removeItem('pendingGoogleRole');
+                    sessionStorage.removeItem('pendingGoogleSpecialty');
                 });
 
         } catch (err) {
             console.error('Google auth error:', err);
             setError(err instanceof Error ? err.message : 'Ошибка при авторизации через Google');
+
+            // Очищаем сохраненные данные при ошибке
+            sessionStorage.removeItem('pendingGoogleRole');
+            sessionStorage.removeItem('pendingGoogleSpecialty');
         }
     };
 

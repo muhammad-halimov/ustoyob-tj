@@ -1,152 +1,118 @@
-import { useEffect } from 'react';
+// GoogleOAuthPage.tsx или GoogleOAuthPage.jsx
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import {
-    setAuthToken,
-    setAuthTokenExpiry,
-    setUserData,
-    setUserEmail,
-    setUserRole
-} from '../../utils/auth';
+import { setAuthToken, setAuthTokenExpiry } from '../../utils/auth';
 
-function GoogleOAuthPage() {
-    const navigate = useNavigate();
+const GoogleOAuthPage = () => {
     const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
+    const [error, setError] = useState<string>('');
+
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     useEffect(() => {
-        const processGoogleCallback = async () => {
-            console.log('GoogleOAuthPage: Processing callback...');
-
+        const processCallback = async () => {
             const code = searchParams.get('code');
             const state = searchParams.get('state');
-            const error = searchParams.get('error');
             const scope = searchParams.get('scope');
 
-            console.log('Received params:', { code: !!code, state: !!state, error, scope });
-
-            // Очищаем URL сразу
-            if (code || error) {
-                window.history.replaceState({}, '', window.location.pathname);
-            }
-
-            if (error) {
-                console.error('Google OAuth error:', error);
-                navigate('/?oauth_error=' + encodeURIComponent(error));
-                return;
-            }
+            console.log('GoogleOAuthPage: Processing callback...');
+            console.log('Received params:', { code: !!code, state: !!state, error: searchParams.get('error'), scope });
 
             if (!code || !state) {
-                console.error('Missing code or state');
-                navigate('/?error=missing_auth_params');
+                setError('Не удалось получить данные авторизации');
+                setTimeout(() => navigate('/'), 3000);
                 return;
             }
 
             try {
-                console.log('Sending Google callback to server...');
+                // ВАЖНО: Проверяем, есть ли сохраненная роль
+                const savedRole = sessionStorage.getItem('pendingGoogleRole') || 'client';
+                const savedSpecialty = sessionStorage.getItem('pendingGoogleSpecialty');
 
-                // 1. Отправляем код на сервер для получения токена
+                console.log('Using saved role:', savedRole, 'specialty:', savedSpecialty);
+
+                // Подготавливаем запрос с ролью
+                const requestData: {
+                    code: string;
+                    state: string;
+                    role: string;
+                    occupation?: string;
+                } = {
+                    code,
+                    state,
+                    role: savedRole === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT'
+                };
+
+                // Если есть специальность для мастера
+                if (savedRole === 'master' && savedSpecialty) {
+                    requestData.occupation = `${API_BASE_URL}/api/occupations/${savedSpecialty}`;
+                }
+
+                console.log('Sending Google callback to server with role:', requestData.role);
+
                 const response = await fetch(`${API_BASE_URL}/api/auth/google/callback`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json',
                     },
-                    body: JSON.stringify({
-                        code,
-                        state,
-                        // Можно добавить scope если нужно
-                        scope: scope || ''
-                    })
+                    body: JSON.stringify(requestData)
                 });
 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    console.error('Server error response:', errorText);
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    throw new Error(`Ошибка сервера: ${response.status} - ${errorText}`);
                 }
 
                 const data = await response.json();
                 console.log('Server response data:', data);
 
-                if (data.token && data.user) {
-                    // 2. Сохраняем данные пользователя
+                // Сохраняем токен
+                if (data.token) {
                     setAuthToken(data.token);
-                    setUserData(data.user);
 
-                    if (data.user.email) {
-                        setUserEmail(data.user.email);
-                    }
+                    // Устанавливаем срок действия токена
+                    const expiryTime = new Date();
+                    expiryTime.setHours(expiryTime.getHours() + 1);
+                    setAuthTokenExpiry(expiryTime.toISOString());
 
-                    // 3. Проверяем наличие роли
-                    const hasRole = data.user.roles && data.user.roles.length > 0;
+                    console.log('Google auth successful, redirecting to home...');
 
-                    if (hasRole) {
-                        // Устанавливаем роль
-                        const role = data.user.roles[0];
-                        if (role.includes('MASTER') || role.includes('master')) {
-                            setUserRole('master');
-                        } else if (role.includes('CLIENT') || role.includes('client')) {
-                            setUserRole('client');
-                        }
+                    // Очищаем временные данные
+                    sessionStorage.removeItem('pendingGoogleRole');
+                    sessionStorage.removeItem('pendingGoogleSpecialty');
 
-                        // Устанавливаем время истечения токена
-                        const expiryTime = new Date();
-                        expiryTime.setHours(expiryTime.getHours() + 1);
-                        setAuthTokenExpiry(expiryTime.toISOString());
-
-                        // Имитируем событие login
-                        window.dispatchEvent(new Event('login'));
-
-                        // Перенаправляем на главную
-                        console.log('Google auth successful, redirecting to home...');
-                        navigate('/', { replace: true });
-                    } else {
-                        // Нет роли - показываем выбор роли
-                        console.log('User needs role selection');
-                        // Сохраняем данные для выбора роли
-                        sessionStorage.setItem('googleUserData', JSON.stringify(data.user));
-                        sessionStorage.setItem('googleAuthToken', data.token);
-                        navigate('/?google_role_select=true', { replace: true });
-                    }
+                    // Редирект на главную
+                    navigate('/');
                 } else {
-                    throw new Error('Invalid response format: missing token or user data');
+                    throw new Error('Токен не получен');
                 }
+
             } catch (err) {
-                console.error('Google OAuth processing error:', err);
-                navigate('/?error=oauth_failed&message=' + encodeURIComponent(err instanceof Error ? err.message : 'Unknown error'));
+                console.error('Google OAuth error:', err);
+                setError(err instanceof Error ? err.message : 'Ошибка авторизации');
+                setTimeout(() => navigate('/'), 3000);
             }
         };
 
-        processGoogleCallback();
-    }, [navigate, searchParams, API_BASE_URL]);
+        processCallback();
+    }, [searchParams, navigate]);
+
+    if (error) {
+        return (
+            <div style={{ padding: '20px', textAlign: 'center' }}>
+                <h2>Ошибка авторизации</h2>
+                <p>{error}</p>
+                <p>Перенаправление на главную страницу...</p>
+            </div>
+        );
+    }
 
     return (
-        <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            height: '100vh',
-            backgroundColor: '#f5f5f5'
-        }}>
-            <div style={{ textAlign: 'center' }}>
-                <h2 style={{ marginBottom: '20px', color: '#333' }}>Авторизация через Google...</h2>
-                <div style={{
-                    width: '60px',
-                    height: '60px',
-                    border: '5px solid #f3f3f3',
-                    borderTop: '5px solid #4285f4',
-                    borderRadius: '50%',
-                    animation: 'spin 1s linear infinite',
-                    margin: '20px auto'
-                }}></div>
-                <p style={{ marginTop: '20px', color: '#666' }}>Пожалуйста, подождите...</p>
-                <style>{`
-                    @keyframes spin {
-                        0% { transform: rotate(0deg); }
-                        100% { transform: rotate(360deg); }
-                    }
-                `}</style>
-            </div>
+        <div style={{ padding: '20px', textAlign: 'center' }}>
+            <h2>Обработка авторизации Google...</h2>
+            <p>Пожалуйста, подождите.</p>
         </div>
     );
 };
