@@ -115,6 +115,7 @@ class TicketCrudController extends AbstractCrudController
             ->setColumns(3);
 
         yield AssociationField::new('subcategory', 'Подкатегория')
+            ->hideOnIndex()
             ->setColumns(4);
 
         yield NumberField::new('budget', 'Бюджет')

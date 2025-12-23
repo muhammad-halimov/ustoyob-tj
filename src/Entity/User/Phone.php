@@ -5,7 +5,7 @@ namespace App\Entity\User;
 use ApiPlatform\Metadata\ApiProperty;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
-use App\Entity\User;
+//use App\Entity\User;
 use App\Repository\User\PhoneRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
@@ -44,9 +44,9 @@ class Phone
     #[Groups(['masters:read', 'clients:read', 'users:me:read'])]
     private ?int $id = null;
 
-    #[ORM\ManyToOne(inversedBy: 'phones')]
-    #[ORM\JoinColumn(nullable: false)]
-    private ?User $owner = null;
+//    #[ORM\ManyToOne(inversedBy: 'phones')]
+//    #[ORM\JoinColumn(nullable: false)]
+//    private ?User $owner = null;
 
     #[ORM\Column(length: 20, unique: true)]
     #[Groups(['masters:read', 'clients:read', 'users:me:read'])]
@@ -73,16 +73,16 @@ class Phone
         return $this->id;
     }
 
-    public function getOwner(): ?User
-    {
-        return $this->owner;
-    }
-
-    public function setOwner(?User $owner): static
-    {
-        $this->owner = $owner;
-        return $this;
-    }
+//    public function getOwner(): ?User
+//    {
+//        return $this->owner;
+//    }
+//
+//    public function setOwner(?User $owner): static
+//    {
+//        $this->owner = $owner;
+//        return $this;
+//    }
 
     public function getPhone(): ?string
     {
