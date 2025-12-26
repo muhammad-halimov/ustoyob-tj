@@ -456,6 +456,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?bool $atHome = null;
 
     #[ORM\Column(type: 'string', length: 255, nullable: true)]
+    #[ApiProperty(writable: false)]
     private ?string $telegramChatId = null;
 
     #[ORM\Column(type: 'boolean', nullable: false)]
@@ -514,6 +515,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         pattern: "/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#\$%\^&\*]).+$/",
         message: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (!@#$%^&*)"
     )]
+    #[ApiProperty(readable: false)]
     private ?string $password = null;
 
     /**
@@ -890,9 +892,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         // Нормализуем при сохранении
         if ($phone2) {
             $cleaned = preg_replace('/[^\d+]/', '', $phone2);
-            $this->phone1 = $cleaned;
+            $this->phone2 = $cleaned;
         } else {
-            $this->phone1 = null;
+            $this->phone2 = null;
         }
 
         return $this;
