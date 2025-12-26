@@ -92,11 +92,15 @@
     display: flex;
     justify-content: center;
 
-    .facebookButton,
-    .googleButton {
+    .telegramButton, .googleButton {
       max-width: 62px;
       margin-right: map.get(vars.$spacing, 5);
       cursor: pointer;
+    }
+
+    img {
+      width: 64px;
+      height: 64px;
     }
   }
 }
@@ -448,8 +452,8 @@
 
 
   img {
-    width: 62px;
-    height: 62px;
+    width: 64px;
+    height: 64px;
   }
 }
 

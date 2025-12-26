@@ -14,7 +14,6 @@
 .profile_header {
   background: white;
   border-radius: 20px;
-  padding: 40px;
   margin-bottom: 20px;
   margin-top: 60px;
 }
@@ -252,7 +251,7 @@
   .profile_header,
   .reviews_section,
   .personal_data_section {
-    padding: 25px;
+
   }
 
   .profile_info_main {
@@ -396,7 +395,7 @@
 .avatar_container {
   position: relative;
   cursor: pointer;
-  border-radius: 12px;
+  border-radius: 100%;
   overflow: hidden;
   width: 235px;
   height: 235px;
@@ -549,8 +548,8 @@
 }
 
 .reviewer_avatar {
-  width: 80px;
-  height: 80px;
+  width: 90px;
+  height: 90px;
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid #f0f0f0;

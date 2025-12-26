@@ -1,6 +1,6 @@
 import {useState, useRef, useEffect, type ChangeEvent, useCallback} from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAuthToken } from '../../../utils/auth';
+import {getAuthToken, getUserEmail} from '../../../utils/auth';
 import styles from './ClientProfilePage.module.scss';
 
 import ReviewList, { Review as ReviewWidget } from '../../../widgets/RenderReviews/RenderReviews';
@@ -194,8 +194,8 @@ function ClientProfilePage() {
                 lastName: userDataFromApi.surname || '',
                 middleName: userDataFromApi.patronymic || '',
                 gender: userDataFromApi.gender || 'gender_male',
-                phone: userDataFromApi.phone1 || '+0 000 000 00 00',
-                phone2: userDataFromApi.phone2 || '+0 000 000 00 00',
+                phone: userDataFromApi.phone1 || '+992 900 00-00-00',
+                phone2: userDataFromApi.phone2 || '+992 900 00-00-00',
                 email: userDataFromApi.email || 'E-mail',
                 rating: userDataFromApi.rating || 0,
                 isVerified: userDataFromApi.isVerified || true,
@@ -647,14 +647,14 @@ function ClientProfilePage() {
                 <div className={styles.personal_data_section}>
                     <h2 className={styles.section_title}>Личные данные</h2>
                     <p className={styles.section_subtitle}>
-                        Укажите адрес для определения района заказов. Клиенты его не увидят
+                        Укажите адрес для определения района заказов
                     </p>
 
                     <div className={styles.personal_data_list}>
                         <div className={styles.data_item}>
-                            <div className={styles.data_label}>Имя</div>
+                            <div className={styles.data_label}>Эл. почта</div>
                             <div className={styles.data_value}>
-                                {getFullName()}
+                                {getUserEmail()}
                             </div>
                         </div>
 
@@ -673,11 +673,6 @@ function ClientProfilePage() {
                                 <div className={styles.data_label}>Дополнительный номер</div>
                                 {renderEditableField('phone2', 'Дополнительный номер', userData.phone2)}
                             </div>
-                        </div>
-
-                        <div className={styles.data_item}>
-                            <div className={styles.data_label}>электронная почта</div>
-                            {renderEditableField('email', 'Электронная почта', userData.email)}
                         </div>
                     </div>
                 </div>

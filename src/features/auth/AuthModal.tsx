@@ -885,7 +885,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                             onClick={() => handleRoleChange('client')}
                             disabled={isLoading}
                         >
-                            Я ищу специалиста
+                            Я заказчик
                         </button>
                     </div>
 
@@ -956,7 +956,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         onClick={() => handleRoleChange('client')}
                         disabled={isLoading}
                     >
-                        Я ищу специалиста
+                        Я заказчик
                     </button>
                 </div>
 
@@ -1020,7 +1020,21 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         onClick={handleGoogleAuth}
                         disabled={isLoading}
                     >
-                        <img src="../google.png" alt="Google" />
+                        <img src="../chrome.png" alt="Google" />
+                    </button>
+                    <button
+                        type="button"
+                        className={styles.googleButton}
+                        disabled={isLoading}
+                    >
+                        <img src="../facebook.png" alt="Facebook" />
+                    </button>
+                    <button
+                        type="button"
+                        className={styles.googleButton}
+                        disabled={isLoading}
+                    >
+                        <img src="../instagram.png" alt="Facebook" />
                     </button>
                     <button
                         type="button"
@@ -1033,7 +1047,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 </div>
 
                 <div className={styles.socialNote}>
-                    <p>При авторизации через Google будет использован выбранный тип аккаунта: <strong>{formData.role === 'master' ? 'специалист' : 'клиент'}</strong></p>
+                    <p>При авторизации через социальные сети будет использован выбранный тип аккаунта: <strong>{formData.role === 'master' ? 'специалист' : 'заказчик'}</strong></p>
                 </div>
 
                 <div id="telegram-widget-container" className={styles.telegramWidgetContainer}>
@@ -1085,7 +1099,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         className={formData.role === 'client' ? styles.roleButtonActive : styles.roleButton}
                         onClick={() => handleRoleChange('client')}
                     >
-                        Я ищу специалиста
+                        Я заказчик
                     </button>
                 </div>
 
@@ -1188,7 +1202,21 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         onClick={handleGoogleAuth}
                         disabled={isLoading}
                     >
-                        <img src="../google.png" alt="Google" />
+                        <img src="../chrome.png" alt="Google" />
+                    </button>
+                    <button
+                        type="button"
+                        className={styles.googleButton}
+                        disabled={isLoading}
+                    >
+                        <img src="../facebook.png" alt="Facebook" />
+                    </button>
+                    <button
+                        type="button"
+                        className={styles.googleButton}
+                        disabled={isLoading}
+                    >
+                        <img src="../instagram.png" alt="Facebook" />
                     </button>
                     <button
                         type="button"
@@ -1268,7 +1296,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         onClick={() => completeTelegramAuth('client')}
                         disabled={isLoading}
                     >
-                        Я ищу специалиста
+                        Я заказчик
                     </button>
                 </div>
 

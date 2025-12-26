@@ -34,12 +34,14 @@ interface ReviewListProps {
     loading: boolean;
 }
 
+export const defaultUserImage = 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/Default_pfp.svg/1200px-Default_pfp.svg.png';
+
 function ReviewList({reviews, showAll, onToggleShowAll, previewLimit, getFullName, loading}: ReviewListProps) {
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     const getReviewerAvatarUrl = (review: Review) => {
-        if (!review.master?.image) return './fonTest5.png';
+        if (!review.master?.image) return defaultUserImage;
 
         const possiblePaths = [
             review.master.image,
@@ -47,7 +49,7 @@ function ReviewList({reviews, showAll, onToggleShowAll, previewLimit, getFullNam
             `${API_BASE_URL}/uploads/profile_photos/${review.master.image}`,
         ].filter(path => path && !path.includes('./fonTest'));
 
-        return possiblePaths[0] || './fonTest5.png';
+        return possiblePaths[0] || defaultUserImage;
     };
 
     const getReviewerName = (review: Review) => {
@@ -80,12 +82,11 @@ function ReviewList({reviews, showAll, onToggleShowAll, previewLimit, getFullNam
                                 loading="lazy"
                             />
                             <div className={styles.reviewer_main_info}>
-                                <div className={styles.reviewer_name}>{getReviewerName(review)}</div>
                                 <div className={styles.review_vacation}>
                                     <span className={styles.review_worker}>{getFullName()}</span> {getReviewerProfession(review)}
                                 </div>
                                 <div className={styles.review_rating_main}>
-                                    <span className={styles.rating_value}>{review.rating}</span>
+                                    <span className={styles.rating_value}>Поставил {review.rating}</span>
                                 </div>
                             </div>
                         </div>
@@ -96,7 +97,9 @@ function ReviewList({reviews, showAll, onToggleShowAll, previewLimit, getFullNam
                     {review.images && review.images.length > 0 && (
                         <div className={styles.review_images}>
                             {review.images.map(img => (
-                                <img key={img.id} src={`${API_BASE_URL}${img.image}`} alt="Отзыв" className={styles.review_image} loading="lazy" />
+                                img.image
+                                    ? <img key={img.id} src={`${API_BASE_URL}${img.image}`} alt="Отзыв" className={styles.review_image} loading="lazy" />
+                                    : <img key={img.id} src={defaultUserImage} alt="Отзыв" className={styles.review_image} loading="lazy" />
                             ))}
                         </div>
                     )}
