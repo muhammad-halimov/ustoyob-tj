@@ -1,6 +1,6 @@
 import {useState, useRef, useEffect, type ChangeEvent, useCallback} from 'react';
 import { useNavigate } from 'react-router-dom';
-import {getAuthToken, getUserEmail} from '../../../utils/auth';
+import {getAuthToken} from '../../../utils/auth';
 import styles from './ClientProfilePage.module.scss';
 
 import ReviewList, { Review as ReviewWidget } from '../../../widgets/RenderReviews/RenderReviews';
@@ -654,7 +654,7 @@ function ClientProfilePage() {
                         <div className={styles.data_item}>
                             <div className={styles.data_label}>Эл. почта</div>
                             <div className={styles.data_value}>
-                                {getUserEmail()}
+                                {userData.email}
                             </div>
                         </div>
 
