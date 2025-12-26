@@ -2364,3 +2364,319 @@
     border-radius: 50%;
   }
 }
+
+.occupation_dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  margin-top: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.dropdown_header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid #e0e0e0;
+
+  h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+  }
+}
+
+.close_dropdown {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #999;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    color: #333;
+  }
+}
+
+.loading_occupations {
+  padding: 20px;
+  text-align: center;
+  color: #666;
+}
+
+.occupation_list {
+  padding: 8px 0;
+}
+
+.occupation_item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: #f5f5f5;
+  }
+
+  &.selected {
+    background-color: #e8f0fe;
+  }
+}
+
+.occupation_checkbox {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #3A54DA;
+  border-radius: 4px;
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: #3A54DA;
+
+  .selected & {
+    background-color: #3A54DA;
+    color: white;
+  }
+}
+
+.occupation_content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.occupation_title {
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.occupation_description {
+  font-size: 12px;
+  color: #666;
+}
+
+.no_occupations {
+  padding: 20px;
+  text-align: center;
+  color: #999;
+}
+
+.dropdown_actions {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  border-top: 1px solid #e0e0e0;
+  background-color: #fafafa;
+}
+
+.save_occupations_btn {
+  flex: 1;
+  padding: 12px 24px;
+  background-color: #3A54DA;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+
+  &:hover:not(:disabled) {
+    background-color: #2a44ca;
+  }
+
+  &:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+  }
+}
+
+.cancel_occupations_btn {
+  flex: 1;
+  padding: 12px 24px;
+  background-color: #f5f5f5;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: #e8e8e8;
+  }
+}
+
+.specialty_row {
+  position: relative; // Важно для позиционирования дропдауна
+}
+
+.occupation_dropdown_overlay {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  margin-top: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.occupation_dropdown {
+  padding: 16px;
+}
+
+.dropdown_header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.dropdown_header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.close_dropdown {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  line-height: 1;
+}
+
+.occupation_list {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+}
+
+.occupation_item {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-bottom: 4px;
+
+  &:hover {
+    background-color: #f5f5f5;
+  }
+
+  &.selected {
+    background-color: #e8f0fe;
+    border: 1px solid #3A54DA;
+  }
+}
+
+.occupation_checkbox {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #ccc;
+  border-radius: 4px;
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  .selected & {
+    background-color: #3A54DA;
+    border-color: #3A54DA;
+    color: white;
+  }
+}
+
+.occupation_content {
+  flex: 1;
+}
+
+.occupation_title {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.occupation_description {
+  display: block;
+  font-size: 12px;
+  color: #666;
+}
+
+.dropdown_actions {
+  display: flex;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid #eee;
+}
+
+.save_occupations_btn {
+  flex: 1;
+  background-color: #3A54DA;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+
+  &:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+  }
+
+  &:not(:disabled):hover {
+    background-color: #2a44ca;
+  }
+}
+
+.cancel_occupations_btn {
+  flex: 1;
+  background-color: #f5f5f5;
+  color: #666;
+  border: 1px solid #ddd;
+  padding: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+
+  &:hover {
+    background-color: #e5e5e5;
+  }
+}
+
+.loading_occupations,
+.no_occupations {
+  text-align: center;
+  padding: 32px 16px;
+  color: #666;
+}

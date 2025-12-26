@@ -33,6 +33,7 @@
       .reviews_naming {
         display: flex;
         align-items: center;
+        margin-top: 10px;
         .reviews_naming_title {
           display: flex;
           flex-direction: column;
@@ -499,4 +500,8 @@
     right: 0;
     padding: 0 10px;
   }
+}
+
+.review_dates {
+  margin-top: 20px;
 }

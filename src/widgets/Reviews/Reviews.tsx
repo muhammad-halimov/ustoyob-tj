@@ -4,8 +4,6 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
 import { useNavigate } from "react-router-dom";
 
-// Добавляем Swiper для модального окна с фотографиями
-// import { Navigation, Zoom, Keyboard } from "swiper/modules";
 import "swiper/css/navigation";
 import "swiper/css/zoom";
 
@@ -17,22 +15,28 @@ interface Review {
     ticket?: {
         id: number;
         title: string;
-        active: boolean;
+        service: boolean;
+        active?: boolean;
         author: {
             id: number;
             email: string;
+            login: string;
             name: string;
             surname: string;
             image: string;
+            imageExternalUrl?: string;
+            roles: string[];
         };
         master: {
             id: number;
             email: string;
+            login: string;
             name: string;
             surname: string;
             image: string;
+            imageExternalUrl?: string;
+            roles: string[];
         };
-        service: boolean;
     };
     images: Array<{
         id: number;
@@ -41,16 +45,22 @@ interface Review {
     master?: {
         id: number;
         email: string;
+        login: string;
         name: string;
         surname: string;
         image: string;
+        imageExternalUrl?: string;
+        roles: string[];
     };
     client?: {
         id: number;
         email: string;
+        login: string;
         name: string;
         surname: string;
         image: string;
+        imageExternalUrl?: string;
+        roles: string[];
     };
     createdAt: string;
     updatedAt: string;
@@ -113,7 +123,7 @@ function Reviews() {
             const reviewsData: Review[] = await response.json();
             console.log('Received reviews:', reviewsData);
 
-            // Убираем строгую фильтрацию по описанию - показываем все отзывы с рейтингом
+            // Убираем фильтрацию по описанию, но фильтруем по рейтингу
             const validReviews = reviewsData.filter(review =>
                 review.rating > 0 // Только отзывы с рейтингом
             );
@@ -125,16 +135,9 @@ function Reviews() {
 
             console.log(`Total reviews from API: ${reviewsData.length}`);
             console.log(`Valid reviews after filtering: ${sortedReviews.length}`);
-
-            // Логируем типы отзывов для отладки
-            const masterReviews = sortedReviews.filter(r => r.type === 'master');
-            const clientReviews = sortedReviews.filter(r => r.type === 'client');
-
-            console.log(`Master reviews: ${masterReviews.length}`);
-            console.log(`Client reviews: ${clientReviews.length}`);
+            console.log('Sample review structure:', sortedReviews[0]);
 
             setReviews(sortedReviews);
-            // Инициализируем отображаемые отзывы
             setDisplayedReviews(sortedReviews.slice(0, MAX_INITIAL_REVIEWS));
 
         } catch (error) {
@@ -197,50 +200,140 @@ function Reviews() {
 
     // Функция для получения имени пользователя (чей профиль)
     const getUserName = (review: Review): string => {
-        if (review.type === 'master' && review.master) {
-            return `${review.master.name || ''} ${review.master.surname || ''}`.trim() || 'Мастер';
-        } else if (review.type === 'client' && review.client) {
-            return `${review.client.name || ''} ${review.client.surname || ''}`.trim() || 'Клиент';
+        // Для отзыва клиенту - автор отзыва (мастер)
+        if (review.type === 'client') {
+            if (review.master) {
+                return `${review.master.name || ''} ${review.master.surname || ''}`.trim() || 'Мастер';
+            } else if (review.ticket?.master) {
+                return `${review.ticket.master.name || ''} ${review.ticket.master.surname || ''}`.trim() || 'Мастер';
+            }
+        }
+        // Для отзыва мастеру - автор отзыва (клиент)
+        else if (review.type === 'master') {
+            if (review.client) {
+                return `${review.client.name || ''} ${review.client.surname || ''}`.trim() || 'Клиент';
+            } else if (review.ticket?.author) {
+                return `${review.ticket.author.name || ''} ${review.ticket.author.surname || ''}`.trim() || 'Клиент';
+            }
         }
         return 'Пользователь';
     };
 
     // Функция для получения ID пользователя (чей профиль)
     const getUserId = (review: Review): number | null => {
-        if (review.type === 'master' && review.master) {
-            return review.master.id;
-        } else if (review.type === 'client' && review.client) {
-            return review.client.id;
+        // Для отзыва клиенту - ID мастера (автор)
+        if (review.type === 'client') {
+            if (review.master) {
+                return review.master.id;
+            } else if (review.ticket?.master) {
+                return review.ticket.master.id;
+            }
+        }
+        // Для отзыва мастеру - ID клиента (автор)
+        else if (review.type === 'master') {
+            if (review.client) {
+                return review.client.id;
+            } else if (review.ticket?.author) {
+                return review.ticket.author.id;
+            }
         }
         return null;
     };
 
-    // Функция для получения профессии/специальности
-    const getUserProfession = (review: Review): string => {
+    // Функция для получения роли пользователя (Мастер/Клиент)
+    const getUserRole = (review: Review): string => {
         if (review.type === 'master') {
-            return 'Специалист';
-        } else if (review.type === 'client' && review.ticket?.title) {
-            return `Заказ: ${review.ticket.title}`;
+            return 'Клиент';
+        } else if (review.type === 'client') {
+            return 'Мастер';
         }
         return 'Пользователь';
     };
 
+    // Функция для получения email пользователя
+    // const getUserEmail = (review: Review): string => {
+    //     if (review.type === 'master' && review.master) {
+    //         return review.master.email || '';
+    //     } else if (review.type === 'client' && review.client) {
+    //         return review.client.email || '';
+    //     } else if (review.ticket) {
+    //         if (review.type === 'master' && review.ticket.master) {
+    //             return review.ticket.master.email || '';
+    //         } else if (review.type === 'client' && review.ticket.author) {
+    //             return review.ticket.author.email || '';
+    //         }
+    //     }
+    //     return '';
+    // };
+
+    // Функция для получения названия услуги
+    const getServiceTitle = (review: Review): string => {
+        if (review.ticket?.title) {
+            return review.ticket.title;
+        }
+        return 'Услуга не указана';
+    };
+
+    // Функция для получения типа отзыва (на основе данных из изображения)
+    const getReviewTypeText = (review: Review): string => {
+        if (review.type === 'master') {
+            return 'Отзыв мастеру';
+        } else if (review.type === 'client') {
+            return 'Отзыв клиенту';
+        }
+        return 'Отзыв';
+    };
+
+    // Функция для получения профессии/специальности
+    // const getUserProfession = (review: Review): string => {
+    //     if (review.type === 'master') {
+    //         return 'Специалист';
+    //     } else if (review.type === 'client' && review.ticket?.title) {
+    //         return `Заказ: ${review.ticket.title}`;
+    //     } else if (review.ticket?.title) {
+    //         return `Услуга: ${review.ticket.title}`;
+    //     }
+    //     return 'Пользователь';
+    // };
+
     // Функция для получения имени того, кто оставил отзыв
     const getReviewerName = (review: Review): string => {
-        if (review.type === 'master' && review.client) {
-            return `${review.client.name || ''} ${review.client.surname || ''}`.trim() || 'Клиент';
-        } else if (review.type === 'client' && review.master) {
-            return `${review.master.name || ''} ${review.master.surname || ''}`.trim() || 'Мастер';
+        // Для отзыва клиенту - получатель отзыва (клиент)
+        if (review.type === 'client') {
+            if (review.client) {
+                return `${review.client.name || ''} ${review.client.surname || ''}`.trim() || 'Клиент';
+            } else if (review.ticket?.author) {
+                return `${review.ticket.author.name || ''} ${review.ticket.author.surname || ''}`.trim() || 'Клиент';
+            }
+        }
+        // Для отзыва мастеру - получатель отзыва (мастер)
+        else if (review.type === 'master') {
+            if (review.master) {
+                return `${review.master.name || ''} ${review.master.surname || ''}`.trim() || 'Мастер';
+            } else if (review.ticket?.master) {
+                return `${review.ticket.master.name || ''} ${review.ticket.master.surname || ''}`.trim() || 'Мастер';
+            }
         }
         return 'Пользователь';
     };
 
     // Функция для получения ID того, кто оставил отзыв (для перехода)
     const getReviewerId = (review: Review): number | null => {
-        if (review.type === 'master' && review.client) {
-            return review.client.id;
-        } else if (review.type === 'client' && review.master) {
-            return review.master.id;
+        // Для отзыва клиенту - ID клиента (получатель)
+        if (review.type === 'client') {
+            if (review.client) {
+                return review.client.id;
+            } else if (review.ticket?.author) {
+                return review.ticket.author.id;
+            }
+        }
+        // Для отзыва мастеру - ID мастера (получатель)
+        else if (review.type === 'master') {
+            if (review.master) {
+                return review.master.id;
+            } else if (review.ticket?.master) {
+                return review.ticket.master.id;
+            }
         }
         return null;
     };
@@ -259,20 +352,59 @@ function Reviews() {
         }
     };
 
+    // Функция для получения даты обновления
+    // const formatUpdatedDate = (dateString: string): string => {
+    //     try {
+    //         const date = new Date(dateString);
+    //         return `Обновлено ${date.toLocaleDateString('ru-RU', {
+    //             day: 'numeric',
+    //             month: 'short',
+    //             year: 'numeric'
+    //         })}`;
+    //     } catch {
+    //         return '';
+    //     }
+    // };
+
     // Функция для получения URL аватара
     const getAvatarUrl = (review: Review): string => {
-        if (review.type === 'master' && review.master?.image) {
-            if (review.master.image.startsWith('http')) {
-                return review.master.image;
+        let imagePath: string = '';
+        let externalUrl: string | undefined = '';
+
+        // Для отзыва клиенту - аватар мастера (автор)
+        if (review.type === 'client') {
+            if (review.master) {
+                imagePath = review.master.image || '';
+                externalUrl = review.master.imageExternalUrl;
+            } else if (review.ticket?.master) {
+                imagePath = review.ticket.master.image || '';
+                externalUrl = review.ticket.master.imageExternalUrl;
             }
-            return `${API_BASE_URL}/images/profile_photos/${review.master.image}`;
-        } else if (review.type === 'client' && review.client?.image) {
-            if (review.client.image.startsWith('http')) {
-                return review.client.image;
-            }
-            return `${API_BASE_URL}/images/profile_photos/${review.client.image}`;
         }
-        return '../fonTest5.png'; // Запасное изображение
+        // Для отзыва мастеру - аватар клиента (автор)
+        else if (review.type === 'master') {
+            if (review.client) {
+                imagePath = review.client.image || '';
+                externalUrl = review.client.imageExternalUrl;
+            } else if (review.ticket?.author) {
+                imagePath = review.ticket.author.image || '';
+                externalUrl = review.ticket.author.imageExternalUrl;
+            }
+        }
+
+        // Приоритет у внешнего URL
+        if (externalUrl && externalUrl.trim() !== '') {
+            return externalUrl;
+        }
+
+        if (imagePath && imagePath.trim() !== '') {
+            if (imagePath.startsWith('http')) {
+                return imagePath;
+            }
+            return `${API_BASE_URL}/images/profile_photos/${imagePath}`;
+        }
+
+        return '../fonTest5.png';
     };
 
     // Функция для получения URL изображения отзыва
@@ -411,10 +543,20 @@ function Reviews() {
                         {displayedReviews.map((review) => {
                             const userId = getUserId(review);
                             const reviewerId = getReviewerId(review);
+                            // const userEmail = getUserEmail(review);
+                            const serviceTitle = getServiceTitle(review);
+                            const reviewTypeText = getReviewTypeText(review);
 
                             return (
                                 <SwiperSlide key={review.id}>
                                     <div className={style.reviews_item}>
+                                        {/* Заголовок типа отзыва */}
+                                        <div className={style.review_type_header}>
+                                            <span className={style.review_type_text}>
+                                                {reviewTypeText}
+                                            </span>
+                                        </div>
+
                                         <div className={style.reviews_naming}>
                                             <img
                                                 className={style.picPhoto}
@@ -433,7 +575,19 @@ function Reviews() {
                                                 >
                                                     {getUserName(review)}
                                                 </h3>
-                                                <p>{getUserProfession(review)}</p>
+                                                {/* ID и роль пользователя */}
+                                                <div className={style.user_info}>
+                                                    {/*<span className={style.user_id}>ID #{userId}</span>*/}
+                                                    <span className={style.user_role}>{getUserRole(review)}</span>
+                                                </div>
+                                                {/* Email пользователя */}
+                                                {/*{userEmail && (*/}
+                                                {/*    <p className={style.user_email}>{userEmail}</p>*/}
+                                                {/*)}*/}
+                                                {/* Услуга */}
+                                                <p className={style.service_info}>
+                                                    Услуга: {serviceTitle}
+                                                </p>
                                                 <div className={style.reviews_naming_raiting}>
                                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                         <g clipPath="url(#clip0_324_2272)">
@@ -451,7 +605,7 @@ function Reviews() {
                                                             </clipPath>
                                                         </defs>
                                                     </svg>
-                                                    {review.rating.toFixed(1)}
+                                                    <span className={style.rating_value}>{review.rating.toFixed(1)}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -461,10 +615,11 @@ function Reviews() {
                                                 <p
                                                     onClick={reviewerId ? () => handleProfileClick(reviewerId) : undefined}
                                                     style={{ cursor: reviewerId ? 'pointer' : 'default' }}
+                                                    className={style.reviewer_name}
                                                 >
                                                     {getReviewerName(review)}
                                                 </p>
-                                                <p>{formatDate(review.createdAt)}</p>
+                                                <p className={style.review_date}>{formatDate(review.createdAt)}</p>
                                             </div>
                                             <p className={style.reviews_about_rev}>
                                                 {truncateText(review.description, 120)}
@@ -475,19 +630,34 @@ function Reviews() {
 
                                             {/* Показ изображений отзыва если есть */}
                                             {review.images && review.images.length > 0 && (
-                                                <div className={style.review_images_small}>
-                                                    {review.images.map((image, index) => (
-                                                        <img
-                                                            key={image.id}
-                                                            src={getReviewImageUrl(image.image)}
-                                                            alt="Отзыв"
-                                                            className={style.review_image_small}
-                                                            onClick={() => openPhotoModal(review.images, index)}
-                                                            style={{ cursor: 'pointer' }}
-                                                        />
-                                                    ))}
+                                                <div className={style.review_images_section}>
+                                                    <div className={style.review_images_label}>Галерея изображений</div>
+                                                    <div className={style.review_images_small}>
+                                                        {review.images.map((image, index) => (
+                                                            <img
+                                                                key={image.id}
+                                                                src={getReviewImageUrl(image.image)}
+                                                                alt="Отзыв"
+                                                                className={style.review_image_small}
+                                                                onClick={() => openPhotoModal(review.images, index)}
+                                                                style={{ cursor: 'pointer' }}
+                                                            />
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             )}
+
+                                            {/* Даты создания и обновления */}
+                                            <div className={style.review_dates}>
+                                                <span className={style.created_date}>
+                                                    Создано: {formatDate(review.createdAt)}
+                                                </span>
+                                                {/*{review.updatedAt !== review.createdAt && (*/}
+                                                {/*    <span className={style.updated_date}>*/}
+                                                {/*        {formatUpdatedDate(review.updatedAt)}*/}
+                                                {/*    </span>*/}
+                                                {/*)}*/}
+                                            </div>
                                         </div>
                                     </div>
                                 </SwiperSlide>
@@ -501,9 +671,19 @@ function Reviews() {
                     {displayedReviews.map((review) => {
                         const userId = getUserId(review);
                         const reviewerId = getReviewerId(review);
+                        // const userEmail = getUserEmail(review);
+                        const serviceTitle = getServiceTitle(review);
+                        const reviewTypeText = getReviewTypeText(review);
 
                         return (
                             <div className={style.reviews_item} key={review.id}>
+                                {/* Заголовок типа отзыва */}
+                                <div className={style.review_type_header}>
+                                    <span className={style.review_type_text}>
+                                        {reviewTypeText}
+                                    </span>
+                                </div>
+
                                 <div className={style.reviews_naming}>
                                     <img
                                         className={style.picPhoto}
@@ -522,7 +702,19 @@ function Reviews() {
                                         >
                                             {getUserName(review)}
                                         </h3>
-                                        <p>{getUserProfession(review)}</p>
+                                        {/* ID и роль пользователя */}
+                                        <div className={style.user_info}>
+                                            {/*<span className={style.user_id}>ID #{userId}</span>*/}
+                                            <span className={style.user_role}>{getUserRole(review)}</span>
+                                        </div>
+                                        {/* Email пользователя */}
+                                        {/*{userEmail && (*/}
+                                        {/*    <p className={style.user_email}>{userEmail}</p>*/}
+                                        {/*)}*/}
+                                        {/* Услуга */}
+                                        <p className={style.service_info}>
+                                            Услуга: {serviceTitle}
+                                        </p>
                                         <div className={style.reviews_naming_raiting}>
                                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                 <g clipPath="url(#clip0_324_2272)">
@@ -540,7 +732,7 @@ function Reviews() {
                                                     </clipPath>
                                                 </defs>
                                             </svg>
-                                            {review.rating.toFixed(1)}
+                                            <span className={style.rating_value}>{review.rating.toFixed(1)}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -550,10 +742,11 @@ function Reviews() {
                                         <p
                                             onClick={reviewerId ? () => handleProfileClick(reviewerId) : undefined}
                                             style={{ cursor: reviewerId ? 'pointer' : 'default' }}
+                                            className={style.reviewer_name}
                                         >
                                             {getReviewerName(review)}
                                         </p>
-                                        <p>{formatDate(review.createdAt)}</p>
+                                        <p className={style.review_date}>{formatDate(review.createdAt)}</p>
                                     </div>
                                     <p className={style.reviews_about_rev}>
                                         {review.description}
@@ -561,19 +754,34 @@ function Reviews() {
 
                                     {/* Показ изображений отзыва если есть */}
                                     {review.images && review.images.length > 0 && (
-                                        <div className={style.review_images_small}>
-                                            {review.images.map((image, index) => (
-                                                <img
-                                                    key={image.id}
-                                                    src={getReviewImageUrl(image.image)}
-                                                    alt="Отзыв"
-                                                    className={style.review_image_small}
-                                                    onClick={() => openPhotoModal(review.images, index)}
-                                                    style={{ cursor: 'pointer' }}
-                                                />
-                                            ))}
+                                        <div className={style.review_images_section}>
+                                            <div className={style.review_images_label}>Галерея изображений</div>
+                                            <div className={style.review_images_small}>
+                                                {review.images.map((image, index) => (
+                                                    <img
+                                                        key={image.id}
+                                                        src={getReviewImageUrl(image.image)}
+                                                        alt="Отзыв"
+                                                        className={style.review_image_small}
+                                                        onClick={() => openPhotoModal(review.images, index)}
+                                                        style={{ cursor: 'pointer' }}
+                                                    />
+                                                ))}
+                                            </div>
                                         </div>
                                     )}
+
+                                    {/* Даты создания и обновления */}
+                                    <div className={style.review_dates}>
+                                        <span className={style.created_date}>
+                                            Создано: {formatDate(review.createdAt)}
+                                        </span>
+                                        {/*{review.updatedAt !== review.createdAt && (*/}
+                                        {/*    <span className={style.updated_date}>*/}
+                                        {/*        {formatUpdatedDate(review.updatedAt)}*/}
+                                        {/*    </span>*/}
+                                        {/*)}*/}
+                                    </div>
                                 </div>
                             </div>
                         );
