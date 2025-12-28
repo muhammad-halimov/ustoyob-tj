@@ -1,11 +1,11 @@
-import { useState, useRef, useEffect, type ChangeEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { getAuthToken, removeAuthToken } from '../../../utils/auth.ts';
-import styles from '../ProfilePage.module.scss';
+import React, {type ChangeEvent, useEffect, useRef, useState} from 'react';
+import {useNavigate} from 'react-router-dom';
+import {getAuthToken, removeAuthToken} from '../../../utils/auth.ts';
+import styles from '../MasterProfilePage.module.scss';
 
-import { Swiper, SwiperSlide } from "swiper/react";
+import {Swiper, SwiperSlide} from "swiper/react";
 import "swiper/css";
-import { fetchUserById } from "../../../utils/api.ts";
+import {fetchUserById} from "../../../utils/api.ts";
 import {cleanText} from "../../../utils/cleanText.ts";
 
 interface ProfileData {
@@ -67,7 +67,7 @@ interface Service {
 
 interface Review {
     id: number;
-    user: {
+    client: {
         id: number;
         email: string;
         name: string;
@@ -75,7 +75,7 @@ interface Review {
         rating: number;
         image: string;
     };
-    reviewer: {
+    master: {
         id: number;
         email: string;
         name: string;
@@ -85,8 +85,8 @@ interface Review {
     };
     rating: number;
     description: string;
-    forReviewer: boolean;
-    services: {
+    type: string;
+    ticket: {
         id: number;
         title: string;
     };
@@ -175,8 +175,8 @@ interface ReviewApiData {
     client?: { id: number };
     rating?: number;
     description?: string;
-    forClient?: boolean;
-    services?: { id: number; title: string };
+    type: string;
+    ticket?: { id: number; title: string };
     images?: Array<{ id: number; image: string }>;
     createdAt?: string;
     [key: string]: unknown;
@@ -637,8 +637,7 @@ function MasterProfilePage() {
             if (address.province) {
                 const provinceValue = address.province;
                 if (typeof provinceValue === 'string') {
-                    const provinceStr: string = provinceValue;
-                    const provinceId = provinceStr.split('/').pop();
+                    const provinceId = provinceValue.split('/').pop();
                     if (provinceId) {
                         const provinceInfo = await fetchResourceInfo(parseInt(provinceId), 'provinces', token);
                         if (provinceInfo && provinceInfo.title) {
@@ -655,8 +654,7 @@ function MasterProfilePage() {
             if (address.city) {
                 const cityValue = address.city;
                 if (typeof cityValue === 'string') {
-                    const cityStr: string = cityValue;
-                    const cityId = cityStr.split('/').pop();
+                    const cityId = cityValue.split('/').pop();
                     if (cityId) {
                         const cityInfo = await fetchResourceInfo(parseInt(cityId), 'cities', token);
                         if (cityInfo && cityInfo.title) {
@@ -673,8 +671,7 @@ function MasterProfilePage() {
             if (address.district) {
                 const districtValue = address.district;
                 if (typeof districtValue === 'string') {
-                    const districtStr: string = districtValue;
-                    const districtId = districtStr.split('/').pop();
+                    const districtId = districtValue.split('/').pop();
                     if (districtId) {
                         const districtInfo = await fetchResourceInfo(parseInt(districtId), 'districts', token);
                         if (districtInfo && districtInfo.title) {
@@ -691,8 +688,7 @@ function MasterProfilePage() {
             if (address.suburb) {
                 const suburbValue = address.suburb;
                 if (typeof suburbValue === 'string') {
-                    const suburbStr: string = suburbValue;
-                    const suburbId = suburbStr.split('/').pop();
+                    const suburbId = suburbValue.split('/').pop();
                     if (suburbId) {
                         const suburbInfo = await fetchResourceInfo(parseInt(suburbId), 'suburbs', token);
                         if (suburbInfo && suburbInfo.title) {
@@ -709,8 +705,7 @@ function MasterProfilePage() {
             if (address.settlement) {
                 const settlementValue = address.settlement;
                 if (typeof settlementValue === 'string') {
-                    const settlementStr: string = settlementValue;
-                    const settlementId = settlementStr.split('/').pop();
+                    const settlementId = settlementValue.split('/').pop();
                     if (settlementId) {
                         const settlementInfo = await fetchResourceInfo(parseInt(settlementId), 'settlements', token);
                         if (settlementInfo && settlementInfo.title) {
@@ -727,8 +722,7 @@ function MasterProfilePage() {
             if (address.community) {
                 const communityValue = address.community;
                 if (typeof communityValue === 'string') {
-                    const communityStr: string = communityValue;
-                    const communityId = communityStr.split('/').pop();
+                    const communityId = communityValue.split('/').pop();
                     if (communityId) {
                         const communityInfo = await fetchResourceInfo(parseInt(communityId), 'communities', token);
                         if (communityInfo && communityInfo.title) {
@@ -745,8 +739,7 @@ function MasterProfilePage() {
             if (address.village) {
                 const villageValue = address.village;
                 if (typeof villageValue === 'string') {
-                    const villageStr: string = villageValue;
-                    const villageId = villageStr.split('/').pop();
+                    const villageId = villageValue.split('/').pop();
                     if (villageId) {
                         const villageInfo = await fetchResourceInfo(parseInt(villageId), 'villages', token);
                         if (villageInfo && villageInfo.title) {
@@ -1025,7 +1018,7 @@ function MasterProfilePage() {
             console.log('Fetching reviews for master ID:', profileData.id);
 
             // ИСПРАВЛЕННЫЙ ENDPOINT: используем правильный запрос с фильтрами
-            const endpoint = `/api/reviews?exists[master]=true&master=${profileData.id}`;
+            const endpoint = `/api/reviews?services.service=true&exists[services]=true&exists[master]=true&exists[client]=true&type=master&master=${profileData.id}`;
 
             console.log(`Trying endpoint: ${endpoint}`);
 
@@ -1115,7 +1108,7 @@ function MasterProfilePage() {
 
                         // Определяем user и reviewer
                         const getFullNameParts = (fullName: string) => {
-                            if (!fullName || typeof fullName !== 'string') {
+                            if (!fullName) {
                                 return { firstName: 'Мастер', lastName: '' };
                             }
                             const parts = fullName.trim().split(/\s+/);
@@ -1127,7 +1120,7 @@ function MasterProfilePage() {
 
                         const nameParts = getFullNameParts(profileData.fullName);
 
-                        const user = masterData || {
+                        const client = masterData || {
                             id: parseInt(profileData.id),
                             email: '',
                             name: nameParts.firstName,
@@ -1136,7 +1129,7 @@ function MasterProfilePage() {
                             image: profileData.avatar || ''
                         };
 
-                        const reviewer = clientData || {
+                        const master = clientData || {
                             id: 0,
                             email: '',
                             name: 'Клиент',
@@ -1149,11 +1142,11 @@ function MasterProfilePage() {
                             id: review.id,
                             rating: review.rating || 0,
                             description: review.description || '',
-                            forReviewer: review.forClient || false,
-                            services: review.services || { id: 0, title: 'Услуга' },
+                            type: review.type || '',
+                            ticket: review.ticket || { id: 0, title: 'Услуга' },
                             images: review.images || [],
-                            user: user,
-                            reviewer: reviewer,
+                            client: client,
+                            master: master,
                             vacation: profileData.specialty,
                             worker: clientData ?
                                 `${clientData.name || 'Клиент'} ${clientData.surname || ''}`.trim() :
@@ -1172,7 +1165,7 @@ function MasterProfilePage() {
                 setReviews(transformedReviews);
 
                 // Рассчитываем рейтинг только из отзывов, где пользователь - получатель отзыва
-                const userReviews = transformedReviews.filter(r => r.user.id === parseInt(profileData.id));
+                const userReviews = transformedReviews.filter(r => r.client.id === parseInt(profileData.id));
                 const newRating = calculateAverageRating(userReviews);
 
                 console.log('User reviews for rating calculation:', userReviews);
@@ -1377,13 +1370,13 @@ function MasterProfilePage() {
                         }
                     } else if (response.status === 404) {
                         console.log(`Gallery not found at ${endpoint}`);
-                        continue;
+
                     } else {
                         console.warn(`Failed to fetch from ${endpoint}:`, response.status);
                     }
                 } catch (error) {
                     console.warn(`Error fetching from ${endpoint}:`, error);
-                    continue;
+
                 }
             }
 
@@ -1604,9 +1597,7 @@ function MasterProfilePage() {
         if (imagePath.startsWith("http")) return imagePath;
         if (imagePath.startsWith("/")) return `${API_BASE_URL}${imagePath}`;
 
-        const galleryPhotoUrl = `${API_BASE_URL}/images/gallery_photos/${imagePath}`;
-
-        return galleryPhotoUrl;
+        return `${API_BASE_URL}/images/gallery_photos/${imagePath}`;
     };
 
     // Функция для загрузки существующей галереи пользователя
@@ -1651,13 +1642,11 @@ function MasterProfilePage() {
                         break;
                     } else if (response.status === 404) {
                         console.log(`Gallery not found at ${endpoint}`);
-                        continue;
                     } else {
                         console.warn(`Failed to fetch from ${endpoint}:`, response.status);
                     }
                 } catch (error) {
                     console.warn(`Error fetching from ${endpoint}:`, error);
-                    continue;
                 }
             }
 
@@ -2188,14 +2177,14 @@ function MasterProfilePage() {
         const img = e.currentTarget;
 
         if (!profileData?.id) {
-            img.src = "../fonTest6.png";
+            img.src = "../default_user.png";
             return;
         }
 
         const fallbackSources = [
             profileData.avatar?.includes("uploads/") ? `${API_BASE_URL}/api/${profileData.id}/profile-photo` : null,
             profileData.avatar?.includes("uploads/") ? `/uploads/avatars/${profileData.avatar.split("/").pop()}` : null,
-            "../fonTest6.png"
+            "../default_user.png"
         ].filter(Boolean) as string[];
 
         for (const source of fallbackSources) {
@@ -2208,7 +2197,7 @@ function MasterProfilePage() {
                     }
                 } catch {
                     console.log('Fallback image failed:', source);
-                    continue;
+
                 }
             }
         }
@@ -2217,24 +2206,24 @@ function MasterProfilePage() {
     };
 
     const getReviewerName = (review: Review) => {
-        return `${review.reviewer.name} ${review.reviewer.surname}`.trim();
+        return `${review.client.name} ${review.client.surname}`.trim();
     };
 
     const getReviewerAvatarUrl = (review: Review) => {
-        if (review.reviewer.image) {
-            console.log('Reviewer image from data:', review.reviewer.image);
+        if (review.client.image) {
+            console.log('Reviewer image from data:', review.client.image);
 
             const possiblePaths = [
-                review.reviewer.image,
-                `${API_BASE_URL}/images/profile_photos/${review.reviewer.image}`,
-                `${API_BASE_URL}/uploads/profile_photos/${review.reviewer.image}`,
-                `${API_BASE_URL}/uploads/clients/${review.reviewer.image}`,
-                `${API_BASE_URL}/images/clients/${review.reviewer.image}`,
-                `${API_BASE_URL}/${review.reviewer.image}`
+                review.client.image,
+                `${API_BASE_URL}/images/profile_photos/${review.client.image}`,
+                `${API_BASE_URL}/uploads/profile_photos/${review.client.image}`,
+                `${API_BASE_URL}/uploads/clients/${review.client.image}`,
+                `${API_BASE_URL}/images/clients/${review.client.image}`,
+                `${API_BASE_URL}/${review.client.image}`
             ];
 
             for (const path of possiblePaths) {
-                if (path && path !== "../fonTest6.png") {
+                if (path && path !== "../default_user.png") {
                     console.log('Trying reviewer avatar path:', path);
                     return path;
                 }
@@ -2242,7 +2231,7 @@ function MasterProfilePage() {
         }
 
         console.log('Using default avatar for reviewer');
-        return "../fonTest6.png";
+        return "../default_user.png";
     };
 
     const calculateAverageRating = (reviews: Review[]): number => {
@@ -2267,18 +2256,11 @@ function MasterProfilePage() {
         return `${url}${separator}t=${timestamp}`;
     };
 
-    const getMasterName = (review: Review) => {
-        if (!review.user.name && !review.user.surname) {
-            return 'Мастер';
-        }
-        return `${review.user.name || ''} ${review.user.surname || ''}`.trim();
-    };
-
     const getClientName = (review: Review) => {
-        if (!review.reviewer.name && !review.reviewer.surname) {
+        if (!review.master.name && !review.master.surname) {
             return 'Клиент';
         }
-        return `${review.reviewer.name || ''} ${review.reviewer.surname || ''}`.trim();
+        return `${review.master.name || ''} ${review.master.surname || ''}`.trim();
     };
 
     const handleClientProfileClick = (clientId: number) => {
@@ -2466,7 +2448,7 @@ function MasterProfilePage() {
                                 />
                             ) : (
                                 <img
-                                    src="../fonTest6.png"
+                                    src="../default_user.png"
                                     alt="FonTest6"
                                     className={styles.avatar_placeholder}
                                 />
@@ -2760,7 +2742,7 @@ function MasterProfilePage() {
 
                                                     const alternativePaths = [
                                                         `${API_BASE_URL}/uploads/gallery_images/${work.image.split('/').pop() || work.image}`,
-                                                        "./fonTest6.png"
+                                                        "../default_user.png"
                                                     ];
 
                                                     let currentIndex = 0;
@@ -2829,7 +2811,7 @@ function MasterProfilePage() {
                     </div>
 
                     {/* Район работы */}
-                    <h3 className={styles.section_subtitle}>Район работы</h3>
+                    <h3 className={styles.section_subtitle}>Адреса работ</h3>
                     <div className={styles.section_item}>
                         <div className={styles.section_content}>
                             {profileData.workArea ? (
@@ -2961,9 +2943,13 @@ function MasterProfilePage() {
                     </div>
                 </div>
 
-                <h2 className={styles.section_title}>Отзывы</h2>
                 {/* Секция отзывов */}
                 <div className={styles.reviews_section}>
+                    <h2 className={styles.section_title}>Отзывы от клиентов</h2>
+                    <p className={styles.section_subtitle}>
+                        Клиенты оставили отзывы о работе с вами
+                    </p>
+
                     <div className={styles.reviews_list}>
                         {reviewsLoading ? (
                             <div className={styles.loading}>Загрузка отзывов...</div>
@@ -2977,36 +2963,16 @@ function MasterProfilePage() {
                                                     <img
                                                         src={getReviewerAvatarUrl(review)}
                                                         alt={getReviewerName(review)}
-                                                        onClick={() => handleClientProfileClick(review.reviewer.id)}
+                                                        onClick={() => handleClientProfileClick(review.client.id)}
                                                         style={{ cursor: 'pointer' }}
                                                         className={styles.reviewer_avatar}
                                                         onError={(e) => {
-                                                            e.currentTarget.src = "./fonTest5.png";
+                                                            e.currentTarget.src = "../default_user.png";
                                                         }}
                                                     />
                                                     <div className={styles.reviewer_main_info}>
                                                         <div className={styles.reviewer_name}>{getClientName(review)}</div>
-                                                        <div className={styles.review_vacation}>{review.vacation}</div>
-                                                        <span className={styles.review_worker}>{getMasterName(review)}</span>
-                                                        <div className={styles.review_rating_main}>
-                                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                <g clipPath="url(#clip0_324_2272)">
-                                                                    <g clipPath="url(#clip1_324_2272)">
-                                                                        <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                                                        <path d="M12 19V18.98" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
-                                                                    </g>
-                                                                </g>
-                                                                <defs>
-                                                                    <clipPath id="clip0_324_2272">
-                                                                        <rect width="24" height="24" fill="white"/>
-                                                                    </clipPath>
-                                                                    <clipPath id="clip1_324_2272">
-                                                                        <rect width="24" height="24" fill="white"/>
-                                                                    </clipPath>
-                                                                </defs>
-                                                            </svg>
-                                                            <span className={styles.rating_value}>{review.rating}</span>
-                                                        </div>
+                                                        <span className={styles.review_worker}>{review.ticket.title}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -3035,13 +3001,13 @@ function MasterProfilePage() {
                                                     </svg>
                                                     <span className={styles.rating_value}>{review.rating}</span>
                                                 </div>
-                                            </div>
-
-                                            {review.description && (
-                                                <div className={styles.review_text}>
-                                                    {review.description.replace(/<[^>]*>/g, '')}
                                                 </div>
-                                            )}
+
+                                                {review.description && (
+                                                    <div className={styles.review_text}>
+                                                        {review.description.replace(/<[^>]*>/g, '')}
+                                                    </div>
+                                                )}
                                         </div>
                                     ))}
                                 </div>
@@ -3060,36 +3026,16 @@ function MasterProfilePage() {
                                                             <img
                                                                 src={getReviewerAvatarUrl(review)}
                                                                 alt={getReviewerName(review)}
-                                                                onClick={() => handleClientProfileClick(review.reviewer.id)}
+                                                                onClick={() => handleClientProfileClick(review.client.id)}
                                                                 style={{ cursor: 'pointer' }}
                                                                 className={styles.reviewer_avatar}
                                                                 onError={(e) => {
-                                                                    e.currentTarget.src = "./fonTest5.png";
+                                                                    e.currentTarget.src = "../default_user.png";
                                                                 }}
                                                             />
                                                             <div className={styles.reviewer_main_info}>
                                                                 <div className={styles.reviewer_name}>{getClientName(review)}</div>
-                                                                <div className={styles.review_vacation}>{review.vacation}</div>
-                                                                <span className={styles.review_worker}>{getMasterName(review)}</span>
-                                                                <div className={styles.review_rating_main}>
-                                                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                        <g clipPath="url(#clip0_324_2272)">
-                                                                            <g clipPath="url(#clip1_324_2272)">
-                                                                                <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                                                                <path d="M12 19V18.98" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
-                                                                            </g>
-                                                                        </g>
-                                                                        <defs>
-                                                                            <clipPath id="clip0_324_2272">
-                                                                                <rect width="24" height="24" fill="white"/>
-                                                                            </clipPath>
-                                                                            <clipPath id="clip1_324_2272">
-                                                                                <rect width="24" height="24" fill="white"/>
-                                                                            </clipPath>
-                                                                        </defs>
-                                                                    </svg>
-                                                                    <span className={styles.rating_value}>{review.rating}</span>
-                                                                </div>
+                                                                <span className={styles.review_worker}>{review.ticket.title}</span>
                                                             </div>
                                                         </div>
                                                     </div>

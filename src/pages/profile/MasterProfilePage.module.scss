@@ -24,7 +24,7 @@
 }
 
 .profile_content {
-  padding: 40px;
+  padding: 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -188,7 +188,7 @@
 .avatar_container {
   position: relative;
   cursor: pointer;
-  border-radius: 12px;
+  border-radius: 100%;
   overflow: hidden;
   width: 235px;
   height: 235px;
@@ -237,9 +237,9 @@
 }
 
 .section_title {
-  font-size: 36px;
+  font-size: 24px;
   font-weight: 400;
-  margin: 60px 0 20px 0;
+  margin: 0 0 20px 0;
   color: #000;
 }
 
@@ -260,14 +260,14 @@
 }
 
 .section_subtitle {
-  font-size: 36px;
+  font-size: 20px;
   font-weight: 400;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   color: #000;
 }
 
 .section_subtitle_revievs {
-  font-size: 24px;
+  font-size: 14px;
   margin-bottom: 40px;
 }
 
@@ -369,6 +369,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-size: 20px;
 }
 
 .services_list {
@@ -434,6 +435,7 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 4px;
+  font-size: 24px;
 }
 
 .education_details {
@@ -930,14 +932,22 @@
 
 // Стили для секции отзывов
 .reviews_section {
-  margin-top: 40px;
+  background: white;
   border-radius: 20px;
-  background-color: map.get(vars.$colors, background-primary);
-  padding: 40px;
+  padding: 20px;
+  margin-bottom: 20px;
+  margin-top: 60px;
+}
+
+.reviews_section h2 {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: #000;
 }
 
 .section_subtitle_revievs {
-  font-size: 24px;
+  font-size: 20px;
   margin-bottom: 40px;
   color: #000;
 }
@@ -965,7 +975,7 @@
 
 .review_item {
   background-color: #fff;
-  padding: 20px;
+  //padding: 20px;
   border-radius: 20px;
   width: 100%;
   display: flex;
@@ -992,8 +1002,8 @@
 }
 
 .reviewer_avatar {
-  width: 80px;
-  height: 80px;
+  width: 100px;
+  height: 100px;
   border-radius: 50%;
   object-fit: cover;
 }
@@ -1065,7 +1075,7 @@
 }
 
 .review_text {
-  font-size: 14px;
+  font-size: 20px;
   line-height: 1.5;
   color: #333;
   margin-bottom: 15px;
@@ -1189,7 +1199,7 @@
   margin-left: 12px;
 }
 
-// Добавьте эти стили в ваш ProfilePage.module.scss
+// Добавьте эти стили в ваш MasterProfilePage.module.scss
 
 .complaint_section {
   margin-top: 16px;
@@ -1420,7 +1430,7 @@
 }
 
 
-// Добавьте эти стили в ваш ProfilePage.module.scss
+// Добавьте эти стили в ваш MasterProfilePage.module.scss
 
 .reviews_actions {
   display: flex;
@@ -2111,8 +2121,8 @@
 
 @media screen and (max-width: 480px) {
   .avatar_container {
-    width: 89px;
-    height: 88px;
+    width: 200px;
+    height: 200px;
   }
 
   .profile_wrap {
@@ -2121,23 +2131,25 @@
 
   .profile_content {
     display: flex;
+    flex-direction: column;
   }
   .name {
-    font-size: 18px;
+    font-size: 22px;
   }
 
   .specialty {
-    font-size: 18px;
+    font-size: 22px;
   }
 
-  .rating,
-  .reviews {
-    font-size: 12px;
+  .rating, .reviews {
+    font-size: 20px;
+
     svg {
       margin-right: 4px;
-      width: 16px;
+      width: 20px;
     }
   }
+
   .specialty_with_icon,
   .rating_reviews {
     margin-top: 10px;
@@ -2147,8 +2159,8 @@
     gap: 4px !important;
   }
 
-  .section_subtitle {
-    font-size: 20px !important;
+  .education_main {
+    font-size: 14px;
   }
 
   .section_item {
@@ -2176,7 +2188,7 @@
   }
 
   .section_title {
-    margin: 20px 0 10px 0 !important;
+    margin: 0 0 10px 0 !important;
   }
 
   .reviews_section {
@@ -2194,13 +2206,49 @@
   }
 
   .reviewer_name {
-    font-size: 18px !important;
+    font-size: 20px;
   }
 
+  .review_vacation,
+  .review_worker {
+    font-size: 14px;
+  }
+
+  .review_text {
+    font-size: 16px;
+    line-height: 1.45;
+  }
+
+  .review_date {
+    font-size: 13px;
+  }
+
+  .rating_value {
+    font-size: 14px;
+  }
+
+  .review_rating_secondary {
+    font-size: 14px;
+
+    svg {
+      width: 18px;
+      height: 18px;
+    }
+  }
+
+  .review_rating_main svg {
+    width: 18px;
+    height: 18px;
+  }
 
   .reviewer_avatar {
-    width: 60px !important;
-    height: 60px !important;
+    width: 56px;
+    height: 56px;
+  }
+
+  .review_image {
+    width: 60px;
+    height: 60px;
   }
 }
 

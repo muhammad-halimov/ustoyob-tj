@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { getAuthToken } from '../../utils/auth';
-import styles from '../../pages/profile/ProfilePage.module.scss';
+import styles from '../../pages/profile/MasterProfilePage.module.scss';
 // import { fetchUserById } from "../../utils/api.ts";
 import AuthModal from '../../shared/ui/AuthModal/AuthModal';
 
@@ -449,7 +449,7 @@ function MasterProfileViewPage() {
             return item.trim();
         }
 
-        if (typeof item === 'object' && item !== null && 'title' in item) {
+        if (typeof item === 'object' && 'title' in item) {
             const titleValue = (item as { title: unknown }).title;
             if (typeof titleValue === 'string') {
                 return titleValue.trim();
@@ -460,7 +460,7 @@ function MasterProfileViewPage() {
     };
 
     const formatAddress = (address: UserAddressApiData): FormattedAddress => {
-        if (!address || typeof address !== 'object' || address === null) {
+        if (!address || typeof address !== 'object') {
             return {
                 id: Date.now(),
                 fullAddress: 'Неверный формат адреса'
@@ -507,7 +507,7 @@ function MasterProfileViewPage() {
         }
 
         return addresses.map((item: unknown) => {
-            if (!item || typeof item !== 'object' || item === null) {
+            if (!item || typeof item !== 'object') {
                 return {
                     id: Date.now(),
                     fullAddress: 'Неверный формат адреса'
@@ -581,7 +581,7 @@ function MasterProfileViewPage() {
                     return isService && belongsToMaster && isActive;
                 })
                 .map(service => {
-                    const budget = typeof service.budget === 'number' ? service.budget.toString() : String(service.budget || '0');
+                    const budget = service.budget.toString();
                     const unit = service.unit?.title || 'TJS';
 
                     return {

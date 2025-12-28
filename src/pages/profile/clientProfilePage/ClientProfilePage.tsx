@@ -1,9 +1,9 @@
-import {useState, useRef, useEffect, type ChangeEvent, useCallback} from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, {type ChangeEvent, useCallback, useEffect, useRef, useState} from 'react';
+import {useNavigate} from 'react-router-dom';
 import {getAuthToken} from '../../../utils/auth';
 import styles from './ClientProfilePage.module.scss';
 
-import ReviewList, { Review as ReviewWidget } from '../../../widgets/RenderReviews/RenderReviews';
+import ReviewList, {Review as ReviewWidget} from '../../../widgets/RenderReviews/RenderReviews';
 
 interface Review {
     id: number;
@@ -137,24 +137,24 @@ function ClientProfilePage() {
             const token = getAuthToken();
             if (!token) return [];
 
-            const response = await fetch(
-                `${API_BASE_URL}/api/reviews?client.id=${userId}`,
-                {
-                    method: 'GET',
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        Accept: 'application/json',
-                    },
-                }
-            );
+            const endpoint = `/api/reviews?exists[services]=false&exists[master]=true&exists[client]=true&type=client&client=${userId}`;
+
+            console.log(`Trying endpoint: ${endpoint}`);
+
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                method: 'GET',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Accept: 'application/json',
+                },
+            });
 
             if (!response.ok) {
                 console.warn('Failed to fetch reviews:', response.status);
                 return [];
             }
 
-            const reviews = await response.json();
-            return reviews;
+            return await response.json();
         } catch (error) {
             console.error('Error fetching client reviews:', error);
             return [];
@@ -553,7 +553,7 @@ function ClientProfilePage() {
                                     />
                                 ) : (
                                     <img
-                                        src="./fonTest6.png"
+                                        src="../default_user.png"
                                         alt="FonTest6"
                                         className={styles.avatar_placeholder}
                                         loading="eager"

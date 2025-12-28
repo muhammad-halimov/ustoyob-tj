@@ -154,7 +154,6 @@ const ReviewItem = ({ review, onMasterClick }: { review: Review; onMasterClick: 
                 <div className={styles.review_worker_date}>
                     <span className={styles.review_date}>{reviewDate}</span>
                     <div className={styles.review_rating_secondary}>
-                        <span>Поставил: </span>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <g clipPath="url(#clip0_324_2272)">
                                 <g clipPath="url(#clip1_324_2272)">
@@ -162,7 +161,7 @@ const ReviewItem = ({ review, onMasterClick }: { review: Review; onMasterClick: 
                                 </g>
                             </g>
                         </svg>
-                        <span className={styles.rating_value}>{review.rating}</span>
+                        <span className={styles.rating_value}>Поставил: {review.rating}</span>
                     </div>
                 </div>
             </div>

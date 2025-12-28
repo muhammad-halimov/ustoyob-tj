@@ -34,7 +34,7 @@ interface ReviewListProps {
     loading: boolean;
 }
 
-export const defaultUserImage = 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/Default_pfp.svg/1200px-Default_pfp.svg.png';
+export const defaultUserImage = '../default_user.png';
 
 function ReviewList({reviews, showAll, onToggleShowAll, previewLimit, getFullName, loading}: ReviewListProps) {
 
@@ -46,8 +46,7 @@ function ReviewList({reviews, showAll, onToggleShowAll, previewLimit, getFullNam
         const possiblePaths = [
             review.master.image,
             `${API_BASE_URL}/images/profile_photos/${review.master.image}`,
-            `${API_BASE_URL}/uploads/profile_photos/${review.master.image}`,
-        ].filter(path => path && !path.includes('./fonTest'));
+        ].filter(path => path);
 
         return possiblePaths[0] || defaultUserImage;
     };
@@ -78,7 +77,7 @@ function ReviewList({reviews, showAll, onToggleShowAll, previewLimit, getFullNam
                                 src={getReviewerAvatarUrl(review)}
                                 alt={getReviewerName(review)}
                                 className={styles.reviewer_avatar}
-                                onError={(e) => { e.currentTarget.src = './fonTest5.png'; }}
+                                onError={(e) => { e.currentTarget.src = '../default_user.png'; }}
                                 loading="lazy"
                             />
                             <div className={styles.reviewer_main_info}>

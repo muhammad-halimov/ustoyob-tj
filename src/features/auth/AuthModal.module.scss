@@ -87,7 +87,7 @@
   }
 
   .socialButtons {
-    margin: map.get(vars.$spacing, 3) auto map.get(vars.$spacing, 6);
+    margin: map.get(vars.$spacing, 3) auto map.get(vars.$spacing, 6) 10px;
     width: 100%;
     display: flex;
     justify-content: center;

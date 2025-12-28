@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAuthToken } from '../../utils/auth';
-import styles from '../profile/ProfilePage.module.scss';
+import styles from '../profile/MasterProfilePage.module.scss';
 
 interface Education {
     id: string;

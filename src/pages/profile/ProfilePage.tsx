@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getAuthToken } from '../../utils/auth';
 import MasterProfilePage from './masterProfilePage/MasterProfilePage';
 import ClientProfilePage from './clientProfilePage/ClientProfilePage';
-import styles from './ProfilePage.module.scss';
+import styles from './MasterProfilePage.module.scss';
 
 function ProfilePage() {
     const navigate = useNavigate();

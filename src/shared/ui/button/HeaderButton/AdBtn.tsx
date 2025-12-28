@@ -9,7 +9,6 @@ interface AdBtnProps {
 }
 
 export const AdBtn = ({
-                          alwaysVisible = false,
                           onClick,
                           text
                       }: AdBtnProps) => {
@@ -26,15 +25,12 @@ export const AdBtn = ({
 
     // Получаем текст кнопки с учетом языка
     const getButtonText = () => {
-        if (text) {
-            return text;
-        }
-        return t('header:postAd', 'Post ad');
-    };
+        if (text) return text;
 
-    if (!alwaysVisible && isAuthenticated && userRole === 'ROLE_MASTER' && !text) {
-        return null;
-    }
+        return userRole === 'ROLE_MASTER' && isAuthenticated
+            ? t('header:postService', 'Post ad')
+            : t('header:postAd', 'Post ad');
+    };
 
     return (
         <button

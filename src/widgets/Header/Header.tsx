@@ -3,7 +3,7 @@ import styles from "./Header.module.scss";
 import { AdBtn } from "../../shared/ui/button/HeaderButton/AdBtn.tsx";
 import { EnterBtn } from "../../shared/ui/button/HeaderButton/EnterBtn.tsx";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { getAuthToken, removeAuthToken } from "../../utils/auth";
+import {getAuthToken, getUserRole, removeAuthToken} from "../../utils/auth";
 import { useTranslation } from 'react-i18next';
 import { changeLanguage, Language } from '../../locales/i18n.ts';
 
@@ -424,7 +424,10 @@ function Header({ onOpenAuthModal }: HeaderProps) {
     };
 
     const handleAdBtnClick = () => {
-        navigate('/orders');
+        if (getUserRole() == 'client')
+            navigate('/orders');
+        else if (getUserRole() == 'master')
+            navigate('/profile/services');
     };
 
     return (
