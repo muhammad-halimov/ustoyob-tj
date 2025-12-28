@@ -38,6 +38,7 @@ class ChatImage
     private ?Chat $chats = null;
 
     #[ORM\ManyToOne(inversedBy: 'chatImages')]
+    #[ORM\JoinColumn(name: 'author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'chats:read',
     ])]

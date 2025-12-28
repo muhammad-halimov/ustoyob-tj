@@ -589,7 +589,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /**
      * @var Collection<int, ChatImage>
      */
-    #[ORM\OneToMany(targetEntity: ChatImage::class, mappedBy: 'author')]
+    #[ORM\OneToMany(targetEntity: ChatImage::class, mappedBy: 'author', cascade: ['all'])]
     #[Ignore]
     private Collection $chatImages;
 
