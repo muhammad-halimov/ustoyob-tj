@@ -681,9 +681,9 @@ function ClientProfilePage() {
 
                 {/* Секция отзывов */}
                 <div className={styles.reviews_section} id="reviews">
-                    <h2 className={styles.section_title}>Отзывы от специалистов</h2>
+                    <h2 className={styles.section_title}>Отзывы от мастеров</h2>
                     <p className={styles.section_subtitle}>
-                        Специалисты оставили отзывы о работе с вами
+                        Мастера оставили отзывы о работе с вами
                     </p>
 
                     <div className={styles.reviews_list}>

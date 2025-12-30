@@ -102,7 +102,7 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 15px;
+  margin-bottom: 10px;
 }
 
 .specialist_info {
@@ -543,13 +543,13 @@
 
 .reviewer_info {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
 }
 
 .reviewer_avatar {
-  width: 90px;
-  height: 90px;
+  width: 100px;
+  height: 100px;
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid #f0f0f0;
@@ -569,15 +569,15 @@
 .review_vacation {
   display: flex;
   flex-direction: column;
-  font-size: 20px;
-  color: #000000;
+  font-size: 14px;
+  color: #666;
   margin-bottom: 4px;
 }
 
 .review_worker {
-  font-size: 20px;
+  font-size: 24px;
   color: #000000;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .review_rating_main {
@@ -593,17 +593,16 @@
 }
 
 .rating_value {
-  font-size: 20px;
+  font-size: 14px;
   font-weight: 600;
   color: #1a1a1a;
 }
 
 .review_details {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  padding-bottom: 12px;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-bottom: 10px;
   //border-bottom: 1px solid #f0f0f0;
 }
 
@@ -615,7 +614,7 @@
 }
 
 .review_date {
-  font-size: 16px;
+  font-size: 13px;
   color: #666;
 }
 
@@ -624,12 +623,13 @@
   //flex-direction: column;
   align-items: center;
   gap: 4px;
-  font-size: 20px;
+  font-size: 14px;
   color: #666;
 
   svg {
     width: 24px;
     height: 24px;
+    margin: 0 4px;
   }
 }
 
@@ -711,15 +711,10 @@
 
 // Адаптивность
 @media (max-width: 768px) {
-  .review_details {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
 
-  .review_rating_secondary {
-    align-self: flex-end;
-  }
+  //.review_rating_secondary {
+  //  align-self: flex-end;
+  //}
 
   .reviewer_info {
     align-items: center;
@@ -1342,7 +1337,7 @@
 
   .section_subtitle {
     font-size: 14px;
-    margin-bottom: 16px;
+    margin-bottom: 15px;
   }
 
   .reviewer_name {
@@ -1357,10 +1352,6 @@
   .review_text {
     font-size: 16px;
     line-height: 1.45;
-  }
-
-  .review_date {
-    font-size: 13px;
   }
 
   .rating_value {

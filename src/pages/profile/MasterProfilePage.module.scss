@@ -262,8 +262,8 @@
 .section_subtitle {
   font-size: 20px;
   font-weight: 400;
-  margin-bottom: 16px;
-  color: #000;
+  margin-bottom: 15px;
+  color: #666;
 }
 
 .section_subtitle_revievs {
@@ -993,7 +993,7 @@
 .review_header {
   display: flex;
   align-items: center;
-  margin-bottom: 11px;
+  margin-bottom: 10px;
 }
 
 .reviewer_info {
@@ -1046,8 +1046,7 @@
 .review_details {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 15px;
+  margin-bottom: 10px;
 }
 
 .review_worker_date {
@@ -2189,6 +2188,10 @@
 
   .section_title {
     margin: 0 0 10px 0 !important;
+  }
+
+  .section_subtitle {
+    font-size: 14px;
   }
 
   .reviews_section {

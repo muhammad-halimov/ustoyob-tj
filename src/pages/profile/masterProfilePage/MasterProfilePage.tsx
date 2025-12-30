@@ -7,6 +7,7 @@ import {Swiper, SwiperSlide} from "swiper/react";
 import "swiper/css";
 import {fetchUserById} from "../../../utils/api.ts";
 import {cleanText} from "../../../utils/cleanText.ts";
+import {formatDate} from "../../../widgets/Reviews/Reviews.tsx";
 
 interface ProfileData {
     id: string;
@@ -96,7 +97,7 @@ interface Review {
     }[];
     vacation?: string;
     worker?: string;
-    date?: string;
+    date: string;
 }
 
 // Интерфейсы для создания отзыва
@@ -3042,7 +3043,7 @@ function MasterProfilePage() {
 
                                                     <div className={styles.review_details}>
                                                         <div className={styles.review_worker_date}>
-                                                            <span className={styles.review_date}>{review.date}</span>
+                                                            <span className={styles.review_date}>{formatDate(review.date)}</span>
                                                         </div>
                                                         <div className={styles.review_rating_secondary}>
                                                             <span>Поставил </span>

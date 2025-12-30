@@ -1,8 +1,8 @@
 import style from './Reviews.module.scss';
-import { useEffect, useState } from "react";
-import { Swiper, SwiperSlide } from "swiper/react";
+import {useEffect, useState} from "react";
+import {Swiper, SwiperSlide} from "swiper/react";
 import "swiper/css";
-import { useNavigate } from "react-router-dom";
+import {useNavigate} from "react-router-dom";
 
 import "swiper/css/navigation";
 import "swiper/css/zoom";
@@ -67,6 +67,20 @@ interface Review {
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+// Функция для форматирования даты
+export const formatDate = (dateString: string): string => {
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('ru-RU', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        });
+    } catch {
+        return 'Дата не указана';
+    }
+};
 
 function Reviews() {
     const navigate = useNavigate();
@@ -160,8 +174,7 @@ function Reviews() {
             });
 
             if (response.ok) {
-                const userData = await response.json();
-                return userData;
+                return await response.json();
             }
             return null;
         } catch (error) {
@@ -243,9 +256,9 @@ function Reviews() {
     // Функция для получения роли пользователя (Мастер/Клиент)
     const getUserRole = (review: Review): string => {
         if (review.type === 'master') {
-            return 'Клиент';
-        } else if (review.type === 'client') {
             return 'Мастер';
+        } else if (review.type === 'client') {
+            return 'Клиент';
         }
         return 'Пользователь';
     };
@@ -338,20 +351,6 @@ function Reviews() {
         return null;
     };
 
-    // Функция для форматирования даты
-    const formatDate = (dateString: string): string => {
-        try {
-            const date = new Date(dateString);
-            return date.toLocaleDateString('ru-RU', {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric'
-            });
-        } catch {
-            return 'Дата не указана';
-        }
-    };
-
     // Функция для получения даты обновления
     // const formatUpdatedDate = (dateString: string): string => {
     //     try {
@@ -392,19 +391,17 @@ function Reviews() {
             }
         }
 
-        // Приоритет у внешнего URL
-        if (externalUrl && externalUrl.trim() !== '') {
-            return externalUrl;
-        }
-
+        // Приоритет у внутреннего image
         if (imagePath && imagePath.trim() !== '') {
             if (imagePath.startsWith('http')) {
                 return imagePath;
             }
             return `${API_BASE_URL}/images/profile_photos/${imagePath}`;
+        } else if (!imagePath && externalUrl && externalUrl.trim() !== '') {
+            return externalUrl;
         }
 
-        return '../fonTest5.png';
+        return '../default_user.png';
     };
 
     // Функция для получения URL изображения отзыва
@@ -542,8 +539,6 @@ function Reviews() {
                     >
                         {displayedReviews.map((review) => {
                             const userId = getUserId(review);
-                            const reviewerId = getReviewerId(review);
-                            // const userEmail = getUserEmail(review);
                             const serviceTitle = getServiceTitle(review);
                             const reviewTypeText = getReviewTypeText(review);
 
@@ -578,7 +573,7 @@ function Reviews() {
                                                 {/* ID и роль пользователя */}
                                                 <div className={style.user_info}>
                                                     {/*<span className={style.user_id}>ID #{userId}</span>*/}
-                                                    <span className={style.user_role}>{getUserRole(review)}</span>
+                                                    {getUserRole(review)}: {getReviewerName(review)}
                                                 </div>
                                                 {/* Email пользователя */}
                                                 {/*{userEmail && (*/}
@@ -611,16 +606,6 @@ function Reviews() {
                                         </div>
 
                                         <div className={style.reviews_about}>
-                                            <div className={style.reviews_about_title}>
-                                                <p
-                                                    onClick={reviewerId ? () => handleProfileClick(reviewerId) : undefined}
-                                                    style={{ cursor: reviewerId ? 'pointer' : 'default' }}
-                                                    className={style.reviewer_name}
-                                                >
-                                                    {getReviewerName(review)}
-                                                </p>
-                                                <p className={style.review_date}>{formatDate(review.createdAt)}</p>
-                                            </div>
                                             <p className={style.reviews_about_rev}>
                                                 {truncateText(review.description, 120)}
                                             </p>
@@ -650,7 +635,7 @@ function Reviews() {
                                             {/* Даты создания и обновления */}
                                             <div className={style.review_dates}>
                                                 <span className={style.created_date}>
-                                                    Создано: {formatDate(review.createdAt)}
+                                                    {formatDate(review.createdAt)}
                                                 </span>
                                                 {/*{review.updatedAt !== review.createdAt && (*/}
                                                 {/*    <span className={style.updated_date}>*/}
@@ -705,16 +690,26 @@ function Reviews() {
                                         {/* ID и роль пользователя */}
                                         <div className={style.user_info}>
                                             {/*<span className={style.user_id}>ID #{userId}</span>*/}
-                                            <span className={style.user_role}>{getUserRole(review)}</span>
+                                            <div className={style.reviews_about_title}>
+                                                <p
+                                                    onClick={reviewerId ? () => handleProfileClick(reviewerId) : undefined}
+                                                    style={{ cursor: reviewerId ? 'pointer' : 'default' }}
+                                                    className={style.reviewer_name}
+                                                >
+                                                    {getUserRole(review)}: {getReviewerName(review)}
+                                                </p>
+                                            </div>
                                         </div>
                                         {/* Email пользователя */}
                                         {/*{userEmail && (*/}
                                         {/*    <p className={style.user_email}>{userEmail}</p>*/}
                                         {/*)}*/}
                                         {/* Услуга */}
-                                        <p className={style.service_info}>
-                                            Услуга: {serviceTitle}
-                                        </p>
+                                        {review.type === 'master' && (
+                                            <p className={style.service_info}>
+                                                Услуга: {serviceTitle}
+                                            </p>
+                                        )}
                                         <div className={style.reviews_naming_raiting}>
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                 <g clipPath="url(#clip0_324_2272)">
@@ -738,16 +733,6 @@ function Reviews() {
                                 </div>
 
                                 <div className={style.reviews_about}>
-                                    <div className={style.reviews_about_title}>
-                                        <p
-                                            onClick={reviewerId ? () => handleProfileClick(reviewerId) : undefined}
-                                            style={{ cursor: reviewerId ? 'pointer' : 'default' }}
-                                            className={style.reviewer_name}
-                                        >
-                                            {getReviewerName(review)}
-                                        </p>
-                                        <p className={style.review_date}>{formatDate(review.createdAt)}</p>
-                                    </div>
                                     <p className={style.reviews_about_rev}>
                                         {review.description}
                                     </p>
@@ -774,7 +759,7 @@ function Reviews() {
                                     {/* Даты создания и обновления */}
                                     <div className={style.review_dates}>
                                         <span className={style.created_date}>
-                                            Создано: {formatDate(review.createdAt)}
+                                            {formatDate(review.createdAt)}
                                         </span>
                                         {/*{review.updatedAt !== review.createdAt && (*/}
                                         {/*    <span className={style.updated_date}>*/}

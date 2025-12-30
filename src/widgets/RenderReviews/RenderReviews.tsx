@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import styles from '../../pages/profile/clientProfilePage/ClientProfilePage.module.scss';
+import {formatDate} from "../Reviews/Reviews.tsx";
 
 interface ReviewImage {
     id: number;
@@ -20,9 +21,9 @@ export interface Review {
     id: number;
     master?: ReviewMaster;
     rating: number;
-    description?: string;
+    description: string | "";
     images?: ReviewImage[];
-    createdAt?: string;
+    createdAt: string;
 }
 
 interface ReviewListProps {
@@ -84,14 +85,37 @@ function ReviewList({reviews, showAll, onToggleShowAll, previewLimit, getFullNam
                                 <div className={styles.review_vacation}>
                                     <span className={styles.review_worker}>{getFullName()}</span> {getReviewerProfession(review)}
                                 </div>
-                                <div className={styles.review_rating_main}>
-                                    <span className={styles.rating_value}>Поставил {review.rating}</span>
-                                </div>
                             </div>
                         </div>
                     </div>
 
-                    {review.description && <div className={styles.review_text}>{review.description.replace(/<[^>]*>/g, '')}</div>}
+                    <div className={styles.review_details}>
+                        <div className={styles.review_worker_date}>
+                            <span className={styles.review_date}>{formatDate(review.createdAt)}</span>
+                        </div>
+                        <div className={styles.review_rating_secondary}>
+                            <span>Поставил </span>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <g clipPath="url(#clip0_324_2272)">
+                                    <g clipPath="url(#clip1_324_2272)">
+                                        <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                        <path d="M12 19V18.98" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
+                                    </g>
+                                </g>
+                                <defs>
+                                    <clipPath id="clip0_324_2272">
+                                        <rect width="24" height="24" fill="white"/>
+                                    </clipPath>
+                                    <clipPath id="clip1_324_2272">
+                                        <rect width="24" height="24" fill="white"/>
+                                    </clipPath>
+                                </defs>
+                            </svg>
+                            <span className={styles.rating_value}>{review.rating}</span>
+                        </div>
+                    </div>
+
+                    <div className={styles.review_text}>{review.description.replace(/<[^>]*>/g, '') ?? 'Без описания'}</div>
 
                     {review.images && review.images.length > 0 && (
                         <div className={styles.review_images}>
