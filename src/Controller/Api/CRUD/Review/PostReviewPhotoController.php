@@ -2,62 +2,53 @@
 
 namespace App\Controller\Api\CRUD\Review;
 
+use App\Controller\Api\CRUD\Image\AbstractPhotoUploadController;
 use App\Entity\Review\Review;
 use App\Entity\Review\ReviewImage;
 use App\Entity\User;
 use App\Repository\ReviewRepository;
 use App\Service\Extra\AccessService;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use ReflectionClass;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\Request;
 
-class PostReviewPhotoController extends AbstractController
+class PostReviewPhotoController extends AbstractPhotoUploadController
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly ReviewRepository       $reviewRepository,
-        private readonly AccessService          $accessService,
-        private readonly Security               $security,
-    ){}
+        EntityManagerInterface            $entityManager,
+        Security                          $security,
+        AccessService                     $accessService,
+        private readonly ReviewRepository $reviewRepository,
+    ) {
+        parent::__construct($entityManager, $security, $accessService);
+    }
 
-    public function __invoke(int $id, Request $request): JsonResponse
+    protected function findEntity(int $id): ?object
     {
-        /** @var User $bearerUser */
-        $bearerUser = $this->security->getUser();
+        return $this->reviewRepository->find($id);
+    }
 
-        $this->accessService->check($bearerUser);
-
-        /** @var Review $review */
-        $review = $this->reviewRepository->find($id);
-
-        $imageFiles = $request->files->get('imageFile');
-
-        if (!$review)
-            return $this->json(['message' => 'Review not found'], 404);
-
-        if (!$imageFiles)
-            return $this->json(['message' => 'No files provided'], 400);
-
-        if ($review->getClient() !== $bearerUser && $review->getMaster() !== $bearerUser)
+    protected function checkOwnership(object $entity, User $bearerUser): ?JsonResponse
+    {
+        /** @var Review $entity */
+        if ($entity->getClient() !== $bearerUser && $entity->getMaster() !== $bearerUser) {
             return $this->json(['message' => "Ownership doesn't match"], 400);
-
-        $imageFiles = is_array($imageFiles) ? $imageFiles : [$imageFiles];
-
-        foreach ($imageFiles as $imageFile) {
-            if ($imageFile->isValid()) {
-                $reviewImage = (new ReviewImage())->setImageFile($imageFile);
-                $review->addReviewImage($reviewImage);
-                $this->entityManager->persist($reviewImage);
-            }
         }
+        return null;
+    }
 
-        $this->entityManager->flush();
+    protected function processImageFile(object $entity, UploadedFile $imageFile, User $bearerUser): void
+    {
+        /** @var Review $entity */
+        $reviewImage = (new ReviewImage())->setImageFile($imageFile);
+        $entity->addReviewImage($reviewImage);
+        $this->entityManager->persist($reviewImage);
+    }
 
-        return new JsonResponse([
-            'message' => 'Photos uploaded successfully',
-            'count' => count($imageFiles)
-        ]);
+    protected function getEntityName(): string
+    {
+        return (new ReflectionClass(Review::class))->getName();
     }
 }

@@ -17,7 +17,7 @@ use App\Controller\Api\Filter\Chat\ChatFilterController;
 use App\Controller\Api\Filter\Chat\PersonalChatFilterController;
 use App\Dto\Chat\ChatPatchInput;
 use App\Dto\Chat\ChatPostInput;
-use App\Dto\Extra\Image\ImageInput;
+use App\Dto\Image\ImageInput;
 use App\Entity\Appeal\AppealTypes\AppealChat;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;

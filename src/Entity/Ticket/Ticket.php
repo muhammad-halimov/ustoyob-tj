@@ -17,7 +17,7 @@ use App\Controller\Api\CRUD\Ticket\PostTicketController;
 use App\Controller\Api\CRUD\Ticket\PostTicketPhotoController;
 use App\Controller\Api\Filter\Address\AddressFilter;
 use App\Controller\Api\Filter\Ticket\PersonalTicketFilterController;
-use App\Dto\Extra\Image\ImageInput;
+use App\Dto\Image\ImageInput;
 use App\Dto\Ticket\TicketInput;
 use App\Entity\Appeal\AppealTypes\AppealTicket;
 use App\Entity\Chat\Chat;

@@ -14,7 +14,7 @@ use App\Controller\Api\CRUD\Appeal\PostAppealPhotoController;
 use App\Controller\Api\Filter\Appeal\AppealReasonFilterController;
 use App\Dto\Appeal\Appeal\AppealInput;
 use App\Dto\Appeal\Appeal\ComplaintReasonOutput;
-use App\Dto\Extra\Image\ImageInput;
+use App\Dto\Image\ImageInput;
 use App\Entity\Appeal\AppealTypes\AppealChat;
 use App\Entity\Appeal\AppealTypes\AppealTicket;
 use App\Repository\User\AppealRepository;

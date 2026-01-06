@@ -2,6 +2,7 @@
 
 namespace App\Controller\Api\CRUD\Appeal;
 
+use App\Controller\Api\CRUD\Image\AbstractPhotoUploadController;
 use App\Entity\Appeal\Appeal;
 use App\Entity\Appeal\AppealImage;
 use App\Entity\Appeal\AppealTypes\AppealChat;
@@ -10,70 +11,70 @@ use App\Entity\User;
 use App\Repository\User\AppealRepository;
 use App\Service\Extra\AccessService;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use ReflectionClass;
 use Symfony\Bundle\SecurityBundle\Security;
-use Symfony\Component\HttpFoundation\File\File;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\Request;
 
-class PostAppealPhotoController extends AbstractController
+class PostAppealPhotoController extends AbstractPhotoUploadController
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly AppealRepository       $appealRepository,
-        private readonly Security               $security,
-        private readonly AccessService          $accessService,
-    ) {}
+        EntityManagerInterface            $entityManager,
+        Security                          $security,
+        AccessService                     $accessService,
+        private readonly AppealRepository $appealRepository,
+    ) {
+        parent::__construct($entityManager, $security, $accessService);
+    }
 
-    public function __invoke(int $id, Request $request): JsonResponse
+    protected function findEntity(int $id): ?object
     {
-        /** @var User $bearerUser */
-        $bearerUser = $this->security->getUser();
+        return $this->appealRepository->find($id);
+    }
 
-        $this->accessService->check($bearerUser);
-
-        /** @var Appeal $appeal */
-        $appeal = $this->appealRepository->find($id);
-
+    protected function checkOwnership(object $entity, User $bearerUser): ?JsonResponse
+    {
         /** @var ?AppealChat $appealChat */
-        $appealChat = $appeal->getAppealChat()->first();
+        /** @var Appeal $entity */
+        $appealChat = $entity->getAppealChat()->first();
 
         /** @var ?AppealTicket $appealTicket */
-        $appealTicket = $appeal->getAppealTicket()->first();
+        /** @var Appeal $entity */
+        $appealTicket = $entity->getAppealTicket()->first();
 
-        /** @var File[] $imageFiles */
-        $imageFiles = $request->files->get('imageFile');
+        if ($appealChat && $appealChat->getAuthor() !== $bearerUser && $appealChat->getRespondent() !== $bearerUser)
+            return $this->json(['message' => "Ownership doesn't match"], 403);
 
-        if (!$imageFiles)
-            return $this->json(['message' => 'No files provided'], 400);
+        if ($appealTicket && $appealTicket->getAuthor() !== $bearerUser && $appealTicket->getRespondent() !== $bearerUser)
+            return $this->json(['message' => "Ownership doesn't match"], 403);
 
-        if ($appealChat->getAuthor() !== $bearerUser &&
-            $appealChat->getRespondent() !== $bearerUser ||
-            $appealTicket->getAuthor() !== $bearerUser &&
-            $appealTicket->getRespondent() !== $bearerUser
-        ) return $this->json(['message' => "Ownership doesn't match"], 403);
+        return null;
+    }
 
-        $imageFiles = is_array($imageFiles) ? $imageFiles : [$imageFiles];
+    protected function processImageFile(object $entity, UploadedFile $imageFile, User $bearerUser): void
+    {
+        /** @var ?AppealChat $appealChat */
+        /** @var Appeal $entity */
+        $appealChat = $entity->getAppealChat()->first();
 
-        if ($appeal->getAppealChat()->first()) {
-            foreach ($imageFiles as $imageFile) {
-                $appealImage = (new AppealImage())->setImageFile($imageFile);
-                $appealChat->addAppealChatImage($appealImage);
-                $this->entityManager->persist($appealImage);
-            }
-        } elseif ($appeal->getAppealTicket()->first()) {
-            foreach ($imageFiles as $imageFile) {
-                $appealImage = (new AppealImage())->setImageFile($imageFile);
-                $appealTicket->addAppealTicketImage($appealImage);
-                $this->entityManager->persist($appealImage);
-            }
-        } else return $this->json(['message' => 'Appeal attachment is empty'], 400);
+        /** @var ?AppealTicket $appealTicket */
+        /** @var Appeal $entity */
+        $appealTicket = $entity->getAppealTicket()->first();
 
-        $this->entityManager->flush();
+        /** @var Appeal $entity */
+        if ($appealChat) {
+            $appealImage = (new AppealImage())->setImageFile($imageFile);
+            $appealChat->addAppealChatImage($appealImage);
+            $this->entityManager->persist($appealImage);
+        } elseif ($appealTicket) {
+            $appealImage = (new AppealImage())->setImageFile($imageFile);
+            $appealTicket->addAppealTicketImage($appealImage);
+            $this->entityManager->persist($appealImage);
+        }
+    }
 
-        return $this->json([
-            'message' => 'Photos uploaded successfully',
-            'count' => count($imageFiles)
-        ]);
+    protected function getEntityName(): string
+    {
+        return (new ReflectionClass(Appeal::class))->getName();
     }
 }

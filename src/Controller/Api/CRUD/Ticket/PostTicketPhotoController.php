@@ -2,62 +2,53 @@
 
 namespace App\Controller\Api\CRUD\Ticket;
 
+use App\Controller\Api\CRUD\Image\AbstractPhotoUploadController;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Ticket\TicketImage;
 use App\Entity\User;
 use App\Repository\TicketRepository;
 use App\Service\Extra\AccessService;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use ReflectionClass;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\Request;
 
-class PostTicketPhotoController extends AbstractController
+class PostTicketPhotoController extends AbstractPhotoUploadController
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly TicketRepository       $ticketRepository,
-        private readonly AccessService          $accessService,
-        private readonly Security               $security,
-    ) {}
+        EntityManagerInterface            $entityManager,
+        Security                          $security,
+        AccessService                     $accessService,
+        private readonly TicketRepository $ticketRepository,
+    ) {
+        parent::__construct($entityManager, $security, $accessService);
+    }
 
-    public function __invoke(int $id, Request $request): JsonResponse
+    protected function findEntity(int $id): ?object
     {
-        /** @var User $bearerUser */
-        $bearerUser = $this->security->getUser();
+        return $this->ticketRepository->find($id);
+    }
 
-        $this->accessService->check($bearerUser);
-
-        /** @var Ticket $ticket */
-        $ticket = $this->ticketRepository->find($id);
-
-        $imageFiles = $request->files->get('imageFile');
-
-        if (!$ticket)
-            return $this->json(['message' => 'Ticket not found'], 404);
-
-        if (!$imageFiles)
-            return $this->json(['message' => 'No files provided'], 400);
-
-        if ($ticket->getAuthor() !== $bearerUser && $ticket->getMaster() !== $bearerUser)
+    protected function checkOwnership(object $entity, User $bearerUser): ?JsonResponse
+    {
+        /** @var Ticket $entity */
+        if ($entity->getAuthor() !== $bearerUser && $entity->getMaster() !== $bearerUser) {
             return $this->json(['message' => "Ownership doesn't match"], 400);
-
-        $imageFiles = is_array($imageFiles) ? $imageFiles : [$imageFiles];
-
-        foreach ($imageFiles as $imageFile) {
-            if ($imageFile->isValid()) {
-                $ticketImage = (new TicketImage())->setImageFile($imageFile);
-                $ticket->addUserTicketImage($ticketImage);
-                $this->entityManager->persist($ticketImage);
-            }
         }
+        return null;
+    }
 
-        $this->entityManager->flush();
+    protected function processImageFile(object $entity, UploadedFile $imageFile, User $bearerUser): void
+    {
+        /** @var Ticket $entity */
+        $reviewImage = (new TicketImage())->setImageFile($imageFile);
+        $entity->addUserTicketImage($reviewImage);
+        $this->entityManager->persist($reviewImage);
+    }
 
-        return new JsonResponse([
-            'message' => 'Photos uploaded successfully',
-            'count' => count($imageFiles)
-        ]);
+    protected function getEntityName(): string
+    {
+        return (new ReflectionClass(Ticket::class))->getName();
     }
 }

@@ -31,7 +31,7 @@ class AppealTicket
             : "Жалоба на услугу/объявление #$this->id";
     }
 
-    public const COMPLAINTS = [
+    public const array COMPLAINTS = [
         'Опоздание/Отсутствие' => 'lateness',
         'Плохое качество' => 'bad_quality',
         'Повреждения имущества' => 'property_damage',

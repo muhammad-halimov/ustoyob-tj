@@ -2,62 +2,53 @@
 
 namespace App\Controller\Api\CRUD\Gallery;
 
+use App\Controller\Api\CRUD\Image\AbstractPhotoUploadController;
 use App\Entity\Gallery\Gallery;
 use App\Entity\Gallery\GalleryImage;
 use App\Entity\User;
 use App\Repository\GalleryRepository;
 use App\Service\Extra\AccessService;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use ReflectionClass;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\Request;
 
-class PostGalleryPhotoController extends AbstractController
+class PostGalleryPhotoController extends AbstractPhotoUploadController
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly GalleryRepository      $galleryRepository,
-        private readonly AccessService          $accessService,
-        private readonly Security               $security,
-    ) {}
+        EntityManagerInterface             $entityManager,
+        Security                           $security,
+        AccessService                      $accessService,
+        private readonly GalleryRepository $galleryRepository,
+    ) {
+        parent::__construct($entityManager, $security, $accessService);
+    }
 
-    public function __invoke(int $id, Request $request): JsonResponse
+    protected function findEntity(int $id): ?object
     {
-        /** @var User $bearerUser */
-        $bearerUser = $this->security->getUser();
+        return $this->galleryRepository->find($id);
+    }
 
-        $this->accessService->check($bearerUser, 'double');
-
-        /** @var Gallery $gallery */
-        $gallery = $this->galleryRepository->find($id);
-
-        $imageFiles = $request->files->get('imageFile');
-
-        if (!$gallery)
-            return $this->json(['message' => 'Gallery not found'], 404);
-
-        if (!$imageFiles)
-            return $this->json(['message' => 'No files provided'], 400);
-
-        if ($gallery->getUser() !== $bearerUser)
+    protected function checkOwnership(object $entity, User $bearerUser): ?JsonResponse
+    {
+        /** @var Gallery $entity */
+        if ($entity->getUser() !== $bearerUser) {
             return $this->json(['message' => "Ownership doesn't match"], 400);
-
-        $imageFiles = is_array($imageFiles) ? $imageFiles : [$imageFiles];
-
-        foreach ($imageFiles as $imageFile) {
-            if ($imageFile->isValid()) {
-                $galleryItem = (new GalleryImage())->setImageFile($imageFile);
-                $gallery->addUserServiceGalleryItem($galleryItem);
-                $this->entityManager->persist($galleryItem);
-            }
         }
+        return null;
+    }
 
-        $this->entityManager->flush();
+    protected function processImageFile(object $entity, UploadedFile $imageFile, User $bearerUser): void
+    {
+        /** @var Gallery $entity */
+        $reviewImage = (new GalleryImage())->setImageFile($imageFile);
+        $entity->addUserServiceGalleryItem($reviewImage);
+        $this->entityManager->persist($reviewImage);
+    }
 
-        return new JsonResponse([
-            'message' => 'Photos uploaded successfully',
-            'count' => count($imageFiles)
-        ]);
+    protected function getEntityName(): string
+    {
+        return (new ReflectionClass(Gallery::class))->getName();
     }
 }

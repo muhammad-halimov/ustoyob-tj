@@ -17,7 +17,7 @@ use App\Controller\Api\CRUD\Review\PatchReviewController;
 use App\Controller\Api\CRUD\Review\PostReviewController;
 use App\Controller\Api\CRUD\Review\PostReviewPhotoController;
 use App\Controller\Api\Filter\Review\PersonalReviewFilterController;
-use App\Dto\Extra\Image\ImageInput;
+use App\Dto\Image\ImageInput;
 use App\Dto\Review\ReviewPatchInput;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Dto\Extra\Image;
+namespace App\Dto\Image;
 
 class ImageObjectInput
 {

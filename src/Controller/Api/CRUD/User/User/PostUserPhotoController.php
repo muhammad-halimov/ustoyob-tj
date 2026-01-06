@@ -2,52 +2,69 @@
 
 namespace App\Controller\Api\CRUD\User\User;
 
+use App\Controller\Api\CRUD\Image\AbstractPhotoUploadController;
 use App\Entity\User;
 use App\Repository\UserRepository;
 use App\Service\Extra\AccessService;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use ReflectionClass;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
-class PostUserPhotoController extends AbstractController
+class PostUserPhotoController extends AbstractPhotoUploadController
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly UserRepository         $userRepository,
-        private readonly AccessService          $accessService,
-        private readonly Security               $security,
-    ) {}
+        EntityManagerInterface $entityManager,
+        Security $security,
+        AccessService $accessService,
+        private readonly UserRepository $userRepository,
+    ) {
+        parent::__construct($entityManager, $security, $accessService);
+    }
 
+    // Специальный случай - возвращаем кастомный ответ
     public function __invoke(int $id, Request $request): JsonResponse
     {
-        /** @var User $bearerUser */
-        $bearerUser = $this->security->getUser();
+        $response = parent::__invoke($id, $request);
 
-        $this->accessService->check($bearerUser);
+        // Если успешно, добавляем URL изображения
+        if ($response->getStatusCode() === 200) {
+            $user = $this->userRepository->find($id);
+            return $this->json([
+                'id' => $user->getId(),
+                'image' => $user->getImage(),
+                'message' => 'Photo updated successfully'
+            ]);
+        }
 
-        $imageFile = $request->files->get('imageFile');
+        return $response;
+    }
 
-        /** @var User $user */
-        $user = $this->userRepository->find($id);
+    protected function findEntity(int $id): ?object
+    {
+        return $this->userRepository->find($id);
+    }
 
-        if (!$user)
-            return $this->json(["message' => 'User not found"], 404);
-
-        if($user !== $bearerUser)
+    protected function checkOwnership(object $entity, User $bearerUser): ?JsonResponse
+    {
+        /** @var User $entity */
+        if ($entity !== $bearerUser) {
             return $this->json(["message" => "Ownership doesn't match"], 404);
+        }
+        return null;
+    }
 
-        $user->setImageFile($imageFile);
-        $user->setImageExternalUrl(null);
+    protected function processImageFile(object $entity, UploadedFile $imageFile, User $bearerUser): void
+    {
+        /** @var User $entity */
+        $entity->setImageFile($imageFile);
+        $this->entityManager->persist($entity);
+    }
 
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $this->json([
-            'id' => $user->getId(),
-            'image' => $user->getImage(),
-            'message' => 'Photo updated successfully'
-        ]);
+    protected function getEntityName(): string
+    {
+        return (new ReflectionClass(User::class))->getName();
     }
 }

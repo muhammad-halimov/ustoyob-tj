@@ -31,7 +31,7 @@ class AppealChat
             : "Жалоба на чат #$this->id";
     }
 
-    public const COMPLAINTS = [
+    public const array COMPLAINTS = [
         'Оскорбление/Маты' => 'offend',
         'Грубая лексика' => 'rude_language',
         'Мошенничество' => 'fraud',

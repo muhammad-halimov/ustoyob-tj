@@ -2,62 +2,53 @@
 
 namespace App\Controller\Api\CRUD\TechSupport\TechSupport;
 
+use App\Controller\Api\CRUD\Image\AbstractPhotoUploadController;
 use App\Entity\TechSupport\TechSupport;
 use App\Entity\TechSupport\TechSupportImage;
 use App\Entity\User;
-use App\Repository\GalleryRepository;
+use App\Repository\TechSupport\TechSupportRepository;
 use App\Service\Extra\AccessService;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use ReflectionClass;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\Request;
 
-class PostTechSupportPhotoController extends AbstractController
+class PostTechSupportPhotoController extends AbstractPhotoUploadController
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly GalleryRepository      $galleryRepository,
-        private readonly AccessService         $accessService,
-        private readonly Security              $security,
-    ){}
+        EntityManagerInterface                 $entityManager,
+        Security                               $security,
+        AccessService                          $accessService,
+        private readonly TechSupportRepository $techSupportRepository,
+    ) {
+        parent::__construct($entityManager, $security, $accessService);
+    }
 
-    public function __invoke(int $id, Request $request): JsonResponse
+    protected function findEntity(int $id): ?object
     {
-        /** @var User $bearerUser */
-        $bearerUser = $this->security->getUser();
+        return $this->techSupportRepository->find($id);
+    }
 
-        $this->accessService->check($bearerUser, 'double');
-
-        /** @var TechSupport $techSupport */
-        $techSupport = $this->galleryRepository->find($id);
-
-        $imageFiles = $request->files->get('imageFile');
-
-        if (!$techSupport)
-            return $this->json(['message' => 'Tech support not found'], 404);
-
-        if (!$imageFiles)
-            return $this->json(['message' => 'No files provided'], 400);
-
-        if ($techSupport->getAuthor() !== $bearerUser || $techSupport->getAdministrant() !== $bearerUser)
+    protected function checkOwnership(object $entity, User $bearerUser): ?JsonResponse
+    {
+        /** @var TechSupport $entity */
+        if ($entity->getAuthor() !== $bearerUser && $entity->getAdministrant() !== $bearerUser) {
             return $this->json(['message' => "Ownership doesn't match"], 400);
-
-        $imageFiles = is_array($imageFiles) ? $imageFiles : [$imageFiles];
-
-        foreach ($imageFiles as $imageFile) {
-            if ($imageFile->isValid()) {
-                $techSupportImage = (new TechSupportImage())->setImageFile($imageFile);
-                $techSupport->addTechSupportImage($techSupportImage);
-                $this->entityManager->persist($techSupportImage);
-            }
         }
+        return null;
+    }
 
-        $this->entityManager->flush();
+    protected function processImageFile(object $entity, UploadedFile $imageFile, User $bearerUser): void
+    {
+        /** @var TechSupport $entity */
+        $reviewImage = (new TechSupportImage())->setImageFile($imageFile);
+        $entity->addTechSupportImage($reviewImage);
+        $this->entityManager->persist($reviewImage);
+    }
 
-        return new JsonResponse([
-            'message' => 'Photos uploaded successfully',
-            'count' => count($imageFiles)
-        ]);
+    protected function getEntityName(): string
+    {
+        return (new ReflectionClass(TechSupport::class))->getName();
     }
 }

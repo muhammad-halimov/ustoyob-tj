@@ -13,7 +13,7 @@ use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\Gallery\PostGalleryController;
 use App\Controller\Api\CRUD\Gallery\PostGalleryPhotoController;
 use App\Controller\Api\Filter\Gallery\PersonalGalleryFilterController;
-use App\Dto\Extra\Image\ImageInput;
+use App\Dto\Image\ImageInput;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;

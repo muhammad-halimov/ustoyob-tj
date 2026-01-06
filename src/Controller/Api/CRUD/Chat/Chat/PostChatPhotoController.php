@@ -2,66 +2,62 @@
 
 namespace App\Controller\Api\CRUD\Chat\Chat;
 
+use App\Controller\Api\CRUD\Image\AbstractPhotoUploadController;
 use App\Entity\Chat\Chat;
 use App\Entity\Chat\ChatImage;
 use App\Entity\User;
 use App\Repository\Chat\ChatRepository;
 use App\Service\Extra\AccessService;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use ReflectionClass;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\Request;
 
-class PostChatPhotoController extends AbstractController
+class PostChatPhotoController extends AbstractPhotoUploadController
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly ChatRepository         $chatRepository,
-        private readonly Security               $security,
-        private readonly AccessService          $accessService,
-    ) {}
+        EntityManagerInterface $entityManager,
+        Security $security,
+        AccessService $accessService,
+        private readonly ChatRepository $chatRepository,
+    ) {
+        parent::__construct($entityManager, $security, $accessService);
+    }
 
-    public function __invoke(int $id, Request $request): JsonResponse
+    protected function findEntity(int $id): ?object
     {
-        /** @var User $bearerUser */
-        $bearerUser = $this->security->getUser();
+        return $this->chatRepository->find($id);
+    }
 
-        $this->accessService->check($bearerUser);
-
-        /** @var Chat $chat */
-        $chat = $this->chatRepository->find($id);
-
-        $imageFiles = $request->files->get('imageFile');
-
-        if (!$chat)
-            return $this->json(['message' => 'Chat not found'], 404);
-
-        if ($chat->getAuthor() !== $bearerUser && $chat->getReplyAuthor() !== $bearerUser)
+    protected function checkOwnership(object $entity, User $bearerUser): ?JsonResponse
+    {
+        /** @var Chat $entity */
+        if ($entity->getAuthor() !== $bearerUser && $entity->getReplyAuthor() !== $bearerUser) {
             return $this->json(['message' => "Ownership doesn't match"], 403);
-
-        if (!$imageFiles)
-            return $this->json(['message' => 'No files provided'], 400);
-
-        $this->accessService->checkBlackList($chat->getAuthor(), $chat->getReplyAuthor());
-
-        $imageFiles = is_array($imageFiles) ? $imageFiles : [$imageFiles];
-
-        foreach ($imageFiles as $imageFile) {
-            if ($imageFile->isValid()) {
-                $chatImage = (new ChatImage())
-                    ->setImageFile($imageFile)
-                    ->setAuthor($bearerUser);
-                $chat->addChatImage($chatImage);
-                $this->entityManager->persist($chatImage);
-            }
         }
+        return null;
+    }
 
-        $this->entityManager->flush();
+    protected function processImageFile(object $entity, UploadedFile $imageFile, User $bearerUser): void
+    {
+        /** @var Chat $entity */
+        $chatImage = (new ChatImage())
+            ->setImageFile($imageFile)
+            ->setAuthor($bearerUser);
+        $entity->addChatImage($chatImage);
+        $this->entityManager->persist($chatImage);
+    }
 
-        return $this->json([
-            'message' => 'Photos uploaded successfully',
-            'count' => count($imageFiles)
-        ]);
+    protected function getEntityName(): string
+    {
+        return (new ReflectionClass(Chat::class))->getName();
+    }
+
+    protected function performAdditionalChecks(object $entity, User $bearerUser): ?JsonResponse
+    {
+        /** @var Chat $entity */
+        $this->accessService->checkBlackList($entity->getAuthor(), $entity->getReplyAuthor());
+        return null;
     }
 }

@@ -22,7 +22,7 @@ use App\Controller\Api\Filter\Address\AddressFilter;
 use App\Controller\Api\Filter\User\PersonalUserFilterController;
 use App\Controller\Api\Filter\User\RolesFilter;
 use App\Controller\Api\Filter\User\SocialNetworkController;
-use App\Dto\Extra\Image\ImageInput;
+use App\Dto\Image\ImageInput;
 use App\Dto\User\AccountConfirmInput;
 use App\Dto\User\AccountConfirmOutput;
 use App\Dto\User\RoleOutput;

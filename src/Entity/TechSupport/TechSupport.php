@@ -14,7 +14,7 @@ use App\Controller\Api\Filter\TechSupport\AdminTechSupportFilterController;
 use App\Controller\Api\Filter\TechSupport\PersonalTechSupportFilterController;
 use App\Controller\Api\Filter\TechSupport\SupportReasonFilterController;
 use App\Controller\Api\Filter\TechSupport\UserTechSupportFilterController;
-use App\Dto\Extra\Image\ImageInput;
+use App\Dto\Image\ImageInput;
 use App\Dto\TechSupport\TechSupportInput;
 use App\Entity\User;
 use App\Repository\TechSupport\TechSupportRepository;
