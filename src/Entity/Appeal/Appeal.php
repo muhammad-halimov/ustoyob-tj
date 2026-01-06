@@ -14,7 +14,7 @@ use App\Controller\Api\CRUD\Appeal\PostAppealPhotoController;
 use App\Controller\Api\Filter\Appeal\AppealReasonFilterController;
 use App\Dto\Appeal\Appeal\AppealInput;
 use App\Dto\Appeal\Appeal\ComplaintReasonOutput;
-use App\Dto\Appeal\Photo\AppealPhotoInput;
+use App\Dto\Extra\Image\ImageInput;
 use App\Entity\Appeal\AppealTypes\AppealChat;
 use App\Entity\Appeal\AppealTypes\AppealTicket;
 use App\Repository\User\AppealRepository;
@@ -66,7 +66,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
             controller: PostAppealPhotoController::class,
-            input: AppealPhotoInput::class,
+            input: ImageInput::class,
         ),
     ],
     paginationEnabled: false,

@@ -35,7 +35,7 @@ class PatchReviewController extends AbstractController
         if (!$review) return $this->json(['message' => 'Review not found'], 404);
 
         if ($bearerUser !== $review->getClient() && $bearerUser !== $review->getMaster())
-            return $this->json(['message' => 'Extra denied'], 403);
+            return $this->json(['message' => "Ownership doesn't match"], 403);
 
         $data = json_decode($request->getContent(), true);
 
@@ -69,14 +69,12 @@ class PatchReviewController extends AbstractController
             'type' => $review->getType(),
             'rating' => $review->getRating(),
             'description' => $review->getDescription(),
-            'images' => $review->getReviewImages()->map(fn($img) => ['image' => $img->getImage()])->toArray(),
-            'ticket' => $review->getServices()
-                ? "/api/tickets/{$review->getServices()->getId()}"
-                : null,
+            'images' => array_values($review->getReviewImages()->map(fn($img) => ['image' => $img->getImage()])->toArray()),
+            'ticket' => $review->getServices() ? "/api/tickets/{$review->getServices()->getId()}" : null,
             'master' => "/api/users/{$review->getMaster()->getId()}",
             'client' => "/api/users/{$review->getClient()->getId()}",
         ];
 
-        return $this->json($message, 201);
+        return $this->json($message);
     }
 }

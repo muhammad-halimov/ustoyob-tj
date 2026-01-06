@@ -17,7 +17,8 @@ use App\Controller\Api\CRUD\Review\PatchReviewController;
 use App\Controller\Api\CRUD\Review\PostReviewController;
 use App\Controller\Api\CRUD\Review\PostReviewPhotoController;
 use App\Controller\Api\Filter\Review\PersonalReviewFilterController;
-use App\Dto\Appeal\Photo\AppealPhotoInput;
+use App\Dto\Extra\Image\ImageInput;
+use App\Dto\Review\ReviewPatchInput;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
 use App\Repository\ReviewRepository;
@@ -46,7 +47,7 @@ use Symfony\Component\Validator\Constraints as Assert;
             inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
             controller: PostReviewPhotoController::class,
-            input: AppealPhotoInput::class,
+            input: ImageInput::class,
         ),
         new Post(
             uriTemplate: '/reviews',
@@ -56,6 +57,7 @@ use Symfony\Component\Validator\Constraints as Assert;
             uriTemplate: '/reviews/{id}',
             requirements: ['id' => '\d+'],
             controller: PatchReviewController::class,
+            input: ReviewPatchInput::class,
         ),
         new Delete(
             uriTemplate: '/reviews/{id}',

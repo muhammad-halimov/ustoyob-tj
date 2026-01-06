@@ -22,7 +22,7 @@ use App\Controller\Api\Filter\Address\AddressFilter;
 use App\Controller\Api\Filter\User\PersonalUserFilterController;
 use App\Controller\Api\Filter\User\RolesFilter;
 use App\Controller\Api\Filter\User\SocialNetworkController;
-use App\Dto\Appeal\Photo\AppealPhotoInput;
+use App\Dto\Extra\Image\ImageInput;
 use App\Dto\User\AccountConfirmInput;
 use App\Dto\User\AccountConfirmOutput;
 use App\Dto\User\RoleOutput;
@@ -46,10 +46,10 @@ use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User\Education;
 use App\Entity\User\Occupation;
-//use App\Entity\User\Phone;
 use App\Entity\User\SocialNetwork;
 use App\Repository\UserRepository;
 use App\State\Localization\Geography\UserGeographyLocalizationProvider;
+use App\Validator\Constraints as AppAssert;
 use DateTime;
 use Deprecated;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -64,7 +64,7 @@ use Symfony\Component\Serializer\Attribute\Ignore;
 use Symfony\Component\Validator\Constraints as Assert;
 use Vich\UploaderBundle\Mapping\Attribute as Vich;
 
-use App\Validator\Constraints as AppAssert;
+//use App\Entity\User\Phone;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: '`user`')]
@@ -129,7 +129,7 @@ use App\Validator\Constraints as AppAssert;
             inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
             controller: PostUserPhotoController::class,
-            input: AppealPhotoInput::class,
+            input: ImageInput::class,
         ),
         new Patch(
             uriTemplate: '/users/{id}',

@@ -15,9 +15,9 @@ use App\Controller\Api\CRUD\Chat\Chat\PostChatController;
 use App\Controller\Api\CRUD\Chat\Chat\PostChatPhotoController;
 use App\Controller\Api\Filter\Chat\ChatFilterController;
 use App\Controller\Api\Filter\Chat\PersonalChatFilterController;
-use App\Dto\Appeal\Photo\AppealPhotoInput;
 use App\Dto\Chat\ChatPatchInput;
 use App\Dto\Chat\ChatPostInput;
+use App\Dto\Extra\Image\ImageInput;
 use App\Entity\Appeal\AppealTypes\AppealChat;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
@@ -48,7 +48,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
             controller: PostChatPhotoController::class,
-            input: AppealPhotoInput::class,
+            input: ImageInput::class,
         ),
         new Post(
             uriTemplate: '/chats',

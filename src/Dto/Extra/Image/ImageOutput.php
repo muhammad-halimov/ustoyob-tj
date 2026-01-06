@@ -1,9 +1,10 @@
 <?php
 
-namespace App\Dto\Appeal\Photo;
+namespace App\Dto\Extra\Image;
 
-class AppealPhotoOutput
+class ImageOutput
 {
     public string $message;
+
     public int $count;
 }

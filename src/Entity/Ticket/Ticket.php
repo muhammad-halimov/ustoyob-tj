@@ -17,7 +17,7 @@ use App\Controller\Api\CRUD\Ticket\PostTicketController;
 use App\Controller\Api\CRUD\Ticket\PostTicketPhotoController;
 use App\Controller\Api\Filter\Address\AddressFilter;
 use App\Controller\Api\Filter\Ticket\PersonalTicketFilterController;
-use App\Dto\Appeal\Photo\AppealPhotoInput;
+use App\Dto\Extra\Image\ImageInput;
 use App\Dto\Ticket\TicketInput;
 use App\Entity\Appeal\AppealTypes\AppealTicket;
 use App\Entity\Chat\Chat;
@@ -61,7 +61,7 @@ use Symfony\Component\Validator\Constraints as Assert;
             inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
             controller: PostTicketPhotoController::class,
-            input: AppealPhotoInput::class,
+            input: ImageInput::class,
         ),
         new Patch(
             uriTemplate: '/tickets/{id}',

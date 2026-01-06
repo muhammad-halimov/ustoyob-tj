@@ -5,6 +5,7 @@ namespace App\Controller\Api\CRUD\Review;
 use App\Entity\Review\Review;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
+use App\Repository\Chat\ChatRepository;
 use App\Service\Extra\AccessService;
 use App\Service\Extra\ExtractIriService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -18,6 +19,7 @@ class PostReviewController extends AbstractController
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly ExtractIriService      $extractIriService,
+        private readonly ChatRepository         $chatRepository,
         private readonly AccessService          $accessService,
         private readonly Security               $security,
     ){}
@@ -51,6 +53,12 @@ class PostReviewController extends AbstractController
         /** @var User|null $master */
         $master = $masterParam ? $this->extractIriService->extract($masterParam, User::class, 'users'): null;
 
+        if (
+            !$this->chatRepository->findChatBetweenUsers($bearerUser, $master) &&
+            !$this->chatRepository->findChatBetweenUsers($bearerUser, $client)
+        )
+            return $this->json(['message' => 'No interactions between users'], 400);
+
         $message = [
             'type' => $typeParam,
             'rating' => $ratingParam,
@@ -65,7 +73,7 @@ class PostReviewController extends AbstractController
                 return $this->json(['message' => 'Client not found'], 404);
 
             if (!in_array("ROLE_MASTER", $bearerUser->getRoles()))
-                return $this->json(['message' => 'Extra denied'], 403);
+                return $this->json(['message' => "You can't post a client review while not being a master"], 403);
 
             if (!in_array("ROLE_CLIENT", $client->getRoles()))
                 return $this->json(['message' => "Client's role doesn't match"], 403);
@@ -98,7 +106,7 @@ class PostReviewController extends AbstractController
                 return $this->json(['message' => 'Master not found'], 404);
 
             if (!in_array("ROLE_CLIENT", $bearerUser->getRoles()))
-                return $this->json(['message' => 'Extra denied'], 403);
+                return $this->json(['message' => "You can't post a master review while not being a client"], 403);
 
             if (!in_array("ROLE_MASTER", $master->getRoles()))
                 return $this->json(['message' => "Master's role doesn't match"], 403);
