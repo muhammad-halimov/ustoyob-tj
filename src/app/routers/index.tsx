@@ -36,6 +36,7 @@ const router = createBrowserRouter([
             { path: 'profile/services', element: <ServicesPage /> },
             { path: 'profile/city', element: <CityPage /> },
             { path: 'order/:id', element: <OrderPage /> },
+            { path: 'ticket/:id', element: <OrderPage /> },
             { path: 'create-ad', element: <CreateAdPage /> },
             { path: 'tickets', element: <TicketsPage /> },
             { path: 'master/:id', element: <MasterProfileViewPage /> },

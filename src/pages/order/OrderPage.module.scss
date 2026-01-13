@@ -10,7 +10,7 @@
 .orderCard {
   background: white;
   border-radius: 12px;
-  padding: 30px;
+  padding: 20px;
 }
 
 .orderHeader {
@@ -696,10 +696,6 @@
 @media (max-width: 768px) {
   .container {
     padding: 15px;
-  }
-
-  .orderCard {
-    padding: 20px;
   }
 
   .orderHeader {
