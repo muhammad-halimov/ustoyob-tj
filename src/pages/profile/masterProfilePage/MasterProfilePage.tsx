@@ -1,13 +1,53 @@
-import React, {type ChangeEvent, useEffect, useRef, useState} from 'react';
-import {useNavigate} from 'react-router-dom';
-import {getAuthToken, removeAuthToken} from '../../../utils/auth.ts';
-import styles from '../MasterProfilePage.module.scss';
+import { useState, useRef, useEffect, type ChangeEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { getAuthToken, removeAuthToken } from '../../../utils/auth.ts';
+import styles from '../ProfilePage.module.scss';
 
-import {Swiper, SwiperSlide} from "swiper/react";
+import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
-import {fetchUserById} from "../../../utils/api.ts";
-import {cleanText} from "../../../utils/cleanText.ts";
-import {formatDate} from "../../../widgets/Reviews/Reviews.tsx";
+import { fetchUserById } from "../../../utils/api.ts";
+import { cleanText } from "../../../utils/cleanText.ts";
+
+interface TicketApiData {
+    id: number;
+    title: string;
+    description: string;
+    notice?: string;
+    budget: number;
+    service: boolean;
+    active: boolean;
+    master?: {
+        id: number;
+        email?: string;
+        name?: string;
+        surname?: string;
+        rating?: number;
+        image?: string;
+        [key: string]: unknown;
+    };
+    category?: {
+        id: number;
+        title: string;
+        image?: string;
+    };
+    unit?: {
+        id: number;
+        title: string;
+    };
+    addresses?: Array<{
+        id: number;
+        province?: { id: number; title: string };
+        city?: { id: number; title: string; image?: string };
+        district?: { id: number; title: string; image?: string };
+        suburb?: { id: number; title: string };
+        settlement?: { id: number; title: string };
+        community?: { id: number; title: string };
+        village?: { id: number; title: string };
+    }>;
+    images?: Array<{ id: number; image: string }>;
+    createdAt?: string;
+    updatedAt?: string;
+}
 
 interface ProfileData {
     id: string;
@@ -68,7 +108,7 @@ interface Service {
 
 interface Review {
     id: number;
-    client: {
+    user: {
         id: number;
         email: string;
         name: string;
@@ -76,7 +116,7 @@ interface Review {
         rating: number;
         image: string;
     };
-    master: {
+    reviewer: {
         id: number;
         email: string;
         name: string;
@@ -86,10 +126,28 @@ interface Review {
     };
     rating: number;
     description: string;
-    type: string;
-    ticket: {
+    forReviewer: boolean;
+    services: {
         id: number;
         title: string;
+    };
+    ticket?: { // Добавляем поле ticket
+        id: number;
+        title: string;
+        service: boolean;
+        active: boolean;
+        author?: {
+            id: number;
+            email: string;
+            name: string;
+            surname: string;
+        };
+        master?: {
+            id: number;
+            email: string;
+            name: string;
+            surname: string;
+        };
     };
     images: {
         id: number;
@@ -97,10 +155,9 @@ interface Review {
     }[];
     vacation?: string;
     worker?: string;
-    date: string;
+    date?: string;
 }
 
-// Интерфейсы для создания отзыва
 interface ReviewData {
     type: string;
     rating: number;
@@ -111,13 +168,6 @@ interface ReviewData {
     client: string;
 }
 
-// interface CityApiData {
-//     id: number;
-//     title?: string;
-//     [key: string]: unknown;
-// }
-
-// Интерфейсы для API данных
 interface UserApiData {
     id: number;
     email?: string;
@@ -176,8 +226,26 @@ interface ReviewApiData {
     client?: { id: number };
     rating?: number;
     description?: string;
-    type: string;
-    ticket?: { id: number; title: string };
+    forClient?: boolean;
+    services?: { id: number; title: string };
+    ticket?: { // Добавляем поле ticket
+        id: number;
+        title: string;
+        service: boolean;
+        active: boolean;
+        author?: {
+            id: number;
+            email: string;
+            name: string;
+            surname: string;
+        };
+        master?: {
+            id: number;
+            email: string;
+            name: string;
+            surname: string;
+        };
+    };
     images?: Array<{ id: number; image: string }>;
     createdAt?: string;
     [key: string]: unknown;
@@ -200,78 +268,10 @@ interface ApiResponse<T> {
     'hydra:member'?: T[];
 }
 
-interface TicketApiData {
+interface Occupation {
     id: number;
     title: string;
-    description: string;
-    notice?: string;
-    budget: number;
-    service: boolean;
-    active: boolean;
-    category?: {
-        id: number;
-        title: string;
-        image?: string;
-    };
-    unit?: {
-        id: number;
-        title: string;
-    };
-    addresses?: Array<{
-        id: number;
-        province?: { id: number; title: string };
-        city?: { id: number; title: string; image?: string };
-        district?: { id: number; title: string; image?: string };
-        suburb?: { id: number; title: string };
-        settlement?: { id: number; title: string };
-        community?: { id: number; title: string };
-        village?: { id: number; title: string };
-    }>;
-    images?: Array<{ id: number; image: string }>;
-    createdAt?: string;
-    updatedAt?: string;
-}
-
-interface TicketApiData {
-    id: number;
-    title: string;
-    description: string;
-    notice?: string;
-    budget: number;
-    service: boolean;
-    active: boolean;
-    master?: {
-        id: number;
-        email?: string;
-        name?: string;
-        surname?: string;
-        rating?: number;
-        image?: string;
-        [key: string]: unknown;
-    };
-    category?: {
-        id: number;
-        title: string;
-        image?: string;
-    };
-    unit?: {
-        id: number;
-        title: string;
-    };
-    addresses?: Array<{
-        id: number;
-        province?: { id: number; title: string };
-        city?: { id: number; title: string; image?: string };
-        district?: { id: number; title: string; image?: string };
-        suburb?: { id: number; title: string };
-        settlement?: { id: number; title: string };
-        community?: { id: number; title: string };
-        village?: { id: number; title: string };
-    }>;
-    images?: Array<{ id: number; image: string }>;
-    createdAt?: string;
-    updatedAt?: string;
-    [key: string]: unknown;
+    description?: string;
 }
 
 function MasterProfilePage() {
@@ -293,16 +293,18 @@ function MasterProfilePage() {
     const [reviewsLoading, setReviewsLoading] = useState(false);
     const [visibleCount, setVisibleCount] = useState(2);
     const [showReviewModal, setShowReviewModal] = useState(false);
-
-    // Состояния для формы отзыва
     const [reviewText, setReviewText] = useState('');
     const [selectedStars, setSelectedStars] = useState(0);
     const [reviewPhotos, setReviewPhotos] = useState<File[]>([]);
     const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
+    // Состояние для списка специальностей
+    const [occupations, setOccupations] = useState<Occupation[]>([]);
+
     const fileInputRef = useRef<HTMLInputElement>(null);
     const workExampleInputRef = useRef<HTMLInputElement>(null);
     const reviewPhotoInputRef = useRef<HTMLInputElement>(null);
+    const specialtyInputRef = useRef<HTMLSelectElement>(null);
 
     const [services, setServices] = useState<ServiceTicket[]>([]);
     const [servicesLoading, setServicesLoading] = useState(false);
@@ -329,6 +331,59 @@ function MasterProfilePage() {
         }
     }, [profileData?.id]);
 
+    // Загружаем список специальностей при редактировании специальности
+    useEffect(() => {
+        if (editingField === 'specialty' && occupations.length === 0) {
+            fetchOccupationsList();
+        }
+    }, [editingField]);
+
+    // Функция для загрузки списка специальностей
+    const fetchOccupationsList = async () => {
+        try {
+            const token = getAuthToken();
+            if (!token) return;
+
+            console.log('Fetching occupations list...');
+
+            const response = await fetch(`${API_BASE_URL}/api/occupations`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log('Occupations API response:', data);
+
+                let occupationsArray: Occupation[] = [];
+
+                if (Array.isArray(data)) {
+                    occupationsArray = data;
+                } else if (data && typeof data === 'object') {
+                    const apiResponse = data as ApiResponse<Occupation>;
+                    if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
+                        occupationsArray = apiResponse['hydra:member'];
+                    } else if ((data as Occupation).id) {
+                        occupationsArray = [data as Occupation];
+                    }
+                }
+
+                console.log('Transformed occupations:', occupationsArray);
+                setOccupations(occupationsArray);
+            } else {
+                console.error('Failed to fetch occupations:', response.status);
+                setOccupations([]);
+            }
+        } catch (error) {
+            console.error('Error fetching occupations:', error);
+            setOccupations([]);
+        }
+    };
+
     const fetchMasterServices = async () => {
         if (!profileData?.id) return;
 
@@ -341,7 +396,6 @@ function MasterProfilePage() {
                 return;
             }
 
-            // Используем правильный параметр фильтрации
             const endpoint = `/api/tickets?service=true&master=${profileData.id}&active=true`;
 
             console.log('Fetching master services from:', endpoint);
@@ -371,7 +425,6 @@ function MasterProfilePage() {
             const servicesData = await response.json();
             console.log('Master services received:', servicesData);
 
-            // Обрабатываем разные форматы ответа
             let servicesArray: TicketApiData[] = [];
 
             if (Array.isArray(servicesData)) {
@@ -387,10 +440,8 @@ function MasterProfilePage() {
 
             console.log(`Found ${servicesArray.length} services for master ${profileData.id}`);
 
-            // Проверяем, что тикеты принадлежат текущему мастеру
             const masterServices: ServiceTicket[] = servicesArray
                 .filter(service => {
-                    // Проверяем, что service.master существует и его id совпадает с id текущего мастера
                     if (!service.master || !service.master.id) {
                         console.log(`Service ${service.id} has no master field`);
                         return false;
@@ -418,7 +469,6 @@ function MasterProfilePage() {
             console.log(`Processed ${masterServices.length} master services for user ${profileData.id}:`, masterServices);
             setServices(masterServices);
 
-            // Также обновляем services в profileData для совместимости
             const profileServices: Service[] = masterServices.map(service => ({
                 id: service.id.toString(),
                 name: service.title,
@@ -451,7 +501,6 @@ function MasterProfilePage() {
                 return;
             }
 
-            // Деактивируем услугу вместо полного удаления
             const response = await fetch(`${API_BASE_URL}/api/tickets/${serviceId}`, {
                 method: 'PATCH',
                 headers: {
@@ -464,10 +513,8 @@ function MasterProfilePage() {
             });
 
             if (response.ok) {
-                // Убираем услугу из списка
                 setServices(prev => prev.filter(service => service.id !== serviceId));
 
-                // Обновляем profileData
                 setProfileData(prev => prev ? {
                     ...prev,
                     services: prev.services.filter(service => parseInt(service.id) !== serviceId)
@@ -486,15 +533,12 @@ function MasterProfilePage() {
     };
 
     const handleEditService = (serviceId: number) => {
-        // Находим услугу для редактирования
         const service = services.find(s => s.id === serviceId);
         if (service) {
-            // Передаем данные услуги через state
             navigate('/profile/services/edit', {
                 state: {
                     serviceData: {
                         ...service,
-                        // Преобразуем данные для формы
                         selectedCategory: service.category?.id,
                         selectedUnit: service.unit?.id,
                         addresses: service.addresses
@@ -512,7 +556,6 @@ function MasterProfilePage() {
         setVisibleCount(2);
     };
 
-    // Функция для проверки доступности изображения
     const checkImageExists = (url: string): Promise<boolean> => {
         return new Promise((resolve) => {
             const img = new Image();
@@ -557,10 +600,7 @@ function MasterProfilePage() {
 
             const avatarUrl = await getAvatarUrl(userData);
 
-            // ФОРМИРУЕМ ПОЛНЫЙ АДРЕС ИЗ ДАННЫХ addresses
             let workArea = '';
-
-            // Добавим явную проверку типа для addresses
             const userAddresses = userData.addresses as UserAddressApiData[] | undefined;
 
             if (userAddresses && Array.isArray(userAddresses) && userAddresses.length > 0) {
@@ -572,7 +612,6 @@ function MasterProfilePage() {
                     try {
                         console.log('Processing address:', address);
 
-                        // Получаем полный текст адреса
                         const addressText = await getFullAddressText(address, token);
 
                         if (addressText) {
@@ -583,7 +622,6 @@ function MasterProfilePage() {
                     }
                 }
 
-                // Убираем дубликаты и объединяем
                 if (addressParts.length > 0) {
                     const uniqueAddresses = [...new Set(addressParts)];
                     workArea = uniqueAddresses.join(', ');
@@ -611,7 +649,6 @@ function MasterProfilePage() {
 
         } catch (error) {
             console.error('Error fetching user data:', error);
-            // Создаем пустой профиль вместо null
             setProfileData({
                 id: '',
                 fullName: 'Фамилия Имя Отчество',
@@ -629,16 +666,15 @@ function MasterProfilePage() {
         }
     };
 
-    // Добавляем функцию для получения полного текста адреса
     const getFullAddressText = async (address: UserAddressApiData, token: string): Promise<string> => {
         const addressParts: string[] = [];
 
         try {
-            // Обрабатываем province
             if (address.province) {
                 const provinceValue = address.province;
                 if (typeof provinceValue === 'string') {
-                    const provinceId = provinceValue.split('/').pop();
+                    const provinceStr: string = provinceValue;
+                    const provinceId = provinceStr.split('/').pop();
                     if (provinceId) {
                         const provinceInfo = await fetchResourceInfo(parseInt(provinceId), 'provinces', token);
                         if (provinceInfo && provinceInfo.title) {
@@ -651,11 +687,11 @@ function MasterProfilePage() {
                 }
             }
 
-            // Обрабатываем city
             if (address.city) {
                 const cityValue = address.city;
                 if (typeof cityValue === 'string') {
-                    const cityId = cityValue.split('/').pop();
+                    const cityStr: string = cityValue;
+                    const cityId = cityStr.split('/').pop();
                     if (cityId) {
                         const cityInfo = await fetchResourceInfo(parseInt(cityId), 'cities', token);
                         if (cityInfo && cityInfo.title) {
@@ -668,11 +704,11 @@ function MasterProfilePage() {
                 }
             }
 
-            // Обрабатываем district
             if (address.district) {
                 const districtValue = address.district;
                 if (typeof districtValue === 'string') {
-                    const districtId = districtValue.split('/').pop();
+                    const districtStr: string = districtValue;
+                    const districtId = districtStr.split('/').pop();
                     if (districtId) {
                         const districtInfo = await fetchResourceInfo(parseInt(districtId), 'districts', token);
                         if (districtInfo && districtInfo.title) {
@@ -685,74 +721,6 @@ function MasterProfilePage() {
                 }
             }
 
-            // Обрабатываем suburb
-            if (address.suburb) {
-                const suburbValue = address.suburb;
-                if (typeof suburbValue === 'string') {
-                    const suburbId = suburbValue.split('/').pop();
-                    if (suburbId) {
-                        const suburbInfo = await fetchResourceInfo(parseInt(suburbId), 'suburbs', token);
-                        if (suburbInfo && suburbInfo.title) {
-                            addressParts.push(suburbInfo.title);
-                        }
-                    }
-                } else if (typeof suburbValue === 'object' && suburbValue !== null && 'title' in suburbValue) {
-                    const suburbObj = suburbValue as { title: string };
-                    addressParts.push(suburbObj.title);
-                }
-            }
-
-            // Обрабатываем settlement (поселок)
-            if (address.settlement) {
-                const settlementValue = address.settlement;
-                if (typeof settlementValue === 'string') {
-                    const settlementId = settlementValue.split('/').pop();
-                    if (settlementId) {
-                        const settlementInfo = await fetchResourceInfo(parseInt(settlementId), 'settlements', token);
-                        if (settlementInfo && settlementInfo.title) {
-                            addressParts.push(settlementInfo.title);
-                        }
-                    }
-                } else if (typeof settlementValue === 'object' && settlementValue !== null && 'title' in settlementValue) {
-                    const settlementObj = settlementValue as { title: string };
-                    addressParts.push(settlementObj.title);
-                }
-            }
-
-            // Обрабатываем community (ПГТ)
-            if (address.community) {
-                const communityValue = address.community;
-                if (typeof communityValue === 'string') {
-                    const communityId = communityValue.split('/').pop();
-                    if (communityId) {
-                        const communityInfo = await fetchResourceInfo(parseInt(communityId), 'communities', token);
-                        if (communityInfo && communityInfo.title) {
-                            addressParts.push(communityInfo.title);
-                        }
-                    }
-                } else if (typeof communityValue === 'object' && communityValue !== null && 'title' in communityValue) {
-                    const communityObj = communityValue as { title: string };
-                    addressParts.push(communityObj.title);
-                }
-            }
-
-            // Обрабатываем village (село)
-            if (address.village) {
-                const villageValue = address.village;
-                if (typeof villageValue === 'string') {
-                    const villageId = villageValue.split('/').pop();
-                    if (villageId) {
-                        const villageInfo = await fetchResourceInfo(parseInt(villageId), 'villages', token);
-                        if (villageInfo && villageInfo.title) {
-                            addressParts.push(villageInfo.title);
-                        }
-                    }
-                } else if (typeof villageValue === 'object' && villageValue !== null && 'title' in villageValue) {
-                    const villageObj = villageValue as { title: string };
-                    addressParts.push(villageObj.title);
-                }
-            }
-
         } catch (error) {
             console.error('Error getting full address text:', error);
         }
@@ -760,7 +728,6 @@ function MasterProfilePage() {
         return addressParts.join(', ');
     };
 
-    // Универсальная функция для получения информации о ресурсе
     const fetchResourceInfo = async (resourceId: number, resourceType: string, token: string): Promise<any> => {
         try {
             console.log(`Fetching ${resourceType} info for ID: ${resourceId}`);
@@ -814,93 +781,6 @@ function MasterProfilePage() {
         }
     };
 
-    // Функция для загрузки провинций из API
-    // const fetchProvinces = async (token: string): Promise<Array<{ id: number; title: string }>> => {
-    //     try {
-    //         const response = await fetch(`${API_BASE_URL}/api/provinces`, {
-    //             method: 'GET',
-    //             headers: {
-    //                 'Authorization': `Bearer ${token}`,
-    //                 'Content-Type': 'application/json',
-    //             },
-    //         });
-    //
-    //         if (response.ok) {
-    //             const provincesData = await response.json();
-    //             console.log('Provinces loaded:', provincesData);
-    //
-    //             // Обрабатываем разные форматы ответа
-    //             let provincesArray: Array<{ id: number; title: string }> = [];
-    //
-    //             if (Array.isArray(provincesData)) {
-    //                 provincesArray = provincesData.filter((item): item is { id: number; title: string } =>
-    //                     item && typeof item === 'object' && 'id' in item && 'title' in item
-    //                 );
-    //             } else if (provincesData && typeof provincesData === 'object') {
-    //                 const apiResponse = provincesData as ApiResponse<{ id: number; title: string }>;
-    //                 if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
-    //                     provincesArray = apiResponse['hydra:member'].filter((item): item is { id: number; title: string } =>
-    //                         item && typeof item === 'object' && 'id' in item && 'title' in item
-    //                     );
-    //                 }
-    //             }
-    //
-    //             return provincesArray;
-    //         }
-    //         console.warn('Failed to fetch provinces, returning empty array');
-    //         return [];
-    //     } catch (error) {
-    //         console.error('Error fetching provinces:', error);
-    //         return [];
-    //     }
-    // };
-
-    // const fetchDistrictInfo = async (districtId: number, token: string): Promise<DistrictApiData | null> => {
-    //     try {
-    //         const response = await fetch(`${API_BASE_URL}/api/districts/${districtId}`, {
-    //             method: 'GET',
-    //             headers: {
-    //                 'Authorization': `Bearer ${token}`,
-    //                 'Content-Type': 'application/json',
-    //             },
-    //         });
-    //
-    //         if (response.ok) {
-    //             const districtData: DistrictApiData = await response.json();
-    //             return districtData;
-    //         }
-    //         return null;
-    //     } catch (error) {
-    //         console.error('Error fetching district info:', error);
-    //         return null;
-    //     }
-    // };
-    //
-    // const fetchCityInfo = async (cityId: number, token: string): Promise<CityApiData | null> => {
-    //     try {
-    //         console.log(`Fetching city info for ID: ${cityId}`);
-    //         const response = await fetch(`${API_BASE_URL}/api/cities/${cityId}`, {
-    //             method: 'GET',
-    //             headers: {
-    //                 'Authorization': `Bearer ${token}`,
-    //                 'Content-Type': 'application/json',
-    //             },
-    //         });
-    //
-    //         if (response.ok) {
-    //             const cityData: CityApiData = await response.json();
-    //             console.log(`City data loaded for ID ${cityId}:`, cityData);
-    //             return cityData;
-    //         } else {
-    //             console.error(`Failed to fetch city ${cityId}: ${response.status}`);
-    //             return null;
-    //         }
-    //     } catch (error) {
-    //         console.error('Error fetching city info:', error);
-    //         return null;
-    //     }
-    // };
-
     const updateUserRating = async (rating: number) => {
         if (!profileData?.id) return;
 
@@ -936,16 +816,13 @@ function MasterProfilePage() {
                 throw new Error(`Failed to update rating: ${response.status}`);
             }
 
-            const updatedUser = await response.json();
-            console.log('User rating updated successfully:', updatedUser);
+            console.log('User rating updated successfully');
 
         } catch (error) {
             console.error('Error updating user rating:', error);
-            // Не показываем alert, чтобы не беспокоить пользователя
         }
     };
 
-    // Функция для получения правильной информации о пользователе
     const getUserInfo = async (userId: number, userType: 'master' | 'client'): Promise<{
         id: number;
         email: string;
@@ -1000,7 +877,6 @@ function MasterProfilePage() {
         };
     };
 
-    // Функция для получения отзывов
     const fetchReviews = async () => {
         try {
             setReviewsLoading(true);
@@ -1018,8 +894,8 @@ function MasterProfilePage() {
 
             console.log('Fetching reviews for master ID:', profileData.id);
 
-            // ИСПРАВЛЕННЫЙ ENDPOINT: используем правильный запрос с фильтрами
-            const endpoint = `/api/reviews?services.service=true&exists[services]=true&exists[master]=true&exists[client]=true&type=master&master=${profileData.id}`;
+            // Используем существующий эндпоинт
+            const endpoint = `/api/reviews?exists[master]=true&master=${profileData.id}`;
 
             console.log(`Trying endpoint: ${endpoint}`);
 
@@ -1057,18 +933,15 @@ function MasterProfilePage() {
             const reviewsData = await response.json();
             console.log('Raw reviews data:', reviewsData);
 
-            // Обрабатываем разные форматы ответа
             let reviewsArray: ReviewApiData[] = [];
 
             if (Array.isArray(reviewsData)) {
                 reviewsArray = reviewsData;
             } else if (reviewsData && typeof reviewsData === 'object') {
-                // Если это объект с hydra:member (API Platform)
                 const apiResponse = reviewsData as ApiResponse<ReviewApiData>;
                 if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
                     reviewsArray = apiResponse['hydra:member'];
                 } else if ((reviewsData as ReviewApiData).id) {
-                    // Если это один отзыв
                     reviewsArray = [reviewsData as ReviewApiData];
                 }
             }
@@ -1076,7 +949,6 @@ function MasterProfilePage() {
             console.log(`Processing ${reviewsArray.length} reviews`);
 
             if (reviewsArray.length > 0) {
-                // Фильтруем отзывы, чтобы оставить только те, где master.id совпадает
                 const masterReviews = reviewsArray.filter(review => {
                     const reviewMasterId = review.master?.id;
                     const isForCurrentMaster = reviewMasterId?.toString() === profileData.id;
@@ -1086,19 +958,16 @@ function MasterProfilePage() {
 
                 console.log(`Found ${masterReviews.length} reviews for master ${profileData.id}`);
 
-                // Преобразуем данные отзывов в нашу структуру
                 const transformedReviews = await Promise.all(
                     masterReviews.map(async (review) => {
                         console.log('Processing review:', review);
 
-                        // Получаем данные мастера и клиента из отзыва
                         const masterId = review.master?.id;
                         const clientId = review.client?.id;
 
                         console.log('Master ID from review:', masterId);
                         console.log('Client ID from review:', clientId);
 
-                        // Получаем данные мастера и клиента
                         const [masterData, clientData] = await Promise.all([
                             masterId ? getUserInfo(masterId, 'master') : Promise.resolve(null),
                             clientId ? getUserInfo(clientId, 'client') : Promise.resolve(null)
@@ -1107,9 +976,8 @@ function MasterProfilePage() {
                         console.log('Master data:', masterData);
                         console.log('Client data:', clientData);
 
-                        // Определяем user и reviewer
                         const getFullNameParts = (fullName: string) => {
-                            if (!fullName) {
+                            if (!fullName || typeof fullName !== 'string') {
                                 return { firstName: 'Мастер', lastName: '' };
                             }
                             const parts = fullName.trim().split(/\s+/);
@@ -1121,7 +989,7 @@ function MasterProfilePage() {
 
                         const nameParts = getFullNameParts(profileData.fullName);
 
-                        const client = masterData || {
+                        const user = masterData || {
                             id: parseInt(profileData.id),
                             email: '',
                             name: nameParts.firstName,
@@ -1130,7 +998,7 @@ function MasterProfilePage() {
                             image: profileData.avatar || ''
                         };
 
-                        const master = clientData || {
+                        const reviewer = clientData || {
                             id: 0,
                             email: '',
                             name: 'Клиент',
@@ -1139,16 +1007,24 @@ function MasterProfilePage() {
                             image: ''
                         };
 
+                        // Получаем название услуги из ticket.title
+                        const serviceTitle = review.ticket?.title || review.services?.title || 'Услуга';
+                        console.log(`Review ${review.id} has service title: ${serviceTitle}`);
+
                         const transformedReview: Review = {
                             id: review.id,
                             rating: review.rating || 0,
                             description: review.description || '',
-                            type: review.type || '',
-                            ticket: review.ticket || { id: 0, title: 'Услуга' },
+                            forReviewer: review.forClient || false,
+                            services: {
+                                id: review.ticket?.id || review.services?.id || 0,
+                                title: serviceTitle
+                            },
+                            ticket: review.ticket,
                             images: review.images || [],
-                            client: client,
-                            master: master,
-                            vacation: profileData.specialty,
+                            user: user,
+                            reviewer: reviewer,
+                            vacation: serviceTitle, // Используем название услуги
                             worker: clientData ?
                                 `${clientData.name || 'Клиент'} ${clientData.surname || ''}`.trim() :
                                 'Клиент',
@@ -1165,21 +1041,18 @@ function MasterProfilePage() {
                 console.log('All transformed reviews:', transformedReviews);
                 setReviews(transformedReviews);
 
-                // Рассчитываем рейтинг только из отзывов, где пользователь - получатель отзыва
-                const userReviews = transformedReviews.filter(r => r.client.id === parseInt(profileData.id));
+                const userReviews = transformedReviews.filter(r => r.user.id === parseInt(profileData.id));
                 const newRating = calculateAverageRating(userReviews);
 
                 console.log('User reviews for rating calculation:', userReviews);
                 console.log('Calculated new rating from', userReviews.length, 'reviews:', newRating);
 
-                // Обновляем счетчик отзывов и рейтинг в profileData
                 setProfileData(prev => prev ? {
                     ...prev,
                     reviews: userReviews.length,
                     rating: newRating
                 } : null);
 
-                // Отправляем обновленный рейтинг на сервер
                 if (userReviews.length > 0) {
                     await updateUserRating(newRating);
                 }
@@ -1188,7 +1061,6 @@ function MasterProfilePage() {
                 console.log('No reviews data found for this master');
                 setReviews([]);
 
-                // Обновляем счетчик отзывов
                 setProfileData(prev => prev ? {
                     ...prev,
                     reviews: 0
@@ -1199,7 +1071,6 @@ function MasterProfilePage() {
             console.error('Error fetching reviews:', error);
             setReviews([]);
 
-            // Обновляем счетчик отзывов
             setProfileData(prev => prev ? {
                 ...prev,
                 reviews: 0
@@ -1209,20 +1080,9 @@ function MasterProfilePage() {
         }
     };
 
-    // Функция для загрузки фото в портфолио
     const handleWorkExampleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-
-        if (!file.type.startsWith('image/')) {
-            alert('Пожалуйста, выберите изображение');
-            return;
-        }
-
-        if (file.size > 5 * 1024 * 1024) {
-            alert('Размер файла не должен превышать 5MB');
-            return;
-        }
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
 
         setIsLoading(true);
 
@@ -1233,86 +1093,119 @@ function MasterProfilePage() {
                 return;
             }
 
-            // Получаем ID текущего авторизованного пользователя
-            const currentUserId = await getCurrentUserId(token);
-            if (!currentUserId) {
-                alert('Не удалось определить ID пользователя');
-                return;
-            }
+            console.log('Starting photo upload...');
 
-            console.log('Current user ID:', currentUserId);
-
-            // Сначала получаем ID галереи пользователя
-            let galleryId = await getUserGalleryId(token, currentUserId);
+            let galleryId = await getUserGalleryId(token);
 
             if (!galleryId) {
-                // Если галереи нет, создаем новую
-                console.log('Gallery not found, creating new gallery...');
-                galleryId = await createUserGallery(token);
+                console.log('No gallery found, trying to create new one...');
+                galleryId = await findExistingGallery(token, await getCurrentUserId(token) || 0);
 
                 if (!galleryId) {
-                    alert('Не удалось создать галерею');
-                    return;
-                }
+                    console.log('Creating new gallery...');
+                    galleryId = await createUserGallery(token);
 
-                console.log('New gallery created with ID:', galleryId);
-            } else {
-                console.log('Using existing gallery ID:', galleryId);
+                    if (!galleryId) {
+                        console.log('Could not create gallery, trying alternative approach...');
+                        await uploadPhotosWithoutGallery(files, token);
+                        return;
+                    }
+                }
             }
 
-            // Создаем FormData для загрузки фото
-            const formData = new FormData();
-            formData.append("imageFile", file);
+            console.log('Using gallery ID:', galleryId);
 
-            console.log('Uploading portfolio photo to gallery:', galleryId);
+            const uploadPromises: Array<Promise<{ success: boolean; fileName: string; data?: any }>> = [];
 
-            // ИСПРАВЛЕННЫЙ ENDPOINT - используем upload-photo
-            const response = await fetch(`${API_BASE_URL}/api/galleries/${galleryId}/upload-photo`, {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                },
-                body: formData,
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+
+                if (!file.type.startsWith('image/')) {
+                    alert(`Файл ${file.name} не является изображением`);
+                    continue;
+                }
+
+                if (file.size > 5 * 1024 * 1024) {
+                    alert(`Размер файла ${file.name} превышает 5MB`);
+                    continue;
+                }
+
+                const formData = new FormData();
+                formData.append("imageFile", file);
+
+                console.log(`Uploading photo ${i + 1}/${files.length} to gallery ${galleryId}, file:`, file.name);
+
+                uploadPromises.push(
+                    fetch(`${API_BASE_URL}/api/galleries/${galleryId}/upload-photo`, {
+                        method: "POST",
+                        headers: {
+                            "Authorization": `Bearer ${token}`,
+                        },
+                        body: formData,
+                    }).then(async (response) => {
+                        const responseText = await response.text();
+                        console.log(`Upload response for ${file.name}:`, response.status, responseText);
+
+                        if (!response.ok) {
+                            if (response.status === 404) {
+                                console.log(`Gallery ${galleryId} not found, trying to create new one...`);
+                                const newGalleryId = await createUserGallery(token);
+                                if (newGalleryId) {
+                                    const newResponse = await fetch(`${API_BASE_URL}/api/galleries/${newGalleryId}/upload-photo`, {
+                                        method: "POST",
+                                        headers: {
+                                            "Authorization": `Bearer ${token}`,
+                                        },
+                                        body: formData,
+                                    });
+
+                                    if (newResponse.ok) {
+                                        return { success: true, fileName: file.name };
+                                    }
+                                }
+                            }
+
+                            console.error(`Ошибка при загрузке ${file.name}:`, responseText);
+                            throw new Error(`Не удалось загрузить ${file.name}`);
+                        }
+
+                        try {
+                            const jsonResponse = JSON.parse(responseText);
+                            console.log(`Successfully uploaded ${file.name}:`, jsonResponse);
+                            return { success: true, fileName: file.name, data: jsonResponse };
+                        } catch (e) {
+                            console.log(`Response is not JSON for ${file.name}:`, responseText);
+                            return { success: true, fileName: file.name };
+                        }
+                    }).catch(error => {
+                        console.error(`Upload failed for ${file.name}:`, error);
+                        return { success: false, fileName: file.name, error: error.message };
+                    })
+                );
+            }
+
+            const results = await Promise.allSettled(uploadPromises);
+
+            let successCount = 0;
+            let errorCount = 0;
+
+            results.forEach((result) => {
+                if (result.status === 'fulfilled' && result.value.success) {
+                    successCount++;
+                    console.log(`${result.value.fileName} успешно загружен`);
+                } else {
+                    errorCount++;
+                    console.error(`Ошибка загрузки файла:`, result);
+                }
             });
 
-            const responseText = await response.text();
-            console.log('Portfolio photo upload response status:', response.status);
-            console.log('Portfolio photo upload response text:', responseText);
-
-            if (!response.ok) {
-                console.error(`Ошибка при загрузке (${response.status}):`, responseText);
-
-                if (response.status === 400) {
-                    alert("Неверные данные для загрузки фото");
-                } else if (response.status === 403) {
-                    alert("Нет прав для загрузки фото в галерею");
-                } else if (response.status === 422) {
-                    alert("Ошибка валидации данных фото");
-                } else {
-                    alert(`Ошибка при загрузке фото в портфолио (${response.status})`);
-                }
-                return;
-            }
-
-            let result;
-            try {
-                result = JSON.parse(responseText);
-            } catch (e) {
-                console.error('Error parsing response as JSON:', e);
-                // Если ответ не JSON, но статус 201, считаем успешным
-                if (response.status === 201) {
-                    result = { success: true };
-                } else {
-                    throw new Error('Invalid response format');
-                }
-            }
-
-            console.log("Фото успешно загружено в портфолио:", result);
-
-            // После успешной загрузки обновляем галерею
             await fetchUserGallery();
 
-            alert("Фото успешно добавлено в портфолио!");
+            if (successCount > 0) {
+                alert(`${successCount} фото успешно добавлены в портфолио!${errorCount > 0 ? ` (${errorCount} не загружено)` : ''}`);
+            } else {
+                alert("Не удалось загрузить ни одного фото");
+            }
 
         } catch (error) {
             console.error("Ошибка при загрузке фото в портфолио:", error);
@@ -1323,65 +1216,160 @@ function MasterProfilePage() {
         }
     };
 
-    // Функция для получения ID галереи пользователя
-    const getUserGalleryId = async (token: string, userId: number): Promise<number | null> => {
+    const uploadPhotosWithoutGallery = async (files: FileList, token: string) => {
         try {
-            // Пробуем получить галерею через разные endpoints
-            const endpoints = [
-                `/api/galleries/master/${userId}`,
-                '/api/galleries/me'
-            ];
+            console.log('Trying to upload photos without gallery...');
+            console.log('Files count:', files.length);
+            console.log('Token available:', !!token);
 
-            for (const endpoint of endpoints) {
-                try {
-                    console.log(`Trying gallery endpoint: ${endpoint}`);
-                    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-                        method: 'GET',
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json',
-                        },
+            alert('В данный момент загрузка фото временно недоступна. Пожалуйста, попробуйте позже или обратитесь в поддержку.');
+
+            return [];
+
+        } catch (error) {
+            console.error('Error uploading without gallery:', error);
+            alert('Ошибка при загрузке фото');
+            throw error;
+        }
+    };
+
+    const getUserGallery = async (token: string): Promise<GalleryApiData | null> => {
+        try {
+            console.log('Fetching user gallery...');
+
+            const response = await fetch(`${API_BASE_URL}/api/galleries/me`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+            });
+
+            console.log('Gallery /me response status:', response.status);
+
+            if (response.ok) {
+                const galleriesData = await response.json();
+                console.log('Galleries data from /me:', galleriesData);
+
+                let galleryArray: GalleryApiData[] = [];
+
+                if (Array.isArray(galleriesData)) {
+                    galleryArray = galleriesData;
+                } else if (galleriesData && typeof galleriesData === 'object') {
+                    const apiResponse = galleriesData as ApiResponse<GalleryApiData>;
+                    if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
+                        galleryArray = apiResponse['hydra:member'];
+                    } else if ((galleriesData as GalleryApiData).id) {
+                        galleryArray = [galleriesData as GalleryApiData];
+                    }
+                }
+
+                if (galleryArray.length > 0) {
+                    console.log('Found gallery via /me:', galleryArray[0]);
+                    return galleryArray[0];
+                }
+            }
+
+            console.log('Trying to find gallery via /api/galleries with user filter...');
+
+            const currentUserId = await getCurrentUserId(token);
+            if (!currentUserId) {
+                console.log('Cannot get current user ID');
+                return null;
+            }
+
+            const filterResponse = await fetch(`${API_BASE_URL}/api/galleries?user=${currentUserId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+            });
+
+            console.log('Filter response status:', filterResponse.status);
+
+            if (filterResponse.ok) {
+                const filterData = await filterResponse.json();
+                console.log('Galleries with user filter:', filterData);
+
+                let filteredArray: GalleryApiData[] = [];
+
+                if (Array.isArray(filterData)) {
+                    filteredArray = filterData;
+                } else if (filterData && typeof filterData === 'object') {
+                    const apiResponse = filterData as ApiResponse<GalleryApiData>;
+                    if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
+                        filteredArray = apiResponse['hydra:member'];
+                    } else if ((filterData as GalleryApiData).id) {
+                        filteredArray = [filterData as GalleryApiData];
+                    }
+                }
+
+                if (filteredArray.length > 0) {
+                    console.log('Found gallery via user filter:', filteredArray[0]);
+                    return filteredArray[0];
+                }
+            }
+
+            console.log('Trying to find gallery via all galleries...');
+            const allGalleriesResponse = await fetch(`${API_BASE_URL}/api/galleries`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+            });
+
+            if (allGalleriesResponse.ok) {
+                const allGalleriesData = await allGalleriesResponse.json();
+                console.log('All galleries data:', allGalleriesData);
+
+                let allGalleryArray: GalleryApiData[] = [];
+
+                if (Array.isArray(allGalleriesData)) {
+                    allGalleryArray = allGalleriesData;
+                } else if (allGalleriesData && typeof allGalleriesData === 'object') {
+                    const apiResponse = allGalleriesData as ApiResponse<GalleryApiData>;
+                    if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
+                        allGalleryArray = apiResponse['hydra:member'];
+                    } else if ((allGalleriesData as GalleryApiData).id) {
+                        allGalleryArray = [allGalleriesData as GalleryApiData];
+                    }
+                }
+
+                if (allGalleryArray.length > 0) {
+                    const userGallery = allGalleryArray.find(gallery => {
+                        if (gallery.user && typeof gallery.user === 'object' && 'id' in gallery.user) {
+                            return gallery.user.id === currentUserId;
+                        }
+                        return false;
                     });
 
-                    console.log(`Response status for ${endpoint}: ${response.status}`);
-
-                    if (response.ok) {
-                        const galleriesData = await response.json();
-                        console.log(`Gallery data from ${endpoint}:`, galleriesData);
-
-                        // Обрабатываем разные форматы ответа
-                        let galleryArray: GalleryApiData[] = [];
-
-                        if (Array.isArray(galleriesData)) {
-                            galleryArray = galleriesData;
-                        } else if (galleriesData && typeof galleriesData === 'object') {
-                            const apiResponse = galleriesData as ApiResponse<GalleryApiData>;
-                            if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
-                                galleryArray = apiResponse['hydra:member'];
-                            } else if ((galleriesData as GalleryApiData).id) {
-                                galleryArray = [galleriesData as GalleryApiData];
-                            }
-                        }
-
-                        if (galleryArray.length > 0) {
-                            // Берем первую галерею
-                            const galleryId = galleryArray[0].id;
-                            console.log('Found gallery ID:', galleryId);
-                            return galleryId;
-                        }
-                    } else if (response.status === 404) {
-                        console.log(`Gallery not found at ${endpoint}`);
-
-                    } else {
-                        console.warn(`Failed to fetch from ${endpoint}:`, response.status);
+                    if (userGallery) {
+                        console.log('Found user gallery in all galleries:', userGallery);
+                        return userGallery;
                     }
-                } catch (error) {
-                    console.warn(`Error fetching from ${endpoint}:`, error);
-
                 }
             }
 
             console.log('No gallery found for user');
+            return null;
+        } catch (error) {
+            console.error('Error getting user gallery:', error);
+            return null;
+        }
+    };
+
+    const getUserGalleryId = async (token: string): Promise<number | null> => {
+        try {
+            const gallery = await getUserGallery(token);
+            if (gallery && gallery.id) {
+                console.log('Gallery ID found:', gallery.id);
+                return gallery.id;
+            }
             return null;
         } catch (error) {
             console.error('Error getting user gallery ID:', error);
@@ -1389,8 +1377,9 @@ function MasterProfilePage() {
         }
     };
 
-    // Функция для удаления фото из портфолио
     const handleDeleteWorkExample = async (workExampleId: string) => {
+        console.log('Delete triggered for ID:', workExampleId);
+
         if (!profileData?.id) return;
 
         if (!confirm('Вы уверены, что хотите удалить это фото из портфолио?')) {
@@ -1406,96 +1395,165 @@ function MasterProfilePage() {
                 return;
             }
 
-            // Получаем ID текущего авторизованного пользователя
-            const currentUserId = await getCurrentUserId(token);
-            if (!currentUserId) {
-                alert('Не удалось определить ID пользователя');
-                return;
-            }
+            console.log('Getting gallery for deletion...');
 
-            // Получаем ID галереи
-            const galleryId = await getUserGalleryId(token, currentUserId);
-            if (!galleryId) {
+            const gallery = await getUserGallery(token);
+
+            if (!gallery || !gallery.id) {
+                console.log('No gallery found for user');
                 alert('Галерея не найдена');
                 return;
             }
 
-            console.log('Deleting work example from gallery:', { galleryId, workExampleId });
+            const galleryId = gallery.id;
+            console.log('Found gallery ID for deletion:', galleryId);
 
-            // Получаем текущую галерею
-            const galleryResponse = await fetch(`${API_BASE_URL}/api/galleries/${galleryId}`, {
+            const checkResponse = await fetch(`${API_BASE_URL}/api/galleries/${galleryId}`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
                 },
             });
 
-            if (!galleryResponse.ok) {
-                throw new Error('Не удалось получить данные галереи');
+            if (!checkResponse.ok) {
+                console.error('Failed to check gallery:', checkResponse.status);
+                alert('Не удалось проверить галерею');
+                return;
             }
 
-            const galleryData: GalleryApiData = await galleryResponse.json();
+            const galleryData: GalleryApiData = await checkResponse.json();
             console.log('Current gallery data:', galleryData);
 
-            // Фильтруем изображения, удаляя нужное
-            const updatedImages = (galleryData.images || []).filter((img) =>
-                img.id.toString() !== workExampleId
-            );
+            const imageToDelete = galleryData.images?.find(img => img.id.toString() === workExampleId);
 
-            console.log('Updated images array:', updatedImages);
+            if (!imageToDelete) {
+                console.log('Image not found in gallery:', workExampleId);
 
-            // Обновляем галерею через PATCH
-            const updateResponse = await fetch(`${API_BASE_URL}/api/galleries/${galleryId}`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/merge-patch+json',
-                },
-                body: JSON.stringify({
-                    images: updatedImages
-                }),
-            });
-
-            if (!updateResponse.ok) {
-                const errorText = await updateResponse.text();
-                console.error('PATCH update failed:', errorText);
-
-                // Пробуем через PUT
-                console.log('Trying PUT method...');
-                const putResponse = await fetch(`${API_BASE_URL}/api/galleries/${galleryId}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        ...galleryData,
-                        images: updatedImages
-                    }),
+                setProfileData(prev => {
+                    if (!prev) return null;
+                    return {
+                        ...prev,
+                        workExamples: prev.workExamples.filter(work => work.id !== workExampleId)
+                    };
                 });
 
-                if (!putResponse.ok) {
-                    throw new Error('Не удалось удалить фото из галереи');
-                }
+                alert('Изображение не найдено в галерее');
+                return;
             }
 
-            // Обновляем локальное состояние
-            setProfileData(prev => {
-                if (!prev) return null;
+            console.log('Image to delete found:', imageToDelete);
 
-                return {
-                    ...prev,
-                    workExamples: prev.workExamples.filter(work => work.id !== workExampleId)
-                };
-            });
+            try {
+                let deleteSuccess = false;
 
-            console.log('Фото успешно удалено из портфолио');
+                if (imageToDelete.id) {
+                    try {
+                        const deleteResponse = await fetch(`${API_BASE_URL}/api/gallery_images/${imageToDelete.id}`, {
+                            method: 'DELETE',
+                            headers: {
+                                'Authorization': `Bearer ${token}`,
+                            },
+                        });
 
-            // Обновляем галерею для синхронизации
-            await fetchUserGallery();
+                        if (deleteResponse.ok || deleteResponse.status === 204) {
+                            console.log('Image deleted successfully via direct DELETE');
+                            deleteSuccess = true;
+                        }
+                    } catch (error) {
+                        console.log('Direct DELETE failed, trying PATCH method');
+                    }
+                }
 
-            alert('Фото успешно удалено из портфолио!');
+                if (!deleteSuccess) {
+                    const updatedImages = galleryData.images
+                        ?.filter(img => img.id.toString() !== workExampleId)
+                        .map(img => ({ image: img.image })) || [];
+
+                    console.log(`Filtered images: ${galleryData.images?.length} -> ${updatedImages.length}`);
+
+                    const patchData = { images: updatedImages };
+                    console.log('Sending PATCH data:', patchData);
+
+                    const updateResponse = await fetch(`${API_BASE_URL}/api/galleries/${galleryId}`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/merge-patch+json',
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify(patchData),
+                    });
+
+                    if (updateResponse.ok) {
+                        deleteSuccess = true;
+                        console.log('Gallery updated successfully via PATCH');
+                    } else {
+                        const errorText = await updateResponse.text();
+                        console.error('PATCH failed:', errorText);
+                    }
+                }
+
+                if (!deleteSuccess) {
+                    console.log('Trying delete and recreate approach...');
+
+                    const currentUserId = await getCurrentUserId(token);
+                    if (!currentUserId) {
+                        throw new Error('Не удалось определить ID пользователя');
+                    }
+
+                    const currentImages = galleryData.images
+                        ?.filter(img => img.id.toString() !== workExampleId)
+                        .map(img => ({ image: img.image })) || [];
+
+                    await fetch(`${API_BASE_URL}/api/galleries/${galleryId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                        },
+                    });
+
+                    const recreateData = {
+                        images: currentImages,
+                        user: `/api/users/${currentUserId}`
+                    };
+
+                    const recreateResponse = await fetch(`${API_BASE_URL}/api/galleries`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify(recreateData),
+                    });
+
+                    if (recreateResponse.ok) {
+                        deleteSuccess = true;
+                        console.log('Gallery recreated successfully');
+                    }
+                }
+
+                if (deleteSuccess) {
+                    setProfileData(prev => {
+                        if (!prev) return null;
+                        return {
+                            ...prev,
+                            workExamples: prev.workExamples.filter(work => work.id !== workExampleId)
+                        };
+                    });
+
+                    await fetchUserGallery();
+
+                    alert('Фото успешно удалено из портфолио!');
+                } else {
+                    alert('Не удалось удалить фото. Попробуйте еще раз.');
+                }
+
+            } catch (error) {
+                console.error('Error in deletion process:', error);
+                alert('Ошибка при удалении фото. Пожалуйста, попробуйте еще раз.');
+            }
 
         } catch (error) {
             console.error('Error deleting work example:', error);
@@ -1503,6 +1561,31 @@ function MasterProfilePage() {
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const testGalleryAPI = async (token: string) => {
+        try {
+            console.log('Testing Gallery API...');
+
+            const response = await fetch(`${API_BASE_URL}/api/galleries/me`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log('Gallery /me response:', data);
+                return data;
+            } else {
+                console.error('Failed to get galleries:', response.status);
+            }
+        } catch (error) {
+            console.error('Error testing API:', error);
+        }
+        return null;
     };
 
     const getCurrentUserId = async (token: string): Promise<number | null> => {
@@ -1527,13 +1610,12 @@ function MasterProfilePage() {
         }
     };
 
-    // Функция для создания галереи
     const createUserGallery = async (token: string): Promise<number | null> => {
         try {
-            // Получаем ID текущего авторизованного пользователя
+            console.log('Creating new gallery...');
+
             const currentUserId = await getCurrentUserId(token);
             if (!currentUserId) {
-                console.error('Cannot get current user ID');
                 alert('Не удалось определить ID пользователя');
                 return null;
             }
@@ -1541,7 +1623,6 @@ function MasterProfilePage() {
             console.log('Creating gallery for user ID:', currentUserId);
 
             const requestBody = {
-                user: `/api/users/masters/${currentUserId}`,
                 images: []
             };
 
@@ -1552,6 +1633,7 @@ function MasterProfilePage() {
                 headers: {
                     "Authorization": `Bearer ${token}`,
                     "Content-Type": "application/json",
+                    "Accept": "application/json",
                 },
                 body: JSON.stringify(requestBody),
             });
@@ -1560,99 +1642,47 @@ function MasterProfilePage() {
             console.log('Create gallery response status:', response.status);
             console.log('Create gallery response text:', responseText);
 
-            if (!response.ok) {
-                console.error('Failed to create gallery:', responseText);
-
-                if (response.status === 400) {
-                    alert("Неверные данные для создания галереи");
-                } else if (response.status === 403) {
-                    alert("Нет прав для создания галереи");
-                } else if (response.status === 422) {
-                    alert("Ошибка валидации данных галереи");
+            if (response.ok) {
+                let galleryData: GalleryApiData;
+                try {
+                    galleryData = JSON.parse(responseText);
+                    console.log('Gallery created successfully:', galleryData);
+                    return galleryData.id;
+                } catch (e) {
+                    console.error('Error parsing gallery response:', e);
+                    return await findExistingGallery(token, currentUserId);
                 }
-
-                return null;
+            } else if (response.status === 422) {
+                console.log('Validation error, gallery might already exist');
+                return await findExistingGallery(token, currentUserId);
+            } else {
+                console.error('Failed to create gallery:', responseText);
+                console.log('Trying to find existing gallery instead...');
+                return await findExistingGallery(token, currentUserId);
             }
-
-            let galleryData: GalleryApiData;
-            try {
-                galleryData = JSON.parse(responseText);
-            } catch (e) {
-                console.error('Error parsing gallery response:', e);
-                return null;
-            }
-
-            console.log('Gallery created successfully:', galleryData);
-            return galleryData.id;
         } catch (error) {
             console.error('Error creating gallery:', error);
-            alert("Ошибка при создании галереи");
+            alert("Ошибка при создании галереи. Попробуйте загрузить фото позже.");
             return null;
         }
     };
 
-    // Функция для получения правильного URL изображения
-    const getImageUrl = (imagePath: string): string => {
-        if (!imagePath) return "../fonTest6.png";
-
-        if (imagePath.startsWith("http")) return imagePath;
-        if (imagePath.startsWith("/")) return `${API_BASE_URL}${imagePath}`;
-
-        return `${API_BASE_URL}/images/gallery_photos/${imagePath}`;
-    };
-
-    // Функция для загрузки существующей галереи пользователя
-    const fetchUserGallery = async () => {
+    const findExistingGallery = async (token: string, userId: number): Promise<number | null> => {
         try {
-            const token = getAuthToken();
-            if (!token) return;
+            console.log('Searching for existing gallery for user:', userId);
 
-            // Получаем ID текущего авторизованного пользователя
-            const currentUserId = await getCurrentUserId(token);
-            if (!currentUserId) {
-                console.log('Cannot get current user ID for fetching gallery');
-                return;
-            }
+            const response = await fetch(`${API_BASE_URL}/api/galleries/me`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json',
+                },
+            });
 
-            console.log('Fetching user gallery for master ID:', currentUserId);
+            if (response.ok) {
+                const galleriesData = await response.json();
+                console.log('Galleries from /me:', galleriesData);
 
-            // Пробуем разные endpoints для получения галереи
-            const endpoints = [
-                `/api/galleries/master/${currentUserId}`,
-                '/api/galleries/me'
-            ];
-
-            let galleriesData = null;
-
-            for (const endpoint of endpoints) {
-                try {
-                    console.log(`Trying gallery endpoint: ${endpoint}`);
-                    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-                        method: 'GET',
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json',
-                        },
-                    });
-
-                    console.log(`Response status for ${endpoint}: ${response.status}`);
-
-                    if (response.ok) {
-                        galleriesData = await response.json();
-                        console.log(`Gallery data from ${endpoint}:`, galleriesData);
-                        break;
-                    } else if (response.status === 404) {
-                        console.log(`Gallery not found at ${endpoint}`);
-                    } else {
-                        console.warn(`Failed to fetch from ${endpoint}:`, response.status);
-                    }
-                } catch (error) {
-                    console.warn(`Error fetching from ${endpoint}:`, error);
-                }
-            }
-
-            if (galleriesData) {
-                // Обрабатываем разные форматы ответа
                 let galleryArray: GalleryApiData[] = [];
 
                 if (Array.isArray(galleriesData)) {
@@ -1666,45 +1696,116 @@ function MasterProfilePage() {
                     }
                 }
 
-                console.log('Processed gallery array:', galleryArray);
-
                 if (galleryArray.length > 0) {
-                    const userGallery = galleryArray[0];
-                    console.log('Using gallery:', userGallery);
+                    const gallery = galleryArray[0];
+                    console.log('Found existing gallery:', gallery);
+                    return gallery.id;
+                }
+            }
 
-                    const galleryItems = userGallery.images || [];
-                    console.log('Gallery images found:', galleryItems);
+            const directResponse = await fetch(`${API_BASE_URL}/api/galleries?user=${userId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json',
+                },
+            });
 
-                    if (galleryItems.length > 0) {
-                        const workExamplesLocal = await Promise.all(
-                            galleryItems.map(async (image: GalleryImageApiData) => {
-                                const imagePath = image.image;
-                                const imageUrl = getImageUrl(imagePath);
+            if (directResponse.ok) {
+                const directData = await directResponse.json();
+                console.log('Galleries from direct query:', directData);
+
+                let directArray: GalleryApiData[] = [];
+
+                if (Array.isArray(directData)) {
+                    directArray = directData;
+                } else if (directData && typeof directData === 'object') {
+                    const apiResponse = directData as ApiResponse<GalleryApiData>;
+                    if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
+                        directArray = apiResponse['hydra:member'];
+                    } else if ((directData as GalleryApiData).id) {
+                        directArray = [directData as GalleryApiData];
+                    }
+                }
+
+                if (directArray.length > 0) {
+                    const gallery = directArray[0];
+                    console.log('Found existing gallery via direct query:', gallery);
+                    return gallery.id;
+                }
+            }
+
+            console.log('No existing gallery found');
+            return null;
+        } catch (error) {
+            console.error('Error finding existing gallery:', error);
+            return null;
+        }
+    };
+
+    const getImageUrl = (imagePath: string): string => {
+        if (!imagePath) return "../fonTest6.png";
+
+        if (imagePath.startsWith("http")) return imagePath;
+        if (imagePath.startsWith("/")) return `${API_BASE_URL}${imagePath}`;
+
+        const galleryPhotoUrl = `${API_BASE_URL}/images/gallery_photos/${imagePath}`;
+
+        return galleryPhotoUrl;
+    };
+
+    const fetchUserGallery = async () => {
+        try {
+            console.log('Fetching user gallery...');
+            const token = getAuthToken();
+            if (!token) return;
+
+            await testGalleryAPI(token);
+
+            const gallery = await getUserGallery(token);
+
+            if (gallery) {
+                console.log('Gallery found:', gallery);
+
+                if (gallery.images && gallery.images.length > 0) {
+                    console.log(`Found ${gallery.images.length} images in gallery`);
+
+                    const workExamplesLocal = await Promise.all(
+                        gallery.images.map(async (image: GalleryImageApiData) => {
+                            const imagePath = image.image;
+                            const imageUrl = getImageUrl(imagePath);
+
+                            console.log(`Processing image ${image.id}: ${imagePath}`);
+                            console.log(`Image URL: ${imageUrl}`);
+
+                            try {
                                 const exists = await checkImageExists(imageUrl);
+                                console.log(`Image exists: ${exists}`);
 
                                 return {
                                     id: image.id?.toString() || Date.now().toString(),
                                     image: exists ? imageUrl : "../fonTest6.png",
                                     title: "Пример работы"
                                 };
-                            })
-                        );
+                            } catch (error) {
+                                console.error(`Error checking image ${image.id}:`, error);
+                                return {
+                                    id: image.id?.toString() || Date.now().toString(),
+                                    image: "../fonTest6.png",
+                                    title: "Пример работы"
+                                };
+                            }
+                        })
+                    );
 
-                        console.log("Work examples updated:", workExamplesLocal);
+                    console.log("Work examples loaded:", workExamplesLocal.length);
 
-                        setProfileData(prev => prev ? {
-                            ...prev,
-                            workExamples: workExamplesLocal
-                        } : null);
-                    } else {
-                        console.log('No images in gallery');
-                        setProfileData(prev => prev ? {
-                            ...prev,
-                            workExamples: []
-                        } : null);
-                    }
+                    setProfileData(prev => prev ? {
+                        ...prev,
+                        workExamples: workExamplesLocal
+                    } : null);
                 } else {
-                    console.log('No gallery data found');
+                    console.log('Gallery exists but has no images');
                     setProfileData(prev => prev ? {
                         ...prev,
                         workExamples: []
@@ -1717,6 +1818,7 @@ function MasterProfilePage() {
                     workExamples: []
                 } : null);
             }
+
         } catch (error) {
             console.error('Error fetching user gallery:', error);
             setProfileData(prev => prev ? {
@@ -1737,7 +1839,6 @@ function MasterProfilePage() {
         return `${day}.${month}.${year}, ${randomCity}`;
     };
 
-    // Функция для получения URL аватара с приоритетами
     const getAvatarUrl = async (userData: UserApiData, userType: 'master' | 'client' = 'master'): Promise<string | null> => {
         if (!userData) return null;
 
@@ -1804,9 +1905,9 @@ function MasterProfilePage() {
                 return;
             }
 
-            // Подготавливаем данные для отправки в формате API
             const apiData: Record<string, unknown> = {};
 
+            // Обработка имени
             if (updatedData.fullName !== undefined) {
                 const nameParts = updatedData.fullName.split(' ');
                 apiData.surname = nameParts[0] || '';
@@ -1814,30 +1915,43 @@ function MasterProfilePage() {
                 apiData.patronymic = nameParts.slice(2).join(' ') || '';
             }
 
+            // Обработка специальности - нужно найти occupation по названию и отправить его IRI
             if (updatedData.specialty !== undefined) {
-                const occupations = await fetchOccupations(token);
-                if (occupations) {
-                    const specialtyTitles = updatedData.specialty.split(',').map(title => title.trim());
-                    const occupationIris: string[] = [];
+                // Разделяем специальности по запятой
+                const specialtyTitles = updatedData.specialty.split(',').map(title => title.trim());
 
-                    for (const title of specialtyTitles) {
-                        if (title) {
-                            let existingOccupation = occupations.find(occ => occ.title === title);
+                // Ищем соответствующие occupations
+                const occupationIris: string[] = [];
 
-                            if (!existingOccupation) {
-                                const newOccupation = await createOccupation(token, title);
-                                if (newOccupation) {
-                                    existingOccupation = newOccupation;
-                                }
-                            }
-
-                            if (existingOccupation) {
-                                occupationIris.push(`/api/occupations/${existingOccupation.id}`);
-                            }
+                for (const title of specialtyTitles) {
+                    // Ищем occupation по точному совпадению названия
+                    const occupation = occupations.find(occ => occ.title === title);
+                    if (occupation) {
+                        occupationIris.push(`/api/occupations/${occupation.id}`);
+                    } else {
+                        // Если не нашли точное совпадение, пробуем найти похожее
+                        const similarOccupation = occupations.find(occ =>
+                            occ.title.toLowerCase().includes(title.toLowerCase()) ||
+                            title.toLowerCase().includes(occ.title.toLowerCase())
+                        );
+                        if (similarOccupation) {
+                            occupationIris.push(`/api/occupations/${similarOccupation.id}`);
+                        } else {
+                            console.warn(`Occupation not found for title: "${title}"`);
+                            // Если occupation не найден, можно создать новый или пропустить
+                            // В этом случае просто пропускаем
                         }
                     }
+                }
 
+                // Если нашли хотя бы одну occupation, отправляем IRI
+                if (occupationIris.length > 0) {
                     apiData.occupation = occupationIris;
+                } else {
+                    console.warn('No valid occupations found for:', updatedData.specialty);
+                    // Если не нашли ни одной occupation, не отправляем поле
+                    // или можно отправить пустой массив в зависимости от требований API
+                    apiData.occupation = [];
                 }
             }
 
@@ -1861,18 +1975,12 @@ function MasterProfilePage() {
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('Update failed:', errorText);
-
-                if (errorText.includes('occupation')) {
-                    console.log('Trying alternative approach for occupation update');
-                    return;
-                }
-
                 throw new Error(`Failed to update user data: ${response.status}`);
             }
 
-            const updatedUser = await response.json();
-            console.log('User data updated successfully:', updatedUser);
+            console.log('User data updated successfully');
 
+            // Обновляем локальное состояние
             setProfileData(prev => prev ? {
                 ...prev,
                 ...updatedData
@@ -1881,53 +1989,6 @@ function MasterProfilePage() {
         } catch (error) {
             console.error('Error updating user data:', error);
             alert('Ошибка при обновлении данных');
-        }
-    };
-
-    // Функция для получения списка occupation
-    const fetchOccupations = async (token: string): Promise<OccupationApiData[] | null> => {
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/occupations`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (response.ok) {
-                const occupations: OccupationApiData[] = await response.json();
-                console.log('Fetched occupations:', occupations);
-                return occupations;
-            }
-            return null;
-        } catch (error) {
-            console.error('Error fetching occupations:', error);
-            return null;
-        }
-    };
-
-    // Функция для создания новой occupation
-    const createOccupation = async (token: string, title: string): Promise<OccupationApiData | null> => {
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/occupations`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ title }),
-            });
-
-            if (response.ok) {
-                const newOccupation: OccupationApiData = await response.json();
-                console.log('Created new occupation:', newOccupation);
-                return newOccupation;
-            }
-            return null;
-        } catch (error) {
-            console.error('Error creating occupation:', error);
-            return null;
         }
     };
 
@@ -1941,7 +2002,6 @@ function MasterProfilePage() {
                 return;
             }
 
-            // Получаем текущие данные пользователя
             const userResponse = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
                 method: 'GET',
                 headers: {
@@ -1956,20 +2016,32 @@ function MasterProfilePage() {
 
             const userData: UserApiData = await userResponse.json();
 
-            // Обновляем массив образования
-            const updatedEducationArray = (userData.education || []).map((edu) =>
-                edu.id?.toString() === educationId ? {
-                    ...edu,
-                    uniTitle: updatedEducation.institution,
-                    faculty: updatedEducation.faculty,
-                    beginning: parseInt(updatedEducation.startYear) || new Date().getFullYear(),
-                    ending: updatedEducation.currentlyStudying ? null : parseInt(updatedEducation.endYear) || new Date().getFullYear(),
-                    graduated: !updatedEducation.currentlyStudying,
-                    occupation: updatedEducation.specialty ? [{ title: updatedEducation.specialty }] : []
-                } : edu
+            let updatedEducationArray = userData.education || [];
+
+            const existingIndex = updatedEducationArray.findIndex(edu =>
+                edu.id?.toString() === educationId
             );
 
-            // Отправляем обновленные данные
+            const educationData = {
+                uniTitle: updatedEducation.institution,
+                faculty: updatedEducation.faculty,
+                beginning: parseInt(updatedEducation.startYear) || new Date().getFullYear(),
+                ending: updatedEducation.currentlyStudying ? undefined : (parseInt(updatedEducation.endYear) || undefined),
+                graduated: !updatedEducation.currentlyStudying
+            };
+
+            if (existingIndex >= 0) {
+                updatedEducationArray[existingIndex] = {
+                    ...updatedEducationArray[existingIndex],
+                    ...educationData
+                };
+            } else {
+                updatedEducationArray.push({
+                    ...educationData,
+                    id: parseInt(educationId) || Date.now()
+                });
+            }
+
             const updateResponse = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
                 method: 'PATCH',
                 headers: {
@@ -1982,11 +2054,11 @@ function MasterProfilePage() {
             });
 
             if (updateResponse.ok) {
+                const updatedUser = await updateResponse.json();
+
                 setProfileData(prev => prev ? {
                     ...prev,
-                    education: prev.education.map(edu =>
-                        edu.id === educationId ? { ...updatedEducation, id: educationId } : edu
-                    )
+                    education: transformEducation(updatedUser.education || [])
                 } : null);
 
                 setEditingEducation(null);
@@ -1998,8 +2070,11 @@ function MasterProfilePage() {
                     endYear: '',
                     currentlyStudying: false
                 });
+
                 console.log('Education updated successfully');
             } else {
+                const errorText = await updateResponse.text();
+                console.error('Failed to update education:', errorText);
                 throw new Error('Failed to update education');
             }
 
@@ -2007,6 +2082,19 @@ function MasterProfilePage() {
             console.error('Error updating education:', error);
             alert('Ошибка при обновлении образования');
         }
+    };
+
+    const handleAddEducation = () => {
+        const newEducationId = `new-${Date.now()}`;
+        setEditingEducation(newEducationId);
+        setEducationForm({
+            institution: '',
+            faculty: '',
+            specialty: '',
+            startYear: new Date().getFullYear().toString(),
+            endYear: new Date().getFullYear().toString(),
+            currentlyStudying: false
+        });
     };
 
     const handleEditStart = (field: 'fullName' | 'specialty') => {
@@ -2057,6 +2145,11 @@ function MasterProfilePage() {
             return;
         }
 
+        if (!educationForm.startYear) {
+            alert('Пожалуйста, укажите год начала обучения');
+            return;
+        }
+
         await updateEducation(editingEducation, educationForm);
     };
 
@@ -2083,7 +2176,6 @@ function MasterProfilePage() {
         fileInputRef.current?.click();
     };
 
-    // Загрузка фото профиля
     const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file || !profileData?.id) return;
@@ -2178,14 +2270,14 @@ function MasterProfilePage() {
         const img = e.currentTarget;
 
         if (!profileData?.id) {
-            img.src = "../default_user.png";
+            img.src = "../fonTest6.png";
             return;
         }
 
         const fallbackSources = [
             profileData.avatar?.includes("uploads/") ? `${API_BASE_URL}/api/${profileData.id}/profile-photo` : null,
             profileData.avatar?.includes("uploads/") ? `/uploads/avatars/${profileData.avatar.split("/").pop()}` : null,
-            "../default_user.png"
+            "../fonTest6.png"
         ].filter(Boolean) as string[];
 
         for (const source of fallbackSources) {
@@ -2198,7 +2290,7 @@ function MasterProfilePage() {
                     }
                 } catch {
                     console.log('Fallback image failed:', source);
-
+                    continue;
                 }
             }
         }
@@ -2207,24 +2299,24 @@ function MasterProfilePage() {
     };
 
     const getReviewerName = (review: Review) => {
-        return `${review.client.name} ${review.client.surname}`.trim();
+        return `${review.reviewer.name} ${review.reviewer.surname}`.trim();
     };
 
     const getReviewerAvatarUrl = (review: Review) => {
-        if (review.client.image) {
-            console.log('Reviewer image from data:', review.client.image);
+        if (review.reviewer.image) {
+            console.log('Reviewer image from data:', review.reviewer.image);
 
             const possiblePaths = [
-                review.client.image,
-                `${API_BASE_URL}/images/profile_photos/${review.client.image}`,
-                `${API_BASE_URL}/uploads/profile_photos/${review.client.image}`,
-                `${API_BASE_URL}/uploads/clients/${review.client.image}`,
-                `${API_BASE_URL}/images/clients/${review.client.image}`,
-                `${API_BASE_URL}/${review.client.image}`
+                review.reviewer.image,
+                `${API_BASE_URL}/images/profile_photos/${review.reviewer.image}`,
+                `${API_BASE_URL}/uploads/profile_photos/${review.reviewer.image}`,
+                `${API_BASE_URL}/uploads/clients/${review.reviewer.image}`,
+                `${API_BASE_URL}/images/clients/${review.reviewer.image}`,
+                `${API_BASE_URL}/${review.reviewer.image}`
             ];
 
             for (const path of possiblePaths) {
-                if (path && path !== "../default_user.png") {
+                if (path && path !== "../fonTest6.png") {
                     console.log('Trying reviewer avatar path:', path);
                     return path;
                 }
@@ -2232,7 +2324,7 @@ function MasterProfilePage() {
         }
 
         console.log('Using default avatar for reviewer');
-        return "../default_user.png";
+        return "../fonTest6.png";
     };
 
     const calculateAverageRating = (reviews: Review[]): number => {
@@ -2257,11 +2349,18 @@ function MasterProfilePage() {
         return `${url}${separator}t=${timestamp}`;
     };
 
+    const getMasterName = (review: Review) => {
+        if (!review.user.name && !review.user.surname) {
+            return 'Мастер';
+        }
+        return `${review.user.name || ''} ${review.user.surname || ''}`.trim();
+    };
+
     const getClientName = (review: Review) => {
-        if (!review.master.name && !review.master.surname) {
+        if (!review.reviewer.name && !review.reviewer.surname) {
             return 'Клиент';
         }
-        return `${review.master.name || ''} ${review.master.surname || ''}`.trim();
+        return `${review.reviewer.name || ''} ${review.reviewer.surname || ''}`.trim();
     };
 
     const handleClientProfileClick = (clientId: number) => {
@@ -2449,7 +2548,7 @@ function MasterProfilePage() {
                                 />
                             ) : (
                                 <img
-                                    src="../default_user.png"
+                                    src="../fonTest6.png"
                                     alt="FonTest6"
                                     className={styles.avatar_placeholder}
                                 />
@@ -2521,16 +2620,51 @@ function MasterProfilePage() {
 
                             <div className={styles.specialty_row}>
                                 {editingField === 'specialty' ? (
-                                    <input
-                                        type="text"
-                                        value={tempValue}
-                                        onChange={(e) => setTempValue(e.target.value)}
-                                        onBlur={() => handleInputSave('specialty')}
-                                        onKeyDown={(e) => handleInputKeyPress(e, 'specialty')}
-                                        className={styles.specialty_input}
-                                        placeholder="Специальность"
-                                        autoFocus
-                                    />
+                                    <div className={styles.specialty_edit_container}>
+                                        <select
+                                            ref={specialtyInputRef}
+                                            value={tempValue}
+                                            onChange={(e) => setTempValue(e.target.value)}
+                                            className={styles.specialty_select}
+                                            autoFocus
+                                        >
+                                            <option value="">Выберите специальность</option>
+                                            {occupations.map(occupation => (
+                                                <option
+                                                    key={occupation.id}
+                                                    value={occupation.title}
+                                                >
+                                                    {occupation.title}
+                                                </option>
+                                            ))}
+                                        </select>
+
+                                        <div className={styles.specialty_actions}>
+                                            <button
+                                                className={styles.save_occupations_btn}
+                                                onClick={() => {
+                                                    // Сохраняем выбранную специальность
+                                                    if (tempValue.trim()) {
+                                                        const updateData = { specialty: tempValue };
+                                                        updateUserData(updateData);
+                                                        setEditingField(null);
+                                                    }
+                                                }}
+                                                disabled={isLoading || !tempValue.trim()}
+                                            >
+                                                {isLoading ? 'Сохранение...' : 'Сохранить'}
+                                            </button>
+                                            <button
+                                                className={styles.cancel_occupations_btn}
+                                                onClick={() => {
+                                                    setEditingField(null);
+                                                    setTempValue('');
+                                                }}
+                                            >
+                                                Отмена
+                                            </button>
+                                        </div>
+                                    </div>
                                 ) : (
                                     <div className={styles.specialty_with_icon}>
                                         <span className={styles.specialty}>{profileData.specialty}</span>
@@ -2606,129 +2740,207 @@ function MasterProfilePage() {
                 {/* Секция "О себе" */}
                 <div className={styles.about_section}>
                     {/* Образование и опыт */}
-                    <h3 className={styles.section_subtitle}>Образование и опыт</h3>
                     <div className={styles.section_item}>
+                        <h3>Образование и опыт</h3>
                         <div className={styles.section_content}>
-                            {profileData.education.length > 0 ? (
-                                profileData.education.map(edu => (
-                                    <div key={edu.id} className={styles.education_item}>
-                                        {editingEducation === edu.id ? (
-                                            <div className={styles.education_form}>
+                            {profileData.education.map(edu => (
+                                <div key={edu.id} className={styles.education_item}>
+                                    {editingEducation === edu.id ? (
+                                        <div className={styles.education_form}>
+                                            <div className={styles.form_group}>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Укажите информацию"
+                                                    value={educationForm.institution}
+                                                    onChange={(e) => handleEducationFormChange('institution', e.target.value)}
+                                                />
+                                                <label>Укажите учебное заведение, факультет, специальность</label>
+                                            </div>
+
+                                            <div className={styles.year_group}>
                                                 <div className={styles.form_group}>
                                                     <input
                                                         type="text"
-                                                        placeholder="Укажите информацию"
-                                                        value={educationForm.institution}
-                                                        onChange={(e) => handleEducationFormChange('institution', e.target.value)}
+                                                        placeholder="Год начала"
+                                                        value={educationForm.startYear}
+                                                        onChange={(e) => handleEducationFormChange('startYear', e.target.value)}
                                                     />
-                                                    <label>Укажите учебное заведение, факультет, специальность</label>
                                                 </div>
 
-                                                <div className={styles.year_group}>
-                                                    <div className={styles.form_group}>
-                                                        <input
-                                                            type="text"
-                                                            placeholder="Год начала"
-                                                            value={educationForm.startYear}
-                                                            onChange={(e) => handleEducationFormChange('startYear', e.target.value)}
-                                                        />
-                                                    </div>
-
-                                                    <div className={styles.form_group}>
-                                                        <input
-                                                            type="text"
-                                                            placeholder="Год окончания"
-                                                            value={educationForm.endYear}
-                                                            onChange={(e) => handleEducationFormChange('endYear', e.target.value)}
-                                                            disabled={educationForm.currentlyStudying}
-                                                        />
-                                                    </div>
-                                                </div>
-
-                                                <div className={styles.checkbox_group}>
-                                                    <label className={styles.checkbox_label}>
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={educationForm.currentlyStudying}
-                                                            onChange={(e) => handleEducationFormChange('currentlyStudying', e.target.checked)}
-                                                        />
-                                                        Учусь сейчас
-                                                    </label>
-                                                </div>
-
-                                                <div className={styles.form_actions}>
-                                                    <button
-                                                        className={styles.save_button}
-                                                        onClick={handleEditEducationSave}
-                                                        disabled={!educationForm.institution}
-                                                    >
-                                                        Сохранить
-                                                    </button>
-                                                    <button
-                                                        className={styles.cancel_button}
-                                                        onClick={handleEditEducationCancel}
-                                                    >
-                                                        Отмена
-                                                    </button>
+                                                <div className={styles.form_group}>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Год окончания"
+                                                        value={educationForm.endYear}
+                                                        onChange={(e) => handleEducationFormChange('endYear', e.target.value)}
+                                                        disabled={educationForm.currentlyStudying}
+                                                    />
                                                 </div>
                                             </div>
-                                        ) : (
-                                            <div className={styles.education_main}>
-                                                <div className={styles.education_header}>
-                                                    <strong>{edu.institution}</strong>
-                                                    <button
-                                                        className={styles.edit_icon}
-                                                        onClick={() => handleEditEducationStart(edu)}
-                                                    >
-                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                            <g clipPath="url(#clip0_188_2958)">
-                                                                <g clipPath="url(#clip1_188_2958)">
-                                                                    <path d="M7.2302 20.59L2.4502 21.59L3.4502 16.81L17.8902 2.29001C18.1407 2.03889 18.4385 1.83982 18.7663 1.70424C19.0941 1.56865 19.4455 1.49925 19.8002 1.50001C20.5163 1.50001 21.203 1.78447 21.7094 2.29082C22.2157 2.79717 22.5002 3.48392 22.5002 4.20001C22.501 4.55474 22.4315 4.90611 22.296 5.23391C22.1604 5.56171 21.9613 5.85945 21.7102 6.11001L7.2302 20.59Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                                                    <path d="M0.549805 22.5H23.4498" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                                                    <path d="M19.6403 8.17986L15.8203 4.35986" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                                                </g>
+
+                                            <div className={styles.checkbox_group}>
+                                                <label className={styles.checkbox_label}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={educationForm.currentlyStudying}
+                                                        onChange={(e) => handleEducationFormChange('currentlyStudying', e.target.checked)}
+                                                    />
+                                                    Учусь сейчас
+                                                </label>
+                                            </div>
+
+                                            <div className={styles.form_actions}>
+                                                <button
+                                                    className={styles.save_button}
+                                                    onClick={handleEditEducationSave}
+                                                    disabled={!educationForm.institution}
+                                                >
+                                                    Сохранить
+                                                </button>
+                                                <button
+                                                    className={styles.cancel_button}
+                                                    onClick={handleEditEducationCancel}
+                                                >
+                                                    Отмена
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className={styles.education_main}>
+                                            <div className={styles.education_header}>
+                                                <strong>{edu.institution}</strong>
+                                                <button
+                                                    className={styles.edit_icon}
+                                                    onClick={() => handleEditEducationStart(edu)}
+                                                >
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                        <g clipPath="url(#clip0_188_2958)">
+                                                            <g clipPath="url(#clip1_188_2958)">
+                                                                <path d="M7.2302 20.59L2.4502 21.59L3.4502 16.81L17.8902 2.29001C18.1407 2.03889 18.4385 1.83982 18.7663 1.70424C19.0941 1.56865 19.4455 1.49925 19.8002 1.50001C20.5163 1.50001 21.203 1.78447 21.7094 2.29082C22.2157 2.79717 22.5002 3.48392 22.5002 4.20001C22.501 4.55474 22.4315 4.90611 22.296 5.23391C22.1604 5.56171 21.9613 5.85945 21.7102 6.11001L7.2302 20.59Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                                                <path d="M0.549805 22.5H23.4498" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                                                <path d="M19.6403 8.17986L15.8203 4.35986" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
                                                             </g>
-                                                            <defs>
-                                                                <clipPath id="clip0_188_2958">
-                                                                    <rect width="24" height="24" fill="white"/>
-                                                                </clipPath>
-                                                                <clipPath id="clip1_188_2958">
-                                                                    <rect width="24" height="24" fill="white"/>
-                                                                </clipPath>
-                                                            </defs>
-                                                        </svg>
-                                                    </button>
-                                                </div>
-                                                <div className={styles.education_years}>
-                                                    <span>{edu.startYear} - {edu.currentlyStudying ? 'По настоящее время' : edu.endYear}</span>
-                                                </div>
-                                                {(edu.faculty || edu.specialty) && (
-                                                    <div className={styles.education_details}>
-                                                        {edu.faculty && <span>Факультет: {edu.faculty}</span>}
-                                                        {edu.specialty && <span>Специальность: {edu.specialty}</span>}
-                                                    </div>
-                                                )}
+                                                        </g>
+                                                        <defs>
+                                                            <clipPath id="clip0_188_2958">
+                                                                <rect width="24" height="24" fill="white"/>
+                                                            </clipPath>
+                                                            <clipPath id="clip1_188_2958">
+                                                                <rect width="24" height="24" fill="white"/>
+                                                            </clipPath>
+                                                        </defs>
+                                                    </svg>
+                                                </button>
                                             </div>
-                                        )}
-                                    </div>
-                                ))
-                            ) : (
-                                <div className={styles.empty_state}>
-                                    <span>Добавить образование</span>
+                                            <div className={styles.education_years}>
+                                                <span>{edu.startYear} - {edu.currentlyStudying ? 'По настоящее время' : edu.endYear}</span>
+                                            </div>
+                                            {(edu.faculty || edu.specialty) && (
+                                                <div className={styles.education_details}>
+                                                    {edu.faculty && <span>Факультет: {edu.faculty}</span>}
+                                                    {edu.specialty && <span>Специальность: {edu.specialty}</span>}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+
+                            {/* Кнопка добавления нового образования */}
+                            {editingEducation === null ? (
+                                <div className={styles.add_education_container}>
                                     <button
                                         className={styles.add_button}
-                                        onClick={() => navigate('/profile/education')}
+                                        onClick={handleAddEducation}
+                                        title="Добавить образование"
                                     >
                                         +
                                     </button>
                                 </div>
-                            )}
+                            ) : editingEducation.startsWith('new-') ? (
+                                <div className={styles.education_form}>
+                                    <div className={styles.form_group}>
+                                        <label>Учебное заведение *</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Учебное заведение"
+                                            value={educationForm.institution}
+                                            onChange={(e) => handleEducationFormChange('institution', e.target.value)}
+                                        />
+                                    </div>
+
+                                    <div className={styles.form_group}>
+                                        <label>Факультет</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Факультет"
+                                            value={educationForm.faculty}
+                                            onChange={(e) => handleEducationFormChange('faculty', e.target.value)}
+                                        />
+
+                                    </div>
+
+                                    <div className={styles.year_group}>
+                                        <div className={styles.form_group}>
+                                            <input
+                                                type="number"
+                                                placeholder="Год начала"
+                                                value={educationForm.startYear}
+                                                onChange={(e) => handleEducationFormChange('startYear', e.target.value)}
+                                                min="1900"
+                                                max={new Date().getFullYear()}
+                                            />
+                                            <label>Год начала *</label>
+                                        </div>
+
+                                        <div className={styles.form_group}>
+                                            <input
+                                                type="number"
+                                                placeholder="Год окончания"
+                                                value={educationForm.endYear}
+                                                onChange={(e) => handleEducationFormChange('endYear', e.target.value)}
+                                                min={parseInt(educationForm.startYear) || 1900}
+                                                max={new Date().getFullYear()}
+                                                disabled={educationForm.currentlyStudying}
+                                            />
+                                            <label>Год окончания</label>
+                                        </div>
+                                    </div>
+
+                                    <div className={styles.checkbox_group}>
+                                        <label className={styles.checkbox_label}>
+                                            <input
+                                                type="checkbox"
+                                                checked={educationForm.currentlyStudying}
+                                                onChange={(e) => handleEducationFormChange('currentlyStudying', e.target.checked)}
+                                            />
+                                            Учусь сейчас
+                                        </label>
+                                    </div>
+
+                                    <div className={styles.form_actions}>
+                                        <button
+                                            className={styles.save_button}
+                                            onClick={handleEditEducationSave}
+                                            disabled={!educationForm.institution || !educationForm.startYear}
+                                        >
+                                            Сохранить
+                                        </button>
+                                        <button
+                                            className={styles.cancel_button}
+                                            onClick={handleEditEducationCancel}
+                                        >
+                                            Отмена
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : null}
                         </div>
                     </div>
 
                     {/* Примеры работ */}
-                    <h3 className={styles.section_subtitle}>Примеры работ</h3>
                     <div className={styles.section_item}>
+                        <h3>Примеры работ</h3>
                         <div className={styles.work_examples}>
                             {profileData.workExamples.length > 0 ? (
                                 <div className={styles.work_examples_grid}>
@@ -2743,7 +2955,7 @@ function MasterProfilePage() {
 
                                                     const alternativePaths = [
                                                         `${API_BASE_URL}/uploads/gallery_images/${work.image.split('/').pop() || work.image}`,
-                                                        "../default_user.png"
+                                                        "./fonTest6.png"
                                                     ];
 
                                                     let currentIndex = 0;
@@ -2807,13 +3019,14 @@ function MasterProfilePage() {
                             ref={workExampleInputRef}
                             onChange={handleWorkExampleUpload}
                             accept="image/*"
+                            multiple
                             style={{ display: 'none' }}
                         />
                     </div>
 
                     {/* Район работы */}
-                    <h3 className={styles.section_subtitle}>Адреса работ</h3>
                     <div className={styles.section_item}>
+                        <h3>Район работы</h3>
                         <div className={styles.section_content}>
                             {profileData.workArea ? (
                                 <div className={styles.work_area}>
@@ -2843,8 +3056,8 @@ function MasterProfilePage() {
                     </div>
 
                     {/* Услуги и цены */}
-                    <h3 className={styles.section_subtitle}>Услуги и цены</h3>
                     <div className={styles.section_item}>
+                        <h3>Услуги и цены</h3>
                         <div className={styles.section_content}>
                             {servicesLoading ? (
                                 <div className={styles.loading}>Загрузка услуг...</div>
@@ -2853,14 +3066,14 @@ function MasterProfilePage() {
                                     {services.map(service => (
                                         <div key={service.id} className={styles.service_item}>
                                             <div className={styles.service_header}>
-                            <span className={styles.service_name}>
-                                {service.title}
-                                {service.description && (
-                                    <div className={styles.service_description}>
-                                        {cleanText(service.description)}
-                                    </div>
-                                )}
-                            </span>
+                                                <span className={styles.service_name}>
+                                                    {service.title}
+                                                    {service.description && (
+                                                        <div className={styles.service_description}>
+                                                            {cleanText(service.description)}
+                                                        </div>
+                                                    )}
+                                                </span>
                                                 <div className={styles.service_actions}>
                                                     <button
                                                         className={styles.edit_service_btn}
@@ -2913,8 +3126,8 @@ function MasterProfilePage() {
                                                 </div>
                                             </div>
                                             <span className={styles.service_price}>
-                            {service.budget} TJS, {service.unit?.title || 'TJS'}
-                        </span>
+                                                {service.budget} TJS, {service.unit?.title || 'TJS'}
+                                            </span>
                                         </div>
                                     ))}
 
@@ -2937,7 +3150,7 @@ function MasterProfilePage() {
                                         onClick={() => navigate('/profile/services')}
                                     >
                                         +
-                                </button>
+                                    </button>
                                 </div>
                             )}
                         </div>
@@ -2946,11 +3159,7 @@ function MasterProfilePage() {
 
                 {/* Секция отзывов */}
                 <div className={styles.reviews_section}>
-                    <h2 className={styles.section_title}>Отзывы от клиентов</h2>
-                    <p className={styles.section_subtitle}>
-                        Клиенты оставили отзывы о работе с вами
-                    </p>
-
+                    <h3>Отзывы</h3>
                     <div className={styles.reviews_list}>
                         {reviewsLoading ? (
                             <div className={styles.loading}>Загрузка отзывов...</div>
@@ -2964,16 +3173,40 @@ function MasterProfilePage() {
                                                     <img
                                                         src={getReviewerAvatarUrl(review)}
                                                         alt={getReviewerName(review)}
-                                                        onClick={() => handleClientProfileClick(review.client.id)}
+                                                        onClick={() => handleClientProfileClick(review.reviewer.id)}
                                                         style={{ cursor: 'pointer' }}
                                                         className={styles.reviewer_avatar}
                                                         onError={(e) => {
-                                                            e.currentTarget.src = "../default_user.png";
+                                                            e.currentTarget.src = "./fonTest5.png";
                                                         }}
                                                     />
                                                     <div className={styles.reviewer_main_info}>
                                                         <div className={styles.reviewer_name}>{getClientName(review)}</div>
-                                                        <span className={styles.review_worker}>{review.ticket.title}</span>
+                                                        {/* Показываем название услуги из ticket.title */}
+                                                        <div className={styles.review_service}>
+                                                            Услуга: <span className={styles.service_title}>{review.services.title}</span>
+                                                        </div>
+                                                        <span className={styles.review_worker}>{getMasterName(review)}</span>
+                                                        <div className={styles.review_rating_main}>
+                                                            <span>Поставил: </span>
+                                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                <g clipPath="url(#clip0_324_2272)">
+                                                                    <g clipPath="url(#clip1_324_2272)">
+                                                                        <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                                                        <path d="M12 19V18.98" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
+                                                                    </g>
+                                                                </g>
+                                                                <defs>
+                                                                    <clipPath id="clip0_324_2272">
+                                                                        <rect width="24" height="24" fill="white"/>
+                                                                    </clipPath>
+                                                                    <clipPath id="clip1_324_2272">
+                                                                        <rect width="24" height="24" fill="white"/>
+                                                                    </clipPath>
+                                                                </defs>
+                                                            </svg>
+                                                            <span className={styles.rating_value}>{review.rating}</span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -2982,33 +3215,33 @@ function MasterProfilePage() {
                                                 <div className={styles.review_worker_date}>
                                                     <span className={styles.review_date}>{review.date}</span>
                                                 </div>
-                                                <div className={styles.review_rating_secondary}>
-                                                    <span>Поставил </span>
-                                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                        <g clipPath="url(#clip0_324_2272)">
-                                                            <g clipPath="url(#clip1_324_2272)">
-                                                                <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                                                <path d="M12 19V18.98" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
-                                                            </g>
-                                                        </g>
-                                                        <defs>
-                                                            <clipPath id="clip0_324_2272">
-                                                                <rect width="24" height="24" fill="white"/>
-                                                            </clipPath>
-                                                            <clipPath id="clip1_324_2272">
-                                                                <rect width="24" height="24" fill="white"/>
-                                                            </clipPath>
-                                                        </defs>
-                                                    </svg>
-                                                    <span className={styles.rating_value}>{review.rating}</span>
-                                                </div>
-                                                </div>
+                                                {/*<div className={styles.review_rating_secondary}>*/}
+                                                    {/*<span>Поставил </span>*/}
+                                                    {/*<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">*/}
+                                                    {/*    <g clipPath="url(#clip0_324_2272)">*/}
+                                                    {/*        <g clipPath="url(#clip1_324_2272)">*/}
+                                                    {/*            <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>*/}
+                                                    {/*            <path d="M12 19V18.98" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>*/}
+                                                    {/*        </g>*/}
+                                                    {/*    </g>*/}
+                                                    {/*    <defs>*/}
+                                                    {/*        <clipPath id="clip0_324_2272">*/}
+                                                    {/*            <rect width="24" height="24" fill="white"/>*/}
+                                                    {/*        </clipPath>*/}
+                                                    {/*        <clipPath id="clip1_324_2272">*/}
+                                                    {/*            <rect width="24" height="24" fill="white"/>*/}
+                                                    {/*        </clipPath>*/}
+                                                    {/*    </defs>*/}
+                                                    {/*</svg>*/}
+                                                    {/*<span className={styles.rating_value}>{review.rating}</span>*/}
+                                                {/*</div>*/}
+                                            </div>
 
-                                                {review.description && (
-                                                    <div className={styles.review_text}>
-                                                        {review.description.replace(/<[^>]*>/g, '')}
-                                                    </div>
-                                                )}
+                                            {review.description && (
+                                                <div className={styles.review_text}>
+                                                    {review.description.replace(/<[^>]*>/g, '')}
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
@@ -3027,43 +3260,40 @@ function MasterProfilePage() {
                                                             <img
                                                                 src={getReviewerAvatarUrl(review)}
                                                                 alt={getReviewerName(review)}
-                                                                onClick={() => handleClientProfileClick(review.client.id)}
+                                                                onClick={() => handleClientProfileClick(review.reviewer.id)}
                                                                 style={{ cursor: 'pointer' }}
                                                                 className={styles.reviewer_avatar}
                                                                 onError={(e) => {
-                                                                    e.currentTarget.src = "../default_user.png";
+                                                                    e.currentTarget.src = "./fonTest5.png";
                                                                 }}
                                                             />
                                                             <div className={styles.reviewer_main_info}>
                                                                 <div className={styles.reviewer_name}>{getClientName(review)}</div>
-                                                                <span className={styles.review_worker}>{review.ticket.title}</span>
+                                                                {/* Показываем название услуги из ticket.title */}
+                                                                <div className={styles.review_service}>
+                                                                    Услуга: <span className={styles.service_title}>{review.services.title}</span>
+                                                                </div>
+                                                                <span className={styles.review_worker}>{getMasterName(review)}</span>
+                                                                <div className={styles.review_rating_main}>
+                                                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                        <g clipPath="url(#clip0_324_2272)">
+                                                                            <g clipPath="url(#clip1_324_2272)">
+                                                                                <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                                                                <path d="M12 19V18.98" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
+                                                                            </g>
+                                                                        </g>
+                                                                        <defs>
+                                                                            <clipPath id="clip0_324_2272">
+                                                                                <rect width="24" height="24" fill="white"/>
+                                                                            </clipPath>
+                                                                            <clipPath id="clip1_324_2272">
+                                                                                <rect width="24" height="24" fill="white"/>
+                                                                            </clipPath>
+                                                                        </defs>
+                                                                    </svg>
+                                                                    <span className={styles.rating_value}>{review.rating}</span>
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className={styles.review_details}>
-                                                        <div className={styles.review_worker_date}>
-                                                            <span className={styles.review_date}>{formatDate(review.date)}</span>
-                                                        </div>
-                                                        <div className={styles.review_rating_secondary}>
-                                                            <span>Поставил </span>
-                                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                <g clipPath="url(#clip0_324_2272)">
-                                                                    <g clipPath="url(#clip1_324_2272)">
-                                                                        <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                                                        <path d="M12 19V18.98" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
-                                                                    </g>
-                                                                </g>
-                                                                <defs>
-                                                                    <clipPath id="clip0_324_2272">
-                                                                        <rect width="24" height="24" fill="white"/>
-                                                                    </clipPath>
-                                                                    <clipPath id="clip1_324_2272">
-                                                                        <rect width="24" height="24" fill="white"/>
-                                                                    </clipPath>
-                                                                </defs>
-                                                            </svg>
-                                                            <span className={styles.rating_value}>{review.rating}</span>
                                                         </div>
                                                     </div>
 
@@ -3115,7 +3345,6 @@ function MasterProfilePage() {
                         </div>
 
                         <div className={styles.modalContent}>
-                            {/* Поле для комментария */}
                             <div className={styles.commentSection}>
                                 <textarea
                                     value={reviewText}
@@ -3125,7 +3354,6 @@ function MasterProfilePage() {
                                 />
                             </div>
 
-                            {/* Загрузка фото */}
                             <div className={styles.photoSection}>
                                 <label>Приложите фото</label>
                                 <div className={styles.photoUploadContainer}>
@@ -3164,7 +3392,6 @@ function MasterProfilePage() {
                                 </div>
                             </div>
 
-                            {/* Рейтинг звездами */}
                             <div className={styles.ratingSection}>
                                 <label>Поставьте оценку</label>
                                 <div className={styles.stars}>
@@ -3192,7 +3419,6 @@ function MasterProfilePage() {
                             </div>
                         </div>
 
-                        {/* Кнопки модалки */}
                         <div className={styles.modalActions}>
                             <button
                                 className={styles.closeButton}

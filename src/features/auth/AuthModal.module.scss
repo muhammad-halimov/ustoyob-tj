@@ -94,7 +94,7 @@
 
     .telegramButton, .googleButton {
       max-width: 62px;
-      margin-right: map.get(vars.$spacing, 5);
+      //margin-right: map.get(vars.$spacing, 5);
       cursor: pointer;
     }
 
@@ -505,4 +505,11 @@
   strong {
     color: #333;
   }
+}
+
+.facebookButton,
+.instagramButton {
+  background: none;
+  border: none;
+  cursor: pointer;
 }

@@ -3,6 +3,7 @@ import { getAuthToken, getUserRole } from '../../utils/auth';
 import styles from './FavoritePage.module.scss';
 import { useNavigate } from 'react-router-dom';
 import { createChatWithAuthor } from "../../utils/chatUtils";
+import {cleanText} from "../../utils/cleanText.ts";
 
 interface FavoriteTicket {
     id: number;
@@ -101,7 +102,17 @@ interface ApiTicket {
     description: string;
     budget: number;
     unit: { id: number; title: string };
-    address: {
+    addresses?: Array<{
+        id: number;
+        province?: { id: number; title: string };
+        city?: { image: string | null; id: number; title: string };
+        district?: { id: number; title: string };
+        suburb?: { id: number; title: string };
+        village?: { id: number; title: string };
+        settlement?: { id: number; title: string };
+        community?: { id: number; title: string };
+    }>;
+    address?: {
         title?: string;
         city?: { title?: string }
     } | null;
@@ -547,18 +558,29 @@ function FavoritesPage() {
     };
 
     const getFullAddress = (ticket: ApiTicket): string => {
-        // Сначала проверяем district
+        // Проверяем новый формат с addresses
+        if (ticket.addresses && ticket.addresses.length > 0) {
+            const address = ticket.addresses[0];
+            const parts = [];
+
+            if (address.city?.title) parts.push(address.city.title);
+            if (address.province?.title) parts.push(address.province.title);
+            if (address.district?.title) parts.push(address.district.title);
+            if (address.suburb?.title) parts.push(address.suburb.title);
+            if (address.village?.title) parts.push(address.village.title);
+            if (address.settlement?.title) parts.push(address.settlement.title);
+            if (address.community?.title) parts.push(address.community.title);
+
+            return parts.join(', ') || 'Адрес не указан';
+        }
+
+        // Старый формат (для обратной совместимости)
         const districtTitle = ticket.district?.title || '';
         const districtCity = ticket.district?.city?.title || '';
-
-        // Затем проверяем address
         const addressTitle = ticket.address?.title || '';
         const addressCity = ticket.address?.city?.title || '';
 
-        // Используем city из district или address
         const city = districtCity || addressCity;
-
-        // Формируем адрес
         const parts = [];
         if (city) parts.push(city);
         if (districtTitle) parts.push(districtTitle);
@@ -1384,7 +1406,7 @@ function FavoritesPage() {
                             <p>{ticket.status}</p>
                         </div>
                         <div className={styles.recommendation_item_description}>
-                            <p>{ticket.description}</p>
+                            <p>{cleanText(ticket.description)}</p>
                             <div className={styles.recommendation_item_inform}>
                                 <div className={styles.recommendation_item_locate}>
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

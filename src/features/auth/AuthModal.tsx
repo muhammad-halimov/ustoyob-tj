@@ -53,11 +53,11 @@ interface LoginResponse {
     token: string;
 }
 
-interface GoogleAuthUrlResponse {
+interface OAuthUrlResponse {
     url: string;
 }
 
-interface GoogleUserResponse {
+interface OAuthUserResponse {
     user: {
         id: number;
         email: string;
@@ -66,7 +66,10 @@ interface GoogleUserResponse {
         roles: string[];
         occupation?: Array<{id: number; title: string; [key: string]: unknown}>;
         oauthType?: {
-            googleId: string;
+            googleId?: string;
+            instagramId?: string;
+            facebookId?: string;
+            telegramId?: string;
             [key: string]: unknown;
         };
         [key: string]: unknown;
@@ -104,6 +107,14 @@ interface TelegramAuthCallbackData {
     hash: string;
 }
 
+// Типы для OAuth провайдеров
+type OAuthProvider = 'google' | 'instagram' | 'facebook' | 'telegram';
+interface OAuthCallbackData {
+    code: string;
+    state: string;
+    provider: OAuthProvider;
+}
+
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => {
     const [currentState, setCurrentState] = useState<AuthModalStateType>(AuthModalState.WELCOME);
     const [categories, setCategories] = useState<Category[]>([]);
@@ -122,8 +133,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string>('');
     const [registeredEmail, setRegisteredEmail] = useState<string>('');
-    const [googleCallbackData, setGoogleCallbackData] = useState<{code: string, state: string} | null>(null);
+    const [oauthCallbackData, setOAuthCallbackData] = useState<OAuthCallbackData | null>(null);
     const [isCheckingProfile, setIsCheckingProfile] = useState(false);
+    const [activeOAuthProvider, setActiveOAuthProvider] = useState<OAuthProvider | null>(null);
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -135,9 +147,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         const code = urlParams.get('code');
         const state = urlParams.get('state');
         const oauthError = urlParams.get('error');
+        const provider = urlParams.get('provider') as OAuthProvider;
 
         // Очищаем URL от параметров OAuth
-        if (code || state || oauthError) {
+        if (code || state || oauthError || provider) {
             window.history.replaceState({}, '', window.location.pathname);
         }
 
@@ -147,20 +160,21 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             return;
         }
 
-        // Если есть код авторизации Google
-        if (code && state) {
-            console.log('Google callback received:', { code, state });
-            handleGoogleCallback(code, state);
+        // Если есть код авторизации
+        if (code && state && provider) {
+            console.log(`${provider.toUpperCase()} callback received:`, { code, state });
+            handleOAuthCallback(code, state, provider);
         }
     }, [isOpen]);
 
-    // Функция обработки Google callback
-    const handleGoogleCallback = async (code: string, state: string) => {
+    // Функция обработки OAuth callback
+    const handleOAuthCallback = async (code: string, state: string, provider: OAuthProvider) => {
         try {
             setIsCheckingProfile(true);
 
             // Сохраняем callback данные
-            setGoogleCallbackData({ code, state });
+            setOAuthCallbackData({ code, state, provider });
+            setActiveOAuthProvider(provider);
 
             // Показываем экран логина с выбором роли (если нужно)
             setCurrentState(AuthModalState.LOGIN);
@@ -218,7 +232,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
                 if (data.event === 'auth_callback') {
                     const authData: TelegramAuthCallbackData = data.auth;
-                    handleTelegramCallback(authData);
+                    handleTelegramWidgetCallback(authData);
                 }
             } catch (err) {
                 console.error('Error processing Telegram auth:', err);
@@ -233,71 +247,74 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         };
     }, [API_BASE_URL]);
 
-    // Функция для начала Google авторизации
-    const handleGoogleAuth = () => {
+    // Общая функция для начала OAuth авторизации
+    const handleOAuthStart = (provider: OAuthProvider) => {
         try {
             // Сохраняем выбранную роль и специальность
-            sessionStorage.setItem('pendingGoogleRole', formData.role);
+            sessionStorage.setItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Role`, formData.role);
             if (formData.role === 'master' && formData.specialty) {
-                sessionStorage.setItem('pendingGoogleSpecialty', formData.specialty);
+                sessionStorage.setItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Specialty`, formData.specialty);
             }
 
-            console.log('Saved role to sessionStorage:', formData.role);
+            console.log(`Saved role to sessionStorage for ${provider}:`, formData.role);
 
             // Генерируем случайный state для CSRF
             const csrfState = Math.random().toString(36).substring(2);
-            sessionStorage.setItem('googleCsrfState', csrfState);
+            sessionStorage.setItem(`${provider}CsrfState`, csrfState);
 
-            // Получаем URL для Google OAuth
-            fetch(`${API_BASE_URL}/api/auth/google/url?state=${encodeURIComponent(csrfState)}`, {
+            // Получаем URL для OAuth
+            fetch(`${API_BASE_URL}/api/auth/${provider}/url?state=${encodeURIComponent(csrfState)}`, {
                 method: 'GET',
                 headers: { 'Accept': 'application/json' },
             })
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error('Не удалось получить URL для авторизации через Google');
+                        throw new Error(`Не удалось получить URL для авторизации через ${provider.charAt(0).toUpperCase() + provider.slice(1)}`);
                     }
                     return response.json();
                 })
-                .then((data: GoogleAuthUrlResponse) => {
-                    console.log('Redirecting to Google OAuth with role:', formData.role);
+                .then((data: OAuthUrlResponse) => {
+                    console.log(`Redirecting to ${provider.toUpperCase()} OAuth with role:`, formData.role);
 
-                    // Закрываем модалку и перенаправляем на Google
+                    // Закрываем модалку и перенаправляем на OAuth
                     onClose();
                     window.location.href = data.url;
                 })
                 .catch(err => {
-                    console.error('Google auth error:', err);
-                    setError(err instanceof Error ? err.message : 'Ошибка при авторизации через Google');
+                    console.error(`${provider.toUpperCase()} auth error:`, err);
+                    setError(err instanceof Error ? err.message : `Ошибка при авторизации через ${provider.charAt(0).toUpperCase() + provider.slice(1)}`);
 
                     // Очищаем сохраненные данные при ошибке
-                    sessionStorage.removeItem('pendingGoogleRole');
-                    sessionStorage.removeItem('pendingGoogleSpecialty');
-                    sessionStorage.removeItem('googleCsrfState');
+                    sessionStorage.removeItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Role`);
+                    sessionStorage.removeItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Specialty`);
+                    sessionStorage.removeItem(`${provider}CsrfState`);
                 });
 
         } catch (err) {
-            console.error('Google auth error:', err);
-            setError(err instanceof Error ? err.message : 'Ошибка при авторизации через Google');
+            console.error(`${provider.toUpperCase()} auth error:`, err);
+            setError(err instanceof Error ? err.message : `Ошибка при авторизации через ${provider.charAt(0).toUpperCase() + provider.slice(1)}`);
 
             // Очищаем сохраненные данные при ошибке
-            sessionStorage.removeItem('pendingGoogleRole');
-            sessionStorage.removeItem('pendingGoogleSpecialty');
-            sessionStorage.removeItem('googleCsrfState');
+            sessionStorage.removeItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Role`);
+            sessionStorage.removeItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Specialty`);
+            sessionStorage.removeItem(`${provider}CsrfState`);
         }
     };
 
-    // Функция для завершения Google авторизации
-    const completeGoogleAuth = async () => {
+    // Функция для завершения OAuth авторизации
+    const completeOAuth = async () => {
+        if (!oauthCallbackData?.code || !oauthCallbackData?.state || !oauthCallbackData?.provider) {
+            setError('Нет данных OAuth');
+            return;
+        }
+
         try {
             setIsLoading(true);
             setError('');
 
-            if (!googleCallbackData?.code || !googleCallbackData?.state) {
-                throw new Error('Нет данных Google OAuth');
-            }
+            const { code, state, provider } = oauthCallbackData;
 
-            console.log('Completing Google auth with role:', formData.role);
+            console.log(`Completing ${provider.toUpperCase()} auth with role:`, formData.role);
 
             // Подготавливаем запрос
             const requestData: {
@@ -306,8 +323,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 role: string;
                 occupation?: string;
             } = {
-                code: googleCallbackData.code,
-                state: googleCallbackData.state,
+                code,
+                state,
                 role: formData.role // "master" или "client"
             };
 
@@ -316,10 +333,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 requestData.occupation = `${API_BASE_URL}/api/occupations/${formData.specialty}`;
             }
 
-            console.log('Sending Google callback request:', requestData);
+            console.log(`Sending ${provider.toUpperCase()} callback request:`, requestData);
 
             // Отправляем запрос
-            const response = await fetch(`${API_BASE_URL}/api/auth/google/callback`, {
+            const response = await fetch(`${API_BASE_URL}/api/auth/${provider}/callback`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -331,29 +348,30 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('Server error response:', errorText);
-                throw new Error(`Ошибка авторизации Google: ${errorText}`);
+                throw new Error(`Ошибка авторизации ${provider.charAt(0).toUpperCase() + provider.slice(1)}: ${errorText}`);
             }
 
-            const data: GoogleUserResponse = await response.json();
-            console.log('Google auth completed successfully:', data);
+            const data: OAuthUserResponse = await response.json();
+            console.log(`${provider.toUpperCase()} auth completed successfully:`, data);
 
             // Сохраняем данные пользователя
             saveUserData(data);
             handleSuccessfulAuth(data.token, data.user.email);
 
             // Очищаем временные данные
-            setGoogleCallbackData(null);
+            setOAuthCallbackData(null);
+            setActiveOAuthProvider(null);
 
         } catch (err) {
-            console.error('Google auth completion error:', err);
-            setError(err instanceof Error ? err.message : 'Ошибка завершения авторизации Google');
+            console.error('OAuth completion error:', err);
+            setError(err instanceof Error ? err.message : 'Ошибка завершения авторизации');
         } finally {
             setIsLoading(false);
         }
     };
 
     // Функция для сохранения данных пользователя
-    const saveUserData = (data: GoogleUserResponse | TelegramAuthResponse) => {
+    const saveUserData = (data: OAuthUserResponse | TelegramAuthResponse) => {
         console.log('Saving user data:', data);
 
         if (data.token) {
@@ -393,12 +411,49 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         }
     };
 
-    const handleTelegramCallback = async (authData: TelegramAuthCallbackData) => {
+    // Обработка Telegram Widget callback
+    const handleTelegramWidgetCallback = async (authData: TelegramAuthCallbackData) => {
         try {
             setIsLoading(true);
             setError('');
 
-            console.log('Processing Telegram auth data:', authData);
+            console.log('Processing Telegram widget auth data:', authData);
+
+            // Получаем сохраненную роль
+            const savedRole = sessionStorage.getItem('pendingTelegramRole') || formData.role;
+            const savedSpecialty = sessionStorage.getItem('pendingTelegramSpecialty');
+
+            // Подготавливаем данные для отправки
+            const requestData: {
+                id: number;
+                username?: string;
+                firstName: string;
+                lastName?: string;
+                photoUrl?: string;
+                role: string;
+                occupation?: string;
+            } = {
+                id: authData.id,
+                firstName: authData.first_name,
+                role: savedRole
+            };
+
+            if (authData.username) {
+                requestData.username = authData.username;
+            }
+            if (authData.last_name) {
+                requestData.lastName = authData.last_name;
+            }
+            if (authData.photo_url) {
+                requestData.photoUrl = authData.photo_url;
+            }
+
+            // Если выбрана роль мастера и есть специальность
+            if (savedRole === 'master' && savedSpecialty) {
+                requestData.occupation = `${API_BASE_URL}/api/occupations/${savedSpecialty}`;
+            }
+
+            console.log('Sending Telegram widget callback request:', requestData);
 
             const response = await fetch(`${API_BASE_URL}/api/auth/telegram/callback`, {
                 method: 'POST',
@@ -406,47 +461,42 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
                 },
-                body: JSON.stringify(authData)
+                body: JSON.stringify(requestData)
             });
 
             if (!response.ok) {
-                let errorMessage = 'Ошибка авторизации через Telegram';
-                const responseText = await response.text();
-
-                try {
-                    const errorData = JSON.parse(responseText);
-                    errorMessage = errorData.detail || errorData.message || errorMessage;
-                } catch {
-                    errorMessage = responseText || `HTTP error! status: ${response.status}`;
-                }
-
-                throw new Error(errorMessage);
+                const errorText = await response.text();
+                throw new Error(`Ошибка авторизации Telegram: ${errorText}`);
             }
 
-            const data: TelegramAuthResponse = await response.json();
-            console.log('Telegram auth successful, data:', data);
+            const data: OAuthUserResponse = await response.json();
+            console.log('Telegram widget auth completed successfully:', data);
 
-            if (data.token) {
-                saveUserData(data);
-                handleSuccessfulAuth(data.token, data.user?.email);
-            } else {
-                if (data.user) {
-                    localStorage.setItem('telegramUserData', JSON.stringify(data.user));
-                    setCurrentState(AuthModalState.TELEGRAM_ROLE_SELECT);
-                } else {
-                    throw new Error('Данные пользователя не получены');
-                }
-            }
+            // Сохраняем данные пользователя
+            saveUserData(data);
+            handleSuccessfulAuth(data.token, data.user.email);
+
+            // Очищаем временные данные
+            sessionStorage.removeItem('pendingTelegramRole');
+            sessionStorage.removeItem('pendingTelegramSpecialty');
+            sessionStorage.removeItem('telegramCsrfState');
 
         } catch (err) {
-            console.error('Telegram auth callback error:', err);
+            console.error('Telegram widget callback error:', err);
             setError(err instanceof Error ? err.message : 'Ошибка при завершении авторизации через Telegram');
         } finally {
             setIsLoading(false);
         }
     };
 
+    // Функция для Telegram Widget
     const handleTelegramAuthClick = () => {
+        // Сохраняем роль перед началом авторизации
+        sessionStorage.setItem('pendingTelegramRole', formData.role);
+        if (formData.role === 'master' && formData.specialty) {
+            sessionStorage.setItem('pendingTelegramSpecialty', formData.specialty);
+        }
+
         const telegramWidgetContainer = document.getElementById('telegram-widget-container');
         if (telegramWidgetContainer) {
             telegramWidgetContainer.innerHTML = '';
@@ -458,13 +508,59 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             script.setAttribute('data-size', 'large');
             script.setAttribute('data-userpic', 'false');
             script.setAttribute('data-radius', '20');
-            script.setAttribute('data-auth-url', 'https://ustoyob.tj/auth/telegram');
+            script.setAttribute('data-auth-url', `${window.location.origin}/auth/telegram/callback`);
             script.setAttribute('data-request-access', 'write');
 
             telegramWidgetContainer.appendChild(script);
         }
     };
 
+    // Старая функция для Telegram (оставляем для обратной совместимости)
+    // const handleTelegramCallback = async (authData: TelegramAuthCallbackData) => {
+    //     try {
+    //         setIsLoading(true);
+    //         setError('');
+    //
+    //         console.log('Processing Telegram auth data:', authData);
+    //
+    //         const response = await fetch(`${API_BASE_URL}/api/auth/telegram/callback`, {
+    //             method: 'POST',
+    //             headers: {
+    //                 'Content-Type': 'application/json',
+    //                 'Accept': 'application/json',
+    //             },
+    //             body: JSON.stringify(authData)
+    //         });
+    //
+    //         if (!response.ok) {
+    //             const errorText = await response.text();
+    //             throw new Error(`Ошибка авторизации через Telegram: ${errorText}`);
+    //         }
+    //
+    //         const data: TelegramAuthResponse = await response.json();
+    //         console.log('Telegram auth successful, data:', data);
+    //
+    //         if (data.token) {
+    //             saveUserData(data);
+    //             handleSuccessfulAuth(data.token, data.user?.email);
+    //         } else {
+    //             if (data.user) {
+    //                 localStorage.setItem('telegramUserData', JSON.stringify(data.user));
+    //                 setCurrentState(AuthModalState.TELEGRAM_ROLE_SELECT);
+    //             } else {
+    //                 throw new Error('Данные пользователя не получены');
+    //             }
+    //         }
+    //
+    //     } catch (err) {
+    //         console.error('Telegram auth callback error:', err);
+    //         setError(err instanceof Error ? err.message : 'Ошибка при завершении авторизации через Telegram');
+    //     } finally {
+    //         setIsLoading(false);
+    //     }
+    // };
+
+    // Старая функция (оставляем для обратной совместимости)
     const completeTelegramAuth = async (selectedRole: 'master' | 'client' = 'client') => {
         try {
             setIsLoading(true);
@@ -491,17 +587,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             });
 
             if (!response.ok) {
-                let errorMessage = 'Ошибка завершения авторизации через Telegram';
-                const responseText = await response.text();
-
-                try {
-                    const errorData = JSON.parse(responseText);
-                    errorMessage = errorData.detail || errorData.message || errorMessage;
-                } catch {
-                    errorMessage = responseText || `HTTP error! status: ${response.status}`;
-                }
-
-                throw new Error(errorMessage);
+                const errorText = await response.text();
+                throw new Error(`Ошибка завершения авторизации через Telegram: ${errorText}`);
             }
 
             const data: TelegramAuthResponse = await response.json();
@@ -568,16 +655,26 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     setUserEmail(userData.email);
                 }
 
-                // Определяем роль
+                // Определяем роль из данных пользователя
+                let userRole = formData.role; // По умолчанию берем из формы
+
                 if (userData.roles && userData.roles.length > 0) {
                     const roles = userData.roles.map((r: string) => r.toLowerCase());
 
                     if (roles.includes('role_master') || roles.includes('master')) {
-                        setUserRole('master');
+                        userRole = 'master';
                     } else if (roles.includes('role_client') || roles.includes('client')) {
-                        setUserRole('client');
+                        userRole = 'client';
                     }
+
+                    console.log('User roles from API:', userData.roles);
+                    console.log('Detected role from API:', userRole);
+                } else {
+                    console.log('No roles in API response, using role from form:', userRole);
                 }
+
+                // Устанавливаем роль
+                setUserRole(userRole);
 
                 // Сохраняем occupation если есть
                 if (userData.occupation) {
@@ -683,7 +780,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         }
 
         // Подготавливаем данные пользователя
-        const baseUserData: {
+        const userData: {
             email: string;
             name: string;
             surname: string;
@@ -697,25 +794,35 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             password: formData.password,
         };
 
-        // ДОБАВЛЯЕМ РОЛЬ в регистрации
-        baseUserData.roles = formData.role === 'master' ? ['ROLE_MASTER', 'ROLE_USER'] : ['ROLE_CLIENT', 'ROLE_USER'];
+        // Формируем массив ролей - пробуем разные форматы
+        const rolesArray = [];
+
+        // ВАРИАНТ 1: Только основная роль без ROLE_USER
+        if (formData.role === 'master') {
+            rolesArray.push('ROLE_MASTER');
+        } else {
+            rolesArray.push('ROLE_CLIENT');
+        }
+
+        userData.roles = rolesArray;
 
         // Добавляем occupation для мастера
         if (formData.role === 'master' && formData.specialty) {
-            baseUserData.occupation = [`${API_BASE_URL}/api/occupations/${formData.specialty}`];
-            console.log('Adding occupation for master:', baseUserData.occupation);
+            userData.occupation = [`${API_BASE_URL}/api/occupations/${formData.specialty}`];
+            console.log('Adding occupation for master:', userData.occupation);
         }
 
-        console.log('Sending registration data:', baseUserData);
+        console.log('Sending registration data:', userData);
 
         try {
+            // 1. Регистрируем пользователя
             const createResponse = await fetch(`${API_BASE_URL}/api/users`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
                 },
-                body: JSON.stringify(baseUserData)
+                body: JSON.stringify(userData)
             });
 
             const createResponseText = await createResponse.text();
@@ -737,7 +844,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 throw new Error(errorMessage);
             }
 
-            // Логин после регистрации
+            // 2. Логинимся после регистрации
             const loginResponse = await fetch(`${API_BASE_URL}/api/authentication_token`, {
                 method: 'POST',
                 headers: {
@@ -758,16 +865,74 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
             const loginData: LoginResponse = await loginResponse.json();
 
-            // Сохраняем токен и данные
+            if (!loginData.token) {
+                throw new Error('Токен не получен в ответе');
+            }
+
+            // 3. Сохраняем токен
             setAuthToken(loginData.token);
             setTokenExpiry();
+
+            // 4. Сохраняем роль из формы регистрации в localStorage
+            // Это делаем сразу, потому что сервер может не сразу вернуть роли
             setUserRole(formData.role);
+            console.log('Setting user role from registration form:', formData.role);
 
-            // Получаем и сохраняем данные пользователя
-            await fetchUserData(loginData.token);
+            // 5. Попробуем назначить роль через grant-role (но не блокируемся на ошибке)
+            try {
+                await grantUserRole(loginData.token, formData.role);
+            } catch (grantErr) {
+                console.warn('Could not grant role via API, using role from form:', grantErr);
+            }
 
+            // 6. Пытаемся получить данные пользователя (может вернуть 403 до подтверждения)
+            try {
+                const userResponse = await fetch(`${API_BASE_URL}/api/users/me`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${loginData.token}`,
+                        'Accept': 'application/json',
+                    }
+                });
+
+                if (userResponse.ok) {
+                    const userData = await userResponse.json();
+                    console.log('User data after registration:', userData);
+
+                    // Сохраняем данные пользователя
+                    setUserData(userData);
+
+                    if (userData.email) {
+                        setUserEmail(userData.email);
+                    }
+
+                    // Проверяем роли из API
+                    if (userData.roles && userData.roles.length > 0) {
+                        console.log('User roles from API:', userData.roles);
+
+                        const roles = userData.roles.map((r: string) => r.toLowerCase());
+
+                        if (roles.includes('role_master') || roles.includes('master')) {
+                            setUserRole('master');
+                            console.log('Setting role from API as master');
+                        } else if (roles.includes('role_client') || roles.includes('client')) {
+                            setUserRole('client');
+                            console.log('Setting role from API as client');
+                        }
+                    }
+                } else {
+                    console.warn('Could not fetch user data from /me endpoint (expected for new users)');
+                }
+            } catch (userErr) {
+                console.error('Error fetching user data after registration:', userErr);
+            }
+
+            // 7. Отправляем пользователя на подтверждение email
             setRegisteredEmail(email);
             setCurrentState(AuthModalState.CONFIRM_EMAIL);
+
+            // 8. Отправляем успешный auth с токеном
+            handleSuccessfulAuth(loginData.token, email);
 
         } catch (err) {
             console.error('Registration error:', err);
@@ -777,14 +942,91 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         }
     };
 
+    const grantUserRole = async (token: string, role: 'master' | 'client'): Promise<boolean> => {
+        try {
+            console.log('Granting role:', role);
+
+            // Возможно, нужно использовать другие значения ролей
+            // Попробуем разные варианты
+            const roleValue = role === 'master' ? 'MASTER' : 'CLIENT';
+
+            console.log('Trying to grant role:', roleValue);
+
+            const response = await fetch(`${API_BASE_URL}/api/users/grant-role`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({
+                    role: roleValue
+                })
+            });
+
+            const responseText = await response.text();
+            console.log('Grant role response:', response.status, responseText);
+
+            if (response.ok) {
+                console.log('Role granted successfully');
+                return true;
+            } else {
+                console.warn('Failed to grant role:', response.status, responseText);
+
+                // Попробуем другие форматы ролей
+                const alternativeRoleValues = [
+                    role === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT',
+                    role === 'master' ? 'master' : 'client',
+                    role === 'master' ? 'RoleMaster' : 'RoleClient'
+                ];
+
+                for (const altRole of alternativeRoleValues) {
+                    console.log('Trying alternative role:', altRole);
+                    try {
+                        const altResponse = await fetch(`${API_BASE_URL}/api/users/grant-role`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                role: altRole
+                            })
+                        });
+
+                        if (altResponse.ok) {
+                            console.log('Role granted successfully with alternative value:', altRole);
+                            return true;
+                        }
+                    } catch (err) {
+                        console.log('Failed with alternative role:', altRole);
+                    }
+                }
+
+                return false;
+            }
+        } catch (err) {
+            console.error('Error granting role:', err);
+            return false;
+        }
+    };
+
     const handleSuccessfulAuth = (token: string, email?: string) => {
         if (email) {
             setUserEmail(email);
         }
 
+        // Проверяем, есть ли уже сохраненная роль
         const existingRole = getUserRole();
-        if (!existingRole && email) {
-            console.log('New OAuth user, setting role from form:', formData.role);
+
+        // Если нет сохраненной роли, используем роль из формы
+        if (!existingRole) {
+            console.log('Setting role from form after successful auth:', formData.role);
+            setUserRole(formData.role);
+        } else {
+            console.log('Role already exists:', existingRole);
+            // Все равно обновляем роль из формы на всякий случай
             setUserRole(formData.role);
         }
 
@@ -811,14 +1053,18 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         });
         setError('');
         setCurrentState(AuthModalState.WELCOME);
-        setGoogleCallbackData(null);
+        setOAuthCallbackData(null);
+        setActiveOAuthProvider(null);
 
         // Очищаем все временные данные
-        sessionStorage.removeItem('pendingGoogleRole');
-        sessionStorage.removeItem('pendingGoogleSpecialty');
-        sessionStorage.removeItem('googleCsrfState');
+        ['google', 'instagram', 'facebook', 'telegram'].forEach(provider => {
+            sessionStorage.removeItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Role`);
+            sessionStorage.removeItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Specialty`);
+            sessionStorage.removeItem(`${provider}CsrfState`);
+        });
         localStorage.removeItem('tempGoogleToken');
         localStorage.removeItem('tempGoogleUserData');
+        localStorage.removeItem('telegramUserData');
     };
 
     const handleClose = () => {
@@ -829,6 +1075,94 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         if (e.target === e.currentTarget) {
             handleClose();
         }
+    };
+
+    // Функция для отображения экрана завершения OAuth
+    const renderOAuthCompletionScreen = () => {
+        if (!oauthCallbackData || !activeOAuthProvider) return null;
+
+        const providerNames = {
+            google: 'Google',
+            instagram: 'Instagram',
+            facebook: 'Facebook',
+            telegram: 'Telegram'
+        };
+
+        return (
+            <form onSubmit={(e) => { e.preventDefault(); completeOAuth(); }} className={styles.form}>
+                <h2>Завершение регистрации через {providerNames[activeOAuthProvider]}</h2>
+
+                <div className={styles.successMessage}>
+                    <p>Вы успешно авторизовались через {providerNames[activeOAuthProvider]}!</p>
+                    <p>Пожалуйста, выберите тип аккаунта:</p>
+                </div>
+
+                {error && <div className={styles.error}>{error}</div>}
+
+                <div className={styles.roleSelector}>
+                    <button
+                        type="button"
+                        className={formData.role === 'master' ? styles.roleButtonActive : styles.roleButton}
+                        onClick={() => handleRoleChange('master')}
+                        disabled={isLoading}
+                    >
+                        Я специалист
+                    </button>
+                    <button
+                        type="button"
+                        className={formData.role === 'client' ? styles.roleButtonActive : styles.roleButton}
+                        onClick={() => handleRoleChange('client')}
+                        disabled={isLoading}
+                    >
+                        Я заказчик
+                    </button>
+                </div>
+
+                {formData.role === 'master' && (
+                    <div className={styles.inputGroup}>
+                        <div className={styles.selectWrapper}>
+                            <select
+                                name="specialty"
+                                value={formData.specialty}
+                                onChange={handleInputChange}
+                                required={formData.role === 'master'}
+                                disabled={isLoading}
+                            >
+                                <option value="">Выберите специальность</option>
+                                {categories.map(category => (
+                                    <option key={category.id} value={category.id}>
+                                        {category.title}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                )}
+
+                <button
+                    type="submit"
+                    className={styles.primaryButton}
+                    disabled={isLoading || isCheckingProfile}
+                >
+                    {isLoading ? 'Завершение...' : 'Завершить регистрацию'}
+                </button>
+
+                <div className={styles.links}>
+                    <button
+                        type="button"
+                        className={styles.linkButton}
+                        onClick={() => {
+                            setOAuthCallbackData(null);
+                            setActiveOAuthProvider(null);
+                            setCurrentState(AuthModalState.LOGIN);
+                        }}
+                        disabled={isLoading}
+                    >
+                        Вернуться ко входу
+                    </button>
+                </div>
+            </form>
+        );
     };
 
     const renderWelcomeScreen = () => {
@@ -857,85 +1191,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
     };
 
     const renderLoginScreen = () => {
-        // Если есть Google callback данные, показываем завершение авторизации
-        if (googleCallbackData) {
-            return (
-                <form onSubmit={(e) => { e.preventDefault(); completeGoogleAuth(); }} className={styles.form}>
-                    <h2>Завершение регистрации через Google</h2>
-
-                    <div className={styles.successMessage}>
-                        <p>Вы успешно авторизовались через Google!</p>
-                        <p>Пожалуйста, выберите тип аккаунта:</p>
-                    </div>
-
-                    {error && <div className={styles.error}>{error}</div>}
-
-                    <div className={styles.roleSelector}>
-                        <button
-                            type="button"
-                            className={formData.role === 'master' ? styles.roleButtonActive : styles.roleButton}
-                            onClick={() => handleRoleChange('master')}
-                            disabled={isLoading}
-                        >
-                            Я специалист
-                        </button>
-                        <button
-                            type="button"
-                            className={formData.role === 'client' ? styles.roleButtonActive : styles.roleButton}
-                            onClick={() => handleRoleChange('client')}
-                            disabled={isLoading}
-                        >
-                            Я заказчик
-                        </button>
-                    </div>
-
-                    {formData.role === 'master' && (
-                        <div className={styles.inputGroup}>
-                            <div className={styles.selectWrapper}>
-                                <select
-                                    name="specialty"
-                                    value={formData.specialty}
-                                    onChange={handleInputChange}
-                                    required={formData.role === 'master'}
-                                    disabled={isLoading}
-                                >
-                                    <option value="">Выберите специальность</option>
-                                    {categories.map(category => (
-                                        <option key={category.id} value={category.id}>
-                                            {category.title}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-                    )}
-
-                    <button
-                        type="submit"
-                        className={styles.primaryButton}
-                        disabled={isLoading || isCheckingProfile}
-                    >
-                        {isLoading ? 'Завершение...' : 'Завершить регистрацию'}
-                    </button>
-
-                    <div className={styles.links}>
-                        <button
-                            type="button"
-                            className={styles.linkButton}
-                            onClick={() => {
-                                setGoogleCallbackData(null);
-                                setCurrentState(AuthModalState.LOGIN);
-                            }}
-                            disabled={isLoading}
-                        >
-                            Вернуться ко входу
-                        </button>
-                    </div>
-                </form>
-            );
+        // Если есть OAuth callback данные, показываем экран завершения
+        if (oauthCallbackData && activeOAuthProvider) {
+            return renderOAuthCompletionScreen();
         }
 
-        // Обычный экран логина С ВЫБОРОМ РОЛИ ДЛЯ GOOGLE
+        // Обычный экран логина
         return (
             <form onSubmit={handleLogin} className={styles.form}>
                 <h2>Вход</h2>
@@ -959,26 +1220,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         Я заказчик
                     </button>
                 </div>
-
-                {/*{formData.role === 'master' && (*/}
-                {/*    <div className={styles.inputGroup}>*/}
-                {/*        <div className={styles.selectWrapper}>*/}
-                {/*            <select*/}
-                {/*                name="specialty"*/}
-                {/*                value={formData.specialty}*/}
-                {/*                onChange={handleInputChange}*/}
-                {/*                disabled={isLoading}*/}
-                {/*            >*/}
-                {/*                <option value="">Выберите специальность (для специалиста)</option>*/}
-                {/*                {categories.map(category => (*/}
-                {/*                    <option key={category.id} value={category.id}>*/}
-                {/*                        {category.title}*/}
-                {/*                    </option>*/}
-                {/*                ))}*/}
-                {/*            </select>*/}
-                {/*        </div>*/}
-                {/*    </div>*/}
-                {/*)}*/}
 
                 <div className={styles.inputGroup}>
                     <input
@@ -1017,30 +1258,36 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     <button
                         type="button"
                         className={styles.googleButton}
-                        onClick={handleGoogleAuth}
+                        onClick={() => handleOAuthStart('google')}
                         disabled={isLoading}
+                        title="Войти через Google"
                     >
                         <img src="../chrome.png" alt="Google" />
                     </button>
                     <button
                         type="button"
-                        className={styles.googleButton}
+                        className={styles.facebookButton}
+                        onClick={() => handleOAuthStart('facebook')}
                         disabled={isLoading}
+                        title="Войти через Facebook"
                     >
                         <img src="../facebook.png" alt="Facebook" />
                     </button>
                     <button
                         type="button"
-                        className={styles.googleButton}
+                        className={styles.instagramButton}
+                        onClick={() => handleOAuthStart('instagram')}
                         disabled={isLoading}
+                        title="Войти через Instagram"
                     >
-                        <img src="../instagram.png" alt="Facebook" />
+                        <img src="../instagram.png" alt="Instagram" />
                     </button>
                     <button
                         type="button"
                         className={styles.telegramButton}
                         onClick={handleTelegramAuthClick}
                         disabled={isLoading}
+                        title="Войти через Telegram"
                     >
                         <img src="../telegram.png" alt="Telegram" />
                     </button>
@@ -1199,30 +1446,36 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     <button
                         type="button"
                         className={styles.googleButton}
-                        onClick={handleGoogleAuth}
+                        onClick={() => handleOAuthStart('google')}
                         disabled={isLoading}
+                        title="Зарегистрироваться через Google"
                     >
                         <img src="../chrome.png" alt="Google" />
                     </button>
                     <button
                         type="button"
-                        className={styles.googleButton}
+                        className={styles.facebookButton}
+                        onClick={() => handleOAuthStart('facebook')}
                         disabled={isLoading}
+                        title="Зарегистрироваться через Facebook"
                     >
                         <img src="../facebook.png" alt="Facebook" />
                     </button>
                     <button
                         type="button"
-                        className={styles.googleButton}
+                        className={styles.instagramButton}
+                        onClick={() => handleOAuthStart('instagram')}
                         disabled={isLoading}
+                        title="Зарегистрироваться через Instagram"
                     >
-                        <img src="../instagram.png" alt="Facebook" />
+                        <img src="../instagram.png" alt="Instagram" />
                     </button>
                     <button
                         type="button"
                         className={styles.telegramButton}
                         onClick={handleTelegramAuthClick}
                         disabled={isLoading}
+                        title="Зарегистрироваться через Telegram"
                     >
                         <img src="../telegram.png" alt="Telegram" />
                     </button>

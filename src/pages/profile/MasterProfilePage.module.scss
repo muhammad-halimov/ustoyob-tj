@@ -1,6 +1,25 @@
 @use '../../app/styles/variables' as vars;
 @use 'sass:map';;
 
+.profile {
+  position: relative;
+}
+
+.profile_wrap {
+  position: relative;
+}
+
+// Исправление для z-index
+.profile_content {
+  position: relative;
+  z-index: 1;
+}
+
+.about_section {
+  position: relative;
+  z-index: 1;
+}
+
 .profileSet {
   //min-height: 100vh;
   text-align: center;
@@ -246,13 +265,18 @@
 .section_item {
   width: 100%;
   display: flex;
+  flex-direction: column;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 60px;
   border-radius: 20px;
   background-color: map.get(vars.$colors, background-primary);
   padding: 20px 40px;
   min-height: 110px;
+
+  h3 {
+    margin-bottom: 10px;
+  }
 
   &:last-child {
     margin-bottom: 0;
@@ -375,7 +399,7 @@
 .services_list {
   background: #fff;
   border-radius: 12px;
-  padding: 20px;
+  //padding: 20px;
   width: 100%;
 }
 
@@ -1034,11 +1058,12 @@
 
   svg {
     margin-right: 8px;
+    margin-left: 8px;
   }
 }
 
 .rating_value {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   color: #000;
 }
@@ -2259,7 +2284,7 @@
 .service_item {
   display: flex;
   //flex-direction: column;
-  padding: 16px;
+  //padding: 16px;
   //border: 1px solid #e0e0e0;
   border-radius: 8px;
   margin-bottom: 12px;
@@ -2273,7 +2298,7 @@
 .service_header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   margin-bottom: 8px;
 }
 
@@ -2290,6 +2315,13 @@
 .service_actions {
   display: flex;
   gap: 8px;
+}
+
+.add_education_container {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding-top: 16px;
 }
 
 .edit_service_btn,
@@ -2581,18 +2613,21 @@
 }
 
 .occupation_dropdown_overlay {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  z-index: 1000;
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  margin-top: 8px;
-  max-height: 400px;
-  overflow-y: auto;
+  position: absolute !important;
+  top: 100% !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 9999 !important; // Очень высокий z-index
+  background: white !important;
+  border: 1px solid #ddd !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  margin-top: 8px !important;
+  max-height: 400px !important;
+  overflow-y: auto !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .occupation_dropdown {
@@ -2730,4 +2765,302 @@
   text-align: center;
   padding: 32px 16px;
   color: #666;
+}
+
+// Личные данные
+.personal_data_section {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 32px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.personal_data_item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 16px 0;
+  border-bottom: 1px solid #f0f0f0;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.personal_data_label {
+  flex: 1;
+  color: #666;
+  font-size: 14px;
+  line-height: 1.5;
+  min-width: 200px;
+}
+
+.personal_data_value {
+  flex: 2;
+  color: #333;
+  font-size: 16px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.email_value,
+.phone_value {
+  color: #3A54DA;
+  font-weight: 500;
+}
+
+.checkmark {
+  color: #52c41a;
+  margin-left: 8px;
+}
+
+.empty_field {
+  color: #999;
+  font-style: italic;
+}
+
+.address_display {
+  margin-bottom: 8px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.section_title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  margin: 32px 0 16px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.specialty_edit_container {
+  position: relative;
+  width: 100%;
+  margin-top: 20px;
+
+  select {
+    margin-bottom: 20px;
+    background: none;
+    border: none;
+    border-bottom: 1px solid #ddd;
+    font-size: 16px;
+
+    &:focus {
+      outline: none;
+    }
+  }
+
+}
+
+.specialty_input {
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 24px;
+  margin-top: 20px;
+
+  &:focus {
+    outline: none;
+    border-color: #007bff;
+  }
+}
+
+.occupation_dropdown_overlay {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  margin-top: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.occupation_dropdown {
+  padding: 16px;
+}
+
+.dropdown_header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eee;
+
+  h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+  }
+}
+
+.close_dropdown {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  line-height: 1;
+
+  &:hover {
+    color: #333;
+  }
+}
+
+.search_container {
+  margin-bottom: 16px;
+}
+
+.search_input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+
+  &:focus {
+    outline: none;
+    border-color: #3A54DA;
+  }
+}
+
+.occupation_list {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+}
+
+.occupation_item {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-bottom: 4px;
+
+  &:hover {
+    background-color: #f5f5f5;
+  }
+
+  &.selected {
+    background-color: #e8f0fe;
+    border: 1px solid #3A54DA;
+  }
+}
+
+.occupation_checkbox {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #ccc;
+  border-radius: 4px;
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 14px;
+  color: white;
+
+  .selected & {
+    background-color: #3A54DA;
+    border-color: #3A54DA;
+    color: white;
+  }
+}
+
+.occupation_content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.occupation_title {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 4px;
+  font-size: 14px;
+  color: #333;
+}
+
+.occupation_description {
+  display: block;
+  font-size: 12px;
+  color: #666;
+  line-height: 1.4;
+}
+
+.loading_occupations,
+.no_occupations {
+  text-align: center;
+  padding: 32px 16px;
+  color: #666;
+  font-size: 14px;
+}
+
+.dropdown_actions {
+  display: flex;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid #eee;
+}
+
+.save_occupations_btn {
+  flex: 1;
+  background-color: #3A54DA;
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+  margin-right: 20px;
+
+  &:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+  }
+
+  &:not(:disabled):hover {
+    background-color: #2a44ca;
+  }
+}
+
+.cancel_occupations_btn {
+  flex: 1;
+  background-color: #f5f5f5;
+  color: #666;
+  border: 1px solid #ddd;
+  padding: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+
+  &:hover {
+    background-color: #e5e5e5;
+  }
+}
+
+// Убедитесь, что выпадающий список виден поверх других элементов
+.profile_info {
+  position: relative;
+  z-index: 1;
+}
+
+.specialty_row {
+  position: relative;
+  z-index: 2;
 }

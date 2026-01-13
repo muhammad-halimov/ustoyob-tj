@@ -10,12 +10,13 @@ import { makeApiRequest, getCurrentUserId } from '../../utils/apiHelper';
 
 // Импорт хуков
 import { useUserData } from '../../hooks/useUserData';
-import { useReviews } from '../../hooks/useReviews';
+import { useReviews, Review } from '../../hooks/useReviews';
 import { useComplaints } from '../../hooks/useComplaints';
 
 // Компоненты
 import PhotoUploader from '../../widgets/PhotoUploader/PhotoUploader.tsx';
 
+// Обновленный интерфейс для данных пользователя
 interface ClientProfileData {
     id: string;
     fullName: string;
@@ -24,36 +25,55 @@ interface ClientProfileData {
     avatar: string | null;
     gender: string;
     phone: string;
-    phone2: string; // Добавлено поле для второго телефона
+    phone2: string;
     email: string;
-}
-
-interface Review {
-    id: number;
-    master: {
+    login?: string;
+    bio?: string;
+    dateOfBirth?: string;
+    imageExternalUrl?: string;
+    atHome?: boolean;
+    active?: boolean;
+    approved?: boolean;
+    roles?: string[];
+    socialNetworks?: Array<{
         id: number;
-        name?: string;
-        surname?: string;
-        patronymic?: string;
-        profession?: string;
-        specialization?: string;
-        image?: string;
-    };
-    rating: number;
-    description: string;
-    forReviewer: boolean;
-    services: {
+        network: string;
+        handle: string;
+    }>;
+    education?: Array<{
+        id: number;
+        uniTitle: string;
+        faculty: string;
+        beginning: number;
+        ending: number;
+        graduated: boolean;
+    }>;
+    occupation?: Array<{
         id: number;
         title: string;
-    };
-    images: Array<{
-        id: number;
         image: string;
     }>;
-    createdAt?: string;
+    addresses?: Array<{
+        id: number;
+        province?: { id: number; title: string };
+        city?: { id: number; title: string; image: string };
+        suburb?: { id: number; title: string };
+        district?: { id: number; title: string; image: string };
+        settlement?: { id: number; title: string };
+        community?: { id: number; title: string };
+        village?: { id: number; title: string };
+    }>;
+    gallery?: {
+        id: number;
+        images: Array<{
+            id: number;
+            image: string;
+        }>;
+    };
 }
 
-// Простой компонент StarRating
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 const StarRating = ({ rating, onRatingChange }: { rating: number; onRatingChange: (rating: number) => void }) => {
     return (
         <div className={styles.stars}>
@@ -81,12 +101,12 @@ const StarRating = ({ rating, onRatingChange }: { rating: number; onRatingChange
     );
 };
 
-// Компонент ReviewItem, оставленный внутри файла
+// Компонент ReviewItem
 const ReviewItem = ({ review, onMasterClick }: { review: Review; onMasterClick: (masterId: number) => void }) => {
     const reviewerName = `${review.master?.surname || ''} ${review.master?.name || ''} ${review.master?.patronymic || ''}`.trim() || 'Специалист';
-    const reviewerProfession = review.master?.profession || review.master?.specialization || 'Специалист';
+    const reviewerProfession = 'Специалист';
     const reviewDate = review.createdAt ? new Date(review.createdAt).toLocaleDateString('ru-RU') : getFormattedDate();
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+    const serviceName = review.ticket?.title || 'Услуга';
 
     // Получаем аватар мастера
     const getMasterAvatarUrl = () => {
@@ -109,6 +129,32 @@ const ReviewItem = ({ review, onMasterClick }: { review: Review; onMasterClick: 
         return possiblePaths.find(path => path && path !== "../fonTest5.png") || "../fonTest5.png";
     };
 
+    // Функция для получения URL фото отзыва
+    const getReviewImageUrl = (imagePath: string) => {
+        if (!imagePath) return "";
+
+        // Если путь уже полный URL
+        if (imagePath.startsWith('http')) {
+            return imagePath;
+        }
+
+        // Если путь начинается с /, добавляем BASE_URL
+        if (imagePath.startsWith('/')) {
+            return `${API_BASE_URL}${imagePath}`;
+        }
+
+        // Проверяем различные варианты путей для фото отзывов
+        const possiblePaths = [
+            `${API_BASE_URL}/images/review_photos/${imagePath}`,
+            `${API_BASE_URL}${imagePath}`,
+            `${API_BASE_URL}/uploads/review_photos/${imagePath}`,
+            `${API_BASE_URL}/images/${imagePath}`,
+            imagePath
+        ];
+
+        return possiblePaths.find(path => path) || "";
+    };
+
     return (
         <div key={review.id} className={styles.review_item}>
             <div className={styles.review_header}>
@@ -117,7 +163,7 @@ const ReviewItem = ({ review, onMasterClick }: { review: Review; onMasterClick: 
                         src={getMasterAvatarUrl()}
                         alt={reviewerName}
                         className={styles.reviewer_avatar}
-                        onClick={() => onMasterClick(review.master.id)}
+                        onClick={() => review.master && onMasterClick(review.master.id)}
                         style={{ cursor: 'pointer' }}
                         onError={(e) => {
                             e.currentTarget.src = "../fonTest5.png";
@@ -127,23 +173,50 @@ const ReviewItem = ({ review, onMasterClick }: { review: Review; onMasterClick: 
                     <div className={styles.reviewer_main_info}>
                         <div
                             className={styles.reviewer_name}
-                            onClick={() => onMasterClick(review.master.id)}
+                            onClick={() => review.master && onMasterClick(review.master.id)}
                             style={{ cursor: 'pointer' }}
                         >
                             {reviewerName}
                         </div>
 
+                        {/* Информация об услуге с иконкой */}
+                        {serviceName && (
+                            <div className={styles.service_info_with_icon}>
+                                <svg
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    style={{ marginRight: '8px' }}
+                                >
+                                    <path d="M20 7L9.00004 18L3.99994 13" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                                <span className={styles.service_name}>{serviceName}</span>
+                            </div>
+                        )}
+
                         <div className={styles.review_vacation}>
                             <span className={styles.review_worker}>{reviewerProfession}</span>
                             <div className={styles.review_rating_main}>
+                                {/* SVG звездочки для рейтинга */}
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <g clipPath="url(#clip0_324_2272)">
-                                        <g clipPath="url(#clip1_324_2272)">
-                                            <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
+                                    <g clipPath="url(#clip0_186_6434)">
+                                        <g clipPath="url(#clip1_186_6434)">
+                                            <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                            <path d="M12 19V18.98" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
                                         </g>
                                     </g>
+                                    <defs>
+                                        <clipPath id="clip0_186_6434">
+                                            <rect width="24" height="24" fill="white"/>
+                                        </clipPath>
+                                        <clipPath id="clip1_186_6434">
+                                            <rect width="24" height="24" fill="white"/>
+                                        </clipPath>
+                                    </defs>
                                 </svg>
-                                <span className={styles.rating_value}>{review.rating}</span>
+                                <span className={styles.rating_value}>{review.rating.toFixed(1)}</span>
                             </div>
                         </div>
                     </div>
@@ -154,14 +227,24 @@ const ReviewItem = ({ review, onMasterClick }: { review: Review; onMasterClick: 
                 <div className={styles.review_worker_date}>
                     <span className={styles.review_date}>{reviewDate}</span>
                     <div className={styles.review_rating_secondary}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <g clipPath="url(#clip0_324_2272)">
-                                <g clipPath="url(#clip1_324_2272)">
-                                    <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
+                        <span>Поставил: </span>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <g clipPath="url(#clip0_186_6434)">
+                                <g clipPath="url(#clip1_186_6434)">
+                                    <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                    <path d="M12 19V18.98" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
                                 </g>
                             </g>
+                            <defs>
+                                <clipPath id="clip0_186_6434">
+                                    <rect width="24" height="24" fill="white"/>
+                                </clipPath>
+                                <clipPath id="clip1_186_6434">
+                                    <rect width="24" height="24" fill="white"/>
+                                </clipPath>
+                            </defs>
                         </svg>
-                        <span className={styles.rating_value}>Поставил: {review.rating}</span>
+                        <span className={styles.rating_value}>{review.rating.toFixed(1)}</span>
                     </div>
                 </div>
             </div>
@@ -174,19 +257,128 @@ const ReviewItem = ({ review, onMasterClick }: { review: Review; onMasterClick: 
 
             {review.images && review.images.length > 0 && (
                 <div className={styles.review_images}>
-                    {review.images.map((image) => (
-                        <img
-                            key={image.id}
-                            src={`${API_BASE_URL}${image.image}`}
-                            alt="Отзыв"
-                            className={styles.review_image}
-                            loading="lazy"
-                        />
-                    ))}
+                    {review.images.map((image, index) => {
+                        const imageUrl = getReviewImageUrl(image.image);
+                        return imageUrl ? (
+                            <img
+                                key={image.id || index}
+                                src={imageUrl}
+                                alt={`Отзыв ${index + 1}`}
+                                className={styles.review_image}
+                                loading="lazy"
+                                onError={(e) => {
+                                    e.currentTarget.src = "../fonTest5.png";
+                                }}
+                            />
+                        ) : null;
+                    })}
                 </div>
             )}
         </div>
     );
+};
+
+// Функция для получения полных данных пользователя
+const fetchFullUserData = async (userId: number): Promise<ClientProfileData | null> => {
+    try {
+        const token = getAuthToken();
+
+        // 1. Получаем основные данные пользователя
+        const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': token ? `Bearer ${token}` : '',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            console.error('Failed to fetch user data:', response.status);
+            return null;
+        }
+
+        const userData = await response.json();
+        console.log('Full user data from API:', userData);
+
+        // 2. Получаем галерею пользователя (примеры работ)
+        let gallery = null;
+        try {
+            const galleryResponse = await fetch(`${API_BASE_URL}/api/galleries?user=${userId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : '',
+                    'Accept': 'application/json',
+                },
+            });
+
+            if (galleryResponse.ok) {
+                const galleries = await galleryResponse.json();
+                if (galleries.length > 0) {
+                    gallery = galleries[0]; // Берем первую галерею
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching gallery:', error);
+        }
+
+        // Формируем URL аватара
+        let avatarUrl: string | null = null;
+        if (userData.image) {
+            // Проверяем различные варианты путей
+            if (userData.image.startsWith('http')) {
+                avatarUrl = userData.image;
+            } else if (userData.image.startsWith('/')) {
+                avatarUrl = `${API_BASE_URL}${userData.image}`;
+            } else {
+                // Пробуем различные пути
+                const possiblePaths = [
+                    `${API_BASE_URL}/images/profile_photos/${userData.image}`,
+                    `${API_BASE_URL}/uploads/profile_photos/${userData.image}`,
+                    `${API_BASE_URL}/uploads/${userData.image}`,
+                    `${API_BASE_URL}/${userData.image}`,
+                ];
+
+                // Для простоты используем первый вариант
+                avatarUrl = possiblePaths[0];
+            }
+        }
+
+        // Формируем полное имя
+        const fullName = [
+            userData.surname || '',
+            userData.name || '',
+            userData.patronymic || ''
+        ].filter(Boolean).join(' ') || 'Фамилия Имя Отчество';
+
+        return {
+            id: userData.id.toString(),
+            fullName,
+            rating: userData.rating || 0,
+            reviews: 0, // Будет обновлено из отзывов
+            avatar: avatarUrl,
+            gender: userData.gender || 'gender_male',
+            phone: userData.phone1 || 'Не указан',
+            phone2: userData.phone2 || 'Не указан',
+            email: userData.email || 'Не указан',
+            login: userData.login,
+            bio: userData.bio,
+            dateOfBirth: userData.dateOfBirth,
+            imageExternalUrl: userData.imageExternalUrl,
+            atHome: userData.atHome,
+            active: userData.active,
+            approved: userData.approved,
+            roles: userData.roles || [],
+            socialNetworks: userData.socialNetworks || [],
+            education: userData.education || [],
+            occupation: userData.occupation || [], // Специальности
+            addresses: userData.addresses || [],
+            gallery: gallery,
+        };
+    } catch (error) {
+        console.error('Error fetching full user data:', error);
+        return null;
+    }
 };
 
 function ClientProfileViewPage() {
@@ -203,6 +395,7 @@ function ClientProfileViewPage() {
         createReview,
         uploadReviewPhotos,
     } = useReviews();
+
     const {
         fetchComplaintReasons,
         createComplaint,
@@ -241,27 +434,16 @@ function ClientProfileViewPage() {
             setIsLoading(true);
 
             try {
-                // 1. Загружаем данные пользователя
-                const userData = await fetchUserWithAvatar(clientId, 'client');
+                // 1. Загружаем полные данные пользователя через новый метод
+                const userData = await fetchFullUserData(clientId);
                 if (userData) {
-                    const transformedData: ClientProfileData = {
-                        id: userData.id.toString(),
-                        fullName: [userData.surname, userData.name, userData.patronymic]
-                            .filter(Boolean)
-                            .join(' ') || 'Фамилия Имя Отчество',
-                        rating: userData.rating || 0,
-                        reviews: 0,
-                        avatar: userData.avatarUrl,
-                        gender: userData.gender || 'gender_male',
-                        phone: userData.phone1 || '+0 000 000 00 00',
-                        phone2: userData.phone2 || '+0 000 000 00 00', // Добавлено поле phone2
-                        email: userData.email || 'адрес емаил'
-                    };
-                    setProfileData(transformedData);
+                    setProfileData(userData);
                 }
 
-                // 2. Загружаем отзывы
-                await fetchReviews(clientId, 'client');
+                // 2. Загружаем отзывы используя хук useReviews
+                if (clientId) {
+                    await fetchReviews(clientId, 'client');
+                }
 
                 // 3. Загружаем причины жалоб
                 const reasons = await fetchComplaintReasons();
@@ -275,23 +457,82 @@ function ClientProfileViewPage() {
         };
 
         loadAllData();
-    }, [clientId, fetchUserWithAvatar, fetchReviews, fetchComplaintReasons]);
+    }, [clientId, fetchReviews, fetchComplaintReasons]);
 
     // Обновляем счетчик отзывов в профиле
     useEffect(() => {
-        if (profileData && reviews.length > 0) {
+        if (profileData) {
             setProfileData(prev => prev ? {
                 ...prev,
                 reviews: reviews.length
             } : null);
         }
-    }, [reviews]);
+    }, [reviews, profileData]);
+
+    // Функция для получения URL изображения галереи
+    const getGalleryImageUrl = (imagePath: string) => {
+        if (!imagePath) return "";
+
+        if (imagePath.startsWith('http')) {
+            return imagePath;
+        }
+
+        if (imagePath.startsWith('/')) {
+            return `${API_BASE_URL}${imagePath}`;
+        }
+
+        const possiblePaths = [
+            `${API_BASE_URL}/images/gallery/${imagePath}`,
+            `${API_BASE_URL}/uploads/gallery/${imagePath}`,
+            `${API_BASE_URL}/images/${imagePath}`,
+            `${API_BASE_URL}/${imagePath}`,
+            imagePath
+        ];
+
+        return possiblePaths.find(path => path) || "";
+    };
+
+    // Добавьте функцию для получения тикета/услуги
+    const fetchActiveTicket = async (masterId: number, clientId: number) => {
+        try {
+            const token = getAuthToken();
+            if (!token) return null;
+
+            // Ищем активные тикеты между мастером и клиентом
+            const endpoint = `/api/tickets?active=true&master.id=${masterId}&author.id=${clientId}&service=true`;
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                console.error('Failed to fetch tickets:', response.status);
+                return null;
+            }
+
+            const data = await response.json();
+            const tickets = data['hydra:member'] || data;
+
+            if (tickets && tickets.length > 0) {
+                // Возвращаем первый активный тикет
+                return tickets[0];
+            }
+
+            return null;
+        } catch (error) {
+            console.error('Error fetching ticket:', error);
+            return null;
+        }
+    };
 
     // Обработчик ошибок изображений
     const handleImageError = async (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
         const img = e.currentTarget;
         const originalSrc = img.src;
-        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
         if (img.classList.contains(styles.avatar) && profileData?.id && profileData.avatar) {
             const avatarPaths = [
@@ -362,28 +603,42 @@ function ClientProfileViewPage() {
                 return;
             }
 
+            // Получаем активный тикет между мастером и клиентом
+            const activeTicket = await fetchActiveTicket(currentUserId, parseInt(profileData.id));
+            if (!activeTicket) {
+                alert('Для оставления отзыва требуется активная услуга/тикет с этим клиентом');
+                return;
+            }
+
+            // Формируем данные для создания отзыва согласно документации API
             const reviewData = {
-                type: 'client',
-                rating: selectedStars,
+                type: 'client', // Тип отзыва: 'client' или 'master'
+                rating: selectedStars, // Рейтинг от 1 до 5
                 description: reviewText,
-                client: `/api/users/${profileData.id}`,
-                master: `/api/users/${currentUserId}`,
+                ticket: `/api/tickets/${activeTicket.id}`, // Обязательное поле - IRI к тикету
+                client: `/api/users/${profileData.id}`, // Клиент, о котором отзыв
+                master: `/api/users/${currentUserId}`, // Мастер, который оставляет отзыв
             };
+
+            console.log('Sending review data:', reviewData);
 
             const createdReview = await createReview(reviewData);
 
-            if (reviewPhotos.length > 0) {
+            if (reviewPhotos.length > 0 && createdReview?.id) {
                 await uploadReviewPhotos(createdReview.id, reviewPhotos);
             }
 
             // Обновляем отзывы
-            await fetchReviews(parseInt(profileData.id), 'client');
+            if (profileData.id) {
+                await fetchReviews(parseInt(profileData.id), 'client');
+            }
+
             handleCloseModal();
             alert('Отзыв успешно отправлен!');
 
         } catch (error) {
             console.error('Error submitting review:', error);
-            alert('Произошла ошибка при отправке отзыва');
+            alert('Произошла ошибка при отправке отзыва. Проверьте консоль для деталей.');
         }
     };
 
@@ -479,7 +734,7 @@ function ClientProfileViewPage() {
 
             const createdComplaint = await createComplaint(complaintData);
 
-            if (complaintPhotos.length > 0) {
+            if (complaintPhotos.length > 0 && createdComplaint?.id) {
                 await uploadComplaintPhotos(createdComplaint.id, complaintPhotos);
             }
 
@@ -527,6 +782,39 @@ function ClientProfileViewPage() {
         return <div className={styles.profile}>Ошибка загрузки данных</div>;
     }
 
+    // Функция для форматирования даты рождения
+    const formatDateOfBirth = (dateString?: string) => {
+        if (!dateString) return 'Не указана';
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('ru-RU');
+        } catch (error) {
+            return dateString;
+        }
+    };
+
+    // Функция для получения URL изображения специальности
+    const getOccupationImageUrl = (imagePath: string) => {
+        if (!imagePath) return "../fonTest5.png";
+
+        if (imagePath.startsWith('http')) {
+            return imagePath;
+        }
+
+        if (imagePath.startsWith('/')) {
+            return `${API_BASE_URL}${imagePath}`;
+        }
+
+        const possiblePaths = [
+            `${API_BASE_URL}/images/occupations/${imagePath}`,
+            `${API_BASE_URL}/uploads/occupations/${imagePath}`,
+            `${API_BASE_URL}/images/${imagePath}`,
+            `${API_BASE_URL}/${imagePath}`,
+        ];
+
+        return possiblePaths.find(path => path) || "../fonTest5.png";
+    };
+
     return (
         <div className={styles.profile}>
             <div className={styles.profile_wrap}>
@@ -562,6 +850,18 @@ function ClientProfileViewPage() {
                                         </span>
                                     </div>
                                 </div>
+                                {/* Роли пользователя */}
+                                {profileData.roles && profileData.roles.length > 0 && (
+                                    <div className={styles.roles}>
+                                        {profileData.roles.map((role, index) => (
+                                            <span key={index} className={styles.role_badge}>
+                                                {role === 'ROLE_MASTER' ? 'Мастер' :
+                                                    role === 'ROLE_CLIENT' ? 'Клиент' :
+                                                        role === 'ROLE_ADMIN' ? 'Администратор' : role}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
 
                             <div className={styles.rating_reviews}>
@@ -616,6 +916,16 @@ function ClientProfileViewPage() {
                             </div>
                         </div>
 
+                        {/* Логин */}
+                        {profileData.login && (
+                            <div className={styles.data_item}>
+                                <div className={styles.data_label}>Логин</div>
+                                <div className={styles.data_value}>
+                                    {profileData.login}
+                                </div>
+                            </div>
+                        )}
+
                         <div className={styles.data_item_phone}>
                             <div className={styles.data_item_sex}>
                                 <div className={styles.data_label}>Пол</div>
@@ -640,13 +950,204 @@ function ClientProfileViewPage() {
                         </div>
 
                         <div className={styles.data_item}>
-                            <div className={styles.data_label}>электронная почта</div>
+                            <div className={styles.data_label}>Электронная почта</div>
                             <div className={styles.data_value}>
                                 {profileData.email}
                             </div>
                         </div>
+
+                        {/* О себе */}
+                        {profileData.bio && (
+                            <div className={styles.data_item}>
+                                <div className={styles.data_label}>О себе</div>
+                                <div className={styles.data_value}>
+                                    {profileData.bio}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Дата рождения */}
+                        {profileData.dateOfBirth && (
+                            <div className={styles.data_item}>
+                                <div className={styles.data_label}>Дата рождения</div>
+                                <div className={styles.data_value}>
+                                    {formatDateOfBirth(profileData.dateOfBirth)}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Выезд на дом */}
+                        {profileData.atHome !== undefined && (
+                            <div className={styles.data_item}>
+                                <div className={styles.data_label}>Выезд на дом</div>
+                                <div className={styles.data_value}>
+                                    {profileData.atHome ? 'Да' : 'Нет'}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Статус активности */}
+                        {profileData.active !== undefined && (
+                            <div className={styles.data_item}>
+                                <div className={styles.data_label}>Статус</div>
+                                <div className={styles.data_value}>
+                                    {profileData.active ? 'Активен' : 'Неактивен'}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Статус подтверждения */}
+                        {profileData.approved !== undefined && (
+                            <div className={styles.data_item}>
+                                <div className={styles.data_label}>Подтверждён</div>
+                                <div className={styles.data_value}>
+                                    {profileData.approved ? 'Да' : 'Нет'}
+                                </div>
+                            </div>
+                        )}
                     </div>
+
+                    {/* Специальности (occupation) */}
+                    {profileData.occupation && profileData.occupation.length > 0 && (
+                        <div className={styles.data_section}>
+                            <h3 className={styles.section_subtitle}>Специальности</h3>
+                            <div className={styles.occupation_list}>
+                                {profileData.occupation.map((occupation) => (
+                                    <div key={occupation.id} className={styles.occupation_item}>
+                                        {occupation.image && (
+                                            <img
+                                                src={getOccupationImageUrl(occupation.image)}
+                                                alt={occupation.title}
+                                                className={styles.occupation_image}
+                                                onError={(e) => e.currentTarget.src = "../fonTest5.png"}
+                                            />
+                                        )}
+                                        <div className={styles.occupation_title}>{occupation.title}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Адреса */}
+                    {profileData.addresses && profileData.addresses.length > 0 && (
+                        <div className={styles.data_section}>
+                            <h3 className={styles.section_subtitle}>Адреса работы</h3>
+                            {profileData.addresses.map((address, index) => (
+                                <div key={address.id || index} className={styles.address_item}>
+                                    {address.province && (
+                                        <div className={styles.data_item}>
+                                            <div className={styles.data_label}>Область</div>
+                                            <div className={styles.data_value}>{address.province.title}</div>
+                                        </div>
+                                    )}
+                                    {address.city && (
+                                        <div className={styles.data_item}>
+                                            <div className={styles.data_label}>Город</div>
+                                            <div className={styles.data_value}>{address.city.title}</div>
+                                        </div>
+                                    )}
+                                    {address.district && (
+                                        <div className={styles.data_item}>
+                                            <div className={styles.data_label}>Район</div>
+                                            <div className={styles.data_value}>{address.district.title}</div>
+                                        </div>
+                                    )}
+                                    {address.suburb && (
+                                        <div className={styles.data_item}>
+                                            <div className={styles.data_label}>Пригород</div>
+                                            <div className={styles.data_value}>{address.suburb.title}</div>
+                                        </div>
+                                    )}
+                                    {address.settlement && (
+                                        <div className={styles.data_item}>
+                                            <div className={styles.data_label}>Населённый пункт</div>
+                                            <div className={styles.data_value}>{address.settlement.title}</div>
+                                        </div>
+                                    )}
+                                    {address.community && (
+                                        <div className={styles.data_item}>
+                                            <div className={styles.data_label}>Община</div>
+                                            <div className={styles.data_value}>{address.community.title}</div>
+                                        </div>
+                                    )}
+                                    {address.village && (
+                                        <div className={styles.data_item}>
+                                            <div className={styles.data_label}>Деревня</div>
+                                            <div className={styles.data_value}>{address.village.title}</div>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Образование */}
+                    {profileData.education && profileData.education.length > 0 && (
+                        <div className={styles.data_section}>
+                            <h3 className={styles.section_subtitle}>Образование и опыт</h3>
+                            {profileData.education.map((edu, index) => (
+                                <div key={edu.id || index} className={styles.education_item}>
+                                    <div className={styles.data_item}>
+                                        <div className={styles.data_label}>Университет</div>
+                                        <div className={styles.data_value}>{edu.uniTitle}</div>
+                                    </div>
+                                    <div className={styles.data_item}>
+                                        <div className={styles.data_label}>Факультет</div>
+                                        <div className={styles.data_value}>{edu.faculty}</div>
+                                    </div>
+                                    <div className={styles.data_item}>
+                                        <div className={styles.data_label}>Годы обучения</div>
+                                        <div className={styles.data_value}>
+                                            {edu.beginning} - {edu.ending} {edu.graduated ? '(окончил)' : '(не окончил)'}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Социальные сети */}
+                    {profileData.socialNetworks && profileData.socialNetworks.length > 0 && (
+                        <div className={styles.data_section}>
+                            <h3 className={styles.section_subtitle}>Социальные сети</h3>
+                            <div className={styles.social_networks}>
+                                {profileData.socialNetworks.map((social) => (
+                                    <div key={social.id} className={styles.social_item}>
+                                        <span className={styles.social_network}>{social.network}:</span>
+                                        <span className={styles.social_handle}>{social.handle}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
+
+                {/* Примеры работ (Галерея) */}
+                {profileData.gallery && profileData.gallery.images && profileData.gallery.images.length > 0 && (
+                    <>
+                        <div className={styles.divider}></div>
+                        <div className={styles.gallery_section}>
+                            <h2 className={styles.section_title}>Примеры работ</h2>
+                            <p className={styles.section_subtitle}>
+                                Фотографии выполненных работ
+                            </p>
+                            <div className={styles.gallery_images}>
+                                {profileData.gallery.images.map((image) => (
+                                    <div key={image.id} className={styles.gallery_image_wrapper}>
+                                        <img
+                                            src={getGalleryImageUrl(image.image)}
+                                            alt="Пример работы"
+                                            className={styles.gallery_image}
+                                            onError={(e) => e.currentTarget.src = "../fonTest5.png"}
+                                            loading="lazy"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </>
+                )}
 
                 <div className={styles.divider}></div>
 

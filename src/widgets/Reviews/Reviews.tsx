@@ -616,7 +616,7 @@ function Reviews() {
                                             {/* Показ изображений отзыва если есть */}
                                             {review.images && review.images.length > 0 && (
                                                 <div className={style.review_images_section}>
-                                                    <div className={style.review_images_label}>Галерея изображений</div>
+                                                    {/*<div className={style.review_images_label}>Галерея изображений</div>*/}
                                                     <div className={style.review_images_small}>
                                                         {review.images.map((image, index) => (
                                                             <img
@@ -740,7 +740,7 @@ function Reviews() {
                                     {/* Показ изображений отзыва если есть */}
                                     {review.images && review.images.length > 0 && (
                                         <div className={style.review_images_section}>
-                                            <div className={style.review_images_label}>Галерея изображений</div>
+                                            {/*<div className={style.review_images_label}>Галерея изображений</div>*/}
                                             <div className={style.review_images_small}>
                                                 {review.images.map((image, index) => (
                                                     <img

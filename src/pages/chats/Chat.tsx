@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { getAuthToken } from "../../utils/auth";
 import styles from "./Chat.module.scss";
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { IoSend, IoAttach, IoClose, IoImages } from "react-icons/io5";
+import { IoSend, IoAttach, IoClose, IoImages, IoArchiveOutline, IoArchiveSharp } from "react-icons/io5";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 
 interface Message {
@@ -50,6 +50,10 @@ interface ApiChat {
     images: UploadedImage[];
     createdAt?: string;
     updatedAt?: string;
+    active?: boolean;
+    isArchived?: boolean;
+    archivedBy?: ApiUser;
+    archivedAt?: string;
 }
 
 interface UploadedImage {
@@ -80,6 +84,8 @@ function Chat() {
     const [isMobileChatActive, setIsMobileChatActive] = useState(false);
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [isUploading, setIsUploading] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
+    // const [isArchiveMode, setIsArchiveMode] = useState(false);
 
     // Состояния для миниатюр и модального окна фото
     const [chatImages, setChatImages] = useState<ChatImageThumbnail[]>([]);
@@ -90,6 +96,7 @@ function Chat() {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const searchInputRef = useRef<HTMLInputElement>(null);
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
     const POLLING_INTERVAL = 5000;
 
@@ -114,7 +121,7 @@ function Chat() {
             console.log('User loaded, fetching chats...');
             fetchChats();
         }
-    }, [currentUser]);
+    }, [currentUser, activeTab]);
 
     // Обработка выбранного чата
     useEffect(() => {
@@ -211,6 +218,51 @@ function Chat() {
         return `${API_BASE_URL}/images/appeal_photos/${imagePath}`;
     };
 
+    // Фильтрация чатов по поисковому запросу
+    const filteredChats = useMemo(() => {
+        const filtered = chats.filter(chat => {
+            // Фильтрация по активным/архивным чатам на основе поля active
+            const isArchived = chat.active === false;
+            if (activeTab === "active" && isArchived) return false;
+            if (activeTab === "archive" && !isArchived) return false;
+
+            // Фильтрация по поисковому запросу
+            if (!searchQuery.trim()) return true;
+
+            const interlocutor = getInterlocutorFromChat(chat);
+            if (!interlocutor) return false;
+
+            const searchLower = searchQuery.toLowerCase();
+            const fullName = `${interlocutor.name} ${interlocutor.surname}`.toLowerCase();
+            const email = interlocutor.email?.toLowerCase() || '';
+            const phone = interlocutor.phone1?.toLowerCase() || '';
+
+            return fullName.includes(searchLower) ||
+                email.includes(searchLower) ||
+                phone.includes(searchLower);
+        });
+
+        // Сортировка: сначала активные чаты с сообщениями, затем по дате последнего сообщения
+        return filtered.sort((a, b) => {
+            const aHasMessages = a.messages && a.messages.length > 0;
+            const bHasMessages = b.messages && b.messages.length > 0;
+
+            if (aHasMessages && !bHasMessages) return -1;
+            if (!aHasMessages && bHasMessages) return 1;
+
+            if (aHasMessages && bHasMessages) {
+                const aLastMsg = a.messages[a.messages.length - 1];
+                const bLastMsg = b.messages[b.messages.length - 1];
+
+                if (aLastMsg.createdAt && bLastMsg.createdAt) {
+                    return new Date(bLastMsg.createdAt).getTime() - new Date(aLastMsg.createdAt).getTime();
+                }
+            }
+
+            return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        });
+    }, [chats, searchQuery, activeTab, currentUser]);
+
     const fetchChatMessages = async (chatId: number) => {
         try {
             const token = getAuthToken();
@@ -231,16 +283,23 @@ function Chat() {
                 const chatData: ApiChat = await response.json();
                 console.log('Chat data received:', chatData);
 
+                // Добавляем вычисляемое поле isArchived
+                const chatDataWithArchive = {
+                    ...chatData,
+                    isArchived: chatData.active === false
+                };
+
                 setChats(prev => {
                     const chatIndex = prev.findIndex(c => c.id === chatId);
                     if (chatIndex === -1) {
-                        return [...prev, chatData];
+                        return [...prev, chatDataWithArchive];
                     }
                     const newChats = [...prev];
                     newChats[chatIndex] = {
                         ...newChats[chatIndex],
+                        ...chatDataWithArchive,
                         messages: chatData.messages || [],
-                        images: chatData.images || []
+                        images: chatData.images || [],
                     };
                     return newChats;
                 });
@@ -379,12 +438,22 @@ function Chat() {
                 console.log('Chats API response:', responseData);
 
                 if (Array.isArray(responseData)) {
-                    chatsData = responseData;
+                    chatsData = responseData.map(chat => ({
+                        ...chat,
+                        // Вычисляем isArchived на основе поля active
+                        isArchived: chat.active === false
+                    }));
                 } else if (responseData && typeof responseData === 'object') {
                     if (responseData['hydra:member'] && Array.isArray(responseData['hydra:member'])) {
-                        chatsData = responseData['hydra:member'];
+                        chatsData = responseData['hydra:member'].map(chat => ({
+                            ...chat,
+                            isArchived: chat.active === false
+                        }));
                     } else if (responseData.id) {
-                        chatsData = [responseData];
+                        chatsData = [{
+                            ...responseData,
+                            isArchived: responseData.active === false
+                        }];
                     }
                 }
 
@@ -402,13 +471,84 @@ function Chat() {
                     setSelectedChat(chatId);
                 }
             } else if (chatsData.length > 0 && !selectedChat) {
-                setSelectedChat(chatsData[0].id);
+                // Выбираем первый активный чат для активной вкладки
+                const firstActive = chatsData.find(chat => chat.active !== false);
+                if (firstActive) {
+                    setSelectedChat(firstActive.id);
+                } else if (activeTab === "archive" && chatsData.length > 0) {
+                    setSelectedChat(chatsData[0].id);
+                }
             }
         } catch (error) {
             console.error('Error fetching chats:', error);
             setError("Ошибка загрузки чатов");
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    // ===== ФУНКЦИИ ДЛЯ АРХИВАЦИИ ЧАТОВ =====
+    const archiveChat = async (chatId: number, archive: boolean = true) => {
+        try {
+            const token = getAuthToken();
+            if (!token) {
+                setError("Необходима авторизация");
+                return;
+            }
+
+            // Используем PATCH метод для обновления поля active
+            const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/merge-patch+json'
+                },
+                body: JSON.stringify({
+                    active: !archive // Если archive=true, то active=false и наоборот
+                })
+            });
+
+            if (response.ok) {
+                const updatedChat = await response.json();
+                console.log('Chat updated:', updatedChat);
+
+                // Обновляем состояние чата
+                setChats(prev => prev.map(chat =>
+                    chat.id === chatId
+                        ? {
+                            ...chat,
+                            // Предполагаем, что поле active контролирует архив
+                            // Если active=false, то чат в архиве
+                            isArchived: !updatedChat.active,
+                            active: updatedChat.active
+                        }
+                        : chat
+                ));
+
+                // Если текущий чат был архивирован и мы на вкладке активных, убираем его из выбранных
+                if (archive && selectedChat === chatId && activeTab === "active") {
+                    setSelectedChat(null);
+                    setMessages([]);
+                    setChatImages([]);
+                }
+
+                setError(archive ? "Чат перемещен в архив" : "Чат восстановлен из архива");
+                setTimeout(() => setError(null), 3000);
+
+                // Обновляем данные чата после изменения статуса
+                if (selectedChat === chatId) {
+                    fetchChatMessages(chatId);
+                }
+            } else {
+                console.error(`Error updating chat: ${response.status}`);
+                const errorText = await response.text();
+                console.error('Error response:', errorText);
+
+                setError(archive ? "Ошибка архивации чата" : "Ошибка восстановления чата");
+            }
+        } catch (error) {
+            console.error(`Error ${archive ? 'archiving' : 'unarchiving'} chat:`, error);
+            setError("Ошибка при выполнении операции");
         }
     };
 
@@ -759,6 +899,17 @@ function Chat() {
         fileInputRef.current?.click();
     };
 
+    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setSearchQuery(e.target.value);
+    };
+
+    const clearSearch = () => {
+        setSearchQuery("");
+        if (searchInputRef.current) {
+            searchInputRef.current.focus();
+        }
+    };
+
     const currentChat = chats.find(chat => chat.id === selectedChat);
     const currentInterlocutor = currentChat ? getInterlocutorFromChat(currentChat) : null;
     const showChatArea = selectedChat !== null && currentInterlocutor !== null;
@@ -790,7 +941,25 @@ function Chat() {
                     </div>
                 )}
                 <div className={styles.searchBar}>
-                    <input type="text" placeholder="Поиск" className={styles.searchInput} />
+                    <div className={styles.searchInputContainer}>
+                        <input
+                            type="text"
+                            placeholder="Поиск по имени, email или телефону"
+                            className={styles.searchInput}
+                            value={searchQuery}
+                            onChange={handleSearchChange}
+                            ref={searchInputRef}
+                        />
+                        {searchQuery && (
+                            <button
+                                className={styles.clearSearchButton}
+                                onClick={clearSearch}
+                                aria-label="Очистить поиск"
+                            >
+                                ×
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 <div className={styles.tabs}>
@@ -799,12 +968,16 @@ function Chat() {
                 </div>
 
                 <div className={styles.chatList}>
-                    {chats.length === 0 ? (
+                    {filteredChats.length === 0 ? (
                         <div className={styles.noChatsContainer}>
-                            <div className={styles.noChats}>Чатов нет</div>
+                            <div className={styles.noChats}>
+                                {searchQuery ? "Ничего не найдено" :
+                                    activeTab === "active" ? "Нет активных чатов" :
+                                        "Нет архивных чатов"}
+                            </div>
                         </div>
                     ) : (
-                        chats.map(chat => {
+                        filteredChats.map(chat => {
                             const interlocutor = getInterlocutorFromChat(chat);
                             if (!interlocutor) return null;
 
@@ -820,18 +993,26 @@ function Chat() {
                                         ) : (
                                             `${interlocutor.name?.charAt(0) || ''}${interlocutor.surname?.charAt(0) || ''}`
                                         )}
-                                        {interlocutor.isOnline && (
+                                        {interlocutor.isOnline && !chat.isArchived && (
                                             <div className={styles.onlineIndicator} />
+                                        )}
+                                        {chat.isArchived && (
+                                            <div className={styles.archiveIndicator} title="Чат в архиве">
+                                                <IoArchiveOutline size={12} />
+                                            </div>
                                         )}
                                     </div>
                                     <div className={styles.chatInfo}>
-                                        <div className={styles.name}>{interlocutor.name} {interlocutor.surname}</div>
+                                        <div className={styles.name}>
+                                            {interlocutor.name} {interlocutor.surname}
+                                            {chat.isArchived && <span className={styles.archiveBadge}> (архив)</span>}
+                                        </div>
                                         <div className={styles.specialty}>{interlocutor.email}</div>
                                         <div className={styles.lastMessage}>{getLastMessageText(chat)}</div>
                                     </div>
                                     <div className={styles.chatMeta}>
                                         <div className={styles.time}>{getLastMessageTime(chat)}</div>
-                                        {!interlocutor.isOnline && interlocutor.lastSeen && (
+                                        {!interlocutor.isOnline && interlocutor.lastSeen && !chat.isArchived && (
                                             <div className={styles.lastSeen}>{getLastSeenTime(interlocutor)}</div>
                                         )}
                                     </div>
@@ -868,38 +1049,57 @@ function Chat() {
                                             {currentInterlocutor.surname?.charAt(0)}
                                         </>
                                     )}
-                                    {currentInterlocutor.isOnline && <div className={styles.onlineIndicator} />}
+                                    {currentInterlocutor.isOnline && !currentChat?.isArchived && (
+                                        <div className={styles.onlineIndicator} />
+                                    )}
                                 </div>
                                 <div className={styles.headerInfo}>
                                     <div className={styles.name}>
                                         {currentInterlocutor.name} {currentInterlocutor.surname}
+                                        {currentChat?.isArchived && <span className={styles.archiveBadge}> (архив)</span>}
                                     </div>
                                     <div className={styles.status}>
-                                        {currentInterlocutor.isOnline ? 'онлайн' : 'оффлайн'}
-                                        {!currentInterlocutor.isOnline && currentInterlocutor.lastSeen && (
+                                        {currentInterlocutor.isOnline && !currentChat?.isArchived ? 'онлайн' : 'оффлайн'}
+                                        {!currentInterlocutor.isOnline && currentInterlocutor.lastSeen && !currentChat?.isArchived && (
                                             <span className={styles.lastSeen}> • {getLastSeenTime(currentInterlocutor)}</span>
                                         )}
                                     </div>
                                 </div>
                             </div>
-                            {/* Иконка фото в заголовке чата */}
-                            {chatImages.length > 0 && (
-                                <button
-                                    className={styles.photosButton}
-                                    onClick={() => openPhotoModal(chatImages, 0)}
-                                    aria-label="Просмотреть фото"
-                                    title="Просмотреть все фото"
-                                >
-                                    <IoImages />
-                                    <span className={styles.photosCount}>{chatImages.length}</span>
-                                </button>
-                            )}
+                            <div className={styles.headerActions}>
+                                {currentChat && (
+                                    <button
+                                        className={`${styles.archiveButton} ${currentChat.isArchived ? styles.unarchive : ''}`}
+                                        onClick={() => archiveChat(currentChat.id, !currentChat.isArchived)}
+                                        aria-label={currentChat.isArchived ? "Восстановить из архива" : "Архивировать чат"}
+                                        title={currentChat.isArchived ? "Восстановить из архива" : "Архивировать чат"}
+                                    >
+                                        {currentChat.isArchived ? <IoArchiveSharp /> : <IoArchiveOutline />}
+                                    </button>
+                                )}
+                                {chatImages.length > 0 && (
+                                    <button
+                                        className={styles.photosButton}
+                                        onClick={() => openPhotoModal(chatImages, 0)}
+                                        aria-label="Просмотреть фото"
+                                        title="Просмотреть все фото"
+                                    >
+                                        <IoImages />
+                                        <span className={styles.photosCount}>{chatImages.length}</span>
+                                    </button>
+                                )}
+
+                            </div>
                         </div>
 
                         <div className={styles.chatContent}>
                             <div className={styles.chatMessages}>
                                 {messages.length === 0 ? (
-                                    <div className={styles.noMessages}>Начните чат</div>
+                                    <div className={styles.noMessages}>
+                                        {currentChat?.isArchived ?
+                                            "Этот чат находится в архиве. Новые сообщения не отправляются." :
+                                            "Начните чат"}
+                                    </div>
                                 ) : (
                                     <div className={styles.messagesContainer}>
                                         {messages.map(msg => {
@@ -998,7 +1198,7 @@ function Chat() {
                             <button
                                 className={styles.attachButton}
                                 onClick={triggerFileInput}
-                                disabled={isUploading}
+                                disabled={isUploading || currentChat?.isArchived}
                                 aria-label="Прикрепить файл"
                             >
                                 <IoAttach />
@@ -1006,18 +1206,18 @@ function Chat() {
 
                             <input
                                 type="text"
-                                placeholder="Введите сообщение"
-                                className={styles.inputField}
+                                placeholder={currentChat?.isArchived ? "Чат в архиве" : "Введите сообщение"}
+                                className={`${styles.inputField} ${currentChat?.isArchived ? styles.disabled : ''}`}
                                 value={newMessage}
                                 onChange={(e) => setNewMessage(e.target.value)}
                                 onKeyPress={handleKeyPress}
-                                disabled={isUploading}
+                                disabled={isUploading || currentChat?.isArchived}
                             />
 
                             <button
                                 className={styles.sendButton}
                                 onClick={sendMessage}
-                                disabled={(!newMessage.trim() && selectedFiles.length === 0) || isUploading}
+                                disabled={(!newMessage.trim() && selectedFiles.length === 0) || isUploading || currentChat?.isArchived}
                                 aria-label="Отправить сообщение"
                             >
                                 <IoSend />
@@ -1045,7 +1245,9 @@ function Chat() {
                     </>
                 ) : (
                     <div className={styles.noChat}>
-                        {chats.length === 0 ? "У вас пока нет чатов" : "Выберите чат для общения"}
+                        {chats.length === 0 ? "У вас пока нет чатов" :
+                            activeTab === "active" ? "Выберите активный чат для общения" :
+                                "Выберите архивный чат для просмотра"}
                     </div>
                 )}
 

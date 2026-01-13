@@ -15,6 +15,7 @@ interface UserBasicInfo {
     image?: string | null;
 }
 
+
 interface UserUpdateResponse {
     id: number;
     rating: number;
@@ -1156,8 +1157,9 @@ function MasterProfileViewPage() {
                 {/* Секция "О себе" */}
                 <div className={styles.about_section}>
                     {/* Образование */}
-                    <h3 className={styles.section_subtitle}>Образование и опыт</h3>
+                    {/*<h3 className={styles.section_subtitle}>Образование и опыт</h3>*/}
                     <div className={styles.section_item}>
+                        <h3>Образование и опыт</h3>
                         {profileData.education.length > 0 ? (
                             profileData.education.map(edu => (
                                 <div key={edu.id} className={styles.education_item}>
@@ -1183,28 +1185,33 @@ function MasterProfileViewPage() {
                     </div>
 
                     {/* Примеры работ */}
-                    <h3 className={styles.section_subtitle}>Примеры работ</h3>
+                    {/*<h3 className={styles.section_subtitle}>Примеры работ</h3>*/}
                     <div className={styles.section_item}>
-                        {profileData.workExamples.length > 0 ? (
-                            <div className={styles.work_examples_grid}>
-                                {profileData.workExamples.map(work => (
-                                    <div key={work.id} className={styles.work_example}>
-                                        <img
-                                            src={getImageUrlWithCacheBust(work.image)}
-                                            alt={work.title}
-                                            onError={handleImageError}
-                                        />
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className={styles.empty_state}>Примеры работ не добавлены</div>
-                        )}
+                        <h3>Примеры работ</h3>
+                        <div>
+                            {profileData.workExamples.length > 0 ? (
+                                <div className={styles.work_examples_grid}>
+                                    {profileData.workExamples.map(work => (
+                                        <div key={work.id} className={styles.work_example}>
+                                            <img
+                                                src={getImageUrlWithCacheBust(work.image)}
+                                                alt={work.title}
+                                                onError={handleImageError}
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className={styles.empty_state}>Примеры работ не добавлены</div>
+                            )}
+                        </div>
+
                     </div>
 
                     {/* Адреса мастера */}
-                    <h3 className={styles.section_subtitle}>Адреса работы</h3>
+                    {/*<h3 className={styles.section_subtitle}>Адреса работы</h3>*/}
                     <div className={styles.section_item}>
+                        <h3>Адреса работы</h3>
                         {profileData.addresses.length > 0 ? (
                             <div className={styles.addresses_list}>
                                 {profileData.addresses.map(address => (
@@ -1221,8 +1228,9 @@ function MasterProfileViewPage() {
                     </div>
 
                     {/* Услуги и цены */}
-                    <h3 className={styles.section_subtitle}>Услуги и цены</h3>
+                    {/*<h3 className={styles.section_subtitle}>Услуги и цены</h3>*/}
                     <div className={styles.section_item}>
+                        <h3>Услуги и цены</h3>
                         {services.length > 0 ? (
                             <div className={styles.services_display}>
                                 {services.map(service => (
@@ -1239,8 +1247,9 @@ function MasterProfileViewPage() {
                 </div>
 
                 {/* Отзывы */}
-                <h2 className={styles.section_title}>Отзывы</h2>
+                {/*<h2 className={styles.section_title}>Отзывы</h2>*/}
                 <div className={styles.reviews_section}>
+                    <h3>Отзывы</h3>
                     <div className={styles.reviews_list}>
                         {reviewsLoading ? (
                             <div className={styles.loading}>Загрузка отзывов...</div>

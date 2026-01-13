@@ -239,11 +239,40 @@
   width: 64px;
   height: 44px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: none;
+  border: none;
+  background: none;
+  padding: 0;
+  flex-shrink: 0;
+
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  user-select: none;
 
   svg {
     display: block;
-    transition: all 0.2s ease;
+    width: 64px;
+    height: 44px;
+    transition: none;
+    flex-shrink: 0;
+  }
+
+  &:hover, &:focus, &:active {
+    transform: scale(1) !important;
+    box-shadow: none !important;
+    outline: none !important;
+    border: none !important;
+  }
+
+  &:active {
+    background: none !important;
+    transform: translateY(0) !important;
+  }
+
+  @media (hover: none) and (pointer: coarse) {
+    &:active {
+      transform: none !important;
+    }
   }
 
   &.loading {
@@ -271,8 +300,8 @@
 
 .loading {
   text-align: center;
-  padding: 50px;
-  font-size: 18px;
+  //padding: 50px;
+  //font-size: 18px;
 }
 
 .error {

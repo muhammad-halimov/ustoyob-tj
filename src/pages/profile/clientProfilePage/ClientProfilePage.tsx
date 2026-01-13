@@ -1,10 +1,15 @@
-import React, {type ChangeEvent, useCallback, useEffect, useRef, useState} from 'react';
-import {useNavigate} from 'react-router-dom';
+import {useState, useRef, useEffect, type ChangeEvent, useCallback} from 'react';
+import { useNavigate } from 'react-router-dom';
 import {getAuthToken} from '../../../utils/auth';
 import styles from './ClientProfilePage.module.scss';
+import ReviewList, { Review as ReviewWidget } from '../../../widgets/RenderReviews/RenderReviews';
 
-import ReviewList, {Review as ReviewWidget} from '../../../widgets/RenderReviews/RenderReviews';
+interface ReviewImage {
+    id: number;
+    image: string;
+}
 
+// Обновленный интерфейс Review для совместимости с ReviewList
 interface Review {
     id: number;
     master: {
@@ -18,6 +23,9 @@ interface Review {
     };
     reviewer: {
         id: number;
+        name?: string;
+        surname?: string;
+        image?: string;
     };
     rating: number;
     description: string;
@@ -26,11 +34,10 @@ interface Review {
         id: number;
         title: string;
     };
-    images: Array<{
-        id: number;
-        image: string;
-    }>;
+    images: ReviewImage[];
     createdAt?: string;
+    vacation?: string;
+    worker?: string;
 }
 
 interface UserData {
@@ -56,24 +63,43 @@ function ClientProfilePage() {
     const navigate = useNavigate();
     const [userData, setUserData] = useState<UserData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [reviewsLoading, setReviewsLoading] = useState(false);
     const [editingField, setEditingField] = useState<'fullName' | 'gender' | 'phone' | 'phone2' | 'email' | null>(null);
     const [tempValue, setTempValue] = useState('');
     const [editingFieldHeader, setEditingFieldHeader] = useState(false);
     const [tempValueHeader, setTempValueHeader] = useState('');
     const REVIEWS_PREVIEW_LIMIT = 2;
     const [showAllReviews, setShowAllReviews] = useState(false);
+    const [showFullEmail, setShowFullEmail] = useState(false);
+    const [copiedEmail, setCopiedEmail] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const emailRef = useRef<HTMLDivElement>(null);
 
     const getFullName = useCallback(() => {
         if (!userData) return 'Фамилия Имя Отчество';
         return `${userData.lastName} ${userData.firstName} ${userData.middleName || ''}`.trim();
     }, [userData]);
 
+    // Функция для обрезки длинного текста
+    const truncateText = useCallback((text: string, maxLength: number = 30): string => {
+        if (!text) return '';
+        if (text.length <= maxLength) return text;
+        return text.substring(0, maxLength - 3) + '...';
+    }, []);
+
+    // Функция для копирования текста в буфер обмена
+    const copyToClipboard = useCallback(async (text: string) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            setCopiedEmail(true);
+            setTimeout(() => setCopiedEmail(false), 2000);
+        } catch (err) {
+            console.error('Не удалось скопировать текст: ', err);
+        }
+    }, []);
+
     const checkImageExists = useCallback((url: string): Promise<boolean> => {
         return new Promise((resolve) => {
-            // Проверяем кэш
             if (imageCache.has(url)) {
                 resolve(imageCache.get(url)!);
                 return;
@@ -84,7 +110,7 @@ function ClientProfilePage() {
                 img.onload = img.onerror = null;
                 imageCache.set(url, false);
                 resolve(false);
-            }, 3000); // Уменьшен таймаут до 3 секунд
+            }, 3000);
 
             img.onload = () => {
                 clearTimeout(timer);
@@ -105,7 +131,7 @@ function ClientProfilePage() {
         });
     }, []);
 
-    // Функция для получения URL аватара с приоритетами
+    // Функция для получения URL аватара пользователя
     const getAvatarUrl = useCallback(async (userData: any): Promise<string | null> => {
         if (!userData?.image) return null;
 
@@ -115,11 +141,10 @@ function ClientProfilePage() {
             return serverUrl;
         }
 
-        // Проверяем альтернативные пути
         const alternativePaths = [
             `${API_BASE_URL}/uploads/profile_photos/${userData.image}`,
             userData.image.startsWith('http') ? userData.image : null
-        ].filter(Boolean) as string[];
+        ].filter((path): path is string => path !== null);
 
         for (const path of alternativePaths) {
             if (await checkImageExists(path)) {
@@ -130,38 +155,113 @@ function ClientProfilePage() {
         return null;
     }, [checkImageExists]);
 
-    // Оптимизированная функция загрузки отзывов
-    const fetchClientReviews = useCallback(async (userId: number) => {
+    // Функция загрузки отзывов (упрощенная версия)
+    const fetchClientReviews = useCallback(async (userId: number): Promise<Review[]> => {
         try {
-            setReviewsLoading(true);
             const token = getAuthToken();
             if (!token) return [];
 
-            const endpoint = `/api/reviews?exists[services]=false&exists[master]=true&exists[client]=true&type=client&client=${userId}`;
+            console.log('Fetching reviews for user ID:', userId);
 
-            console.log(`Trying endpoint: ${endpoint}`);
+            let reviews: any[] = [];
 
-            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-                method: 'GET',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    Accept: 'application/json',
-                },
-            });
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/reviews?client=${userId}`, {
+                    method: 'GET',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        Accept: 'application/json',
+                    },
+                });
 
-            if (!response.ok) {
-                console.warn('Failed to fetch reviews:', response.status);
+                if (response.ok) {
+                    const data = await response.json();
+                    reviews = data['hydra:member'] || data;
+                    console.log('Reviews from API:', reviews.length);
+                }
+            } catch (error) {
+                console.error('Error fetching reviews:', error);
                 return [];
             }
 
-            return await response.json();
+            if (!reviews || !Array.isArray(reviews)) {
+                console.log('No reviews array found');
+                return [];
+            }
+
+            // Обрабатываем отзывы
+            const processedReviews = reviews
+                .map((review: any) => {
+                    // Проверяем, что это отзыв о текущем пользователе
+                    if (!review.client || String(review.client.id) !== String(userId)) {
+                        console.log(`Skipping review ${review.id} - wrong client`);
+                        return null;
+                    }
+
+                    // Проверяем, что отзыв о клиенте
+                    if (review.type !== 'client') {
+                        console.log(`Skipping review ${review.id} - not a client review (type: ${review.type})`);
+                        return null;
+                    }
+
+                    // Получаем данные мастера
+                    const masterData = review.master || {};
+
+                    // Формируем данные reviewer (мастер, который оставил отзыв)
+                    const reviewerData = {
+                        id: masterData.id || 0,
+                        name: masterData.name || '',
+                        surname: masterData.surname || '',
+                        image: masterData.image || ''
+                    };
+
+                    const processedReview: Review = {
+                        id: review.id,
+                        master: {
+                            id: masterData.id || 0,
+                            name: masterData.name || '',
+                            surname: masterData.surname || '',
+                            patronymic: masterData.patronymic || '',
+                            profession: masterData.profession || '',
+                            specialization: masterData.specialization || '',
+                            image: masterData.image || '', // Сохраняем оригинальный путь
+                        },
+                        reviewer: reviewerData,
+                        rating: review.rating || 0,
+                        description: review.description || '',
+                        forReviewer: true,
+                        services: {
+                            id: review.ticket?.service?.id || 0,
+                            title: review.ticket?.service?.title || 'Услуга',
+                        },
+                        images: review.images?.map((img: any) => ({
+                            id: img.id,
+                            image: img.image
+                        })) || [],
+                        createdAt: review.createdAt,
+                        vacation: review.ticket?.service?.title || 'Услуга',
+                        worker: reviewerData.name && reviewerData.surname
+                            ? `${reviewerData.name} ${reviewerData.surname}`.trim()
+                            : 'Мастер'
+                    };
+
+                    console.log(`Review ${review.id} processed:`, {
+                        masterImage: processedReview.master.image,
+                        reviewerImage: processedReview.reviewer.image
+                    });
+
+                    return processedReview;
+                })
+                .filter((review): review is Review => review !== null);
+
+            console.log('Processed reviews count:', processedReviews.length);
+            return processedReviews;
+
         } catch (error) {
-            console.error('Error fetching client reviews:', error);
+            console.error('Error in fetchClientReviews:', error);
             return [];
-        } finally {
-            setReviewsLoading(false);
         }
-    }, []);
+    }, [API_BASE_URL]);
 
     // Основная функция загрузки данных
     const fetchUserData = useCallback(async () => {
@@ -182,11 +282,21 @@ function ClientProfilePage() {
                 },
             });
 
-            if (!userResponse.ok) throw new Error('Failed to fetch user data');
+            if (!userResponse.ok) {
+                throw new Error(`Failed to fetch user data: ${userResponse.status}`);
+            }
 
             const userDataFromApi = await userResponse.json();
+
             const avatarUrl = await getAvatarUrl(userDataFromApi);
+
+            // Загружаем отзывы клиента
             const reviews = await fetchClientReviews(userDataFromApi.id);
+
+            // Вычисляем средний рейтинг
+            const averageRating = reviews.length > 0
+                ? reviews.reduce((sum: number, review: Review) => sum + review.rating, 0) / reviews.length
+                : 0;
 
             const userData: UserData = {
                 id: userDataFromApi.id,
@@ -197,13 +307,14 @@ function ClientProfilePage() {
                 phone: userDataFromApi.phone1 || '+992 900 00-00-00',
                 phone2: userDataFromApi.phone2 || '+992 900 00-00-00',
                 email: userDataFromApi.email || 'E-mail',
-                rating: userDataFromApi.rating || 0,
+                rating: parseFloat(averageRating.toFixed(1)),
                 isVerified: userDataFromApi.isVerified || true,
                 avatar: avatarUrl,
                 reviews: reviews
             };
 
             setUserData(userData);
+
         } catch (error) {
             console.error('Error fetching user data:', error);
         } finally {
@@ -215,7 +326,7 @@ function ClientProfilePage() {
         fetchUserData();
     }, [fetchUserData]);
 
-    // Оптимизированные обработчики
+    // Обработчики редактирования
     const handleHeaderEditStart = useCallback(() => {
         setEditingFieldHeader(true);
         setTempValueHeader(getFullName());
@@ -280,29 +391,34 @@ function ClientProfilePage() {
                 body: JSON.stringify(apiData),
             });
 
-            if (!response.ok) throw new Error(`Failed to update user data: ${response.status}`);
-
-            const updatedUser = await response.json();
-            console.log('User data updated successfully:', updatedUser);
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Failed to update user data: ${response.status} - ${errorText}`);
+            }
 
             // Обновляем локальное состояние
-            if (field === 'fullName') {
-                const nameParts = value.split(' ');
-                setUserData(prev => prev ? {
-                    ...prev,
-                    lastName: nameParts[0] || '',
-                    firstName: nameParts[1] || '',
-                    middleName: nameParts.slice(2).join(' ') || ''
-                } : null);
-            } else if (field === 'gender') {
-                setUserData(prev => prev ? { ...prev, gender: value } : null);
-            } else if (field === 'phone1') {
-                setUserData(prev => prev ? { ...prev, phone: value } : null);
-            } else if (field === 'phone2') {
-                setUserData(prev => prev ? { ...prev, phone2: value } : null);
-            } else if (field === 'email') {
-                setUserData(prev => prev ? { ...prev, email: value } : null);
-            }
+            setUserData(prev => {
+                if (!prev) return null;
+
+                if (field === 'fullName') {
+                    const nameParts = value.split(' ');
+                    return {
+                        ...prev,
+                        lastName: nameParts[0] || '',
+                        firstName: nameParts[1] || '',
+                        middleName: nameParts.slice(2).join(' ') || ''
+                    };
+                } else if (field === 'gender') {
+                    return { ...prev, gender: value };
+                } else if (field === 'phone') {
+                    return { ...prev, phone: value };
+                } else if (field === 'phone2') {
+                    return { ...prev, phone2: value };
+                } else if (field === 'email') {
+                    return { ...prev, email: value };
+                }
+                return prev;
+            });
 
         } catch (error) {
             console.error('Error updating user data:', error);
@@ -362,9 +478,6 @@ function ClientProfilePage() {
             setTempValue('');
         }
     }, [handleInputSave]);
-
-
-
 
     const handleAvatarClick = useCallback(() => {
         fileInputRef.current?.click();
@@ -431,15 +544,10 @@ function ClientProfilePage() {
         }
     }, [userData?.id, navigate, checkImageExists]);
 
-    const handleImageError = useCallback(async (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    const handleImageError = useCallback((e: React.SyntheticEvent<HTMLImageElement, Event>) => {
         const img = e.currentTarget;
-        if (!userData?.id) {
-            img.src = "./fonTest6.png";
-            return;
-        }
-
         img.src = "./fonTest6.png";
-    }, [userData?.id]);
+    }, []);
 
     const getGenderDisplay = useCallback((gender: string) => {
         const genderMap: { [key: string]: string } = {
@@ -452,7 +560,27 @@ function ClientProfilePage() {
         return genderMap[gender] || gender;
     }, []);
 
-    // Мемоизированный рендер редактируемых полей
+    // SVG компонент для звездочки
+    const StarIcon = useCallback(() => (
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <g clipPath="url(#clip0_186_6434)">
+                <g clipPath="url(#clip1_186_6434)">
+                    <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                    <path d="M12 19V18.98" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                </g>
+            </g>
+            <defs>
+                <clipPath id="clip0_186_6434">
+                    <rect width="24" height="24" fill="white"/>
+                </clipPath>
+                <clipPath id="clip1_186_6434">
+                    <rect width="24" height="24" fill="white"/>
+                </clipPath>
+            </defs>
+        </svg>
+    ), []);
+
+    // Рендер редактируемых полей
     const renderEditableField = useCallback((field: 'fullName' | 'gender' | 'phone' | 'phone2' | 'email', label: string, value: string) => {
         if (editingField === field) {
             if (field === 'gender') {
@@ -473,11 +601,7 @@ function ClientProfilePage() {
             } else {
                 return (
                     <input
-                        type={field === 'email'
-                            ? 'email'
-                            : field === 'phone' || field === 'phone2'
-                                ? 'tel'
-                                : 'text'}
+                        type={field === 'email' ? 'email' : 'tel'}
                         value={tempValue}
                         onChange={(e) => setTempValue(e.target.value)}
                         onBlur={handleInputSave}
@@ -511,7 +635,66 @@ function ClientProfilePage() {
         }
     }, [editingField, tempValue, handleInputSave, handleInputKeyPress, getGenderDisplay, handleEditStart]);
 
-    // Условный рендеринг для избежания лишних вычислений
+    // Рендер поля email с возможностью копирования и раскрытия
+    const renderEmailField = useCallback(() => {
+        if (!userData) return null;
+
+        const displayEmail = showFullEmail ? userData.email : truncateText(userData.email, 25);
+        const isTruncated = userData.email.length > 25;
+
+        return (
+            <div className={styles.data_item}>
+                <div className={styles.data_label}>Эл. почта</div>
+                <div
+                    className={`${styles.email_container} ${copiedEmail ? styles.copied : ''}`}
+                    ref={emailRef}
+                >
+                    <div className={styles.email_actions}>
+                        {isTruncated && (
+                            <button
+                                className={styles.expand_button}
+                                onClick={() => setShowFullEmail(!showFullEmail)}
+                                title={showFullEmail ? "Свернуть" : "Раскрыть полностью"}
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M6 9L12 15L18 9" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                                          transform={showFullEmail ? "rotate(180 12 12)" : ""}
+                                    />
+                                </svg>
+                            </button>
+                        )}
+                        <button
+                            className={styles.copy_button}
+                            onClick={() => copyToClipboard(userData.email)}
+                            title="Скопировать email"
+                        >
+                            {copiedEmail ? (
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M20 6L9 17L4 12" stroke="#4CAF50" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                            ) : (
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M8 16H6C4.89543 16 4 15.1046 4 14V6C4 4.89543 4.89543 4 6 4H14C15.1046 4 16 4.89543 16 6V8M10 20H18C19.1046 20 20 19.1046 20 18V10C20 8.89543 19.1046 8 18 8H10C8.89543 8 8 8.89543 8 10V18C8 19.1046 8.89543 20 10 20Z" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                            )}
+                        </button>
+                    </div>
+                    <span
+                        className={styles.email_value}
+                        onClick={() => {
+                            if (isTruncated) {
+                                setShowFullEmail(!showFullEmail);
+                            }
+                        }}
+                        title={userData.email}
+                    >
+                        {displayEmail}
+                    </span>
+                </div>
+            </div>
+        );
+    }, [userData, showFullEmail, copiedEmail, truncateText, copyToClipboard]);
+
     if (isLoading) {
         return (
             <div className={styles.profile}>
@@ -531,6 +714,39 @@ function ClientProfilePage() {
             </div>
         );
     }
+
+    // Конвертируем отзывы в формат для ReviewList
+    // Теперь передаем оригинальные пути к изображениям, а преобразование будет в ReviewList
+    const reviewsForWidget: ReviewWidget[] = userData.reviews.map(review => ({
+        id: review.id,
+        master: {
+            id: review.master.id,
+            name: review.master.name || '',
+            surname: review.master.surname || '',
+            patronymic: review.master.patronymic || '',
+            profession: review.master.profession || '',
+            specialization: review.master.specialization || '',
+            image: review.master.image || '', // Оригинальный путь
+        },
+        reviewer: {
+            id: review.reviewer.id,
+            name: review.reviewer.name || '',
+            surname: review.reviewer.surname || '',
+            image: review.reviewer.image || '' // Оригинальный путь
+        },
+        rating: review.rating,
+        description: review.description,
+        forReviewer: review.forReviewer,
+        services: review.services,
+        // Передаем оригинальные пути, преобразование будет в ReviewList
+        images: review.images.map(img => ({
+            id: img.id,
+            image: img.image
+        })),
+        createdAt: review.createdAt || '',
+        vacation: review.vacation || review.services?.title || 'Услуга',
+        worker: review.worker || `${review.reviewer.name || ''} ${review.reviewer.surname || ''}`.trim() || 'Мастер'
+    }));
 
     return (
         <div className={styles.profile}>
@@ -553,7 +769,7 @@ function ClientProfilePage() {
                                     />
                                 ) : (
                                     <img
-                                        src="../default_user.png"
+                                        src="./fonTest6.png"
                                         alt="FonTest6"
                                         className={styles.avatar_placeholder}
                                         loading="eager"
@@ -595,9 +811,9 @@ function ClientProfilePage() {
                                         </div>
                                     ) : (
                                         <div className={styles.name_with_icon}>
-                                        <span className={styles.name}>
-                                            {getFullName()}
-                                        </span>
+                                            <span className={`${styles.name} ${styles.truncate}`}>
+                                                {getFullName()}
+                                            </span>
                                             <button
                                                 className={styles.edit_icon}
                                                 onClick={handleHeaderEditStart}
@@ -617,13 +833,7 @@ function ClientProfilePage() {
 
                             <div className={styles.rating_reviews}>
                                 <span className={styles.rating}>
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <g clipPath="url(#clip0_324_2272)">
-                                        <g clipPath="url(#clip1_324_2272)">
-                                        <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                        </g>
-                                        </g>
-                                    </svg>
+                                    <StarIcon />
                                     {userData.rating || '0'}
                                 </span>
                                 <span className={styles.reviews}>
@@ -646,17 +856,10 @@ function ClientProfilePage() {
                 {/* Личные данные с редактированием */}
                 <div className={styles.personal_data_section}>
                     <h2 className={styles.section_title}>Личные данные</h2>
-                    <p className={styles.section_subtitle}>
-                        Укажите адрес для определения района заказов
-                    </p>
 
                     <div className={styles.personal_data_list}>
-                        <div className={styles.data_item}>
-                            <div className={styles.data_label}>Эл. почта</div>
-                            <div className={styles.data_value}>
-                                {userData.email}
-                            </div>
-                        </div>
+                        {/* Email поле с особым поведением */}
+                        {renderEmailField()}
 
                         <div className={styles.data_item_phone}>
                             <div className={styles.data_item_sex}>
@@ -679,21 +882,20 @@ function ClientProfilePage() {
 
                 <div className={styles.divider}></div>
 
-                {/* Секция отзывов */}
+                {/* Секция отзывов - используем ReviewList */}
                 <div className={styles.reviews_section} id="reviews">
-                    <h2 className={styles.section_title}>Отзывы от мастеров</h2>
+                    <h2 className={styles.section_title}>Отзывы от специалистов</h2>
                     <p className={styles.section_subtitle}>
-                        Мастера оставили отзывы о работе с вами
+                        Специалисты оставили отзывы о работе с вами
                     </p>
 
                     <div className={styles.reviews_list}>
                         <ReviewList
-                            reviews={userData.reviews as unknown as ReviewWidget[]}
+                            reviews={reviewsForWidget}
                             showAll={showAllReviews}
                             onToggleShowAll={() => setShowAllReviews(prev => !prev)}
                             previewLimit={REVIEWS_PREVIEW_LIMIT}
-                            getFullName={getFullName}
-                            loading={reviewsLoading}
+                            loading={isLoading}
                         />
                     </div>
                 </div>

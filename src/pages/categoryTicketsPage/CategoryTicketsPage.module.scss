@@ -3,7 +3,7 @@
 
 .container {
   position: relative;
-  max-width: 1350px;
+  max-width: 1250px;
   margin: 40.45px auto;
   flex: 1;
   //padding: 20px;
@@ -144,7 +144,7 @@
       }
 
       .category {
-        max-width: 200px;
+        max-width: 307px;
         text-align: center;
         font-size: 18px;
         color: map.get(vars.$colors, text-black);

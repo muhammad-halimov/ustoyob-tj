@@ -108,7 +108,7 @@ const GoogleOAuthPage = () => {
     }
 
     return (
-        <div style={{ padding: '20px', textAlign: 'center' }}>
+        <div style={{ padding: '20px', textAlign: 'center', marginTop: '50px' }}>
             <h2>Обработка авторизации Google...</h2>
             <p>Пожалуйста, подождите.</p>
         </div>

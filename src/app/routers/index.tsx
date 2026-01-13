@@ -17,7 +17,7 @@ import ClientProfileViewPage from "../../entities/ClientProfileViewPage/ClientPr
 import MyTickets from "../../pages/myTickets/MyTickets.tsx";
 import CategoryTicketsPage from "../../pages/categoryTicketsPage/CategoryTicketsPage.tsx";
 import EditServicePage from "../../pages/EditServicePage/EditServicePage.tsx";
-import GoogleOAuthPage from "../../pages/GoogleOAuthPage/GoogleOAuthPage.tsx";
+import OAuthCallbackPage from "../../pages/GoogleOAuthPage/OAuthCallbackPage.tsx";
 
 const router = createBrowserRouter([
     {
@@ -44,12 +44,16 @@ const router = createBrowserRouter([
         ],
     },
     {
-        path: '/auth/google',
-        element: <GoogleOAuthPage />,
+        path: '/auth/google/callback',
+        element: <OAuthCallbackPage />,
     },
     {
-        path: '/auth/google/callback',
-        element: <GoogleOAuthPage />,
+        path: '/auth/instagram/callback',
+        element: <OAuthCallbackPage />,
+    },
+    {
+        path: '/auth/facebook/callback',
+        element: <OAuthCallbackPage />,
     },
 ]);
 
