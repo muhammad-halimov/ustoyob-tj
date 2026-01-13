@@ -850,18 +850,6 @@ function ClientProfileViewPage() {
                                         </span>
                                     </div>
                                 </div>
-                                {/* Роли пользователя */}
-                                {profileData.roles && profileData.roles.length > 0 && (
-                                    <div className={styles.roles}>
-                                        {profileData.roles.map((role, index) => (
-                                            <span key={index} className={styles.role_badge}>
-                                                {role === 'ROLE_MASTER' ? 'Мастер' :
-                                                    role === 'ROLE_CLIENT' ? 'Клиент' :
-                                                        role === 'ROLE_ADMIN' ? 'Администратор' : role}
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
                             </div>
 
                             <div className={styles.rating_reviews}>
