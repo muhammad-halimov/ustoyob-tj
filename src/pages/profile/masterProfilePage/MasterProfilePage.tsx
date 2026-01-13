@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAuthToken, removeAuthToken } from '../../../utils/auth.ts';
-import styles from '../ProfilePage.module.scss';
+import styles from '../MasterProfilePage.module.scss';
 
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
