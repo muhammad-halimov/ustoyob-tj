@@ -63,6 +63,8 @@ class Address
         'clientTickets:read',
         'masters:read',
         'clients:read',
+
+        'user:public:read',
     ])]
     private ?int $id = null;
 
@@ -72,6 +74,8 @@ class Address
         'clientTickets:read',
         'masters:read',
         'clients:read',
+
+        'user:public:read',
     ])]
     private ?Province $province = null;
 
@@ -81,6 +85,8 @@ class Address
         'clientTickets:read',
         'masters:read',
         'clients:read',
+
+        'user:public:read',
     ])]
     private ?City $city = null;
 
@@ -90,6 +96,8 @@ class Address
         'clientTickets:read',
         'masters:read',
         'clients:read',
+
+        'user:public:read',
     ])]
     private ?Suburb $suburb = null;
 
@@ -99,6 +107,8 @@ class Address
         'clientTickets:read',
         'masters:read',
         'clients:read',
+
+        'user:public:read',
     ])]
     private ?District $district = null;
 
@@ -108,6 +118,8 @@ class Address
         'clientTickets:read',
         'masters:read',
         'clients:read',
+
+        'user:public:read',
     ])]
     private ?Settlement $settlement = null;
 
@@ -117,6 +129,8 @@ class Address
         'clientTickets:read',
         'masters:read',
         'clients:read',
+
+        'user:public:read',
     ])]
     private ?Community $community = null;
 
@@ -126,6 +140,8 @@ class Address
         'clientTickets:read',
         'masters:read',
         'clients:read',
+
+        'user:public:read',
     ])]
     private ?Village $village = null;
 

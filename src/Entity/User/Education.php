@@ -30,24 +30,28 @@ class Education
     #[ORM\Column]
     #[Groups([
         'masters:read',
+        'user:public:read',
     ])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
         'masters:read',
+        'user:public:read',
     ])]
     private ?string $uniTitle = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
         'masters:read',
+        'user:public:read',
     ])]
     private ?string $faculty = null;
 
     #[ORM\Column(nullable: true)]
     #[Groups([
         'masters:read',
+        'user:public:read',
     ])]
     #[Assert\PositiveOrZero(message: 'Field cannot be less than zero')]
     private ?int $beginning = null;
@@ -55,6 +59,7 @@ class Education
     #[ORM\Column(nullable: true)]
     #[Groups([
         'masters:read',
+        'user:public:read',
     ])]
     #[Assert\PositiveOrZero(message: 'Field cannot be less than zero')]
     private ?int $ending = null;
@@ -62,6 +67,7 @@ class Education
     #[ORM\Column(type: 'boolean', nullable: true)]
     #[Groups([
         'masters:read',
+        'user:public:read',
     ])]
     private ?bool $graduated = null;
 

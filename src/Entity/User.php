@@ -555,6 +555,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToMany(targetEntity: Education::class, mappedBy: 'user', cascade: ['all'])]
     #[Groups([
         'masters:read',
+
+        'user:public:read',
     ])]
     private Collection $education;
 

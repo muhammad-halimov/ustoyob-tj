@@ -48,6 +48,8 @@ abstract class AddressComponent
         'cities:read',
         'masters:read',
         'clients:read',
+
+        'user:public:read',
     ])]
     protected ?int $id = null;
 
@@ -60,6 +62,8 @@ abstract class AddressComponent
         'cities:read',
         'masters:read',
         'clients:read',
+
+        'user:public:read',
     ])]
     private ?string $title = null;
 
@@ -74,6 +78,8 @@ abstract class AddressComponent
         'districts:read',
         'provinces:read',
         'cities:read',
+
+        'user:public:read',
     ])]
     private ?string $description = null;
 
