@@ -515,51 +515,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         }
     };
 
-    // Старая функция для Telegram (оставляем для обратной совместимости)
-    // const handleTelegramCallback = async (authData: TelegramAuthCallbackData) => {
-    //     try {
-    //         setIsLoading(true);
-    //         setError('');
-    //
-    //         console.log('Processing Telegram auth data:', authData);
-    //
-    //         const response = await fetch(`${API_BASE_URL}/api/auth/telegram/callback`, {
-    //             method: 'POST',
-    //             headers: {
-    //                 'Content-Type': 'application/json',
-    //                 'Accept': 'application/json',
-    //             },
-    //             body: JSON.stringify(authData)
-    //         });
-    //
-    //         if (!response.ok) {
-    //             const errorText = await response.text();
-    //             throw new Error(`Ошибка авторизации через Telegram: ${errorText}`);
-    //         }
-    //
-    //         const data: TelegramAuthResponse = await response.json();
-    //         console.log('Telegram auth successful, data:', data);
-    //
-    //         if (data.token) {
-    //             saveUserData(data);
-    //             handleSuccessfulAuth(data.token, data.user?.email);
-    //         } else {
-    //             if (data.user) {
-    //                 localStorage.setItem('telegramUserData', JSON.stringify(data.user));
-    //                 setCurrentState(AuthModalState.TELEGRAM_ROLE_SELECT);
-    //             } else {
-    //                 throw new Error('Данные пользователя не получены');
-    //             }
-    //         }
-    //
-    //     } catch (err) {
-    //         console.error('Telegram auth callback error:', err);
-    //         setError(err instanceof Error ? err.message : 'Ошибка при завершении авторизации через Telegram');
-    //     } finally {
-    //         setIsLoading(false);
-    //     }
-    // };
-
     // Старая функция (оставляем для обратной совместимости)
     const completeTelegramAuth = async (selectedRole: 'master' | 'client' = 'client') => {
         try {
@@ -1263,6 +1218,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         title="Войти через Google"
                     >
                         <img src="../chrome.png" alt="Google" />
+                        <span>Google</span>
                     </button>
                     <button
                         type="button"
@@ -1272,6 +1228,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         title="Войти через Facebook"
                     >
                         <img src="../facebook.png" alt="Facebook" />
+                        <span>Facebook</span>
                     </button>
                     <button
                         type="button"
@@ -1281,15 +1238,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         title="Войти через Instagram"
                     >
                         <img src="../instagram.png" alt="Instagram" />
-                    </button>
-                    <button
-                        type="button"
-                        className={styles.telegramButton}
-                        onClick={handleTelegramAuthClick}
-                        disabled={isLoading}
-                        title="Войти через Telegram"
-                    >
-                        <img src="../telegram.png" alt="Telegram" />
+                        <span>Instagram</span>
                     </button>
                 </div>
 
