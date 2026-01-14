@@ -268,10 +268,10 @@
   flex-direction: column;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 60px;
+  margin-bottom: 40px;
   border-radius: 20px;
   background-color: map.get(vars.$colors, background-primary);
-  padding: 20px 40px;
+  padding: 20px;
   min-height: 110px;
 
   h3 {
@@ -960,7 +960,7 @@
   border-radius: 20px;
   padding: 20px;
   margin-bottom: 20px;
-  margin-top: 60px;
+  margin-top: 40px;
 }
 
 .reviews_section h2 {
@@ -977,6 +977,8 @@
 }
 
 .reviews_list {
+  margin-top: 10px;
+
   .reviews_desktop {
     display: flex;
     flex-wrap: wrap;
