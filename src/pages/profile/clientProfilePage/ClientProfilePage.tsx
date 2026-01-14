@@ -895,7 +895,6 @@ function ClientProfilePage() {
                             showAll={showAllReviews}
                             onToggleShowAll={() => setShowAllReviews(prev => !prev)}
                             previewLimit={REVIEWS_PREVIEW_LIMIT}
-                            getFullName={getFullName}
                             loading={isLoading}
                         />
                     </div>
