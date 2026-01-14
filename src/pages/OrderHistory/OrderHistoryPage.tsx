@@ -1,7 +1,7 @@
 import styles from './OrderHistoryPage.module.scss';
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { getAuthToken } from '../../utils/auth';
+import {getAuthToken, getUserRole} from '../../utils/auth';
 import AuthModalWrapper from '../../shared/ui/AuthModal/AuthModal.tsx';
 
 // Интерфейсы для тикетов
@@ -54,9 +54,11 @@ interface Ticket {
     description: string;
     notice?: string;
     budget: number;
+    negotiableBudget?: boolean;
     service: boolean;
     active: boolean;
     category?: Category;
+    subcategory?: Category;
     author: UserInfo;
     master?: UserInfo;
     images: Image[];
@@ -66,78 +68,28 @@ interface Ticket {
     updatedAt: string;
 }
 
-
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
-// Функция для получения текущего пользователя через API
-const getCurrentUser = async (): Promise<{ id: number; email?: string; name?: string; surname?: string } | null> => {
-    const token = getAuthToken();
-    if (!token) return null;
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/users/me`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-            },
-        });
-
-        if (response.ok) {
-            const userData = await response.json();
-            return {
-                id: userData.id,
-                email: userData.email,
-                name: userData.name,
-                surname: userData.surname
-            };
-        }
-    } catch (error) {
-        console.error('Ошибка при получении текущего пользователя:', error);
-    }
-    return null;
-};
 
 const OrderHistoryPage = () => {
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [error, setError] = useState<string | null>(null);
-    const [currentUser, setCurrentUser] = useState<{ id: number; email?: string; name?: string; surname?: string } | null>(null);
 
     const isAuthenticated = !!getAuthToken();
 
-    // Получаем данные пользователя при загрузке компонента
+    // Загружаем тикеты при изменении статуса авторизации
     useEffect(() => {
-        const loadUser = async () => {
-            if (isAuthenticated) {
-                const user = await getCurrentUser();
-                if (user) {
-                    setCurrentUser(user);
-                } else {
-                    setError('Не удалось загрузить данные пользователя');
-                }
-            } else {
-                setCurrentUser(null);
-                setTickets([]);
-            }
-        };
-        loadUser();
+        if (isAuthenticated) {
+            fetchUserTickets();
+        } else {
+            setTickets([]);
+            setError(null);
+        }
     }, [isAuthenticated]);
 
-    // Загружаем тикеты, когда появится данные пользователя
-    useEffect(() => {
-        if (currentUser?.id) {
-            fetchUserTickets(currentUser.id);
-        } else if (isAuthenticated && !currentUser) {
-            // Если пользователь авторизован, но данные еще не получены
-            setIsLoading(true);
-        }
-    }, [currentUser, isAuthenticated]);
-
-    // Функция для загрузки тикетов пользователя
-    const fetchUserTickets = async (userId: number) => {
+    // Функция для загрузки тикетов текущего пользователя
+    const fetchUserTickets = async () => {
         try {
             setIsLoading(true);
             setError(null);
@@ -147,9 +99,9 @@ const OrderHistoryPage = () => {
                 throw new Error('Токен авторизации не найден');
             }
 
-            // Используем endpoint с фильтром по автору
-            const url = `${API_BASE_URL}/api/tickets?author.id=${userId}&order[createdAt]=desc`;
-            console.log('Загружаем тикеты по URL:', url);
+            // Используем специальный endpoint для получения тикетов текущего пользователя
+            const url = `${API_BASE_URL}/api/tickets/me`;
+            console.log('Загружаем тикеты текущего пользователя по URL:', url);
 
             const response = await fetch(url, {
                 method: 'GET',
@@ -161,16 +113,18 @@ const OrderHistoryPage = () => {
             });
 
             if (response.status === 401) {
-                throw new Error('Неавторизованный доступ');
+                throw new Error('Неавторизованный доступ. Пожалуйста, войдите снова.');
             }
 
             if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Ошибка сервера:', errorText);
                 throw new Error(`Ошибка сервера: ${response.status} ${response.statusText}`);
             }
 
             const data = await response.json();
 
-            // Обрабатываем разные форматы ответа (гидра или обычный массив)
+            // Обрабатываем разные форматы ответа
             let ticketsArray: Ticket[] = [];
 
             if (Array.isArray(data)) {
@@ -183,23 +137,14 @@ const OrderHistoryPage = () => {
                 }
             }
 
-            console.log(`Получено ${ticketsArray.length} тикетов`);
+            console.log(`Получено ${ticketsArray.length} тикетов текущего пользователя`);
 
-            // Фильтруем только тикеты, созданные текущим пользователем
-            const userTickets = ticketsArray.filter(ticket => {
-                // Проверяем, что автор тикета - текущий пользователь
-                const isUserTicket = ticket.author && ticket.author.id === userId;
+            // Сортируем по дате создания (новые первыми)
+            ticketsArray.sort((a, b) =>
+                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            );
 
-                // Дополнительная проверка: убеждаемся, что email автора совпадает
-                if (currentUser?.email && ticket.author?.email) {
-                    return isUserTicket && ticket.author.email === currentUser.email;
-                }
-
-                return isUserTicket;
-            });
-
-            console.log(`Отфильтровано ${userTickets.length} тикетов текущего пользователя`);
-            setTickets(userTickets);
+            setTickets(ticketsArray);
 
         } catch (err) {
             console.error('Ошибка при загрузке тикетов:', err);
@@ -243,12 +188,23 @@ const OrderHistoryPage = () => {
         if (ticket.master) {
             return 'Актуальный';
         }
-        return 'Актуальный';
+        return 'Поиск исполнителя';
+    };
+
+    // Функция для получения класса статуса
+    const getStatusClass = (ticket: Ticket): string => {
+        if (!ticket.active) {
+            return styles.status_completed;
+        }
+        if (ticket.master) {
+            return styles.status_in_progress;
+        }
+        return styles.status_searching;
     };
 
     // Функция для получения форматированного бюджета
     const getFormattedBudget = (ticket: Ticket): string => {
-        if (!ticket.budget || ticket.budget === 0) {
+        if (ticket.negotiableBudget || !ticket.budget || ticket.budget === 0) {
             return 'Договорная';
         }
         const unit = ticket.unit?.title || 'TJS';
@@ -257,35 +213,14 @@ const OrderHistoryPage = () => {
 
     // Обработка клика для кнопки "Попробовать снова"
     const handleRetry = () => {
-        if (currentUser?.id) {
-            fetchUserTickets(currentUser.id);
-        } else if (isAuthenticated) {
-            // Перезагружаем страницу для получения нового токена
-            window.location.reload();
+        if (isAuthenticated) {
+            fetchUserTickets();
         }
-    };
-
-    // Функция для проверки, является ли тикет созданным текущим пользователем
-    const isUserTicket = (ticket: Ticket): boolean => {
-        if (!currentUser) return false;
-        return ticket.author?.id === currentUser.id;
     };
 
     // Функция для отображения имени автора
-    const getAuthorName = (ticket: Ticket): string => {
-        if (isUserTicket(ticket)) {
-            return 'Вы';
-        }
-        if (ticket.author?.name && ticket.author?.surname) {
-            return `${ticket.author.name} ${ticket.author.surname}`;
-        }
-        if (ticket.author?.name) {
-            return ticket.author.name;
-        }
-        if (ticket.author?.email) {
-            return ticket.author.email;
-        }
-        return 'Аноним';
+    const getAuthorName = (): string => {
+        return 'Вы';
     };
 
     return (
@@ -329,14 +264,14 @@ const OrderHistoryPage = () => {
             {/* Показываем блок с заказами только авторизованным пользователям */}
             {isAuthenticated ? (
                 <>
-                    <h3>Мои заказы</h3>
+                    {getUserRole() !== 'master' ? (
+                        <h3>Мои услуги</h3>
+                    ) : (
+                        <h3>Мои объявления</h3>
+                    )}
 
-                    {isLoading && !currentUser ? (
-                        <div className={styles.loading}>
-                            <div className={styles.spinner}></div>
-                            <p>Загрузка данных пользователя...</p>
-                        </div>
-                    ) : isLoading ? (
+
+                    {isLoading ? (
                         <div className={styles.loading}>
                             <div className={styles.spinner}></div>
                             <p>Загрузка заказов...</p>
@@ -354,82 +289,78 @@ const OrderHistoryPage = () => {
                         </div>
                     ) : tickets.length === 0 ? (
                         <div className={styles.no_tickets}>
-                            {/*<div className={styles.empty_icon}>📋</div>*/}
                             <p>У вас пока нет созданных заказов</p>
+                            <Link to="/create-ad" className={styles.create_first_button}>
+                                Создать первый заказ
+                            </Link>
                         </div>
                     ) : (
                         <div className={styles.order_history}>
-                            {tickets.map((ticket) => {
-                                const isMyTicket = isUserTicket(ticket);
-                                return (
-                                    <div key={ticket.id} className={`${styles.order_item} ${isMyTicket ? styles.my_ticket : ''}`}>
-                                        <div className={styles.order_item_header}>
-                                            <div className={styles.order_item_title}>
-                                                <h4>{ticket.title}</h4>
-                                                <div className={styles.order_meta}>
-                                                    <span className={styles.order_author}>
-                                                        {getAuthorName(ticket)}
-                                                    </span>
-                                                    <span className={styles.order_date}>
-                                                        {formatDate(ticket.createdAt)}
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            <div className={styles.order_item_status}>
-                                                <span className={`${styles.status_badge} ${
-                                                    ticket.active
-                                                        ? (ticket.master ? styles.status_in_progress : styles.status_searching)
-                                                        : styles.status_completed
-                                                }`}>
-                                                    {getTicketStatus(ticket)}
+                            {tickets.map((ticket) => (
+                                <div key={ticket.id} className={styles.order_item}>
+                                    <div className={styles.order_item_header}>
+                                        <div className={styles.order_item_title}>
+                                            <h4>{ticket.title}</h4>
+                                            <div className={styles.order_meta}>
+                                                <span className={styles.order_author}>
+                                                    {getAuthorName()}
                                                 </span>
-                                                {/*{isMyTicket && (*/}
-                                                {/*    <span className={styles.my_ticket_badge}>*/}
-                                                {/*        Ваш заказ*/}
-                                                {/*    </span>*/}
-                                                {/*)}*/}
+                                                <span className={styles.order_date}>
+                                                    {formatDate(ticket.createdAt)}
+                                                </span>
                                             </div>
                                         </div>
 
-                                        <div className={styles.order_item_content}>
-                                            <div className={styles.order_description}>
-                                                <p>{ticket.description}</p>
-                                            </div>
-
-                                            <div className={styles.order_details}>
-                                                <div className={styles.detail_item}>
-                                                    <span className={styles.detail_label}>Бюджет:</span>
-                                                    <span className={styles.detail_value}>{getFormattedBudget(ticket)}</span>
-                                                </div>
-                                                {ticket.category && (
-                                                    <div className={styles.detail_item}>
-                                                        <span className={styles.detail_label}>Категория:</span>
-                                                        <span className={styles.detail_value}>{ticket.category.title}</span>
-                                                    </div>
-                                                )}
-                                                {ticket.master && (
-                                                    <div className={styles.detail_item}>
-                                                        <span className={styles.detail_label}>Исполнитель:</span>
-                                                        <span className={styles.detail_value}>
-                                                            {ticket.master.name} {ticket.master.surname}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            <div className={styles.order_actions}>
-                                                <Link
-                                                    to={`/order/${ticket.id}`}
-                                                    className={styles.view_details_button}
-                                                >
-                                                    Посмотреть подробности
-                                                </Link>
-                                            </div>
+                                        <div className={styles.order_item_status}>
+                                            <span className={`${styles.status_badge} ${getStatusClass(ticket)}`}>
+                                                {getTicketStatus(ticket)}
+                                            </span>
                                         </div>
                                     </div>
-                                );
-                            })}
+
+                                    <div className={styles.order_item_content}>
+                                        <div className={styles.order_description}>
+                                            <p>{ticket.description}</p>
+                                        </div>
+
+                                        <div className={styles.order_details}>
+                                            <div className={styles.detail_item}>
+                                                <span className={styles.detail_label}>Бюджет:</span>
+                                                <span className={styles.detail_value}>{getFormattedBudget(ticket)}</span>
+                                            </div>
+                                            {ticket.category && (
+                                                <div className={styles.detail_item}>
+                                                    <span className={styles.detail_label}>Категория:</span>
+                                                    <span className={styles.detail_value}>{ticket.category.title}</span>
+                                                </div>
+                                            )}
+                                            {ticket.subcategory && (
+                                                <div className={styles.detail_item}>
+                                                    <span className={styles.detail_label}>Подкатегория:</span>
+                                                    <span className={styles.detail_value}>{ticket.subcategory.title}</span>
+                                                </div>
+                                            )}
+                                            {ticket.master && (
+                                                <div className={styles.detail_item}>
+                                                    <span className={styles.detail_label}>Исполнитель:</span>
+                                                    <span className={styles.detail_value}>
+                                                        {ticket.master.name} {ticket.master.surname}
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className={styles.order_actions}>
+                                            <Link
+                                                to={`/order/${ticket.id}`}
+                                                className={styles.view_details_button}
+                                            >
+                                                Посмотреть подробности
+                                            </Link>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     )}
                 </>
@@ -437,6 +368,12 @@ const OrderHistoryPage = () => {
                 <div className={styles.not_authenticated}>
                     <div className={styles.not_authenticated_icon}>🔐</div>
                     <p>Войдите в систему, чтобы увидеть свои заказы</p>
+                    <button
+                        onClick={() => setShowAuthModal(true)}
+                        className={styles.login_button}
+                    >
+                        Войти
+                    </button>
                 </div>
             )}
         </div>

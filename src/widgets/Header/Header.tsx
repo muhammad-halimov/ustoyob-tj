@@ -425,7 +425,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
 
     const handleAdBtnClick = () => {
         if (getUserRole() === 'master') {
-            navigate('/profile/services');
+            navigate('/orders');
         } else {
             navigate('/orders');
         }

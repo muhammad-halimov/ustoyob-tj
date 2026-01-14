@@ -1236,7 +1236,7 @@ function MasterProfileViewPage() {
                                 {services.map(service => (
                                     <div key={service.id} className={styles.service_display_item}>
                                         <span className={styles.service_name}>{service.title}</span>
-                                        <span className={styles.service_price}>{service.budget} {service.unit}</span>
+                                        <span className={styles.service_price}>{service.budget} TJS, {service.unit} </span>
                                     </div>
                                 ))}
                             </div>
