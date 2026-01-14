@@ -115,6 +115,31 @@ interface OAuthCallbackData {
     provider: OAuthProvider;
 }
 
+// Регулярное выражение для проверки пароля
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*]).+$/;
+
+// Функция для проверки сложности пароля
+const validatePassword = (password: string): { isValid: boolean; message: string } => {
+    if (password.length < 8) {
+        return {
+            isValid: false,
+            message: 'Пароль должен содержать минимум 8 символов'
+        };
+    }
+
+    if (!PASSWORD_REGEX.test(password)) {
+        return {
+            isValid: false,
+            message: 'Пароль должен содержать: минимум 1 заглавную букву, 1 строчную букву, 1 цифру и 1 специальный символ (!@#$%^&*)'
+        };
+    }
+
+    return {
+        isValid: true,
+        message: ''
+    };
+};
+
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => {
     const [currentState, setCurrentState] = useState<AuthModalStateType>(AuthModalState.WELCOME);
     const [categories, setCategories] = useState<Category[]>([]);
@@ -136,8 +161,31 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
     const [oauthCallbackData, setOAuthCallbackData] = useState<OAuthCallbackData | null>(null);
     const [isCheckingProfile, setIsCheckingProfile] = useState(false);
     const [activeOAuthProvider, setActiveOAuthProvider] = useState<OAuthProvider | null>(null);
+    const [passwordValidation, setPasswordValidation] = useState<{ isValid: boolean; message: string }>({
+        isValid: false,
+        message: ''
+    });
+    const [showPasswordRequirements, setShowPasswordRequirements] = useState(false);
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+    // Эффект для валидации пароля при изменении
+    useEffect(() => {
+        if (formData.password) {
+            const validation = validatePassword(formData.password);
+            setPasswordValidation(validation);
+
+            // Автоматически показываем требования, если пароль невалидный
+            if (!validation.isValid && formData.password.length > 0) {
+                setShowPasswordRequirements(true);
+            } else if (validation.isValid) {
+                setShowPasswordRequirements(false);
+            }
+        } else {
+            setPasswordValidation({ isValid: false, message: '' });
+            setShowPasswordRequirements(false);
+        }
+    }, [formData.password]);
 
     // Обработка OAuth callback при открытии модалки
     useEffect(() => {
@@ -515,101 +563,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         }
     };
 
-    // Старая функция для Telegram (оставляем для обратной совместимости)
-    // const handleTelegramCallback = async (authData: TelegramAuthCallbackData) => {
-    //     try {
-    //         setIsLoading(true);
-    //         setError('');
-    //
-    //         console.log('Processing Telegram auth data:', authData);
-    //
-    //         const response = await fetch(`${API_BASE_URL}/api/auth/telegram/callback`, {
-    //             method: 'POST',
-    //             headers: {
-    //                 'Content-Type': 'application/json',
-    //                 'Accept': 'application/json',
-    //             },
-    //             body: JSON.stringify(authData)
-    //         });
-    //
-    //         if (!response.ok) {
-    //             const errorText = await response.text();
-    //             throw new Error(`Ошибка авторизации через Telegram: ${errorText}`);
-    //         }
-    //
-    //         const data: TelegramAuthResponse = await response.json();
-    //         console.log('Telegram auth successful, data:', data);
-    //
-    //         if (data.token) {
-    //             saveUserData(data);
-    //             handleSuccessfulAuth(data.token, data.user?.email);
-    //         } else {
-    //             if (data.user) {
-    //                 localStorage.setItem('telegramUserData', JSON.stringify(data.user));
-    //                 setCurrentState(AuthModalState.TELEGRAM_ROLE_SELECT);
-    //             } else {
-    //                 throw new Error('Данные пользователя не получены');
-    //             }
-    //         }
-    //
-    //     } catch (err) {
-    //         console.error('Telegram auth callback error:', err);
-    //         setError(err instanceof Error ? err.message : 'Ошибка при завершении авторизации через Telegram');
-    //     } finally {
-    //         setIsLoading(false);
-    //     }
-    // };
-
-    // Старая функция (оставляем для обратной совместимости)
-    const completeTelegramAuth = async (selectedRole: 'master' | 'client' = 'client') => {
-        try {
-            setIsLoading(true);
-            setError('');
-
-            const telegramUserDataStr = localStorage.getItem('telegramUserData');
-            if (!telegramUserDataStr) {
-                throw new Error('Данные пользователя Telegram не найдены');
-            }
-
-            const telegramUserData: TelegramUserData = JSON.parse(telegramUserDataStr);
-            console.log('Completing Telegram auth for role:', selectedRole);
-
-            const response = await fetch(`${API_BASE_URL}/api/auth/telegram/complete`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify({
-                    userData: telegramUserData,
-                    role: selectedRole
-                })
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Ошибка завершения авторизации через Telegram: ${errorText}`);
-            }
-
-            const data: TelegramAuthResponse = await response.json();
-            console.log('Telegram auth completed, data:', data);
-
-            if (data.token) {
-                saveUserData(data);
-                handleSuccessfulAuth(data.token, data.user?.email);
-                localStorage.removeItem('telegramUserData');
-            } else {
-                throw new Error('Токен не получен в ответе');
-            }
-
-        } catch (err) {
-            console.error('Telegram auth completion error:', err);
-            setError(err instanceof Error ? err.message : 'Ошибка при завершении авторизации через Telegram');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const name = e.target.name as keyof FormData;
         const value = e.target.value;
@@ -759,14 +712,17 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         setIsLoading(true);
         setError('');
 
+        // Проверка паролей
         if (formData.password !== formData.confirmPassword) {
             setError('Пароли не совпадают');
             setIsLoading(false);
             return;
         }
 
-        if (formData.password.length < 6) {
-            setError('Пароль должен содержать не менее 6 символов');
+        // Валидация пароля
+        const passwordValidationResult = validatePassword(formData.password);
+        if (!passwordValidationResult.isValid) {
+            setError(passwordValidationResult.message);
             setIsLoading(false);
             return;
         }
@@ -1055,6 +1011,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         setCurrentState(AuthModalState.WELCOME);
         setOAuthCallbackData(null);
         setActiveOAuthProvider(null);
+        setPasswordValidation({ isValid: false, message: '' });
+        setShowPasswordRequirements(false);
 
         // Очищаем все временные данные
         ['google', 'instagram', 'facebook', 'telegram'].forEach(provider => {
@@ -1416,8 +1374,36 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         onChange={handleInputChange}
                         required
                         disabled={isLoading}
-                        placeholder="Придумайте пароль (Минимум 6 символов)"
+                        placeholder="Придумайте пароль (Минимум 8 символов)"
+                        onFocus={() => setShowPasswordRequirements(true)}
+                        onBlur={() => {
+                            if (passwordValidation.isValid) {
+                                setShowPasswordRequirements(false);
+                            }
+                        }}
                     />
+                    {showPasswordRequirements && (
+                        <div className={styles.passwordRequirements}>
+                            <p>Пароль должен содержать:</p>
+                            <ul>
+                                <li className={formData.password.length >= 8 ? styles.requirementMet : ''}>
+                                    Минимум 8 символов
+                                </li>
+                                <li className={/[a-z]/.test(formData.password) ? styles.requirementMet : ''}>
+                                    Минимум 1 строчная буква
+                                </li>
+                                <li className={/[A-Z]/.test(formData.password) ? styles.requirementMet : ''}>
+                                    Минимум 1 заглавная буква
+                                </li>
+                                <li className={/\d/.test(formData.password) ? styles.requirementMet : ''}>
+                                    Минимум 1 цифра
+                                </li>
+                                <li className={/[!@#$%^&*]/.test(formData.password) ? styles.requirementMet : ''}>
+                                    Минимум 1 специальный символ (!@#$%^&*)
+                                </li>
+                            </ul>
+                        </div>
+                    )}
                 </div>
 
                 <div className={styles.inputGroup}>
@@ -1430,12 +1416,17 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         disabled={isLoading}
                         placeholder="Повторите пароль"
                     />
+                    {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                        <div className={styles.passwordError}>
+                            Пароли не совпадают
+                        </div>
+                    )}
                 </div>
 
                 <button
                     type="submit"
                     className={styles.primaryButton}
-                    disabled={isLoading}
+                    disabled={isLoading || !passwordValidation.isValid}
                 >
                     {isLoading ? 'Регистрация...' : 'Зарегистрироваться'}
                 </button>
@@ -1522,6 +1513,55 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 </div>
             </div>
         );
+    };
+
+    const completeTelegramAuth = async (selectedRole: 'master' | 'client' = 'client') => {
+        try {
+            setIsLoading(true);
+            setError('');
+
+            const telegramUserDataStr = localStorage.getItem('telegramUserData');
+            if (!telegramUserDataStr) {
+                throw new Error('Данные пользователя Telegram не найдены');
+            }
+
+            const telegramUserData: TelegramUserData = JSON.parse(telegramUserDataStr);
+            console.log('Completing Telegram auth for role:', selectedRole);
+
+            const response = await fetch(`${API_BASE_URL}/api/auth/telegram/complete`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({
+                    userData: telegramUserData,
+                    role: selectedRole
+                })
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Ошибка завершения авторизации через Telegram: ${errorText}`);
+            }
+
+            const data: TelegramAuthResponse = await response.json();
+            console.log('Telegram auth completed, data:', data);
+
+            if (data.token) {
+                saveUserData(data);
+                handleSuccessfulAuth(data.token, data.user?.email);
+                localStorage.removeItem('telegramUserData');
+            } else {
+                throw new Error('Токен не получен в ответе');
+            }
+
+        } catch (err) {
+            console.error('Telegram auth completion error:', err);
+            setError(err instanceof Error ? err.message : 'Ошибка при завершении авторизации через Telegram');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const renderTelegramRoleSelectScreen = () => {

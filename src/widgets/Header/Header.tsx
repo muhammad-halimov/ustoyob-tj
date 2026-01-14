@@ -424,10 +424,11 @@ function Header({ onOpenAuthModal }: HeaderProps) {
     };
 
     const handleAdBtnClick = () => {
-        if (getUserRole() == 'client')
+        if (getUserRole() === 'master') {
             navigate('/orders');
-        else if (getUserRole() == 'master')
-            navigate('/profile/services');
+        } else {
+            navigate('/orders');
+        }
     };
 
     return (

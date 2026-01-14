@@ -1290,69 +1290,11 @@ export function OrderPage() {
         }
     };
 
-    // Добавим функцию для получения информации о пользователе
-    // const getUserInfo = async (userId: number): Promise<any> => {
-    //     try {
-    //         const headers: HeadersInit = {
-    //             'Content-Type': 'application/json',
-    //             'Accept': 'application/json',
-    //         };
-    //
-    //         // Пробуем с токеном если есть
-    //         const token = getAuthToken();
-    //         if (token) {
-    //             headers['Authorization'] = `Bearer ${token}`;
-    //         }
-    //
-    //         console.log(`Fetching user info for ID: ${userId}`);
-    //         const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
-    //             headers: headers,
-    //         });
-    //
-    //         if (!response.ok) {
-    //             throw new Error(`Failed to fetch user info: ${response.status}`);
-    //         }
-    //
-    //         const userData = await response.json();
-    //         console.log('User data fetched successfully:', {
-    //             id: userData.id,
-    //             name: userData.name,
-    //             surname: userData.surname,
-    //             roles: userData.roles
-    //         });
-    //
-    //         return userData;
-    //     } catch (error) {
-    //         console.error('Error in getUserInfo:', error);
-    //         throw error;
-    //     }
-    // };
-
-// Добавим вспомогательную функцию для получения данных тикета
-//     const getTicketData = async (ticketId: number): Promise<ApiTicket | null> => {
-//         try {
-//             const headers: HeadersInit = {
-//                 'Content-Type': 'application/json',
-//             };
-//
-//             const token = getAuthToken();
-//             if (token) {
-//                 headers['Authorization'] = `Bearer ${token}`;
-//             }
-//
-//             const response = await fetch(`${API_BASE_URL}/api/tickets/${ticketId}`, {
-//                 headers: headers,
-//             });
-//
-//             if (response.ok) {
-//                 return await response.json();
-//             }
-//             return null;
-//         } catch (error) {
-//             console.error('Error fetching ticket data:', error);
-//             return null;
-//         }
-//     };
+    const getReviewWord = (count: number) => {
+        if (count === 1) return 'отзыв';
+        if (count >= 2 && count <= 4) return 'отзыва';
+        return 'отзывов';
+    };
 
     if (isLoading) return <div className={styles.loading}>Загрузка...</div>;
     if (error) return (
@@ -1480,7 +1422,7 @@ export function OrderPage() {
                                     </clipPath>
                                 </defs>
                             </svg>
-                            <p>{rating}</p>
+                            <p>{rating} (рейтинг)</p>
                         </div>
                         <div className={styles.rate_item}>
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -1496,7 +1438,7 @@ export function OrderPage() {
                                     </clipPath>
                                 </defs>
                             </svg>
-                            <p>{reviewCount}</p>
+                            <p>{reviewCount} {getReviewWord(reviewCount)}</p>
                         </div>
                         <div className={styles.rate_item}>
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
