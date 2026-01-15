@@ -127,7 +127,7 @@ export function OrderPage() {
     const [reviewPhotos, setReviewPhotos] = useState<File[]>([]);
     const [showAuthModal, setShowAuthModal] = useState(false);
 
-    const ticketType = searchParams.get('type') as 'client' | 'master' | null;
+    const ticketType = searchParams.get('type');
     const specificTicketId = searchParams.get('ticket');
     const [reviewCount, setReviewCount] = useState<number>(0);
 
@@ -469,7 +469,6 @@ export function OrderPage() {
         setSelectedStars(0);
         setReviewPhotos([]);
     };
-
 
     const checkFavoriteStatus = async () => {
         const token = getAuthToken();
@@ -865,7 +864,7 @@ export function OrderPage() {
         }
     };
 
-    const fetchOrder = async (userId: number, role: string | null, ticketTypeParam: 'client' | 'master' | null, specificTicketId?: number) => {
+    const fetchOrder = async (userId: number, role: string | null, ticketTypeParam: string | null, specificTicketId?: number) => {
         try {
             setIsLoading(true);
             setError(null);
@@ -877,16 +876,16 @@ export function OrderPage() {
                 specificTicketId
             });
 
-            let endpoint = '';
+            let endpoint: string;
             const targetUserId = userId; // Изменено с let на const
 
             // Определяем endpoint и ID пользователя для запроса
             if (ticketTypeParam === 'client') {
-                endpoint = `/api/tickets/clients/${targetUserId}`;
+                endpoint = `/api/tickets?active=true&service=false&exists[author]=true&client=${targetUserId}`;
             } else if (ticketTypeParam === 'master') {
-                endpoint = `/api/tickets/masters/${targetUserId}`;
+                endpoint = `/api/tickets?active=true&service=true&exists[master]=true&master=${targetUserId}`;
             } else {
-                endpoint = `/api/tickets`;
+                endpoint = `/api/tickets?active=true`;
             }
 
             console.log('Fetching from endpoint:', endpoint);
@@ -941,10 +940,10 @@ export function OrderPage() {
             }
 
             // Определяем, чью информацию показывать
-            let displayUserId = 0;
-            let displayUserName = '';
-            let displayUserImage = '';
-            let userTypeForRating: 'client' | 'master' | null = ticketTypeParam;
+            let displayUserId: number;
+            let displayUserName: string;
+            let displayUserImage: string;
+            let userTypeForRating: string | null;
 
             if (ticketTypeParam === 'client') {
                 // Если смотрим тикеты клиента, показываем информацию о клиенте (авторе)
@@ -1043,7 +1042,7 @@ export function OrderPage() {
         }
     };
 
-    const fetchUserInfo = async (userId: number, userType: 'client' | 'master' | null): Promise<{
+    const fetchUserInfo = async (userId: number, userType: string | null): Promise<{
         name: string;
         rating: number;
         image: string
@@ -1378,12 +1377,12 @@ export function OrderPage() {
                 <section className={styles.section}>
                     <div className={styles.section_photo}>
                         <img
-                            src={order.authorImage || '../fonTest1.png'}
+                            src={order.authorImage || '../default_user.png'}
                             alt="authorImage"
                             onClick={() => handleProfileClick(order.authorId)}
                             style={{cursor: 'pointer'}}
                             onError={(e) => {
-                                (e.target as HTMLImageElement).src = '../fonTest1.png';
+                                (e.target as HTMLImageElement).src = '../default_user.png';
                             }}
                         />
                         <div className={styles.authorSection}>

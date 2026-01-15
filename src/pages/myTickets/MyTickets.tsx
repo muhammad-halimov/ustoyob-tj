@@ -38,20 +38,40 @@ interface Ticket {
         title: string;
     };
     service: boolean;
-    district: {
+    addresses: {
         id: number;
-        title: string;
-        image: string;
-        city: {
+        title?: string;
+        province?: {
             id: number;
-            title: string;
-            image: string;
-            province: {
-                id: number;
-                title: string;
-            };
+            title?: string;
         };
-    };
+        district?: {
+            id: number;
+            title?: string;
+            image?: string | null;
+        };
+        city?: {
+            id: number;
+            title?: string;
+            image?: string | null;
+        };
+        suburb?: {
+            id: number;
+            title?: string;
+        } | null;
+        settlement?: {
+            id: number;
+            title?: string;
+        } | null;
+        village?: {
+            id: number;
+            title?: string;
+        } | null;
+        community?: {
+            id: number;
+            title?: string;
+        } | null;
+    }[];
     createdAt: string;
     updatedAt: string;
 }
@@ -65,16 +85,18 @@ interface FormattedTicket {
     address: string;
     date: string;
     author: string;
+    master: string;
     timeAgo: string;
     category: string;
     status: string;
     authorId: number;
+    masterId: number;
     type: 'client' | 'master';
     authorImage?: string;
     active: boolean;
 }
 
-const API_BASE_URL = 'https://admin.ustoyob.tj';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 function MyTickets() {
     const navigate = useNavigate();
@@ -112,7 +134,7 @@ function MyTickets() {
             const userData = await userResponse.json();
 
             // Получаем все тикеты
-            const url = `${API_BASE_URL}/api/tickets`;
+            const url = `${API_BASE_URL}/api/tickets?locale=${localStorage.getItem('i18nextLng') || 'ru'}`;
             console.log('Fetching tickets from:', url);
 
             const response = await fetch(url, {
@@ -128,27 +150,31 @@ function MyTickets() {
 
                 // Фильтруем тикеты текущего пользователя
                 const myTickets = ticketsData.filter(ticket =>
-                    ticket.author?.id === userData.id
+                    ticket.author?.id === userData.id ||
+                    ticket.master?.id === userData.id
                 );
 
                 console.log('My tickets:', myTickets);
 
                 // Фильтруем по активности в зависимости от выбранной вкладки
                 const filteredTickets = myTickets.filter(ticket =>
-                    activeTab === 'active' ? ticket.active === true : ticket.active === false
+                    activeTab === 'active' ? ticket.active : !ticket.active
                 );
 
                 const formattedTickets: FormattedTicket[] = filteredTickets.map(ticket => ({
                     id: ticket.id,
                     title: ticket.title || 'Без названия',
                     price: ticket.budget || 0,
-                    unit: ticket.unit?.title || 'tjs',
+                    unit: ticket.unit?.title || 'N/A',
                     description: ticket.description || 'Описание отсутствует',
                     address: getFullAddress(ticket),
                     date: formatDate(ticket.createdAt),
                     author: `${ticket.author?.name || ''} ${ticket.author?.surname || ''}`.trim() ||
                         (ticket.service ? 'Мастер' : 'Клиент'),
+                    master: `${ticket.master?.name || ''} ${ticket.master?.surname || ''}`.trim() ||
+                        (ticket.service ? 'Мастер' : 'Клиент'),
                     authorId: ticket.author?.id || 0,
+                    masterId: ticket.master?.id || 0,
                     timeAgo: getTimeAgo(ticket.createdAt),
                     category: ticket.category?.title || 'другое',
                     status: ticket.active ? 'Активно' : 'Завершено',
@@ -182,20 +208,57 @@ function MyTickets() {
         }
     };
 
-    const getFullAddress = (ticket: Ticket): string => {
-        const city = ticket.district?.city?.title || '';
-        const district = ticket.district?.title || '';
+    const getFullAddress = (ticketData: Ticket): string => {
+        if (!ticketData.addresses || ticketData.addresses.length === 0) {
+            return 'Адрес не указан';
+        }
 
-        if (city && district) {
-            return `${city}, ${district}`;
+        const address = ticketData.addresses[0];
+        const parts: string[] = [];
+
+        // Провинция (область)
+        if (address.province?.title) {
+            parts.push(address.province.title);
         }
-        if (city) {
-            return city;
+
+        // Город
+        if (address.city?.title) {
+            parts.push(address.city.title);
         }
-        if (district) {
-            return district;
+
+        // Район
+        if (address.district?.title) {
+            parts.push(address.district.title);
         }
-        return 'Адрес не указан';
+
+        // Пригород (если есть)
+        if (address.suburb?.title) {
+            parts.push(address.suburb.title);
+        }
+
+        // Поселение (если есть)
+        if (address.settlement?.title) {
+            parts.push(address.settlement.title);
+        }
+
+        // Деревня (если есть)
+        if (address.village?.title) {
+            parts.push(address.village.title);
+        }
+
+        // Сообщество (если есть)
+        if (address.community?.title) {
+            parts.push(address.community.title);
+        }
+
+        // Конкретный адрес
+        if (address.title) {
+            parts.push(address.title);
+        }
+
+        const result = parts.length > 0 ? parts.join(', ') : 'Адрес не указан';
+        console.log('Formatted address:', result);
+        return result;
     };
 
     const formatDate = (dateString: string) => {
@@ -231,10 +294,14 @@ function MyTickets() {
         return words[number % 100 > 4 && number % 100 < 20 ? 2 : cases[number % 10 < 5 ? number % 10 : 5]];
     };
 
-    const handleCardClick = useCallback((ticketId?: number, authorId?: number) => {
+    const handleCardClick = useCallback((type: string, ticketId?: number, authorId?: number, masterId?: number) => {
         if (!ticketId) return;
-        const targetAuthorId = authorId || ticketId;
-        navigate(`/order/${targetAuthorId}?ticket=${ticketId}`);
+
+        if (authorId)
+            navigate(`/order/${authorId}?ticket=${ticketId}&type=${type}`);
+        if (masterId)
+            navigate(`/order/${masterId}?ticket=${ticketId}&type=${type}`);
+
     }, [navigate]);
 
     const handleCreateNew = () => {
@@ -252,7 +319,7 @@ function MyTickets() {
     return (
         <div className={styles.container}>
             <div className={styles.header}>
-                <h1>Мои объявления</h1>
+                <h1>Мои объявления/услуги</h1>
                 <div className={styles.headerActions}>
                     <button className={styles.createButton} onClick={handleCreateNew}>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -307,7 +374,7 @@ function MyTickets() {
                     tickets.map((ticket) => (
                         <div key={ticket.id}
                              className={styles.ticketCard}
-                             onClick={() => handleCardClick(ticket.id)}
+                             onClick={() => handleCardClick(ticket.type, ticket.id, ticket.authorId, ticket.masterId)}
                              style={{ cursor: 'pointer' }}
                         >
                             <div className={styles.ticketHeader}>
@@ -317,7 +384,7 @@ function MyTickets() {
                                         {ticket.status}
                                     </span>
                                 </div>
-                                <span className={styles.price}>{ticket.price.toLocaleString('ru-RU')} {ticket.unit}</span>
+                                <span className={styles.price}>{ticket.price.toLocaleString('ru-RU')} TJS, {ticket.unit}</span>
                             </div>
 
                             {/*<div className={styles.ticketType}>*/}

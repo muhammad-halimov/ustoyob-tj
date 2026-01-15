@@ -550,7 +550,7 @@ const SearchServicePage = () => {
     };
 
     const handleClose = () => {
-        navigate('/my-tickets');
+        navigate('/orders');
     };
 
     const formatProfileImageUrl = (imagePath: string): string => {

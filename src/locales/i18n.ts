@@ -3,12 +3,12 @@ import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
 // Импорты для английского языка
-import enCommon from './languages/en/common.json';
-import enHeader from './languages/en/header.json';
-import enSearch from './languages/en/search.json';
-import enButtons from './languages/en/buttons.json';
-import enCities from './languages/en/cities.json';
-import enCategory from './languages/en/category.json'; // Добавьте этот импорт
+import enCommon from './languages/eng/common.json';
+import enHeader from './languages/eng/header.json';
+import enSearch from './languages/eng/search.json';
+import enButtons from './languages/eng/buttons.json';
+import enCities from './languages/eng/cities.json';
+import enCategory from './languages/eng/category.json'; // Добавьте этот импорт
 
 // Импорты для русского языка
 import ruCommon from './languages/ru/common.json';
@@ -26,7 +26,7 @@ import tjButtons from './languages/tj/buttons.json';
 import tjCities from './languages/tj/cities.json';
 import tjCategory from './languages/tj/category.json';
 
-export type Language = 'tj' | 'ru' | 'en';
+export type Language = 'tj' | 'ru' | 'eng';
 
 export const changeLanguage = (lang: Language) => {
     i18n.changeLanguage(lang);
@@ -39,7 +39,7 @@ i18n
     .use(initReactI18next)
     .init({
         resources: {
-            en: {
+            eng: {
                 common: enCommon,
                 header: enHeader,
                 search: enSearch,

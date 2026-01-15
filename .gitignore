@@ -23,3 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 .env
+.npm
+.cache
+.gitconfig
+.node_repl_history
