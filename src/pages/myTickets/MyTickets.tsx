@@ -2,6 +2,7 @@ import {useState, useEffect, useCallback} from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAuthToken } from '../../utils/auth';
 import styles from './MyTickets.module.scss';
+import AuthModal from "../../features/auth/AuthModal.tsx";
 
 interface Ticket {
     id: number;
@@ -104,6 +105,19 @@ function MyTickets() {
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'active' | 'inactive'>('active');
 
+    const [showAuthModal, setShowAuthModal] = useState(false);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [showErrorModal, setShowErrorModal] = useState(false);
+    const [modalMessage, setModalMessage] = useState('');
+
+    const handleCloseSuccessModal = () => {
+        setShowSuccessModal(false);
+    };
+
+    const handleCloseErrorModal = () => {
+        setShowErrorModal(false);
+    };
+
     useEffect(() => {
         fetchMyTickets();
     }, [activeTab]);
@@ -114,8 +128,7 @@ function MyTickets() {
             const token = getAuthToken();
 
             if (!token) {
-                alert('Пожалуйста, войдите в систему');
-                navigate('/login');
+                setShowAuthModal(true);
                 return;
             }
 
@@ -297,19 +310,68 @@ function MyTickets() {
     const handleCardClick = useCallback((type: string, ticketId?: number, authorId?: number, masterId?: number) => {
         if (!ticketId) return;
 
+        const token = getAuthToken();
+
+        if (!token) {
+            setShowAuthModal(true);
+            return;
+        }
+
+        // Если авторизован, выполняем переход
         if (authorId)
             navigate(`/order/${authorId}?ticket=${ticketId}&type=${type}`);
         if (masterId)
             navigate(`/order/${masterId}?ticket=${ticketId}&type=${type}`);
-
     }, [navigate]);
 
     const handleCreateNew = () => {
+        const token = getAuthToken();
+
+        if (!token) {
+            setShowAuthModal(true);
+            return;
+        }
+
         navigate('/create-ad');
     };
 
     const handleClose = () => {
         navigate(-1);
+    };
+
+    const handleLoginSuccess = (token: string, email?: string) => {
+        console.log('Login successful, token:', token);
+        if (email) {
+            console.log('User email:', email);
+        }
+        setShowAuthModal(false);
+
+        // Получаем сохраненные данные для редиректа
+        const redirectData = sessionStorage.getItem('redirectAfterAuth');
+
+        if (redirectData) {
+            try {
+                const { type, ticketId, authorId, masterId } = JSON.parse(redirectData);
+
+                // Выполняем переход
+                if (authorId)
+                    navigate(`/order/${authorId}?ticket=${ticketId}&type=${type}`);
+                if (masterId)
+                    navigate(`/order/${masterId}?ticket=${ticketId}&type=${type}`);
+
+                // Очищаем сохраненные данные
+                sessionStorage.removeItem('redirectAfterAuth');
+            } catch (error) {
+                console.error('Error parsing redirect data:', error);
+                // Если произошла ошибка, показываем сообщение
+                setModalMessage('Ошибка при переходе к объявлению');
+                setShowErrorModal(true);
+                setTimeout(() => setShowErrorModal(false), 3000);
+            }
+        } else {
+            // Если нет сохраненных данных, просто закрываем модалку
+            setShowAuthModal(false);
+        }
     };
 
     // const getTicketTypeLabel = (type: 'client' | 'master') => {
@@ -419,6 +481,52 @@ function MyTickets() {
                     ))
                 )}
             </div>
+            {/* Модальное окно авторизации */}
+            {showAuthModal && (
+                <AuthModal
+                    isOpen={showAuthModal}
+                    onClose={() => setShowAuthModal(false)}
+                    onLoginSuccess={handleLoginSuccess}
+                />
+            )}
+
+            {/* Модалка успеха */}
+            {showSuccessModal && (
+                <div className={styles.modalOverlay} onClick={handleCloseSuccessModal}>
+                    <div className={`${styles.modalContent} ${styles.successModal}`} onClick={(e) => e.stopPropagation()}>
+                        <h2 className={styles.successTitle}>Успешно!</h2>
+                        <div className={styles.successIcon}>
+                            <img src="../uspeh.png" alt="Успех"/>
+                        </div>
+                        <p className={styles.successMessage}>{modalMessage}</p>
+                        <button
+                            className={styles.successButton}
+                            onClick={handleCloseSuccessModal}
+                        >
+                            Понятно
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Модалка ошибки */}
+            {showErrorModal && (
+                <div className={styles.modalOverlay} onClick={handleCloseErrorModal}>
+                    <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+                        <h2 className={styles.errorTitle}>Ошибка</h2>
+                        <div className={styles.errorIcon}>
+                            <img src="../error.png" alt="Ошибка"/>
+                        </div>
+                        <p className={styles.errorMessage}>{modalMessage}</p>
+                        <button
+                            className={styles.errorButton}
+                            onClick={handleCloseErrorModal}
+                        >
+                            Понятно
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
