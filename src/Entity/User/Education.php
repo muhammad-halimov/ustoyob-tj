@@ -41,13 +41,6 @@ class Education
     ])]
     private ?string $uniTitle = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
-    #[Groups([
-        'masters:read',
-        'user:public:read',
-    ])]
-    private ?string $faculty = null;
-
     #[ORM\Column(nullable: true)]
     #[Groups([
         'masters:read',
@@ -76,7 +69,10 @@ class Education
     private ?User $user = null;
 
     #[ORM\ManyToOne(inversedBy: 'education')]
-    #[Ignore]
+    #[Groups([
+        'masters:read',
+        'user:public:read',
+    ])]
     private ?Occupation $occupation = null;
 
     public function getId(): ?int
@@ -94,16 +90,6 @@ class Education
         $this->uniTitle = $uniTitle;
 
         return $this;
-    }
-
-    public function getFaculty(): ?string
-    {
-        return $this->faculty;
-    }
-
-    public function setFaculty(?string $faculty): void
-    {
-        $this->faculty = $faculty;
     }
 
     public function getBeginning(): ?int

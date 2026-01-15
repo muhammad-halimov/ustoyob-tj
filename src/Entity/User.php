@@ -106,6 +106,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
         ),
         new Post(
             uriTemplate: '/users',
+            validationContext: ['groups' => ['Default', 'registration']],
         ),
         new Post(
             uriTemplate: '/users/grant-role',
@@ -509,13 +510,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(nullable: true)]
     #[Assert\Length(
         min: 8,
-        minMessage: "Password must be at least {{ limit }} characters long"
+        minMessage: "Password must be at least {{ limit }} characters long",
+        groups: ['registration', 'password_change']
     )]
     #[Assert\Regex(
         pattern: "/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#\$%\^&\*]).+$/",
-        message: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (!@#$%^&*)"
+        message: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (!@#$%^&*)",
+        groups: ['registration', 'password_change']
     )]
-    #[ApiProperty(readable: false)]
     private ?string $password = null;
 
     /**

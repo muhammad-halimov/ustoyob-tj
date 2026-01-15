@@ -76,6 +76,8 @@ class Occupation
 
         'masterTickets:read',
         'clientTickets:read',
+
+        'user:public:read',
     ])]
     private ?int $id = null;
 
@@ -87,6 +89,8 @@ class Occupation
 
         'masterTickets:read',
         'clientTickets:read',
+
+        'user:public:read',
     ])]
     private ?string $title = null;
 
