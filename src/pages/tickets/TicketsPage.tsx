@@ -38,20 +38,39 @@ interface Ticket {
         title: string;
     };
     service: boolean;
-    district: {
+    addresses: Array<{
         id: number;
-        title: string;
-        image: string;
+        province: {
+            id: number;
+            title: string;
+        };
         city: {
             id: number;
             title: string;
             image: string;
-            province: {
-                id: number;
-                title: string;
-            };
         };
-    };
+        suburb: {
+            id: number;
+            title: string;
+        } | null;
+        district: {
+            id: number;
+            title: string;
+            image: string;
+        } | null;
+        settlement: {
+            id: number;
+            title: string;
+        } | null;
+        community: {
+            id: number;
+            title: string;
+        } | null;
+        village: {
+            id: number;
+            title: string;
+        } | null;
+    }>;
     createdAt: string;
     updatedAt: string;
 }
@@ -168,7 +187,7 @@ function TicketsPage() {
                     price: ticket.budget || 0,
                     unit: ticket.unit?.title || 'tjs',
                     description: ticket.description || 'Описание отсутствует',
-                    address: getFullAddress(ticket),
+                    address: getFullAddress(ticket), // Используем новую функцию
                     date: formatDate(ticket.createdAt),
                     author: `${ticket.author?.name || ''} ${ticket.author?.surname || ''}`.trim() ||
                         (ticket.service ? 'Мастер' : 'Клиент'),
@@ -195,19 +214,36 @@ function TicketsPage() {
     };
 
     const getFullAddress = (ticket: Ticket): string => {
-        const city = ticket.district?.city?.title || '';
-        const district = ticket.district?.title || '';
+        if (!ticket.addresses || ticket.addresses.length === 0) {
+            return 'Адрес не указан';
+        }
 
-        if (city && district) {
-            return `${city}, ${district}`;
+        const address = ticket.addresses[0];
+        const parts: string[] = [];
+
+        if (address.city?.title) {
+            parts.push(address.city.title);
         }
-        if (city) {
-            return city;
+        if (address.district?.title) {
+            parts.push(address.district.title);
         }
-        if (district) {
-            return district;
+        if (address.province?.title) {
+            parts.push(address.province.title);
         }
-        return 'Адрес не указан';
+        if (address.settlement?.title) {
+            parts.push(address.settlement.title);
+        }
+        if (address.community?.title) {
+            parts.push(address.community.title);
+        }
+        if (address.village?.title) {
+            parts.push(address.village.title);
+        }
+        if (address.suburb?.title) {
+            parts.push(address.suburb.title);
+        }
+
+        return parts.length > 0 ? parts.join(', ') : 'Адрес не указан';
     };
 
     const formatDate = (dateString: string) => {

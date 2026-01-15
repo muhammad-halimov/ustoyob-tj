@@ -87,7 +87,6 @@ interface ServiceTicket {
 interface Education {
     id: string;
     institution: string;
-    faculty: string;
     specialty: string;
     startYear: string;
     endYear: string;
@@ -131,7 +130,7 @@ interface Review {
         id: number;
         title: string;
     };
-    ticket?: { // Добавляем поле ticket
+    ticket?: {
         id: number;
         title: string;
         service: boolean;
@@ -189,6 +188,9 @@ interface UserAddressApiData {
     district?: string | { title: string };
     city?: string | { title: string };
     province?: string | { title: string };
+    settlement?: string | { title: string };
+    community?: string | { title: string };
+    village?: string | { title: string };
     [key: string]: unknown;
 }
 
@@ -201,7 +203,6 @@ interface OccupationApiData {
 interface EducationApiData {
     id: number;
     uniTitle?: string;
-    faculty?: string;
     beginning?: number;
     ending?: number;
     graduated?: boolean;
@@ -228,7 +229,7 @@ interface ReviewApiData {
     description?: string;
     forClient?: boolean;
     services?: { id: number; title: string };
-    ticket?: { // Добавляем поле ticket
+    ticket?: {
         id: number;
         title: string;
         service: boolean;
@@ -283,7 +284,6 @@ function MasterProfilePage() {
     const [editingEducation, setEditingEducation] = useState<string | null>(null);
     const [educationForm, setEducationForm] = useState<Omit<Education, 'id'>>({
         institution: '',
-        faculty: '',
         specialty: '',
         startYear: '',
         endYear: '',
@@ -297,21 +297,15 @@ function MasterProfilePage() {
     const [selectedStars, setSelectedStars] = useState(0);
     const [reviewPhotos, setReviewPhotos] = useState<File[]>([]);
     const [isSubmittingReview, setIsSubmittingReview] = useState(false);
-
-    // Состояние для списка специальностей
     const [occupations, setOccupations] = useState<Occupation[]>([]);
-
     const fileInputRef = useRef<HTMLInputElement>(null);
     const workExampleInputRef = useRef<HTMLInputElement>(null);
     const reviewPhotoInputRef = useRef<HTMLInputElement>(null);
     const specialtyInputRef = useRef<HTMLSelectElement>(null);
-
     const [services, setServices] = useState<ServiceTicket[]>([]);
     const [servicesLoading, setServicesLoading] = useState(false);
-
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-    // Проверка аутентификации при загрузке компонента
     useEffect(() => {
         const token = getAuthToken();
         if (!token) {
@@ -322,7 +316,6 @@ function MasterProfilePage() {
         fetchUserData();
     }, [navigate]);
 
-    // Загружаем отзывы после загрузки данных пользователя
     useEffect(() => {
         if (profileData?.id) {
             fetchUserGallery();
@@ -331,21 +324,18 @@ function MasterProfilePage() {
         }
     }, [profileData?.id]);
 
-    // Загружаем список специальностей при редактировании специальности
     useEffect(() => {
         if (editingField === 'specialty' && occupations.length === 0) {
             fetchOccupationsList();
         }
     }, [editingField]);
 
-    // Функция для загрузки списка специальностей
     const fetchOccupationsList = async () => {
         try {
             const token = getAuthToken();
             if (!token) return;
 
             console.log('Fetching occupations list...');
-
             const response = await fetch(`${API_BASE_URL}/api/occupations`, {
                 method: 'GET',
                 headers: {
@@ -358,7 +348,6 @@ function MasterProfilePage() {
             if (response.ok) {
                 const data = await response.json();
                 console.log('Occupations API response:', data);
-
                 let occupationsArray: Occupation[] = [];
 
                 if (Array.isArray(data)) {
@@ -390,14 +379,12 @@ function MasterProfilePage() {
         try {
             setServicesLoading(true);
             const token = getAuthToken();
-
             if (!token) {
                 console.log('No token available for fetching services');
                 return;
             }
 
             const endpoint = `/api/tickets?service=true&master=${profileData.id}&active=true`;
-
             console.log('Fetching master services from:', endpoint);
             console.log('Filtering by master ID:', profileData.id);
 
@@ -424,7 +411,6 @@ function MasterProfilePage() {
 
             const servicesData = await response.json();
             console.log('Master services received:', servicesData);
-
             let servicesArray: TicketApiData[] = [];
 
             if (Array.isArray(servicesData)) {
@@ -439,14 +425,12 @@ function MasterProfilePage() {
             }
 
             console.log(`Found ${servicesArray.length} services for master ${profileData.id}`);
-
             const masterServices: ServiceTicket[] = servicesArray
                 .filter(service => {
                     if (!service.master || !service.master.id) {
                         console.log(`Service ${service.id} has no master field`);
                         return false;
                     }
-
                     const belongsToMaster = service.master.id.toString() === profileData.id;
                     if (!belongsToMaster) {
                         console.log(`Service ${service.id} belongs to master ${service.master.id}, not to ${profileData.id}`);
@@ -514,12 +498,10 @@ function MasterProfilePage() {
 
             if (response.ok) {
                 setServices(prev => prev.filter(service => service.id !== serviceId));
-
                 setProfileData(prev => prev ? {
                     ...prev,
                     services: prev.services.filter(service => parseInt(service.id) !== serviceId)
                 } : null);
-
                 alert('Услуга успешно удалена!');
             } else {
                 throw new Error('Не удалось удалить услугу');
@@ -569,7 +551,6 @@ function MasterProfilePage() {
         try {
             setIsLoading(true);
             const token = getAuthToken();
-
             if (!token) {
                 navigate('/login');
                 return;
@@ -597,39 +578,52 @@ function MasterProfilePage() {
 
             const userData: UserApiData = await response.json();
             console.log('User data received:', userData);
+            console.log('User addresses:', userData.addresses);
 
             const avatarUrl = await getAvatarUrl(userData);
-
             let workArea = '';
+
+            // Получаем все адреса пользователя
             const userAddresses = userData.addresses as UserAddressApiData[] | undefined;
 
-            if (userAddresses && Array.isArray(userAddresses) && userAddresses.length > 0) {
+            if (userAddresses && Array.isArray(userAddresses)) {
                 console.log('Processing addresses for work area...');
+                console.log('Total addresses found:', userAddresses.length);
 
-                const addressParts: string[] = [];
+                const addressStrings: string[] = [];
 
-                for (const address of userAddresses) {
+                for (let i = 0; i < userAddresses.length; i++) {
+                    const address = userAddresses[i];
+                    console.log(`Processing address ${i + 1}:`, address);
+
                     try {
-                        console.log('Processing address:', address);
-
-                        const addressText = await getFullAddressText(address, token);
-
-                        if (addressText) {
-                            addressParts.push(addressText);
+                        const addressText = await getFullAddressText(address);
+                        if (addressText && addressText.trim()) {
+                            console.log(`Address ${i + 1} text: "${addressText}"`);
+                            addressStrings.push(addressText);
+                        } else {
+                            console.log(`Address ${i + 1} returned empty text`);
                         }
                     } catch (error) {
-                        console.error('Error processing address:', error);
+                        console.error(`Error processing address ${i + 1}:`, error);
                     }
                 }
 
-                if (addressParts.length > 0) {
-                    const uniqueAddresses = [...new Set(addressParts)];
+                console.log('All address strings:', addressStrings);
+
+                if (addressStrings.length > 0) {
+                    // Убираем дубликаты и объединяем через запятую
+                    const uniqueAddresses = [...new Set(addressStrings)];
                     workArea = uniqueAddresses.join(', ');
+                    console.log('Final work area:', workArea);
+                } else {
+                    console.log('No valid addresses found');
                 }
+            } else {
+                console.log('No addresses found in user data');
             }
 
             console.log('Final work area:', workArea);
-
             const transformedData: ProfileData = {
                 id: userData.id.toString(),
                 fullName: [userData.surname, userData.name, userData.patronymic]
@@ -666,59 +660,65 @@ function MasterProfilePage() {
         }
     };
 
-    const getFullAddressText = async (address: UserAddressApiData, token: string): Promise<string> => {
+    // Добавьте эту функцию перед getFullAddressText
+    const extractAddressPart = async (addressPart: string | { title: string }): Promise<{ title: string } | null> => {
+        try {
+            if (typeof addressPart === 'string') {
+                return { title: addressPart };
+            } else if (addressPart && typeof addressPart === 'object' && 'title' in addressPart) {
+                return { title: addressPart.title };
+            }
+            return null;
+        } catch (error) {
+            console.error('Error extracting address part:', error);
+            return null;
+        }
+    };
+
+    const getFullAddressText = async (address: UserAddressApiData): Promise<string> => {
         const addressParts: string[] = [];
 
         try {
+            // Провинция
             if (address.province) {
-                const provinceValue = address.province;
-                if (typeof provinceValue === 'string') {
-                    const provinceStr: string = provinceValue;
-                    const provinceId = provinceStr.split('/').pop();
-                    if (provinceId) {
-                        const provinceInfo = await fetchResourceInfo(parseInt(provinceId), 'provinces', token);
-                        if (provinceInfo && provinceInfo.title) {
-                            addressParts.push(provinceInfo.title);
-                        }
-                    }
-                } else if (typeof provinceValue === 'object' && provinceValue !== null && 'title' in provinceValue) {
-                    const provinceObj = provinceValue as { title: string };
-                    addressParts.push(provinceObj.title);
-                }
+                const provinceInfo = await extractAddressPart(address.province);
+                if (provinceInfo?.title) addressParts.push(provinceInfo.title);
             }
 
+            // Город
             if (address.city) {
-                const cityValue = address.city;
-                if (typeof cityValue === 'string') {
-                    const cityStr: string = cityValue;
-                    const cityId = cityStr.split('/').pop();
-                    if (cityId) {
-                        const cityInfo = await fetchResourceInfo(parseInt(cityId), 'cities', token);
-                        if (cityInfo && cityInfo.title) {
-                            addressParts.push(cityInfo.title);
-                        }
-                    }
-                } else if (typeof cityValue === 'object' && cityValue !== null && 'title' in cityValue) {
-                    const cityObj = cityValue as { title: string };
-                    addressParts.push(cityObj.title);
-                }
+                const cityInfo = await extractAddressPart(address.city);
+                if (cityInfo?.title) addressParts.push(cityInfo.title);
             }
 
+            // Район (district)
             if (address.district) {
-                const districtValue = address.district;
-                if (typeof districtValue === 'string') {
-                    const districtStr: string = districtValue;
-                    const districtId = districtStr.split('/').pop();
-                    if (districtId) {
-                        const districtInfo = await fetchResourceInfo(parseInt(districtId), 'districts', token);
-                        if (districtInfo && districtInfo.title) {
-                            addressParts.push(districtInfo.title);
-                        }
-                    }
-                } else if (typeof districtValue === 'object' && districtValue !== null && 'title' in districtValue) {
-                    const districtObj = districtValue as { title: string };
-                    addressParts.push(districtObj.title);
-                }
+                const districtInfo = await extractAddressPart(address.district);
+                if (districtInfo?.title) addressParts.push(districtInfo.title);
+            }
+
+            // Квартал (suburb)
+            if (address.suburb) {
+                const suburbInfo = await extractAddressPart(address.suburb);
+                if (suburbInfo?.title) addressParts.push(suburbInfo.title);
+            }
+
+            // Поселение (settlement)
+            if (address.settlement) {
+                const settlementInfo = await extractAddressPart(address.settlement);
+                if (settlementInfo?.title) addressParts.push(settlementInfo.title);
+            }
+
+            // ПГТ (community)
+            if (address.community) {
+                const communityInfo = await extractAddressPart(address.community);
+                if (communityInfo?.title) addressParts.push(communityInfo.title);
+            }
+
+            // Село (village)
+            if (address.village) {
+                const villageInfo = await extractAddressPart(address.village);
+                if (villageInfo?.title) addressParts.push(villageInfo.title);
             }
 
         } catch (error) {
@@ -728,10 +728,11 @@ function MasterProfilePage() {
         return addressParts.join(', ');
     };
 
+    // Удалите неиспользуемую функцию fetchResourceInfo
+    /*
     const fetchResourceInfo = async (resourceId: number, resourceType: string, token: string): Promise<any> => {
         try {
             console.log(`Fetching ${resourceType} info for ID: ${resourceId}`);
-
             let endpoint = '';
             switch (resourceType) {
                 case 'provinces':
@@ -780,6 +781,7 @@ function MasterProfilePage() {
             return null;
         }
     };
+    */
 
     const updateUserRating = async (rating: number) => {
         if (!profileData?.id) return;
@@ -792,7 +794,6 @@ function MasterProfilePage() {
             }
 
             console.log(`Updating user rating to: ${rating}`);
-
             const response = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
                 method: 'PATCH',
                 headers: {
@@ -847,10 +848,8 @@ function MasterProfilePage() {
 
         try {
             const userData = await fetchUserById(userId);
-
             if (userData) {
                 const avatarUrl = await getAvatarUrl(userData, userType);
-
                 const userInfo = {
                     id: userData.id,
                     email: userData.email || '',
@@ -881,7 +880,6 @@ function MasterProfilePage() {
         try {
             setReviewsLoading(true);
             const token = getAuthToken();
-
             if (!token) {
                 console.log('No token available for fetching reviews');
                 return;
@@ -893,10 +891,7 @@ function MasterProfilePage() {
             }
 
             console.log('Fetching reviews for master ID:', profileData.id);
-
-            // Используем существующий эндпоинт
             const endpoint = `/api/reviews?exists[master]=true&master=${profileData.id}`;
-
             console.log(`Trying endpoint: ${endpoint}`);
 
             const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -932,7 +927,6 @@ function MasterProfilePage() {
 
             const reviewsData = await response.json();
             console.log('Raw reviews data:', reviewsData);
-
             let reviewsArray: ReviewApiData[] = [];
 
             if (Array.isArray(reviewsData)) {
@@ -947,7 +941,6 @@ function MasterProfilePage() {
             }
 
             console.log(`Processing ${reviewsArray.length} reviews`);
-
             if (reviewsArray.length > 0) {
                 const masterReviews = reviewsArray.filter(review => {
                     const reviewMasterId = review.master?.id;
@@ -957,14 +950,11 @@ function MasterProfilePage() {
                 });
 
                 console.log(`Found ${masterReviews.length} reviews for master ${profileData.id}`);
-
                 const transformedReviews = await Promise.all(
                     masterReviews.map(async (review) => {
                         console.log('Processing review:', review);
-
                         const masterId = review.master?.id;
                         const clientId = review.client?.id;
-
                         console.log('Master ID from review:', masterId);
                         console.log('Client ID from review:', clientId);
 
@@ -988,7 +978,6 @@ function MasterProfilePage() {
                         };
 
                         const nameParts = getFullNameParts(profileData.fullName);
-
                         const user = masterData || {
                             id: parseInt(profileData.id),
                             email: '',
@@ -1007,7 +996,6 @@ function MasterProfilePage() {
                             image: ''
                         };
 
-                        // Получаем название услуги из ticket.title
                         const serviceTitle = review.ticket?.title || review.services?.title || 'Услуга';
                         console.log(`Review ${review.id} has service title: ${serviceTitle}`);
 
@@ -1024,7 +1012,7 @@ function MasterProfilePage() {
                             images: review.images || [],
                             user: user,
                             reviewer: reviewer,
-                            vacation: serviceTitle, // Используем название услуги
+                            vacation: serviceTitle,
                             worker: clientData ?
                                 `${clientData.name || 'Клиент'} ${clientData.surname || ''}`.trim() :
                                 'Клиент',
@@ -1060,7 +1048,6 @@ function MasterProfilePage() {
             } else {
                 console.log('No reviews data found for this master');
                 setReviews([]);
-
                 setProfileData(prev => prev ? {
                     ...prev,
                     reviews: 0
@@ -1070,7 +1057,6 @@ function MasterProfilePage() {
         } catch (error) {
             console.error('Error fetching reviews:', error);
             setReviews([]);
-
             setProfileData(prev => prev ? {
                 ...prev,
                 reviews: 0
@@ -1094,7 +1080,6 @@ function MasterProfilePage() {
             }
 
             console.log('Starting photo upload...');
-
             let galleryId = await getUserGalleryId(token);
 
             if (!galleryId) {
@@ -1114,7 +1099,6 @@ function MasterProfilePage() {
             }
 
             console.log('Using gallery ID:', galleryId);
-
             const uploadPromises: Array<Promise<{ success: boolean; fileName: string; data?: any }>> = [];
 
             for (let i = 0; i < files.length; i++) {
@@ -1185,7 +1169,6 @@ function MasterProfilePage() {
             }
 
             const results = await Promise.allSettled(uploadPromises);
-
             let successCount = 0;
             let errorCount = 0;
 
@@ -1221,9 +1204,7 @@ function MasterProfilePage() {
             console.log('Trying to upload photos without gallery...');
             console.log('Files count:', files.length);
             console.log('Token available:', !!token);
-
             alert('В данный момент загрузка фото временно недоступна. Пожалуйста, попробуйте позже или обратитесь в поддержку.');
-
             return [];
 
         } catch (error) {
@@ -1236,7 +1217,6 @@ function MasterProfilePage() {
     const getUserGallery = async (token: string): Promise<GalleryApiData | null> => {
         try {
             console.log('Fetching user gallery...');
-
             const response = await fetch(`${API_BASE_URL}/api/galleries/me`, {
                 method: 'GET',
                 headers: {
@@ -1251,7 +1231,6 @@ function MasterProfilePage() {
             if (response.ok) {
                 const galleriesData = await response.json();
                 console.log('Galleries data from /me:', galleriesData);
-
                 let galleryArray: GalleryApiData[] = [];
 
                 if (Array.isArray(galleriesData)) {
@@ -1272,7 +1251,6 @@ function MasterProfilePage() {
             }
 
             console.log('Trying to find gallery via /api/galleries with user filter...');
-
             const currentUserId = await getCurrentUserId(token);
             if (!currentUserId) {
                 console.log('Cannot get current user ID');
@@ -1293,7 +1271,6 @@ function MasterProfilePage() {
             if (filterResponse.ok) {
                 const filterData = await filterResponse.json();
                 console.log('Galleries with user filter:', filterData);
-
                 let filteredArray: GalleryApiData[] = [];
 
                 if (Array.isArray(filterData)) {
@@ -1326,7 +1303,6 @@ function MasterProfilePage() {
             if (allGalleriesResponse.ok) {
                 const allGalleriesData = await allGalleriesResponse.json();
                 console.log('All galleries data:', allGalleriesData);
-
                 let allGalleryArray: GalleryApiData[] = [];
 
                 if (Array.isArray(allGalleriesData)) {
@@ -1396,7 +1372,6 @@ function MasterProfilePage() {
             }
 
             console.log('Getting gallery for deletion...');
-
             const gallery = await getUserGallery(token);
 
             if (!gallery || !gallery.id) {
@@ -1429,7 +1404,6 @@ function MasterProfilePage() {
 
             if (!imageToDelete) {
                 console.log('Image not found in gallery:', workExampleId);
-
                 setProfileData(prev => {
                     if (!prev) return null;
                     return {
@@ -1471,7 +1445,6 @@ function MasterProfilePage() {
                         .map(img => ({ image: img.image })) || [];
 
                     console.log(`Filtered images: ${galleryData.images?.length} -> ${updatedImages.length}`);
-
                     const patchData = { images: updatedImages };
                     console.log('Sending PATCH data:', patchData);
 
@@ -1496,7 +1469,6 @@ function MasterProfilePage() {
 
                 if (!deleteSuccess) {
                     console.log('Trying delete and recreate approach...');
-
                     const currentUserId = await getCurrentUserId(token);
                     if (!currentUserId) {
                         throw new Error('Не удалось определить ID пользователя');
@@ -1544,7 +1516,6 @@ function MasterProfilePage() {
                     });
 
                     await fetchUserGallery();
-
                     alert('Фото успешно удалено из портфолио!');
                 } else {
                     alert('Не удалось удалить фото. Попробуйте еще раз.');
@@ -1566,7 +1537,6 @@ function MasterProfilePage() {
     const testGalleryAPI = async (token: string) => {
         try {
             console.log('Testing Gallery API...');
-
             const response = await fetch(`${API_BASE_URL}/api/galleries/me`, {
                 method: 'GET',
                 headers: {
@@ -1613,7 +1583,6 @@ function MasterProfilePage() {
     const createUserGallery = async (token: string): Promise<number | null> => {
         try {
             console.log('Creating new gallery...');
-
             const currentUserId = await getCurrentUserId(token);
             if (!currentUserId) {
                 alert('Не удалось определить ID пользователя');
@@ -1621,7 +1590,6 @@ function MasterProfilePage() {
             }
 
             console.log('Creating gallery for user ID:', currentUserId);
-
             const requestBody = {
                 images: []
             };
@@ -1670,7 +1638,6 @@ function MasterProfilePage() {
     const findExistingGallery = async (token: string, userId: number): Promise<number | null> => {
         try {
             console.log('Searching for existing gallery for user:', userId);
-
             const response = await fetch(`${API_BASE_URL}/api/galleries/me`, {
                 method: 'GET',
                 headers: {
@@ -1682,7 +1649,6 @@ function MasterProfilePage() {
             if (response.ok) {
                 const galleriesData = await response.json();
                 console.log('Galleries from /me:', galleriesData);
-
                 let galleryArray: GalleryApiData[] = [];
 
                 if (Array.isArray(galleriesData)) {
@@ -1714,7 +1680,6 @@ function MasterProfilePage() {
             if (directResponse.ok) {
                 const directData = await directResponse.json();
                 console.log('Galleries from direct query:', directData);
-
                 let directArray: GalleryApiData[] = [];
 
                 if (Array.isArray(directData)) {
@@ -1745,12 +1710,9 @@ function MasterProfilePage() {
 
     const getImageUrl = (imagePath: string): string => {
         if (!imagePath) return "../fonTest6.png";
-
         if (imagePath.startsWith("http")) return imagePath;
         if (imagePath.startsWith("/")) return `${API_BASE_URL}${imagePath}`;
-
         const galleryPhotoUrl = `${API_BASE_URL}/images/gallery_photos/${imagePath}`;
-
         return galleryPhotoUrl;
     };
 
@@ -1761,15 +1723,12 @@ function MasterProfilePage() {
             if (!token) return;
 
             await testGalleryAPI(token);
-
             const gallery = await getUserGallery(token);
 
             if (gallery) {
                 console.log('Gallery found:', gallery);
-
                 if (gallery.images && gallery.images.length > 0) {
                     console.log(`Found ${gallery.images.length} images in gallery`);
-
                     const workExamplesLocal = await Promise.all(
                         gallery.images.map(async (image: GalleryImageApiData) => {
                             const imagePath = image.image;
@@ -1799,7 +1758,6 @@ function MasterProfilePage() {
                     );
 
                     console.log("Work examples loaded:", workExamplesLocal.length);
-
                     setProfileData(prev => prev ? {
                         ...prev,
                         workExamples: workExamplesLocal
@@ -1835,7 +1793,6 @@ function MasterProfilePage() {
         const year = now.getFullYear();
         const cities = ['Москва', 'Санкт-Петербург', 'Новосибирск', 'Екатеринбург', 'Казань'];
         const randomCity = cities[Math.floor(Math.random() * cities.length)];
-
         return `${day}.${month}.${year}, ${randomCity}`;
     };
 
@@ -1887,7 +1844,6 @@ function MasterProfilePage() {
         return education.map(edu => ({
             id: edu.id?.toString() || Date.now().toString(),
             institution: edu.uniTitle || '',
-            faculty: edu.faculty || '',
             specialty: edu.occupation?.map((occ) => occ.title).join(', ') || '',
             startYear: edu.beginning?.toString() || '',
             endYear: edu.ending?.toString() || '',
@@ -1915,21 +1871,16 @@ function MasterProfilePage() {
                 apiData.patronymic = nameParts.slice(2).join(' ') || '';
             }
 
-            // Обработка специальности - нужно найти occupation по названию и отправить его IRI
+            // Обработка специальности
             if (updatedData.specialty !== undefined) {
-                // Разделяем специальности по запятой
                 const specialtyTitles = updatedData.specialty.split(',').map(title => title.trim());
-
-                // Ищем соответствующие occupations
                 const occupationIris: string[] = [];
 
                 for (const title of specialtyTitles) {
-                    // Ищем occupation по точному совпадению названия
                     const occupation = occupations.find(occ => occ.title === title);
                     if (occupation) {
                         occupationIris.push(`/api/occupations/${occupation.id}`);
                     } else {
-                        // Если не нашли точное совпадение, пробуем найти похожее
                         const similarOccupation = occupations.find(occ =>
                             occ.title.toLowerCase().includes(title.toLowerCase()) ||
                             title.toLowerCase().includes(occ.title.toLowerCase())
@@ -1938,25 +1889,19 @@ function MasterProfilePage() {
                             occupationIris.push(`/api/occupations/${similarOccupation.id}`);
                         } else {
                             console.warn(`Occupation not found for title: "${title}"`);
-                            // Если occupation не найден, можно создать новый или пропустить
-                            // В этом случае просто пропускаем
                         }
                     }
                 }
 
-                // Если нашли хотя бы одну occupation, отправляем IRI
                 if (occupationIris.length > 0) {
                     apiData.occupation = occupationIris;
                 } else {
                     console.warn('No valid occupations found for:', updatedData.specialty);
-                    // Если не нашли ни одной occupation, не отправляем поле
-                    // или можно отправить пустой массив в зависимости от требований API
                     apiData.occupation = [];
                 }
             }
 
             console.log('Sending update data:', apiData);
-
             const response = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
                 method: 'PATCH',
                 headers: {
@@ -1979,8 +1924,6 @@ function MasterProfilePage() {
             }
 
             console.log('User data updated successfully');
-
-            // Обновляем локальное состояние
             setProfileData(prev => prev ? {
                 ...prev,
                 ...updatedData
@@ -2015,16 +1958,13 @@ function MasterProfilePage() {
             }
 
             const userData: UserApiData = await userResponse.json();
-
             let updatedEducationArray = userData.education || [];
-
             const existingIndex = updatedEducationArray.findIndex(edu =>
                 edu.id?.toString() === educationId
             );
 
             const educationData = {
                 uniTitle: updatedEducation.institution,
-                faculty: updatedEducation.faculty,
                 beginning: parseInt(updatedEducation.startYear) || new Date().getFullYear(),
                 ending: updatedEducation.currentlyStudying ? undefined : (parseInt(updatedEducation.endYear) || undefined),
                 graduated: !updatedEducation.currentlyStudying
@@ -2055,7 +1995,6 @@ function MasterProfilePage() {
 
             if (updateResponse.ok) {
                 const updatedUser = await updateResponse.json();
-
                 setProfileData(prev => prev ? {
                     ...prev,
                     education: transformEducation(updatedUser.education || [])
@@ -2064,7 +2003,6 @@ function MasterProfilePage() {
                 setEditingEducation(null);
                 setEducationForm({
                     institution: '',
-                    faculty: '',
                     specialty: '',
                     startYear: '',
                     endYear: '',
@@ -2084,12 +2022,91 @@ function MasterProfilePage() {
         }
     };
 
+    const deleteEducation = async (educationId: string) => {
+        if (!profileData?.id) return;
+
+        try {
+            const token = getAuthToken();
+            if (!token) {
+                navigate('/login');
+                return;
+            }
+
+            const userResponse = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!userResponse.ok) {
+                throw new Error('Failed to fetch user data');
+            }
+
+            const userData: UserApiData = await userResponse.json();
+            const currentEducation = userData.education || [];
+
+            // Фильтруем массив образования, удаляя элемент с указанным ID
+            const updatedEducationArray = currentEducation.filter(edu =>
+                edu.id?.toString() !== educationId
+            );
+
+            console.log(`Deleting education ${educationId}. Before: ${currentEducation.length}, after: ${updatedEducationArray.length}`);
+
+            const updateResponse = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/merge-patch+json',
+                },
+                body: JSON.stringify({
+                    education: updatedEducationArray
+                }),
+            });
+
+            if (updateResponse.ok) {
+                const updatedUser = await updateResponse.json();
+                setProfileData(prev => prev ? {
+                    ...prev,
+                    education: transformEducation(updatedUser.education || [])
+                } : null);
+
+                console.log('Education deleted successfully');
+            } else {
+                const errorText = await updateResponse.text();
+                console.error('Failed to delete education:', errorText);
+                throw new Error('Failed to delete education');
+            }
+
+        } catch (error) {
+            console.error('Error deleting education:', error);
+            alert('Ошибка при удалении образования');
+        }
+    };
+
+    const handleDeleteEducation = async (educationId: string) => {
+        if (!confirm('Вы уверены, что хотите удалить это образование?')) {
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            await deleteEducation(educationId);
+            alert('Образование успешно удалено!');
+        } catch (error) {
+            console.error('Error deleting education:', error);
+            alert('Ошибка при удалении образования');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const handleAddEducation = () => {
         const newEducationId = `new-${Date.now()}`;
         setEditingEducation(newEducationId);
         setEducationForm({
             institution: '',
-            faculty: '',
             specialty: '',
             startYear: new Date().getFullYear().toString(),
             endYear: new Date().getFullYear().toString(),
@@ -2109,7 +2126,6 @@ function MasterProfilePage() {
         }
 
         const trimmedValue = tempValue.trim();
-
         if (trimmedValue !== (field === 'fullName' ? profileData.fullName : profileData.specialty)) {
             await updateUserData({ [field]: trimmedValue });
         }
@@ -2131,7 +2147,6 @@ function MasterProfilePage() {
         setEditingEducation(education.id);
         setEducationForm({
             institution: education.institution,
-            faculty: education.faculty,
             specialty: education.specialty,
             startYear: education.startYear,
             endYear: education.endYear,
@@ -2157,7 +2172,6 @@ function MasterProfilePage() {
         setEditingEducation(null);
         setEducationForm({
             institution: '',
-            faculty: '',
             specialty: '',
             startYear: '',
             endYear: '',
@@ -2251,9 +2265,7 @@ function MasterProfilePage() {
             }
 
             console.log("Фото успешно загружено:", result);
-
             await fetchUserData();
-
             alert("Фото профиля успешно обновлено!");
 
         } catch (error) {
@@ -2329,16 +2341,13 @@ function MasterProfilePage() {
 
     const calculateAverageRating = (reviews: Review[]): number => {
         if (reviews.length === 0) return 0;
-
         const validReviews = reviews.filter(review =>
             review.rating && review.rating > 0 && review.rating <= 5
         );
 
         if (validReviews.length === 0) return 0;
-
         const sum = validReviews.reduce((total, review) => total + review.rating, 0);
         const average = sum / validReviews.length;
-
         return Math.round(average * 10) / 10;
     };
 
@@ -2434,7 +2443,6 @@ function MasterProfilePage() {
             };
 
             console.log('Sending review data:', reviewData);
-
             const response = await fetch(`${API_BASE_URL}/api/reviews`, {
                 method: 'POST',
                 headers: {
@@ -2460,7 +2468,6 @@ function MasterProfilePage() {
 
                 handleCloseReviewModal();
                 alert('Отзыв успешно отправлен!');
-
                 await fetchReviews();
 
             } else {
@@ -2496,7 +2503,6 @@ function MasterProfilePage() {
                 formData.append('image', photo);
 
                 console.log(`Uploading review photo: ${photo.name}`);
-
                 const response = await fetch(`${API_BASE_URL}/api/reviews/${reviewId}/upload-photo`, {
                     method: 'POST',
                     headers: {
@@ -2643,7 +2649,6 @@ function MasterProfilePage() {
                                             <button
                                                 className={styles.save_occupations_btn}
                                                 onClick={() => {
-                                                    // Сохраняем выбранную специальность
                                                     if (tempValue.trim()) {
                                                         const updateData = { specialty: tempValue };
                                                         updateUserData(updateData);
@@ -2754,7 +2759,7 @@ function MasterProfilePage() {
                                                     value={educationForm.institution}
                                                     onChange={(e) => handleEducationFormChange('institution', e.target.value)}
                                                 />
-                                                <label>Укажите учебное заведение, факультет, специальность</label>
+                                                <label>Укажите учебное заведение и специальность</label>
                                             </div>
 
                                             <div className={styles.year_group}>
@@ -2808,37 +2813,66 @@ function MasterProfilePage() {
                                     ) : (
                                         <div className={styles.education_main}>
                                             <div className={styles.education_header}>
-                                                <strong>{edu.institution}</strong>
-                                                <button
-                                                    className={styles.edit_icon}
-                                                    onClick={() => handleEditEducationStart(edu)}
-                                                >
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                        <g clipPath="url(#clip0_188_2958)">
-                                                            <g clipPath="url(#clip1_188_2958)">
-                                                                <path d="M7.2302 20.59L2.4502 21.59L3.4502 16.81L17.8902 2.29001C18.1407 2.03889 18.4385 1.83982 18.7663 1.70424C19.0941 1.56865 19.4455 1.49925 19.8002 1.50001C20.5163 1.50001 21.203 1.78447 21.7094 2.29082C22.2157 2.79717 22.5002 3.48392 22.5002 4.20001C22.501 4.55474 22.4315 4.90611 22.296 5.23391C22.1604 5.56171 21.9613 5.85945 21.7102 6.11001L7.2302 20.59Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                                                <path d="M0.549805 22.5H23.4498" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                                                <path d="M19.6403 8.17986L15.8203 4.35986" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                                            </g>
-                                                        </g>
-                                                        <defs>
-                                                            <clipPath id="clip0_188_2958">
-                                                                <rect width="24" height="24" fill="white"/>
-                                                            </clipPath>
-                                                            <clipPath id="clip1_188_2958">
-                                                                <rect width="24" height="24" fill="white"/>
-                                                            </clipPath>
-                                                        </defs>
-                                                    </svg>
-                                                </button>
+                                                <div className={styles.education_header_content}>
+                                                    <strong>{edu.institution}</strong>
+                                                    <div className={styles.education_actions}>
+                                                        <button
+                                                            className={styles.edit_icon}
+                                                            onClick={() => handleEditEducationStart(edu)}
+                                                            title="Редактировать"
+                                                        >
+                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                <g clipPath="url(#clip0_188_2958)">
+                                                                    <g clipPath="url(#clip1_188_2958)">
+                                                                        <path d="M7.2302 20.59L2.4502 21.59L3.4502 16.81L17.8902 2.29001C18.1407 2.03889 18.4385 1.83982 18.7663 1.70424C19.0941 1.56865 19.4455 1.49925 19.8002 1.50001C20.5163 1.50001 21.203 1.78447 21.7094 2.29082C22.2157 2.79717 22.5002 3.48392 22.5002 4.20001C22.501 4.55474 22.4315 4.90611 22.296 5.23391C22.1604 5.56171 21.9613 5.85945 21.7102 6.11001L7.2302 20.59Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                                                        <path d="M0.549805 22.5H23.4498" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                                                        <path d="M19.6403 8.17986L15.8203 4.35986" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                                                    </g>
+                                                                </g>
+                                                                <defs>
+                                                                    <clipPath id="clip0_188_2958">
+                                                                        <rect width="24" height="24" fill="white"/>
+                                                                    </clipPath>
+                                                                    <clipPath id="clip1_188_2958">
+                                                                        <rect width="24" height="24" fill="white"/>
+                                                                    </clipPath>
+                                                                </defs>
+                                                            </svg>
+                                                        </button>
+                                                        <button
+                                                            className={styles.delete_icon}
+                                                            onClick={() => handleDeleteEducation(edu.id)}
+                                                            title="Удалить"
+                                                        >
+                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                <g clipPath="url(#clip0_184_3774)">
+                                                                    <g clipPath="url(#clip1_184_3774)">
+                                                                        <path d="M18 6.5L17 21.5H7L6 6.5" stroke="#FF3B30" strokeWidth="2" strokeMiterlimit="10"/>
+                                                                        <path d="M3.5 6.5H20.5" stroke="#FF3B30" strokeWidth="2" strokeMiterlimit="10"/>
+                                                                        <path d="M9 3.5H15" stroke="#FF3B30" strokeWidth="2" strokeMiterlimit="10"/>
+                                                                        <path d="M15 10V17" stroke="#FF3B30" strokeWidth="2" strokeMiterlimit="10"/>
+                                                                        <path d="M9 10V17" stroke="#FF3B30" strokeWidth="2" strokeMiterlimit="10"/>
+                                                                    </g>
+                                                                </g>
+                                                                <defs>
+                                                                    <clipPath id="clip0_184_3774">
+                                                                        <rect width="24" height="24" fill="white"/>
+                                                                    </clipPath>
+                                                                    <clipPath id="clip1_184_3774">
+                                                                        <rect width="24" height="24" fill="white"/>
+                                                                    </clipPath>
+                                                                </defs>
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             </div>
                                             <div className={styles.education_years}>
                                                 <span>{edu.startYear} - {edu.currentlyStudying ? 'По настоящее время' : edu.endYear}</span>
                                             </div>
-                                            {(edu.faculty || edu.specialty) && (
+                                            {edu.specialty && (
                                                 <div className={styles.education_details}>
-                                                    {edu.faculty && <span>Факультет: {edu.faculty}</span>}
-                                                    {edu.specialty && <span>Специальность: {edu.specialty}</span>}
+                                                    <span>Специальность: {edu.specialty}</span>
                                                 </div>
                                             )}
                                         </div>
@@ -2870,14 +2904,13 @@ function MasterProfilePage() {
                                     </div>
 
                                     <div className={styles.form_group}>
-                                        <label>Факультет</label>
+                                        <label>Специальность</label>
                                         <input
                                             type="text"
-                                            placeholder="Факультет"
-                                            value={educationForm.faculty}
-                                            onChange={(e) => handleEducationFormChange('faculty', e.target.value)}
+                                            placeholder="Специальность"
+                                            value={educationForm.specialty}
+                                            onChange={(e) => handleEducationFormChange('specialty', e.target.value)}
                                         />
-
                                     </div>
 
                                     <div className={styles.year_group}>
@@ -3182,7 +3215,6 @@ function MasterProfilePage() {
                                                     />
                                                     <div className={styles.reviewer_main_info}>
                                                         <div className={styles.reviewer_name}>{getClientName(review)}</div>
-                                                        {/* Показываем название услуги из ticket.title */}
                                                         <div className={styles.review_service}>
                                                             Услуга: <span className={styles.service_title}>{review.services.title}</span>
                                                         </div>
@@ -3215,26 +3247,6 @@ function MasterProfilePage() {
                                                 <div className={styles.review_worker_date}>
                                                     <span className={styles.review_date}>{review.date}</span>
                                                 </div>
-                                                {/*<div className={styles.review_rating_secondary}>*/}
-                                                    {/*<span>Поставил </span>*/}
-                                                    {/*<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">*/}
-                                                    {/*    <g clipPath="url(#clip0_324_2272)">*/}
-                                                    {/*        <g clipPath="url(#clip1_324_2272)">*/}
-                                                    {/*            <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>*/}
-                                                    {/*            <path d="M12 19V18.98" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>*/}
-                                                    {/*        </g>*/}
-                                                    {/*    </g>*/}
-                                                    {/*    <defs>*/}
-                                                    {/*        <clipPath id="clip0_324_2272">*/}
-                                                    {/*            <rect width="24" height="24" fill="white"/>*/}
-                                                    {/*        </clipPath>*/}
-                                                    {/*        <clipPath id="clip1_324_2272">*/}
-                                                    {/*            <rect width="24" height="24" fill="white"/>*/}
-                                                    {/*        </clipPath>*/}
-                                                    {/*    </defs>*/}
-                                                    {/*</svg>*/}
-                                                    {/*<span className={styles.rating_value}>{review.rating}</span>*/}
-                                                {/*</div>*/}
                                             </div>
 
                                             {review.description && (
@@ -3269,7 +3281,6 @@ function MasterProfilePage() {
                                                             />
                                                             <div className={styles.reviewer_main_info}>
                                                                 <div className={styles.reviewer_name}>{getClientName(review)}</div>
-                                                                {/* Показываем название услуги из ticket.title */}
                                                                 <div className={styles.review_service}>
                                                                     Услуга: <span className={styles.service_title}>{review.services.title}</span>
                                                                 </div>
