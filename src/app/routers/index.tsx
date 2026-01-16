@@ -9,7 +9,7 @@ import ServicesPage from "../../pages/services/ServicesPage.tsx";
 import CityPage from "../../pages/сityPage/CityPage.tsx";
 import {OrderPage} from "../../pages/order/OrderPage.tsx";
 import CreateAdPage from "../../pages/create-ad/CreateAdPage";
-import OrderHistoryPage from "../../pages/OrderHistory/OrderHistoryPage";
+// import OrderHistoryPage from "../../pages/OrderHistory/OrderHistoryPage";
 import SearchServicePage from "../../pages/search/SearchServicePage";
 import TicketsPage from "../../pages/tickets/TicketsPage";
 import MasterProfileViewPage from "../../entities/MasterProfileViewPage/MasterProfileViewPage";
@@ -26,12 +26,13 @@ const router = createBrowserRouter([
         element: <Layout />,
         children: [
             { index: true, element: <MainPage /> },
-            { path: 'orders', element: <OrderHistoryPage /> },
+            // { path: 'orders', element: <OrderHistoryPage /> },
+            { path: 'orders', element: <MyTickets /> },
             { path: 'search-service', element: <SearchServicePage /> },
             { path: 'favorites', element: <FavoritesPage /> },
             { path: 'chats', element: <Chat /> },
             { path: 'profile', element: <ProfilePage /> },
-            { path: 'my-tickets', element: <MyTickets /> },
+            // { path: 'my-tickets', element: <MyTickets /> },
             { path: 'profile/education', element: <EducationPage /> },
             { path: 'profile/services', element: <ServicesPage /> },
             { path: 'profile/city', element: <CityPage /> },

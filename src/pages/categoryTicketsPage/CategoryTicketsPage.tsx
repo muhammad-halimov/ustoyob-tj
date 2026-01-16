@@ -128,7 +128,7 @@ function CategoryTicketsPage() {
                 headers['Authorization'] = `Bearer ${token}`;
             }
 
-            const response = await fetch(`${API_BASE_URL}/api/categories/${categoryId}`, {
+            const response = await fetch(`${API_BASE_URL}/api/categories/${categoryId}?locale=${localStorage.getItem('i18nextLng') || 'ru'}`, {
                 headers: headers
             });
 
@@ -206,30 +206,6 @@ function CategoryTicketsPage() {
             }
 
             // Удаляем дубликаты и пустые значения
-            const uniqueParts = Array.from(new Set(parts.filter(part => part && part.trim())));
-
-            if (uniqueParts.length === 0) {
-                return 'Адрес не указан';
-            }
-
-            return uniqueParts.join(', ');
-        }
-
-        // Проверяем устаревший формат district
-        if (ticket.district) {
-            const parts: string[] = [];
-
-            // Добавляем в правильном порядке
-            if (ticket.district.city?.province?.title) {
-                parts.push(ticket.district.city.province.title);
-            }
-            if (ticket.district.city?.title) {
-                parts.push(ticket.district.city.title);
-            }
-            if (ticket.district?.title) {
-                parts.push(ticket.district.title);
-            }
-
             const uniqueParts = Array.from(new Set(parts.filter(part => part && part.trim())));
 
             if (uniqueParts.length === 0) {
@@ -350,7 +326,7 @@ function CategoryTicketsPage() {
 
             // Форматируем тикеты
             const formattedTickets: FormattedTicket[] = ticketsData.map(ticket => {
-                const isMasterTicket = ticket.service === true; // service: true - услуга от мастера
+                const isMasterTicket = ticket.service; // service: true - услуга от мастера
                 const author = isMasterTicket ? ticket.master : ticket.author;
                 const authorId = author?.id || 0;
                 const authorName = author ? `${author.name || ''} ${author.surname || ''}`.trim() : 'Пользователь';
@@ -398,7 +374,7 @@ function CategoryTicketsPage() {
             }
 
             // Создаем URL с query-параметрами
-            const url = new URL(`${API_BASE_URL}/api/tickets`);
+            const url = new URL(`${API_BASE_URL}/api/tickets?locale=${localStorage.getItem('i18nextLng') || 'ru'}`);
 
             // Добавляем параметры, убедившись, что они не undefined
             Object.entries(params).forEach(([key, value]) => {
@@ -473,7 +449,8 @@ function CategoryTicketsPage() {
     const getPageTitle = () => {
         if (!categoryName) return 'По категории';
 
-        let roleText = '';
+        let roleText: string;
+
         if (userRole === 'client') {
             roleText = ' - Услуги мастеров';
         } else if (userRole === 'master') {

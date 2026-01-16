@@ -11,7 +11,7 @@ export const getAvailableLanguages = () => {
     return [
         { code: 'tj', name: 'Тоҷикӣ', nativeName: 'ТҶ' },
         { code: 'ru', name: 'Русский', nativeName: 'РУ' },
-        { code: 'en', name: 'English', nativeName: 'EN' },
+        { code: 'eng', name: 'English', nativeName: 'ENG' },
     ];
 };
 

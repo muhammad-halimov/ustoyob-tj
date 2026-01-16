@@ -84,7 +84,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
     const languages = [
         { code: 'tj' as Language, name: 'ТҶ', fullName: 'Тоҷикӣ' },
         { code: 'ru' as Language, name: 'РУ', fullName: 'Русский' },
-        { code: 'en' as Language, name: 'EN', fullName: 'English' },
+        { code: 'eng' as Language, name: 'ENG', fullName: 'English' },
     ];
 
     const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[1];

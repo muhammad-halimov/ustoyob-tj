@@ -28,8 +28,8 @@ export const AdBtn = ({
         if (text) return text;
 
         return userRole === 'ROLE_MASTER' && isAuthenticated
-            ? t('header:postService', 'Post ad')
-            : t('header:postAd', 'Post ad');
+            ? t('header:postAd', 'Post a ticket')
+            : t('header:postService', 'Post a service');
     };
 
     return (
