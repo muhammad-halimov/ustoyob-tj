@@ -49,6 +49,12 @@ interface TicketApiData {
     updatedAt?: string;
 }
 
+interface SocialNetwork {
+    id: string;
+    network: string;
+    handle: string;
+}
+
 interface ProfileData {
     id: string;
     fullName: string;
@@ -60,6 +66,7 @@ interface ProfileData {
     workExamples: WorkExample[];
     workArea: string;
     services: Service[];
+    socialNetworks: SocialNetwork[];
 }
 
 interface ServiceTicket {
@@ -82,6 +89,7 @@ interface ServiceTicket {
         district?: { id: number; title: string };
         suburb?: { id: number; title: string };
     }>;
+    active?: boolean;
 }
 
 interface Education {
@@ -179,6 +187,12 @@ interface UserApiData {
     education?: EducationApiData[];
     districts?: DistrictApiData[];
     addresses?: UserAddressApiData[];
+    socialNetworks?: Array<{
+        id?: number;
+        network?: string;
+        handle?: string;
+        [key: string]: unknown;
+    }>;
     [key: string]: unknown;
 }
 
@@ -282,9 +296,17 @@ function MasterProfilePage() {
     const [profileData, setProfileData] = useState<ProfileData | null>(null);
     const [tempValue, setTempValue] = useState('');
     const [editingEducation, setEditingEducation] = useState<string | null>(null);
-    const [educationForm, setEducationForm] = useState<Omit<Education, 'id'>>({
+    const [educationForm, setEducationForm] = useState<{
+        institution: string;
+        specialty: string;
+        selectedSpecialty?: number;
+        startYear: string;
+        endYear: string;
+        currentlyStudying: boolean;
+    }>({
         institution: '',
         specialty: '',
+        selectedSpecialty: undefined,
         startYear: '',
         endYear: '',
         currentlyStudying: false
@@ -304,6 +326,13 @@ function MasterProfilePage() {
     const specialtyInputRef = useRef<HTMLSelectElement>(null);
     const [services, setServices] = useState<ServiceTicket[]>([]);
     const [servicesLoading, setServicesLoading] = useState(false);
+    const [editingSocialNetwork, setEditingSocialNetwork] = useState<string | null>(null);
+    const [socialNetworks, setSocialNetworks] = useState<SocialNetwork[]>([
+        { id: '1', network: 'telegram', handle: '' },
+        { id: '2', network: 'instagram', handle: '' },
+        { id: '3', network: 'whatsapp', handle: '' }
+    ]);
+
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     useEffect(() => {
@@ -329,6 +358,50 @@ function MasterProfilePage() {
             fetchOccupationsList();
         }
     }, [editingField]);
+
+    const updateSocialNetworks = async (updatedNetworks: SocialNetwork[]) => {
+        if (!profileData?.id) return;
+
+        try {
+            const token = getAuthToken();
+            if (!token) {
+                navigate('/login');
+                return;
+            }
+
+            const socialNetworksData = updatedNetworks
+                .filter(network => network.handle.trim() !== '')
+                .map(network => ({
+                    network: network.network.toLowerCase(),
+                    handle: network.handle.trim()
+                }));
+
+            console.log('Sending social networks:', socialNetworksData);
+
+            const response = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/merge-patch+json',
+                },
+                body: JSON.stringify({
+                    socialNetworks: socialNetworksData.length > 0 ? socialNetworksData : []
+                }),
+            });
+
+            if (response.ok) {
+                setSocialNetworks(updatedNetworks);
+                alert('Социальные сети успешно обновлены!');
+            } else {
+                const errorText = await response.text();
+                console.error('Error updating social networks:', errorText);
+                throw new Error('Ошибка при обновлении социальных сетей');
+            }
+        } catch (error) {
+            console.error('Error updating social networks:', error);
+            alert('Ошибка при обновлении социальных сетей');
+        }
+    };
 
     const fetchOccupationsList = async () => {
         try {
@@ -384,7 +457,7 @@ function MasterProfilePage() {
                 return;
             }
 
-            const endpoint = `/api/tickets?service=true&master=${profileData.id}&active=true`;
+            const endpoint = `/api/tickets?service=true&master=${profileData.id}`;
             console.log('Fetching master services from:', endpoint);
             console.log('Filtering by master ID:', profileData.id);
 
@@ -447,7 +520,8 @@ function MasterProfilePage() {
                     } : null,
                     category: service.category,
                     description: service.description,
-                    addresses: service.addresses || []
+                    addresses: service.addresses || [],
+                    active: service.active
                 }));
 
             console.log(`Processed ${masterServices.length} master services for user ${profileData.id}:`, masterServices);
@@ -469,6 +543,58 @@ function MasterProfilePage() {
             setServices([]);
         } finally {
             setServicesLoading(false);
+        }
+    };
+
+    const handleToggleServiceActive = async (serviceId: number, currentActive: boolean) => {
+        try {
+            const token = getAuthToken();
+            if (!token) {
+                navigate('/login');
+                return;
+            }
+
+            const response = await fetch(`${API_BASE_URL}/api/tickets/${serviceId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/merge-patch+json',
+                },
+                body: JSON.stringify({
+                    active: !currentActive
+                }),
+            });
+
+            if (response.ok) {
+                // Обновляем состояние в локальном списке
+                setServices(prev => prev.map(service =>
+                    service.id === serviceId
+                        ? { ...service, active: !currentActive }
+                        : service
+                ));
+
+                // Обновляем профиль
+                setProfileData(prev => prev ? {
+                    ...prev,
+                    services: prev.services.map(service =>
+                        parseInt(service.id) === serviceId
+                            ? { ...service, name: prev.services.find(s => parseInt(s.id) === serviceId)?.name || '' }
+                            : service
+                    )
+                } : null);
+
+                // alert(`Объявление успешно ${!currentActive ? 'активировано' : 'деактивировано'}!`);
+
+                // Обновляем список услуг
+                await fetchMasterServices();
+            } else {
+                const errorText = await response.text();
+                console.error('Error toggling service active status:', errorText);
+                throw new Error(`Не удалось ${!currentActive ? 'активировать' : 'деактивировать'} объявление`);
+            }
+        } catch (error) {
+            console.error('Error toggling service active status:', error);
+            alert(`Ошибка при ${!currentActive ? 'активации' : 'деактивации'} объявления`);
         }
     };
 
@@ -624,6 +750,21 @@ function MasterProfilePage() {
             }
 
             console.log('Final work area:', workArea);
+
+            // Преобразование социальных сетей
+            const socialNetworksData: SocialNetwork[] = userData.socialNetworks?.map((sn, index) => ({
+                id: sn.id?.toString() || `sn-${index}`,
+                network: sn.network?.toLowerCase() || '',
+                handle: sn.handle || ''
+            })) || [
+                { id: '1', network: 'telegram', handle: '' },
+                { id: '2', network: 'instagram', handle: '' },
+                { id: '3', network: 'whatsapp', handle: '' }
+            ];
+
+            // Обновляем состояние социальных сетей
+            setSocialNetworks(socialNetworksData);
+
             const transformedData: ProfileData = {
                 id: userData.id.toString(),
                 fullName: [userData.surname, userData.name, userData.patronymic]
@@ -636,7 +777,8 @@ function MasterProfilePage() {
                 education: transformEducation(userData.education || []),
                 workExamples: [],
                 workArea: workArea,
-                services: []
+                services: [],
+                socialNetworks: socialNetworksData
             };
 
             setProfileData(transformedData);
@@ -653,14 +795,18 @@ function MasterProfilePage() {
                 education: [],
                 workExamples: [],
                 workArea: '',
-                services: []
+                services: [],
+                socialNetworks: [
+                    { id: '1', network: 'telegram', handle: '' },
+                    { id: '2', network: 'instagram', handle: '' },
+                    { id: '3', network: 'whatsapp', handle: '' }
+                ]
             });
         } finally {
             setIsLoading(false);
         }
     };
 
-    // Добавьте эту функцию перед getFullAddressText
     const extractAddressPart = async (addressPart: string | { title: string }): Promise<{ title: string } | null> => {
         try {
             if (typeof addressPart === 'string') {
@@ -727,61 +873,6 @@ function MasterProfilePage() {
 
         return addressParts.join(', ');
     };
-
-    // Удалите неиспользуемую функцию fetchResourceInfo
-    /*
-    const fetchResourceInfo = async (resourceId: number, resourceType: string, token: string): Promise<any> => {
-        try {
-            console.log(`Fetching ${resourceType} info for ID: ${resourceId}`);
-            let endpoint = '';
-            switch (resourceType) {
-                case 'provinces':
-                    endpoint = `/api/provinces/${resourceId}`;
-                    break;
-                case 'cities':
-                    endpoint = `/api/cities/${resourceId}`;
-                    break;
-                case 'districts':
-                    endpoint = `/api/districts/${resourceId}`;
-                    break;
-                case 'suburbs':
-                    endpoint = `/api/suburbs/${resourceId}`;
-                    break;
-                case 'settlements':
-                    endpoint = `/api/settlements/${resourceId}`;
-                    break;
-                case 'communities':
-                    endpoint = `/api/communities/${resourceId}`;
-                    break;
-                case 'villages':
-                    endpoint = `/api/villages/${resourceId}`;
-                    break;
-                default:
-                    return null;
-            }
-
-            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                console.log(`${resourceType} data loaded:`, data);
-                return data;
-            } else {
-                console.error(`Failed to fetch ${resourceType} ${resourceId}: ${response.status}`);
-                return null;
-            }
-        } catch (error) {
-            console.error(`Error fetching ${resourceType} info:`, error);
-            return null;
-        }
-    };
-    */
 
     const updateUserRating = async (rating: number) => {
         if (!profileData?.id) return;
@@ -2108,6 +2199,7 @@ function MasterProfilePage() {
         setEducationForm({
             institution: '',
             specialty: '',
+            selectedSpecialty: undefined,
             startYear: new Date().getFullYear().toString(),
             endYear: new Date().getFullYear().toString(),
             currentlyStudying: false
@@ -2148,6 +2240,7 @@ function MasterProfilePage() {
         setEducationForm({
             institution: education.institution,
             specialty: education.specialty,
+            selectedSpecialty: occupations.find(occ => occ.title === education.specialty)?.id,
             startYear: education.startYear,
             endYear: education.endYear,
             currentlyStudying: education.currentlyStudying
@@ -2155,17 +2248,25 @@ function MasterProfilePage() {
     };
 
     const handleEditEducationSave = async () => {
-        if (!editingEducation || !educationForm.institution) {
-            alert('Пожалуйста, заполните учебное заведение');
+        if (!editingEducation || !educationForm.institution || !educationForm.startYear) {
+            alert('Пожалуйста, заполните обязательные поля');
             return;
         }
 
-        if (!educationForm.startYear) {
-            alert('Пожалуйста, укажите год начала обучения');
-            return;
-        }
+        // Используем выбранную специальность или введенную вручную
+        const specialtyValue = educationForm.selectedSpecialty
+            ? occupations.find(occ => occ.id === educationForm.selectedSpecialty)?.title || ''
+            : educationForm.specialty;
 
-        await updateEducation(editingEducation, educationForm);
+        const educationToSave = {
+            institution: educationForm.institution,
+            specialty: specialtyValue,
+            startYear: educationForm.startYear,
+            endYear: educationForm.endYear,
+            currentlyStudying: educationForm.currentlyStudying
+        };
+
+        await updateEducation(editingEducation, educationToSave);
     };
 
     const handleEditEducationCancel = () => {
@@ -2173,6 +2274,7 @@ function MasterProfilePage() {
         setEducationForm({
             institution: '',
             specialty: '',
+            selectedSpecialty: undefined,
             startYear: '',
             endYear: '',
             currentlyStudying: false
@@ -2753,33 +2855,78 @@ function MasterProfilePage() {
                                     {editingEducation === edu.id ? (
                                         <div className={styles.education_form}>
                                             <div className={styles.form_group}>
+                                                <label>Учебное заведение *</label>
                                                 <input
                                                     type="text"
-                                                    placeholder="Укажите информацию"
+                                                    placeholder="Учебное заведение"
                                                     value={educationForm.institution}
                                                     onChange={(e) => handleEducationFormChange('institution', e.target.value)}
                                                 />
-                                                <label>Укажите учебное заведение и специальность</label>
+                                            </div>
+
+                                            <div className={styles.form_group}>
+                                                <label>Специальность</label>
+                                                <select
+                                                    className={styles.specialty_select}
+                                                    value={educationForm.selectedSpecialty || ''}
+                                                    onChange={(e) => {
+                                                        const selectedId = parseInt(e.target.value);
+                                                        setEducationForm(prev => ({
+                                                            ...prev,
+                                                            selectedSpecialty: selectedId || undefined,
+                                                            specialty: selectedId
+                                                                ? occupations.find(occ => occ.id === selectedId)?.title || ''
+                                                                : prev.specialty
+                                                        }));
+                                                    }}
+                                                >
+                                                    <option value="">Выберите специальность</option>
+                                                    {occupations.map(occupation => (
+                                                        <option key={occupation.id} value={occupation.id}>
+                                                            {occupation.title}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Или введите другую специальность"
+                                                    value={educationForm.selectedSpecialty ? '' : educationForm.specialty}
+                                                    onChange={(e) => {
+                                                        if (!educationForm.selectedSpecialty) {
+                                                            setEducationForm(prev => ({
+                                                                ...prev,
+                                                                specialty: e.target.value
+                                                            }));
+                                                        }
+                                                    }}
+                                                    disabled={!!educationForm.selectedSpecialty}
+                                                />
                                             </div>
 
                                             <div className={styles.year_group}>
                                                 <div className={styles.form_group}>
                                                     <input
-                                                        type="text"
+                                                        type="number"
                                                         placeholder="Год начала"
                                                         value={educationForm.startYear}
                                                         onChange={(e) => handleEducationFormChange('startYear', e.target.value)}
+                                                        min="1900"
+                                                        max={new Date().getFullYear()}
                                                     />
+                                                    <label>Год начала *</label>
                                                 </div>
 
                                                 <div className={styles.form_group}>
                                                     <input
-                                                        type="text"
+                                                        type="number"
                                                         placeholder="Год окончания"
                                                         value={educationForm.endYear}
                                                         onChange={(e) => handleEducationFormChange('endYear', e.target.value)}
+                                                        min={parseInt(educationForm.startYear) || 1900}
+                                                        max={new Date().getFullYear()}
                                                         disabled={educationForm.currentlyStudying}
                                                     />
+                                                    <label>Год окончания</label>
                                                 </div>
                                             </div>
 
@@ -2798,7 +2945,7 @@ function MasterProfilePage() {
                                                 <button
                                                     className={styles.save_button}
                                                     onClick={handleEditEducationSave}
-                                                    disabled={!educationForm.institution}
+                                                    disabled={!educationForm.institution || !educationForm.startYear}
                                                 >
                                                     Сохранить
                                                 </button>
@@ -2905,11 +3052,39 @@ function MasterProfilePage() {
 
                                     <div className={styles.form_group}>
                                         <label>Специальность</label>
+                                        <select
+                                            value={educationForm.selectedSpecialty || ''}
+                                            onChange={(e) => {
+                                                const selectedId = parseInt(e.target.value);
+                                                setEducationForm(prev => ({
+                                                    ...prev,
+                                                    selectedSpecialty: selectedId || undefined,
+                                                    specialty: selectedId
+                                                        ? occupations.find(occ => occ.id === selectedId)?.title || ''
+                                                        : prev.specialty
+                                                }));
+                                            }}
+                                        >
+                                            <option value="">Выберите специальность</option>
+                                            {occupations.map(occupation => (
+                                                <option key={occupation.id} value={occupation.id}>
+                                                    {occupation.title}
+                                                </option>
+                                            ))}
+                                        </select>
                                         <input
                                             type="text"
-                                            placeholder="Специальность"
-                                            value={educationForm.specialty}
-                                            onChange={(e) => handleEducationFormChange('specialty', e.target.value)}
+                                            placeholder="Или введите другую специальность"
+                                            value={educationForm.selectedSpecialty ? '' : educationForm.specialty}
+                                            onChange={(e) => {
+                                                if (!educationForm.selectedSpecialty) {
+                                                    setEducationForm(prev => ({
+                                                        ...prev,
+                                                        specialty: e.target.value
+                                                    }));
+                                                }
+                                            }}
+                                            disabled={!!educationForm.selectedSpecialty}
                                         />
                                     </div>
 
@@ -2968,6 +3143,74 @@ function MasterProfilePage() {
                                     </div>
                                 </div>
                             ) : null}
+                        </div>
+                    </div>
+
+                    {/* Социальные сети */}
+                    <div className={styles.section_item}>
+                        <h3>Социальные сети</h3>
+                        <div className={styles.section_content}>
+                            <div className={styles.social_networks}>
+                                {socialNetworks.map(network => (
+                                    <div key={network.id} className={styles.social_network_item}>
+                                        <div className={styles.social_network_icon}>
+                                            {network.network === 'telegram' && '📱'}
+                                            {network.network === 'instagram' && '📸'}
+                                            {network.network === 'whatsapp' && '💬'}
+                                        </div>
+                                        <div className={styles.social_network_info}>
+                                            <span className={styles.social_network_name}>
+
+                                            {network.network === 'telegram' && 'Telegram'}
+
+                                            {network.network === 'instagram' && 'Instagram'}
+
+                                            {network.network === 'whatsapp' && 'WhatsApp'}
+
+                                        </span>
+                                            {editingSocialNetwork === network.id ? (
+                                                <div className={styles.social_network_edit}>
+                                                    <input
+                                                        type="text"
+                                                        value={network.handle}
+                                                        onChange={(e) => {
+                                                            const updated = socialNetworks.map(n =>
+                                                                n.id === network.id
+                                                                    ? { ...n, handle: e.target.value }
+                                                                    : n
+                                                            );
+                                                            setSocialNetworks(updated);
+                                                        }}
+                                                        placeholder={`Введите ${network.network === 'telegram' ? '@username' : 'номер или ссылку'}`}
+                                                    />
+                                                    <button
+                                                        className={styles.save_social_btn}
+                                                        onClick={() => {
+                                                            updateSocialNetworks(socialNetworks);
+                                                            setEditingSocialNetwork(null);
+                                                        }}
+                                                    >
+                                                        ✓
+                                                    </button>
+                                                    <button
+                                                        className={styles.cancel_social_btn}
+                                                        onClick={() => setEditingSocialNetwork(null)}
+                                                    >
+                                                        ✕
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <span
+                                                    className={`${styles.social_network_handle} ${!network.handle ? styles.empty_handle : ''}`}
+                                                    onClick={() => setEditingSocialNetwork(network.id)}
+                                                >
+                                                    {network.handle || 'Добавить'}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
 
@@ -3099,14 +3342,16 @@ function MasterProfilePage() {
                                     {services.map(service => (
                                         <div key={service.id} className={styles.service_item}>
                                             <div className={styles.service_header}>
-                                                <span className={styles.service_name}>
-                                                    {service.title}
+                                                <div className={styles.service_title_wrapper}>
+                                                    <span className={styles.service_name}>
+                                                        {service.title}
+                                                    </span>
                                                     {service.description && (
                                                         <div className={styles.service_description}>
                                                             {cleanText(service.description)}
                                                         </div>
                                                     )}
-                                                </span>
+                                                </div>
                                                 <div className={styles.service_actions}>
                                                     <button
                                                         className={styles.edit_service_btn}
@@ -3160,6 +3405,20 @@ function MasterProfilePage() {
                                             </div>
                                             <span className={styles.service_price}>
                                                 {service.budget} TJS, {service.unit?.title || 'TJS'}
+                                                {/* Переключатель активации/деактивации */}
+                                                <div className={styles.service_active_toggle}>
+                                                <label className={styles.switch}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={service.active !== false}
+                                                        onChange={() => handleToggleServiceActive(service.id, service.active !== false)}
+                                                    />
+                                                    <span className={styles.slider}></span>
+                                                </label>
+                                                <span className={styles.toggle_label}>
+                                                            {service.active !== false ? 'Активно' : 'Неактивно'}
+                                                        </span>
+                                            </div>
                                             </span>
                                         </div>
                                     ))}
