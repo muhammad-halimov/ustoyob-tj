@@ -71,7 +71,7 @@ readonly class AccountConfirmationService
             </head>
             <body>
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-                    <h1 style="color: #667eea;">Подтверждение аккаунта</h1>
+                    <h1 style="color: #667eea;">Активация аккаунта</h1>
                     <p>Здравствуйте!</p>
                     <p>Для активации вашего аккаунта на <strong>{$siteName}</strong> перейдите по ссылке ниже:</p>
                     <p style="margin: 30px 0;">
@@ -83,7 +83,7 @@ readonly class AccountConfirmationService
                                   border-radius: 50px;
                                   display: inline-block;
                                   font-weight: 600;">
-                            Подтвердить аккаунт
+                            Активировать аккаунт
                         </a>
                     </p>
                     <p style="color: #666; font-size: 14px;">Ссылка действительна в течение 24 часов.</p>
@@ -100,7 +100,7 @@ readonly class AccountConfirmationService
         $email = (new Email())
             ->from($_ENV['MAILER_SENDER'])
             ->to($user->getEmail())
-            ->subject("Подтверждение аккаунта на {$siteName}")
+            ->subject("Активация аккаунта | {$siteName}")
             ->text($textContent)
             ->html($htmlContent);
 
