@@ -28,8 +28,7 @@ class TicketCrudController extends AbstractCrudController
 
     public function configureAssets(Assets $assets): Assets
     {
-        return parent::configureAssets($assets)
-            ->addJsFile("assets/js/ticketCrud.js");
+        return parent::configureAssets($assets)->addJsFile("assets/js/ticketCrud.js");
     }
 
     public function configureCrud(Crud $crud): Crud

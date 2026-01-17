@@ -26,6 +26,8 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\TelephoneField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
+use Psr\Container\ContainerExceptionInterface;
+use Psr\Container\NotFoundExceptionInterface;
 use Random\RandomException;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
@@ -50,8 +52,7 @@ class UserCrudController extends AbstractCrudController
 
     public function configureAssets(Assets $assets): Assets
     {
-        return parent::configureAssets($assets)
-            ->addJsFile("assets/js/userCrud.js");
+        return parent::configureAssets($assets)->addJsFile("assets/js/userCrud.js");
     }
 
     public function configureCrud(Crud $crud): Crud
@@ -66,6 +67,10 @@ class UserCrudController extends AbstractCrudController
             ->setDefaultSort(['id' => 'DESC']);
     }
 
+    /**
+     * @throws NotFoundExceptionInterface
+     * @throws ContainerExceptionInterface
+     */
     public function createIndexQueryBuilder(
         SearchDto $searchDto,
         EntityDto $entityDto,

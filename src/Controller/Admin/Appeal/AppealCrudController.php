@@ -26,8 +26,7 @@ class AppealCrudController extends AbstractCrudController
 
     public function configureAssets(Assets $assets): Assets
     {
-        return parent::configureAssets($assets)
-            ->addJsFile("assets/js/appealCrud.js");
+        return parent::configureAssets($assets)->addJsFile("assets/js/appealCrud.js");
     }
 
     public function configureCrud(Crud $crud): Crud

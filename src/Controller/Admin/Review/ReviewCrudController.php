@@ -26,8 +26,7 @@ class ReviewCrudController extends AbstractCrudController
 
     public function configureAssets(Assets $assets): Assets
     {
-        return parent::configureAssets($assets)
-            ->addJsFile("assets/js/reviewCrud.js");
+        return parent::configureAssets($assets)->addJsFile("assets/js/reviewCrud.js");
     }
 
     public function configureCrud(Crud $crud): Crud
