@@ -2,6 +2,7 @@
 
 namespace App\Controller\Admin;
 
+use App\Controller\Admin\TechSupport\TechSupportCrudController;
 use App\Controller\Admin\User\UserCrudController;
 use App\Entity\Appeal\Appeal;
 use App\Entity\Chat\Chat;
@@ -37,7 +38,7 @@ class DashboardController extends AbstractDashboardController
         return $this
             ->redirect(url: $this->container
             ->get(AdminUrlGenerator::class)
-            ->setController(UserCrudController::class)
+            ->setController(TechSupportCrudController::class)
             ->generateUrl());
     }
 
