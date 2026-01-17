@@ -18,8 +18,7 @@ readonly class AccountConfirmationService
     public function __construct(
         private EntityManagerInterface $entityManager,
         private UrlGeneratorInterface  $urlGenerator
-    ) {
-    }
+    ){}
 
     /**
      * @throws RandomException
@@ -27,9 +26,6 @@ readonly class AccountConfirmationService
      */
     public function sendConfirmationEmail(User $user): string
     {
-        $transport = Transport::fromDsn($_ENV['MAILER_DSN']);
-        $mailer = new Mailer($transport);
-
         // Удаляем старые токены для этого пользователя
         $oldTokens = $this->entityManager->getRepository(AccountConfirmationToken::class)->findBy(['user' => $user]);
 
@@ -51,37 +47,70 @@ readonly class AccountConfirmationService
             UrlGeneratorInterface::ABSOLUTE_URL
         );
 
-        // Отправляем письмо
-        $email = new Email()
-            ->from($_ENV['MAILER_SENDER'])
-            ->to($user->getEmail())
-            ->subject("Подтверждение аккаунта на {$_ENV["FRONTEND_URL"]}")
-            ->html("
-                <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
-                    <h1 style='color: #667eea;'>Подтверждение аккаунта</h1>
+        $siteName = $_ENV['FRONTEND_URL'];
+
+        // Текстовая версия письма
+        $textContent = <<<TEXT
+            Здравствуйте!
+
+            Для активации вашего аккаунта на {$siteName} перейдите по ссылке ниже:
+
+            {$confirmationUrl}
+
+            Ссылка действительна в течение 24 часов.
+
+            Если вы не регистрировались на {$siteName}, просто проигнорируйте это письмо.
+        TEXT;
+
+        // HTML версия письма
+        $htmlContent = <<<HTML
+            <!DOCTYPE html>
+            <html lang="ru-RU">
+            <head>
+                <meta charset="UTF-8">
+            </head>
+            <body>
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+                    <h1 style="color: #667eea;">Подтверждение аккаунта</h1>
                     <p>Здравствуйте!</p>
-                    <p>Для активации вашего аккаунта на <strong>{$_ENV['FRONTEND_URL']}</strong> перейдите по ссылке ниже:</p>
-                    <p style='margin: 30px 0;'>
-                        <a href='$confirmationUrl'
-                           style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    <p>Для активации вашего аккаунта на <strong>{$siteName}</strong> перейдите по ссылке ниже:</p>
+                    <p style="margin: 30px 0;">
+                        <a href="{$confirmationUrl}"
+                           style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                                   color: white;
                                   padding: 15px 30px;
                                   text-decoration: none;
                                   border-radius: 50px;
                                   display: inline-block;
-                                  font-weight: 600;'>
+                                  font-weight: 600;">
                             Подтвердить аккаунт
                         </a>
                     </p>
-                    <p style='color: #666; font-size: 14px;'>Ссылка действительна в течение 24 часов.</p>
-                    <hr style='margin: 30px 0; border: none; border-top: 1px solid #eee;'>
-                    <p style='color: #999; font-size: 12px;'>
-                        Если вы не регистрировались на {$_ENV['FRONTEND_URL']}, просто проигнорируйте это письмо.
+                    <p style="color: #666; font-size: 14px;">Ссылка действительна в течение 24 часов.</p>
+                    <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+                    <p style="color: #999; font-size: 12px;">
+                        Если вы не регистрировались на {$siteName}, просто проигнорируйте это письмо.
                     </p>
                 </div>
-            ");
+            </body>
+            </html>
+        HTML;
 
-        $mailer->send($email);
+        // Создаем письмо
+        $email = (new Email())
+            ->from($_ENV['MAILER_SENDER'])
+            ->to($user->getEmail())
+            ->subject("Подтверждение аккаунта на {$siteName}")
+            ->text($textContent)
+            ->html($htmlContent);
+
+        // Добавляем заголовки для улучшения доставляемости
+        $headers = $email->getHeaders();
+        $headers->addTextHeader('X-Entity-Ref-ID', $token->getToken());
+        $headers->addTextHeader('X-Mailer', 'Symfony Mailer');
+
+        // Отправляем
+        new Mailer(Transport::fromDsn($_ENV['MAILER_DSN']))->send($email);
 
         return "Письмо отправлено пользователю {$user->getEmail()}";
     }

@@ -19,9 +19,6 @@ readonly class NotifyTechSupportEmailService
      */
     public function sendTechSupportEmail(User $user, TechSupport $techSupport): string
     {
-        $transport = Transport::fromDsn($_ENV['MAILER_DSN']);
-        $mailer = new Mailer($transport);
-
         // Генерируем ссылку для подтверждения
         $techSupportUrl = $this->urlGenerator->generate(
             'admin_tech_support_edit',
@@ -69,7 +66,7 @@ readonly class NotifyTechSupportEmailService
                 </div>
             ");
 
-        $mailer->send($email);
+        new Mailer(Transport::fromDsn($_ENV['MAILER_DSN']))->send($email);
 
         return "Письмо отправлено админу {$user->getEmail()}";
     }
