@@ -14,6 +14,7 @@ use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 #[AsEntityListener(event: Events::prePersist, entity: TechSupport::class)]
 #[AsEntityListener(event: Events::postPersist, entity: TechSupport::class)]
+#[AsEntityListener(event: Events::postUpdate, entity: TechSupport::class)]
 readonly class TechSupportListener
 {
     public function __construct(
@@ -29,9 +30,7 @@ readonly class TechSupportListener
     public function prePersist(TechSupport $techSupport): void
     {
         // Устанавливаем статус "new" если не задан
-        if ($techSupport->getStatus() === null) {
-            $techSupport->setStatus('new');
-        }
+        if ($techSupport->getStatus() === null) $techSupport->setStatus('new');
 
         // Назначаем наименее загруженного администратора
         $this->setLessLoadedAdmin($techSupport);
@@ -43,6 +42,20 @@ readonly class TechSupportListener
      */
     public function postPersist(TechSupport $techSupport): void
     {
+        if (!in_array('ROLE_ADMIN', $techSupport->getAdministrant()->getRoles())) return;
+
+        $this->notifyTechSupportTelegramBotService->sendTechSupportNotification(user: $techSupport->getAdministrant(), techSupport: $techSupport);
+        $this->notifyTechSupportEmailService->sendTechSupportEmail(user: $techSupport->getAdministrant(), techSupport: $techSupport);
+    }
+
+    /**
+     * При обновлении ТП отправляем уведомление на почту и тг админа
+     * @throws TransportExceptionInterface
+     */
+    public function postUpdate(TechSupport $techSupport): void
+    {
+        if (!in_array('ROLE_ADMIN', $techSupport->getAdministrant()->getRoles())) return;
+
         $this->notifyTechSupportTelegramBotService->sendTechSupportNotification(user: $techSupport->getAdministrant(), techSupport: $techSupport);
         $this->notifyTechSupportEmailService->sendTechSupportEmail(user: $techSupport->getAdministrant(), techSupport: $techSupport);
     }

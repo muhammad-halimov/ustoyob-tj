@@ -30,6 +30,13 @@ use Random\RandomException;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
+use Doctrine\ORM\QueryBuilder;
+use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
+use EasyCorp\Bundle\EasyAdminBundle\Collection\FilterCollection;
+use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
+use EasyCorp\Bundle\EasyAdminBundle\Dto\SearchDto;
+use EasyCorp\Bundle\EasyAdminBundle\Orm\EntityRepository;
+
 class UserCrudController extends AbstractCrudController
 {
     public function __construct(
@@ -55,7 +62,28 @@ class UserCrudController extends AbstractCrudController
             ->setEntityLabelInSingular('пользователя')
             ->setPageTitle(Crud::PAGE_NEW, 'Добавление пользователя')
             ->setPageTitle(Crud::PAGE_EDIT, 'Изменение пользователя')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о пользователе");
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о пользователе")
+            ->setDefaultSort(['id' => 'DESC']);
+    }
+
+    public function createIndexQueryBuilder(
+        SearchDto $searchDto,
+        EntityDto $entityDto,
+        FieldCollection $fields,
+        FilterCollection $filters
+    ): QueryBuilder
+    {
+        $qb = $this->container->get(EntityRepository::class)->createQueryBuilder($searchDto, $entityDto, $fields, $filters);
+
+        // Проверяем, сортируем ли мы по roles
+        if ($searchDto->getSort() && isset($searchDto->getSort()['roles'])) {
+            $direction = $searchDto->getSort()['roles'];
+
+            // Добавляем кастомную сортировку: конвертируем JSON в текст для сортировки
+            $qb->addSelect("CAST(entity.roles AS TEXT) as HIDDEN roles_text")->orderBy('roles_text', $direction);
+        }
+
+        return $qb;
     }
 
     public function configureActions(Actions $actions): Actions
