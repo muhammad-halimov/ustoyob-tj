@@ -1230,7 +1230,7 @@
 // Добавьте эти стили в ваш MasterProfilePage.module.scss
 
 .complaint_section {
-  margin-top: 16px;
+  //margin-top: 16px;
   display: flex;
   //justify-content: center;
 }
@@ -1458,12 +1458,11 @@
 }
 
 
-// Добавьте эти стили в ваш MasterProfilePage.module.scss
-
 .reviews_actions {
   display: flex;
   gap: 12px;
   justify-content: center;
+  align-items: center;
   margin-top: 24px;
   flex-wrap: wrap;
 
@@ -1475,7 +1474,8 @@
     font-size: 14px;
     cursor: pointer;
     transition: all 0.3s ease;
-    min-width: 160px;
+    min-width: 200px;
+    height: 41px;
   }
 
   .show_all_reviews_btn {
@@ -1686,7 +1686,7 @@
 }
 
 .complaint_section {
-  margin-top: 16px;
+  //margin-top: 16px;
   display: flex;
   //justify-content: center;
 }
@@ -3325,4 +3325,362 @@
   &:hover {
     outline: none;
   }
+}
+
+.social_networks {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.social_network_item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  background-color: #f8f9ff;
+  border: 1px solid #e0e6ff;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background-color: #f0f3ff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(58, 84, 218, 0.1);
+  }
+}
+
+.social_network_icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+  svg {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+.social_network_info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.social_network_name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.social_network_handle {
+  font-size: 15px;
+  color: #3A54DA;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background-color: white;
+  border: 1px dashed #3A54DA;
+  transition: all 0.2s ease;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+
+  &:hover {
+    background-color: #f0f3ff;
+    border-style: solid;
+  }
+
+  &.empty_handle {
+    color: #999;
+    font-style: italic;
+    background-color: #f9f9f9;
+    border: 1px dashed #ddd;
+
+    &:hover {
+      background-color: #f0f0f0;
+      border-color: #3A54DA;
+      color: #3A54DA;
+    }
+  }
+}
+
+.social_network_edit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.social_input {
+  flex: 1;
+  padding: 10px 16px;
+  border: 2px solid #3A54DA;
+  border-radius: 8px;
+  font-size: 15px;
+  background-color: white;
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.1);
+  }
+
+  &::placeholder {
+    color: #999;
+  }
+}
+
+.social_edit_buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.save_social_btn,
+.cancel_social_btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.save_social_btn {
+  background-color: #3A54DA;
+
+  &:hover {
+    background-color: #2a44ca;
+    transform: scale(1.05);
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.cancel_social_btn {
+  background-color: #ff4444;
+
+  &:hover {
+    background-color: #cc0000;
+    transform: scale(1.05);
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.social_hint {
+  margin-top: 12px;
+  padding: 12px 16px;
+  background-color: #f0f9ff;
+  border-radius: 8px;
+  border-left: 4px solid #3A54DA;
+
+  p {
+    margin: 0;
+    font-size: 14px;
+    color: #666;
+    line-height: 1.4;
+  }
+}
+
+/* Улучшение видимости секции */
+.section_item {
+  h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+
+  }
+}
+
+/* Адаптивность */
+@media screen and (max-width: 480px) {
+  .social_network_item {
+    padding: 12px;
+  }
+
+  .social_network_icon {
+    width: 40px;
+    height: 40px;
+
+    svg {
+      width: 20px;
+      height: 20px;
+    }
+  }
+
+  .social_network_name {
+    font-size: 15px;
+  }
+
+  .social_network_handle {
+    font-size: 14px;
+    padding: 6px 10px;
+    min-height: 36px;
+  }
+
+  .social_input {
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+
+  .save_social_btn,
+  .cancel_social_btn {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+.handle_value {
+  font-weight: 500;
+  color: #3A54DA;
+}
+
+.handle_placeholder {
+  color: #999;
+  font-style: italic;
+}
+
+.edit_indicator {
+  font-size: 12px;
+  color: #666;
+  margin-left: 8px;
+  opacity: 0.7;
+}
+
+.social_network_handle:hover .edit_indicator {
+  opacity: 1;
+}
+
+/* Стили для кнопок */
+.save_social_btn:disabled,
+.cancel_social_btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.save_social_btn:disabled:hover,
+.cancel_social_btn:disabled:hover {
+  background-color: #3A54DA !important;
+}
+
+.cancel_social_btn:disabled:hover {
+  background-color: #ff4444 !important;
+}
+
+/* Анимация для плавного появления полей ввода */
+.social_network_edit {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reset_social_btn {
+  background: #1a34ba;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-left: 20px;
+  margin-bottom: 23px;
+
+  &:hover {
+    background: #ff3b30;
+  }
+}
+
+.social_networks_header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.social_network_edit {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.social_input {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.save_social_btn {
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+
+  &:hover {
+    background: #4CAF50;
+  }
+
+  &:disabled {
+    background: #cccccc;
+    cursor: not-allowed;
+  }
+}
+
+.cancel_social_btn {
+  background: #ff3b30;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+
+  &:hover {
+    background: #ff3b30;
+  }
+}
+
+.social_edit_buttons {
+  display: flex;
+  gap: 4px;
 }

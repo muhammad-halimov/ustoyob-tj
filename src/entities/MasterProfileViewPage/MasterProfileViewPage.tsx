@@ -1,11 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, {useState, useEffect, useCallback, JSX} from 'react';
 import { useParams } from 'react-router-dom';
 import { getAuthToken } from '../../utils/auth';
 import styles from '../../pages/profile/MasterProfilePage.module.scss';
-// import { fetchUserById } from "../../utils/api.ts";
 import AuthModal from '../../shared/ui/AuthModal/AuthModal';
 
-// Базовый интерфейс для пользователя
 interface UserBasicInfo {
     id: number;
     email?: string;
@@ -15,15 +13,12 @@ interface UserBasicInfo {
     image?: string | null;
 }
 
-
-interface UserUpdateResponse {
-    id: number;
-    rating: number;
-    updatedAt: string;
-    [key: string]: unknown;
+interface SocialNetwork {
+    id: string;
+    network: string;
+    handle: string;
 }
 
-// Интерфейсы данных
 interface ProfileData {
     id: string;
     fullName: string;
@@ -36,6 +31,14 @@ interface ProfileData {
     workArea: string;
     services: Service[];
     addresses: FormattedAddress[];
+    socialNetworks?: SocialNetwork[];
+}
+
+interface UserUpdateResponse {
+    id: number;
+    rating: number;
+    updatedAt: string;
+    [key: string]: unknown;
 }
 
 interface Occupation {
@@ -171,6 +174,12 @@ interface UserApiData {
     education?: EducationApiData[] | unknown;
     districts?: DistrictApiData[];
     addresses?: UserAddressApiData[] | unknown;
+    socialNetworks?: Array<{
+        id?: number;
+        network?: string;
+        handle?: string;
+        [key: string]: unknown;
+    }>;
     [key: string]: unknown;
 }
 
@@ -208,10 +217,25 @@ interface UserAddressApiData {
     [key: string]: unknown;
 }
 
+interface ReviewFormData {
+    rating: number;
+    description: string;
+    images: File[];
+}
+
+interface AppealFormData {
+    type: 'ticket' | 'chat' | 'user';
+    title: string;
+    description: string;
+    reason: string;
+    images: File[];
+}
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 function MasterProfileViewPage() {
     const { id } = useParams<{ id: string }>();
+    // const navigate = useNavigate();
     const masterId = id ? parseInt(id) : null;
     const [isLoading, setIsLoading] = useState(true);
     const [profileData, setProfileData] = useState<ProfileData | null>(null);
@@ -219,13 +243,37 @@ function MasterProfileViewPage() {
     const [reviewsLoading, setReviewsLoading] = useState(false);
     const [showAllReviews, setShowAllReviews] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
+    const [showReviewModal, setShowReviewModal] = useState(false);
+    const [showAppealModal, setShowAppealModal] = useState(false);
     const [services, setServices] = useState<ServiceTicket[]>([]);
+    const [socialNetworks, setSocialNetworks] = useState<SocialNetwork[]>([
+        { id: '1', network: 'telegram', handle: '' },
+        { id: '2', network: 'instagram', handle: '' },
+        { id: '3', network: 'whatsapp', handle: '' }
+    ]);
+    const [editingSocialNetwork, setEditingSocialNetwork] = useState<string | null>(null);
+    const [socialNetworkEditValue, setSocialNetworkEditValue] = useState('');
+
+    // Формы
+    const [reviewForm, setReviewForm] = useState<ReviewFormData>({
+        rating: 0,
+        description: '',
+        images: []
+    });
+    const [appealForm, setAppealForm] = useState<AppealFormData>({
+        type: 'user',
+        title: '',
+        description: '',
+        reason: '',
+        images: []
+    });
+    const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+    const [isSubmittingAppeal, setIsSubmittingAppeal] = useState(false);
 
     // Функция для расчета среднего рейтинга из отзывов
     const calculateAverageRating = useCallback((reviewsList: Review[]): number => {
         if (!reviewsList || reviewsList.length === 0) return 0;
 
-        // Фильтруем только валидные рейтинги
         const validReviews = reviewsList.filter(review => {
             return review.rating !== undefined &&
                 review.rating !== null &&
@@ -238,17 +286,15 @@ function MasterProfileViewPage() {
 
         const totalRating = validReviews.reduce((sum, review) => sum + review.rating, 0);
         const averageRating = totalRating / validReviews.length;
-
-        // Округляем до одного знака после запятой, но не меньше 0.1
         const roundedRating = Math.max(0.1, Math.round(averageRating * 10) / 10);
 
-        return Math.min(5, roundedRating); // Ограничиваем максимум 5
+        return Math.min(5, roundedRating);
     }, []);
 
     // Функция для обновления рейтинга пользователя на сервере
     const updateUserRating = async (userId: number, newRating: number): Promise<boolean> => {
         const MAX_RETRIES = 3;
-        const RETRY_DELAY = 1000; // 1 секунда
+        const RETRY_DELAY = 1000;
 
         for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
@@ -261,13 +307,10 @@ function MasterProfileViewPage() {
                     continue;
                 }
 
-                // Валидация данных
                 if (newRating < 0 || newRating > 5) {
                     console.error(`Invalid rating value: ${newRating}. Must be between 0 and 5.`);
                     return false;
                 }
-
-                console.log(`Attempt ${attempt}: Updating rating for user ${userId} to ${newRating}`);
 
                 const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
                     method: 'PATCH',
@@ -316,7 +359,6 @@ function MasterProfileViewPage() {
                 const updatedUser: UserUpdateResponse = await response.json();
                 console.log(`Successfully updated rating for user ${userId}: ${updatedUser.rating} (attempt ${attempt})`);
 
-                // Проверяем, что рейтинг действительно обновился
                 if (Math.abs(updatedUser.rating - newRating) > 0.01) {
                     console.warn(`Rating mismatch: sent ${newRating}, received ${updatedUser.rating}`);
                 }
@@ -336,20 +378,14 @@ function MasterProfileViewPage() {
     // Функция для обработки загрузки отзывов с обновлением рейтинга
     const processReviewsAndUpdateRating = useCallback(async (reviewsList: Review[], userId: number) => {
         try {
-            // Рассчитываем новый средний рейтинг
             const newAverageRating = calculateAverageRating(reviewsList);
-
             console.log(`Calculated new average rating: ${newAverageRating} from ${reviewsList.length} reviews`);
 
-            // Получаем текущий рейтинг из профиля
             const currentRating = profileData?.rating || 0;
-
-            // Обновляем только если есть значительные изменения (больше 0.1) или если отзывов не было
             const hasSignificantChange = Math.abs(newAverageRating - currentRating) > 0.1;
             const hadNoReviewsBefore = reviewsList.length > 0 && (currentRating === 0 || !profileData?.reviews);
 
             if (hasSignificantChange || hadNoReviewsBefore || reviewsList.length === 0) {
-                // Обновляем локальное состояние профиля
                 if (profileData) {
                     setProfileData(prev => prev ? {
                         ...prev,
@@ -358,14 +394,11 @@ function MasterProfileViewPage() {
                     } : null);
                 }
 
-                // Обновляем рейтинг на сервере
                 if (newAverageRating >= 0 && newAverageRating <= 5) {
                     const updateSuccess = await updateUserRating(userId, newAverageRating);
 
                     if (updateSuccess) {
                         console.log(`Rating successfully updated to ${newAverageRating} for user ${userId}`);
-
-                        // Обновляем список отзывов с новыми данными
                         setReviews(prevReviews =>
                             prevReviews.map(review => ({
                                 ...review,
@@ -390,6 +423,392 @@ function MasterProfileViewPage() {
         }
     }, [calculateAverageRating, profileData]);
 
+    // Функции для социальных сетей
+    const handleSocialNetworkEdit = (networkId: string, currentHandle: string) => {
+        setEditingSocialNetwork(networkId);
+        setSocialNetworkEditValue(currentHandle);
+    };
+
+    const handleSaveSocialNetwork = async (networkId: string) => {
+        const newSocialNetworks = socialNetworks.map(network =>
+            network.id === networkId
+                ? { ...network, handle: socialNetworkEditValue.trim() }
+                : network
+        );
+
+        setSocialNetworks(newSocialNetworks);
+        setEditingSocialNetwork(null);
+        setSocialNetworkEditValue('');
+
+        // Сохраняем на сервере
+        await updateSocialNetworks(newSocialNetworks);
+    };
+
+    const handleCancelEdit = () => {
+        setEditingSocialNetwork(null);
+        setSocialNetworkEditValue('');
+    };
+
+    const getNetworkDisplayName = (network: string): string => {
+        switch (network) {
+            case 'telegram': return 'Telegram';
+            case 'instagram': return 'Instagram';
+            case 'whatsapp': return 'WhatsApp';
+            default: return network;
+        }
+    };
+
+    const getNetworkIcon = (network: string): JSX.Element => {
+        switch (network) {
+            case 'telegram':
+                return (
+                    <img src="../telegram.png" alt="tg" width="25"/>
+                );
+            case 'instagram':
+                return (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="#3A54DA">
+                        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                    </svg>
+                );
+            case 'whatsapp':
+                return (
+                    <img src="../whatsapp-icon-free-png.png" alt="whatsapp" width="25"/>
+                );
+            default:
+                return (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="#3A54DA">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                );
+        }
+    };
+
+    const formatSocialHandle = (network: string, handle: string): string => {
+        if (!handle.trim()) return 'Не указан';
+
+        switch (network) {
+            case 'telegram':
+            case 'instagram':
+                return handle.startsWith('@') ? handle : `@${handle}`;
+            case 'whatsapp':
+                return handle.replace(/\D/g, '');
+            default:
+                return handle;
+        }
+    };
+
+    // Функция для обновления социальных сетей на сервере
+    const updateSocialNetworks = async (updatedNetworks: SocialNetwork[]) => {
+        if (!profileData?.id) {
+            console.error('No profile ID available');
+            return false;
+        }
+
+        try {
+            const token = getAuthToken();
+            if (!token) {
+                setShowAuthModal(true);
+                return false;
+            }
+
+            const socialNetworksData = updatedNetworks.map(network => {
+                let handle = network.handle.trim();
+
+                if (network.network === 'telegram' || network.network === 'instagram') {
+                    handle = handle.replace(/^@/, '');
+                } else if (network.network === 'whatsapp') {
+                    handle = handle.replace(/\D/g, '');
+                }
+
+                return {
+                    network: network.network.toLowerCase(),
+                    handle: handle || null
+                };
+            });
+
+            console.log('Sending social networks update...');
+
+            const response = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/merge-patch+json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({
+                    socialNetworks: socialNetworksData
+                }),
+            });
+
+            if (response.ok) {
+                const updatedData = await response.json();
+                console.log('Social networks updated successfully:', updatedData.socialNetworks);
+
+                if (profileData) {
+                    setProfileData(prev => prev ? {
+                        ...prev,
+                        socialNetworks: updatedNetworks
+                    } : null);
+                }
+
+                alert('Социальные сети успешно обновлены!');
+                return true;
+            } else {
+                const errorText = await response.text();
+                console.error('Error updating social networks:', response.status, errorText);
+
+                try {
+                    const errorData = JSON.parse(errorText);
+                    console.error('Error details:', errorData);
+
+                    if (response.status === 422) {
+                        alert('Ошибка валидации данных. Проверьте формат введенных данных.');
+                    } else if (response.status === 401 || response.status === 403) {
+                        setShowAuthModal(true);
+                    } else {
+                        alert(`Ошибка сервера (${response.status}). Попробуйте еще раз.`);
+                    }
+                } catch {
+                    alert('Ошибка при обновлении социальных сетей. Попробуйте еще раз.');
+                }
+                return false;
+            }
+        } catch (error) {
+            console.error('Network error updating social networks:', error);
+            alert('Сетевая ошибка. Проверьте подключение к интернету.');
+            return false;
+        }
+    };
+
+    // Функция для сброса социальных сетей
+    const handleResetSocialNetworks = async () => {
+        if (!confirm('Вы уверены, что хотите очистить все социальные сети?')) {
+            return;
+        }
+
+        const resetNetworks = [
+            { id: '1', network: 'telegram', handle: '' },
+            { id: '2', network: 'instagram', handle: '' },
+            { id: '3', network: 'whatsapp', handle: '' }
+        ];
+
+        setSocialNetworks(resetNetworks);
+        const success = await updateSocialNetworks(resetNetworks);
+
+        if (!success) {
+            await fetchMasterData(masterId!);
+        }
+    };
+
+    // Функции для форм
+    const handleReviewSubmit = async () => {
+        if (!masterId || !profileData) {
+            alert('Ошибка: профиль мастера не загружен');
+            return;
+        }
+
+        const token = getAuthToken();
+        if (!token) {
+            setShowAuthModal(true);
+            return;
+        }
+
+        if (reviewForm.rating === 0) {
+            alert('Пожалуйста, поставьте оценку');
+            return;
+        }
+
+        if (!reviewForm.description.trim()) {
+            alert('Пожалуйста, напишите отзыв');
+            return;
+        }
+
+        setIsSubmittingReview(true);
+
+        try {
+            // Создаем отзыв
+            const reviewData = {
+                type: 'master',
+                rating: reviewForm.rating,
+                description: reviewForm.description,
+                master: `${API_BASE_URL}/api/users/${masterId}`
+            };
+
+            console.log('Submitting review:', reviewData);
+
+            const response = await fetch(`${API_BASE_URL}/api/reviews`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify(reviewData),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Failed to create review: ${response.status} ${errorText}`);
+            }
+
+            const createdReview = await response.json();
+            console.log('Review created:', createdReview);
+
+            // Загружаем фотографии, если они есть
+            if (reviewForm.images.length > 0) {
+                const formData = new FormData();
+                reviewForm.images.forEach(image => {
+                    formData.append('imageFile', image);
+                });
+
+                const uploadResponse = await fetch(`${API_BASE_URL}/api/reviews/${createdReview.id}/upload-photo`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: formData,
+                });
+
+                if (!uploadResponse.ok) {
+                    console.warn('Failed to upload review images');
+                }
+            }
+
+            // Обновляем список отзывов
+            await fetchReviews(masterId);
+
+            // Сбрасываем форму
+            setReviewForm({
+                rating: 0,
+                description: '',
+                images: []
+            });
+            setShowReviewModal(false);
+
+            alert('Отзыв успешно отправлен!');
+
+        } catch (error) {
+            console.error('Error submitting review:', error);
+            alert('Ошибка при отправке отзыва. Попробуйте еще раз.');
+        } finally {
+            setIsSubmittingReview(false);
+        }
+    };
+
+    const handleAppealSubmit = async () => {
+        if (!masterId || !profileData) {
+            alert('Ошибка: профиль мастера не загружен');
+            return;
+        }
+
+        const token = getAuthToken();
+        if (!token) {
+            setShowAuthModal(true);
+            return;
+        }
+
+        if (!appealForm.title.trim()) {
+            alert('Пожалуйста, укажите заголовок жалобы');
+            return;
+        }
+
+        if (!appealForm.description.trim()) {
+            alert('Пожалуйста, опишите жалобу');
+            return;
+        }
+
+        if (!appealForm.reason.trim()) {
+            alert('Пожалуйста, укажите причину жалобы');
+            return;
+        }
+
+        setIsSubmittingAppeal(true);
+
+        try {
+            const appealData = {
+                type: appealForm.type,
+                title: appealForm.title,
+                description: appealForm.description,
+                reason: appealForm.reason,
+                respondent: `${API_BASE_URL}/api/users/${masterId}`
+            };
+
+            console.log('Submitting appeal:', appealData);
+
+            const response = await fetch(`${API_BASE_URL}/api/appeals`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify(appealData),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Failed to create appeal: ${response.status} ${errorText}`);
+            }
+
+            const createdAppeal = await response.json();
+            console.log('Appeal created:', createdAppeal);
+
+            // Сбрасываем форму
+            setAppealForm({
+                type: 'user',
+                title: '',
+                description: '',
+                reason: '',
+                images: []
+            });
+            setShowAppealModal(false);
+
+            alert('Жалоба успешно отправлена! Мы рассмотрим ее в ближайшее время.');
+
+        } catch (error) {
+            console.error('Error submitting appeal:', error);
+            alert('Ошибка при отправке жалобы. Попробуйте еще раз.');
+        } finally {
+            setIsSubmittingAppeal(false);
+        }
+    };
+
+    const handleReviewImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (files) {
+            const newImages = Array.from(files).slice(0, 5 - reviewForm.images.length);
+            setReviewForm(prev => ({
+                ...prev,
+                images: [...prev.images, ...newImages]
+            }));
+        }
+    };
+
+    const handleRemoveReviewImage = (index: number) => {
+        setReviewForm(prev => ({
+            ...prev,
+            images: prev.images.filter((_, i) => i !== index)
+        }));
+    };
+
+    const handleAppealImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (files) {
+            const newImages = Array.from(files).slice(0, 5 - appealForm.images.length);
+            setAppealForm(prev => ({
+                ...prev,
+                images: [...prev.images, ...newImages]
+            }));
+        }
+    };
+
+    const handleRemoveAppealImage = (index: number) => {
+        setAppealForm(prev => ({
+            ...prev,
+            images: prev.images.filter((_, i) => i !== index)
+        }));
+    };
+
     // Функция debounce
     const debounce = useCallback(<T extends (...args: unknown[]) => unknown>(
         func: T,
@@ -402,7 +821,6 @@ function MasterProfileViewPage() {
         };
     }, []);
 
-    // Debounced версия обновления рейтинга
     const debouncedUpdateRating = useCallback(debounce(async (...args: unknown[]) => {
         if (args.length >= 2 && typeof args[0] === 'number' && Array.isArray(args[1])) {
             const masterId = args[0] as number;
@@ -520,7 +938,7 @@ function MasterProfileViewPage() {
         });
     };
 
-    // Загрузка услуг мастера (тикетов)
+    // Загрузка услуг мастера
     const fetchMasterServices = async (masterId: number) => {
         try {
             const token = getAuthToken();
@@ -542,7 +960,6 @@ function MasterProfileViewPage() {
                 headers: headers,
             });
 
-            // Обработка ошибок авторизации
             if (response.status === 401 || response.status === 403) {
                 console.log('Access denied for services, showing empty list');
                 setServices([]);
@@ -639,17 +1056,13 @@ function MasterProfileViewPage() {
                 headers: headers,
             });
 
-            // Обработка ошибок авторизации
             if (response.status === 401 || response.status === 403) {
                 console.log(`Access denied (${response.status}) for user ${masterId}`);
-                // Можно попробовать публичный эндпоинт или продолжить без данных
-                // Но если API возвращает данные даже при 401, оставляем как есть
             }
 
             if (!response.ok) {
                 console.error(`Failed to fetch master ${masterId}: ${response.status} ${response.statusText}`);
 
-                // Показываем базовую информацию даже при ошибке
                 const fallbackData: ProfileData = {
                     id: masterId.toString(),
                     fullName: 'Мастер',
@@ -699,6 +1112,36 @@ function MasterProfileViewPage() {
                 specialty = occupations.map((occ: Occupation) => occ.title).join(', ');
             }
 
+            // Обработка социальных сетей из API
+            const socialNetworksData: SocialNetwork[] = [];
+            if (masterData.socialNetworks && Array.isArray(masterData.socialNetworks)) {
+                masterData.socialNetworks.forEach((social: any) => {
+                    if (social && social.network) {
+                        socialNetworksData.push({
+                            id: social.id?.toString() || Date.now().toString(),
+                            network: social.network.toLowerCase(),
+                            handle: social.handle || ''
+                        });
+                    }
+                });
+            }
+
+            // Добавляем недостающие социальные сети
+            const defaultNetworks = [
+                { id: '1', network: 'telegram', handle: '' },
+                { id: '2', network: 'instagram', handle: '' },
+                { id: '3', network: 'whatsapp', handle: '' }
+            ];
+
+            const allSocialNetworks = defaultNetworks.map(defaultNetwork => {
+                const apiNetwork = socialNetworksData.find(
+                    sn => sn.network === defaultNetwork.network
+                );
+                return apiNetwork || defaultNetwork;
+            });
+
+            setSocialNetworks(allSocialNetworks);
+
             const transformedData: ProfileData = {
                 id: masterData.id.toString(),
                 fullName: [masterData.surname, masterData.name, masterData.patronymic]
@@ -712,7 +1155,8 @@ function MasterProfileViewPage() {
                 workExamples: [],
                 workArea: primaryAddress,
                 addresses: formattedAddresses,
-                services: []
+                services: [],
+                socialNetworks: allSocialNetworks
             };
 
             setProfileData(transformedData);
@@ -746,7 +1190,7 @@ function MasterProfileViewPage() {
         }));
     };
 
-    // Загрузка отзывов с обновлением рейтинга
+    // Загрузка отзывов
     const fetchReviews = async (masterId: number) => {
         try {
             setReviewsLoading(true);
@@ -762,7 +1206,6 @@ function MasterProfileViewPage() {
             }
 
             console.log('Fetching reviews for master ID:', masterId);
-            console.log('Master ID type:', typeof masterId, 'value:', masterId);
 
             const endpoint = `/api/reviews`;
             const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -770,7 +1213,6 @@ function MasterProfileViewPage() {
                 headers: headers,
             });
 
-            // Обработка ошибок авторизации
             if (response.status === 401 || response.status === 403) {
                 console.log('Access denied for reviews, showing empty list');
                 setReviews([]);
@@ -809,21 +1251,7 @@ function MasterProfileViewPage() {
 
             console.log(`Total reviews found: ${reviewsArray.length}`);
 
-            // Детальное логирование каждого отзыва
-            reviewsArray.forEach((review, index) => {
-                console.log(`Review ${index}:`, {
-                    id: review.id,
-                    type: review.type,
-                    master: review.master,
-                    masterIdInReview: review.master?.id,
-                    requestedMasterId: masterId,
-                    isMasterType: review.type === "master",
-                    masterIdsMatch: review.master?.id === masterId
-                });
-            });
-
             const masterReviews = reviewsArray.filter(review => {
-                // Проверяем тип отзыва
                 if (review.type !== "master") {
                     console.log(`Review ${review.id} filtered out: not master type (type: ${review.type})`);
                     return false;
@@ -1002,12 +1430,10 @@ function MasterProfileViewPage() {
         let imagePath: string | null | undefined = null;
 
         try {
-            // Если это ReviewApiResponse
             if ('client' in review && review.client) {
                 const client = review.client as { image?: string | null };
                 imagePath = client.image;
             }
-            // Если это обычный Review
             else if ('reviewer' in review && review.reviewer) {
                 const reviewer = review.reviewer as { image?: string | null };
                 imagePath = reviewer.image;
@@ -1032,7 +1458,6 @@ function MasterProfileViewPage() {
     };
 
     const getClientName = (review: Review | ReviewApiResponse): string => {
-        // Если это ReviewApiResponse, то проверяем client
         if ('client' in review && review.client) {
             const client = review.client as {
                 name?: string;
@@ -1047,7 +1472,6 @@ function MasterProfileViewPage() {
             return `${name} ${surname}`.trim();
         }
 
-        // Если это обычный Review, используем reviewer
         if ('reviewer' in review && review.reviewer) {
             const reviewer = review.reviewer as {
                 name?: string;
@@ -1064,7 +1488,6 @@ function MasterProfileViewPage() {
 
         return 'Клиент';
     };
-
 
     const getImageUrlWithCacheBust = (url: string): string => {
         if (!url || url === "../fonTest6.png") return url;
@@ -1083,6 +1506,30 @@ function MasterProfileViewPage() {
 
     const handleAuthSuccess = () => {
         setShowAuthModal(false);
+        // После успешной авторизации можно обновить данные
+        if (masterId) {
+            fetchMasterData(masterId);
+        }
+    };
+
+    const handleReviewModalClose = () => {
+        setShowReviewModal(false);
+        setReviewForm({
+            rating: 0,
+            description: '',
+            images: []
+        });
+    };
+
+    const handleAppealModalClose = () => {
+        setShowAppealModal(false);
+        setAppealForm({
+            type: 'user',
+            title: '',
+            description: '',
+            reason: '',
+            images: []
+        });
     };
 
     const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
@@ -1157,7 +1604,6 @@ function MasterProfileViewPage() {
                 {/* Секция "О себе" */}
                 <div className={styles.about_section}>
                     {/* Образование */}
-                    {/*<h3 className={styles.section_subtitle}>Образование и опыт</h3>*/}
                     <div className={styles.section_item}>
                         <h3>Образование и опыт</h3>
                         {profileData.education.length > 0 ? (
@@ -1185,7 +1631,6 @@ function MasterProfileViewPage() {
                     </div>
 
                     {/* Примеры работ */}
-                    {/*<h3 className={styles.section_subtitle}>Примеры работ</h3>*/}
                     <div className={styles.section_item}>
                         <h3>Примеры работ</h3>
                         <div>
@@ -1205,11 +1650,9 @@ function MasterProfileViewPage() {
                                 <div className={styles.empty_state}>Примеры работ не добавлены</div>
                             )}
                         </div>
-
                     </div>
 
                     {/* Адреса мастера */}
-                    {/*<h3 className={styles.section_subtitle}>Адреса работы</h3>*/}
                     <div className={styles.section_item}>
                         <h3>Адреса работы</h3>
                         {profileData.addresses.length > 0 ? (
@@ -1228,7 +1671,6 @@ function MasterProfileViewPage() {
                     </div>
 
                     {/* Услуги и цены */}
-                    {/*<h3 className={styles.section_subtitle}>Услуги и цены</h3>*/}
                     <div className={styles.section_item}>
                         <h3>Услуги и цены</h3>
                         {services.length > 0 ? (
@@ -1244,10 +1686,89 @@ function MasterProfileViewPage() {
                             <div className={styles.empty_state}>Услуги не указаны</div>
                         )}
                     </div>
+
+                    {/* Социальные сети */}
+                    <div className={styles.section_item}>
+                        <div className={styles.social_networks_header}>
+                            <h3>Социальные сети</h3>
+                            <button
+                                onClick={handleResetSocialNetworks}
+                                className={styles.reset_social_btn}
+                                title="Очистить все социальные сети"
+                            >
+                                Очистить все
+                            </button>
+                        </div>
+
+                        <div className={styles.social_networks}>
+                            {socialNetworks.map((network) => (
+                                <div key={network.id} className={styles.social_network_item}>
+                                    <div className={styles.social_network_icon}>
+                                        {getNetworkIcon(network.network)}
+                                    </div>
+                                    <div className={styles.social_network_info}>
+                                        <div className={styles.social_network_name}>
+                                            {getNetworkDisplayName(network.network)}
+                                        </div>
+                                        {editingSocialNetwork === network.id ? (
+                                            <div className={styles.social_network_edit}>
+                                                <input
+                                                    type="text"
+                                                    value={socialNetworkEditValue}
+                                                    onChange={(e) => setSocialNetworkEditValue(e.target.value)}
+                                                    className={styles.social_input}
+                                                    placeholder={`Введите ${getNetworkDisplayName(network.network)}...`}
+                                                    autoFocus
+                                                />
+                                                <div className={styles.social_edit_buttons}>
+                                                    <button
+                                                        className={styles.save_social_btn}
+                                                        onClick={() => handleSaveSocialNetwork(network.id)}
+                                                        title="Сохранить"
+                                                        disabled={!socialNetworkEditValue.trim()}
+                                                    >
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+                                                            <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"/>
+                                                        </svg>
+                                                    </button>
+                                                    <button
+                                                        className={styles.cancel_social_btn}
+                                                        onClick={handleCancelEdit}
+                                                        title="Отменить"
+                                                    >
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+                                                            <path d="M24 20.188l-8.315-8.209 8.2-8.282-3.697-3.697-8.212 8.318-8.31-8.203-3.666 3.666 8.321 8.24-8.206 8.313 3.666 3.666 8.237-8.318 8.285 8.203z"/>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div
+                                                className={`${styles.social_network_handle} ${
+                                                    !network.handle.trim() ? styles.empty_handle : ''
+                                                }`}
+                                                onClick={() => handleSocialNetworkEdit(network.id, network.handle)}
+                                                title="Нажмите для редактирования"
+                                            >
+                                                {network.handle.trim()
+                                                    ? formatSocialHandle(network.network, network.handle)
+                                                    : 'Не указан'}
+                                                <span className={styles.edit_indicator}> (нажмите для редактирования)</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className={styles.social_hint}>
+                            <p>• Для Telegram и Instagram можно указать имя пользователя (например: @username)</p>
+                            <p>• Для WhatsApp укажите номер телефона</p>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Отзывы */}
-                {/*<h2 className={styles.section_title}>Отзывы</h2>*/}
                 <div className={styles.reviews_section}>
                     <h3>Отзывы</h3>
                     <div className={styles.reviews_list}>
@@ -1295,18 +1816,275 @@ function MasterProfileViewPage() {
                         )}
                     </div>
 
-                    {hasMoreReviews && (
-                        <div className={styles.reviews_actions}>
+                    <div className={styles.reviews_actions}>
+                        {hasMoreReviews && (
                             <button
                                 className={styles.show_all_reviews_btn}
                                 onClick={handleShowMore}
                             >
                                 {showAllReviews ? 'Скрыть отзывы' : 'Показать все отзывы'}
                             </button>
+                        )}
+                        <button
+                            className={styles.leave_review_btn}
+                            onClick={() => {
+                                const token = getAuthToken();
+                                if (!token) {
+                                    setShowAuthModal(true);
+                                } else {
+                                    setShowReviewModal(true);
+                                }
+                            }}
+                        >
+                            Оставить отзыв
+                        </button>
+                        <div className={styles.complaint_section}>
+                            <button
+                                className={styles.complaint_button}
+                                onClick={() => {
+                                    const token = getAuthToken();
+                                    if (!token) {
+                                        setShowAuthModal(true);
+                                    } else {
+                                        setShowAppealModal(true);
+                                    }
+                                }}
+                            >
+                                Пожаловаться на мастера
+                            </button>
                         </div>
-                    )}
+                    </div>
                 </div>
             </div>
+
+            {/* Модальное окно отзыва */}
+            {showReviewModal && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.reviewModal}>
+                        <div className={styles.modalHeader}>
+                            <h2>Оставить отзыв</h2>
+                            <p className={styles.modalSubtitle}>
+                                Оцените работу мастера и поделитесь своим опытом
+                            </p>
+                        </div>
+
+                        <div className={styles.modalContent}>
+                            <div className={styles.ratingSection}>
+                                <label className={styles.sectionLabel}>Оценка</label>
+                                <div className={styles.stars}>
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                        <button
+                                            key={star}
+                                            className={`${styles.star} ${reviewForm.rating >= star ? styles.active : ''}`}
+                                            onClick={() => setReviewForm(prev => ({ ...prev, rating: star }))}
+                                            type="button"
+                                        >
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                                <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z"/>
+                                            </svg>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className={styles.commentSection}>
+                                <label className={styles.sectionLabel}>Комментарий</label>
+                                <textarea
+                                    className={styles.commentTextarea}
+                                    value={reviewForm.description}
+                                    onChange={(e) => setReviewForm(prev => ({ ...prev, description: e.target.value }))}
+                                    placeholder="Расскажите о вашем опыте работы с мастером..."
+                                    rows={4}
+                                />
+                            </div>
+
+                            <div className={styles.photoSection}>
+                                <label className={styles.sectionLabel}>
+                                    Фотографии (до {5 - reviewForm.images.length} можно добавить)
+                                </label>
+                                <div className={styles.photoPreviews}>
+                                    {reviewForm.images.map((image, index) => (
+                                        <div key={index} className={styles.photoPreview}>
+                                            <img
+                                                src={URL.createObjectURL(image)}
+                                                alt={`Preview ${index + 1}`}
+                                            />
+                                            <button
+                                                type="button"
+                                                className={styles.removePhoto}
+                                                onClick={() => handleRemoveReviewImage(index)}
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                                {reviewForm.images.length < 5 && (
+                                    <div className={styles.photoUpload}>
+                                        <input
+                                            type="file"
+                                            id="review-photo-upload"
+                                            className={styles.fileInput}
+                                            accept="image/*"
+                                            multiple
+                                            onChange={handleReviewImageUpload}
+                                        />
+                                        <label htmlFor="review-photo-upload" className={styles.photoUploadButton}>
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                                            </svg>
+                                            Добавить фото
+                                        </label>
+                                    </div>
+                                )}
+                                <p className={styles.photoHint}>
+                                    Можно загрузить до 5 фотографий в форматах JPG, PNG
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className={styles.modalActions}>
+                            <button
+                                className={styles.closeButton}
+                                onClick={handleReviewModalClose}
+                                disabled={isSubmittingReview}
+                            >
+                                Отмена
+                            </button>
+                            <button
+                                className={styles.submitButton}
+                                onClick={handleReviewSubmit}
+                                disabled={isSubmittingReview || reviewForm.rating === 0 || !reviewForm.description.trim()}
+                            >
+                                {isSubmittingReview ? 'Отправка...' : 'Отправить отзыв'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Модальное окно жалобы */}
+            {showAppealModal && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.complaintModal}>
+                        <div className={styles.modalHeader}>
+                            <h2>Пожаловаться на мастера</h2>
+                            <p className={styles.modalSubtitle}>
+                                Ваша жалоба будет рассмотрена администрацией сервиса
+                            </p>
+                        </div>
+
+                        <div className={styles.modalContent}>
+                            <div className={styles.complaintSection}>
+                                <label className={styles.sectionLabel}>Тип жалобы</label>
+                                <select
+                                    className={styles.complaintSelect}
+                                    value={appealForm.type}
+                                    onChange={(e) => setAppealForm(prev => ({ ...prev, type: e.target.value as 'ticket' | 'chat' | 'user' }))}
+                                >
+                                    <option value="user">Жалоба на пользователя</option>
+                                    <option value="ticket">Жалоба на услугу</option>
+                                    <option value="chat">Жалоба на переписку</option>
+                                </select>
+                            </div>
+
+                            <div className={styles.complaintSection}>
+                                <label className={styles.sectionLabel}>Заголовок жалобы</label>
+                                <input
+                                    type="text"
+                                    className={styles.complaintInput}
+                                    value={appealForm.title}
+                                    onChange={(e) => setAppealForm(prev => ({ ...prev, title: e.target.value }))}
+                                    placeholder="Кратко опишите суть жалобы"
+                                />
+                            </div>
+
+                            <div className={styles.complaintSection}>
+                                <label className={styles.sectionLabel}>Причина жалобы</label>
+                                <input
+                                    type="text"
+                                    className={styles.complaintInput}
+                                    value={appealForm.reason}
+                                    onChange={(e) => setAppealForm(prev => ({ ...prev, reason: e.target.value }))}
+                                    placeholder="Укажите причину жалобы"
+                                />
+                            </div>
+
+                            <div className={styles.complaintSection}>
+                                <label className={styles.sectionLabel}>Подробное описание</label>
+                                <textarea
+                                    className={styles.complaintTextarea}
+                                    value={appealForm.description}
+                                    onChange={(e) => setAppealForm(prev => ({ ...prev, description: e.target.value }))}
+                                    placeholder="Опишите ситуацию подробно..."
+                                    rows={4}
+                                />
+                            </div>
+
+                            <div className={styles.photoSection}>
+                                <label className={styles.sectionLabel}>
+                                    Доказательства (до {5 - appealForm.images.length} можно добавить)
+                                </label>
+                                <div className={styles.photoPreviews}>
+                                    {appealForm.images.map((image, index) => (
+                                        <div key={index} className={styles.photoPreview}>
+                                            <img
+                                                src={URL.createObjectURL(image)}
+                                                alt={`Preview ${index + 1}`}
+                                            />
+                                            <button
+                                                type="button"
+                                                className={styles.removePhoto}
+                                                onClick={() => handleRemoveAppealImage(index)}
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                                {appealForm.images.length < 5 && (
+                                    <div className={styles.photoUpload}>
+                                        <input
+                                            type="file"
+                                            id="appeal-photo-upload"
+                                            className={styles.fileInput}
+                                            accept="image/*"
+                                            multiple
+                                            onChange={handleAppealImageUpload}
+                                        />
+                                        <label htmlFor="appeal-photo-upload" className={styles.photoUploadButton}>
+                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                                            </svg>
+                                            Добавить фото
+                                        </label>
+                                    </div>
+                                )}
+                                <p className={styles.photoHint}>
+                                    Можно загрузить до 5 фотографий в качестве доказательств
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className={styles.modalActions}>
+                            <button
+                                className={styles.closeButton}
+                                onClick={handleAppealModalClose}
+                                disabled={isSubmittingAppeal}
+                            >
+                                Отмена
+                            </button>
+                            <button
+                                className={styles.submitButton}
+                                onClick={handleAppealSubmit}
+                                disabled={isSubmittingAppeal || !appealForm.title.trim() || !appealForm.description.trim() || !appealForm.reason.trim()}
+                            >
+                                {isSubmittingAppeal ? 'Отправка...' : 'Отправить жалобу'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Модальное окно авторизации */}
             {showAuthModal && (

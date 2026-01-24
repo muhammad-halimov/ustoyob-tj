@@ -333,6 +333,8 @@ function MasterProfilePage() {
         { id: '3', network: 'whatsapp', handle: '' }
     ]);
 
+    const [socialNetworkEditValue, setSocialNetworkEditValue] = useState('');
+
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     useEffect(() => {
@@ -360,46 +362,126 @@ function MasterProfilePage() {
     }, [editingField]);
 
     const updateSocialNetworks = async (updatedNetworks: SocialNetwork[]) => {
-        if (!profileData?.id) return;
+        if (!profileData?.id) {
+            console.error('No profile ID available');
+            return false;
+        }
 
         try {
             const token = getAuthToken();
             if (!token) {
                 navigate('/login');
-                return;
+                return false;
             }
 
-            const socialNetworksData = updatedNetworks
-                .filter(network => network.handle.trim() !== '')
-                .map(network => ({
+            // Подготавливаем данные для отправки - отправляем ВСЕ социальные сети (даже пустые)
+            const socialNetworksData = updatedNetworks.map(network => {
+                let handle = network.handle.trim();
+
+                // Форматируем handle в зависимости от типа сети
+                if (network.network === 'telegram' || network.network === 'instagram') {
+                    // Убираем @ если пользователь ввел его
+                    handle = handle.replace(/^@/, '');
+                } else if (network.network === 'whatsapp') {
+                    // Убираем все нецифровые символы
+                    handle = handle.replace(/\D/g, '');
+                }
+
+                // Если handle пустой, отправляем null (это важно для очистки)
+                return {
                     network: network.network.toLowerCase(),
-                    handle: network.handle.trim()
-                }));
+                    handle: handle || null  // Отправляем null для очистки
+                };
+            });
 
-            console.log('Sending social networks:', socialNetworksData);
+            console.log('Sending social networks PATCH request...');
+            console.log('URL:', `${API_BASE_URL}/api/users/${profileData.id}`);
+            console.log('Data to send:', JSON.stringify({
+                socialNetworks: socialNetworksData
+            }, null, 2));
 
+            // Используем правильный Content-Type как указано в API
             const response = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
                 method: 'PATCH',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/merge-patch+json',
+                    'Accept': 'application/json',
                 },
                 body: JSON.stringify({
-                    socialNetworks: socialNetworksData.length > 0 ? socialNetworksData : []
+                    socialNetworks: socialNetworksData
                 }),
             });
 
+            console.log('Response status:', response.status);
+
             if (response.ok) {
+                const updatedData = await response.json();
+                console.log('Social networks updated successfully on server:', updatedData.socialNetworks);
+
+                // Обновляем локальное состояние
                 setSocialNetworks(updatedNetworks);
+
+                // Обновляем профиль
+                setProfileData(prev => prev ? {
+                    ...prev,
+                    socialNetworks: updatedNetworks
+                } : null);
+
+                // Проверяем, действительно ли обновилось на сервере
+                await fetchUserData(); // Перезагружаем данные для проверки
+
                 alert('Социальные сети успешно обновлены!');
+                return true;
             } else {
                 const errorText = await response.text();
-                console.error('Error updating social networks:', errorText);
-                throw new Error('Ошибка при обновлении социальных сетей');
+                console.error('Error updating social networks. Status:', response.status, 'Response:', errorText);
+
+                try {
+                    const errorData = JSON.parse(errorText);
+                    console.error('Error details:', errorData);
+
+                    if (response.status === 422) {
+                        alert('Ошибка валидации данных. Проверьте формат введенных данных.');
+                    } else if (response.status === 400) {
+                        alert('Неверный запрос. Возможно, неправильный формат данных.');
+                    } else {
+                        alert(`Ошибка сервера (${response.status}). Попробуйте еще раз.`);
+                    }
+                } catch {
+                    alert('Ошибка при обновлении социальных сетей. Попробуйте еще раз.');
+                }
+                return false;
             }
         } catch (error) {
-            console.error('Error updating social networks:', error);
-            alert('Ошибка при обновлении социальных сетей');
+            console.error('Network error updating social networks:', error);
+            alert('Сетевая ошибка. Проверьте подключение к интернету.');
+            return false;
+        }
+    };
+
+    const handleResetSocialNetworks = async () => {
+        if (!confirm('Вы уверены, что хотите очистить все социальные сети?')) {
+            return;
+        }
+
+        // Создаем сеть с пустыми значениями для очистки
+        const resetNetworks = [
+            { id: '1', network: 'telegram', handle: '' },
+            { id: '2', network: 'instagram', handle: '' },
+            { id: '3', network: 'whatsapp', handle: '' }
+        ];
+
+        // Обновляем локальное состояние сразу для лучшего UX
+        setSocialNetworks(resetNetworks);
+
+        // Пытаемся обновить на сервере
+        const success = await updateSocialNetworks(resetNetworks);
+
+        if (!success) {
+            // Если не удалось на сервере, перезагружаем данные с сервера
+            await fetchUserData();
+            alert('Не удалось обновить на сервере. Попробуйте еще раз.');
         }
     };
 
@@ -751,19 +833,43 @@ function MasterProfilePage() {
 
             console.log('Final work area:', workArea);
 
-            // Преобразование социальных сетей
-            const socialNetworksData: SocialNetwork[] = userData.socialNetworks?.map((sn, index) => ({
-                id: sn.id?.toString() || `sn-${index}`,
-                network: sn.network?.toLowerCase() || '',
-                handle: sn.handle || ''
-            })) || [
+            // Создаем базовый массив социальных сетей с 3 основными сетями
+            const baseSocialNetworks: SocialNetwork[] = [
                 { id: '1', network: 'telegram', handle: '' },
                 { id: '2', network: 'instagram', handle: '' },
                 { id: '3', network: 'whatsapp', handle: '' }
             ];
 
+            // Если в API есть социальные сети, заполняем их значениями
+            if (userData.socialNetworks && Array.isArray(userData.socialNetworks)) {
+                console.log('Found social networks in API:', userData.socialNetworks);
+
+                userData.socialNetworks.forEach((sn) => {
+                    const networkType = sn.network?.toLowerCase();
+                    const handle = sn.handle || '';
+
+                    // Находим соответствующую сеть в базовом массиве
+                    const networkIndex = baseSocialNetworks.findIndex(n =>
+                        n.network === networkType
+                    );
+
+                    if (networkIndex !== -1) {
+                        baseSocialNetworks[networkIndex].handle = handle;
+                    } else {
+                        // Если это не одна из стандартных сетей, добавляем ее
+                        baseSocialNetworks.push({
+                            id: sn.id?.toString() || `custom-${Date.now()}`,
+                            network: networkType || 'custom',
+                            handle: handle
+                        });
+                    }
+                });
+            } else {
+                console.log('No social networks found in API, using empty defaults');
+            }
+
             // Обновляем состояние социальных сетей
-            setSocialNetworks(socialNetworksData);
+            setSocialNetworks(baseSocialNetworks);
 
             const transformedData: ProfileData = {
                 id: userData.id.toString(),
@@ -778,13 +884,20 @@ function MasterProfilePage() {
                 workExamples: [],
                 workArea: workArea,
                 services: [],
-                socialNetworks: socialNetworksData
+                socialNetworks: baseSocialNetworks // Используем базовый массив
             };
 
             setProfileData(transformedData);
 
         } catch (error) {
             console.error('Error fetching user data:', error);
+            // При ошибке устанавливаем базовый массив социальных сетей
+            const defaultSocialNetworks = [
+                { id: '1', network: 'telegram', handle: '' },
+                { id: '2', network: 'instagram', handle: '' },
+                { id: '3', network: 'whatsapp', handle: '' }
+            ];
+            setSocialNetworks(defaultSocialNetworks);
             setProfileData({
                 id: '',
                 fullName: 'Фамилия Имя Отчество',
@@ -796,11 +909,7 @@ function MasterProfilePage() {
                 workExamples: [],
                 workArea: '',
                 services: [],
-                socialNetworks: [
-                    { id: '1', network: 'telegram', handle: '' },
-                    { id: '2', network: 'instagram', handle: '' },
-                    { id: '3', network: 'whatsapp', handle: '' }
-                ]
+                socialNetworks: defaultSocialNetworks
             });
         } finally {
             setIsLoading(false);
@@ -3148,69 +3257,138 @@ function MasterProfilePage() {
 
                     {/* Социальные сети */}
                     <div className={styles.section_item}>
-                        <h3>Социальные сети</h3>
+                        <div className={styles.social_networks_header}>
+                            <h3>Социальные сети</h3>
+                            <button
+                                onClick={handleResetSocialNetworks}
+                                className={styles.reset_social_btn}
+                                title="Очистить все социальные сети"
+                            >
+                                Очистить все
+                            </button>
+                        </div>
                         <div className={styles.section_content}>
                             <div className={styles.social_networks}>
                                 {socialNetworks.map(network => (
                                     <div key={network.id} className={styles.social_network_item}>
                                         <div className={styles.social_network_icon}>
-                                            {network.network === 'telegram' && '📱'}
-                                            {network.network === 'instagram' && '📸'}
-                                            {network.network === 'whatsapp' && '💬'}
+                                            {network.network === 'telegram' && (
+                                                // <svg width="24" height="24" viewBox="0 0 24 24" fill="#0088cc">
+                                                //     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.33 1.43-.74 3.04-1.05 4.23-.31 1.19-.65 2.38-.97 3.56-.2.74-.58 1.02-1.18.62-3.24-2.23-5.52-4.51-7.8-6.79-.3-.3-.3-.61 0-.91.98-.98 1.96-1.96 2.94-2.94.35-.35.71-.35 1.06 0 .73.73 1.46 1.46 2.19 2.19.35.35.35.71 0 1.06-.35.35-.71.35-1.06 0-.73-.73-1.46-1.46-2.19-2.19-.35-.35-.35-.71 0-1.06.35-.35.71-.35 1.06 0 .73.73 1.46 1.46 2.19 2.19.35.35.35.71 0 1.06-.35.35-.71.35-1.06 0-.73-.73-1.46-1.46-2.19-2.19-.35-.35-.35-.71 0-1.06.98-.98 1.96-1.96 2.94-2.94.35-.35.71-.35 1.06 0 .3.3.3.61 0 .91-1.3 1.3-2.6 2.6-3.9 3.9z"/>
+                                                // </svg>
+                                                <img src="./telegram.png" alt="tg" width="25"/>
+                                            )}
+                                            {network.network === 'instagram' && (
+                                                <svg width="24" height="24" viewBox="0 0 24 24" fill="#E4405F">
+                                                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                                                </svg>
+                                            )}
+                                            {network.network === 'whatsapp' && (
+                                                // <svg width="24" height="24" viewBox="0 0 24 24" fill="#25D366">
+                                                //     <path d="M12.032 2c-5.5 0-10 4.5-10 10 0 1.768.5 3.516 1.432 5.016L2 22l5.016-1.432c1.5.932 3.248 1.432 5.016 1.432 5.5 0 10-4.5 10-10s-4.5-10-10-10zm5.408 14.432c-.264.724-1.268 1.328-2.076 1.5-.58.116-1.328.208-3.86-.792-3.156-1.24-5.156-4.408-5.312-4.608-.156-.2-1.24-1.656-1.24-3.156 0-1.5.792-2.228 1.084-2.528.264-.292.58-.332.792-.332h.584c.264 0 .5.04.66.332.164.292.624 1.064.792 1.456.164.392.292.864-.084 1.392-.376.528-1.24 1.328-1.456 1.536-.216.208-.432.292-.58.5-.148.208-.148.456-.04.66.108.204.5.868 1.064 1.392.772.696 1.456 1.084 1.976 1.24.208.064.456.032.66-.084.204-.116.868-.58 1.084-.792.216-.208.456-.164.66-.084.204.084 1.3.624 1.524.736.224.112.376.168.456.26.084.092.084.532-.176 1.256z"/>
+                                                // </svg>
+                                                <img src="./whatsapp-icon-free-png.png" alt="whatsapp" width="25"/>
+                                            )}
                                         </div>
                                         <div className={styles.social_network_info}>
-                                            <span className={styles.social_network_name}>
-
-                                            {network.network === 'telegram' && 'Telegram'}
-
-                                            {network.network === 'instagram' && 'Instagram'}
-
-                                            {network.network === 'whatsapp' && 'WhatsApp'}
-
-                                        </span>
+            <span className={styles.social_network_name}>
+              {network.network === 'telegram' && 'Telegram'}
+                {network.network === 'instagram' && 'Instagram'}
+                {network.network === 'whatsapp' && 'WhatsApp'}
+            </span>
                                             {editingSocialNetwork === network.id ? (
                                                 <div className={styles.social_network_edit}>
                                                     <input
                                                         type="text"
-                                                        value={network.handle}
-                                                        onChange={(e) => {
-                                                            const updated = socialNetworks.map(n =>
-                                                                n.id === network.id
-                                                                    ? { ...n, handle: e.target.value }
-                                                                    : n
-                                                            );
-                                                            setSocialNetworks(updated);
-                                                        }}
-                                                        placeholder={`Введите ${network.network === 'telegram' ? '@username' : 'номер или ссылку'}`}
+                                                        value={socialNetworkEditValue}
+                                                        onChange={(e) => setSocialNetworkEditValue(e.target.value)}
+                                                        placeholder={
+                                                            network.network === 'telegram' ? 'Введите username (например: username)' :
+                                                                network.network === 'instagram' ? 'Введите username (например: username)' :
+                                                                    'Введите номер телефона (например: 992123456789)'
+                                                        }
+                                                        className={styles.social_input}
+                                                        autoFocus
                                                     />
-                                                    <button
-                                                        className={styles.save_social_btn}
-                                                        onClick={() => {
-                                                            updateSocialNetworks(socialNetworks);
-                                                            setEditingSocialNetwork(null);
-                                                        }}
-                                                    >
-                                                        ✓
-                                                    </button>
-                                                    <button
-                                                        className={styles.cancel_social_btn}
-                                                        onClick={() => setEditingSocialNetwork(null)}
-                                                    >
-                                                        ✕
-                                                    </button>
+                                                    <div className={styles.social_edit_buttons}>
+                                                        <button
+                                                            className={styles.save_social_btn}
+                                                            onClick={async () => {
+                                                                try {
+                                                                    // Создаем новый массив с обновленной социальной сетью
+                                                                    const updatedNetworks = socialNetworks.map(n =>
+                                                                        n.id === network.id
+                                                                            ? { ...n, handle: socialNetworkEditValue.trim() }
+                                                                            : n
+                                                                    );
+
+                                                                    // Обновляем сразу локальное состояние для лучшего UX
+                                                                    setSocialNetworks(updatedNetworks);
+
+                                                                    // Отправляем на сервер
+                                                                    const success = await updateSocialNetworks(updatedNetworks);
+
+                                                                    if (success) {
+                                                                        setEditingSocialNetwork(null);
+                                                                        setSocialNetworkEditValue('');
+                                                                        // alert уже показывается в updateSocialNetworks
+                                                                    } else {
+                                                                        // Если не удалось на сервере, откатываем изменения
+                                                                        await fetchUserData(); // Перезагружаем исходные данные
+                                                                    }
+                                                                } catch (error) {
+                                                                    console.error('Error saving social network:', error);
+                                                                    alert('Ошибка при сохранении социальной сети');
+                                                                }
+                                                            }}
+                                                            title="Сохранить"
+                                                            disabled={!socialNetworkEditValue.trim()}
+                                                        >
+                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+                                                                <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"/>
+                                                            </svg>
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             ) : (
-                                                <span
+                                                <div
                                                     className={`${styles.social_network_handle} ${!network.handle ? styles.empty_handle : ''}`}
-                                                    onClick={() => setEditingSocialNetwork(network.id)}
+                                                    onClick={() => {
+                                                        setEditingSocialNetwork(network.id);
+                                                        setSocialNetworkEditValue(network.handle || '');
+                                                    }}
                                                 >
-                                                    {network.handle || 'Добавить'}
-                                                </span>
+                                                    {network.handle ? (
+                                                        <span className={styles.handle_value}>
+                    {network.network === 'telegram' && !network.handle.startsWith('@') ? `@${network.handle}` :
+                        network.network === 'instagram' && !network.handle.startsWith('@') ? `@${network.handle}` :
+                            network.handle}
+                  </span>
+                                                    ) : (
+                                                        <span className={styles.handle_placeholder}>
+                    Нажмите, чтобы добавить
+                  </span>
+                                                    )}
+                                                    {network.handle && (
+                                                        <span className={styles.edit_indicator}>
+                    (нажмите для редактирования)
+                  </span>
+                                                    )}
+                                                </div>
                                             )}
                                         </div>
                                     </div>
                                 ))}
                             </div>
+                            {/*<div className={styles.social_hint}>*/}
+                            {/*    <p>Добавьте свои контакты в социальных сетях, чтобы клиенты могли с вами связаться</p>*/}
+                            {/*    <p style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>*/}
+                            {/*        <strong>Формат:</strong>*/}
+                            {/*        <br/>- Telegram: username (без @)*/}
+                            {/*        <br/>- Instagram: username (без @)*/}
+                            {/*        <br/>- WhatsApp: номер телефона (992123456789)*/}
+                            {/*    </p>*/}
+                            {/*</div>*/}
                         </div>
                     </div>
 
