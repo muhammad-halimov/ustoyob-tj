@@ -545,91 +545,22 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             sessionStorage.setItem('pendingTelegramSpecialty', formData.specialty);
         }
 
-        // Находим кнопку
-        const telegramButton = document.querySelector('[title="Войти через Telegram"]') as HTMLElement;
-        if (!telegramButton) {
-            console.error('Telegram button not found');
-            return;
-        }
+        // Закрываем модалку
+        onClose();
 
-        // Проверяем, есть ли уже widget контейнер
-        let widgetContainer = telegramButton.querySelector('.telegram-widget-wrapper') as HTMLElement;
+        // Открываем Telegram авторизацию через window.open
+        const telegramAuthUrl = `https://oauth.telegram.org/login?bot_id=7662768984&origin=${encodeURIComponent(window.location.origin)}&return_to=${encodeURIComponent(`${window.location.origin}/auth/telegram/callback`)}`;
         
-        if (!widgetContainer) {
-            console.log('Creating telegram widget container');
-            widgetContainer = document.createElement('div');
-            widgetContainer.className = 'telegram-widget-wrapper';
-            widgetContainer.style.position = 'fixed';
-            widgetContainer.style.top = '-9999px';
-            widgetContainer.style.left = '-9999px';
-            widgetContainer.style.width = '300px';
-            widgetContainer.style.height = '100px';
-            widgetContainer.style.pointerEvents = 'auto';
-            widgetContainer.style.visibility = 'hidden';
-            telegramButton.appendChild(widgetContainer);
-
-            const script = document.createElement('script');
-            script.src = 'https://telegram.org/js/telegram-widget.js?22';
-            script.async = true;
-            script.setAttribute('data-telegram-login', 'ustoyobtj_auth_bot');
-            script.setAttribute('data-size', 'large');
-            script.setAttribute('data-userpic', 'false');
-            script.setAttribute('data-radius', '20');
-            script.setAttribute('data-auth-url', `${window.location.origin}/auth/telegram/callback`);
-            script.setAttribute('data-request-access', 'write');
-
-            widgetContainer.appendChild(script);
-
-            // Даем время на инициализацию widget'а и ищем iframe
-            const findAndClickWidget = (attempts = 0) => {
-                if (attempts > 10) {
-                    console.error('Could not find Telegram widget after 10 attempts');
-                    return;
-                }
-
-                console.log(`Attempt ${attempts + 1} to find widget`);
-                
-                // Ищем iframe в контейнере
-                const widgetIframe = widgetContainer.querySelector('iframe') as HTMLElement;
-                if (widgetIframe) {
-                    console.log('Found widget iframe, clicking it');
-                    widgetIframe.click();
-                    widgetIframe.focus();
-                    return;
-                }
-
-                // Ищем button
-                const widgetButtonElem = widgetContainer.querySelector('button') as HTMLElement;
-                if (widgetButtonElem) {
-                    console.log('Found widget button, clicking it');
-                    widgetButtonElem.click();
-                    return;
-                }
-
-                // Логируем содержимое контейнера
-                console.log('Widget container children:', widgetContainer.innerHTML);
-
-                // Пробуем еще
-                setTimeout(() => findAndClickWidget(attempts + 1), 300);
-            };
-
-            setTimeout(() => findAndClickWidget(), 500);
-        } else {
-            // Widget уже создан, просто кликаем на кнопку/iframe
-            console.log('Widget already exists, clicking');
-            const widgetIframe = widgetContainer.querySelector('iframe') as HTMLElement;
-            if (widgetIframe) {
-                console.log('Found existing iframe, clicking it');
-                widgetIframe.click();
-                widgetIframe.focus();
-            } else {
-                const widgetButton = widgetContainer.querySelector('button') as HTMLElement;
-                if (widgetButton) {
-                    console.log('Found existing button, clicking it');
-                    widgetButton.click();
-                }
-            }
-        }
+        const width = 500;
+        const height = 600;
+        const left = window.screenX + (window.outerWidth - width) / 2;
+        const top = window.screenY + (window.outerHeight - height) / 2;
+        
+        window.open(
+            telegramAuthUrl,
+            'telegram_login',
+            `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+        );
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
