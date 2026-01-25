@@ -549,9 +549,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         const telegramButton = document.querySelector('[title="Войти через Telegram"]');
         if (telegramButton) {
             // Проверяем, есть ли уже widget в кнопке
-            let widgetContainer = telegramButton.querySelector('[data-telegram-login]');
+            let widgetContainer = telegramButton.querySelector('[data-telegram-login]') as HTMLElement;
             if (!widgetContainer) {
-                widgetContainer = document.createElement('div');
+                widgetContainer = document.createElement('div') as HTMLElement;
                 widgetContainer.style.position = 'absolute';
                 widgetContainer.style.opacity = '0';
                 widgetContainer.style.pointerEvents = 'none';
