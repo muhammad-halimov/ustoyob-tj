@@ -564,7 +564,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             widgetContainer.style.left = '-9999px';
             widgetContainer.style.width = '300px';
             widgetContainer.style.height = '100px';
-            widgetContainer.style.pointerEvents = 'none';
+            widgetContainer.style.pointerEvents = 'auto';
             widgetContainer.style.visibility = 'hidden';
             telegramButton.appendChild(widgetContainer);
 
@@ -580,34 +580,54 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
             widgetContainer.appendChild(script);
 
-            // Даем время на инициализацию widget'а
-            setTimeout(() => {
-                const widgetButton = widgetContainer?.querySelector('button') as HTMLElement;
-                if (widgetButton) {
-                    console.log('Found widget button, clicking it');
-                    widgetButton.click();
-                } else {
-                    // Пробуем еще раз через 500ms
-                    setTimeout(() => {
-                        const retryButton = widgetContainer?.querySelector('button') as HTMLElement;
-                        if (retryButton) {
-                            console.log('Found widget button on retry, clicking it');
-                            retryButton.click();
-                        } else {
-                            console.warn('Widget button still not found');
-                        }
-                    }, 500);
+            // Даем время на инициализацию widget'а и ищем iframe
+            const findAndClickWidget = (attempts = 0) => {
+                if (attempts > 10) {
+                    console.error('Could not find Telegram widget after 10 attempts');
+                    return;
                 }
-            }, 500);
+
+                console.log(`Attempt ${attempts + 1} to find widget`);
+                
+                // Ищем iframe в контейнере
+                const widgetIframe = widgetContainer.querySelector('iframe') as HTMLElement;
+                if (widgetIframe) {
+                    console.log('Found widget iframe, clicking it');
+                    widgetIframe.click();
+                    widgetIframe.focus();
+                    return;
+                }
+
+                // Ищем button
+                const widgetButtonElem = widgetContainer.querySelector('button') as HTMLElement;
+                if (widgetButtonElem) {
+                    console.log('Found widget button, clicking it');
+                    widgetButtonElem.click();
+                    return;
+                }
+
+                // Логируем содержимое контейнера
+                console.log('Widget container children:', widgetContainer.innerHTML);
+
+                // Пробуем еще
+                setTimeout(() => findAndClickWidget(attempts + 1), 300);
+            };
+
+            setTimeout(() => findAndClickWidget(), 500);
         } else {
-            // Widget уже создан, просто кликаем на кнопку
-            console.log('Widget already exists, clicking button');
-            const widgetButton = widgetContainer.querySelector('button') as HTMLElement;
-            if (widgetButton) {
-                console.log('Found existing widget button, clicking it');
-                widgetButton.click();
+            // Widget уже создан, просто кликаем на кнопку/iframe
+            console.log('Widget already exists, clicking');
+            const widgetIframe = widgetContainer.querySelector('iframe') as HTMLElement;
+            if (widgetIframe) {
+                console.log('Found existing iframe, clicking it');
+                widgetIframe.click();
+                widgetIframe.focus();
             } else {
-                console.warn('Widget button not found');
+                const widgetButton = widgetContainer.querySelector('button') as HTMLElement;
+                if (widgetButton) {
+                    console.log('Found existing button, clicking it');
+                    widgetButton.click();
+                }
             }
         }
     };
