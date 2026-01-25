@@ -545,39 +545,65 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             sessionStorage.setItem('pendingTelegramSpecialty', formData.specialty);
         }
 
-        // Находим кнопку и ищем скрытый widget iframe в ней
-        const telegramButton = document.querySelector('[title="Войти через Telegram"]');
-        if (telegramButton) {
-            // Проверяем, есть ли уже widget в кнопке
-            let widgetContainer = telegramButton.querySelector('[data-telegram-login]') as HTMLElement;
-            if (!widgetContainer) {
-                widgetContainer = document.createElement('div') as HTMLElement;
-                widgetContainer.style.position = 'absolute';
-                widgetContainer.style.opacity = '0';
-                widgetContainer.style.pointerEvents = 'none';
-                widgetContainer.style.width = '0';
-                widgetContainer.style.height = '0';
-                telegramButton.appendChild(widgetContainer);
+        // Находим кнопку
+        const telegramButton = document.querySelector('[title="Войти через Telegram"]') as HTMLElement;
+        if (!telegramButton) {
+            console.error('Telegram button not found');
+            return;
+        }
 
-                const script = document.createElement('script');
-                script.src = 'https://telegram.org/js/telegram-widget.js?22';
-                script.async = true;
-                script.setAttribute('data-telegram-login', 'ustoyobtj_auth_bot');
-                script.setAttribute('data-size', 'large');
-                script.setAttribute('data-userpic', 'false');
-                script.setAttribute('data-radius', '20');
-                script.setAttribute('data-auth-url', `${window.location.origin}/auth/telegram/callback`);
-                script.setAttribute('data-request-access', 'write');
+        // Проверяем, есть ли уже widget контейнер
+        let widgetContainer = telegramButton.querySelector('.telegram-widget-wrapper') as HTMLElement;
+        
+        if (!widgetContainer) {
+            console.log('Creating telegram widget container');
+            widgetContainer = document.createElement('div');
+            widgetContainer.className = 'telegram-widget-wrapper';
+            widgetContainer.style.position = 'absolute';
+            widgetContainer.style.opacity = '0';
+            widgetContainer.style.pointerEvents = 'none';
+            widgetContainer.style.width = '0';
+            widgetContainer.style.height = '0';
+            widgetContainer.style.overflow = 'hidden';
+            telegramButton.appendChild(widgetContainer);
 
-                widgetContainer.appendChild(script);
-            }
+            const script = document.createElement('script');
+            script.src = 'https://telegram.org/js/telegram-widget.js?22';
+            script.async = true;
+            script.setAttribute('data-telegram-login', 'ustoyobtj_auth_bot');
+            script.setAttribute('data-size', 'large');
+            script.setAttribute('data-userpic', 'false');
+            script.setAttribute('data-radius', '20');
+            script.setAttribute('data-auth-url', `${window.location.origin}/auth/telegram/callback`);
+            script.setAttribute('data-request-access', 'write');
 
-            // Находим iframe widget'a
-            const widgetIframe = telegramButton.querySelector('iframe[src*="telegram.org"]') as HTMLElement;
-            if (widgetIframe) {
-                // Кликаем на iframe для активации
-                widgetIframe.click();
-            }
+            script.onload = () => {
+                console.log('Telegram widget script loaded');
+                // После загрузки скрипта ищем кнопку и кликаем
+                setTimeout(() => {
+                    const widgetButton = widgetContainer?.querySelector('button') as HTMLElement;
+                    if (widgetButton) {
+                        console.log('Found widget button, clicking it');
+                        widgetButton.click();
+                    } else {
+                        console.warn('Widget button not found');
+                    }
+                }, 100);
+            };
+
+            widgetContainer.appendChild(script);
+        } else {
+            // Widget уже создан, просто кликаем на кнопку
+            console.log('Widget already exists, clicking button');
+            setTimeout(() => {
+                const widgetButton = widgetContainer?.querySelector('button') as HTMLElement;
+                if (widgetButton) {
+                    console.log('Found existing widget button, clicking it');
+                    widgetButton.click();
+                } else {
+                    console.warn('Widget button not found');
+                }
+            }, 100);
         }
     };
 
