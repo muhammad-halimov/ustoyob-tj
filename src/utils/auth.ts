@@ -2,12 +2,15 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://admin.ustoyob.tj';
 
 // Константы для хранения ключей в localStorage
-const AUTH_TOKEN_KEY = 'authToken';
-const TOKEN_EXPIRY_KEY = 'tokenExpiry';
-const USER_ROLE_KEY = 'userRole';
-const USER_DATA_KEY = 'userData';
-const USER_EMAIL_KEY = 'userEmail';
-const USER_OCCUPATION_KEY = 'userOccupation'; // Новая константа
+const STORAGE_KEYS = {
+    AUTH_TOKEN: 'authToken',
+    TOKEN_EXPIRY: 'tokenExpiry',
+    USER_ROLE: 'userRole',
+    USER_DATA: 'userData',
+    USER_EMAIL: 'userEmail',
+    USER_OCCUPATION: 'userOccupation',
+    SELECTED_CITY: 'selectedCity',
+} as const;
 
 // Время жизни токена (1 час)
 const TOKEN_LIFETIME_HOURS = 1;
@@ -32,338 +35,272 @@ export interface UserData {
     updatedAt?: string;
 }
 
-// Базовые функции для работы с токеном
-export const getAuthToken = (): string | null => {
-    if (typeof window === 'undefined') return null;
-    return localStorage.getItem(AUTH_TOKEN_KEY);
+// ============ Утилиты для работы с localStorage ============
+const isClientSide = (): boolean => typeof window !== 'undefined';
+
+const getItem = (key: string): string | null => 
+    isClientSide() ? localStorage.getItem(key) : null;
+
+const setItem = (key: string, value: string): void => {
+    if (isClientSide()) localStorage.setItem(key, value);
 };
 
+const removeItem = (key: string): void => {
+    if (isClientSide()) localStorage.removeItem(key);
+};
+
+const removeItems = (...keys: string[]): void => {
+    if (isClientSide()) keys.forEach(key => localStorage.removeItem(key));
+};
+
+// ============ Парсинг JSON с обработкой ошибок ============
+const parseJSON = <T,>(str: string | null, key: string): T | null => {
+    if (!str) return null;
+    try {
+        return JSON.parse(str) as T;
+    } catch (error) {
+        console.error(`Error parsing ${key}:`, error);
+        return null;
+    }
+};
+
+const stringifyJSON = (data: unknown): string => JSON.stringify(data);
+
+// ============ Работа с токеном ============
+export const getAuthToken = (): string | null => getItem(STORAGE_KEYS.AUTH_TOKEN);
+
 export const setAuthToken = (token: string): void => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(AUTH_TOKEN_KEY, token);
-    // Автоматически устанавливаем время истечения при сохранении токена
+    setItem(STORAGE_KEYS.AUTH_TOKEN, token);
     setAuthTokenExpiry();
 };
 
 export const removeAuthToken = (): void => {
-    if (typeof window === 'undefined') return;
-    localStorage.removeItem(AUTH_TOKEN_KEY);
-    localStorage.removeItem(TOKEN_EXPIRY_KEY);
-    localStorage.removeItem(USER_EMAIL_KEY);
-    localStorage.removeItem(USER_DATA_KEY);
-    localStorage.removeItem(USER_ROLE_KEY);
-    localStorage.removeItem(USER_OCCUPATION_KEY); // Добавляем очистку occupation
-    localStorage.removeItem('selectedCity');
+    removeItems(
+        STORAGE_KEYS.AUTH_TOKEN,
+        STORAGE_KEYS.TOKEN_EXPIRY,
+        STORAGE_KEYS.USER_EMAIL,
+        STORAGE_KEYS.USER_DATA,
+        STORAGE_KEYS.USER_ROLE,
+        STORAGE_KEYS.USER_OCCUPATION,
+        STORAGE_KEYS.SELECTED_CITY
+    );
 };
 
-// Функция для выхода с блокировкой токена на сервере
-export const logout = async (): Promise<boolean> => {
-    const token = getAuthToken();
-
-    // Очищаем данные на клиенте сразу
-    clearAuthData();
-
-    if (!token) {
-        console.log('No token to logout');
-        return true;
-    }
+// ============ Logout ============
+const performLogout = async (token: string, wait: boolean = true): Promise<void> => {
+    const controller = new AbortController();
+    if (!wait) controller.abort();
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/logout`, {
+        await fetch(`${API_BASE_URL}/api/logout`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
             },
-            body: JSON.stringify({ token })
+            body: JSON.stringify({ token }),
+            signal: wait ? undefined : controller.signal,
         });
-
-        console.log('Logout response status:', response.status);
-
-        if (response.ok) {
-            console.log('Token successfully invalidated on server');
-            return true;
-        } else {
-            console.warn('Server logout failed, but client data cleared');
-            return true;
-        }
+        console.log('Token invalidated on server');
     } catch (error) {
-        console.error('Error during logout:', error);
-        return true;
+        console.warn('Server logout error (non-critical):', error);
     }
 };
 
-// Альтернативная функция для logout (без ожидания ответа от сервера)
+export const logout = async (): Promise<boolean> => {
+    const token = getAuthToken();
+    clearAuthData();
+    if (token) {
+        await performLogout(token, true);
+    }
+    return true;
+};
+
 export const logoutSync = (): void => {
     const token = getAuthToken();
-
-    // Немедленно очищаем данные на клиенте
     clearAuthData();
-
-    // Асинхронно отправляем запрос на сервер для инвалидации токена
-    if (token) {
-        fetch(`${API_BASE_URL}/api/logout`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ token })
-        })
-            .then(response => {
-                console.log('Logout async response:', response.status);
-            })
-            .catch(error => {
-                console.error('Async logout error:', error);
-            });
-    }
+    if (token) performLogout(token, false);
 };
 
-// Функции для работы со временем истечения токена
-export const getAuthTokenExpiry = (): string | null => {
-    if (typeof window === 'undefined') return null;
-    return localStorage.getItem(TOKEN_EXPIRY_KEY);
+// ============ Работа со сроком истечения токена ============
+const createExpiryDate = (expiry?: string): Date => {
+    if (expiry) return new Date(expiry);
+    const date = new Date();
+    date.setHours(date.getHours() + TOKEN_LIFETIME_HOURS);
+    return date;
 };
+
+export const getAuthTokenExpiry = (): string | null => getItem(STORAGE_KEYS.TOKEN_EXPIRY);
 
 export const setAuthTokenExpiry = (expiry?: string): void => {
-    if (typeof window === 'undefined') return;
-
-    let expiryDate: Date;
-
-    if (expiry) {
-        expiryDate = new Date(expiry);
-    } else {
-        expiryDate = new Date();
-        expiryDate.setHours(expiryDate.getHours() + TOKEN_LIFETIME_HOURS);
-    }
-
-    localStorage.setItem(TOKEN_EXPIRY_KEY, expiryDate.toISOString());
+    setItem(STORAGE_KEYS.TOKEN_EXPIRY, createExpiryDate(expiry).toISOString());
 };
 
 export const removeAuthTokenExpiry = (): void => {
-    if (typeof window === 'undefined') return;
-    localStorage.removeItem(TOKEN_EXPIRY_KEY);
+    removeItem(STORAGE_KEYS.TOKEN_EXPIRY);
 };
 
-// Функция проверки, не истек ли токен
-export const isTokenExpired = (): boolean => {
+// ============ Проверка состояния токена ============
+const checkTokenTime = (compareFunc: (diff: number) => boolean): boolean => {
     const expiry = getAuthTokenExpiry();
     if (!expiry) return true;
-
-    const now = new Date();
-    const expiryDate = new Date(expiry);
-    return now >= expiryDate;
+    const diff = new Date(expiry).getTime() - Date.now();
+    return compareFunc(diff);
 };
 
-// Функция проверки, скоро ли истечет токен (за 5 минут до истечения)
-export const isTokenAboutToExpire = (bufferMinutes: number = 5): boolean => {
-    const expiry = getAuthTokenExpiry();
-    if (!expiry) return true;
+export const isTokenExpired = (): boolean => checkTokenTime(diff => diff <= 0);
 
-    const now = new Date();
-    const expiryDate = new Date(expiry);
-    const bufferTime = bufferMinutes * 60 * 1000;
+export const isTokenAboutToExpire = (bufferMinutes: number = 5): boolean => 
+    checkTokenTime(diff => diff < bufferMinutes * 60 * 1000);
 
-    return expiryDate.getTime() - now.getTime() < bufferTime;
-};
-
-// Обновленная функция проверки аутентификации
 export const isAuthenticated = (): boolean => {
     const token = getAuthToken();
-    if (!token) return false;
-
-    return !isTokenExpired();
+    return token !== null && !isTokenExpired();
 };
 
-// Полная очистка всех данных аутентификации
+// ============ Очистка данных ============
 export const clearAuthData = (): void => {
-    removeAuthToken();
-    removeAuthTokenExpiry();
-    localStorage.removeItem(USER_EMAIL_KEY);
-    localStorage.removeItem(USER_DATA_KEY);
-    localStorage.removeItem(USER_ROLE_KEY);
-    localStorage.removeItem(USER_OCCUPATION_KEY); // Добавляем очистку occupation
+    removeItems(
+        STORAGE_KEYS.AUTH_TOKEN,
+        STORAGE_KEYS.TOKEN_EXPIRY,
+        STORAGE_KEYS.USER_EMAIL,
+        STORAGE_KEYS.USER_DATA,
+        STORAGE_KEYS.USER_ROLE,
+        STORAGE_KEYS.USER_OCCUPATION
+    );
 };
 
-// Функции для работы с ролью пользователя
-export const getUserRole = (): 'client' | 'master' | null => {
-    if (typeof window === 'undefined') return null;
-    const role = localStorage.getItem(USER_ROLE_KEY);
-
-    if (role === 'ROLE_CLIENT' || role === 'client') {
-        return 'client';
-    } else if (role === 'ROLE_MASTER' || role === 'master') {
-        return 'master';
-    }
+// ============ Работа с ролью пользователя ============
+const normalizeRole = (role: string): 'client' | 'master' | null => {
+    if (role === 'ROLE_CLIENT' || role === 'client') return 'client';
+    if (role === 'ROLE_MASTER' || role === 'master') return 'master';
     return null;
 };
 
-export const setUserRole = (role: 'client' | 'master'): void => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(USER_ROLE_KEY, role === 'client' ? 'ROLE_CLIENT' : 'ROLE_MASTER');
+const formatRole = (role: 'client' | 'master'): string => 
+    role === 'client' ? 'ROLE_CLIENT' : 'ROLE_MASTER';
+
+export const getUserRole = (): 'client' | 'master' | null => {
+    const role = getItem(STORAGE_KEYS.USER_ROLE);
+    return role ? normalizeRole(role) : null;
 };
 
-// Функции для работы с данными пользователя
-export const getUserData = (): UserData | null => {
-    if (typeof window === 'undefined') return null;
-    const userDataStr = localStorage.getItem(USER_DATA_KEY);
-    if (!userDataStr) return null;
+export const setUserRole = (role: 'client' | 'master'): void => {
+    setItem(STORAGE_KEYS.USER_ROLE, formatRole(role));
+};
 
-    try {
-        return JSON.parse(userDataStr) as UserData;
-    } catch (error) {
-        console.error('Error parsing user data:', error);
-        return null;
-    }
+export const hasRole = (role: 'client' | 'master' | string): boolean => {
+    const userRole = getUserRole();
+    if (!userRole) return false;
+    const normalizedRole = normalizeRole(role as string);
+    return userRole === normalizedRole;
+};
+
+// ============ Работа с данными пользователя ============
+export const getUserData = (): UserData | null => {
+    return parseJSON<UserData>(getItem(STORAGE_KEYS.USER_DATA), 'userData');
 };
 
 export const setUserData = (data: UserData): void => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(USER_DATA_KEY, JSON.stringify(data));
+    setItem(STORAGE_KEYS.USER_DATA, stringifyJSON(data));
 };
 
-// Функция для работы с email пользователя
-export const getUserEmail = (): string | null => {
-    if (typeof window === 'undefined') return null;
-    return localStorage.getItem(USER_EMAIL_KEY);
-};
-
-export const setUserEmail = (email: string): void => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(USER_EMAIL_KEY, email);
-};
-
-// Функции для работы с occupation пользователя
-export const getUserOccupation = (): UserOccupation[] | null => {
-    if (typeof window === 'undefined') return null;
-    const occupationStr = localStorage.getItem(USER_OCCUPATION_KEY);
-    if (!occupationStr) return null;
-
-    try {
-        return JSON.parse(occupationStr) as UserOccupation[];
-    } catch (error) {
-        console.error('Error parsing user occupation:', error);
-        return null;
-    }
-};
-
-export const setUserOccupation = (occupation: UserOccupation[]): void => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(USER_OCCUPATION_KEY, JSON.stringify(occupation));
-};
-
-export const clearUserOccupation = (): void => {
-    if (typeof window === 'undefined') return;
-    localStorage.removeItem(USER_OCCUPATION_KEY);
-};
-
-// Функция для обновления данных пользователя
 export const updateUserData = (updates: Partial<UserData>): UserData | null => {
     const currentData = getUserData();
     if (!currentData) return null;
-
     const updatedData = { ...currentData, ...updates };
     setUserData(updatedData);
     return updatedData;
 };
 
-// Функция для проверки, подтвержден ли аккаунт пользователя
-export const isUserApproved = (): boolean => {
-    const userData = getUserData();
-    return userData?.approved === true;
+// ============ Работа с email пользователя ============
+export const getUserEmail = (): string | null => getItem(STORAGE_KEYS.USER_EMAIL);
+
+export const setUserEmail = (email: string): void => {
+    setItem(STORAGE_KEYS.USER_EMAIL, email);
 };
 
-// Интерфейс для JWT Payload
+// ============ Работа с occupation пользователя ============
+export const getUserOccupation = (): UserOccupation[] | null => {
+    return parseJSON<UserOccupation[]>(getItem(STORAGE_KEYS.USER_OCCUPATION), 'occupation');
+};
+
+export const setUserOccupation = (occupation: UserOccupation[]): void => {
+    setItem(STORAGE_KEYS.USER_OCCUPATION, stringifyJSON(occupation));
+};
+
+export const clearUserOccupation = (): void => {
+    removeItem(STORAGE_KEYS.USER_OCCUPATION);
+};
+
+// ============ Работа с JWT ============
 interface JWTPayload {
     exp?: number;
     [key: string]: unknown;
 }
 
-// Функция для установки времени истечения токена из JWT
-export const setTokenExpiryFromJWT = (token: string): void => {
+const decodeJWTPayload = (token: string): JWTPayload | null => {
     try {
         const payload = token.split('.')[1];
-        if (!payload) return;
-
-        const decodedPayload = JSON.parse(atob(payload)) as JWTPayload;
-
-        if (decodedPayload.exp) {
-            const expiryDate = new Date(decodedPayload.exp * 1000);
-            setAuthTokenExpiry(expiryDate.toISOString());
-            console.log('Token expiry set from JWT:', expiryDate);
-        }
+        return payload ? JSON.parse(atob(payload)) as JWTPayload : null;
     } catch (error) {
-        console.error('Error parsing JWT token:', error);
+        console.error('Error decoding JWT:', error);
+        return null;
+    }
+};
+
+export const setTokenExpiryFromJWT = (token: string): void => {
+    const payload = decodeJWTPayload(token);
+    if (payload?.exp) {
+        setAuthTokenExpiry(new Date(payload.exp * 1000).toISOString());
+        console.log('Token expiry set from JWT');
+    } else {
         setAuthTokenExpiry();
     }
 };
 
-// Функция для автоматической проверки и обновления токена
+// ============ Вспомогательные функции ============
+export const getUserFullName = (): string | null => {
+    const userData = getUserData();
+    const name = userData?.name || '';
+    const surname = userData?.surname || '';
+    return `${name} ${surname}`.trim() || userData?.email || null;
+};
+
+export const isUserApproved = (): boolean => {
+    const userData = getUserData();
+    return userData?.approved === true;
+};
+
+// ============ Автоматическое обновление токена ============
 export const setupTokenRefresh = async (
     onTokenAboutToExpire?: () => Promise<boolean>,
     onTokenExpired?: () => void
 ): Promise<void> => {
-    if (typeof window === 'undefined') return;
+    if (!isClientSide()) return;
 
     setInterval(async () => {
-        const token = getAuthToken();
-        if (!token) return;
-
         if (isTokenExpired()) {
-            console.log('Token has expired');
-            if (onTokenExpired) {
-                onTokenExpired();
-            } else {
-                clearAuthData();
-            }
+            console.log('Token expired');
+            if (onTokenExpired) onTokenExpired();
+            else clearAuthData();
             return;
         }
 
         if (isTokenAboutToExpire()) {
-            console.log('Token is about to expire, attempting refresh...');
-
-            let refreshSuccess = false;
-
-            if (onTokenAboutToExpire) {
-                try {
-                    refreshSuccess = await onTokenAboutToExpire();
-                } catch (error) {
-                    console.error('Error refreshing token:', error);
+            console.log('Token about to expire, attempting refresh...');
+            try {
+                const success = onTokenAboutToExpire ? await onTokenAboutToExpire() : false;
+                if (!success) {
+                    clearAuthData();
+                    onTokenExpired?.();
                 }
-            }
-
-            if (!refreshSuccess) {
-                console.log('Token refresh failed, clearing auth data');
+            } catch (error) {
+                console.error('Token refresh error:', error);
                 clearAuthData();
-                if (onTokenExpired) {
-                    onTokenExpired();
-                }
+                onTokenExpired?.();
             }
         }
     }, 60000);
-};
-
-// Вспомогательная функция для получения полного имени пользователя
-export const getUserFullName = (): string | null => {
-    const userData = getUserData();
-    if (!userData) return null;
-
-    const name = userData.name || '';
-    const surname = userData.surname || '';
-
-    return `${name} ${surname}`.trim() || userData.email || null;
-};
-
-// Вспомогательная функция для проверки роли
-export const hasRole = (role: 'client' | 'master' | string): boolean => {
-    const userRole = getUserRole();
-    if (!userRole) return false;
-
-    if (role.includes('ROLE_')) {
-        if (role === 'ROLE_CLIENT') return userRole === 'client';
-        if (role === 'ROLE_MASTER') return userRole === 'master';
-    }
-
-    return userRole === role;
 };
