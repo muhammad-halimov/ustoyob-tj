@@ -20,6 +20,7 @@ import EditServicePage from "../../pages/EditServicePage/EditServicePage.tsx";
 import OAuthCallbackPage from "../../pages/GoogleOAuthPage/OAuthCallbackPage.tsx";
 import GoogleOAuthPage from "../../pages/GoogleOAuthPage/GoogleOAuthPage.tsx";
 import OAuthRedirectPage from "../../pages/GoogleOAuthPage/OAuthRedirectPage.tsx";
+import TelegramCallbackPage from "../../pages/GoogleOAuthPage/TelegramCallbackPage.tsx";
 
 const router = createBrowserRouter([
     {
@@ -70,6 +71,10 @@ const router = createBrowserRouter([
     {
         path: '/auth/instagram/callback',
         element: <OAuthCallbackPage />,
+    },
+    {
+        path: '/auth/telegram/callback',
+        element: <TelegramCallbackPage />,
     },
 ]);
 
