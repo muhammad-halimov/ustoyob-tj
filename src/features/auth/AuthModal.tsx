@@ -559,12 +559,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             console.log('Creating telegram widget container');
             widgetContainer = document.createElement('div');
             widgetContainer.className = 'telegram-widget-wrapper';
-            widgetContainer.style.position = 'absolute';
-            widgetContainer.style.opacity = '0';
+            widgetContainer.style.position = 'fixed';
+            widgetContainer.style.top = '-9999px';
+            widgetContainer.style.left = '-9999px';
+            widgetContainer.style.width = '300px';
+            widgetContainer.style.height = '100px';
             widgetContainer.style.pointerEvents = 'none';
-            widgetContainer.style.width = '0';
-            widgetContainer.style.height = '0';
-            widgetContainer.style.overflow = 'hidden';
+            widgetContainer.style.visibility = 'hidden';
             telegramButton.appendChild(widgetContainer);
 
             const script = document.createElement('script');
@@ -577,33 +578,37 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             script.setAttribute('data-auth-url', `${window.location.origin}/auth/telegram/callback`);
             script.setAttribute('data-request-access', 'write');
 
-            script.onload = () => {
-                console.log('Telegram widget script loaded');
-                // После загрузки скрипта ищем кнопку и кликаем
-                setTimeout(() => {
-                    const widgetButton = widgetContainer?.querySelector('button') as HTMLElement;
-                    if (widgetButton) {
-                        console.log('Found widget button, clicking it');
-                        widgetButton.click();
-                    } else {
-                        console.warn('Widget button not found');
-                    }
-                }, 100);
-            };
-
             widgetContainer.appendChild(script);
-        } else {
-            // Widget уже создан, просто кликаем на кнопку
-            console.log('Widget already exists, clicking button');
+
+            // Даем время на инициализацию widget'а
             setTimeout(() => {
                 const widgetButton = widgetContainer?.querySelector('button') as HTMLElement;
                 if (widgetButton) {
-                    console.log('Found existing widget button, clicking it');
+                    console.log('Found widget button, clicking it');
                     widgetButton.click();
                 } else {
-                    console.warn('Widget button not found');
+                    // Пробуем еще раз через 500ms
+                    setTimeout(() => {
+                        const retryButton = widgetContainer?.querySelector('button') as HTMLElement;
+                        if (retryButton) {
+                            console.log('Found widget button on retry, clicking it');
+                            retryButton.click();
+                        } else {
+                            console.warn('Widget button still not found');
+                        }
+                    }, 500);
                 }
-            }, 100);
+            }, 500);
+        } else {
+            // Widget уже создан, просто кликаем на кнопку
+            console.log('Widget already exists, clicking button');
+            const widgetButton = widgetContainer.querySelector('button') as HTMLElement;
+            if (widgetButton) {
+                console.log('Found existing widget button, clicking it');
+                widgetButton.click();
+            } else {
+                console.warn('Widget button not found');
+            }
         }
     };
 
