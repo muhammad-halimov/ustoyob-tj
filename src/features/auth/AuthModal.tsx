@@ -545,22 +545,71 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             sessionStorage.setItem('pendingTelegramSpecialty', formData.specialty);
         }
 
-        // Закрываем модалку
+        // Создаем модальное окно для Telegram widget
+        const telegramModalContainer = document.createElement('div');
+        telegramModalContainer.style.position = 'fixed';
+        telegramModalContainer.style.top = '0';
+        telegramModalContainer.style.left = '0';
+        telegramModalContainer.style.width = '100%';
+        telegramModalContainer.style.height = '100%';
+        telegramModalContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        telegramModalContainer.style.display = 'flex';
+        telegramModalContainer.style.alignItems = 'center';
+        telegramModalContainer.style.justifyContent = 'center';
+        telegramModalContainer.style.zIndex = '10000';
+
+        const widgetWrapper = document.createElement('div');
+        widgetWrapper.style.backgroundColor = 'white';
+        widgetWrapper.style.borderRadius = '10px';
+        widgetWrapper.style.padding = '30px';
+        widgetWrapper.style.textAlign = 'center';
+        widgetWrapper.style.position = 'relative';
+        widgetWrapper.style.minWidth = '350px';
+
+        // Кнопка закрытия
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = '✕';
+        closeBtn.style.position = 'absolute';
+        closeBtn.style.top = '10px';
+        closeBtn.style.right = '10px';
+        closeBtn.style.background = 'none';
+        closeBtn.style.border = 'none';
+        closeBtn.style.fontSize = '24px';
+        closeBtn.style.cursor = 'pointer';
+        closeBtn.style.color = '#999';
+        closeBtn.onclick = () => {
+            telegramModalContainer.remove();
+        };
+
+        const widgetContainer = document.createElement('div');
+        widgetContainer.id = `telegram-widget-${Date.now()}`;
+        widgetContainer.style.marginTop = '20px';
+
+        const script = document.createElement('script');
+        script.src = 'https://telegram.org/js/telegram-widget.js?22';
+        script.async = true;
+        script.setAttribute('data-telegram-login', 'ustoyobtj_auth_bot');
+        script.setAttribute('data-size', 'large');
+        script.setAttribute('data-userpic', 'false');
+        script.setAttribute('data-radius', '10');
+        script.setAttribute('data-auth-url', `${window.location.origin}/auth/telegram/callback`);
+        script.setAttribute('data-request-access', 'write');
+
+        widgetContainer.appendChild(script);
+        widgetWrapper.appendChild(closeBtn);
+        widgetWrapper.appendChild(widgetContainer);
+        telegramModalContainer.appendChild(widgetWrapper);
+        document.body.appendChild(telegramModalContainer);
+
+        // Закрываем основную модалку
         onClose();
 
-        // Открываем Telegram авторизацию через window.open
-        const telegramAuthUrl = `https://oauth.telegram.org/login?bot_id=7662768984&origin=${encodeURIComponent(window.location.origin)}&return_to=${encodeURIComponent(`${window.location.origin}/auth/telegram/callback`)}`;
-        
-        const width = 500;
-        const height = 600;
-        const left = window.screenX + (window.outerWidth - width) / 2;
-        const top = window.screenY + (window.outerHeight - height) / 2;
-        
-        window.open(
-            telegramAuthUrl,
-            'telegram_login',
-            `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
-        );
+        // Закрываем при клике за пределами модального окна
+        telegramModalContainer.onclick = (e) => {
+            if (e.target === telegramModalContainer) {
+                telegramModalContainer.remove();
+            }
+        };
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
