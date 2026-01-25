@@ -545,21 +545,39 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             sessionStorage.setItem('pendingTelegramSpecialty', formData.specialty);
         }
 
-        const telegramWidgetContainer = document.getElementById('telegram-widget-container');
-        if (telegramWidgetContainer) {
-            telegramWidgetContainer.innerHTML = '';
+        // Находим кнопку и ищем скрытый widget iframe в ней
+        const telegramButton = document.querySelector('[title="Войти через Telegram"]');
+        if (telegramButton) {
+            // Проверяем, есть ли уже widget в кнопке
+            let widgetContainer = telegramButton.querySelector('[data-telegram-login]');
+            if (!widgetContainer) {
+                widgetContainer = document.createElement('div');
+                widgetContainer.style.position = 'absolute';
+                widgetContainer.style.opacity = '0';
+                widgetContainer.style.pointerEvents = 'none';
+                widgetContainer.style.width = '0';
+                widgetContainer.style.height = '0';
+                telegramButton.appendChild(widgetContainer);
 
-            const script = document.createElement('script');
-            script.src = 'https://telegram.org/js/telegram-widget.js?22';
-            script.async = true;
-            script.setAttribute('data-telegram-login', 'ustoyobtj_auth_bot');
-            script.setAttribute('data-size', 'large');
-            script.setAttribute('data-userpic', 'false');
-            script.setAttribute('data-radius', '20');
-            script.setAttribute('data-auth-url', `${window.location.origin}/auth/telegram/callback`);
-            script.setAttribute('data-request-access', 'write');
+                const script = document.createElement('script');
+                script.src = 'https://telegram.org/js/telegram-widget.js?22';
+                script.async = true;
+                script.setAttribute('data-telegram-login', 'ustoyobtj_auth_bot');
+                script.setAttribute('data-size', 'large');
+                script.setAttribute('data-userpic', 'false');
+                script.setAttribute('data-radius', '20');
+                script.setAttribute('data-auth-url', `${window.location.origin}/auth/telegram/callback`);
+                script.setAttribute('data-request-access', 'write');
 
-            telegramWidgetContainer.appendChild(script);
+                widgetContainer.appendChild(script);
+            }
+
+            // Находим iframe widget'a
+            const widgetIframe = telegramButton.querySelector('iframe[src*="telegram.org"]') as HTMLElement;
+            if (widgetIframe) {
+                // Кликаем на iframe для активации
+                widgetIframe.click();
+            }
         }
     };
 
@@ -1253,10 +1271,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
                 <div className={styles.socialNote}>
                     <p>При авторизации через социальные сети будет использован выбранный тип аккаунта: <strong>{formData.role === 'master' ? 'специалист' : 'заказчик'}</strong></p>
-                </div>
-
-                <div id="telegram-widget-container" className={styles.telegramWidgetContainer}>
-                    {/* Widget будет добавлен динамически */}
                 </div>
 
                 <div className={styles.links}>
