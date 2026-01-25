@@ -19,6 +19,7 @@ import CategoryTicketsPage from "../../pages/categoryTicketsPage/CategoryTickets
 import EditServicePage from "../../pages/EditServicePage/EditServicePage.tsx";
 import OAuthCallbackPage from "../../pages/GoogleOAuthPage/OAuthCallbackPage.tsx";
 import GoogleOAuthPage from "../../pages/GoogleOAuthPage/GoogleOAuthPage.tsx";
+import OAuthRedirectPage from "../../pages/GoogleOAuthPage/OAuthRedirectPage.tsx";
 
 const router = createBrowserRouter([
     {
@@ -55,11 +56,19 @@ const router = createBrowserRouter([
         element: <GoogleOAuthPage />,
     },
     {
-        path: '/auth/instagram/callback',
-        element: <OAuthCallbackPage />,
+        path: '/auth/facebook',
+        element: <OAuthRedirectPage />,
     },
     {
         path: '/auth/facebook/callback',
+        element: <OAuthCallbackPage />,
+    },
+    {
+        path: '/auth/instagram',
+        element: <OAuthRedirectPage />,
+    },
+    {
+        path: '/auth/instagram/callback',
         element: <OAuthCallbackPage />,
     },
 ]);
