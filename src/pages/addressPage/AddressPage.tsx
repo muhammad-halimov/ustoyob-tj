@@ -86,7 +86,7 @@ function AddressPage() {
     const [selectedCommunityId, setSelectedCommunityId] = useState<number | null>(null);
     const [selectedVillageId, setSelectedVillageId] = useState<number | null>(null);
 
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://admin.ustoyob.tj';
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     // Получаем выбранную провинцию
     const selectedProvince = selectedProvinceId
