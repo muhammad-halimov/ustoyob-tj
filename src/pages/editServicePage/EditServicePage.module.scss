@@ -95,49 +95,173 @@
 }
 
 /* Адресная секция */
+/* Стили для выбора области */
 .province_section {
-  margin-bottom: 20px;
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #e0e0e0;
 }
 
 .province_section h3 {
-  font-size: 16px;
-  margin-bottom: 15px;
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 16px;
   color: #333;
 }
 
 .province_grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
 }
 
 .province_card {
-  padding: 12px;
-  border: 1px solid #ddd;
+  padding: 16px 12px;
+  background-color: #f8f9fa;
+  border: 1px solid #e0e0e0;
   border-radius: 8px;
-  background: white;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-align: center;
   font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
 
   &:hover {
+    background-color: #e9ecef;
     border-color: #3A54DA;
-    background: #f8f9fa;
   }
 }
 
 .province_card_selected {
-  border-color: #3A54DA;
-  background: #3A54DA;
+  background-color: #3A54DA;
   color: white;
+  border-color: #3A54DA;
+}
 
-  &:hover {
-    background: #0056b3;
-    border-color: #0056b3;
+/* Combined section (cities + districts in one row) */
+.combined_section {
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #e0e0e0;
+
+  h3 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0 0 24px 0;
+    color: #333;
   }
 }
 
+.combined_container {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 24px;
+  }
+}
+
+.cities_container,
+.districts_container {
+  flex: 1;
+  min-width: 300px;
+}
+
+.cities_container h4,
+.districts_container h4 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  color: #333;
+}
+
+.suburbs_section {
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #e0e0e0;
+
+  h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+    color: #333;
+  }
+
+  .subtitle {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 20px;
+  }
+}
+
+.nested_selection_section {
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #e0e0e0;
+
+  h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+    color: #333;
+  }
+
+  .subtitle {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 24px;
+  }
+}
+
+.nested_type_selector {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 24px;
+  }
+}
+
+.communities_container,
+.settlements_container {
+  flex: 1;
+  min-width: 300px;
+}
+
+.communities_container h4,
+.settlements_container h4 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  color: #333;
+}
+
+.settlement_info {
+  font-size: 11px;
+  color: #666;
+  opacity: 0.7;
+  margin-top: 4px;
+}
+
+.villages_section {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #e0e0e0;
+
+  h4 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 16px 0;
+    color: #333;
+  }
+}
+
+/* Стили для выбора города */
 .city_section {
   margin-bottom: 20px;
 }
@@ -150,40 +274,49 @@
 
 .city_grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
 }
 
 .city_card {
-  padding: 15px;
-  border: 1px solid #ddd;
+  padding: 16px 12px;
+  background-color: #f8f9fa;
+  border: 1px solid #e0e0e0;
   border-radius: 8px;
-  background: white;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s;
+  text-align: center;
 
   &:hover {
+    background-color: #e9ecef;
     border-color: #3A54DA;
-    background: #f8f9fa;
   }
 }
 
 .city_card_selected {
-  border-color: #3A54DA;
-  background: #3A54DA;
+  background-color: #3A54DA;
   color: white;
-
-  &:hover {
-    background: #3A54DA;
-    border-color: #3A54DA;
-  }
+  border-color: #3A54DA;
 }
 
 .city_name {
-  font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
+  margin-bottom: 6px;
 }
 
+.city_districts_count {
+  font-size: 12px;
+  color: #666;
+}
+
+.city_card_selected .city_districts_count {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Стили для выбора районов */
 .district_section {
   margin-bottom: 20px;
 }
@@ -196,103 +329,39 @@
 
 .district_grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 10px;
 }
 
 .district_card {
-  padding: 12px;
-  border: 1px solid #ddd;
+  padding: 14px 10px;
+  background-color: #f8f9fa;
+  border: 1px solid #e0e0e0;
   border-radius: 8px;
-  background: white;
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s;
   text-align: center;
 
   &:hover {
+    background-color: #e9ecef;
     border-color: #3A54DA;
-    background: #f8f9fa;
   }
 }
 
 .district_card_selected {
-  border-color: #3A54DA;
-  background: #3A54DA;
+  background-color: #3A54DA;
   color: white;
-
-  &:hover {
-    background: #3A54DA;
-    border-color: #3A54DA;
-  }
+  border-color: #3A54DA;
 }
 
 .district_name {
-  font-size: 14px;
+  font-weight: 500;
 }
 
-.settlement_section,
-.community_section,
-.village_section {
-  margin-bottom: 20px;
-}
-
-.settlement_section h3,
-.community_section h3,
-.village_section h3 {
-  font-size: 16px;
-  margin-bottom: 15px;
-  color: #333;
-}
-
-.settlement_grid,
-.community_grid,
-.village_grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 10px;
-}
-
-.settlement_card,
-.community_card,
-.village_card {
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  background: white;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-align: center;
-
-  &:hover {
-    border-color: #3A54DA;
-    background: #f8f9fa;
-  }
-}
-
-.settlement_card_selected,
-.community_card_selected,
-.village_card_selected {
-  border-color: #3A54DA;
-  background: #3A54DA;
-  color: white;
-
-  &:hover {
-    background: #3A54DA;
-    border-color: #3A54DA;
-  }
-}
-
-.settlement_name,
-.community_name,
-.village_name {
-  font-size: 14px;
-}
-
-.manual_address {
-  margin-top: 20px;
-}
-
-.address_input {
+.addressInput {
   width: 100%;
   padding: 12px;
   border: 1px solid #ddd;
@@ -307,6 +376,29 @@
 
   &::placeholder {
     color: #999;
+  }
+}
+
+/* Стили для отображения выбранных элементов */
+.selected_summary {
+  margin-top: 15px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.selected_items {
+  margin-bottom: 8px;
+  font-size: 14px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  strong {
+    color: #333;
+    margin-right: 5px;
   }
 }
 

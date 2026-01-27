@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './CreateAdPage.module.scss';
 import { getAuthToken, getUserRole } from '../../utils/auth';
-import LocationSelector from '../../widgets/LocationSelector/LocationSelector';
+// Location selector UI moved inline (province/combined/nested sections)
 
 interface Category {
     id: number;
@@ -48,7 +48,12 @@ const CreateAdPage = () => {
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Состояния для локации
+    // Состояния для локации (copied from AddressPage)
+    const [provinces, setProvinces] = useState<any[]>([]);
+    const [cities, setCities] = useState<any[]>([]);
+    const [districts, setDistricts] = useState<any[]>([]);
+    const [isLocationLoading, setIsLocationLoading] = useState(true);
+
     const [locationData, setLocationData] = useState({
         selectedProvinceId: null as number | null,
         selectedCityId: null as number | null,
@@ -56,6 +61,15 @@ const CreateAdPage = () => {
         selectedSuburbIds: [] as number[],
         manualAddress: ''
     });
+
+    const [selectedProvinceId, setSelectedProvinceId] = useState<number | null>(null);
+    const [selectedCityId, setSelectedCityId] = useState<number | null>(null);
+    const [selectedDistrictId, setSelectedDistrictId] = useState<number | null>(null);
+    const [selectedSuburbIds, setSelectedSuburbIds] = useState<number[]>([]);
+    const [selectedSettlementId, setSelectedSettlementId] = useState<number | null>(null);
+    const [selectedCommunityId, setSelectedCommunityId] = useState<number | null>(null);
+    const [selectedVillageId, setSelectedVillageId] = useState<number | null>(null);
+    const [manualAddress, setManualAddress] = useState<string>('');
 
     const [formData, setFormData] = useState({
         title: '',
@@ -141,35 +155,216 @@ const CreateAdPage = () => {
         setLocationData(data);
     };
 
-    const buildAddressData = (): AddressSubmissionData | null => {
-        const { selectedProvinceId, selectedCityId, selectedSuburbIds, selectedDistrictIds } = locationData;
+    // Derived helpers and fetchers for inline location UI
+    const selectedProvince = selectedProvinceId
+        ? provinces.find((p: any) => p.id === selectedProvinceId)
+        : null;
 
-        if (!selectedProvinceId) {
-            return null;
+    const citiesInSelectedProvince = selectedProvince
+        ? cities.filter((city: any) => city.province && city.province.id === selectedProvinceId)
+        : [];
+
+    const selectedCity = selectedCityId
+        ? cities.find((c: any) => c.id === selectedCityId)
+        : null;
+
+    const suburbsInSelectedCity = selectedCity ? selectedCity.suburbs || [] : [];
+
+    const districtsInSelectedProvince = selectedProvince
+        ? districts.filter((d: any) => d.province && d.province.id === selectedProvinceId)
+        : [];
+
+    const selectedDistrict = selectedDistrictId
+        ? districtsInSelectedProvince.find((d: any) => d.id === selectedDistrictId)
+        : null;
+
+    const settlementsInSelectedDistrict = selectedDistrict ? selectedDistrict.settlements || [] : [];
+    const communitiesInSelectedDistrict = selectedDistrict ? selectedDistrict.communities || [] : [];
+
+    const selectedSettlement = selectedSettlementId
+        ? settlementsInSelectedDistrict.find((s: any) => s.id === selectedSettlementId)
+        : null;
+
+    const villagesInSelectedSettlement = selectedSettlement ? selectedSettlement.villages || [] : [];
+
+    useEffect(() => {
+        const fetchLocationData = async () => {
+            try {
+                setIsLocationLoading(true);
+                const tokenLocal = token;
+                if (!tokenLocal) return;
+
+                const [provincesRes, citiesRes, districtsRes] = await Promise.all([
+                    fetch(`${API_BASE_URL}/api/provinces`, { headers: { 'Authorization': `Bearer ${tokenLocal}` } }),
+                    fetch(`${API_BASE_URL}/api/cities`, { headers: { 'Authorization': `Bearer ${tokenLocal}` } }),
+                    fetch(`${API_BASE_URL}/api/districts`, { headers: { 'Authorization': `Bearer ${tokenLocal}` } })
+                ]);
+
+                if (provincesRes.ok) setProvinces(await provincesRes.json());
+                if (citiesRes.ok) setCities(await citiesRes.json());
+                if (districtsRes.ok) setDistricts(await districtsRes.json());
+            } catch (err) {
+                console.error('Error fetching location data:', err);
+            } finally {
+                setIsLocationLoading(false);
+            }
+        };
+
+        fetchLocationData();
+    }, []);
+
+    const updateManualAddress = () => {
+        const addressParts: string[] = [];
+        if (selectedProvince) addressParts.push(selectedProvince.title);
+        if (selectedCity) addressParts.push(selectedCity.title);
+
+        if (selectedSuburbIds.length > 0) {
+            const suburbTitles = suburbsInSelectedCity
+                .filter((s: any) => selectedSuburbIds.includes(s.id))
+                .map((s: any) => s.title);
+            if (suburbTitles.length > 0) addressParts.push(...suburbTitles);
         }
+
+        if (selectedDistrictId) {
+            addressParts.push(selectedDistrict?.title || '');
+            if (selectedCommunityId) {
+                const community = communitiesInSelectedDistrict.find((c: any) => c.id === selectedCommunityId);
+                if (community) addressParts.push(community.title);
+            } else if (selectedSettlementId) {
+                const settlement = settlementsInSelectedDistrict.find((s: any) => s.id === selectedSettlementId);
+                if (settlement) {
+                    addressParts.push(settlement.title);
+                    if (selectedVillageId) {
+                        const village = villagesInSelectedSettlement.find((v: any) => v.id === selectedVillageId);
+                        if (village) addressParts.push(village.title);
+                    }
+                }
+            }
+        }
+
+        const newAddress = addressParts.length > 0 ? addressParts.join(', ') : '';
+        setManualAddress(newAddress);
+        setLocationData({
+            selectedProvinceId,
+            selectedCityId,
+            selectedDistrictIds: selectedDistrictId ? [selectedDistrictId] : [],
+            selectedSuburbIds,
+            manualAddress: newAddress
+        });
+    };
+
+    useEffect(() => {
+        updateManualAddress();
+    }, [selectedProvinceId, selectedCityId, selectedDistrictId, selectedSuburbIds, selectedSettlementId, selectedCommunityId, selectedVillageId]);
+
+    const handleProvinceSelect = (provinceId: number) => {
+        setSelectedProvinceId(provinceId);
+        setSelectedCityId(null);
+        setSelectedSuburbIds([]);
+        setSelectedDistrictId(null);
+        setSelectedSettlementId(null);
+        setSelectedCommunityId(null);
+        setSelectedVillageId(null);
+    };
+
+    const handleCitySelect = (cityId: number) => {
+        const city = cities.find(c => c.id === cityId);
+        if (!city) return;
+        if (selectedProvinceId && city.province.id !== selectedProvinceId) {
+            alert(`Город "${city.title}" не принадлежит выбранной провинции.`);
+            return;
+        }
+        // Selecting a city should clear district-related selections
+        setSelectedCityId(cityId);
+        setSelectedSuburbIds([]);
+        setSelectedDistrictId(null);
+        setSelectedSettlementId(null);
+        setSelectedCommunityId(null);
+        setSelectedVillageId(null);
+    };
+
+    const handleSuburbSelect = (suburbId: number) => {
+        if (!selectedCityId) return;
+        const suburb = selectedCity?.suburbs?.find((s: any) => s.id === suburbId);
+        if (!suburb) {
+            alert('Выбранный район не принадлежит выбранному городу.');
+            return;
+        }
+        setSelectedSuburbIds(prev => prev.includes(suburbId) ? prev.filter(id => id !== suburbId) : [...prev, suburbId]);
+    };
+
+    const handleDistrictSelect = (districtId: number) => {
+        const district = districts.find(d => d.id === districtId);
+        if (!district) return;
+        if (selectedProvinceId && district.province.id !== selectedProvinceId) {
+            alert(`Район "${district.title}" не принадлежит выбранной провинции.`);
+            return;
+        }
+        // Selecting a district should clear city-related selections
+        setSelectedDistrictId(prev => prev === districtId ? null : districtId);
+        setSelectedCityId(null);
+        setSelectedSuburbIds([]);
+        setSelectedSettlementId(null);
+        setSelectedCommunityId(null);
+        setSelectedVillageId(null);
+    };
+
+    const handleSettlementSelect = (settlementId: number) => {
+        setSelectedSettlementId(settlementId);
+        setSelectedCommunityId(null);
+    };
+
+    const handleCommunitySelect = (communityId: number) => {
+        setSelectedCommunityId(communityId);
+        setSelectedSettlementId(null);
+    };
+
+    const handleVillageSelect = (villageId: number) => {
+        setSelectedVillageId(villageId);
+    };
+
+    const buildAddressData = (): AddressSubmissionData | null => {
+        // Build address using current selection states (mirrors AddressPage.save logic)
+        if (!selectedProvinceId) return null;
 
         const addressData: AddressSubmissionData = {
             province: `/api/provinces/${selectedProvinceId}`,
             settlement: null,
             community: null,
             village: null,
+            suburb: null,
         };
 
-        // Если выбран город с кварталами
-        if (selectedCityId && selectedSuburbIds.length > 0) {
-            addressData.city = `/api/cities/${selectedCityId}`;
-            if (selectedSuburbIds.length > 0) {
-                // Берем первый квартал для адреса
-                addressData.suburb = `/api/districts/${selectedSuburbIds[0]}`;
+        // If a city is selected
+        if (selectedCityId) {
+            // If city has selected suburbs (quartals), use first selected suburb for ticket address
+            if (selectedSuburbIds && selectedSuburbIds.length > 0) {
+                addressData.city = `/api/cities/${selectedCityId}`;
+                addressData.suburb = `/api/suburbs/${selectedSuburbIds[0]}`;
+            } else {
+                // Only city
+                addressData.city = `/api/cities/${selectedCityId}`;
             }
         }
-        // Если выбран только город
-        else if (selectedCityId) {
-            addressData.city = `/api/cities/${selectedCityId}`;
-        }
-        // Если выбран район области
-        else if (selectedDistrictIds.length > 0) {
-            addressData.district = `/api/districts/${selectedDistrictIds[0]}`;
+        // If a district is selected (region-level)
+        else if (selectedDistrictId) {
+            // If community (ПГТ) selected
+            if (selectedCommunityId) {
+                addressData.community = `/api/communities/${selectedCommunityId}`;
+                addressData.district = `/api/districts/${selectedDistrictId}`;
+            }
+            // If settlement selected
+            else if (selectedSettlementId) {
+                addressData.settlement = `/api/settlements/${selectedSettlementId}`;
+                addressData.district = `/api/districts/${selectedDistrictId}`;
+                if (selectedVillageId) {
+                    addressData.village = `/api/villages/${selectedVillageId}`;
+                }
+            }
+            // Only district
+            else {
+                addressData.district = `/api/districts/${selectedDistrictId}`;
+            }
         }
 
         return addressData;
@@ -383,15 +578,189 @@ const CreateAdPage = () => {
 
                         <div className={styles.divider} />
 
-                        {/* Компонент выбора локации */}
-                        <div className={styles.section}>
-                            <h2>Адрес</h2>
-                            <LocationSelector
-                                API_BASE_URL={API_BASE_URL}
-                                token={token}
-                                onLocationChange={handleLocationChange}
-                            />
+                        {/* Inline location selector (province / combined / nested) */}
+                        <div className={styles.province_section}>
+                            <h3>Выберите область (Провинцию)</h3>
+                            <div className={styles.province_list}>
+                                {isLocationLoading ? (
+                                    <div className={styles.loading}>Загрузка областей...</div>
+                                ) : provinces.length > 0 ? (
+                                    <div className={styles.province_grid}>
+                                        {provinces.map(province => (
+                                            <button
+                                                key={province.id}
+                                                className={`${styles.province_card} ${
+                                                    selectedProvinceId === province.id ? styles.province_card_selected : ''
+                                                }`}
+                                                onClick={() => handleProvinceSelect(province.id)}
+                                            >
+                                                {province.title}
+                                            </button>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className={styles.no_data}>Области не найдены</div>
+                                )}
+                            </div>
                         </div>
+
+                        {selectedProvinceId && (
+                            <div className={styles.combined_section}>
+                                <h3>Населенные пункты в {selectedProvince?.title}</h3>
+
+                                <div className={styles.combined_container}>
+                                    {/* Города */}
+                                    {citiesInSelectedProvince.length > 0 && (
+                                        <div className={styles.cities_container}>
+                                            <h4>Города</h4>
+                                            <div className={styles.city_grid}>
+                                                {citiesInSelectedProvince.map((city: any) => (
+                                                    <button
+                                                        key={city.id}
+                                                        className={`${styles.city_card} ${
+                                                            selectedCityId === city.id ? styles.city_card_selected : ''
+                                                        }`}
+                                                        onClick={() => handleCitySelect(city.id)}
+                                                    >
+                                                        <div className={styles.city_name}>{city.title}</div>
+                                                        {city.suburbs && city.suburbs.length > 0 && (
+                                                            <div className={styles.city_districts_count}>
+                                                                {city.suburbs.length} кварталов
+                                                            </div>
+                                                        )}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Районы (districts) */}
+                                    {districtsInSelectedProvince.length > 0 && (
+                                        <div className={styles.districts_container}>
+                                            <h4>Районы</h4>
+                                            <div className={styles.district_grid}>
+                                                {districtsInSelectedProvince.map((district: any) => (
+                                                    <button
+                                                        key={district.id}
+                                                        className={`${styles.district_card} ${
+                                                            selectedDistrictId === district.id ? styles.district_card_selected : ''
+                                                        }`}
+                                                        onClick={() => handleDistrictSelect(district.id)}
+                                                    >
+                                                        <div className={styles.district_name}>{district.title}</div>
+                                                        <div className={styles.district_info}>
+                                                            {district.settlements && district.settlements.length > 0 && (
+                                                                <span>Поселков: {district.settlements.length}</span>
+                                                            )}
+                                                            {district.communities && district.communities.length > 0 && (
+                                                                <span>ПГТ: {district.communities.length}</span>
+                                                            )}
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {selectedCity && suburbsInSelectedCity.length > 0 && (
+                            <div className={styles.suburbs_section}>
+                                <div className={styles.section_header}>
+                                    <h3>Кварталы города {selectedCity.title} (можно выбрать несколько)</h3>
+                                    <p className={styles.subtitle}>Выберите кварталы, в которых вы работаете</p>
+                                </div>
+                                <div className={styles.district_grid}>
+                                    {suburbsInSelectedCity.map((suburb: any) => (
+                                        <button
+                                            key={suburb.id}
+                                            className={`${styles.district_card} ${
+                                                selectedSuburbIds.includes(suburb.id) ? styles.district_card_selected : ''
+                                            }`}
+                                            onClick={() => handleSuburbSelect(suburb.id)}
+                                        >
+                                            <div className={styles.district_name}>{suburb.title}</div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {selectedDistrict && (
+                            <div className={styles.nested_selection_section}>
+                                <h3>Населенные пункты в районе {selectedDistrict.title}</h3>
+                                <p className={styles.subtitle}>Выберите ПГТ или поселок</p>
+
+                                <div className={styles.nested_type_selector}>
+                                    {/* ПГТ (communities) */}
+                                    {communitiesInSelectedDistrict.length > 0 && (
+                                        <div className={styles.communities_container}>
+                                            <h4>ПГТ (Поселки городского типа)</h4>
+                                            <div className={styles.district_grid}>
+                                                {communitiesInSelectedDistrict.map((community: any) => (
+                                                    <button
+                                                        key={community.id}
+                                                        className={`${styles.district_card} ${
+                                                            selectedCommunityId === community.id ? styles.district_card_selected : ''
+                                                        }`}
+                                                        onClick={() => handleCommunitySelect(community.id)}
+                                                    >
+                                                        <div className={styles.district_name}>{community.title}</div>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Поселения (settlements) */}
+                                    {settlementsInSelectedDistrict.length > 0 && (
+                                        <div className={styles.settlements_container}>
+                                            <h4>Поселки</h4>
+                                            <div className={styles.district_grid}>
+                                                {settlementsInSelectedDistrict.map((settlement: any) => (
+                                                    <button
+                                                        key={settlement.id}
+                                                        className={`${styles.district_card} ${
+                                                            selectedSettlementId === settlement.id ? styles.district_card_selected : ''
+                                                        }`}
+                                                        onClick={() => handleSettlementSelect(settlement.id)}
+                                                    >
+                                                        <div className={styles.district_name}>{settlement.title}</div>
+                                                        {settlement.villages && settlement.villages.length > 0 && (
+                                                            <div className={styles.settlement_info}>
+                                                                {settlement.villages.length} сёл
+                                                            </div>
+                                                        )}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Шаг 4: Села (villages) выбранного поселения */}
+                                {selectedSettlement && villagesInSelectedSettlement.length > 0 && (
+                                    <div className={styles.villages_section}>
+                                        <h4>Села в поселке {selectedSettlement.title}</h4>
+                                        <div className={styles.district_grid}>
+                                            {villagesInSelectedSettlement.map((village: any) => (
+                                                <button
+                                                    key={village.id}
+                                                    className={`${styles.district_card} ${
+                                                        selectedVillageId === village.id ? styles.district_card_selected : ''
+                                                    }`}
+                                                    onClick={() => handleVillageSelect(village.id)}
+                                                >
+                                                    <div className={styles.district_name}>{village.title}</div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                        
+                            </div>
+                        )}
 
                         <div className={styles.divider} />
 
