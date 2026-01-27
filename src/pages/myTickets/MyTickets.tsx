@@ -101,7 +101,8 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 function MyTickets() {
     const navigate = useNavigate();
-    const [tickets, setTickets] = useState<FormattedTicket[]>([]);
+    const [allTickets, setAllTickets] = useState<FormattedTicket[]>([]);
+    const [displayedTickets, setDisplayedTickets] = useState<FormattedTicket[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'active' | 'inactive'>('active');
 
@@ -120,7 +121,14 @@ function MyTickets() {
 
     useEffect(() => {
         fetchMyTickets();
-    }, [activeTab]);
+    }, []);
+
+    useEffect(() => {
+        const filtered = activeTab === 'active' 
+            ? allTickets.filter(t => t.active)
+            : allTickets.filter(t => !t.active);
+        setDisplayedTickets(filtered);
+    }, [activeTab, allTickets]);
 
     const fetchMyTickets = async () => {
         try {
@@ -169,12 +177,7 @@ function MyTickets() {
 
                 console.log('My tickets:', myTickets);
 
-                // Фильтруем по активности в зависимости от выбранной вкладки
-                const filteredTickets = myTickets.filter(ticket =>
-                    activeTab === 'active' ? ticket.active : !ticket.active
-                );
-
-                const formattedTickets: FormattedTicket[] = filteredTickets.map(ticket => ({
+                const formattedTickets: FormattedTicket[] = myTickets.map(ticket => ({
                     id: ticket.id,
                     title: ticket.title || 'Без названия',
                     price: ticket.budget || 0,
@@ -196,14 +199,14 @@ function MyTickets() {
                     active: ticket.active
                 }));
 
-                setTickets(formattedTickets);
+                setAllTickets(formattedTickets);
             } else {
                 console.error('Error fetching tickets, status:', response.status);
-                setTickets([]);
+                setAllTickets([]);
             }
         } catch (error) {
             console.error('Error fetching tickets:', error);
-            setTickets([]);
+            setAllTickets([]);
         } finally {
             setIsLoading(false);
         }
@@ -374,6 +377,53 @@ function MyTickets() {
         }
     };
 
+    const handleToggleTicketActive = async (e: React.ChangeEvent<HTMLInputElement>, ticketId: number, currentActive: boolean) => {
+        e.stopPropagation();
+
+        const token = getAuthToken();
+        if (!token) {
+            navigate('/login');
+            return;
+        }
+
+        try {
+            const newActiveStatus = !currentActive;
+
+            const response = await fetch(`${API_BASE_URL}/api/tickets/${ticketId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/merge-patch+json',
+                },
+                body: JSON.stringify({
+                    active: newActiveStatus
+                }),
+            });
+
+            if (response.ok) {
+                // Обновляем все тикеты со статусом
+                setAllTickets(prev => prev.map(ticket => 
+                    ticket.id === ticketId
+                        ? { ...ticket, active: newActiveStatus, status: newActiveStatus ? 'Активно' : 'Завершено' }
+                        : ticket
+                ));
+
+                setModalMessage(`Объявление успешно ${newActiveStatus ? 'активировано' : 'деактивировано'}!`);
+                setShowSuccessModal(true);
+                setTimeout(() => setShowSuccessModal(false), 3000);
+            } else {
+                const errorText = await response.text();
+                console.error('Error toggling ticket active status:', errorText);
+                throw new Error(`Не удалось ${newActiveStatus ? 'активировать' : 'деактивировать'} объявление`);
+            }
+        } catch (error) {
+            console.error('Error toggling ticket active status:', error);
+            setModalMessage(`Ошибка при ${currentActive ? 'деактивации' : 'активации'} объявления`);
+            setShowErrorModal(true);
+            setTimeout(() => setShowErrorModal(false), 3000);
+        }
+    };
+
     // const getTicketTypeLabel = (type: 'client' | 'master') => {
     //     return type === 'master' ? 'Услуга мастера' : 'Заказ клиента';
     // };
@@ -404,13 +454,13 @@ function MyTickets() {
                     className={`${styles.tab} ${activeTab === 'active' ? styles.active : ''}`}
                     onClick={() => setActiveTab('active')}
                 >
-                    Активные ({tickets.filter(t => t.active).length})
+                    Активные ({allTickets.filter(t => t.active).length})
                 </button>
                 <button
                     className={`${styles.tab} ${activeTab === 'inactive' ? styles.active : ''}`}
                     onClick={() => setActiveTab('inactive')}
                 >
-                    Завершенные ({tickets.filter(t => !t.active).length})
+                    Завершенные ({allTickets.filter(t => !t.active).length})
                 </button>
             </div>
 
@@ -418,7 +468,7 @@ function MyTickets() {
             <div className={styles.ticketsList}>
                 {isLoading ? (
                     <div className={styles.loading}><p>Загрузка ваших объявлений...</p></div>
-                ) : tickets.length === 0 ? (
+                ) : displayedTickets.length === 0 ? (
                     <div className={styles.noResults}>
                         <p>
                             {activeTab === 'active'
@@ -433,7 +483,7 @@ function MyTickets() {
                         )}
                     </div>
                 ) : (
-                    tickets.map((ticket) => (
+                    displayedTickets.map((ticket) => (
                         <div key={ticket.id}
                              className={styles.ticketCard}
                              onClick={() => handleCardClick(ticket.type, ticket.id, ticket.authorId, ticket.masterId)}
@@ -442,9 +492,19 @@ function MyTickets() {
                             <div className={styles.ticketHeader}>
                                 <div className={styles.ticketInfo}>
                                     <h3>{ticket.title}</h3>
-                                    <span className={`${styles.status} ${ticket.active ? styles.active : styles.inactive}`}>
-                                        {ticket.status}
-                                    </span>
+                                    <div className={styles.serviceActiveToggle} onClick={(e) => e.stopPropagation()}>
+                                        <label className={styles.switch}>
+                                            <input
+                                                type="checkbox"
+                                                checked={ticket.active}
+                                                onChange={(e) => handleToggleTicketActive(e, ticket.id, ticket.active)}
+                                            />
+                                            <span className={styles.slider}></span>
+                                        </label>
+                                        <span className={styles.toggle_label}>
+                                            {ticket.active ? 'Активно' : 'Неактивно'}
+                                        </span>
+                                    </div>
                                 </div>
                                 <span className={styles.price}>{ticket.price.toLocaleString('ru-RU')} TJS, {ticket.unit}</span>
                             </div>

@@ -198,6 +198,70 @@
     }
   }
 
+  .serviceActiveToggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+
+      input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+
+        &:checked + .slider {
+          background-color: #3A54DA;
+        }
+
+        &:checked + .slider:before {
+          transform: translateX(20px);
+        }
+
+        &:disabled + .slider {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+      }
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 34px;
+
+      &:before {
+        position: absolute;
+        content: "";
+        height: 16px;
+        width: 16px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+      }
+    }
+
+    .toggle_label {
+      font-size: 14px;
+      font-weight: 500;
+      color: #333;
+      white-space: nowrap;
+    }
+  }
+
   .description {
     margin-bottom: 20px;
     color: #666;
@@ -298,6 +362,95 @@
       right: auto;
       align-self: flex-start;
       margin-bottom: 12px;
+    }
+  }
+}
+
+/* Стили для модальных окон */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modalContent {
+  background: white;
+  border-radius: 12px;
+  padding: 30px;
+  text-align: center;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+
+  &.successModal {
+    background: white;
+  }
+
+  h2 {
+    margin-bottom: 20px;
+    font-size: 24px;
+    font-weight: 600;
+
+    &.successTitle {
+      color: #2e7d32;
+    }
+
+    &.errorTitle {
+      color: #c62828;
+    }
+  }
+
+  .successIcon,
+  .errorIcon {
+    margin: 20px 0;
+
+    img {
+      max-width: 80px;
+      height: auto;
+    }
+  }
+
+  p {
+    margin: 20px 0;
+    font-size: 16px;
+    color: #333;
+    line-height: 1.5;
+
+    &.successMessage {
+      color: #666;
+    }
+
+    &.errorMessage {
+      color: #666;
+    }
+  }
+
+  button {
+    background: #3A54DA;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    margin-top: 20px;
+
+    &.successButton,
+    &.errorButton {
+      width: 100%;
+    }
+
+    &:hover {
+      background: #2a44ca;
     }
   }
 }

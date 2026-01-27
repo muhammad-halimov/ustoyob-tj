@@ -6,7 +6,7 @@ import Chat from "../../pages/chats/Chat.tsx";
 import ProfilePage from "../../pages/profile/ProfilePage.tsx";
 import EducationPage from "../../pages/education/EducationPage.tsx";
 import ServicesPage from "../../pages/services/ServicesPage.tsx";
-import CityPage from "../../pages/сityPage/CityPage.tsx";
+import AddressPage from "../../pages/addressPage/AddressPage.tsx";
 import {OrderPage} from "../../pages/order/OrderPage.tsx";
 import CreateAdPage from "../../pages/create-ad/CreateAdPage";
 // import OrderHistoryPage from "../../pages/OrderHistory/OrderHistoryPage";
@@ -16,11 +16,11 @@ import MasterProfileViewPage from "../../entities/MasterProfileViewPage/MasterPr
 import ClientProfileViewPage from "../../entities/ClientProfileViewPage/ClientProfileViewPage.tsx";
 import MyTickets from "../../pages/myTickets/MyTickets.tsx";
 import CategoryTicketsPage from "../../pages/categoryTicketsPage/CategoryTicketsPage.tsx";
-import EditServicePage from "../../pages/EditServicePage/EditServicePage.tsx";
-import OAuthCallbackPage from "../../pages/GoogleOAuthPage/OAuthCallbackPage.tsx";
-import GoogleOAuthPage from "../../pages/GoogleOAuthPage/GoogleOAuthPage.tsx";
-import OAuthRedirectPage from "../../pages/GoogleOAuthPage/OAuthRedirectPage.tsx";
-import TelegramCallbackPage from "../../pages/GoogleOAuthPage/TelegramCallbackPage.tsx";
+import EditServicePage from "../../pages/editServicePage/EditServicePage.tsx";
+import OAuthCallbackPage from "../../pages/OAuthPage/OAuthCallbackPage.tsx";
+import GoogleOAuthPage from "../../pages/OAuthPage/GoogleOAuthPage.tsx";
+import OAuthRedirectPage from "../../pages/OAuthPage/OAuthRedirectPage.tsx";
+import TelegramCallbackPage from "../../pages/OAuthPage/TelegramCallbackPage.tsx";
 
 const router = createBrowserRouter([
     {
@@ -37,7 +37,7 @@ const router = createBrowserRouter([
             // { path: 'my-tickets', element: <MyTickets /> },
             { path: 'profile/education', element: <EducationPage /> },
             { path: 'profile/services', element: <ServicesPage /> },
-            { path: 'profile/city', element: <CityPage /> },
+            { path: 'profile/address', element: <AddressPage /> },
             { path: 'order/:id', element: <OrderPage /> },
             { path: 'ticket/:id', element: <OrderPage /> },
             { path: 'create-ad', element: <CreateAdPage /> },

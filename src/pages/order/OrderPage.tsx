@@ -75,6 +75,7 @@ interface Order {
     notice?: string;
     rating: number;
     authorImage?: string;
+    active?: boolean;
 }
 
 interface City {
@@ -136,6 +137,11 @@ export function OrderPage() {
     const [showInfoModal, setShowInfoModal] = useState(false);
     const [modalMessage, setModalMessage] = useState('');
 
+    // States for ticket deactivation
+    const [isTicketActive, setIsTicketActive] = useState(true);
+    const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+    const [isTogglingActive, setIsTogglingActive] = useState(false);
+
     useEffect(() => {
         initChatModals({
             showSuccessModal: (message: string) => {
@@ -176,6 +182,10 @@ export function OrderPage() {
     useEffect(() => {
         const role = getUserRole();
         const loadData = async () => {
+            // Fetch current user ID first
+            const userId = await getCurrentUserId();
+            setCurrentUserId(userId);
+            
             await fetchCities();
             if (id) {
                 await fetchOrder(parseInt(id), role, ticketType, specificTicketId ? parseInt(specificTicketId) : undefined);
@@ -880,12 +890,13 @@ export function OrderPage() {
             const targetUserId = userId; // Изменено с let на const
 
             // Определяем endpoint и ID пользователя для запроса
+            // НЕ фильтруем по active=true, чтобы разрешить владельцам смотреть неактивные объявления
             if (ticketTypeParam === 'client') {
-                endpoint = `/api/tickets?active=true&service=false&exists[author]=true&client=${targetUserId}`;
+                endpoint = `/api/tickets?service=false&exists[author]=true&client=${targetUserId}`;
             } else if (ticketTypeParam === 'master') {
-                endpoint = `/api/tickets?active=true&service=true&exists[master]=true&master=${targetUserId}`;
+                endpoint = `/api/tickets?service=true&exists[master]=true&master=${targetUserId}`;
             } else {
-                endpoint = `/api/tickets?active=true`;
+                endpoint = `/api/tickets`;
             }
 
             console.log('Fetching from endpoint:', endpoint);
@@ -937,6 +948,16 @@ export function OrderPage() {
             if (!ticketData) {
                 setError('Тикет не найден');
                 return;
+            }
+
+            // Проверяем доступ к неактивным объявлениям
+            // Неактивные объявления видны только их владельцам
+            if (!ticketData.active && currentUserId) {
+                const isOwner = ticketData.author?.id === currentUserId || ticketData.master?.id === currentUserId;
+                if (!isOwner) {
+                    setError('Это объявление неактивно и недоступно для просмотра');
+                    return;
+                }
             }
 
             // Определяем, чью информацию показывать
@@ -1029,10 +1050,12 @@ export function OrderPage() {
                 notice: ticketData.notice ? cleanText(ticketData.notice) : undefined,
                 rating: userRating,
                 authorImage: displayUserImage || undefined,
+                active: ticketData.active,
             };
 
             console.log('Final order data:', orderData);
             setOrder(orderData);
+            setIsTicketActive(ticketData.active);
 
         } catch (error) {
             console.error('Error fetching order:', error);
@@ -1184,6 +1207,52 @@ export function OrderPage() {
         setShowReviewModal(true);
     };
 
+    const handleToggleActive = async () => {
+        const token = getAuthToken();
+        if (!token) {
+            navigate('/login');
+            return;
+        }
+
+        if (!order) return;
+
+        try {
+            setIsTogglingActive(true);
+            const newActiveStatus = !isTicketActive;
+
+            const response = await fetch(`${API_BASE_URL}/api/tickets/${order.id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/merge-patch+json',
+                },
+                body: JSON.stringify({
+                    active: newActiveStatus
+                }),
+            });
+
+            if (response.ok) {
+                setIsTicketActive(newActiveStatus);
+                setOrder(prev => prev ? { ...prev, active: newActiveStatus } : null);
+
+                setModalMessage(`Объявление успешно ${newActiveStatus ? 'активировано' : 'деактивировано'}!`);
+                setShowSuccessModal(true);
+                setTimeout(() => setShowSuccessModal(false), 3000);
+            } else {
+                const errorText = await response.text();
+                console.error('Error toggling active status:', errorText);
+                throw new Error(`Не удалось ${newActiveStatus ? 'активировать' : 'деактивировать'} объявление`);
+            }
+        } catch (error) {
+            console.error('Error toggling active status:', error);
+            setModalMessage(`Ошибка при ${isTicketActive ? 'деактивации' : 'активации'} объявления`);
+            setShowErrorModal(true);
+            setTimeout(() => setShowErrorModal(false), 3000);
+        } finally {
+            setIsTogglingActive(false);
+        }
+    };
+
     const handleRespondClick = async (authorId: number) => {
         const token = getAuthToken();
 
@@ -1314,6 +1383,22 @@ export function OrderPage() {
             <div className={styles.orderCard}>
                 <div className={styles.orderHeader}>
                     <h1 className={styles.orderTitle}>{order.title}</h1>
+                    {currentUserId === order.authorId && (
+                        <div className={styles.service_active_toggle}>
+                            <label className={styles.switch}>
+                                <input
+                                    type="checkbox"
+                                    checked={isTicketActive}
+                                    onChange={handleToggleActive}
+                                    disabled={isTogglingActive}
+                                />
+                                <span className={styles.slider}></span>
+                            </label>
+                            <span className={styles.toggle_label}>
+                                {isTicketActive ? 'Активно' : 'Неактивно'}
+                            </span>
+                        </div>
+                    )}
                 </div>
                 <span className={styles.category}>{order.category}</span>
                 <div className={styles.priceSection}>

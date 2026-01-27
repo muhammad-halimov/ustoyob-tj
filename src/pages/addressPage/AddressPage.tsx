@@ -1,7 +1,7 @@
 import { useState, useEffect, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAuthToken } from '../../utils/auth';
-import styles from './CityPage.module.scss';
+import styles from './AddressPage.module.scss';
 
 interface City {
     id: number;
@@ -69,7 +69,7 @@ interface UserApiData {
     [key: string]: unknown;
 }
 
-function CityPage() {
+function AddressPage() {
     const navigate = useNavigate();
     const [provinces, setProvinces] = useState<Province[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -871,4 +871,4 @@ function CityPage() {
     );
 }
 
-export default CityPage;
+export default AddressPage;

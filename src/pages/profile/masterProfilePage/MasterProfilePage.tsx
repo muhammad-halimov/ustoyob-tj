@@ -3487,7 +3487,7 @@ function MasterProfilePage() {
                                     <span className={styles.work_area_text}>{profileData.workArea}</span>
                                     <button
                                         className={styles.edit_icon}
-                                        onClick={() => navigate('/profile/city')}
+                                        onClick={() => navigate('/profile/address')}
                                         title="Редактировать адрес"
                                     >
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -3500,7 +3500,7 @@ function MasterProfilePage() {
                                     <span>Укажите район работы</span>
                                     <button
                                         className={styles.add_button}
-                                        onClick={() => navigate('/profile/city')}
+                                        onClick={() => navigate('/profile/address')}
                                     >
                                         +
                                     </button>
