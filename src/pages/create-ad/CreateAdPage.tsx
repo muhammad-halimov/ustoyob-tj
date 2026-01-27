@@ -59,7 +59,6 @@ const CreateAdPage = () => {
         selectedCityId: null as number | null,
         selectedDistrictIds: [] as number[],
         selectedSuburbIds: [] as number[],
-        manualAddress: ''
     });
 
     const [selectedProvinceId, setSelectedProvinceId] = useState<number | null>(null);
@@ -69,7 +68,6 @@ const CreateAdPage = () => {
     const [selectedSettlementId, setSelectedSettlementId] = useState<number | null>(null);
     const [selectedCommunityId, setSelectedCommunityId] = useState<number | null>(null);
     const [selectedVillageId, setSelectedVillageId] = useState<number | null>(null);
-    const [manualAddress, setManualAddress] = useState<string>('');
 
     const [formData, setFormData] = useState({
         title: '',
@@ -149,10 +147,6 @@ const CreateAdPage = () => {
 
     const removeImage = (index: number) => {
         setImages(prev => prev.filter((_, i) => i !== index));
-    };
-
-    const handleLocationChange = (data: typeof locationData) => {
-        setLocationData(data);
     };
 
     // Derived helpers and fetchers for inline location UI
@@ -242,14 +236,11 @@ const CreateAdPage = () => {
             }
         }
 
-        const newAddress = addressParts.length > 0 ? addressParts.join(', ') : '';
-        setManualAddress(newAddress);
         setLocationData({
             selectedProvinceId,
             selectedCityId,
             selectedDistrictIds: selectedDistrictId ? [selectedDistrictId] : [],
             selectedSuburbIds,
-            manualAddress: newAddress
         });
     };
 
@@ -523,7 +514,6 @@ const CreateAdPage = () => {
             selectedCityId: null,
             selectedDistrictIds: [],
             selectedSuburbIds: [],
-            manualAddress: ''
         });
     };
 

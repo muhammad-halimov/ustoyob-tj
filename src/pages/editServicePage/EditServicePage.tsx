@@ -121,8 +121,6 @@ const EditServicePage = () => {
     const [selectedCommunityId, setSelectedCommunityId] = useState<number | null>(null);
     const [selectedVillageId, setSelectedVillageId] = useState<number | null>(null);
 
-    const [manualAddress, setManualAddress] = useState<string>('');
-
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     useEffect(() => {
@@ -260,9 +258,6 @@ const EditServicePage = () => {
                 }
             }
         }
-
-        const newAddress = addressParts.length > 0 ? addressParts.join(', ') : '';
-        setManualAddress(newAddress);
     };
 
     useEffect(() => {
@@ -301,57 +296,6 @@ const EditServicePage = () => {
             }
         } catch (error) {
             console.error('Error fetching units:', error);
-        }
-    };
-
-    const fetchProvinces = async () => {
-        try {
-            const token = getAuthToken();
-            const response = await fetch(`${API_BASE_URL}/api/provinces`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setProvinces(data);
-            }
-        } catch (error) {
-            console.error('Error fetching provinces:', error);
-        }
-    };
-
-    const fetchCities = async () => {
-        try {
-            const token = getAuthToken();
-            const response = await fetch(`${API_BASE_URL}/api/cities`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setCities(data);
-            }
-        } catch (error) {
-            console.error('Error fetching cities:', error);
-        }
-    };
-
-    const fetchDistricts = async () => {
-        try {
-            const token = getAuthToken();
-            const response = await fetch(`${API_BASE_URL}/api/districts`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setDistricts(data);
-            }
-        } catch (error) {
-            console.error('Error fetching districts:', error);
         }
     };
 
