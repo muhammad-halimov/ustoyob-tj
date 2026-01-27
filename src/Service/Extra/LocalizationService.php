@@ -6,6 +6,11 @@ use Doctrine\Common\Collections\Collection;
 
 class LocalizationService
 {
+    /**
+     * @param object $entity
+     * @param string $locale
+     * @return void
+     */
     public function localizeGeography(object $entity, string $locale): void
     {
         if (!method_exists($entity, 'getAddresses')) {
@@ -97,5 +102,22 @@ class LocalizationService
             );
 
         $entity->setTitle($title);
+    }
+
+    /**
+     * @param object $entity
+     * @param string $locale
+     * @return string
+     */
+    public function getLocalizedTitle(object $entity, string $locale): string
+    {
+        $translation = $entity->getTranslations()->filter(fn($t) => $t->getLocale() === $locale)->first();
+
+        if ($translation) {
+            return $translation->getTitle();
+        }
+
+        $fallback = $entity->getTranslations()->first();
+        return $fallback ? $fallback->getTitle() : 'Unknown';
     }
 }
