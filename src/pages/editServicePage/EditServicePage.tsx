@@ -569,7 +569,8 @@ const EditServicePage = () => {
                 active: true,
                 category: `/api/categories/${selectedCategory}`,
                 unit: selectedUnit ? `/api/units/${selectedUnit}` : null,
-                addresses: [addressData]
+                // use singular `address` to match CreateAdPage POST payload
+                address: addressData
             };
 
             console.log('Updating service with data:', updateData);
