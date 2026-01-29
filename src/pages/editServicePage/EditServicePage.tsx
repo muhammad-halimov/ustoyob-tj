@@ -101,6 +101,7 @@ const EditServicePage = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [existingImages, setExistingImages] = useState<Array<{ id: number; image: string }>>([]);
     const [newImages, setNewImages] = useState<File[]>([]);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
 
     // Данные для формы
     const [categories, setCategories] = useState<Category[]>([]);
@@ -510,7 +511,6 @@ const EditServicePage = () => {
                 notice: serviceData.notice || "",
                 budget: Number(serviceData.budget),
                 service: true,
-                active: true,
                 category: `/api/categories/${selectedCategory}`,
                 unit: selectedUnit ? `/api/units/${selectedUnit}` : null,
                 // use singular `address` to match CreateAdPage POST payload
@@ -560,8 +560,11 @@ const EditServicePage = () => {
                 }
             }
 
-            alert('Услуга успешно обновлена!');
-            navigate('/orders');
+            setShowSuccessModal(true);
+            setTimeout(() => {
+                setShowSuccessModal(false);
+                navigate('/orders');
+            }, 2000);
 
         } catch (error) {
             console.error('Error updating service:', error);
@@ -976,6 +979,28 @@ const EditServicePage = () => {
                     </button>
                 </div>
             </form>
+
+            {/* Модалка успеха */}
+            {showSuccessModal && (
+                <div className={styles.modalOverlay} onClick={() => setShowSuccessModal(false)}>
+                    <div className={`${styles.modalContent} ${styles.successModal}`} onClick={(e) => e.stopPropagation()}>
+                        <h2 className={styles.successTitle}>Успешно!</h2>
+                        <div className={styles.successIcon}>
+                            <img src="/uspeh.png" alt="Успех"/>
+                        </div>
+                        <p className={styles.successMessage}>Услуга успешно обновлена!</p>
+                        <button
+                            className={styles.successButton}
+                            onClick={() => {
+                                setShowSuccessModal(false);
+                                navigate('/orders');
+                            }}
+                        >
+                            Понятно
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
