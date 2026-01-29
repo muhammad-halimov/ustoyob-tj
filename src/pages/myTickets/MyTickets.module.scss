@@ -150,11 +150,39 @@
     .ticketInfo {
       flex: 1;
 
+      .titleRow {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 8px;
+      }
+
       h3 {
         font-size: 24px;
         font-weight: 500;
         color: #333;
-        margin: 0 0 8px 0;
+        margin: 0;
+      }
+
+      .editButton {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+        flex-shrink: 0;
+
+        &:hover {
+          background-color: #f0f0f0;
+        }
+
+        svg {
+          display: block;
+        }
       }
     }
 

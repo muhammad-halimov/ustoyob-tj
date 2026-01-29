@@ -561,7 +561,7 @@ const EditServicePage = () => {
             }
 
             alert('Услуга успешно обновлена!');
-            navigate('/profile');
+            navigate('/orders');
 
         } catch (error) {
             console.error('Error updating service:', error);

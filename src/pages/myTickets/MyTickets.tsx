@@ -424,6 +424,70 @@ function MyTickets() {
         }
     };
 
+    const handleEditTicket = async (e: React.MouseEvent, ticketId: number) => {
+        e.stopPropagation();
+
+        const token = getAuthToken();
+        if (!token) {
+            setShowAuthModal(true);
+            return;
+        }
+
+        try {
+            // Загружаем все тикеты и находим нужный по id
+            const url = `${API_BASE_URL}/api/tickets?locale=${localStorage.getItem('i18nextLng') || 'ru'}`;
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Не удалось загрузить данные тикетов');
+            }
+
+            const ticketsData: Ticket[] = await response.json();
+            
+            // Находим нужный тикет по id
+            const ticketData = ticketsData.find(ticket => ticket.id === ticketId);
+
+            if (!ticketData) {
+                throw new Error('Тикет не найден');
+            }
+
+            // Преобразуем Ticket в формат ServiceData для EditServicePage
+            const serviceData = {
+                id: ticketData.id,
+                title: ticketData.title || '',
+                description: ticketData.description || '',
+                notice: ticketData.notice || '',
+                budget: String(ticketData.budget || 0),
+                category: ticketData.category ? {
+                    id: ticketData.category.id,
+                    title: ticketData.category.title
+                } : undefined,
+                unit: ticketData.unit ? {
+                    id: ticketData.unit.id,
+                    title: ticketData.unit.title
+                } : undefined,
+                addresses: ticketData.addresses || [],
+                images: ticketData.images || []
+            };
+
+            navigate('/profile/services/edit', {
+                state: {
+                    serviceData: serviceData
+                }
+            });
+        } catch (error) {
+            console.error('Error loading ticket data:', error);
+            setModalMessage('Ошибка при загрузке данных тикета');
+            setShowErrorModal(true);
+            setTimeout(() => setShowErrorModal(false), 3000);
+        }
+    };
+
     // const getTicketTypeLabel = (type: 'client' | 'master') => {
     //     return type === 'master' ? 'Услуга мастера' : 'Заказ клиента';
     // };
@@ -491,7 +555,32 @@ function MyTickets() {
                         >
                             <div className={styles.ticketHeader}>
                                 <div className={styles.ticketInfo}>
-                                    <h3>{ticket.title}</h3>
+                                    <div className={styles.titleRow}>
+                                        <h3>{ticket.title}</h3>
+                                        <button
+                                            className={styles.editButton}
+                                            onClick={(e) => handleEditTicket(e, ticket.id)}
+                                            title="Редактировать"
+                                        >
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <g clipPath="url(#clip0_edit)">
+                                                    <g clipPath="url(#clip1_edit)">
+                                                        <path d="M7.2302 20.59L2.4502 21.59L3.4502 16.81L17.8902 2.29001C18.1407 2.03889 18.4385 1.83982 18.7663 1.70424C19.0941 1.56865 19.4455 1.49925 19.8002 1.50001C20.5163 1.50001 21.203 1.78447 21.7094 2.29082C22.2157 2.79717 22.5002 3.48392 22.5002 4.20001C22.501 4.55474 22.4315 4.90611 22.296 5.23391C22.1604 5.56171 21.9613 5.85945 21.7102 6.11001L7.2302 20.59Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                                        <path d="M0.549805 22.5H23.4498" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                                        <path d="M19.6403 8.17986L15.8203 4.35986" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                                    </g>
+                                                </g>
+                                                <defs>
+                                                    <clipPath id="clip0_edit">
+                                                        <rect width="24" height="24" fill="white"/>
+                                                    </clipPath>
+                                                    <clipPath id="clip1_edit">
+                                                        <rect width="24" height="24" fill="white"/>
+                                                    </clipPath>
+                                                </defs>
+                                            </svg>
+                                        </button>
+                                    </div>
                                     <div className={styles.serviceActiveToggle} onClick={(e) => e.stopPropagation()}>
                                         <label className={styles.switch}>
                                             <input
