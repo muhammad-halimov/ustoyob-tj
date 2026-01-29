@@ -1069,9 +1069,9 @@ function Chat() {
                                         {currentChat?.isArchived && <span className={styles.archiveBadge}> (архив)</span>}
                                     </div>
                                     {currentChat?.ticket?.title && (
-                                        <div className={styles.serviceTitle}>
+                                        <a href={`/order/${currentChat.ticket.id}`} className={styles.serviceTitle}>
                                             {currentChat.ticket.title}
-                                        </div>
+                                        </a>
                                     )}
                                     <div className={styles.status}>
                                         {currentInterlocutor.isOnline && !currentChat?.isArchived ? 'онлайн' : 'оффлайн'}
