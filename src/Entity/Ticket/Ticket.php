@@ -111,7 +111,8 @@ class Ticket
         'favorites:read',
         'appeal:ticket:read',
         'appeal:chat:read',
-        'blackLists:read'
+        'blackLists:read',
+        'chats:read',
     ])]
     private ?int $id = null;
 
@@ -123,7 +124,8 @@ class Ticket
         'favorites:read',
         'appeal:ticket:read',
         'appeal:chat:read',
-        'blackLists:read'
+        'blackLists:read',
+        'chats:read',
     ])]
     private ?string $title = null;
 
@@ -164,7 +166,8 @@ class Ticket
         'favorites:read',
         'appeal:ticket:read',
         'appeal:chat:read',
-        'blackLists:read'
+        'blackLists:read',
+        'chats:read',
     ])]
     private ?bool $service = null;
 
@@ -176,7 +179,8 @@ class Ticket
         'favorites:read',
         'appeal:ticket:read',
         'appeal:chat:read',
-        'blackLists:read'
+        'blackLists:read',
+        'chats:read',
     ])]
     private ?bool $active = null;
 
