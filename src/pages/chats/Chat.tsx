@@ -42,12 +42,20 @@ interface ApiMessage {
     createdAt?: string;
 }
 
+interface ApiTicket {
+    id: number;
+    title: string;
+    service?: boolean;
+    active?: boolean;
+}
+
 interface ApiChat {
     id: number;
     author: ApiUser;
     replyAuthor: ApiUser;
     messages: ApiMessage[];
     images: UploadedImage[];
+    ticket?: ApiTicket;
     createdAt?: string;
     updatedAt?: string;
     active?: boolean;
@@ -1007,7 +1015,9 @@ function Chat() {
                                             {interlocutor.name} {interlocutor.surname}
                                             {chat.isArchived && <span className={styles.archiveBadge}> (архив)</span>}
                                         </div>
-                                        <div className={styles.specialty}>{interlocutor.email}</div>
+                                        <div className={styles.specialty}>
+                                            {chat.ticket?.title || interlocutor.email}
+                                        </div>
                                         <div className={styles.lastMessage}>{getLastMessageText(chat)}</div>
                                     </div>
                                     <div className={styles.chatMeta}>
@@ -1058,6 +1068,11 @@ function Chat() {
                                         {currentInterlocutor.name} {currentInterlocutor.surname}
                                         {currentChat?.isArchived && <span className={styles.archiveBadge}> (архив)</span>}
                                     </div>
+                                    {currentChat?.ticket?.title && (
+                                        <div className={styles.serviceTitle}>
+                                            {currentChat.ticket.title}
+                                        </div>
+                                    )}
                                     <div className={styles.status}>
                                         {currentInterlocutor.isOnline && !currentChat?.isArchived ? 'онлайн' : 'оффлайн'}
                                         {!currentInterlocutor.isOnline && currentInterlocutor.lastSeen && !currentChat?.isArchived && (
