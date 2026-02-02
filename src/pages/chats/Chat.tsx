@@ -1069,7 +1069,7 @@ function Chat() {
                                         {currentChat?.isArchived && <span className={styles.archiveBadge}> (архив)</span>}
                                     </div>
                                     {currentChat?.ticket?.title && (
-                                        <a href={`/order/${currentChat.ticket.id}`} className={styles.serviceTitle}>
+                                        <a href={`/order/${currentChat.replyAuthor.id}?ticket=${currentChat.ticket.id}`} className={styles.serviceTitle}>
                                             {currentChat.ticket.title}
                                         </a>
                                     )}
