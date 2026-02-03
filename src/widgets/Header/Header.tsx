@@ -193,6 +193,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                         console.error('Unauthorized: Token is invalid or expired');
                         removeAuthToken();
                         setShowConfirmationBanner(false);
+                        window.dispatchEvent(new Event('logout'));
                         return;
                     }
 

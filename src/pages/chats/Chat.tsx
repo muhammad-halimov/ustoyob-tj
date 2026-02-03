@@ -478,14 +478,6 @@ function Chat() {
                 if (chatExists) {
                     setSelectedChat(chatId);
                 }
-            } else if (chatsData.length > 0 && !selectedChat) {
-                // Выбираем первый активный чат для активной вкладки
-                const firstActive = chatsData.find(chat => chat.active !== false);
-                if (firstActive) {
-                    setSelectedChat(firstActive.id);
-                } else if (activeTab === "archive" && chatsData.length > 0) {
-                    setSelectedChat(chatsData[0].id);
-                }
             }
         } catch (error) {
             console.error('Error fetching chats:', error);

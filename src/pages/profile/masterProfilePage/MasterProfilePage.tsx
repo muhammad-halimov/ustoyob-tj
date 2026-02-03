@@ -554,6 +554,7 @@ function MasterProfilePage() {
 
             if (response.status === 401) {
                 removeAuthToken();
+                window.dispatchEvent(new Event('logout'));
                 navigate('/login');
                 return;
             }
@@ -694,14 +695,10 @@ function MasterProfilePage() {
             }
 
             const response = await fetch(`${API_BASE_URL}/api/tickets/${serviceId}`, {
-                method: 'PATCH',
+                method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/merge-patch+json',
-                },
-                body: JSON.stringify({
-                    active: false
-                }),
+                }
             });
 
             if (response.ok) {
@@ -776,6 +773,7 @@ function MasterProfilePage() {
             if (response.status === 401) {
                 console.log('Token is invalid or expired');
                 removeAuthToken();
+                window.dispatchEvent(new Event('logout'));
                 navigate('/');
                 return;
             }
@@ -1007,6 +1005,7 @@ function MasterProfilePage() {
 
             if (response.status === 401) {
                 removeAuthToken();
+                window.dispatchEvent(new Event('logout'));
                 navigate('/login');
                 return;
             }
@@ -1109,6 +1108,7 @@ function MasterProfilePage() {
             if (response.status === 401) {
                 console.log('Unauthorized, redirecting to login');
                 removeAuthToken();
+                window.dispatchEvent(new Event('logout'));
                 navigate('/login');
                 return;
             }
@@ -2113,6 +2113,7 @@ function MasterProfilePage() {
 
             if (response.status === 401) {
                 removeAuthToken();
+                window.dispatchEvent(new Event('logout'));
                 navigate('/login');
                 return;
             }
@@ -3521,14 +3522,19 @@ function MasterProfilePage() {
                                         <div key={service.id} className={styles.service_item}>
                                             <div className={styles.service_header}>
                                                 <div className={styles.service_title_wrapper}>
-                                                    <span className={styles.service_name}>
+                                                    <span className={`${styles.service_name} ${styles.truncate_single_line}`}>
                                                         {service.title}
                                                     </span>
                                                     {service.description && (
-                                                        <div className={styles.service_description}>
+                                                        <div className={`${styles.service_description} ${styles.truncate_double_line}`}>
                                                             {cleanText(service.description)}
                                                         </div>
                                                     )}
+                                                </div>
+                                            </div>
+                                            <div className={styles.service_footer}>
+                                                <div className={styles.service_price}>
+                                                    {service.budget} TJS, {service.unit?.title || 'TJS'}
                                                 </div>
                                                 <div className={styles.service_actions}>
                                                     <button
@@ -3559,7 +3565,7 @@ function MasterProfilePage() {
                                                         onClick={() => handleDeleteService(service.id)}
                                                         title="Удалить услугу"
                                                     >
-                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                             <g clipPath="url(#clip0_184_3774)">
                                                                 <g clipPath="url(#clip1_184_3774)">
                                                                     <path d="M18 6.5L17 21.5H7L6 6.5" stroke="#FF3B30" strokeWidth="2" strokeMiterlimit="10"/>
@@ -3580,11 +3586,6 @@ function MasterProfilePage() {
                                                         </svg>
                                                     </button>
                                                 </div>
-                                            </div>
-                                            <span className={styles.service_price}>
-                                                {service.budget} TJS, {service.unit?.title || 'TJS'}
-                                                {/* Переключатель активации/деактивации */}
-                                                <div className={styles.service_active_toggle}>
                                                 <label className={styles.switch}>
                                                     <input
                                                         type="checkbox"
@@ -3593,11 +3594,7 @@ function MasterProfilePage() {
                                                     />
                                                     <span className={styles.slider}></span>
                                                 </label>
-                                                <span className={styles.toggle_label}>
-                                                            {service.active !== false ? 'Активно' : 'Неактивно'}
-                                                        </span>
                                             </div>
-                                            </span>
                                         </div>
                                     ))}
 

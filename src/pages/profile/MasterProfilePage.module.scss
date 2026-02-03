@@ -394,6 +394,15 @@
   justify-content: space-between;
   align-items: center;
   font-size: 20px;
+  gap: 12px;
+  min-width: 0;
+}
+
+.work_area_text {
+  word-break: break-word;
+  overflow-wrap: break-word;
+  flex: 1;
+  min-width: 0;
 }
 
 .services_list {
@@ -2160,27 +2169,35 @@
   .profile_content {
     display: flex;
     flex-direction: column;
+    word-break: break-word;
   }
+  
   .name {
     font-size: 22px;
+    word-break: break-word;
+    overflow-wrap: break-word;
   }
 
   .specialty {
-    font-size: 22px;
+    font-size: 18px;
+    word-break: break-word;
+    overflow-wrap: break-word;
   }
 
   .rating, .reviews {
-    font-size: 20px;
+    font-size: 16px;
 
     svg {
       margin-right: 4px;
       width: 20px;
+      flex-shrink: 0;
     }
   }
 
   .specialty_with_icon,
   .rating_reviews {
     margin-top: 10px;
+    flex-wrap: wrap;
   }
 
   .rating_reviews {
@@ -2195,6 +2212,7 @@
     padding: 10px 20px !important;
     margin-bottom: 18px !important;
     min-height: 40px;
+    word-break: break-word;
   }
 
   .empty_state {
@@ -2204,19 +2222,114 @@
   .add_button {
     width: 16px;
     height: 16px;
+    flex-shrink: 0;
   }
 
   .services_list {
     padding: 0;
   }
 
-  .service_name,
+  .service_name {
+    font-size: 14px !important;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    flex: 1;
+    min-width: 0;
+  }
+  
   .service_price {
-    font-size: 16px !important;
+    font-size: 14px !important;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  
+  .service_item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .service_header {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .service_title_wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+  
+  .service_description {
+    font-size: 13px;
+    color: #666;
+    line-height: 1.4;
+  }
+  
+  .service_actions {
+    display: flex;
+    gap: 8px;
+    align-self: flex-start;
+  }
+  
+  .service_price {
+    font-size: 14px;
+  }
+  
+  .work_area {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .work_area_text {
+    word-break: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+  }
+  
+  .social_networks {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .social_network_item {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+  }
+  
+  .social_network_info {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .social_network_name {
+    font-size: 14px;
+    display: block;
+    margin-bottom: 4px;
+  }
+  
+  .social_network_handle {
+    font-size: 13px;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+  
+  .handle_value,
+  .handle_placeholder {
+    display: block;
+    word-break: break-word;
   }
 
   .section_title {
     margin: 0 0 10px 0 !important;
+    word-break: break-word;
   }
 
   .section_subtitle {
@@ -2238,7 +2351,8 @@
   }
 
   .reviewer_name {
-    font-size: 20px;
+    font-size: 18px;
+    word-break: break-word;
   }
 
   .review_vacation,
@@ -2247,7 +2361,7 @@
   }
 
   .review_text {
-    font-size: 16px;
+    font-size: 14px;
     line-height: 1.45;
   }
 
@@ -3094,62 +3208,76 @@
 
 /* MasterProfilePage.module.scss */
 
-/* Стили для переключателя активации/деактивации */
-.service_active_toggle {
+/* Стили для футера услуги с ценой и переключателем */
+.service_footer {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-left: 12px;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+  flex-wrap: wrap;
 
-  .switch {
-    position: relative;
-    display: inline-block;
-    width: 44px;
-    height: 24px;
+  @media (max-width: 480px) {
+    gap: 8px;
+  }
+}
 
-    input {
-      opacity: 0;
-      width: 0;
-      height: 0;
+.service_price {
+  font-size: 16px;
+  font-weight: 600;
+  color: #101010;
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
-      &:checked + .slider {
-        background-color: #3A54DA;
-      }
+/* Стили для переключателя */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
 
-      &:checked + .slider:before {
-        transform: translateX(20px);
-      }
+  input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+
+    &:checked + .slider {
+      background-color: #3A54DA;
+    }
+
+    &:checked + .slider:before {
+      transform: translateX(20px);
     }
   }
+}
 
-  .slider {
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 34px;
+
+  &:before {
     position: absolute;
-    cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: #ccc;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
     transition: .4s;
-    border-radius: 34px;
-
-    &:before {
-      position: absolute;
-      content: "";
-      height: 16px;
-      width: 16px;
-      left: 4px;
-      bottom: 4px;
-      background-color: white;
-      transition: .4s;
-      border-radius: 50%;
-    }
-  }
-
-  .toggle_label {
-    font-size: 14px;
-    color: #666;
-    white-space: nowrap;
+    border-radius: 50%;
   }
 }
 
@@ -3305,6 +3433,7 @@
   font-size: 16px;
   font-weight: 600;
   color: #3A54DA;
+  margin: auto;
 }
 
 /* Дополнительные стили */
@@ -3683,4 +3812,27 @@
 .social_edit_buttons {
   display: flex;
   gap: 4px;
+}
+
+// Утилиты для обрезания текста с многоточием
+.truncate_single_line {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.truncate_double_line {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.truncate_three_lines {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
