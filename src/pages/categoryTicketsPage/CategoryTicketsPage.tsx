@@ -1,6 +1,7 @@
 import {useState, useEffect, useCallback} from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getAuthToken, getUserRole } from '../../utils/auth';
+import { useLanguageChange } from '../../hooks/useLanguageChange';
 import styles from './CategoryTicketsPage.module.scss';
 import { AnnouncementCard } from '../../shared/ui/AnnouncementCard/AnnouncementCard';
 
@@ -95,6 +96,12 @@ function CategoryTicketsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [categoryName, setCategoryName] = useState<string>('');
     const [userRole, setUserRole] = useState<'client' | 'master' | null>(null);
+    useLanguageChange(() => {
+        // При смене языка переполучаем данные для обновления локализованного контента
+        if (categoryId) {
+            fetchCategoryName();
+        }
+    });
 
     useEffect(() => {
         const role = getUserRole();

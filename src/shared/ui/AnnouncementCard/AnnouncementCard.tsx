@@ -1,4 +1,5 @@
 import styles from './AnnouncementCard.module.scss';
+import { useTranslation } from 'react-i18next';
 
 interface AnnouncementCardProps {
   title: string;
@@ -34,11 +35,23 @@ export function AnnouncementCard({
   ticketType,
   onClick
 }: AnnouncementCardProps) {
+  const { t } = useTranslation('components');
+
+  // Функция для перевода типа тикета
+  const getTranslatedTicketType = (ticketType: string): string => {
+    if (ticketType === 'Услуга от мастера') {
+      return t('ticketTypes.serviceFromMaster');
+    } else if (ticketType === 'Заказ от клиента') {
+      return t('ticketTypes.orderFromClient');
+    }
+    return ticketType; // Возвращаем как есть, если не найдено соответствие
+  };
+
   return (
     <div className={styles.card} onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default' }}>
       {ticketType && (
         <div className={styles.card_ticketType}>
-          {ticketType}
+          {getTranslatedTicketType(ticketType)}
         </div>
       )}
       <div className={styles.card_header}>

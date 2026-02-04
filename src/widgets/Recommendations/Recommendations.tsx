@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getUserRole } from '../../utils/auth.ts';
+import { useLanguageChange } from '../../hooks/useLanguageChange';
 import { AnnouncementCard } from '../../shared/ui/AnnouncementCard/AnnouncementCard';
 import styles from './Recommendations.module.scss';
+import { useTranslation } from 'react-i18next';
 
 interface Announcement {
     id: number;
@@ -49,39 +51,45 @@ function Recommendations() {
     const [isLoading, setIsLoading] = useState(true);
     const userRole = getUserRole();
     const navigate = useNavigate();
+    const { t } = useTranslation('components');
+
+    const fetchRecentAnnouncements = async () => {
+        try {
+            const locale = localStorage.getItem('i18nextLng') || 'ru';
+            const response = await fetch(`${API_BASE_URL}/api/tickets?locale=${locale}&limit=10`, {
+                headers: {
+                    'Accept': 'application/json',
+                }
+            });
+
+            if (response.ok) {
+                let data: Announcement[] = await response.json();
+                
+                // Фильтруем по роли пользователя
+                if (userRole === 'master') {
+                    // Мастер видит только услуги (service: true)
+                    data = data.filter(item => item.service === true);
+                } else if (userRole === 'client') {
+                    // Клиент видит только заказы (service: false)
+                    data = data.filter(item => item.service === false);
+                }
+                // Если не авторизован или неизвестная роль - показываем все
+                
+                setAnnouncements(data.slice(0, 3));
+            }
+        } catch (error) {
+            console.error('Error fetching announcements:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useLanguageChange(() => {
+        // При смене языка переполучаем данные для обновления локализованного контента
+        fetchRecentAnnouncements();
+    });
 
     useEffect(() => {
-        const fetchRecentAnnouncements = async () => {
-            try {
-                const locale = localStorage.getItem('i18nextLng') || 'ru';
-                const response = await fetch(`${API_BASE_URL}/api/tickets?locale=${locale}&limit=10`, {
-                    headers: {
-                        'Accept': 'application/json',
-                    }
-                });
-
-                if (response.ok) {
-                    let data: Announcement[] = await response.json();
-                    
-                    // Фильтруем по роли пользователя
-                    if (userRole === 'master') {
-                        // Мастер видит только услуги (service: true)
-                        data = data.filter(item => item.service === true);
-                    } else if (userRole === 'client') {
-                        // Клиент видит только заказы (service: false)
-                        data = data.filter(item => item.service === false);
-                    }
-                    // Если не авторизован или неизвестная роль - показываем все
-                    
-                    setAnnouncements(data.slice(0, 3));
-                }
-            } catch (error) {
-                console.error('Error fetching announcements:', error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
         fetchRecentAnnouncements();
     }, [userRole]);
 
@@ -131,18 +139,49 @@ function Recommendations() {
         return words[number % 100 > 4 && number % 100 < 20 ? 2 : cases[number % 10 < 5 ? number % 10 : 5]];
     };
 
+    const formatLocalizedDate = (dateString: string): string => {
+        try {
+            const date = new Date(dateString);
+            const months = t('time.months', { returnObjects: true }) as string[] || [
+                'January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'
+            ];
+            const day = date.getDate();
+            const month = months[date.getMonth()];
+            const year = date.getFullYear();
+            return `${day} ${month} ${year}`;
+        } catch {
+            return '';
+        }
+    };
+
     const formatDate = (dateString: string) => {
         try {
-            if (!dateString) return 'недавно';
+            if (!dateString) return t('time.recentlyAgo');
             const date = new Date(dateString);
             const now = new Date();
             const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-            if (diffInSeconds < 60) return 'только что';
-            if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} ${getRussianWord(Math.floor(diffInSeconds / 60), ['минуту', 'минуты', 'минут'])} назад`;
-            if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} ${getRussianWord(Math.floor(diffInSeconds / 3600), ['час', 'часа', 'часов'])} назад`;
-            return `${Math.floor(diffInSeconds / 86400)} ${getRussianWord(Math.floor(diffInSeconds / 86400), ['день', 'дня', 'дней'])} назад`;
+            const ago = t('time.ago');
+            
+            if (diffInSeconds < 60) return t('time.justNow');
+            
+            if (diffInSeconds < 3600) {
+                const minutes = Math.floor(diffInSeconds / 60);
+                const minuteWords = t('time.minuteWords', { returnObjects: true }) as string[] || ['minute', 'minutes', 'minutes'];
+                return `${minutes} ${getRussianWord(minutes, minuteWords as [string, string, string])} ${ago}`;
+            }
+            
+            if (diffInSeconds < 86400) {
+                const hours = Math.floor(diffInSeconds / 3600);
+                const hourWords = t('time.hourWords', { returnObjects: true }) as string[] || ['hour', 'hours', 'hours'];
+                return `${hours} ${getRussianWord(hours, hourWords as [string, string, string])} ${ago}`;
+            }
+            
+            const days = Math.floor(diffInSeconds / 86400);
+            const dayWords = t('time.dayWords', { returnObjects: true }) as string[] || ['day', 'days', 'days'];
+            return `${days} ${getRussianWord(days, dayWords as [string, string, string])} ${ago}`;
         } catch {
-            return 'недавно';
+            return t('time.recentlyAgo');
         }
     };
 
@@ -153,7 +192,7 @@ function Recommendations() {
     return (
         <div className={styles.recommendation}>
             <div className={styles.recommendation__wrap}>
-                <h3 className={styles.recommendation__title}>Свежие объявления</h3>
+                <h3 className={styles.recommendation__title}>{t('pages.recommendations.title')}</h3>
                 {isLoading ? (
                     <p className={styles.recommendation__loading}>Загрузка...</p>
                 ) : announcements.length > 0 ? (
@@ -166,7 +205,7 @@ function Recommendations() {
                                 price={announcement.budget}
                                 unit={announcement.unit?.title || ''}
                                 address={getFullAddress(announcement)}
-                                date={new Date(announcement.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                date={formatLocalizedDate(announcement.createdAt)}
                                 author={getAuthorName(announcement)}
                                 category={announcement.category?.title}
                                 timeAgo={formatDate(announcement.createdAt)}

@@ -2,7 +2,8 @@ import styles from "./Category.module.scss";
 import { AdBtn } from "../../shared/ui/button/HeaderButton/AdBtn.tsx";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useTranslation } from 'react-i18next'; // Добавьте этот импорт
+import { useTranslation } from 'react-i18next';
+import { useLanguageChange } from '../../hooks/useLanguageChange';
 
 interface CategoryItem {
     id: number;
@@ -21,37 +22,43 @@ export default function Category() {
 
     const API_URL = import.meta.env.VITE_API_BASE_URL;
 
-    useEffect(() => {
-        const fetchCategories = async () => {
-            try {
-                setLoading(true);
-                const response = await fetch(`${API_URL}/api/categories`);
-                console.log('Categories response status:', response.status);
+    const fetchCategories = async () => {
+        try {
+            setLoading(true);
+            const locale = localStorage.getItem('i18nextLng') || 'ru';
+            const response = await fetch(`${API_URL}/api/categories?locale=${locale}`);
+            console.log('Categories response status:', response.status);
 
-                if (!response.ok) {
-                    throw new Error(`Ошибка: ${response.status} ${response.statusText}`);
-                }
-
-                const data: CategoryItem[] = await response.json();
-                console.log('Categories data received:', data);
-
-                // Проверяем и форматируем данные
-                const formattedData = Array.isArray(data) ? data.map(item => ({
-                    id: item.id || 0,
-                    title: item.title || 'Без названия',
-                    description: item.description || '',
-                    image: item.image || ''
-                })) : [];
-
-                setCategories(formattedData);
-            } catch (error) {
-                console.error("Ошибка при загрузке категорий:", error);
-                setCategories([]); // Устанавливаем пустой массив при ошибке
-            } finally {
-                setLoading(false);
+            if (!response.ok) {
+                throw new Error(`Ошибка: ${response.status} ${response.statusText}`);
             }
-        };
 
+            const data: CategoryItem[] = await response.json();
+            console.log('Categories data received:', data);
+
+            // Проверяем и форматируем данные
+            const formattedData = Array.isArray(data) ? data.map(item => ({
+                id: item.id || 0,
+                title: item.title || 'Без названия',
+                description: item.description || '',
+                image: item.image || ''
+            })) : [];
+
+            setCategories(formattedData);
+        } catch (error) {
+            console.error("Ошибка при загрузке категорий:", error);
+            setCategories([]); // Устанавливаем пустой массив при ошибке
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useLanguageChange(() => {
+        // При смене языка переполучаем данные для обновления локализованного контента
+        fetchCategories();
+    });
+
+    useEffect(() => {
         fetchCategories();
     }, []);
 

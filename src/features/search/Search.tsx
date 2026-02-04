@@ -4,6 +4,8 @@ import FilterPanel, { FilterState } from "../filters/FilterPanel.tsx";
 import { getAuthToken, getUserRole } from "../../utils/auth";
 import { useNavigate } from "react-router-dom";
 import {cleanText} from "../../utils/cleanText.ts";
+import { useTranslation } from 'react-i18next';
+import { useLanguageChange } from "../../hooks/useLanguageChange";
 
 // Интерфейсы
 interface ApiTicket {
@@ -130,11 +132,8 @@ interface City {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-// Кэши
-const categoriesCache = new Map<number, Category>();
-const citiesCache = new Map<number, City>();
-
 export default function Search({ onSearchResults, onFilterToggle }: SearchProps) {
+    const { t } = useTranslation('components');
     const [showFilters, setShowFilters] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCity, setSelectedCity] = useState<string>(() => {
@@ -177,12 +176,8 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
     // Функция для загрузки городов из API
     const fetchCities = useCallback(async () => {
-        if (citiesCache.size > 0) {
-            setCities(Array.from(citiesCache.values()));
-            return;
-        }
-
         try {
+            const locale = localStorage.getItem('i18nextLng') || 'ru';
             const token = getAuthToken();
             const headers: HeadersInit = {
                 'Content-Type': 'application/json',
@@ -194,7 +189,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             }
 
             // Загружаем города из адресов тикетов или отдельного эндпоинта
-            const response = await fetch(`${API_BASE_URL}/api/cities`, {
+            const response = await fetch(`${API_BASE_URL}/api/cities?locale=${locale}`, {
                 method: 'GET',
                 headers: headers,
             });
@@ -228,10 +223,6 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
                 // Сортируем по алфавиту
                 uniqueCities.sort((a, b) => a.name.localeCompare(b.name));
-
-                uniqueCities.forEach((city: City) => {
-                    citiesCache.set(city.id, city);
-                });
 
                 setCities(uniqueCities);
             }
@@ -292,10 +283,6 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
                 const uniqueCities = Array.from(citiesMap.values());
                 uniqueCities.sort((a, b) => a.name.localeCompare(b.name));
-
-                uniqueCities.forEach((city: City) => {
-                    citiesCache.set(city.id, city);
-                });
 
                 setCities(uniqueCities);
             }
@@ -508,23 +495,23 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
     const getSearchTitle = useMemo(() => {
         if (userRole === 'client') {
-            return 'Поиск услуг';
+            return t('search.searchServices');
         } else if (userRole === 'master') {
-            return 'Поиск объявлений';
+            return t('search.searchAnnouncements');
         } else {
-            return 'Поиск услуг и объявлений';
+            return t('search.searchServicesAndAnnouncements');
         }
-    }, [userRole]);
+    }, [userRole, t]);
 
     const getSearchPlaceholder = useMemo(() => {
         if (userRole === 'client') {
-            return "Что хотите найти";
+            return t('search.whatWantFind');
         } else if (userRole === 'master') {
-            return "Какую услугу ищете";
+            return t('search.whatService');
         } else {
-            return "Что ищете";
+            return t('search.whatAreYouLooking');
         }
-    }, [userRole]);
+    }, [userRole, t]);
 
     // Функция получения имени пользователя
     const getUserName = useCallback(async (ticket: ApiTicket, ticketType: 'client' | 'master'): Promise<string> => {
@@ -557,12 +544,8 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
     // Функция загрузки категорий
     const fetchCategories = useCallback(async () => {
-        if (categoriesCache.size > 0) {
-            setCategories(Array.from(categoriesCache.values()));
-            return;
-        }
-
         try {
+            const locale = localStorage.getItem('i18nextLng') || 'ru';
             const token = getAuthToken();
 
             const headers: HeadersInit = {
@@ -574,7 +557,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 headers['Authorization'] = `Bearer ${token}`;
             }
 
-            const response = await fetch(`${API_BASE_URL}/api/categories`, {
+            const response = await fetch(`${API_BASE_URL}/api/categories?locale=${locale}`, {
                 method: 'GET',
                 headers: headers,
             });
@@ -597,10 +580,6 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                         }));
                     }
                 }
-
-                formatted.forEach((cat: Category) => {
-                    categoriesCache.set(cat.id, cat);
-                });
 
                 setCategories(formatted);
             }
@@ -966,6 +945,12 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         fetchCities(); // Загружаем города
     }, [fetchCategories, fetchCities]);
 
+    // При смене языка переполучаем категории и города
+    useLanguageChange(() => {
+        fetchCategories();
+        fetchCities();
+    });
+
     // Следим за изменениями в localStorage для города
     useEffect(() => {
         const handleStorageChange = () => {
@@ -1008,11 +993,11 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     // Мемоизированный рендер результатов
     const renderedResults = useMemo(() => {
         if (isLoading) {
-            return <div className={styles.loading}><p>Загрузка...</p></div>;
+            return <div className={styles.loading}><p>{t('app.loading')}</p></div>;
         }
 
         if (searchResults.length === 0) {
-            return <div className={styles.noResults}><p>По вашему запросу ничего не найдено</p></div>;
+            return <div className={styles.noResults}><p>{t('messages.noResults')}</p></div>;
         }
 
         return searchResults.map((result) => (
@@ -1109,7 +1094,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
                         {(filters.minPrice || filters.maxPrice || filters.category || filters.rating || filters.reviewCount || filters.city) && (
                             <div className={styles.active_filters}>
-                                <span>Активные фильтры:</span>
+                                <span>{t('search.activeFilters')}</span>
                                 {filters.minPrice && <span className={styles.filter_tag}>От {filters.minPrice} TJS</span>}
                                 {filters.maxPrice && <span className={styles.filter_tag}>До {filters.maxPrice} TJS</span>}
                                 {filters.category && (
@@ -1128,7 +1113,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                                     className={styles.clear_filters_btn}
                                     onClick={handleResetFilters}
                                 >
-                                    Очистить все
+                                    {t('search.clearFilters')}
                                 </button>
                             </div>
                         )}
@@ -1143,7 +1128,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                             />
                             <button className={styles.button} onClick={handleSearch} disabled={isLoading}>
-                                {isLoading ? 'Поиск...' : 'Найти'}
+                                {isLoading ? t('app.loading') : t('search.find')}
                             </button>
                         </div>
 
@@ -1171,7 +1156,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                                     </clipPath>
                                 </defs>
                             </svg>
-                            <p>Фильтры</p>
+                            <p>{t('search.filters')}</p>
                         </button>
                     </div>
 

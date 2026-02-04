@@ -3,6 +3,7 @@ import {useEffect, useState} from "react";
 import {Swiper, SwiperSlide} from "swiper/react";
 import "swiper/css";
 import {useNavigate} from "react-router-dom";
+import { useTranslation } from 'react-i18next';
 
 import "swiper/css/navigation";
 import "swiper/css/zoom";
@@ -68,10 +69,20 @@ interface Review {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-// Функция для форматирования даты
-export const formatDate = (dateString: string): string => {
+// Функция для форматирования даты (используется в компоненте с t функцией)
+export const formatDate = (dateString: string, months?: string[]): string => {
     try {
         const date = new Date(dateString);
+        const day = date.getDate();
+        const monthIndex = date.getMonth();
+        const year = date.getFullYear();
+        
+        // Если передана массив месяцев из переводов, используем его
+        if (months && months[monthIndex]) {
+            return `${day} ${months[monthIndex]} ${year}`;
+        }
+        
+        // Fallback на русский
         return date.toLocaleDateString('ru-RU', {
             day: 'numeric',
             month: 'long',
@@ -84,6 +95,7 @@ export const formatDate = (dateString: string): string => {
 
 function Reviews() {
     const navigate = useNavigate();
+    const { t } = useTranslation('components');
     const [isMobile, setIsMobile] = useState(false);
     const [reviews, setReviews] = useState<Review[]>([]);
     const [displayedReviews, setDisplayedReviews] = useState<Review[]>([]);
@@ -96,6 +108,12 @@ function Reviews() {
     const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
     const [selectedReviewImages, setSelectedReviewImages] = useState<string[]>([]);
     const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+
+    // Функция для форматирования даты с учетом текущего языка
+    const formatLocalizedDate = (dateString: string): string => {
+        const months = t('time.months', { returnObjects: true }) as string[] || [];
+        return formatDate(dateString, months);
+    };
 
     useEffect(() => {
         const check = () => setIsMobile(window.innerWidth <= 480);
@@ -156,7 +174,7 @@ function Reviews() {
 
         } catch (error) {
             console.error('Error fetching reviews:', error);
-            setError('Не удалось загрузить отзывы');
+            setError(t('app.errorLoading'));
         } finally {
             setIsLoading(false);
         }
@@ -253,14 +271,14 @@ function Reviews() {
         return null;
     };
 
-    // Функция для получения роли пользователя (Мастер/Клиент)
-    const getUserRole = (review: Review): string => {
+    // Функция для получения label роли пользователя (Мастер:/Клиент:)
+    const getUserRoleLabel = (review: Review): string => {
         if (review.type === 'master') {
-            return 'Мастер';
+            return t('reviews.masterLabel');
         } else if (review.type === 'client') {
-            return 'Клиент';
+            return t('reviews.clientLabel');
         }
-        return 'Пользователь';
+        return t('app.defaultUser');
     };
 
     // Функция для получения email пользователя
@@ -284,17 +302,17 @@ function Reviews() {
         if (review.ticket?.title) {
             return review.ticket.title;
         }
-        return 'Услуга не указана';
+        return t('pages.reviews.serviceNotSpecified');
     };
 
     // Функция для получения типа отзыва (на основе данных из изображения)
     const getReviewTypeText = (review: Review): string => {
         if (review.type === 'master') {
-            return 'Отзыв мастеру';
+            return t('reviews.reviewForMaster');
         } else if (review.type === 'client') {
-            return 'Отзыв клиенту';
+            return t('reviews.reviewForClient');
         }
-        return 'Отзыв';
+        return t('pages.reviews.reviewer');
     };
 
     // Функция для получения профессии/специальности
@@ -501,8 +519,8 @@ function Reviews() {
     if (isLoading) {
         return (
             <div className={style.reviews}>
-                <h3>Отзывы</h3>
-                <div className={style.loading}>Загрузка отзывов...</div>
+                <h3>{t('pages.reviews.title')}</h3>
+                <div className={style.loading}>{t('app.loading')}</div>
             </div>
         );
     }
@@ -510,7 +528,7 @@ function Reviews() {
     if (error) {
         return (
             <div className={style.reviews}>
-                <h3>Отзывы</h3>
+                <h3>{t('pages.reviews.title')}</h3>
                 <div className={style.error}>{error}</div>
             </div>
         );
@@ -519,15 +537,15 @@ function Reviews() {
     if (reviews.length === 0) {
         return (
             <div className={style.reviews}>
-                <h3>Отзывы</h3>
-                <div className={style.noReviews}>Пока нет отзывов</div>
+                <h3>{t('pages.reviews.title')}</h3>
+                <div className={style.noReviews}>{t('reviews.noReviews')}</div>
             </div>
         );
     }
 
     return (
         <div className={style.reviews}>
-            <h3>Отзывы</h3>
+            <h3>{t('pages.reviews.title')}</h3>
 
             {/* MOBILE SWIPER */}
             {isMobile ? (
@@ -573,7 +591,7 @@ function Reviews() {
                                                 {/* ID и роль пользователя */}
                                                 <div className={style.user_info}>
                                                     {/*<span className={style.user_id}>ID #{userId}</span>*/}
-                                                    {getUserRole(review)}: {getReviewerName(review)}
+                                                    {getUserRoleLabel(review)} {getReviewerName(review)}
                                                 </div>
                                                 {/* Email пользователя */}
                                                 {/*{userEmail && (*/}
@@ -581,7 +599,7 @@ function Reviews() {
                                                 {/*)}*/}
                                                 {/* Услуга */}
                                                 <p className={style.service_info}>
-                                                    Услуга: {serviceTitle}
+                                                    {t('reviews.serviceLabel')} {serviceTitle}
                                                 </p>
                                                 <div className={style.reviews_naming_raiting}>
                                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -635,7 +653,7 @@ function Reviews() {
                                             {/* Даты создания и обновления */}
                                             <div className={style.review_dates}>
                                                 <span className={style.created_date}>
-                                                    {formatDate(review.createdAt)}
+                                                    {formatLocalizedDate(review.createdAt)}
                                                 </span>
                                                 {/*{review.updatedAt !== review.createdAt && (*/}
                                                 {/*    <span className={style.updated_date}>*/}
@@ -696,7 +714,7 @@ function Reviews() {
                                                     style={{ cursor: reviewerId ? 'pointer' : 'default' }}
                                                     className={style.reviewer_name}
                                                 >
-                                                    {getUserRole(review)}: {getReviewerName(review)}
+                                                    {getUserRoleLabel(review)} {getReviewerName(review)}
                                                 </p>
                                             </div>
                                         </div>
@@ -707,7 +725,7 @@ function Reviews() {
                                         {/* Услуга */}
                                         {review.type === 'master' && (
                                             <p className={style.service_info}>
-                                                Услуга: {serviceTitle}
+                                                {t('reviews.serviceLabel')} {serviceTitle}
                                             </p>
                                         )}
                                         <div className={style.reviews_naming_raiting}>
@@ -759,7 +777,7 @@ function Reviews() {
                                     {/* Даты создания и обновления */}
                                     <div className={style.review_dates}>
                                         <span className={style.created_date}>
-                                            {formatDate(review.createdAt)}
+                                            {formatLocalizedDate(review.createdAt)}
                                         </span>
                                         {/*{review.updatedAt !== review.createdAt && (*/}
                                         {/*    <span className={style.updated_date}>*/}
@@ -781,7 +799,7 @@ function Reviews() {
                         className={style.show_all_button}
                         onClick={toggleShowAllReviews}
                     >
-                        {showAllReviews ? 'Скрыть все' : `Показать все (${reviews.length})`}
+                        {showAllReviews ? t('buttons.hideAll') : `${t('buttons.showMore')} (${reviews.length})`}
                     </button>
                 </div>
             )}

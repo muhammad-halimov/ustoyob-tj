@@ -6,6 +6,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import {getAuthToken, getUserRole, removeAuthToken} from "../../utils/auth";
 import { useTranslation } from 'react-i18next';
 import { changeLanguage, Language } from '../../locales/i18n.ts';
+import { useLanguageChange } from '../../hooks/useLanguageChange';
 
 interface HeaderProps {
     onOpenAuthModal?: () => void; // Добавьте этот интерфейс
@@ -51,11 +52,15 @@ interface UserData {
 function Header({ onOpenAuthModal }: HeaderProps) {
     const location = useLocation();
     const navigate = useNavigate();
-    const { t, i18n } = useTranslation(['header', 'common', 'cities']);
+    const { t, i18n } = useTranslation(['header', 'common']);
     // const [needsRoleSelection, setNeedsRoleSelection] = useState(false);
 
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [cities, setCities] = useState<City[]>([]);
+    const [displayCityName, setDisplayCityName] = useState<string>(() => {
+        const savedCity = localStorage.getItem('selectedCity');
+        return savedCity || t('app.location');
+    });
     const [selectedCity, setSelectedCity] = useState<string>(() => {
         const savedCity = localStorage.getItem('selectedCity');
         return savedCity || t('header:location');
@@ -89,27 +94,11 @@ function Header({ onOpenAuthModal }: HeaderProps) {
 
     const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[1];
 
-    const getDisplayCityName = () => {
-        if (!selectedCity || selectedCity === 'header:location') {
-            return t('header:location');
-        }
-
-        // Для отображения переведенного названия города
-        const translationKey = `cities:${selectedCity}`;
-        const translatedName = t(translationKey);
-
-        // Если перевод не найден (вернется ключ), используем сохраненное значение
-        if (translatedName === translationKey) {
-            return selectedCity;
-        }
-
-        return translatedName;
-    };
-
     useEffect(() => {
         const fetchCities = async () => {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/cities`);
+                const locale = localStorage.getItem('i18nextLng') || 'ru';
+                const response = await fetch(`${API_BASE_URL}/api/cities?locale=${locale}`);
                 const data = await response.json();
                 console.log('Cities from server:', data.map((city: City) => city.title));
                 setCities(data);
@@ -120,6 +109,35 @@ function Header({ onOpenAuthModal }: HeaderProps) {
 
         fetchCities();
     }, [API_BASE_URL]);
+
+    // При смене языка переполучаем города
+    useLanguageChange(() => {
+        const fetchCities = async () => {
+            try {
+                const locale = localStorage.getItem('i18nextLng') || 'ru';
+                const response = await fetch(`${API_BASE_URL}/api/cities?locale=${locale}`);
+                const data = await response.json();
+                setCities(data);
+            } catch (error) {
+                console.error('Error fetching cities:', error);
+            }
+        };
+
+        fetchCities();
+    });
+
+    // Обновляем отображаемое название города при изменении cities или selectedCity
+    useEffect(() => {
+        const savedCity = localStorage.getItem('selectedCity');
+        
+        if (!savedCity) {
+            // Если город не выбран, показываем "Местоположение" переведённое
+            setDisplayCityName(t('header:location'));
+        } else {
+            // Просто используем название города из API (оно уже переведено)
+            setDisplayCityName(savedCity);
+        }
+    }, [t]);
 
 
     useEffect(() => {
@@ -335,6 +353,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
     const handleCitySelect = (cityTitle: string) => {
         const cityKey = cityTitle;
         setSelectedCity(cityKey);
+        setDisplayCityName(cityKey);
         localStorage.setItem('selectedCity', cityKey);
         setShowCityModal(false);
         window.dispatchEvent(new Event('cityChanged'));
@@ -490,7 +509,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                             </defs>
                         </svg>
                         <span className={styles.locate_title}>
-                            {getDisplayCityName()}
+                            {displayCityName}
                         </span>
                     </div>
                     <div className={styles.rightPart}>

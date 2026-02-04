@@ -7,6 +7,7 @@ import Recommendations from "../../../widgets/Recommendations/Recommendations.ts
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getUserRole } from "../../../utils/auth.ts";
+import { useTranslation } from "react-i18next";
 
 import "swiper/css";
 import CookieConsentBanner from "../../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
@@ -31,6 +32,8 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
     const [showResults, setShowResults] = useState(false);
     const [modalMessage, setModalMessage] = useState<string | null>(null);
     const [showAuthModal, setShowAuthModal] = useState(false);
+    
+    const { t } = useTranslation('components');
 
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -128,11 +131,11 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
         return () => {
             window.removeEventListener('storage', handleStorageChange);
         };
-    }, [userRole, onOpenAuthModal]);
+    }, [userRole, onOpenAuthModal, t]);
 
     const worker = [
-        { id: 1, name: "Заказчики", title: "Здесь клиенты находят проверенных специалистов для ремонта, строительства и других услуг", img: "./clientTest.jpg" },
-        { id: 2, name: "Мастера", title: "Здесь мастера получают реальные заказы и новые возможности для заработка.", img: "./master.jpg" }
+        { id: 1, name: t('roles.customers'), title: t('roles.customersDesc'), img: "./clientTest.jpg" },
+        { id: 2, name: t('roles.masters'), title: t('roles.mastersDesc'), img: "./master.jpg" }
     ];
 
     const handleSearchResults = (results: SearchResult[]) => {

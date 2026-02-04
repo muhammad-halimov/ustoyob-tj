@@ -2,6 +2,7 @@ import { useState, useEffect, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAuthToken } from '../../utils/auth';
 import styles from './AddressPage.module.scss';
+import { useLanguageChange } from '../../hooks/useLanguageChange';
 
 interface City {
     id: number;
@@ -144,6 +145,11 @@ function AddressPage() {
         });
     }, []);
 
+    // При смене языка переполучаем провинции
+    useLanguageChange(() => {
+        fetchProvinces();
+    });
+
     // Эффект для восстановления адреса после загрузки провинций
     useEffect(() => {
         if (provinces.length > 0 && userDataLoaded) {
@@ -253,7 +259,8 @@ function AddressPage() {
             const token = getAuthToken();
             if (!token) return;
 
-            const response = await fetch(`${API_BASE_URL}/api/provinces`, {
+            const locale = localStorage.getItem('i18nextLng') || 'ru';
+            const response = await fetch(`${API_BASE_URL}/api/provinces?locale=${locale}`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,

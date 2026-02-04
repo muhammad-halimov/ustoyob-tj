@@ -1,5 +1,6 @@
 import styles from './FilterPanel.module.scss';
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export interface FilterState {
     minPrice: string;
@@ -31,6 +32,7 @@ function FilterPanel({
                          cities // Добавляем пропс для городов
                      }: FilterPanelProps) {
     const [localFilters, setLocalFilters] = useState<FilterState>(filters);
+    const { t } = useTranslation('components');
 
     // Синхронизация с внешними фильтрами
     useEffect(() => {
@@ -82,17 +84,17 @@ function FilterPanel({
             {showFilters && (
                 <div className={styles.filters_panel}>
                     <div className={styles.filters_header}>
-                        <h2>Фильтры</h2>
+                        <h2>{t('filters.title')}</h2>
                     </div>
 
                     {/* Цена */}
                     <div className={styles.filter_section}>
-                        <h3>Цена</h3>
+                        <h3>{t('filters.price')}</h3>
                         <div className={styles.price_inputs}>
                             <div className={styles.price_input}>
                                 <input
                                     type="number"
-                                    placeholder="От"
+                                    placeholder={t('filters.priceFrom')}
                                     value={localFilters.minPrice}
                                     onChange={e => handlePriceChange('minPrice', e.target.value)}
                                 />
@@ -100,7 +102,7 @@ function FilterPanel({
                             <div className={styles.price_input}>
                                 <input
                                     type="number"
-                                    placeholder="До"
+                                    placeholder={t('filters.priceTo')}
                                     value={localFilters.maxPrice}
                                     onChange={e => handlePriceChange('maxPrice', e.target.value)}
                                 />
@@ -111,13 +113,13 @@ function FilterPanel({
                     {/* Город */}
                     {cities.length > 0 && (
                         <div className={styles.filter_section}>
-                            <h3>Город</h3>
+                            <h3>{t('filters.city')}</h3>
                             <div className={styles.category_select}>
                                 <select
                                     value={localFilters.city}
                                     onChange={e => handleCityChange(e.target.value)}
                                 >
-                                    <option value="">Все города</option>
+                                    <option value="">{t('filters.allCities')}</option>
                                     {cities.map(city => (
                                         <option key={city.id} value={city.name.toLowerCase()}>
                                             {city.name}
@@ -131,13 +133,13 @@ function FilterPanel({
                     {/* Категория */}
                     {categories.length > 0 && (
                         <div className={styles.filter_section}>
-                            <h3>Категория</h3>
+                            <h3>{t('filters.category')}</h3>
                             <div className={styles.category_select}>
                                 <select
                                     value={localFilters.category}
                                     onChange={e => handleCategoryChange(e.target.value)}
                                 >
-                                    <option value="">Все категории</option>
+                                    <option value="">{t('filters.allCategories')}</option>
                                     {categories.map(cat => (
                                         <option key={cat.id} value={cat.id.toString()}>
                                             {cat.name}
@@ -150,52 +152,52 @@ function FilterPanel({
 
                     {/* Рейтинг */}
                     <div className={styles.filter_section}>
-                        <h3>Рейтинг исполнителя/заказчика</h3>
+                        <h3>{t('filters.rating')}</h3>
                         <div className={styles.category_select}>
                             <select
                                 value={localFilters.rating}
                                 onChange={e => handleRatingChange(e.target.value)}
                             >
-                                <option value="">Выберите рейтинг</option>
-                                <option value="5">5 звезд</option>
-                                <option value="4.5">4.5+ звезд</option>
-                                <option value="4">4+ звезды</option>
-                                <option value="3.5">3.5+ звезд</option>
-                                <option value="3">3+ звезды</option>
-                                <option value="2.5">2.5+ звезд</option>
-                                <option value="2">2+ звезды</option>
-                                <option value="1.5">1.5+ звезд</option>
-                                <option value="1">1+ звезда</option>
+                                <option value="">{t('filters.selectRating')}</option>
+                                <option value="5">{t('filters.fiveStars')}</option>
+                                <option value="4.5">{t('filters.fourHalfStars')}</option>
+                                <option value="4">{t('filters.fourStars')}</option>
+                                <option value="3.5">{t('filters.threeHalfStars')}</option>
+                                <option value="3">{t('filters.threeStars')}</option>
+                                <option value="2.5">{t('filters.twoHalfStars')}</option>
+                                <option value="2">{t('filters.twoStars')}</option>
+                                <option value="1.5">{t('filters.oneHalfStars')}</option>
+                                <option value="1">{t('filters.oneStar')}</option>
                             </select>
                         </div>
                     </div>
 
                     {/* Количество отзывов */}
                     <div className={styles.filter_section}>
-                        <h3>Количество отзывов о пользователе</h3>
+                        <h3>{t('filters.reviewCount')}</h3>
                         <div className={styles.category_select}>
                             <select
                                 value={localFilters.reviewCount}
                                 onChange={e => handleReviewCountChange(e.target.value)}
                             >
-                                <option value="">Выберите количество</option>
-                                <option value="100">100+ отзывов</option>
-                                <option value="50">50+ отзывов</option>
-                                <option value="20">20+ отзывов</option>
-                                <option value="10">10+ отзывов</option>
-                                <option value="5">5+ отзывов</option>
-                                <option value="3">3+ отзыва</option>
-                                <option value="1">С отзывами</option>
+                                <option value="">{t('filters.selectReviewCount')}</option>
+                                <option value="100">{t('filters.hundredReviews')}</option>
+                                <option value="50">{t('filters.fiftyReviews')}</option>
+                                <option value="20">{t('filters.twentyReviews')}</option>
+                                <option value="10">{t('filters.tenReviews')}</option>
+                                <option value="5">{t('filters.fiveReviews')}</option>
+                                <option value="3">{t('filters.threeReviews')}</option>
+                                <option value="1">{t('filters.withReviews')}</option>
                             </select>
                         </div>
                     </div>
 
                     <div className={styles.filter_actions}>
                         <button className={styles.cancel_btn} onClick={handleCancel}>
-                            Отменить
+                            {t('filters.cancel')}
                         </button>
                         <button className={styles.apply_btn} onClick={handleApplyFilters}>
-                            Применить
+                            {t('filters.apply')}
                         </button>
                     </div>
                 </div>

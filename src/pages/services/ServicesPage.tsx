@@ -215,7 +215,8 @@ const ServicePage = () => {
     const fetchProvinces = async () => {
         try {
             const token = getAuthToken();
-            const response = await fetch(`${API_BASE_URL}/api/provinces`, {
+            const locale = localStorage.getItem('i18nextLng') || 'ru';
+            const response = await fetch(`${API_BASE_URL}/api/provinces?locale=${locale}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                 }
@@ -233,7 +234,8 @@ const ServicePage = () => {
     const fetchCities = async () => {
         try {
             const token = getAuthToken();
-            const response = await fetch(`${API_BASE_URL}/api/cities`, {
+            const locale = localStorage.getItem('i18nextLng') || 'ru';
+            const response = await fetch(`${API_BASE_URL}/api/cities?locale=${locale}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                 }
@@ -251,7 +253,8 @@ const ServicePage = () => {
     const fetchDistricts = async () => {
         try {
             const token = getAuthToken();
-            const response = await fetch(`${API_BASE_URL}/api/districts`, {
+            const locale = localStorage.getItem('i18nextLng') || 'ru';
+            const response = await fetch(`${API_BASE_URL}/api/districts?locale=${locale}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                 }
@@ -269,7 +272,8 @@ const ServicePage = () => {
     const fetchCategories = async () => {
         try {
             const token = getAuthToken();
-            const response = await fetch(`${API_BASE_URL}/api/categories`, {
+            const locale = localStorage.getItem('i18nextLng') || 'ru';
+            const response = await fetch(`${API_BASE_URL}/api/categories?locale=${locale}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                 }
@@ -287,7 +291,8 @@ const ServicePage = () => {
     const fetchUnits = async () => {
         try {
             const token = getAuthToken();
-            const response = await fetch(`${API_BASE_URL}/api/units`, {
+            const locale = localStorage.getItem('i18nextLng') || 'ru';
+            const response = await fetch(`${API_BASE_URL}/api/units?locale=${locale}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                 }

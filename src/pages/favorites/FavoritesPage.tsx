@@ -4,6 +4,7 @@ import styles from './FavoritePage.module.scss';
 import { useNavigate } from 'react-router-dom';
 import { createChatWithAuthor } from "../../utils/chatUtils";
 import {cleanText} from "../../utils/cleanText.ts";
+import { useTranslation } from 'react-i18next';
 
 interface FavoriteTicket {
     id: number;
@@ -173,6 +174,7 @@ function FavoritesPage() {
     const [favoriteId, setFavoriteId] = useState<number | null>(null);
     const navigate = useNavigate();
     const userRole = getUserRole();
+    const { t } = useTranslation(['components', 'common']);
 
     // Состояния для модального окна отзыва
     const [showReviewModal, setShowReviewModal] = useState(false);
@@ -1298,8 +1300,8 @@ function FavoritesPage() {
             <div className={styles.recommendation}>
                 <div className={styles.recommendation_wrap}>
                     <div className={styles.emptyState}>
-                        <p>Войдите в систему, чтобы увидеть избранное</p>
-                        <p>Или добавляйте понравившиеся заказы и мастеров в избранное</p>
+                        <p>{t('messages.authRequired')}</p>
+                        <p>{t('pages.favorites.noFavoritesHint')}</p>
                     </div>
                 </div>
             </div>
@@ -1311,8 +1313,8 @@ function FavoritesPage() {
             <div className={styles.recommendation}>
                 <div className={styles.recommendation_wrap}>
                     <div className={styles.emptyState}>
-                        <p>У вас пока нет избранных заказов</p>
-                        <p>Добавляйте понравившиеся заказы в избранное, чтобы не потерять</p>
+                        <p>{t('pages.favorites.noFavorites')}</p>
+                        <p>{t('pages.favorites.noFavoritesHint')}</p>
                     </div>
                 </div>
             </div>
