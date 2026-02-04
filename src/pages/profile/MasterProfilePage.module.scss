@@ -3208,79 +3208,6 @@
 
 /* MasterProfilePage.module.scss */
 
-/* Стили для футера услуги с ценой и переключателем */
-.service_footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #f0f0f0;
-  flex-wrap: wrap;
-
-  @media (max-width: 480px) {
-    gap: 8px;
-  }
-}
-
-.service_price {
-  font-size: 16px;
-  font-weight: 600;
-  color: #101010;
-  white-space: nowrap;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Стили для переключателя */
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 44px;
-  height: 24px;
-
-  input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-
-    &:checked + .slider {
-      background-color: #3A54DA;
-    }
-
-    &:checked + .slider:before {
-      transform: translateX(20px);
-    }
-  }
-}
-
-.slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #ccc;
-  transition: .4s;
-  border-radius: 34px;
-
-  &:before {
-    position: absolute;
-    content: "";
-    height: 16px;
-    width: 16px;
-    left: 4px;
-    bottom: 4px;
-    background-color: white;
-    transition: .4s;
-    border-radius: 50%;
-  }
-}
-
 /* Стили для социальных сетей */
 .social_networks {
   display: flex;
@@ -3387,53 +3314,6 @@
       background-color: #e0e0e0;
     }
   }
-}
-
-/* Адаптация стилей для сервисов */
-.service_item {
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 12px;
-}
-
-.service_header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 8px;
-}
-
-.service_title_wrapper {
-  flex: 1;
-  margin-right: 12px;
-}
-
-.service_name {
-  font-weight: 500;
-  color: #333;
-  display: block;
-  margin-bottom: 4px;
-}
-
-.service_description {
-  font-size: 14px;
-  color: #666;
-  line-height: 1.4;
-  margin-top: 4px;
-}
-
-.service_actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.service_price {
-  font-size: 16px;
-  font-weight: 600;
-  color: #3A54DA;
-  margin: auto;
 }
 
 /* Дополнительные стили */

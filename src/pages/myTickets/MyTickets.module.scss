@@ -164,24 +164,15 @@
         margin: 0;
       }
 
-      .editButton {
-        background: none;
-        border: none;
-        cursor: pointer;
-        padding: 4px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 4px;
-        transition: background-color 0.2s;
-        flex-shrink: 0;
+      .titleTruncate {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex: 1;
+        min-width: 0;
 
-        &:hover {
-          background-color: #f0f0f0;
-        }
-
-        svg {
-          display: block;
+        @media (max-width: 480px) {
+          max-width: 220px;
         }
       }
     }
@@ -194,6 +185,39 @@
       padding: 8px 16px;
       border-radius: 8px;
       white-space: nowrap;
+      margin-right: 35px;
+      flex-shrink: 0;
+
+      @media (max-width: 480px) {
+        font-size: 14px;
+        padding: 6px 12px;
+        max-width: 120px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+  }
+
+  > .editButton {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+
+    &:hover {
+      background-color: #f0f0f0;
+    }
+
+    svg {
+      display: block;
     }
   }
 
@@ -375,8 +399,10 @@
       flex-direction: column;
       gap: 12px;
 
-      .ticketInfo h3 {
-        font-size: 20px;
+      .ticketInfo {
+        h3 {
+          font-size: 20px;
+        }
       }
 
       .price {

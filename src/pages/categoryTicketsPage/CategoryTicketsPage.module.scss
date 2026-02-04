@@ -71,116 +71,6 @@
       color: map.get(vars.$colors, text-placeholder);
     }
   }
-
-  .resultCard {
-    width: 100%;
-    min-height: 320px;
-    background: map.get(vars.$colors, primary-text-white);
-    border-radius: 20px;
-    padding: 20px;
-    border: 1px solid map.get(vars.$colors, color-stroke);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    transition: all 0.2s ease;
-    position: relative;
-
-    &:hover {
-      border-color: map.get(vars.$colors, actual-blue);
-      box-shadow: 0 4px 12px rgba(58, 84, 218, 0.1);
-    }
-
-    .resultHeader {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-
-      h3 {
-        font-size: 32px;
-        font-weight: 400;
-        color: map.get(vars.$colors, text-black);
-        margin: 0;
-        overflow: hidden;
-        max-width: 70%;
-      }
-
-      .price {
-        font-size: 20px;
-        color: map.get(vars.$colors, text-black);
-        font-weight: 500;
-        background-color: map.get(vars.$colors, background-btn2);
-        padding: 10px 20px;
-        border-radius: 10px;
-      }
-    }
-
-    .description {
-      margin-bottom: 20px;
-      color: map.get(vars.$colors, text-black);
-      font-size: 24px;
-      line-height: 1.4;
-      overflow: hidden;
-      max-width: 70%;
-    }
-
-    .resultDetails {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-bottom: 20px;
-
-      .address svg {
-        margin-right: 16px;
-      }
-
-      .date svg {
-        margin-right: 16px;
-      }
-
-      span {
-        font-size: 24px;
-        color: map.get(vars.$colors, text-black);
-        display: flex;
-        align-items: center;
-      }
-
-      .category {
-        max-width: 307px;
-        text-align: center;
-        font-size: 18px;
-        color: map.get(vars.$colors, text-black);
-        font-weight: 500;
-        background-color: map.get(vars.$colors, background-btn2);
-        padding: 10px 20px;
-        border-radius: 10px;
-        display: inline-flex;
-        justify-content: center;
-      }
-    }
-
-    .resultFooter {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-
-      .author {
-        display: flex;
-        align-items: center;
-
-        svg {
-          margin-right: 16px;
-        }
-      }
-
-      span {
-        font-size: 24px;
-        color: map.get(vars.$colors, text-who);
-      }
-
-      .timeAgo {
-        color: map.get(vars.$colors, text-placeholder);
-      }
-    }
-  }
 }
 
 // Адаптивность
@@ -188,19 +78,6 @@
   .container {
     margin: 20px auto;
     padding: 15px;
-  }
-
-  .ticketType {
-    position: absolute;
-    top: 67px;
-    right: 15px;
-    background: #3A54DA;
-    color: white;
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 500;
-    z-index: 1;
   }
 
   .header {

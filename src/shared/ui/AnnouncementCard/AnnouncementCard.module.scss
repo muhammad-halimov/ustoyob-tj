@@ -1,0 +1,197 @@
+@use '../../../app/styles/variables' as vars;
+@use 'sass:map';
+
+.card {
+  width: 100%;
+  min-height: 320px;
+  background: map.get(vars.$colors, primary-text-white);
+  border-radius: 20px;
+  padding: 20px;
+  border: 1px solid map.get(vars.$colors, color-stroke);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
+  position: relative;
+
+  &:hover {
+    border-color: map.get(vars.$colors, actual-blue);
+    box-shadow: 0 4px 12px rgba(58, 84, 218, 0.1);
+  }
+
+  &_ticketType {
+    position: absolute;
+    top: 20px;
+    background: #3A54DA;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    z-index: 1;
+  }
+
+  &_header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    margin-top: 32px;
+
+    h3 {
+      font-size: 32px;
+      font-weight: 400;
+      color: map.get(vars.$colors, text-black);
+      margin: 0;
+      overflow: hidden;
+      max-width: 70%;
+    }
+  }
+
+  &_price {
+    font-size: 20px;
+    color: map.get(vars.$colors, text-black);
+    font-weight: 500;
+    background-color: map.get(vars.$colors, background-btn2);
+    padding: 10px 20px;
+    border-radius: 10px;
+    display: inline-flex;
+    justify-content: center;
+  }
+
+  &_description {
+    margin-bottom: 20px;
+    color: map.get(vars.$colors, text-black);
+    font-size: 24px;
+    line-height: 1.4;
+    overflow: hidden;
+    max-width: 70%;
+    margin: 0;
+    margin-bottom: 20px;
+  }
+
+  &_details {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+
+    span {
+      font-size: 24px;
+      color: map.get(vars.$colors, text-black);
+      display: flex;
+      align-items: center;
+
+      svg {
+        margin-right: 16px;
+        flex-shrink: 0;
+      }
+    }
+  }
+
+  &_address {
+    color: map.get(vars.$colors, text-black);
+  }
+
+  &_date {
+    color: map.get(vars.$colors, text-black);
+  }
+
+  &_footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  &_footer_right {
+    display: flex;
+    align-items: start;
+    gap: 16px;
+  }
+
+  &_author {
+    font-size: 24px;
+    color: map.get(vars.$colors, text-who);
+    display: flex;
+    align-items: center;
+
+    svg {
+      margin-right: 16px;
+      flex-shrink: 0;
+    }
+  }
+
+  &_category {
+    font-size: 18px;
+    color: map.get(vars.$colors, actual-blue);
+    font-weight: 500;
+    background-color: rgba(58, 84, 218, 0.1);
+    padding: 4px 12px;
+    border-radius: 6px;
+  }
+
+  &_timeAgo {
+    font-size: 24px;
+    color: map.get(vars.$colors, text-placeholder);
+    margin-left: 5px;
+    margin-bottom: 2px;
+  }
+}
+
+// Адаптивность
+@media (max-width: 768px) {
+  .card {
+    padding: 15px;
+    min-height: auto;
+
+    &_ticketType {
+      top: 15px;
+    }
+
+    &_header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+
+      h3 {
+        font-size: 24px;
+        max-width: 100%;
+      }
+    }
+
+    &_price {
+      font-size: 18px;
+    }
+
+    &_description {
+      font-size: 20px;
+      max-width: 100%;
+    }
+
+    &_details {
+      span {
+        font-size: 20px;
+      }
+    }
+
+    &_footer {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+
+      span {
+        font-size: 20px;
+      }
+    }
+
+    &_footer_right {
+      width: 100%;
+      flex-direction: column;
+      gap: 8px;
+      order: 3;
+    }
+
+    &_category {
+      order: 2;
+      width: 100%;
+    }
+  }
+}

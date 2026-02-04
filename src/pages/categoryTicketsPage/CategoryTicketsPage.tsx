@@ -2,6 +2,7 @@ import {useState, useEffect, useCallback} from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getAuthToken, getUserRole } from '../../utils/auth';
 import styles from './CategoryTicketsPage.module.scss';
+import { AnnouncementCard } from '../../shared/ui/AnnouncementCard/AnnouncementCard';
 
 interface Ticket {
     id: number;
@@ -425,9 +426,7 @@ function CategoryTicketsPage() {
             if (diffInSeconds < 60) return 'только что';
             if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} ${getRussianWord(Math.floor(diffInSeconds / 60), ['минуту', 'минуты', 'минут'])} назад`;
             if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} ${getRussianWord(Math.floor(diffInSeconds / 3600), ['час', 'часа', 'часов'])} назад`;
-            if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)} ${getRussianWord(Math.floor(diffInSeconds / 86400), ['день', 'дня', 'дней'])} назад`;
-            if (diffInSeconds < 31536000) return `${Math.floor(diffInSeconds / 2592000)} ${getRussianWord(Math.floor(diffInSeconds / 2592000), ['месяц', 'месяца', 'месяцев'])} назад`;
-            return `${Math.floor(diffInSeconds / 31536000)} ${getRussianWord(Math.floor(diffInSeconds / 31536000), ['год', 'года', 'лет'])} назад`;
+            return `${Math.floor(diffInSeconds / 86400)} ${getRussianWord(Math.floor(diffInSeconds / 86400), ['день', 'дня', 'дней'])} назад`;
         } catch {
             return 'недавно';
         }
@@ -518,74 +517,20 @@ function CategoryTicketsPage() {
                     </div>
                 ) : (
                     tickets.map((ticket) => (
-                        <div key={ticket.id}
-                             className={styles.resultCard}
-                             onClick={() => handleCardClick(ticket.id, ticket.authorId)}
-                             style={{ cursor: 'pointer' }}
-                        >
-                            {/* Показываем тип тикета для неавторизованных пользователей */}
-                            {userRole === null && (
-                                <div className={styles.ticketType}>
-                                    {getTicketTypeLabel(ticket.type)}
-                                </div>
-                            )}
-
-                            <div className={styles.resultHeader}>
-                                <h3>{ticket.title}</h3>
-                                <span className={styles.price}>{ticket.price.toLocaleString('ru-RU')} TJS, {ticket.unit}</span>
-                            </div>
-                            <p className={styles.description}>{cleanText(ticket.description)}</p>
-
-                            {/* Блок с адресом - всегда полный адрес */}
-                            <div className={styles.resultDetails}>
-                                <span className={styles.category}>
-                                    {ticket.category}
-                                </span>
-                                <span className={styles.address}>
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                        <circle cx="12" cy="9" r="2.5" stroke="#3A54DA" strokeWidth="2"/>
-                                    </svg>
-                                    {ticket.fullAddress} {/* Показываем полный адрес */}
-                                </span>
-                                <span className={styles.date}>
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M3 8h18M21 6v14H3V6h18zM16 2v4M8 2v4" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                    </svg>
-                                    {ticket.date}
-                                </span>
-                            </div>
-
-                            {/* Блок с полным адресом (дополнительный) */}
-                            {/*<div className={styles.fullAddressContainer}>*/}
-                            {/*    <span className={styles.fullAddress}>*/}
-                            {/*        {ticket.fullAddress}*/}
-                            {/*    </span>*/}
-                            {/*</div>*/}
-
-                            <div className={styles.resultFooter}>
-                                <span className={styles.author}>
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <g clipPath="url(#clip0_324_2870)">
-                                            <g clipPath="url(#clip1_324_2870)">
-                                                <path d="M11.9995 12.9795C15.1641 12.9795 17.7295 10.4141 17.7295 7.24953C17.7295 4.08494 15.1641 1.51953 11.9995 1.51953C8.83494 1.51953 6.26953 4.08494 6.26953 7.24953C6.26953 10.4141 8.83494 12.9795 11.9995 12.9795Z" stroke="#5D5D5D" strokeWidth="2" strokeMiterlimit="10"/>
-                                                <path d="M1.5 23.48L1.87 21.43C2.3071 19.0625 3.55974 16.9229 5.41031 15.3828C7.26088 13.8428 9.59246 12.9997 12 13C14.4104 13.0006 16.7443 13.8465 18.5952 15.3905C20.4462 16.9345 21.6971 19.0788 22.13 21.45L22.5 23.5" stroke="#5D5D5D" strokeWidth="2" strokeMiterlimit="10"/>
-                                            </g>
-                                        </g>
-                                        <defs>
-                                            <clipPath id="clip0_324_2870">
-                                                <rect width="24" height="24" fill="white"/>
-                                            </clipPath>
-                                            <clipPath id="clip1_324_2870">
-                                                <rect width="24" height="24" fill="white"/>
-                                            </clipPath>
-                                        </defs>
-                                    </svg>
-                                    {ticket.author}
-                                </span>
-                                <span className={styles.timeAgo}>{ticket.timeAgo}</span>
-                            </div>
-                        </div>
+                        <AnnouncementCard
+                            key={ticket.id}
+                            title={ticket.title}
+                            description={cleanText(ticket.description)}
+                            price={ticket.price}
+                            unit={ticket.unit}
+                            address={ticket.fullAddress}
+                            date={ticket.date}
+                            author={ticket.author}
+                            category={ticket.category}
+                            timeAgo={ticket.timeAgo}
+                            ticketType={userRole === null ? getTicketTypeLabel(ticket.type) : undefined}
+                            onClick={() => handleCardClick(ticket.id, ticket.authorId)}
+                        />
                     ))
                 )}
             </div>
