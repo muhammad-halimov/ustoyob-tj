@@ -13,6 +13,11 @@ interface AnnouncementCardProps {
   timeAgo?: string;
   ticketType?: string;
   onClick?: () => void;
+  // Новые пропсы для избранного
+  showFavoriteButton?: boolean;
+  isFavorite?: boolean;
+  onFavoriteClick?: (e: React.MouseEvent) => void;
+  isLikeLoading?: boolean;
 }
 
 export const truncateText = (text: string, maxLength: number = 110): string => {
@@ -33,7 +38,11 @@ export function AnnouncementCard({
   category,
   timeAgo,
   ticketType,
-  onClick
+  onClick,
+  showFavoriteButton = false,
+  isFavorite = false,
+  onFavoriteClick,
+  isLikeLoading = false
 }: AnnouncementCardProps) {
   const { t } = useTranslation('components');
 
@@ -54,9 +63,29 @@ export function AnnouncementCard({
           {getTranslatedTicketType(ticketType)}
         </div>
       )}
-      <div className={styles.card_header}>
+      <div className={`${styles.card_header} ${ticketType ? styles.with_ticket_type : ''}`}>
         <h3>{truncateText(title, 27)}</h3>
-        <span className={styles.card_price}>{price.toLocaleString('ru-RU')} TJS, {unit}</span>
+        <div className={styles.card_price_container}>
+          <span className={styles.card_price}>{price.toLocaleString('ru-RU')} TJS, {unit}</span>
+          {showFavoriteButton && (
+            <button
+              className={styles.card_favorite_button}
+              onClick={onFavoriteClick}
+              disabled={isLikeLoading}
+              title={isFavorite ? "Удалить из избранного" : "Добавить в избранное"}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path
+                  d="M16.77 2.45C15.7961 2.47092 14.8444 2.74461 14.0081 3.24424C13.1719 3.74388 12.4799 4.45229 12 5.3C11.5201 4.45229 10.8281 3.74388 9.99186 3.24424C9.15563 2.74461 8.2039 2.47092 7.23 2.45C4.06 2.45 1.5 5.3 1.5 8.82C1.5 15.18 12 21.55 12 21.55C12 21.55 22.5 15.18 22.5 8.82C22.5 5.3 19.94 2.45 16.77 2.45Z"
+                  fill={isFavorite ? "#3A54DA" : "none"}
+                  stroke="#3A54DA"
+                  strokeWidth="2"
+                  strokeMiterlimit="10"
+                />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       <p className={styles.card_description}>{truncateText(description)}</p>

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useLanguageChange } from '../../hooks/useLanguageChange';
 import styles from './AuthModal.module.scss';
 import {
     getUserRole,
@@ -119,18 +121,18 @@ interface OAuthCallbackData {
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*]).+$/;
 
 // Функция для проверки сложности пароля
-const validatePassword = (password: string): { isValid: boolean; message: string } => {
+const validatePassword = (password: string, t: any): { isValid: boolean; message: string } => {
     if (password.length < 8) {
         return {
             isValid: false,
-            message: 'Пароль должен содержать минимум 8 символов'
+            message: t('auth.passwordMinLength')
         };
     }
 
     if (!PASSWORD_REGEX.test(password)) {
         return {
             isValid: false,
-            message: 'Пароль должен содержать: минимум 1 заглавную букву, 1 строчную букву, 1 цифру и 1 специальный символ (!@#$%^&*)'
+            message: t('auth.passwordValidation')
         };
     }
 
@@ -141,6 +143,8 @@ const validatePassword = (password: string): { isValid: boolean; message: string
 };
 
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => {
+    const { t } = useTranslation('components');
+    useLanguageChange(); // Для обновления категорий при смене языка
     const [currentState, setCurrentState] = useState<AuthModalStateType>(AuthModalState.WELCOME);
     const [categories, setCategories] = useState<Category[]>([]);
     const [formData, setFormData] = useState<FormData>({
@@ -172,7 +176,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
     // Эффект для валидации пароля при изменении
     useEffect(() => {
         if (formData.password) {
-            const validation = validatePassword(formData.password);
+            const validation = validatePassword(formData.password, t);
             setPasswordValidation(validation);
 
             // Автоматически показываем требования, если пароль невалидный
@@ -239,7 +243,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
     useEffect(() => {
         const loadCategories = async () => {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/occupations`);
+                const currentLang = localStorage.getItem('i18nextLng') || 'ru';
+                const response = await fetch(`${API_BASE_URL}/api/occupations?locale=${currentLang}`);
                 if (response.ok) {
                     const data = await response.json();
                     setCategories(data);
@@ -250,6 +255,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         };
 
         loadCategories();
+
+        // Слушаем смену языка для перезагрузки категорий
+        const handleLanguageChange = () => {
+            loadCategories();
+        };
+
+        window.addEventListener('languageChanged', handleLanguageChange);
 
         // Загружаем скрипт Telegram Widget
         const loadTelegramWidget = () => {
@@ -292,6 +304,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
         return () => {
             window.removeEventListener('message', handleTelegramAuth);
+            window.removeEventListener('languageChanged', handleLanguageChange);
         };
     }, [API_BASE_URL]);
 
@@ -727,7 +740,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 }
 
                 if (response.status === 401) {
-                    errorMessage += '. Проверьте email и пароль.';
+                    errorMessage += '. ' + t('auth.checkEmailPassword') + '.';
                 }
 
                 throw new Error(errorMessage);
@@ -769,7 +782,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         }
 
         // Валидация пароля
-        const passwordValidationResult = validatePassword(formData.password);
+        const passwordValidationResult = validatePassword(formData.password, t);
         if (!passwordValidationResult.isValid) {
             setError(passwordValidationResult.message);
             setIsLoading(false);
@@ -1097,7 +1110,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
         return (
             <form onSubmit={(e) => { e.preventDefault(); completeOAuth(); }} className={styles.form}>
-                <h2>Завершение регистрации через {providerNames[activeOAuthProvider]}</h2>
+                <h2>{t('auth.completeRegistration')} {providerNames[activeOAuthProvider]}</h2>
 
                 <div className={styles.successMessage}>
                     <p>Вы успешно авторизовались через {providerNames[activeOAuthProvider]}!</p>
@@ -1113,7 +1126,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         onClick={() => handleRoleChange('master')}
                         disabled={isLoading}
                     >
-                        Я специалист
+                        {t('auth.iAmSpecialist')}
                     </button>
                     <button
                         type="button"
@@ -1121,7 +1134,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         onClick={() => handleRoleChange('client')}
                         disabled={isLoading}
                     >
-                        Я заказчик
+                        {t('auth.iAmClient')}
                     </button>
                 </div>
 
@@ -1135,7 +1148,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                                 required={formData.role === 'master'}
                                 disabled={isLoading}
                             >
-                                <option value="">Выберите специальность</option>
+                                <option value="">{t('auth.selectSpecialty')}</option>
                                 {categories.map(category => (
                                     <option key={category.id} value={category.id}>
                                         {category.title}
@@ -1165,7 +1178,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         }}
                         disabled={isLoading}
                     >
-                        Вернуться ко входу
+                        {t('auth.backToLogin')}
                     </button>
                 </div>
             </form>
@@ -1177,20 +1190,20 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             <div className={styles.welcomeScreen}>
                 <div className={styles.welcomeButtons}>
                     <img className={styles.enterPic} src="../Logo.svg" alt="enter" width="120"/>
-                    <h2>Вход</h2>
+                    <h2>{t('auth.entrance')}</h2>
                     <button
                         className={styles.primaryButton}
                         onClick={() => setCurrentState(AuthModalState.LOGIN)}
                         type="button"
                     >
-                        Войти
+                        {t('auth.login')}
                     </button>
                     <button
                         className={styles.secondaryButton}
                         onClick={() => setCurrentState(AuthModalState.REGISTER)}
                         type="button"
                     >
-                        Зарегистрироваться
+                        {t('auth.registerButton')}
                     </button>
                 </div>
             </div>
@@ -1206,7 +1219,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         // Обычный экран логина
         return (
             <form onSubmit={handleLogin} className={styles.form}>
-                <h2>Вход</h2>
+                <h2>{t('auth.entrance')}</h2>
 
                 {error && <div className={styles.error}>{error}</div>}
                 <div className={styles.roleSelector}>
@@ -1216,7 +1229,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         onClick={() => handleRoleChange('master')}
                         disabled={isLoading}
                     >
-                        Я специалист
+                        {t('auth.iAmSpecialist')}
                     </button>
                     <button
                         type="button"
@@ -1224,7 +1237,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         onClick={() => handleRoleChange('client')}
                         disabled={isLoading}
                     >
-                        Я заказчик
+                        {t('auth.iAmClient')}
                     </button>
                 </div>
 
@@ -1236,7 +1249,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         onChange={handleInputChange}
                         required
                         disabled={isLoading}
-                        placeholder="Введите email"
+                        placeholder={t('auth.enterEmail')}
                     />
                 </div>
                 <div className={styles.inputGroup}>
@@ -1247,7 +1260,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         onChange={handleInputChange}
                         required
                         disabled={isLoading}
-                        placeholder="Введите пароль"
+                        placeholder={t('auth.enterPassword')}
                     />
                 </div>
 
@@ -1256,10 +1269,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     className={styles.primaryButton}
                     disabled={isLoading}
                 >
-                    {isLoading ? 'Вход...' : 'Войти'}
+                    {isLoading ? t('auth.loginButton') : t('auth.login')}
                 </button>
 
-                <div className={styles.socialTitle}>Войти с помощью</div>
+                <div className={styles.socialTitle}>{t('auth.loginWith')}</div>
 
                 <div className={styles.socialButtons}>
                     <button
@@ -1267,7 +1280,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         className={styles.googleButton}
                         onClick={() => handleOAuthStart('google')}
                         disabled={isLoading}
-                        title="Войти через Google"
+                        title={t('auth.loginViaGoogle')}
                     >
                         <img src="../chrome.png" alt="Google" />
                     </button>
@@ -1276,7 +1289,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         className={styles.facebookButton}
                         onClick={() => handleOAuthStart('facebook')}
                         disabled={isLoading}
-                        title="Войти через Facebook"
+                        title={t('auth.loginViaFacebook')}
                     >
                         <img src="../facebook.png" alt="Facebook" />
                     </button>
@@ -1285,7 +1298,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         className={styles.instagramButton}
                         onClick={() => handleOAuthStart('instagram')}
                         disabled={isLoading}
-                        title="Войти через Instagram"
+                        title={t('auth.loginViaInstagram')}
                     >
                         <img src="../instagram.png" alt="Instagram" />
                     </button>
@@ -1294,26 +1307,26 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         className={styles.telegramButton}
                         onClick={handleTelegramAuthClick}
                         disabled={isLoading}
-                        title="Войти через Telegram"
+                        title={t('auth.loginViaTelegram')}
                     >
                         <img src="../telegram.png" alt="Telegram" />
                     </button>
                 </div>
 
                 <div className={styles.socialNote}>
-                    <p>При авторизации через социальные сети будет использован выбранный тип аккаунта: <strong>{formData.role === 'master' ? 'специалист' : 'заказчик'}</strong></p>
+                    <p>{t('auth.socialAuthNotice')} <strong>{formData.role === 'master' ? t('auth.specialist') : t('auth.client')}</strong></p>
                 </div>
 
                 <div className={styles.links}>
                     <div className={styles.registerPrompt}>
-                        <span className={styles.promptText}>Нет аккаунта? </span>
+                        <span className={styles.promptText}>{t('auth.noAccount')} </span>
                         <button
                             type="button"
                             className={styles.linkButton}
                             onClick={() => setCurrentState(AuthModalState.REGISTER)}
                             disabled={isLoading}
                         >
-                            Зарегистрируйтесь!
+                            {t('auth.signUpLink')}
                         </button>
                     </div>
                     <button
@@ -1322,7 +1335,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         onClick={() => setCurrentState(AuthModalState.FORGOT_PASSWORD)}
                         disabled={isLoading}
                     >
-                        Не помню пароль
+                        {t('auth.forgotPassword')}
                     </button>
                 </div>
             </form>
@@ -1332,7 +1345,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
     const renderRegisterScreen = () => {
         return (
             <form onSubmit={handleRegister} className={styles.form}>
-                <h2>Регистрация</h2>
+                <h2>{t('auth.register')}</h2>
 
                 {error && <div className={styles.error}>{error}</div>}
 
@@ -1342,14 +1355,14 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         className={formData.role === 'master' ? styles.roleButtonActive : styles.roleButton}
                         onClick={() => handleRoleChange('master')}
                     >
-                        Я специалист
+                        {t('auth.iAmSpecialist')}
                     </button>
                     <button
                         type="button"
                         className={formData.role === 'client' ? styles.roleButtonActive : styles.roleButton}
                         onClick={() => handleRoleChange('client')}
                     >
-                        Я заказчик
+                        {t('auth.iAmClient')}
                     </button>
                 </div>
 
@@ -1362,7 +1375,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                             onChange={handleInputChange}
                             required
                             disabled={isLoading}
-                            placeholder="Введите имя"
+                            placeholder={t('auth.enterFirstName')}
                         />
                     </div>
                     <div className={styles.inputGroup}>
@@ -1373,7 +1386,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                             onChange={handleInputChange}
                             required
                             disabled={isLoading}
-                            placeholder="Введите фамилию"
+                            placeholder={t('auth.enterLastName')}
                         />
                     </div>
                 </div>
@@ -1388,7 +1401,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                                 required={formData.role === 'master'}
                                 disabled={isLoading}
                             >
-                                <option value="">Выберите специальность</option>
+                                <option value="">{t('auth.selectSpecialty')}</option>
                                 {categories.map(category => (
                                     <option key={category.id} value={category.id}>
                                         {category.title}
@@ -1419,7 +1432,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         onChange={handleInputChange}
                         required
                         disabled={isLoading}
-                        placeholder="Придумайте пароль (Минимум 8 символов)"
+                        placeholder={t('auth.createPassword')}
                         onFocus={() => setShowPasswordRequirements(true)}
                         onBlur={() => {
                             if (passwordValidation.isValid) {
@@ -1429,22 +1442,22 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     />
                     {showPasswordRequirements && (
                         <div className={styles.passwordRequirements}>
-                            <p>Пароль должен содержать:</p>
+                            <p>{t('auth.passwordRequirements')}</p>
                             <ul>
                                 <li className={formData.password.length >= 8 ? styles.requirementMet : ''}>
-                                    Минимум 8 символов
+                                    {t('auth.minLength')}
                                 </li>
                                 <li className={/[a-z]/.test(formData.password) ? styles.requirementMet : ''}>
-                                    Минимум 1 строчная буква
+                                    {t('auth.lowercase')}
                                 </li>
                                 <li className={/[A-Z]/.test(formData.password) ? styles.requirementMet : ''}>
-                                    Минимум 1 заглавная буква
+                                    {t('auth.uppercase')}
                                 </li>
                                 <li className={/\d/.test(formData.password) ? styles.requirementMet : ''}>
-                                    Минимум 1 цифра
+                                    {t('auth.number')}
                                 </li>
                                 <li className={/[!@#$%^&*]/.test(formData.password) ? styles.requirementMet : ''}>
-                                    Минимум 1 специальный символ (!@#$%^&*)
+                                    {t('auth.special')}
                                 </li>
                             </ul>
                         </div>
@@ -1459,7 +1472,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         onChange={handleInputChange}
                         required
                         disabled={isLoading}
-                        placeholder="Повторите пароль"
+                        placeholder={t('auth.confirmPassword')}
                     />
                     {formData.confirmPassword && formData.password !== formData.confirmPassword && (
                         <div className={styles.passwordError}>
@@ -1473,10 +1486,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     className={styles.primaryButton}
                     disabled={isLoading || !passwordValidation.isValid}
                 >
-                    {isLoading ? 'Регистрация...' : 'Зарегистрироваться'}
+                    {isLoading ? t('auth.registeringButton') : t('auth.registerButton')}
                 </button>
 
-                <div className={styles.socialTitle}>Или зарегистрироваться с помощью</div>
+                <div className={styles.socialTitle}>{t('auth.orRegisterWith')}</div>
 
                 <div className={styles.socialButtons}>
                     <button
@@ -1484,7 +1497,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         className={styles.googleButton}
                         onClick={() => handleOAuthStart('google')}
                         disabled={isLoading}
-                        title="Зарегистрироваться через Google"
+                        title={t('auth.registerViaGoogle')}
                     >
                         <img src="../chrome.png" alt="Google" />
                     </button>
@@ -1493,7 +1506,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         className={styles.facebookButton}
                         onClick={() => handleOAuthStart('facebook')}
                         disabled={isLoading}
-                        title="Зарегистрироваться через Facebook"
+                        title={t('auth.registerViaFacebook')}
                     >
                         <img src="../facebook.png" alt="Facebook" />
                     </button>
@@ -1502,7 +1515,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         className={styles.instagramButton}
                         onClick={() => handleOAuthStart('instagram')}
                         disabled={isLoading}
-                        title="Зарегистрироваться через Instagram"
+                        title={t('auth.registerViaInstagram')}
                     >
                         <img src="../instagram.png" alt="Instagram" />
                     </button>
@@ -1511,7 +1524,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         className={styles.telegramButton}
                         onClick={handleTelegramAuthClick}
                         disabled={isLoading}
-                        title="Зарегистрироваться через Telegram"
+                        title={t('auth.registerViaTelegram')}
                     >
                         <img src="../telegram.png" alt="Telegram" />
                     </button>
@@ -1528,7 +1541,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         onClick={() => setCurrentState(AuthModalState.LOGIN)}
                         disabled={isLoading}
                     >
-                        Уже есть аккаунт? Войдите!
+                        {t('auth.alreadyHaveAccount')} {t('auth.loginLink')}
                     </button>
                 </div>
             </form>
@@ -1538,10 +1551,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
     const renderConfirmEmailScreen = () => {
         return (
             <div className={styles.form}>
-                <h2>Подтверждение аккаунта</h2>
+                <h2>{t('auth.accountConfirmation')}</h2>
 
                 <div className={styles.successMessage}>
-                    <p>Регистрация успешна!</p>
+                    <p>{t('auth.registrationSuccess')}</p>
                     <p>На вашу почту <strong>{registeredEmail}</strong> отправлено письмо с ссылкой для подтверждения аккаунта.</p>
                     <p>Пожалуйста, проверьте вашу почту и перейдите по ссылке для завершения регистрации.</p>
                 </div>
@@ -1553,7 +1566,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         onClick={() => setCurrentState(AuthModalState.LOGIN)}
                         disabled={isLoading}
                     >
-                        Перейти ко входу
+                        {t('auth.goToLogin')}
                     </button>
                 </div>
             </div>
@@ -1612,7 +1625,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
     const renderTelegramRoleSelectScreen = () => {
         return (
             <div className={styles.form}>
-                <h2>Выберите тип аккаунта</h2>
+                <h2>{t('auth.selectAccountType')}</h2>
 
                 <div className={styles.successMessage}>
                     <p>Вы успешно авторизовались через Telegram!</p>
@@ -1626,7 +1639,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         onClick={() => completeTelegramAuth('master')}
                         disabled={isLoading}
                     >
-                        Я специалист
+                        {t('auth.iAmSpecialist')}
                     </button>
                     <button
                         type="button"
@@ -1634,7 +1647,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         onClick={() => completeTelegramAuth('client')}
                         disabled={isLoading}
                     >
-                        Я заказчик
+                        {t('auth.iAmClient')}
                     </button>
                 </div>
 
@@ -1647,7 +1660,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         onClick={() => setCurrentState(AuthModalState.LOGIN)}
                         disabled={isLoading}
                     >
-                        Вернуться ко входу
+                        {t('auth.backToLogin')}
                     </button>
                 </div>
             </div>
