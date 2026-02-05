@@ -253,6 +253,22 @@ class Ticket
     #[Ignore]
     private Collection $reviews;
 
+    #[Groups([
+        'masterTickets:read',
+        'clientTickets:read',
+        'reviews:read',
+        'favorites:read',
+        'appeal:ticket:read',
+        'appeal:chat:read',
+        'blackLists:read',
+        'chats:read',
+    ])]
+    #[SerializedName('reviewsCount')]
+    public function getTicketReviewsCount(): ?int
+    {
+        return $this->reviews->count() ?? 0;
+    }
+
     /**
      * @var Collection<int, AppealTicket>
      */
