@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getUserRole } from '../../utils/auth.ts';
 import { useLanguageChange } from '../../hooks/useLanguageChange';
-import { AnnouncementCard, getTimeAgo, formatLocalizedDate } from '../../shared/ui/AnnouncementCard/AnnouncementCard';
+import { AnnouncementCard } from '../../shared/ui/AnnouncementCard/AnnouncementCard';
 import styles from './Recommendations.module.scss';
 import { useTranslation } from 'react-i18next';
 
@@ -142,17 +142,6 @@ function Recommendations() {
         return 0;
     };
 
-    // Функция для получения количества отзывов пользователя
-    const getUserReviewCount = (announcement: Announcement): number => {
-        // Пока возвращаем 0, позже добавим реальное получение из API
-        return 0;
-    };
-
-    const getRussianWord = (number: number, words: [string, string, string]) => {
-        const cases = [2, 0, 1, 1, 1, 2];
-        return words[number % 100 > 4 && number % 100 < 20 ? 2 : cases[number % 10 < 5 ? number % 10 : 5]];
-    };
-
     const handleCardClick = (announcementId: number, authorId: number) => {
         navigate(`/order/${authorId}?ticket=${announcementId}`);
     };
@@ -180,7 +169,6 @@ function Recommendations() {
                                 ticketType={announcement.service}
                                 userRole={userRole}
                                 userRating={getUserRating(announcement)}
-                                userReviewCount={getUserReviewCount(announcement)}
                                 onClick={() => handleCardClick(announcement.id, announcement.authorId || 0)}
                             />
                         ))}

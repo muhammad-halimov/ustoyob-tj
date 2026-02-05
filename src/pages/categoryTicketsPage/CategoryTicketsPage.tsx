@@ -1,8 +1,9 @@
 import {useState, useEffect, useCallback} from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getAuthToken, getUserRole } from '../../utils/auth';
-import { useLanguageChange } from '../../hooks/useLanguageChange';import { useTranslation } from 'react-i18next';import styles from './CategoryTicketsPage.module.scss';
-import { AnnouncementCard, getTimeAgo, formatLocalizedDate } from '../../shared/ui/AnnouncementCard/AnnouncementCard';
+import { useLanguageChange } from '../../hooks/useLanguageChange';
+import styles from './CategoryTicketsPage.module.scss';
+import { AnnouncementCard } from '../../shared/ui/AnnouncementCard/AnnouncementCard';
 
 interface Ticket {
     id: number;
@@ -99,7 +100,6 @@ function CategoryTicketsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [categoryName, setCategoryName] = useState<string>('');
     const [userRole, setUserRole] = useState<'client' | 'master' | null>(null);
-    const { t } = useTranslation('components');
     
     useLanguageChange(() => {
         // При смене языка переполучаем данные для обновления локализованного контента

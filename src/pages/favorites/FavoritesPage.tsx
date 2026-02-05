@@ -6,7 +6,7 @@ import { createChatWithAuthor } from "../../utils/chatUtils";
 import { cleanText } from '../../utils/cleanText';
 import { useTranslation } from 'react-i18next';
 import { useLanguageChange } from '../../hooks/useLanguageChange';
-import { AnnouncementCard, getTimeAgo, formatLocalizedDate } from '../../shared/ui/AnnouncementCard/AnnouncementCard';
+import { AnnouncementCard } from '../../shared/ui/AnnouncementCard/AnnouncementCard';
 
 interface FavoriteTicket {
     id: number;

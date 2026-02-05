@@ -142,7 +142,6 @@ export function AnnouncementCard({
   category,
   timeAgo,
   ticketType,
-  userRole = null,
   onClick,
   showFavoriteButton = false,
   isFavorite = false,
