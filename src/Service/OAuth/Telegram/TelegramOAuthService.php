@@ -7,7 +7,9 @@ use App\Entity\Extra\OAuthType;
 use App\Entity\User;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Exception;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 readonly class TelegramOAuthService
 {
@@ -19,6 +21,10 @@ readonly class TelegramOAuthService
 
     public function handleCallback(int $id, ?string $username, ?string $firstName, ?string $lastName, ?string $photoUrl, ?string $role): array
     {
+        if (!$this->checkTelegramUserExists($id)) {
+            throw new NotFoundHttpException('Telegram user not found');
+        }
+
         $userOutput = new TelegramCallbackInput();
 
         $userOutput->id = $id;
@@ -83,5 +89,18 @@ readonly class TelegramOAuthService
             ->setName($telegramData->firstName)
             ->setSurname($telegramData->lastName)
             ->setImageExternalUrl($telegramData->photoUrl);
+    }
+
+    private function checkTelegramUserExists(int $userId): bool
+    {
+        try {
+            $url = "https://api.telegram.org/bot{$_ENV['TELEGRAM_BOT_TOKEN']}/getChat?chat_id=$userId";
+            $response = file_get_contents($url);
+            $data = json_decode($response, true);
+
+            return isset($data['ok']) && $data['ok'] === true;
+        } catch (Exception) {
+            return false;
+        }
     }
 }
