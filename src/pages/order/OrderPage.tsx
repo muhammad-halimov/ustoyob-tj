@@ -56,6 +56,7 @@ interface ApiTicket {
     ticketImages?: { id: number; image: string }[];
     active: boolean;
     service: boolean;
+    reviewsCount?: number;
 }
 
 interface Order {
@@ -218,8 +219,8 @@ export function OrderPage() {
                 headers['Authorization'] = `Bearer ${token}`;
             }
 
-            // Загружаем ВСЕ отзывы и фильтруем на клиенте
-            const reviewsResponse = await fetch(`${API_BASE_URL}/api/reviews`, {headers});
+            // Конкретный запрос отзывов для определенного мастера/пользователя
+            const reviewsResponse = await fetch(`${API_BASE_URL}/api/reviews?services.service=true&exists[services]=true&exists[master]=true&exists[client]=true&master=${userId}`, {headers});
 
             if (!reviewsResponse.ok) {
                 console.error('Failed to fetch reviews:', reviewsResponse.status);
@@ -1008,8 +1009,10 @@ export function OrderPage() {
                 displayUserImage
             });
 
-            const reviewCountForUser = await fetchReviewCount(displayUserId);
+            // Используем reviewsCount из API тикета вместо отдельного запроса
+            const reviewCountForUser = ticketData.reviewsCount || 0;
             setReviewCount(reviewCountForUser);
+            console.log(`Using reviewsCount from ticket: ${reviewCountForUser}`);
 
             // Получаем рейтинг пользователя
             const userRatingInfo = await fetchUserInfo(displayUserId, userTypeForRating);

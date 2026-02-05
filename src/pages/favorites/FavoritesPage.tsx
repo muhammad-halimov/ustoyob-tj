@@ -5,7 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { createChatWithAuthor } from "../../utils/chatUtils";
 import { cleanText } from '../../utils/cleanText';
 import { useTranslation } from 'react-i18next';
-import { AnnouncementCard } from '../../shared/ui/AnnouncementCard/AnnouncementCard';
+import { useLanguageChange } from '../../hooks/useLanguageChange';
+import { AnnouncementCard, getTimeAgo, formatLocalizedDate } from '../../shared/ui/AnnouncementCard/AnnouncementCard';
 
 interface FavoriteTicket {
     id: number;
@@ -24,6 +25,8 @@ interface FavoriteTicket {
     authorImage?: string;
     active: boolean;
     service: boolean;
+    userRating?: number;
+    userReviewCount?: number;
 }
 
 interface Master {
@@ -123,8 +126,8 @@ interface ApiTicket {
         city?: { title?: string }
     } | null;
     createdAt: string;
-    master: { id: number; name?: string; surname?: string; image?: string } | null;
-    author: { id: number; name?: string; surname?: string; image?: string };
+    master: { id: number; name?: string; surname?: string; image?: string; rating?: number } | null;
+    author: { id: number; name?: string; surname?: string; image?: string; rating?: number };
     category: { title: string };
     active: boolean;
     notice?: string;
@@ -176,13 +179,12 @@ function FavoritesPage() {
     const navigate = useNavigate();
     const userRole = getUserRole();
     const { t } = useTranslation(['components', 'common']);
-
-    // Функция для определения типа заявки (как в других компонентах)
-    const getTicketTypeLabel = (type: 'client' | 'master' | string) => {
-        if (type === 'client' || type === 'Заказ от клиента') return 'Заказ от клиента';
-        if (type === 'master' || type === 'Услуга от мастера') return 'Услуга от мастера';
-        return type;
-    };
+    
+    // Хук для реактивного обновления при смене языка
+    useLanguageChange(() => {
+        // Перезагружаем данные с сервера для обновления локализованного контента
+        fetchFavorites();
+    });
 
     // Состояния для модального окна отзыва
     const [showReviewModal, setShowReviewModal] = useState(false);
@@ -278,7 +280,7 @@ function FavoritesPage() {
     const fetchTicketDetailsForUnauthorized = async (ticketId: number): Promise<FavoriteTicket | null> => {
         try {
             // Для неавторизованных используем тот же эндпоинт без токена
-            const response = await fetch(`${API_BASE_URL}/api/tickets`, {
+            const response = await fetch(`${API_BASE_URL}/api/tickets?locale=${localStorage.getItem('i18nextLng') || 'ru'}`, {
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
@@ -317,15 +319,17 @@ function FavoritesPage() {
                         unit: ticket.unit?.title || 'tjs',
                         description: ticket.description || 'Описание отсутствует',
                         address: getFullAddress(ticket),
-                        date: formatDate(ticket.createdAt),
+                        date: ticket.createdAt,
                         author: authorName,
                         authorId: authorId,
-                        timeAgo: getTimeAgo(ticket.createdAt),
+                        timeAgo: ticket.createdAt,
                         category: ticket.category?.title || 'другое',
                         status: getTicketStatus(ticket.active, ticket.service),
                         type: userType,
                         active: ticket.active,
-                        service: ticket.service
+                        service: ticket.service,
+                        userRating: isMasterTicket ? (ticket.master?.rating || 0) : (ticket.author?.rating || 0),
+                        userReviewCount: 0 // Пока 0, позже добавим реальное получение
                     };
                 }
             }
@@ -369,7 +373,7 @@ function FavoritesPage() {
 
             // Для авторизованных пользователей
             console.log('Fetching favorites from API...');
-            const response = await fetch(`${API_BASE_URL}/api/favorites/me`, {
+            const response = await fetch(`${API_BASE_URL}/api/favorites/me?locale=${localStorage.getItem('i18nextLng') || 'ru'}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -465,7 +469,7 @@ function FavoritesPage() {
             const token = getAuthToken();
             if (!token) return null;
 
-            const response = await fetch(`${API_BASE_URL}/api/users/masters/${masterId}`, {
+            const response = await fetch(`${API_BASE_URL}/api/users/masters/${masterId}?locale=${localStorage.getItem('i18nextLng') || 'ru'}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -502,7 +506,7 @@ function FavoritesPage() {
             const token = getAuthToken();
 
             // Для всех пользователей используем единый эндпоинт
-            const response = await fetch(`${API_BASE_URL}/api/tickets`, {
+            const response = await fetch(`${API_BASE_URL}/api/tickets?locale=${localStorage.getItem('i18nextLng') || 'ru'}`, {
                 headers: {
                     'Authorization': token ? `Bearer ${token}` : '',
                     'Content-Type': 'application/json',
@@ -542,15 +546,17 @@ function FavoritesPage() {
                         unit: ticket.unit?.title || 'tjs',
                         description: ticket.description || 'Описание отсутствует',
                         address: getFullAddress(ticket),
-                        date: formatDate(ticket.createdAt),
+                        date: ticket.createdAt,
                         author: authorName,
                         authorId: authorId,
-                        timeAgo: getTimeAgo(ticket.createdAt),
+                        timeAgo: ticket.createdAt,
                         category: ticket.category?.title || 'другое',
                         status: getTicketStatus(ticket.active, ticket.service),
                         type: userType,
                         active: ticket.active,
-                        service: ticket.service
+                        service: ticket.service,
+                        userRating: isMasterTicket ? (ticket.master?.rating || 0) : (ticket.author?.rating || 0),
+                        userReviewCount: 0 // Пока 0, позже добавим реальное получение
                     };
                 } else {
                     console.log(`Ticket with ID ${ticketId} not found in API response`);
@@ -597,39 +603,6 @@ function FavoritesPage() {
         if (addressTitle && !districtTitle) parts.push(addressTitle);
 
         return parts.length > 0 ? parts.join(', ') : 'Адрес не указан';
-    };
-
-    const formatDate = (dateString: string) => {
-        try {
-            if (!dateString) return 'Дата не указана';
-            return new Date(dateString).toLocaleDateString('ru-RU', {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric'
-            });
-        } catch {
-            return 'Дата не указана';
-        }
-    };
-
-    const getTimeAgo = (dateString: string) => {
-        try {
-            if (!dateString) return 'недавно';
-            const date = new Date(dateString);
-            const now = new Date();
-            const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-            if (diffInSeconds < 60) return 'только что';
-            if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} ${getRussianWord(Math.floor(diffInSeconds / 60), ['минуту', 'минуты', 'минут'])} назад`;
-            if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} ${getRussianWord(Math.floor(diffInSeconds / 3600), ['час', 'часа', 'часов'])} назад`;
-            return `${Math.floor(diffInSeconds / 86400)} ${getRussianWord(Math.floor(diffInSeconds / 86400), ['день', 'дня', 'дней'])} назад`;
-        } catch {
-            return 'недавно';
-        }
-    };
-
-    const getRussianWord = (number: number, words: [string, string, string]) => {
-        const cases = [2, 0, 1, 1, 1, 2];
-        return words[number % 100 > 4 && number % 100 < 20 ? 2 : cases[number % 10 < 5 ? number % 10 : 5]];
     };
 
     const handleCardClick = (authorId?: number, ticketId?: number) => {
@@ -721,7 +694,7 @@ function FavoritesPage() {
         setIsLikeLoading(ticketId);
 
         try {
-            const currentFavoritesResponse = await fetch(`${API_BASE_URL}/api/favorites/me`, {
+            const currentFavoritesResponse = await fetch(`${API_BASE_URL}/api/favorites/me?locale=${localStorage.getItem('i18nextLng') || 'ru'}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -926,7 +899,7 @@ function FavoritesPage() {
         setIsLikeLoading(masterId);
 
         try {
-            const currentFavoritesResponse = await fetch(`${API_BASE_URL}/api/favorites/me`, {
+            const currentFavoritesResponse = await fetch(`${API_BASE_URL}/api/favorites/me?locale=${localStorage.getItem('i18nextLng') || 'ru'}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -1148,7 +1121,7 @@ function FavoritesPage() {
             const token = getAuthToken();
             if (!token) return null;
 
-            const response = await fetch(`${API_BASE_URL}/api/users/me`, {
+            const response = await fetch(`${API_BASE_URL}/api/users/me?locale=${localStorage.getItem('i18nextLng') || 'ru'}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Accept': 'application/json',
@@ -1342,7 +1315,7 @@ function FavoritesPage() {
             `}
                         onClick={() => setActiveTab('orders')}
                     >
-                        Заказы
+                        {t('pages.favorites.orders')}
                     </button>
 
                     <button
@@ -1353,7 +1326,7 @@ function FavoritesPage() {
             `}
                         onClick={() => setActiveTab('masters')}
                     >
-                        Мастера
+                        {t('pages.favorites.masters')}
                     </button>
                 </div>
             )}
@@ -1372,7 +1345,10 @@ function FavoritesPage() {
                         author={ticket.author}
                         category={ticket.category}
                         timeAgo={ticket.timeAgo}
-                        ticketType={userRole === null ? getTicketTypeLabel(ticket.type) : undefined}
+                        ticketType={ticket.type}
+                        userRole={userRole}
+                        userRating={ticket.userRating}
+                        userReviewCount={ticket.userReviewCount}
                         showFavoriteButton={true}
                         isFavorite={favoriteTickets.some(favTicket => favTicket.id === ticket.id)}
                         onFavoriteClick={(e) => {

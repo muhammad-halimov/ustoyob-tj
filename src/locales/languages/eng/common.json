@@ -31,5 +31,10 @@
     "loading": "Loading data...",
     "errorLoading": "Error loading data",
     "tryAgain": "Try again"
+  },
+  "reviews": {
+    "one": "review",
+    "few": "reviews",
+    "many": "reviews"
   }
 }

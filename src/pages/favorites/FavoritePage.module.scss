@@ -130,9 +130,15 @@
 }
 
 .recommendation {
-  padding: 20px;
+  padding: 0 20px;
   max-width: 1284px;
   margin: 40px auto;
+  
+  &_wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
 }
 
 .tabs {

@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import {cleanText} from "../../utils/cleanText.ts";
 import { useTranslation } from 'react-i18next';
 import { useLanguageChange } from "../../hooks/useLanguageChange";
+import { AnnouncementCard } from "../../shared/ui/AnnouncementCard/AnnouncementCard";
 
 // Интерфейсы
 interface ApiTicket {
@@ -66,6 +67,7 @@ interface ApiTicket {
         id: number;
         title: string;
     };
+    reviewsCount: number;
     service: boolean;
     active: boolean;
 }
@@ -96,29 +98,11 @@ interface SearchResult {
     category: string;
     type: 'client' | 'master';
     isInSelectedCity?: boolean;
+    userRating?: number;
+    userReviewCount?: number;
 }
 
-interface ApiReview {
-    id: number;
-    master?: {
-        id: number;
-    };
-    client?: {
-        id: number;
-    };
-}
 
-interface HydraResponse<T> {
-    'hydra:member': T[];
-    'hydra:totalItems'?: number;
-    'hydra:view'?: {
-        '@id': string;
-        '@type': string;
-        'hydra:first'?: string;
-        'hydra:last'?: string;
-        'hydra:next'?: string;
-    };
-}
 
 interface Category {
     id: number;
@@ -246,7 +230,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 headers['Authorization'] = `Bearer ${token}`;
             }
 
-            const response = await fetch(`${API_BASE_URL}/api/tickets?active=true&itemsPerPage=100`, {
+            const response = await fetch(`${API_BASE_URL}/api/tickets?active=true&itemsPerPage=100&locale=${localStorage.getItem('i18nextLng') || 'ru'}`, {
                 method: 'GET',
                 headers: headers,
             });
@@ -470,28 +454,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             .map(item => item.ticket);
     }, [getTicketPriority]);
 
-    const getTimeAgo = useCallback((dateString: string): string => {
-        if (!dateString) return 'давно';
 
-        const date = new Date(dateString);
-        const now = new Date();
-        const diffMs = now.getTime() - date.getTime();
-        const diffMins = Math.floor(diffMs / (1000 * 60));
-        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-        if (diffMins < 60) {
-            return `${diffMins} мин назад`;
-        } else if (diffHours < 24) {
-            return `${diffHours} ч назад`;
-        } else {
-            return `${diffDays} дн назад`;
-        }
-    }, []);
-
-    const getTicketTypeLabel = useCallback((type: 'client' | 'master') => {
-        return type === 'client' ? 'Заказ от клиента' : 'Услуга от мастера';
-    }, []);
 
     const getSearchTitle = useMemo(() => {
         if (userRole === 'client') {
@@ -589,57 +552,12 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     }, []);
 
     // Функция для фильтрации по количеству отзывов
-    const filterByReviewCount = useCallback(async (tickets: TypedTicket[], minReviews: number): Promise<TypedTicket[]> => {
-        try {
-            const token = getAuthToken();
-
-            const reviewsResponse = await fetch(`${API_BASE_URL}/api/reviews`, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(token && { 'Authorization': `Bearer ${token}` })
-                }
-            });
-
-            if (!reviewsResponse.ok) {
-                console.error('Failed to fetch reviews for filtering');
-                return tickets;
-            }
-
-            const reviewsData = await reviewsResponse.json();
-            let reviewsArray: ApiReview[] = [];
-
-            if (Array.isArray(reviewsData)) {
-                reviewsArray = reviewsData;
-            } else if (reviewsData && typeof reviewsData === 'object' && 'hydra:member' in reviewsData) {
-                const hydraData = reviewsData as HydraResponse<ApiReview>;
-                reviewsArray = hydraData['hydra:member'];
-            }
-
-            const userReviewCount = new Map<number, number>();
-
-            reviewsArray.forEach((review: ApiReview) => {
-                if (review.master?.id) {
-                    const count = userReviewCount.get(review.master.id) || 0;
-                    userReviewCount.set(review.master.id, count + 1);
-                }
-                if (review.client?.id) {
-                    const count = userReviewCount.get(review.client.id) || 0;
-                    userReviewCount.set(review.client.id, count + 1);
-                }
-            });
-
-            return tickets.filter(ticket => {
-                const userId = ticket.type === 'client' ? ticket.author?.id : ticket.master?.id;
-                if (!userId) return false;
-
-                const userReviews = userReviewCount.get(userId) || 0;
-                return userReviews >= minReviews;
-            });
-
-        } catch (error) {
-            console.error('Error filtering by review count:', error);
-            return tickets;
-        }
+    const filterByReviewCount = useCallback((tickets: TypedTicket[], minReviews: number): TypedTicket[] => {
+        return tickets.filter(ticket => {
+            // Используем reviewsCount из самого тикета - это более надежно и эффективно
+            const reviewCount = ticket.reviewsCount || 0;
+            return reviewCount >= minReviews;
+        });
     }, []);
 
 
@@ -651,6 +569,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
             const params = new URLSearchParams();
             params.append('active', 'true');
+            params.append('locale', localStorage.getItem('i18nextLng') || 'ru');
 
             if (userRole === 'client') {
                 params.append('service', 'true');
@@ -759,7 +678,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     ...ticket,
                     type: ticketType,
                     userRating,
-                    userReviewCount: 0
+                    userReviewCount: 0  // Для фильтрации используем отдельный API
                 };
             });
 
@@ -774,7 +693,8 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             // Фильтрация по количеству отзывов
             if (filterParams.reviewCount) {
                 const minReviews = parseInt(filterParams.reviewCount);
-                filteredData = await filterByReviewCount(filteredData, minReviews);
+                filteredData = filterByReviewCount(filteredData, minReviews);
+                console.log(`After review count filtering: ${filteredData.length} tickets`);
             }
 
             // Сортировка с учетом приоритета города
@@ -790,10 +710,6 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     const addressInfo = await getAddressInfo(ticket);
                     const priority = await getTicketPriority(ticket);
 
-                    const formattedDate = ticket.createdAt
-                        ? new Date(ticket.createdAt).toLocaleDateString('ru-RU')
-                        : 'Дата не указана';
-
                     return {
                         id: ticket.id,
                         title: ticket.title || 'Без названия',
@@ -802,13 +718,15 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                         description: ticket.description,
                         address: addressInfo.formatted,
                         city: addressInfo.cityName,
-                        date: formattedDate,
+                        date: ticket.createdAt,
                         author: userName,
                         authorId,
-                        timeAgo: getTimeAgo(ticket.createdAt),
+                        timeAgo: ticket.createdAt, // Передаём сырую дату, чтобы AnnouncementCard мог сам вычислить timeAgo
                         category: ticket.category?.title || 'другое',
                         type: ticket.type,
-                        isInSelectedCity: priority > 0
+                        isInSelectedCity: priority > 0,
+                        userRating: ticket.userRating,
+                        userReviewCount: ticket.reviewsCount || 0  // Для отображения используем reviewsCount из API
                     };
                 })
             );
@@ -821,7 +739,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         } finally {
             setIsLoading(false);
         }
-    }, [userRole, filterByCity, filterByReviewCount, selectedCity, sortTicketsWithPriority, getUserName, getAddressInfo, getTicketPriority, getTimeAgo]);
+    }, [userRole, filterByCity, selectedCity, sortTicketsWithPriority, getUserName, getAddressInfo, getTicketPriority]);
 
     // Флаг для предотвращения дублирующих запросов
     const isSearchInProgressRef = useRef(false);
@@ -945,10 +863,29 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         fetchCities(); // Загружаем города
     }, [fetchCategories, fetchCities]);
 
-    // При смене языка переполучаем категории и города
+    // При смене языка переполучаем категории, города и результаты поиска
     useLanguageChange(() => {
         fetchCategories();
         fetchCities();
+        // Переполучаем результаты поиска с локализованным контентом
+        if (searchResults.length > 0) {
+            // Сбрасываем предыдущий поиск чтобы форсировать обновление
+            previousSearchRef.current = {
+                query: '',
+                filters: {
+                    minPrice: '',
+                    maxPrice: '',
+                    category: '',
+                    rating: '',
+                    reviewCount: '',
+                    sortBy: '',
+                    city: ''
+                },
+                userRole: null
+            };
+            // Если есть результаты - обновляем их независимо от наличия поискового запроса
+            handleSearch();
+        }
     });
 
     // Следим за изменениями в localStorage для города
@@ -1000,78 +937,35 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             return <div className={styles.noResults}><p>{t('messages.noResults')}</p></div>;
         }
 
-        return searchResults.map((result) => (
-            <div key={result.id}
-                 className={styles.resultCard}
-                 onClick={() => handleCardClick(result.id, result.authorId)}
-                 style={{ cursor: 'pointer' }}
-            >
-                {userRole === null && (
-                    <div className={styles.ticketType}>
-                        {getTicketTypeLabel(result.type)}
-                    </div>
-                )}
-
-                {result.isInSelectedCity && (
-                    <div className={styles.cityBadge}>
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                            <path d="M8 1C4.13 1 1 4.13 1 8C1 11.87 4.13 15 8 15C11.87 15 15 11.87 15 8C15 4.13 11.87 1 8 1Z"
-                                  fill="#3A54DA"/>
-                            <path d="M11.53 5.53L8 9.06L6.47 7.53L5.53 8.47L8 10.94L12.47 6.47L11.53 5.53Z"
-                                  fill="white"/>
-                        </svg>
-                        <span>Your location</span>
-                    </div>
-                )}
-
-                <div className={styles.resultHeader}>
-                    <h3>{result.title}</h3>
-                    <span className={styles.price}>{result.price} TJS, {result.unit}</span>
-                </div>
-                <p className={styles.description}>{cleanText(result.description)}</p>
-                <div className={styles.resultDetails}>
-                    <span className={styles.category}>
-                        {result.category}
-                    </span>
-                    <span className={styles.address}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            <circle cx="12" cy="9" r="2.5" stroke="#3A54DA" strokeWidth="2"/>
-                        </svg>
-                        {result.address}
-                    </span>
-                    <span className={styles.date}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M3 8h18M21 6v14H3V6h18zM16 2v4M8 2v4" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                        {result.date}
-                    </span>
-                </div>
-                <div className={styles.resultFooter}>
-                    <span className={styles.author}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <g clipPath="url(#clip0_324_2870)">
-                                <g clipPath="url(#clip1_324_2870)">
-                                    <path d="M11.9995 12.9795C15.1641 12.9795 17.7295 10.4141 17.7295 7.24953C17.7295 4.08494 15.1641 1.51953 11.9995 1.51953C8.83494 1.51953 6.26953 4.08494 6.26953 7.24953C6.26953 10.4141 8.83494 12.9795 11.9995 12.9795Z" stroke="#5D5D5D" strokeWidth="2" strokeMiterlimit="10"/>
-                                    <path d="M1.5 23.48L1.87 21.43C2.3071 19.0625 3.55974 16.9229 5.41031 15.3828C7.26088 13.8428 9.59246 12.9997 12 13C14.4104 13.0006 16.7443 13.8465 18.5952 15.3905C20.4462 16.9345 21.6971 19.0788 22.13 21.45L22.5 23.5" stroke="#5D5D5D" strokeWidth="2" strokeMiterlimit="10"/>
-                                </g>
-                            </g>
-                            <defs>
-                                <clipPath id="clip0_324_2870">
-                                    <rect width="24" height="24" fill="white"/>
-                                </clipPath>
-                                <clipPath id="clip1_324_2870">
-                                    <rect width="24" height="24" fill="white"/>
-                                </clipPath>
-                            </defs>
-                        </svg>
-                        {result.author}
-                    </span>
-                    <span className={styles.timeAgo}>{result.timeAgo}</span>
-                </div>
-            </div>
-        ));
-    }, [isLoading, searchResults, userRole, getTicketTypeLabel, handleCardClick, cleanText]);
+        return searchResults.map((result) => {
+            // Логирование для отладки
+            console.log('Search result:', { 
+                title: result.title, 
+                userRating: result.userRating,
+                userReviewCount: result.userReviewCount 
+            });
+            
+            return (
+                <AnnouncementCard
+                    key={result.id}
+                    title={result.title}
+                    description={cleanText(result.description)}
+                    price={result.price}
+                    unit={result.unit}
+                    address={result.address}
+                    date={result.date}
+                    author={result.author}
+                    category={result.category}
+                    timeAgo={result.timeAgo} // Передаём сырую дату, AnnouncementCard сам отформатирует
+                    ticketType={result.type}
+                    userRole={userRole}
+                    userRating={result.userRating}
+                    userReviewCount={result.userReviewCount}
+                    onClick={() => handleCardClick(result.id, result.authorId)}
+                />
+            );
+        });
+    }, [isLoading, searchResults, userRole, handleCardClick, cleanText, t]);
 
     return (
         <div className={styles.container}>

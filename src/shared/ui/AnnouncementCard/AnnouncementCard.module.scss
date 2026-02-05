@@ -133,6 +133,12 @@
     align-items: center;
   }
 
+  &_author_section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
   &_footer_right {
     display: flex;
     align-items: start;
@@ -148,6 +154,29 @@
     svg {
       margin-right: 16px;
       flex-shrink: 0;
+    }
+  }
+
+  &_rating {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    .rating_value {
+      font-size: 20px;
+      color: map.get(vars.$colors, text-black);
+      font-weight: 500;
+    }
+  }
+
+  &_reviews {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    .reviews_count {
+      font-size: 20px;
+      color: map.get(vars.$colors, text-placeholder);
     }
   }
 
@@ -211,6 +240,25 @@
 
       span {
         font-size: 20px;
+      }
+    }
+
+    &_author_section {
+      width: 100%;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    &_rating {
+      .rating_value {
+        font-size: 14px;
+      }
+    }
+
+    &_reviews {
+      .reviews_count {
+        font-size: 12px;
       }
     }
 

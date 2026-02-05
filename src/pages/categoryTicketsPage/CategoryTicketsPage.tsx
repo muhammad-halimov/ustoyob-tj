@@ -1,9 +1,8 @@
 import {useState, useEffect, useCallback} from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getAuthToken, getUserRole } from '../../utils/auth';
-import { useLanguageChange } from '../../hooks/useLanguageChange';
-import styles from './CategoryTicketsPage.module.scss';
-import { AnnouncementCard } from '../../shared/ui/AnnouncementCard/AnnouncementCard';
+import { useLanguageChange } from '../../hooks/useLanguageChange';import { useTranslation } from 'react-i18next';import styles from './CategoryTicketsPage.module.scss';
+import { AnnouncementCard, getTimeAgo, formatLocalizedDate } from '../../shared/ui/AnnouncementCard/AnnouncementCard';
 
 interface Ticket {
     id: number;
@@ -24,6 +23,7 @@ interface Ticket {
         name: string;
         surname: string;
         image: string;
+        rating?: number;
     } | null;
     master: {
         id: number;
@@ -31,6 +31,7 @@ interface Ticket {
         name: string;
         surname: string;
         image: string;
+        rating?: number;
     } | null;
     images: Array<{
         id: number;
@@ -85,6 +86,8 @@ interface FormattedTicket {
     authorId: number;
     type: 'client' | 'master';
     authorImage?: string;
+    userRating?: number;
+    userReviewCount?: number;
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -96,10 +99,13 @@ function CategoryTicketsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [categoryName, setCategoryName] = useState<string>('');
     const [userRole, setUserRole] = useState<'client' | 'master' | null>(null);
+    const { t } = useTranslation('components');
+    
     useLanguageChange(() => {
         // При смене языка переполучаем данные для обновления локализованного контента
         if (categoryId) {
             fetchCategoryName();
+            fetchTicketsByCategory();
         }
     });
 
@@ -350,14 +356,16 @@ function CategoryTicketsPage() {
                     description: ticket.description || 'Описание отсутствует',
                     address: shortAddress, // Краткий адрес для основного отображения
                     fullAddress: fullAddress, // Полный адрес
-                    date: formatDate(ticket.createdAt),
+                    date: ticket.createdAt,
                     author: authorName,
                     authorId: authorId,
-                    timeAgo: getTimeAgo(ticket.createdAt),
+                    timeAgo: ticket.createdAt,
                     category: ticket.category?.title || 'другое',
                     status: ticket.active ? 'В работе' : 'Завершен',
                     type: isMasterTicket ? 'master' : 'client',
-                    authorImage: author?.image ? formatProfileImageUrl(author.image) : undefined
+                    authorImage: author?.image ? formatProfileImageUrl(author.image) : undefined,
+                    userRating: author?.rating || 0,
+                    userReviewCount: 0 // Пока устанавливаем 0, позже добавим реальное получение
                 };
             });
 
@@ -411,39 +419,6 @@ function CategoryTicketsPage() {
         }
     };
 
-    const formatDate = (dateString: string) => {
-        try {
-            if (!dateString) return 'Дата не указана';
-            return new Date(dateString).toLocaleDateString('ru-RU', {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric'
-            });
-        } catch {
-            return 'Дата не указана';
-        }
-    };
-
-    const getTimeAgo = (dateString: string) => {
-        try {
-            if (!dateString) return 'недавно';
-            const date = new Date(dateString);
-            const now = new Date();
-            const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-            if (diffInSeconds < 60) return 'только что';
-            if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} ${getRussianWord(Math.floor(diffInSeconds / 60), ['минуту', 'минуты', 'минут'])} назад`;
-            if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} ${getRussianWord(Math.floor(diffInSeconds / 3600), ['час', 'часа', 'часов'])} назад`;
-            return `${Math.floor(diffInSeconds / 86400)} ${getRussianWord(Math.floor(diffInSeconds / 86400), ['день', 'дня', 'дней'])} назад`;
-        } catch {
-            return 'недавно';
-        }
-    };
-
-    const getRussianWord = (number: number, words: [string, string, string]) => {
-        const cases = [2, 0, 1, 1, 1, 2];
-        return words[number % 100 > 4 && number % 100 < 20 ? 2 : cases[number % 10 < 5 ? number % 10 : 5]];
-    };
-
     const handleCardClick = (ticketId: number, authorId: number) => {
         navigate(`/order/${authorId}?ticket=${ticketId}`);
     };
@@ -466,10 +441,6 @@ function CategoryTicketsPage() {
         }
 
         return `${categoryName}${roleText}`;
-    };
-
-    const getTicketTypeLabel = (type: 'client' | 'master') => {
-        return type === 'client' ? 'Заказ от клиента' : 'Услуга от мастера';
     };
 
     // Если категория ID не передан
@@ -535,7 +506,10 @@ function CategoryTicketsPage() {
                             author={ticket.author}
                             category={ticket.category}
                             timeAgo={ticket.timeAgo}
-                            ticketType={userRole === null ? getTicketTypeLabel(ticket.type) : undefined}
+                            ticketType={ticket.type}
+                            userRole={userRole}
+                            userRating={ticket.userRating}
+                            userReviewCount={ticket.userReviewCount}
                             onClick={() => handleCardClick(ticket.id, ticket.authorId)}
                         />
                     ))
