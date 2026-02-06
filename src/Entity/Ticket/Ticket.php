@@ -77,7 +77,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 )]
 #[ApiFilter(BooleanFilter::class, properties: ['active', 'service'])]
 #[ApiFilter(ExistsFilter::class, properties: ['master', 'author'])]
-#[ApiFilter(SearchFilter::class, properties: ['category', 'master', 'author', 'description' => 'partial'])]
+#[ApiFilter(SearchFilter::class, properties: ['category', 'subcategory', 'master', 'author', 'description' => 'partial'])]
 #[ApiFilter(AddressFilter::class)]
 #[ApiFilter(RangeFilter::class, properties: ['budget', 'master.rating', 'author.rating'])]
 class Ticket
