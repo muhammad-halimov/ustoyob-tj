@@ -1,0 +1,125 @@
+.themeToggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  
+  .label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    white-space: nowrap;
+  }
+  
+  .toggleButton {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 50px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    
+    &:hover {
+      transform: scale(1.05);
+    }
+    
+    &:active {
+      transform: scale(0.95);
+    }
+    
+    &:focus {
+      outline: 2px solid var(--color-primary);
+      outline-offset: 2px;
+    }
+  }
+  
+  .toggleTrack {
+    width: 50px;
+    height: 26px;
+    background: var(--color-background-gray-light);
+    border: 2px solid var(--color-stroke);
+    border-radius: 50px;
+    position: relative;
+    transition: all 0.3s ease;
+    
+    &.dark {
+      background: var(--color-primary);
+      border-color: var(--color-primary);
+      
+      .toggleThumb {
+        transform: translateY(-50%) translateX(20px);
+        background: var(--color-background-primary);
+        
+        .iconContainer {
+          color: var(--color-primary);
+        }
+      }
+    }
+  }
+  
+  .toggleThumb {
+    width: 22px;
+    height: 22px;
+    background: var(--color-background-primary);
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    left: 2px;
+    transform: translateY(-50%) translateX(0);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px var(--color-shadow-light);
+  }
+  
+  .iconContainer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-placeholder);
+    transition: all 0.2s ease;
+  }
+  
+  .sunIcon {
+    animation: rotate 20s linear infinite;
+  }
+  
+  .moonIcon {
+    animation: fadeIn 0.3s ease;
+  }
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+// Адаптив для мобильных устройств
+@media (max-width: 768px) {
+  .themeToggle {
+    .label {
+      display: none; // Скрываем текст на мобильных
+    }
+    
+    .toggleButton {
+      padding: 8px;
+    }
+  }
+}

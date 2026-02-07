@@ -8,7 +8,7 @@
 .emptyState {
   text-align: center;
   padding: 40px;
-  color: #666;
+  color: var(--color-text-secondary);
   font-size: 16px;
 }
 
@@ -24,8 +24,8 @@
 
 .tab {
   padding: 10px 20px;
-  border: 1px solid #ccc;
-  background: #f5f5f5;
+  border: 1px solid var(--color-border-light);
+  background: var(--color-background-secondary);
   cursor: pointer;
   transition: 0.2s;
   font-size: 20px;
@@ -42,14 +42,14 @@
 }
 
 .activeLeft {
-  background: white;
-  border-color: #aaa;
+  background: var(--color-background-primary);
+  border-color: var(--color-border-light);
   border-radius: 12px 0 0 12px; /* более выражённое закругление */
 }
 
 .activeRight {
-  background: white;
-  border-color: #aaa;
+  background: var(--color-background-primary);
+  border-color: var(--color-border-light);
   border-radius: 0 12px 12px 0;
 }
 
@@ -57,15 +57,15 @@
   display: flex;
   align-items: center;
   padding: 20px;
-  border: 2px solid #e9ecef;
+  border: 2px solid var(--color-border-light);
   border-radius: 12px;
   margin-bottom: 16px;
   transition: all 0.2s ease;
-  background: white;
+  background: var(--color-background-primary);
 
   &:hover {
-    border-color: #3A54DA;
-    box-shadow: 0 2px 8px rgba(58, 84, 218, 0.1);
+    border-color: var(--color-primary);
+    box-shadow: 0 2px 8px var(--color-shadow-accent);
   }
 }
 
@@ -89,14 +89,14 @@
   h4 {
     font-size: 18px;
     font-weight: 600;
-    color: #333;
+    color: var(--color-text-primary);
     margin: 0 0 4px 0;
   }
 }
 
 .userType {
   font-size: 14px;
-  color: #666;
+  color: var(--color-text-secondary);
   margin: 0;
 }
 
@@ -143,7 +143,7 @@
 
 .tabs {
   display: flex;
-  background: #f8f9fa;
+  background: var(--color-background-secondary);
   border-radius: 12px;
   padding: 4px;
   margin-bottom: 24px;
@@ -159,29 +159,29 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  color: #666;
+  color: var(--color-text-secondary);
 
   &:hover {
-    background: rgba(58, 84, 218, 0.1);
+    background: var(--color-background-accent-light);
   }
 }
 
 .tabActive {
-  background: #3A54DA;
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
 
   &:hover {
-    background: #3A54DA;
+    background: var(--color-primary);
   }
 }
 
 .mastersList {
-  background: #fff;
+  background: var(--color-background-primary);
   border-radius: 10px;
   padding: 20px;
   position: relative;
   margin-bottom: 20px;
-  border: 2px solid #e9ecef;
+  border: 2px solid var(--color-border-light);
 
   .mastersList_header {
     display: flex;

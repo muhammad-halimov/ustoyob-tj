@@ -133,6 +133,19 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
         };
     }, [userRole, onOpenAuthModal, t]);
 
+    // Обработчик события сброса всех состояний при клике на лого
+    useEffect(() => {
+        const handleResetAllStates = () => {
+            // Сбрасываем состояния главной страницы
+            setShowResults(false);
+            setModalMessage(null);
+            setShowAuthModal(false);
+        };
+
+        window.addEventListener('resetAllStates', handleResetAllStates);
+        return () => window.removeEventListener('resetAllStates', handleResetAllStates);
+    }, []);
+
     const worker = [
         { id: 1, name: t('roles.customers'), title: t('roles.customersDesc'), img: "./clientTest.jpg" },
         { id: 2, name: t('roles.masters'), title: t('roles.mastersDesc'), img: "./master.jpg" }

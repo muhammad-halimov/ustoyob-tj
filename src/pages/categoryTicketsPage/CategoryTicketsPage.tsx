@@ -4,6 +4,14 @@ import { getAuthToken, getUserRole } from '../../utils/auth';
 import { useLanguageChange } from '../../hooks/useLanguageChange';
 import styles from './CategoryTicketsPage.module.scss';
 import { AnnouncementCard } from '../../shared/ui/AnnouncementCard/AnnouncementCard';
+import { useTranslation } from 'react-i18next';
+
+interface Occupation {
+    id: number;
+    title: string;
+    image?: string;
+    categories: { id: number; title: string }[];
+}
 
 interface Ticket {
     id: number;
@@ -100,11 +108,17 @@ function CategoryTicketsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [categoryName, setCategoryName] = useState<string>('');
     const [userRole, setUserRole] = useState<'client' | 'master' | null>(null);
+    const [occupations, setOccupations] = useState<Occupation[]>([]);
+    const [selectedSubcategory, setSelectedSubcategory] = useState<number | null>(null);
+    const [showAllOccupations, setShowAllOccupations] = useState(false);
+    const [subcategorySearchQuery, setSubcategorySearchQuery] = useState<string>('');
+    const { t } = useTranslation(['components', 'category']);
     
     useLanguageChange(() => {
         // При смене языка переполучаем данные для обновления локализованного контента
         if (categoryId) {
             fetchCategoryName();
+            fetchOccupations();
             fetchTicketsByCategory();
         }
     });
@@ -116,6 +130,7 @@ function CategoryTicketsPage() {
         if (categoryId) {
             fetchTicketsByCategory();
             fetchCategoryName();
+            fetchOccupations();
         }
     }, [categoryId]);
 
@@ -129,6 +144,23 @@ function CategoryTicketsPage() {
         } else {
             return `${API_BASE_URL}/images/profile_photos/${imagePath}`;
         }
+    };
+
+    const formatOccupationImageUrl = (imagePath?: string): string => {
+        if (!imagePath) return '/default_subcategory.png'; // Дефолтное изображение
+
+        // Проверяем, начинается ли путь с /images/
+        if (imagePath.startsWith('/images/')) {
+            return `${API_BASE_URL}${imagePath}`;
+        }
+
+        // Если путь уже содержит http или просто имя файла
+        if (imagePath.startsWith('http')) {
+            return imagePath;
+        }
+
+        // По умолчанию используем путь из API для изображений профессий
+        return `${API_BASE_URL}/images/occupation_photos/${imagePath}`;
     };
 
     const fetchCategoryName = async () => {
@@ -155,6 +187,68 @@ function CategoryTicketsPage() {
         } catch (error) {
             console.error('Error fetching category name:', error);
             setCategoryName('Категория');
+        }
+    };
+
+    const fetchOccupations = async () => {
+        try {
+            const headers: HeadersInit = {
+                'Accept': 'application/json'
+            };
+            const token = getAuthToken();
+
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const languageParam = (localStorage.getItem('i18nextLng') || 'ru') === 'tj' ? 'tj' : ((localStorage.getItem('i18nextLng') || 'ru') === 'ru' ? 'ru' : 'eng');
+            const response = await fetch(`${API_BASE_URL}/api/occupations?locale=${languageParam}`, {
+                headers: headers,
+            });
+
+            if (response.ok) {
+                const occupationsData = await response.json();
+
+                let formatted: Occupation[] = [];
+                if (Array.isArray(occupationsData)) {
+                    formatted = occupationsData.filter((occ: { 
+                        id: number; 
+                        title: string;
+                        image?: string;
+                        categories: { id: number; title: string }[] 
+                    }) => 
+                        occ.categories.some(cat => cat.id.toString() === categoryId)
+                    ).map((occ) => ({
+                        id: occ.id,
+                        title: occ.title,
+                        image: occ.image,
+                        categories: occ.categories
+                    }));
+                } else if (occupationsData && typeof occupationsData === 'object' && 'hydra:member' in occupationsData) {
+                    const hydraMember = (occupationsData as { 
+                        'hydra:member': { 
+                            id: number; 
+                            title: string;
+                            image?: string;
+                            categories: { id: number; title: string }[] 
+                        }[] 
+                    })['hydra:member'];
+                    if (Array.isArray(hydraMember)) {
+                        formatted = hydraMember.filter((occ) => 
+                            occ.categories.some(cat => cat.id.toString() === categoryId)
+                        ).map((occ) => ({
+                            id: occ.id,
+                            title: occ.title,
+                            image: occ.image,
+                            categories: occ.categories
+                        }));
+                    }
+                }
+
+                setOccupations(formatted);
+            }
+        } catch (error) {
+            console.error('Error fetching occupations:', error);
         }
     };
 
@@ -286,6 +380,7 @@ function CategoryTicketsPage() {
             const role = getUserRole();
 
             console.log('Fetching tickets for category:', categoryId);
+            console.log('Selected subcategory:', selectedSubcategory);
             console.log('User role:', role);
             console.log('Token exists:', !!token);
 
@@ -306,13 +401,15 @@ function CategoryTicketsPage() {
                         active: 'true',
                         service: 'true',
                         'exists[master]': 'true',
-                        'category': categoryId
+                        'category': categoryId,
+                        ...(selectedSubcategory && { 'subcategory': selectedSubcategory.toString() })
                     }),
                     fetchTicketsWithParams({
                         active: 'true',
                         service: 'false',
                         'exists[author]': 'true',
-                        'category': categoryId
+                        'category': categoryId,
+                        ...(selectedSubcategory && { 'subcategory': selectedSubcategory.toString() })
                     })
                 ]);
                 ticketsData = [...masterTickets, ...clientTickets];
@@ -323,7 +420,8 @@ function CategoryTicketsPage() {
                     active: 'true',
                     service: 'true',
                     'exists[master]': 'true',
-                    'category': categoryId
+                    'category': categoryId,
+                    ...(selectedSubcategory && { 'subcategory': selectedSubcategory.toString() })
                 }, token);
             } else if (role === 'master') {
                 // Для мастеров - получаем тикеты клиентов (заказы)
@@ -332,7 +430,8 @@ function CategoryTicketsPage() {
                     active: 'true',
                     service: 'false',
                     'exists[author]': 'true',
-                    'category': categoryId
+                    'category': categoryId,
+                    ...(selectedSubcategory && { 'subcategory': selectedSubcategory.toString() })
                 }, token);
             }
 
@@ -419,6 +518,61 @@ function CategoryTicketsPage() {
         }
     };
 
+    // Обработчики подкатегорий
+    const handleSubcategoryClick = (subcategoryId: number | null) => {
+        setSelectedSubcategory(subcategoryId);
+    };
+
+    const handleViewAllOccupations = () => {
+        setShowAllOccupations(true);
+    };
+
+    const handleShowLessOccupations = () => {
+        setShowAllOccupations(false);
+    };
+
+    const handleSubcategorySearch = (query: string) => {
+        setSubcategorySearchQuery(query);
+        // При поиске сбрасываем "показать все", чтобы показать все результаты поиска
+        if (query.trim()) {
+            setShowAllOccupations(false);
+        }
+    };
+
+    // Определяем какие подкатегории показывать
+    const getVisibleOccupations = () => {
+        // Сначала фильтруем по поисковому запросу
+        let filteredOccupations = occupations;
+        
+        if (subcategorySearchQuery.trim()) {
+            const searchLower = subcategorySearchQuery.toLowerCase().trim();
+            filteredOccupations = occupations.filter(occupation => 
+                occupation.title.toLowerCase().includes(searchLower)
+            );
+        }
+        
+        // Потом с учетом состояния "showAllOccupations"
+        if (showAllOccupations || subcategorySearchQuery.trim()) {
+            return filteredOccupations;
+        }
+        
+        // Показываем первые 8 подкатегорий
+        return filteredOccupations.slice(0, Math.min(8, filteredOccupations.length));
+    };
+
+    const visibleOccupations = getVisibleOccupations();
+    
+    // Обновляем логику кнопок с учетом поиска
+    const shouldShowViewAllOccupations = !showAllOccupations && !subcategorySearchQuery.trim() && occupations.length > 8;
+    const shouldShowShowLessOccupations = showAllOccupations && occupations.length > 0;
+
+    // Обновляем тикеты при изменении выбранной подкатегории
+    useEffect(() => {
+        if (categoryId) {
+            fetchTicketsByCategory();
+        }
+    }, [selectedSubcategory]);
+
     const handleCardClick = (ticketId: number, authorId: number) => {
         navigate(`/order/${authorId}?ticket=${ticketId}`);
     };
@@ -474,6 +628,120 @@ function CategoryTicketsPage() {
                     </svg>
                 </button>
             </div>
+
+            {/* Сетка подкатегорий */}
+            {occupations.length > 0 && (
+                <div className={styles.subcategories}>
+                    <div className={styles.subcategories_header}>
+                        {/* Поле поиска подкатегорий */}
+                        <div className={styles.subcategory_search}>
+                            <div className={styles.search_input_wrapper}>
+                                <svg className={styles.search_icon} width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                    <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                                <input
+                                    type="text"
+                                    className={styles.search_input}
+                                    placeholder={t('category:searchSubcategories', 'Поиск по профессиям...')}
+                                    value={subcategorySearchQuery}
+                                    onChange={(e) => handleSubcategorySearch(e.target.value)}
+                                />
+                                {subcategorySearchQuery && (
+                                    <button 
+                                        className={styles.clear_search}
+                                        onClick={() => handleSubcategorySearch('')}
+                                        aria-label="Очистить поиск"
+                                    >
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                        </svg>
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className={styles.subcategory_item}>
+                        {/* Кнопка "Все" */}
+                        {!subcategorySearchQuery.trim() && (
+                            <div
+                                className={`${styles.subcategory_item_step} ${selectedSubcategory === null ? styles.active : ''}`}
+                                onClick={() => handleSubcategoryClick(null)}
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        handleSubcategoryClick(null);
+                                    }
+                                }}
+                            >
+                                <img
+                                    src="/default_all.png"
+                                    alt={t('category:allSubcategories', 'Все')}
+                                    onError={(e) => {
+                                        // Fallback изображение для кнопки "Все"
+                                        e.currentTarget.src = '/default_all.png';
+                                    }}
+                                    loading="lazy"
+                                />
+                                <p>{t('category:allSubcategories', 'Все')}</p>
+                            </div>
+                        )}
+
+                        {/* Подкатегории */}
+                        {visibleOccupations.map((occupation) => (
+                            <div
+                                key={occupation.id}
+                                className={`${styles.subcategory_item_step} ${selectedSubcategory === occupation.id ? styles.active : ''}`}
+                                onClick={() => handleSubcategoryClick(occupation.id)}
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        handleSubcategoryClick(occupation.id);
+                                    }
+                                }}
+                            >
+                                <img
+                                    src={formatOccupationImageUrl(occupation.image)}
+                                    alt={occupation.title}
+                                    onError={(e) => {
+                                        // Fallback изображение для профессий с первой буквой
+                                        const firstLetter = occupation.title.charAt(0).toUpperCase();
+                                        e.currentTarget.src = `https://ui-avatars.com/api/?name=${firstLetter}&background=e0e0e0&color=666&size=64&font-size=0.5`;
+                                    }}
+                                    loading="lazy"
+                                />
+                                <p>{occupation.title}</p>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Кнопка "Посмотреть все" */}
+                    {shouldShowViewAllOccupations && (
+                        <div className={styles.subcategory_btn_center}>
+                            <button
+                                className={styles.viewAllButton}
+                                onClick={handleViewAllOccupations}
+                            >
+                                {t('category:viewAll', 'Посмотреть все')}
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Кнопка "Свернуть" */}
+                    {shouldShowShowLessOccupations && (
+                        <div className={styles.subcategory_btn_center}>
+                            <button
+                                className={styles.viewAllButton}
+                                onClick={handleShowLessOccupations}
+                            >
+                                {t('category:showLess', 'Свернуть')}
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
 
             <div className={styles.searchResults}>
                 {isLoading ? (

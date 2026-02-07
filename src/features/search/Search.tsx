@@ -109,6 +109,15 @@ interface Category {
     name: string;
 }
 
+interface Occupation {
+    id: number;
+    title: string;
+    categories: {
+        id: number;
+        title: string;
+    }[];
+}
+
 interface City {
     id: number;
     name: string;
@@ -129,6 +138,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         minPrice: '',
         maxPrice: '',
         category: '',
+        subcategory: '', // Добавляем подкатегорию
         rating: '',
         reviewCount: '',
         sortBy: '',
@@ -136,6 +146,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     });
     const [isLoading, setIsLoading] = useState(false);
     const [categories, setCategories] = useState<Category[]>([]);
+    const [occupations, setOccupations] = useState<Occupation[]>([]);
     const [cities, setCities] = useState<City[]>([]); // Состояние для городов
     const [userRole, setUserRole] = useState<'client' | 'master' | null>(null);
     const navigate = useNavigate();
@@ -150,6 +161,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             minPrice: '',
             maxPrice: '',
             category: '',
+            subcategory: '',
             rating: '',
             reviewCount: '',
             sortBy: '',
@@ -551,6 +563,61 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         }
     }, []);
 
+    // Функция для получения профессий
+    const fetchOccupations = useCallback(async () => {
+        try {
+            const token = getAuthToken();
+            const languageParam = (localStorage.getItem('i18nextLng') || 'ru') === 'tj' ? 'tj' : ((localStorage.getItem('i18nextLng') || 'ru') === 'ru' ? 'ru' : 'eng');
+            const headers: HeadersInit = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/ld+json, application/json',
+            };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/occupations?locale=${languageParam}`, {
+                headers: headers,
+            });
+
+            if (response.ok) {
+                const occupationsData = await response.json();
+
+                let formatted: Occupation[] = [];
+                if (Array.isArray(occupationsData)) {
+                    formatted = occupationsData.map((occ: { 
+                        id: number; 
+                        title: string; 
+                        categories: { id: number; title: string }[] 
+                    }) => ({
+                        id: occ.id,
+                        title: occ.title,
+                        categories: occ.categories
+                    }));
+                } else if (occupationsData && typeof occupationsData === 'object' && 'hydra:member' in occupationsData) {
+                    const hydraMember = (occupationsData as { 
+                        'hydra:member': { 
+                            id: number; 
+                            title: string; 
+                            categories: { id: number; title: string }[] 
+                        }[] 
+                    })['hydra:member'];
+                    if (Array.isArray(hydraMember)) {
+                        formatted = hydraMember.map((occ) => ({
+                            id: occ.id,
+                            title: occ.title,
+                            categories: occ.categories
+                        }));
+                    }
+                }
+
+                setOccupations(formatted);
+            }
+        } catch (error) {
+            console.error('Error fetching occupations:', error);
+        }
+    }, []);
+
     // Функция для фильтрации по количеству отзывов
     const filterByReviewCount = useCallback((tickets: TypedTicket[], minReviews: number): TypedTicket[] => {
         return tickets.filter(ticket => {
@@ -579,6 +646,10 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
             if (filterParams.category) {
                 params.append('category', filterParams.category);
+            }
+
+            if (filterParams.subcategory) {
+                params.append('subcategory', filterParams.subcategory);
             }
 
             if (filterParams.minPrice || filterParams.maxPrice) {
@@ -828,6 +899,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             minPrice: '',
             maxPrice: '',
             category: '',
+            subcategory: '',
             rating: '',
             reviewCount: '',
             sortBy: '',
@@ -842,6 +914,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 minPrice: '',
                 maxPrice: '',
                 category: '',
+                subcategory: '',
                 rating: '',
                 reviewCount: '',
                 sortBy: '',
@@ -861,12 +934,14 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         setUserRole(role);
         fetchCategories();
         fetchCities(); // Загружаем города
-    }, [fetchCategories, fetchCities]);
+        fetchOccupations(); // Загружаем профессии
+    }, [fetchCategories, fetchCities, fetchOccupations]);
 
     // При смене языка переполучаем категории, города и результаты поиска
     useLanguageChange(() => {
         fetchCategories();
         fetchCities();
+        fetchOccupations();
         // Переполучаем результаты поиска с локализованным контентом
         if (searchResults.length > 0) {
             // Сбрасываем предыдущий поиск чтобы форсировать обновление
@@ -879,7 +954,8 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     rating: '',
                     reviewCount: '',
                     sortBy: '',
-                    city: ''
+                    city: '',
+                    subcategory: ''
                 },
                 userRole: null
             };
@@ -927,6 +1003,46 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         handleSearch
     ]);
 
+    // Обработчик события сброса всех состояний при клике на лого
+    useEffect(() => {
+        const handleResetAllStates = () => {
+            // Сбрасываем все состояния поиска
+            setSearchQuery('');
+            setShowResults(false);
+            setSearchResults([]);
+            setShowFilters(false);
+            setFilters({
+                minPrice: '',
+                maxPrice: '',
+                category: '',
+                subcategory: '',
+                rating: '',
+                reviewCount: '',
+                sortBy: '',
+                city: ''
+            });
+            
+            // Сбрасываем предыдущий поиск
+            previousSearchRef.current = {
+                query: '',
+                filters: {
+                    minPrice: '',
+                    maxPrice: '',
+                    category: '',
+                    subcategory: '',
+                    rating: '',
+                    reviewCount: '',
+                    sortBy: '',
+                    city: ''
+                },
+                userRole: null
+            };
+        };
+
+        window.addEventListener('resetAllStates', handleResetAllStates);
+        return () => window.removeEventListener('resetAllStates', handleResetAllStates);
+    }, []);
+
     // Мемоизированный рендер результатов
     const renderedResults = useMemo(() => {
         if (isLoading) {
@@ -968,7 +1084,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     }, [isLoading, searchResults, userRole, handleCardClick, cleanText, t]);
 
     return (
-        <div className={styles.container}>
+        <div className={`${styles.container} ${showFilters ? styles.containerExpanded : ''}`}>
             <div className={styles.search_with_filters}>
                 <FilterPanel
                     showFilters={showFilters}
@@ -978,6 +1094,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     onResetFilters={handleResetFilters}
                     categories={categories}
                     cities={cities} // Передаем города в FilterPanel
+                    occupations={occupations} // Передаем профессии в FilterPanel
                 />
 
                 <div className={styles.search_content}>

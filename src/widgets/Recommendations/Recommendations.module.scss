@@ -27,7 +27,7 @@
   &__loading,
   &__empty {
     text-align: center;
-    color: #999;
+    color: var(--color-text-secondary);
     padding: 20px;
   }
 }

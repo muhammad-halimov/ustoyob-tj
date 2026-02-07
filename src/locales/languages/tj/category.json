@@ -1,5 +1,10 @@
 {
   "title": "Категорияҳо",
+  "subcategories": "Зеркатегорияҳо",
+  "allSubcategories": "Ҳама",
+  "searchSubcategories": "Ҷустуҷӯ дар касбҳо...",
+  "searchCategories": "Ҷустуҷӯ дар категорияҳо...",
+  "noResults": "Категорияҳо ёфт нашуданд",
   "loading": "Бор кардани категорияҳо...",
   "noCategories": "Категорияҳо дастрас нестанд",
   "viewAll": "Ҳамаро дидан",

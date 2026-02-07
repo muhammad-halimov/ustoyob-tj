@@ -227,6 +227,8 @@
     "allCities": "Все города",
     "category": "Категория",
     "allCategories": "Все категории",
+    "subcategory": "Профессия",
+    "allSubcategories": "Все профессии",
     "rating": "Рейтинг исполнителя/заказчика",
     "selectRating": "Выберите рейтинг",
     "reviewCount": "Количество отзывов о пользователе",

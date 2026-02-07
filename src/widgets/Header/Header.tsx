@@ -7,6 +7,7 @@ import {getAuthToken, getUserRole, removeAuthToken} from "../../utils/auth";
 import { useTranslation } from 'react-i18next';
 import { changeLanguage, Language } from '../../locales/i18n.ts';
 import { useLanguageChange } from '../../hooks/useLanguageChange';
+import { ThemeToggle } from '../ThemeToggle';
 
 interface HeaderProps {
     onOpenAuthModal?: () => void; // Добавьте этот интерфейс
@@ -350,6 +351,22 @@ function Header({ onOpenAuthModal }: HeaderProps) {
         }
     };
 
+    const handleLogoClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        
+        // Очищаем localStorage от данных поиска и фильтров
+        localStorage.removeItem('searchQuery');
+        localStorage.removeItem('searchFilters');
+        localStorage.removeItem('searchResults');
+        localStorage.removeItem('showResults');
+        
+        // Отправляем событие для сброса состояний в других компонентах
+        window.dispatchEvent(new Event('resetAllStates'));
+        
+        // Переходим на главную страницу
+        navigate('/', { replace: true });
+    };
+
     const handleCitySelect = (cityTitle: string) => {
         const cityKey = cityTitle;
         setSelectedCity(cityKey);
@@ -538,6 +555,9 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                                 )}
                             </div>
                             <div className={styles.rightPart_buttons}>
+                                <div className={styles.theme_toggle_container}>
+                                    <ThemeToggle className={styles.header_theme_toggle} />
+                                </div>
                                 <AdBtn onClick={() => handleAdBtnClick()} />
                                 <EnterBtn
                                     isModalOpen={showAuthModal}
@@ -564,7 +584,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
             </div>
             <div className={styles.bottomHeader}>
                 <div className={styles.bottomHeader_wrap}>
-                    <Link to="/" className={styles.bottomHeader_logo}>
+                    <Link to="/" className={styles.bottomHeader_logo} onClick={handleLogoClick}>
                         {!showLogo ? (
                             <svg width="301" height="50" viewBox="0 0 301 50" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M28.929 20.9145C28.392 21.5877 28.5758 22.1222 29.5472 23.2972C30.8578 24.4875 31.5488 24.8045 32.6957 24.9859L44.5009 20.1881C45.344 19.9571 44.7288 19.1333 43.7295 17.9892C42.7298 16.8457 41.5773 15.8856 40.7341 16.1167L28.929 20.9145Z" fill="#A5A5A5" stroke="#A5A5A5"/>

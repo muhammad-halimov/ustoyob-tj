@@ -7,7 +7,7 @@
   background-color: map.get(vars.$colors, background-primary);
 
   .header_top {
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.20);
+    box-shadow: 0 4px 10px var(--color-shadow-light);
   }
   .headerWrap {
     max-width: 1250px;
@@ -35,6 +35,21 @@
       .rightPart_buttons {
         display: flex;
         gap: 10px;
+        align-items: center;
+        
+        .theme_toggle_container {
+          display: flex;
+          align-items: center;
+          margin-right: 8px;
+        }
+        
+        .header_theme_toggle {
+          @media (max-width: 768px) {
+            .label {
+              display: none;
+            }
+          }
+        }
       }
 
       .rightPart_lang__box {
@@ -122,7 +137,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--color-shadow-overlay);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -130,12 +145,12 @@
 }
 
 .modalContent {
-  background: white;
+  background: var(--color-background-primary);
   border-radius: 12px;
   padding: 24px;
   max-width: 400px;
   width: 90%;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 20px var(--color-shadow-light);
 }
 
 .modalHeader {
@@ -148,7 +163,7 @@
     margin: 0;
     font-size: 20px;
     font-weight: 600;
-    color: #333;
+    color: var(--color-text-primary);
   }
 }
 
@@ -163,14 +178,14 @@
   justify-content: center;
 
   &:hover {
-    background: #f5f5f5;
+    background: var(--color-background-secondary);
   }
 }
 
 .modalBody {
   p {
     margin: 0 0 20px 0;
-    color: #666;
+    color: var(--color-text-secondary);
     line-height: 1.5;
   }
 }
@@ -188,16 +203,16 @@
 .cityItem {
   padding: 12px 16px;
   cursor: pointer;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--color-border-light);
   transition: background-color 0.2s;
 
   &:hover {
-    background-color: #f5f5f5;
+    background-color: var(--color-background-secondary);
   }
 
   &.selected {
-    background-color: #e3f2fd;
-    color: #1976d2;
+    background-color: var(--color-background-accent-light);
+    color: var(--color-primary);
     font-weight: 500;
   }
 }
@@ -234,7 +249,7 @@
   .mobile_header {
     display: block !important;
     height: 50px;
-    border-top: 1px solid rgba(158, 158, 158, 0.5);
+    border-top: 1px solid var(--color-border-light);
     ul {
       display: flex;
       justify-content: space-between;
@@ -242,7 +257,7 @@
       list-style: none;
       a {
         text-decoration: none;
-        color: black;
+        color: var(--color-text-primary);
         font-size: 14px !important;
       }
     }
@@ -259,10 +274,10 @@
 }
 
 .confirmationBanner {
-  background: linear-gradient(135deg, #7465b7 0%, #3f5cf1 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--color-primary-gradient-start) 0%, var(--color-primary-gradient-end) 100%);
+  color: var(--color-text-inverse);
   padding: 12px 0;
-  box-shadow: 0 2px 8px rgba(255, 87, 34, 0.3);
+  box-shadow: 0 2px 8px var(--color-shadow-accent);
   position: sticky;
   top: 0;
   z-index: 1001;
@@ -294,7 +309,7 @@
 .confirmationBannerButton {
   background: rgba(255, 255, 255, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.3);
-  color: white;
+  color: var(--color-text-inverse);
   padding: 6px 16px;
   border-radius: 20px;
   font-size: 13px;
@@ -317,7 +332,7 @@
 .confirmationBannerClose {
   background: none;
   border: none;
-  color: white;
+  color: var(--color-text-inverse);
   font-size: 24px;
   cursor: pointer;
   padding: 0;
@@ -392,16 +407,16 @@
     gap: 8px;
     padding: 8px 12px;
     border-radius: 6px;
-    background-color: #f5f5f5;
+    background-color: var(--color-background-secondary);
     transition: background-color 0.2s;
 
     &:hover {
-      background-color: #e0e0e0;
+      background-color: var(--color-background-gray-hover);
     }
 
     .current_language {
       font-weight: 500;
-      color: #333;
+      color: var(--color-text-primary);
     }
   }
 
@@ -410,9 +425,9 @@
     top: 100%;
     right: 0;
     margin-top: 8px;
-    background: white;
+    background: var(--color-background-primary);
     border-radius: 8px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 20px var(--color-shadow-light);
     min-width: 180px;
     z-index: 1000;
     overflow: hidden;
@@ -426,12 +441,12 @@
       transition: background-color 0.2s;
 
       &:hover {
-        background-color: #f5f5f5;
+        background-color: var(--color-background-secondary);
       }
 
       &.selected {
-        background-color: #e8f0fe;
-        color: #3A54DA;
+        background-color: var(--color-background-accent-light);
+        color: var(--color-primary);
       }
 
       .language_code {
@@ -441,7 +456,7 @@
 
       .language_name {
         font-size: 12px;
-        color: #666;
+        color: var(--color-text-secondary);
       }
     }
   }

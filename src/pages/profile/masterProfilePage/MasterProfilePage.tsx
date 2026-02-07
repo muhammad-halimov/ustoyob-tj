@@ -6,6 +6,128 @@ import styles from '../MasterProfilePage.module.scss';
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
 import { fetchUserById } from "../../../utils/api.ts";
+import { PhotoGallery, usePhotoGallery } from '../../../shared/ui/PhotoGallery';
+
+// Интерфейс для социальных сетей с API
+interface AvailableSocialNetwork {
+    id: number;
+    network: string;
+}
+
+// Маппинг для локализации, иконок, валидации и ссылок
+const SOCIAL_NETWORK_CONFIG: Record<string, { 
+    label: string; 
+    icon: string; 
+    validate: (value: string) => boolean;
+    format: (value: string) => string;
+    generateUrl: (handle: string) => string;
+    placeholder: string;
+}> = {
+    instagram: { 
+        label: 'Instagram', 
+        icon: '📷',
+        validate: (value: string) => /^[a-zA-Z0-9._]{1,30}$/.test(value.replace('@', '')),
+        format: (value: string) => value.startsWith('@') ? value.slice(1) : value,
+        generateUrl: (handle: string) => `https://instagram.com/${handle}`,
+        placeholder: 'username (без @)'
+    },
+    telegram: { 
+        label: 'Telegram', 
+        icon: '✈️',
+        validate: (value: string) => /^[a-zA-Z0-9_]{5,32}$/.test(value.replace('@', '')),
+        format: (value: string) => value.startsWith('@') ? value.slice(1) : value,
+        generateUrl: (handle: string) => `https://t.me/${handle}`,
+        placeholder: 'username (без @)'
+    },
+    whatsapp: { 
+        label: 'WhatsApp', 
+        icon: '💬',
+        validate: (value: string) => /^\+?[1-9]\d{1,14}$/.test(value.replace(/\s/g, '')),
+        format: (value: string) => value.replace(/\s/g, ''),
+        generateUrl: (handle: string) => `https://wa.me/${handle.replace('+', '')}`,
+        placeholder: '+992123456789'
+    },
+    facebook: { 
+        label: 'Facebook', 
+        icon: '👥',
+        validate: (value: string) => /^[a-zA-Z0-9.]{5,50}$/.test(value),
+        format: (value: string) => value,
+        generateUrl: (handle: string) => `https://facebook.com/${handle}`,
+        placeholder: 'username или profile.php?id=123456789'
+    },
+    vk: { 
+        label: 'VKontakte', 
+        icon: '🌐',
+        validate: (value: string) => /^[a-zA-Z0-9_]{1,50}$/.test(value) || /^id\d+$/.test(value),
+        format: (value: string) => value,
+        generateUrl: (handle: string) => `https://vk.com/${handle}`,
+        placeholder: 'username или id123456789'
+    },
+    youtube: { 
+        label: 'YouTube', 
+        icon: '📺',
+        validate: (value: string) => /^[a-zA-Z0-9_-]{1,100}$/.test(value),
+        format: (value: string) => value,
+        generateUrl: (handle: string) => `https://youtube.com/@${handle}`,
+        placeholder: 'channel_name'
+    },
+    site: { 
+        label: 'Веб-сайт', 
+        icon: '🌍',
+        validate: (value: string) => /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/.test(value),
+        format: (value: string) => value.startsWith('http') ? value : `https://${value}`,
+        generateUrl: (handle: string) => handle.startsWith('http') ? handle : `https://${handle}`,
+        placeholder: 'example.com или https://example.com'
+    },
+    viber: { 
+        label: 'Viber', 
+        icon: '📞',
+        validate: (value: string) => /^\+?[1-9]\d{1,14}$/.test(value.replace(/\s/g, '')),
+        format: (value: string) => value.replace(/\s/g, ''),
+        generateUrl: (handle: string) => `viber://chat?number=${handle.replace('+', '')}`,
+        placeholder: '+992123456789'
+    },
+    imo: { 
+        label: 'IMO', 
+        icon: '💬',
+        validate: (value: string) => /^\+?[1-9]\d{1,14}$/.test(value.replace(/\s/g, '')),
+        format: (value: string) => value.replace(/\s/g, ''),
+        generateUrl: (handle: string) => `https://imo.im/profile/${handle.replace('+', '')}`,
+        placeholder: '+992123456789'
+    },
+    twitter: { 
+        label: 'Twitter (X)', 
+        icon: '🐦',
+        validate: (value: string) => /^[a-zA-Z0-9_]{1,15}$/.test(value.replace('@', '')),
+        format: (value: string) => value.startsWith('@') ? value.slice(1) : value,
+        generateUrl: (handle: string) => `https://x.com/${handle}`,
+        placeholder: 'username (без @)'
+    },
+    linkedin: { 
+        label: 'LinkedIn', 
+        icon: '💼',
+        validate: (value: string) => /^[a-zA-Z0-9-]{3,100}$/.test(value),
+        format: (value: string) => value,
+        generateUrl: (handle: string) => `https://linkedin.com/in/${handle}`,
+        placeholder: 'profile-name'
+    },
+    google: { 
+        label: 'Google', 
+        icon: '🔍',
+        validate: (value: string) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(value),
+        format: (value: string) => value,
+        generateUrl: (handle: string) => `mailto:${handle}`,
+        placeholder: 'email@gmail.com'
+    },
+    wechat: { 
+        label: 'WeChat', 
+        icon: '💬',
+        validate: (value: string) => /^[a-zA-Z0-9_-]{6,20}$/.test(value),
+        format: (value: string) => value,
+        generateUrl: (handle: string) => `weixin://dl/chat?${handle}`,
+        placeholder: 'wechat_id'
+    }
+};
 
 interface SocialNetwork {
     id: string;
@@ -155,7 +277,7 @@ interface EducationApiData {
     beginning?: number;
     ending?: number;
     graduated?: boolean;
-    occupation?: OccupationApiData[];
+    occupation?: string | OccupationApiData | OccupationApiData[]; // может быть IRI строкой, объектом или массивом
     [key: string]: unknown;
 }
 
@@ -233,14 +355,12 @@ function MasterProfilePage() {
     const [editingEducation, setEditingEducation] = useState<string | null>(null);
     const [educationForm, setEducationForm] = useState<{
         institution: string;
-        specialty: string;
         selectedSpecialty?: number;
         startYear: string;
         endYear: string;
         currentlyStudying: boolean;
     }>({
         institution: '',
-        specialty: '',
         selectedSpecialty: undefined,
         startYear: '',
         endYear: '',
@@ -255,20 +375,117 @@ function MasterProfilePage() {
     const [reviewPhotos, setReviewPhotos] = useState<File[]>([]);
     const [isSubmittingReview, setIsSubmittingReview] = useState(false);
     const [occupations, setOccupations] = useState<Occupation[]>([]);
+    const [occupationsLoading, setOccupationsLoading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const workExampleInputRef = useRef<HTMLInputElement>(null);
     const reviewPhotoInputRef = useRef<HTMLInputElement>(null);
     const specialtyInputRef = useRef<HTMLSelectElement>(null);
     const [editingSocialNetwork, setEditingSocialNetwork] = useState<string | null>(null);
-    const [socialNetworks, setSocialNetworks] = useState<SocialNetwork[]>([
-        { id: '1', network: 'telegram', handle: '' },
-        { id: '2', network: 'instagram', handle: '' },
-        { id: '3', network: 'whatsapp', handle: '' }
-    ]);
-
+    const [socialNetworks, setSocialNetworks] = useState<SocialNetwork[]>([]);
     const [socialNetworkEditValue, setSocialNetworkEditValue] = useState('');
+    const [showAddSocialNetwork, setShowAddSocialNetwork] = useState(false);
+    const [selectedNewNetwork, setSelectedNewNetwork] = useState('');
+    const [availableSocialNetworks, setAvailableSocialNetworks] = useState<AvailableSocialNetwork[]>([]);
+    const [socialNetworkValidationError, setSocialNetworkValidationError] = useState('');
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+    
+    // PhotoGallery hook для примеров работ
+    const galleryImages = profileData?.workExamples.map(work => work.image) || [];
+    const {
+        isOpen: isGalleryOpen,
+        currentIndex: galleryCurrentIndex,
+        openGallery,
+        closeGallery,
+        goToNext,
+        goToPrevious,
+        selectImage
+    } = usePhotoGallery({
+        images: galleryImages
+    });
+
+    // Функция загрузки доступных социальных сетей
+    const fetchAvailableSocialNetworks = async () => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/users/social-networks`);
+            
+            if (response.ok) {
+                const data: AvailableSocialNetwork[] = await response.json();
+                setAvailableSocialNetworks(data);
+                console.log('Available social networks loaded:', data);
+            } else {
+                console.error('Failed to fetch social networks:', response.status);
+            }
+        } catch (error) {
+            console.error('Error fetching available social networks:', error);
+        }
+    };
+
+    // Функция добавления новой социальной сети
+    const handleAddSocialNetwork = async () => {
+        if (!selectedNewNetwork) return;
+
+        const networkConfig = availableSocialNetworks.find(n => n.network === selectedNewNetwork);
+        if (!networkConfig) return;
+
+        const newNetwork: SocialNetwork = {
+            id: `new-${Date.now()}`,
+            network: selectedNewNetwork,
+            handle: ''
+        };
+
+        const updatedNetworks = [...socialNetworks, newNetwork];
+        setSocialNetworks(updatedNetworks);
+
+        // Сразу переходим в режим редактирования новой сети
+        setEditingSocialNetwork(newNetwork.id);
+        setSocialNetworkEditValue('');
+        setSocialNetworkValidationError('');
+        setShowAddSocialNetwork(false);
+        setSelectedNewNetwork('');
+
+        // Сохраняем на сервер
+        await updateSocialNetworks(updatedNetworks);
+    };
+
+    // Функция удаления социальной сети
+    const handleRemoveSocialNetwork = async (networkId: string) => {
+        const updatedNetworks = socialNetworks.filter(n => n.id !== networkId);
+        setSocialNetworks(updatedNetworks);
+        await updateSocialNetworks(updatedNetworks);
+    };
+
+    // Получить доступные для добавления сети (исключить уже добавленные)
+    const getAvailableNetworks = () => {
+        const addedNetworks = socialNetworks.map((sn: SocialNetwork) => sn.network);
+        return availableSocialNetworks.filter((an: AvailableSocialNetwork) => !addedNetworks.includes(an.network));
+    };
+
+    // Получить конфигурацию социальной сети
+    const getSocialNetworkConfig = (networkType: string) => {
+        return availableSocialNetworks.find((an: AvailableSocialNetwork) => an.network === networkType);
+    };
+
+    // Рендер иконки социальной сети
+    const renderSocialIcon = (networkType: string) => {
+        const config = getSocialNetworkConfig(networkType);
+        if (!config) return <span>🌐</span>;
+
+        switch (networkType) {
+            case 'telegram':
+                return <img src="./telegram.png" alt="tg" width="25"/>;
+            case 'instagram':
+                return (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="#E4405F">
+                        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                    </svg>
+                );
+            case 'whatsapp':
+                return <img src="./whatsapp-icon-free-png.png" alt="whatsapp" width="25"/>;
+            default:
+                return <span style={{ fontSize: '20px' }}>{SOCIAL_NETWORK_CONFIG[networkType]?.icon || '🌐'}</span>;
+        }
+    };
 
     useEffect(() => {
         const token = getAuthToken();
@@ -277,21 +494,72 @@ function MasterProfilePage() {
             navigate('/');
             return;
         }
+        console.log('=== LOADING PROFILE PAGE ===');
+        console.log('Token present, loading user data and occupations');
         fetchUserData();
+        fetchOccupationsList();
+        fetchAvailableSocialNetworks(); // Загружаем доступные социальные сети
     }, [navigate]);
 
     useEffect(() => {
         if (profileData?.id) {
+            console.log('Profile loaded, fetching gallery, reviews, and occupations');
             fetchUserGallery();
             fetchReviews();
+            fetchOccupationsList(); // Загружаем специальности сразу при загрузке профиля
         }
     }, [profileData?.id]);
 
     useEffect(() => {
+        console.log('editingField useEffect triggered:', editingField);
+        console.log('occupations.length:', occupations.length);
         if (editingField === 'specialty' && occupations.length === 0) {
+            console.log('Calling fetchOccupationsList from editingField effect');
             fetchOccupationsList();
         }
     }, [editingField]);
+
+    useEffect(() => {
+        console.log('editingEducation useEffect triggered:', editingEducation);
+        console.log('occupations.length:', occupations.length);
+        if (editingEducation && occupations.length === 0) {
+            console.log('Calling fetchOccupationsList from editingEducation effect');
+            fetchOccupationsList();
+        }
+    }, [editingEducation]);
+
+    // Обновляем selectedSpecialty когда загружаются occupations
+    useEffect(() => {
+        if (editingEducation && !editingEducation.startsWith('new-') && occupations.length > 0 && profileData && !occupationsLoading) {
+            const currentEducation = profileData.education.find(edu => edu.id === editingEducation);
+            console.log('useEffect: Checking for specialty update');
+            console.log('Current education found:', currentEducation);
+            console.log('Current selectedSpecialty:', educationForm.selectedSpecialty);
+            console.log('Available occupations:', occupations.length);
+            
+            if (currentEducation && currentEducation.specialty && !educationForm.selectedSpecialty) {
+                const foundOccupation = occupations.find(occ => {
+                    const occTitle = occ.title?.toLowerCase().trim() || '';
+                    const eduSpecialty = currentEducation.specialty?.toLowerCase().trim() || '';
+                    return occTitle === eduSpecialty;
+                });
+                
+                console.log('Looking for specialty match:');
+                console.log('Education specialty:', currentEducation.specialty);
+                console.log('Found occupation:', foundOccupation);
+                
+                if (foundOccupation) {
+                    console.log('Updating selectedSpecialty after occupations loaded:', foundOccupation);
+                    setEducationForm(prev => ({
+                        ...prev,
+                        selectedSpecialty: foundOccupation.id
+                    }));
+                } else {
+                    console.warn('No matching occupation found for specialty:', currentEducation.specialty);
+                }
+            }
+        }
+    }, [editingEducation, occupations, profileData, educationForm.selectedSpecialty, occupationsLoading]);
 
     const updateSocialNetworks = async (updatedNetworks: SocialNetwork[]) => {
         if (!profileData?.id) {
@@ -360,10 +628,7 @@ function MasterProfilePage() {
                     socialNetworks: updatedNetworks
                 } : null);
 
-                // Проверяем, действительно ли обновилось на сервере
-                await fetchUserData(); // Перезагружаем данные для проверки
-
-                alert('Социальные сети успешно обновлены!');
+                console.log('Социальные сети успешно обновлены');
                 return true;
             } else {
                 const errorText = await response.text();
@@ -372,58 +637,54 @@ function MasterProfilePage() {
                 try {
                     const errorData = JSON.parse(errorText);
                     console.error('Error details:', errorData);
-
-                    if (response.status === 422) {
-                        alert('Ошибка валидации данных. Проверьте формат введенных данных.');
-                    } else if (response.status === 400) {
-                        alert('Неверный запрос. Возможно, неправильный формат данных.');
-                    } else {
-                        alert(`Ошибка сервера (${response.status}). Попробуйте еще раз.`);
-                    }
+                    console.error('Ошибка при обновлении социальных сетей:', response.status);
                 } catch {
-                    alert('Ошибка при обновлении социальных сетей. Попробуйте еще раз.');
+                    console.error('Ошибка при обновлении социальных сетей');
                 }
                 return false;
             }
         } catch (error) {
             console.error('Network error updating social networks:', error);
-            alert('Сетевая ошибка. Проверьте подключение к интернету.');
             return false;
         }
     };
 
     const handleResetSocialNetworks = async () => {
-        if (!confirm('Вы уверены, что хотите очистить все социальные сети?')) {
+        if (!confirm('Вы уверены, что хотите удалить все социальные сети?')) {
             return;
         }
 
-        // Создаем сеть с пустыми значениями для очистки
-        const resetNetworks = [
-            { id: '1', network: 'telegram', handle: '' },
-            { id: '2', network: 'instagram', handle: '' },
-            { id: '3', network: 'whatsapp', handle: '' }
-        ];
+        // Очищаем все социальные сети
+        const emptyNetworks: SocialNetwork[] = [];
 
         // Обновляем локальное состояние сразу для лучшего UX
-        setSocialNetworks(resetNetworks);
+        setSocialNetworks(emptyNetworks);
 
         // Пытаемся обновить на сервере
-        const success = await updateSocialNetworks(resetNetworks);
+        const success = await updateSocialNetworks(emptyNetworks);
 
         if (!success) {
-            // Если не удалось на сервере, перезагружаем данные с сервера
+            // Если не удалось на сервере, возвращаем предыдущее состояние
             await fetchUserData();
-            alert('Не удалось обновить на сервере. Попробуйте еще раз.');
+            console.error('Не удалось обновить социальные сети на сервере');
         }
     };
 
     const fetchOccupationsList = async () => {
         try {
+            setOccupationsLoading(true);
             const token = getAuthToken();
-            if (!token) return;
+            if (!token) {
+                console.warn('No auth token available for occupations API');
+                setOccupationsLoading(false);
+                return;
+            }
 
-            console.log('Fetching occupations list...');
-            const response = await fetch(`${API_BASE_URL}/api/occupations`, {
+            const locale = localStorage.getItem('i18nextLng') || 'ru';
+            const apiUrl = `${API_BASE_URL}/api/occupations?locale=${locale}`;
+            console.log('Fetching occupations from:', apiUrl);
+            
+            const response = await fetch(apiUrl, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -432,9 +693,15 @@ function MasterProfilePage() {
                 },
             });
 
+            console.log('Occupations API response status:', response.status);
+            
             if (response.ok) {
                 const data = await response.json();
-                console.log('Occupations API response:', data);
+                console.log('Occupations loaded:', Array.isArray(data) ? data.length : typeof data);
+                if (data && typeof data === 'object' && !Array.isArray(data)) {
+                    console.log('Object keys:', Object.keys(data));
+                }
+                
                 let occupationsArray: Occupation[] = [];
 
                 if (Array.isArray(data)) {
@@ -448,15 +715,24 @@ function MasterProfilePage() {
                     }
                 }
 
-                console.log('Transformed occupations:', occupationsArray);
-                setOccupations(occupationsArray);
+                console.log('Transformed occupations array:', occupationsArray);
+                console.log('Occupations count:', occupationsArray.length);
+                
+                // Проверяем, что у нас есть валидные данные
+                const validOccupations = occupationsArray.filter(occ => occ && occ.id && occ.title);
+                console.log('Valid occupations count:', validOccupations.length);
+                console.log('Valid occupations sample:', validOccupations.slice(0, 3));
+                
+                setOccupations(validOccupations);
             } else {
-                console.error('Failed to fetch occupations:', response.status);
+                console.error('Failed to fetch occupations. Status:', response.status, 'Status Text:', response.statusText);
                 setOccupations([]);
             }
         } catch (error) {
             console.error('Error fetching occupations:', error);
             setOccupations([]);
+        } finally {
+            setOccupationsLoading(false);
         }
     };
 
@@ -556,14 +832,10 @@ function MasterProfilePage() {
 
             console.log('Final work area:', workArea);
 
-            // Создаем базовый массив социальных сетей с 3 основными сетями
-            const baseSocialNetworks: SocialNetwork[] = [
-                { id: '1', network: 'telegram', handle: '' },
-                { id: '2', network: 'instagram', handle: '' },
-                { id: '3', network: 'whatsapp', handle: '' }
-            ];
+            // Создаем пустой массив социальных сетей - показываем только те, что есть в API
+            const loadedSocialNetworks: SocialNetwork[] = [];
 
-            // Если в API есть социальные сети, заполняем их значениями
+            // Если в API есть социальные сети, добавляем их
             if (userData.socialNetworks && Array.isArray(userData.socialNetworks)) {
                 console.log('Found social networks in API:', userData.socialNetworks);
 
@@ -571,28 +843,21 @@ function MasterProfilePage() {
                     const networkType = sn.network?.toLowerCase();
                     const handle = sn.handle || '';
 
-                    // Находим соответствующую сеть в базовом массиве
-                    const networkIndex = baseSocialNetworks.findIndex(n =>
-                        n.network === networkType
-                    );
-
-                    if (networkIndex !== -1) {
-                        baseSocialNetworks[networkIndex].handle = handle;
-                    } else {
-                        // Если это не одна из стандартных сетей, добавляем ее
-                        baseSocialNetworks.push({
-                            id: sn.id?.toString() || `custom-${Date.now()}`,
-                            network: networkType || 'custom',
+                    // Добавляем только те сети, которые реально заполнены или есть в API
+                    if (networkType && (handle || (userData.socialNetworks && userData.socialNetworks.length > 0))) {
+                        loadedSocialNetworks.push({
+                            id: sn.id?.toString() || `network-${Date.now()}-${Math.random()}`,
+                            network: networkType,
                             handle: handle
                         });
                     }
                 });
             } else {
-                console.log('No social networks found in API, using empty defaults');
+                console.log('No social networks found in API');
             }
 
             // Обновляем состояние социальных сетей
-            setSocialNetworks(baseSocialNetworks);
+            setSocialNetworks(loadedSocialNetworks);
 
             const transformedData: ProfileData = {
                 id: userData.id.toString(),
@@ -607,20 +872,15 @@ function MasterProfilePage() {
                 workExamples: [],
                 workArea: workArea,
                 services: [],
-                socialNetworks: baseSocialNetworks // Используем базовый массив
+                socialNetworks: loadedSocialNetworks // Используем базовый массив
             };
 
             setProfileData(transformedData);
 
         } catch (error) {
             console.error('Error fetching user data:', error);
-            // При ошибке устанавливаем базовый массив социальных сетей
-            const defaultSocialNetworks = [
-                { id: '1', network: 'telegram', handle: '' },
-                { id: '2', network: 'instagram', handle: '' },
-                { id: '3', network: 'whatsapp', handle: '' }
-            ];
-            setSocialNetworks(defaultSocialNetworks);
+            // При ошибке устанавливаем пустой массив социальных сетей
+            setSocialNetworks([]);
             setProfileData({
                 id: '',
                 fullName: 'Фамилия Имя Отчество',
@@ -632,7 +892,7 @@ function MasterProfilePage() {
                 workExamples: [],
                 workArea: '',
                 services: [],
-                socialNetworks: defaultSocialNetworks
+                socialNetworks: []
             });
         } finally {
             setIsLoading(false);
@@ -1766,14 +2026,34 @@ function MasterProfilePage() {
     };
 
     const transformEducation = (education: EducationApiData[]): Education[] => {
-        return education.map(edu => ({
-            id: edu.id?.toString() || Date.now().toString(),
-            institution: edu.uniTitle || '',
-            specialty: edu.occupation?.map((occ) => occ.title).join(', ') || '',
-            startYear: edu.beginning?.toString() || '',
-            endYear: edu.ending?.toString() || '',
-            currentlyStudying: !edu.graduated
-        }));
+        return education.map(edu => {
+            let specialty = '';
+            
+            // Обрабатываем occupation в разных форматах
+            if (edu.occupation) {
+                if (typeof edu.occupation === 'string') {
+                    // occupation как IRI строка "/api/occupations/4"
+                    const occupationId = parseInt(edu.occupation.split('/').pop() || '0');
+                    const foundOccupation = occupations.find(occ => occ.id === occupationId);
+                    specialty = foundOccupation?.title || '';
+                } else if (Array.isArray(edu.occupation)) {
+                    // occupation как массив объектов
+                    specialty = edu.occupation.map((occ) => occ.title).join(', ');
+                } else if (typeof edu.occupation === 'object' && edu.occupation.title) {
+                    // occupation как единичный объект {id, title, image}
+                    specialty = edu.occupation.title;
+                }
+            }
+            
+            return {
+                id: edu.id?.toString() || Date.now().toString(),
+                institution: edu.uniTitle || '',
+                specialty: specialty,
+                startYear: edu.beginning?.toString() || '',
+                endYear: edu.ending?.toString() || '',
+                currentlyStudying: !edu.graduated
+            };
+        });
     };
 
     const updateUserData = async (updatedData: Partial<ProfileData>) => {
@@ -1861,92 +2141,138 @@ function MasterProfilePage() {
         }
     };
 
-    const updateEducation = async (educationId: string, updatedEducation: Omit<Education, 'id'>) => {
-        if (!profileData?.id) return;
-
-        try {
-            const token = getAuthToken();
-            if (!token) {
-                navigate('/login');
-                return;
+    // Функция для нормализации всех элементов образования - преобразует occupation в IRI формат
+    const normalizeEducationArray = (educationArray: EducationApiData[]): EducationApiData[] => {
+        return educationArray.map(edu => {
+            let occupationIri: string | undefined = undefined;
+            
+            if (edu.occupation) {
+                if (typeof edu.occupation === 'string') {
+                    // Уже IRI - оставляем как есть
+                    occupationIri = edu.occupation;
+                } else if (Array.isArray(edu.occupation) && edu.occupation.length > 0) {
+                    // Массив объектов - берем первый элемент и преобразуем в IRI
+                    occupationIri = `/api/occupations/${edu.occupation[0].id}`;
+                } else if (typeof edu.occupation === 'object' && 'id' in edu.occupation) {
+                    // Единичный объект - преобразуем в IRI
+                    occupationIri = `/api/occupations/${edu.occupation.id}`;
+                }
             }
-
-            const userResponse = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (!userResponse.ok) {
-                throw new Error('Failed to fetch user data');
-            }
-
-            const userData: UserApiData = await userResponse.json();
-            let updatedEducationArray = userData.education || [];
-            const existingIndex = updatedEducationArray.findIndex(edu =>
-                edu.id?.toString() === educationId
-            );
-
-            const educationData = {
-                uniTitle: updatedEducation.institution,
-                beginning: parseInt(updatedEducation.startYear) || new Date().getFullYear(),
-                ending: updatedEducation.currentlyStudying ? undefined : (parseInt(updatedEducation.endYear) || undefined),
-                graduated: !updatedEducation.currentlyStudying
+            
+            return {
+                id: edu.id,
+                uniTitle: edu.uniTitle,
+                beginning: edu.beginning,
+                ending: edu.ending,
+                graduated: edu.graduated,
+                ...(occupationIri && { occupation: occupationIri })
             };
+        });
+    };
 
-            if (existingIndex >= 0) {
-                updatedEducationArray[existingIndex] = {
-                    ...updatedEducationArray[existingIndex],
-                    ...educationData
-                };
-            } else {
-                updatedEducationArray.push({
-                    ...educationData,
-                    id: parseInt(educationId) || Date.now()
-                });
-            }
+    const updateEducation = async (educationId: string, updatedEducation: Omit<Education, 'id'>) => {
+    if (!profileData?.id) return;
 
-            const updateResponse = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/merge-patch+json',
-                },
-                body: JSON.stringify({
-                    education: updatedEducationArray
-                }),
+    try {
+        const token = getAuthToken();
+        if (!token) {
+            navigate('/login');
+            return;
+        }
+
+        const userResponse = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!userResponse.ok) {
+            throw new Error('Failed to fetch user data');
+        }
+
+        const userData: UserApiData = await userResponse.json();
+        const currentEducation = userData.education || [];
+        
+        // Нормализуем ВСЕ элементы массива образования
+        const normalizedEducation = normalizeEducationArray(currentEducation);
+
+        // Находим индекс редактируемого образования
+        const existingIndex = normalizedEducation.findIndex(edu =>
+            edu.id?.toString() === educationId
+        );
+
+        // Подготавливаем данные для обновления/создания
+        let occupationIri: string | undefined = undefined;
+        if (educationForm.selectedSpecialty) {
+            occupationIri = `/api/occupations/${educationForm.selectedSpecialty}`;
+        }
+
+        const parsedId = parseInt(educationId);
+        const educationData: Record<string, unknown> = {
+            uniTitle: updatedEducation.institution,
+            beginning: parseInt(updatedEducation.startYear) || new Date().getFullYear(),
+            ending: updatedEducation.currentlyStudying ? null : (parseInt(updatedEducation.endYear) || null),
+            graduated: !updatedEducation.currentlyStudying,
+            ...(occupationIri && { occupation: occupationIri })
+        };
+
+        // Только добавляем id если это обновление существующей записи
+        if (!isNaN(parsedId)) {
+            educationData.id = parsedId;
+        }
+
+        console.log('Education data to save:', educationData);
+
+        // Обновляем или добавляем запись
+        if (existingIndex >= 0) {
+            normalizedEducation[existingIndex] = educationData as any;
+        } else {
+            normalizedEducation.push(educationData as any);
+        }
+
+        console.log('Final normalized education array to send:', normalizedEducation);
+
+        const updateResponse = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/merge-patch+json',
+            },
+            body: JSON.stringify({
+                education: normalizedEducation
+            }),
+        });
+
+        if (updateResponse.ok) {
+            const updatedUser = await updateResponse.json();
+            setProfileData(prev => prev ? {
+                ...prev,
+                education: transformEducation(updatedUser.education || [])
+            } : null);
+
+            setEditingEducation(null);
+            setEducationForm({
+                institution: '',
+                selectedSpecialty: undefined,
+                startYear: '',
+                endYear: '',
+                currentlyStudying: false
             });
 
-            if (updateResponse.ok) {
-                const updatedUser = await updateResponse.json();
-                setProfileData(prev => prev ? {
-                    ...prev,
-                    education: transformEducation(updatedUser.education || [])
-                } : null);
-
-                setEditingEducation(null);
-                setEducationForm({
-                    institution: '',
-                    specialty: '',
-                    startYear: '',
-                    endYear: '',
-                    currentlyStudying: false
-                });
-
-                console.log('Education updated successfully');
-            } else {
-                const errorText = await updateResponse.text();
-                console.error('Failed to update education:', errorText);
-                throw new Error('Failed to update education');
-            }
-
-        } catch (error) {
-            console.error('Error updating education:', error);
-            alert('Ошибка при обновлении образования');
+            console.log('Education updated successfully');
+        } else {
+            const errorText = await updateResponse.text();
+            console.error('Failed to update education:', errorText);
+            throw new Error('Failed to update education');
         }
-    };
+
+    } catch (error) {
+        console.error('Error updating education:', error);
+        // Тихо обрабатываем ошибку обновления образования
+    }
+};
 
     const deleteEducation = async (educationId: string) => {
         if (!profileData?.id) return;
@@ -1973,12 +2299,16 @@ function MasterProfilePage() {
             const userData: UserApiData = await userResponse.json();
             const currentEducation = userData.education || [];
 
-            // Фильтруем массив образования, удаляя элемент с указанным ID
-            const updatedEducationArray = currentEducation.filter(edu =>
+            // Нормализуем ВСЕ элементы массива образования перед фильтрацией
+            const normalizedEducation = normalizeEducationArray(currentEducation);
+
+            // Фильтруем нормализованный массив, удаляя элемент с указанным ID
+            const updatedEducationArray = normalizedEducation.filter(edu =>
                 edu.id?.toString() !== educationId
             );
 
-            console.log(`Deleting education ${educationId}. Before: ${currentEducation.length}, after: ${updatedEducationArray.length}`);
+            console.log(`Deleting education ${educationId}. Before: ${normalizedEducation.length}, after: ${updatedEducationArray.length}`);
+            console.log('Sending normalized education array:', updatedEducationArray);
 
             const updateResponse = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
                 method: 'PATCH',
@@ -1992,13 +2322,8 @@ function MasterProfilePage() {
             });
 
             if (updateResponse.ok) {
-                const updatedUser = await updateResponse.json();
-                setProfileData(prev => prev ? {
-                    ...prev,
-                    education: transformEducation(updatedUser.education || [])
-                } : null);
-
-                console.log('Education deleted successfully');
+                console.log('Education deleted successfully on server');
+                // Не обновляем profileData здесь, т.к. это уже сделано оптимистически
             } else {
                 const errorText = await updateResponse.text();
                 console.error('Failed to delete education:', errorText);
@@ -2007,7 +2332,7 @@ function MasterProfilePage() {
 
         } catch (error) {
             console.error('Error deleting education:', error);
-            alert('Ошибка при удалении образования');
+            // Тихо обрабатываем ошибку без алертов
         }
     };
 
@@ -2016,15 +2341,34 @@ function MasterProfilePage() {
             return;
         }
 
-        setIsLoading(true);
+        // Получаем элемент и его индекс для возможного восстановления
+        const educationToDelete = profileData?.education.find(edu => edu.id === educationId);
+        const deletedIndex = profileData?.education.findIndex(edu => edu.id === educationId) ?? -1;
+        
+        // Оптимистическое обновление UI - сразу удаляем из списка
+        setProfileData(prev => prev ? {
+            ...prev,
+            education: prev.education.filter(edu => edu.id !== educationId)
+        } : null);
+
+        // Отправляем запрос на сервер в фоне
         try {
             await deleteEducation(educationId);
-            alert('Образование успешно удалено!');
+            console.log('Образование успешно удалено с сервера');
         } catch (error) {
-            console.error('Error deleting education:', error);
-            alert('Ошибка при удалении образования');
-        } finally {
-            setIsLoading(false);
+            console.error('Error deleting education from server:', error);
+            // Восстанавливаем удаленный элемент на том же месте при ошибке
+            if (educationToDelete && deletedIndex !== -1) {
+                setProfileData(prev => {
+                    if (!prev) return null;
+                    const newEducation = [...prev.education];
+                    newEducation.splice(deletedIndex, 0, educationToDelete);
+                    return {
+                        ...prev,
+                        education: newEducation
+                    };
+                });
+            }
         }
     };
 
@@ -2033,12 +2377,18 @@ function MasterProfilePage() {
         setEditingEducation(newEducationId);
         setEducationForm({
             institution: '',
-            specialty: '',
             selectedSpecialty: undefined,
             startYear: new Date().getFullYear().toString(),
             endYear: new Date().getFullYear().toString(),
             currentlyStudying: false
         });
+        
+        // Загружаем список специальностей, если еще не загружен
+        console.log('Starting new education, checking occupations:', occupations.length);
+        if (occupations.length === 0) {
+            console.log('Loading occupations for new education');
+            fetchOccupationsList();
+        }
     };
 
     const handleEditStart = (field: 'fullName' | 'specialty') => {
@@ -2072,10 +2422,38 @@ function MasterProfilePage() {
 
     const handleEditEducationStart = (education: Education) => {
         setEditingEducation(education.id);
+        
+        console.log('Starting edit for education:', education);
+        console.log('Current occupations loaded:', occupations.length);
+        console.log('Occupations loading state:', occupationsLoading);
+        
+        // Если специальности еще загружаются, попробуем найти позже
+        if (occupationsLoading || occupations.length === 0) {
+            console.log('Occupations not ready, initializing form without specialty selection');
+            setEducationForm({
+                institution: education.institution,
+                selectedSpecialty: undefined,
+                startYear: education.startYear,
+                endYear: education.endYear,
+                currentlyStudying: education.currentlyStudying
+            });
+            return;
+        }
+        
+        // Находим специальность в списке occupations с более гибким поиском
+        const foundOccupation = occupations.find(occ => {
+            const occTitle = occ.title?.toLowerCase().trim() || '';
+            const eduSpecialty = education.specialty?.toLowerCase().trim() || '';
+            return occTitle === eduSpecialty;
+        });
+        
+        console.log('Looking for specialty:', education.specialty);
+        console.log('Available occupations:', occupations.map(o => ({ id: o.id, title: o.title })));
+        console.log('Found occupation:', foundOccupation);
+        
         setEducationForm({
             institution: education.institution,
-            specialty: education.specialty,
-            selectedSpecialty: occupations.find(occ => occ.title === education.specialty)?.id,
+            selectedSpecialty: foundOccupation?.id,
             startYear: education.startYear,
             endYear: education.endYear,
             currentlyStudying: education.currentlyStudying
@@ -2088,14 +2466,10 @@ function MasterProfilePage() {
             return;
         }
 
-        // Используем выбранную специальность или введенную вручную
-        const specialtyValue = educationForm.selectedSpecialty
-            ? occupations.find(occ => occ.id === educationForm.selectedSpecialty)?.title || ''
-            : educationForm.specialty;
-
+        // Формируем данные для сохранения (occupation обрабатывается внутри updateEducation)
         const educationToSave = {
             institution: educationForm.institution,
-            specialty: specialtyValue,
+            specialty: '', // Больше не используется, occupation отправляется как IRI
             startYear: educationForm.startYear,
             endYear: educationForm.endYear,
             currentlyStudying: educationForm.currentlyStudying
@@ -2108,7 +2482,6 @@ function MasterProfilePage() {
         setEditingEducation(null);
         setEducationForm({
             institution: '',
-            specialty: '',
             selectedSpecialty: undefined,
             startYear: '',
             endYear: '',
@@ -2685,8 +3058,8 @@ function MasterProfilePage() {
                     <div className={styles.section_item}>
                         <h3>Образование и опыт</h3>
                         <div className={styles.section_content}>
-                            {profileData.education.map(edu => (
-                                <div key={edu.id} className={styles.education_item}>
+                            {profileData.education.map((edu, index) => (
+                                <div key={edu.id} className={`${styles.education_item} ${index === profileData.education.length - 1 ? styles.education_item_last : ''}`}>
                                     {editingEducation === edu.id ? (
                                         <div className={styles.education_form}>
                                             <div className={styles.form_group}>
@@ -2708,38 +3081,29 @@ function MasterProfilePage() {
                                                         const selectedId = parseInt(e.target.value);
                                                         setEducationForm(prev => ({
                                                             ...prev,
-                                                            selectedSpecialty: selectedId || undefined,
-                                                            specialty: selectedId
-                                                                ? occupations.find(occ => occ.id === selectedId)?.title || ''
-                                                                : prev.specialty
+                                                            selectedSpecialty: selectedId || undefined
                                                         }));
                                                     }}
                                                 >
                                                     <option value="">Выберите специальность</option>
-                                                    {occupations.map(occupation => (
-                                                        <option key={occupation.id} value={occupation.id}>
-                                                            {occupation.title}
-                                                        </option>
-                                                    ))}
+                                                    {/* Debug: показываем состояние occupations для нового образования */}
+                                                    {occupationsLoading && (
+                                                        <option disabled>Загружается...</option>
+                                                    )}
+                                                    {occupations.map(occupation => {
+                                                        console.log('Rendering occupation option (new education):', occupation);
+                                                        return (
+                                                            <option key={occupation.id} value={occupation.id}>
+                                                                {occupation.title}
+                                                            </option>
+                                                        );
+                                                    })}
                                                 </select>
-                                                <input
-                                                    type="text"
-                                                    placeholder="Или введите другую специальность"
-                                                    value={educationForm.selectedSpecialty ? '' : educationForm.specialty}
-                                                    onChange={(e) => {
-                                                        if (!educationForm.selectedSpecialty) {
-                                                            setEducationForm(prev => ({
-                                                                ...prev,
-                                                                specialty: e.target.value
-                                                            }));
-                                                        }
-                                                    }}
-                                                    disabled={!!educationForm.selectedSpecialty}
-                                                />
                                             </div>
 
                                             <div className={styles.year_group}>
                                                 <div className={styles.form_group}>
+                                                    <label>Год начала *</label>
                                                     <input
                                                         type="number"
                                                         placeholder="Год начала"
@@ -2748,10 +3112,10 @@ function MasterProfilePage() {
                                                         min="1900"
                                                         max={new Date().getFullYear()}
                                                     />
-                                                    <label>Год начала *</label>
                                                 </div>
 
                                                 <div className={styles.form_group}>
+                                                    <label>Год окончания</label>
                                                     <input
                                                         type="number"
                                                         placeholder="Год окончания"
@@ -2761,7 +3125,6 @@ function MasterProfilePage() {
                                                         max={new Date().getFullYear()}
                                                         disabled={educationForm.currentlyStudying}
                                                     />
-                                                    <label>Год окончания</label>
                                                 </div>
                                             </div>
 
@@ -2893,38 +3256,25 @@ function MasterProfilePage() {
                                                 const selectedId = parseInt(e.target.value);
                                                 setEducationForm(prev => ({
                                                     ...prev,
-                                                    selectedSpecialty: selectedId || undefined,
-                                                    specialty: selectedId
-                                                        ? occupations.find(occ => occ.id === selectedId)?.title || ''
-                                                        : prev.specialty
+                                                    selectedSpecialty: selectedId || undefined
                                                 }));
                                             }}
                                         >
                                             <option value="">Выберите специальность</option>
+                                            {occupationsLoading && (
+                                                <option disabled>Загружается...</option>
+                                            )}
                                             {occupations.map(occupation => (
                                                 <option key={occupation.id} value={occupation.id}>
                                                     {occupation.title}
                                                 </option>
                                             ))}
                                         </select>
-                                        <input
-                                            type="text"
-                                            placeholder="Или введите другую специальность"
-                                            value={educationForm.selectedSpecialty ? '' : educationForm.specialty}
-                                            onChange={(e) => {
-                                                if (!educationForm.selectedSpecialty) {
-                                                    setEducationForm(prev => ({
-                                                        ...prev,
-                                                        specialty: e.target.value
-                                                    }));
-                                                }
-                                            }}
-                                            disabled={!!educationForm.selectedSpecialty}
-                                        />
                                     </div>
 
                                     <div className={styles.year_group}>
                                         <div className={styles.form_group}>
+                                            <label>Год начала *</label>
                                             <input
                                                 type="number"
                                                 placeholder="Год начала"
@@ -2933,10 +3283,10 @@ function MasterProfilePage() {
                                                 min="1900"
                                                 max={new Date().getFullYear()}
                                             />
-                                            <label>Год начала *</label>
                                         </div>
 
                                         <div className={styles.form_group}>
+                                            <label>Год окончания</label>
                                             <input
                                                 type="number"
                                                 placeholder="Год окончания"
@@ -2946,7 +3296,6 @@ function MasterProfilePage() {
                                                 max={new Date().getFullYear()}
                                                 disabled={educationForm.currentlyStudying}
                                             />
-                                            <label>Год окончания</label>
                                         </div>
                                     </div>
 
@@ -2983,56 +3332,38 @@ function MasterProfilePage() {
 
                     {/* Социальные сети */}
                     <div className={styles.section_item}>
-                        <div className={styles.social_networks_header}>
-                            <h3>Социальные сети</h3>
-                            <button
-                                onClick={handleResetSocialNetworks}
-                                className={styles.reset_social_btn}
-                                title="Очистить все социальные сети"
-                            >
-                                Очистить все
-                            </button>
-                        </div>
+                        <h3>Социальные сети</h3>
                         <div className={styles.section_content}>
                             <div className={styles.social_networks}>
-                                {socialNetworks.map(network => (
-                                    <div key={network.id} className={styles.social_network_item}>
-                                        <div className={styles.social_network_icon}>
-                                            {network.network === 'telegram' && (
-                                                // <svg width="24" height="24" viewBox="0 0 24 24" fill="#0088cc">
-                                                //     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.33 1.43-.74 3.04-1.05 4.23-.31 1.19-.65 2.38-.97 3.56-.2.74-.58 1.02-1.18.62-3.24-2.23-5.52-4.51-7.8-6.79-.3-.3-.3-.61 0-.91.98-.98 1.96-1.96 2.94-2.94.35-.35.71-.35 1.06 0 .73.73 1.46 1.46 2.19 2.19.35.35.35.71 0 1.06-.35.35-.71.35-1.06 0-.73-.73-1.46-1.46-2.19-2.19-.35-.35-.35-.71 0-1.06.35-.35.71-.35 1.06 0 .73.73 1.46 1.46 2.19 2.19.35.35.35.71 0 1.06-.35.35-.71.35-1.06 0-.73-.73-1.46-1.46-2.19-2.19-.35-.35-.35-.71 0-1.06.98-.98 1.96-1.96 2.94-2.94.35-.35.71-.35 1.06 0 .3.3.3.61 0 .91-1.3 1.3-2.6 2.6-3.9 3.9z"/>
-                                                // </svg>
-                                                <img src="./telegram.png" alt="tg" width="25"/>
-                                            )}
-                                            {network.network === 'instagram' && (
-                                                <svg width="24" height="24" viewBox="0 0 24 24" fill="#E4405F">
-                                                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-                                                </svg>
-                                            )}
-                                            {network.network === 'whatsapp' && (
-                                                // <svg width="24" height="24" viewBox="0 0 24 24" fill="#25D366">
-                                                //     <path d="M12.032 2c-5.5 0-10 4.5-10 10 0 1.768.5 3.516 1.432 5.016L2 22l5.016-1.432c1.5.932 3.248 1.432 5.016 1.432 5.5 0 10-4.5 10-10s-4.5-10-10-10zm5.408 14.432c-.264.724-1.268 1.328-2.076 1.5-.58.116-1.328.208-3.86-.792-3.156-1.24-5.156-4.408-5.312-4.608-.156-.2-1.24-1.656-1.24-3.156 0-1.5.792-2.228 1.084-2.528.264-.292.58-.332.792-.332h.584c.264 0 .5.04.66.332.164.292.624 1.064.792 1.456.164.392.292.864-.084 1.392-.376.528-1.24 1.328-1.456 1.536-.216.208-.432.292-.58.5-.148.208-.148.456-.04.66.108.204.5.868 1.064 1.392.772.696 1.456 1.084 1.976 1.24.208.064.456.032.66-.084.204-.116.868-.58 1.084-.792.216-.208.456-.164.66-.084.204.084 1.3.624 1.524.736.224.112.376.168.456.26.084.092.084.532-.176 1.256z"/>
-                                                // </svg>
-                                                <img src="./whatsapp-icon-free-png.png" alt="whatsapp" width="25"/>
-                                            )}
-                                        </div>
-                                        <div className={styles.social_network_info}>
-            <span className={styles.social_network_name}>
-              {network.network === 'telegram' && 'Telegram'}
-                {network.network === 'instagram' && 'Instagram'}
-                {network.network === 'whatsapp' && 'WhatsApp'}
-            </span>
-                                            {editingSocialNetwork === network.id ? (
+                                {socialNetworks.length === 0 && (
+                                    <div className={styles.empty_social_networks}>
+                                        <p>Социальные сети не добавлены</p>
+                                        {getAvailableNetworks().length > 0 && (
+                                            <p>Нажмите "+" чтобы добавить социальную сеть</p>
+                                        )}
+                                    </div>
+                                )}
+
+                                {socialNetworks.map(network => {
+                                    return (
+                                        <div key={network.id} className={styles.social_network_item}>
+                                            <div className={styles.social_network_icon}>
+                                                {renderSocialIcon(network.network)}
+                                            </div>
+                                            <div className={styles.social_network_info}>
+                                                <span className={styles.social_network_name}>
+                                                    {SOCIAL_NETWORK_CONFIG[network.network]?.label || network.network}
+                                                </span>
+                                                {editingSocialNetwork === network.id ? (
                                                 <div className={styles.social_network_edit}>
                                                     <input
                                                         type="text"
                                                         value={socialNetworkEditValue}
-                                                        onChange={(e) => setSocialNetworkEditValue(e.target.value)}
-                                                        placeholder={
-                                                            network.network === 'telegram' ? 'Введите username (например: username)' :
-                                                                network.network === 'instagram' ? 'Введите username (например: username)' :
-                                                                    'Введите номер телефона (например: 992123456789)'
-                                                        }
+                                                        placeholder={SOCIAL_NETWORK_CONFIG[network.network]?.placeholder || 'Введите контактные данные'}
+                                                        onChange={(e) => {
+                                                            setSocialNetworkEditValue(e.target.value);
+                                                            setSocialNetworkValidationError('');
+                                                        }}
                                                         className={styles.social_input}
                                                         autoFocus
                                                     />
@@ -3040,31 +3371,39 @@ function MasterProfilePage() {
                                                         <button
                                                             className={styles.save_social_btn}
                                                             onClick={async () => {
+                                                                const trimmedValue = socialNetworkEditValue.trim();
+                                                                const config = SOCIAL_NETWORK_CONFIG[network.network];
+                                                                
+                                                                // Валидация
+                                                                if (!trimmedValue) {
+                                                                    setSocialNetworkValidationError('Поле не может быть пустым');
+                                                                    return;
+                                                                }
+
+                                                                if (config && !config.validate(trimmedValue)) {
+                                                                    setSocialNetworkValidationError(`Неверный формат для ${config.label}`);
+                                                                    return;
+                                                                }
+
                                                                 try {
-                                                                    // Создаем новый массив с обновленной социальной сетью
+                                                                    const formattedValue = config?.format(trimmedValue) || trimmedValue;
                                                                     const updatedNetworks = socialNetworks.map(n =>
                                                                         n.id === network.id
-                                                                            ? { ...n, handle: socialNetworkEditValue.trim() }
+                                                                            ? { ...n, handle: formattedValue }
                                                                             : n
                                                                     );
-
-                                                                    // Обновляем сразу локальное состояние для лучшего UX
                                                                     setSocialNetworks(updatedNetworks);
-
-                                                                    // Отправляем на сервер
                                                                     const success = await updateSocialNetworks(updatedNetworks);
-
                                                                     if (success) {
                                                                         setEditingSocialNetwork(null);
                                                                         setSocialNetworkEditValue('');
-                                                                        // alert уже показывается в updateSocialNetworks
+                                                                        setSocialNetworkValidationError('');
                                                                     } else {
-                                                                        // Если не удалось на сервере, откатываем изменения
-                                                                        await fetchUserData(); // Перезагружаем исходные данные
+                                                                        setSocialNetworkValidationError('Ошибка при сохранении');
                                                                     }
                                                                 } catch (error) {
                                                                     console.error('Error saving social network:', error);
-                                                                    alert('Ошибка при сохранении социальной сети');
+                                                                    setSocialNetworkValidationError('Ошибка при сохранении');
                                                                 }
                                                             }}
                                                             title="Сохранить"
@@ -3075,46 +3414,130 @@ function MasterProfilePage() {
                                                             </svg>
                                                         </button>
                                                     </div>
+                                                    {socialNetworkValidationError && (
+                                                        <div className={styles.validation_error}>
+                                                            {socialNetworkValidationError}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             ) : (
-                                                <div
-                                                    className={`${styles.social_network_handle} ${!network.handle ? styles.empty_handle : ''}`}
-                                                    onClick={() => {
-                                                        setEditingSocialNetwork(network.id);
-                                                        setSocialNetworkEditValue(network.handle || '');
-                                                    }}
-                                                >
-                                                    {network.handle ? (
-                                                        <span className={styles.handle_value}>
-                    {network.network === 'telegram' && !network.handle.startsWith('@') ? `@${network.handle}` :
-                        network.network === 'instagram' && !network.handle.startsWith('@') ? `@${network.handle}` :
-                            network.handle}
-                  </span>
-                                                    ) : (
-                                                        <span className={styles.handle_placeholder}>
-                    Нажмите, чтобы добавить
-                  </span>
-                                                    )}
-                                                    {network.handle && (
-                                                        <span className={styles.edit_indicator}>
-                    (нажмите для редактирования)
-                  </span>
-                                                    )}
+                                                <div className={styles.social_network_display}>
+                                                    <div
+                                                        className={`${styles.social_network_handle} ${!network.handle ? styles.empty_handle : ''}`}
+                                                        onClick={() => {
+                                                            setEditingSocialNetwork(network.id);
+                                                            setSocialNetworkEditValue(network.handle || '');
+                                                            setSocialNetworkValidationError('');
+                                                        }}
+                                                    >
+                                                        {network.handle ? (
+                                                            <a 
+                                                                href={SOCIAL_NETWORK_CONFIG[network.network]?.generateUrl(network.handle) || '#'}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className={styles.handle_value_link}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            >
+                                                                {(['telegram', 'instagram'].includes(network.network) && !network.handle.startsWith('@'))
+                                                                    ? `@${network.handle}`
+                                                                    : network.handle}
+                                                            </a>
+                                                        ) : (
+                                                            <span className={styles.handle_placeholder}>
+                                                                Нажмите, чтобы добавить
+                                                            </span>
+                                                        )}
+                                                        {network.handle && (
+                                                            <span className={styles.edit_indicator}>
+                                                                (нажмите для редактирования)
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <button
+                                                        className={styles.remove_social_btn}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (confirm(`Удалить ${SOCIAL_NETWORK_CONFIG[network.network]?.label || network.network}?`)) {
+                                                                handleRemoveSocialNetwork(network.id);
+                                                            }
+                                                        }}
+                                                        title={`Удалить ${SOCIAL_NETWORK_CONFIG[network.network]?.label || network.network}`}
+                                                    >
+                                                        ×
+                                                    </button>
                                                 </div>
                                             )}
                                         </div>
                                     </div>
-                                ))}
+                                    );
+                                })}
+
+                            {/* Кнопки управления социальными сетями */}
+                            {!showAddSocialNetwork && (getAvailableNetworks().length > 0 || socialNetworks.length > 0) && (
+                                <div className={styles.add_education_container}>
+                                    {socialNetworks.length > 0 && (
+                                        <button
+                                            onClick={handleResetSocialNetworks}
+                                            className={styles.reset_social_btn}
+                                            title="Удалить все социальные сети"
+                                        >
+                                            Удалить все
+                                        </button>
+                                    )}
+                                    {getAvailableNetworks().length > 0 && (
+                                        <button
+                                            className={styles.add_button}
+                                            onClick={() => setShowAddSocialNetwork(true)}
+                                            title="Добавить социальную сеть"
+                                        >
+                                            +
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+
+                                {/* Интерфейс добавления новой социальной сети */}
+                                {showAddSocialNetwork && (
+                                    <div className={styles.add_social_network_form}>
+                                        <h4>Добавить социальную сеть</h4>
+                                        <div className={styles.social_network_select}>
+                                            <label>Выберите социальную сеть:</label>
+                                            <select
+                                                value={selectedNewNetwork}
+                                                onChange={(e) => setSelectedNewNetwork(e.target.value)}
+                                            >
+                                                <option value="">-- Выберите --</option>
+                                                {getAvailableNetworks().map((availableNetwork: AvailableSocialNetwork) => {
+                                                    const config = SOCIAL_NETWORK_CONFIG[availableNetwork.network] || { label: availableNetwork.network, icon: '🌐' };
+                                                    return (
+                                                        <option key={availableNetwork.id} value={availableNetwork.network}>
+                                                            {config.icon} {config.label}
+                                                        </option>
+                                                    );
+                                                })}
+                                            </select>
+                                        </div>
+                                        <div className={styles.add_social_buttons}>
+                                            <button
+                                                onClick={handleAddSocialNetwork}
+                                                disabled={!selectedNewNetwork}
+                                                className={styles.confirm_add_btn}
+                                            >
+                                                Добавить
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setShowAddSocialNetwork(false);
+                                                    setSelectedNewNetwork('');
+                                                }}
+                                                className={styles.cancel_add_btn}
+                                            >
+                                                Отмена
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                            {/*<div className={styles.social_hint}>*/}
-                            {/*    <p>Добавьте свои контакты в социальных сетях, чтобы клиенты могли с вами связаться</p>*/}
-                            {/*    <p style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>*/}
-                            {/*        <strong>Формат:</strong>*/}
-                            {/*        <br/>- Telegram: username (без @)*/}
-                            {/*        <br/>- Instagram: username (без @)*/}
-                            {/*        <br/>- WhatsApp: номер телефона (992123456789)*/}
-                            {/*    </p>*/}
-                            {/*</div>*/}
                         </div>
                     </div>
 
@@ -3124,11 +3547,15 @@ function MasterProfilePage() {
                         <div className={styles.work_examples}>
                             {profileData.workExamples.length > 0 ? (
                                 <div className={styles.work_examples_grid}>
-                                    {profileData.workExamples.map(work => (
+                                    {profileData.workExamples.map((work, index) => (
                                         <div key={work.id} className={styles.work_example}>
                                             <img
                                                 src={getImageUrlWithCacheBust(work.image)}
                                                 alt={work.title}
+                                                onClick={() => {
+                                                    openGallery(index);
+                                                }}
+                                                style={{ cursor: 'pointer' }}
                                                 onError={(e) => {
                                                     console.log('Image load error for:', work.image);
                                                     const img = e.currentTarget;
@@ -3167,7 +3594,10 @@ function MasterProfilePage() {
                                             />
                                             <button
                                                 className={styles.delete_work_button}
-                                                onClick={() => handleDeleteWorkExample(work.id)}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDeleteWorkExample(work.id);
+                                                }}
                                                 title="Удалить фото"
                                             >
                                                 ×
@@ -3201,6 +3631,17 @@ function MasterProfilePage() {
                             accept="image/*"
                             multiple
                             style={{ display: 'none' }}
+                        />
+                        
+                        {/* PhotoGallery для примеров работ */}
+                        <PhotoGallery
+                            isOpen={isGalleryOpen}
+                            images={galleryImages}
+                            currentIndex={galleryCurrentIndex}
+                            onClose={closeGallery}
+                            onNext={goToNext}
+                            onPrevious={goToPrevious}
+                            onSelectImage={selectImage}
                         />
                     </div>
 

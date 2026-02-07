@@ -5,7 +5,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--color-shadow-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -14,13 +14,13 @@
 }
 
 .modalContent {
-  background: white;
+  background: var(--color-background-primary);
   padding: 40px;
   border-radius: 12px;
   text-align: center;
   max-width: 564px;
   width: 100%;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 10px 25px var(--color-shadow-light);
 }
 
 .successIcon, .errorIcon {
@@ -30,26 +30,26 @@
 .successTitle {
   font-size: 20px;
   font-weight: 600;
-  color: #333;
+  color: var(--color-text-primary);
   margin: 0 0 16px 0;
 }
 
 .errorTitle {
   font-size: 20px;
   font-weight: 600;
-  color: #d32f2f;
+  color: var(--color-danger-red);
   margin: 0 0 16px 0;
 }
 
 .infoTitle {
   font-size: 20px;
   font-weight: 600;
-  color: #1976d2;
+  color: var(--color-primary);
   margin: 0 0 16px 0;
 }
 
 .successMessage, .errorMessage, .infoMessage {
-  color: #666;
+  color: var(--color-text-secondary);
   line-height: 1.5;
   margin: 0 0 24px 0;
   font-size: 14px;
@@ -58,8 +58,8 @@
 .successButton {
   width: 100%;
   padding: 12px 24px;
-  background: #3A54DA;
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
   border: none;
   border-radius: 8px;
   font-size: 16px;
@@ -68,15 +68,15 @@
   transition: background 0.2s;
 
   &:hover {
-    background: #2a44ca;
+    background: var(--color-primary-hover);
   }
 }
 
 .errorButton {
   width: 100%;
   padding: 12px 24px;
-  background: #d32f2f;
-  color: white;
+  background: var(--color-danger-red);
+  color: var(--color-text-inverse);
   border: none;
   border-radius: 8px;
   font-size: 16px;
@@ -85,15 +85,15 @@
   transition: background 0.2s;
 
   &:hover {
-    background: #c62828;
+    background: var(--color-danger-red-hover);
   }
 }
 
 .infoButton {
   width: 100%;
   padding: 12px 24px;
-  background: #1976d2;
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
   border: none;
   border-radius: 8px;
   font-size: 16px;
@@ -102,6 +102,6 @@
   transition: background 0.2s;
 
   &:hover {
-    background: #1565c0;
+    background: var(--color-primary-hover);
   }
 }

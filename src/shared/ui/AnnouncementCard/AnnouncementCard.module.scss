@@ -8,20 +8,20 @@
   border-radius: 20px;
   padding: 20px;
   border: 1px solid map.get(vars.$colors, color-stroke);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px var(--color-shadow-light);
   transition: all 0.2s ease;
   position: relative;
 
   &:hover {
     border-color: map.get(vars.$colors, actual-blue);
-    box-shadow: 0 4px 12px rgba(58, 84, 218, 0.1);
+    box-shadow: 0 4px 12px var(--color-shadow-accent);
   }
 
   &_ticketType {
     position: absolute;
     top: 20px;
-    background: #3A54DA;
-    color: white;
+    background: var(--color-background-btn);
+    color: var(--color-primary-text-white);
     padding: 6px 12px;
     border-radius: 6px;
     font-size: 12px;
@@ -75,7 +75,7 @@
     transition: background-color 0.2s ease;
 
     &:hover {
-      background-color: rgba(58, 84, 218, 0.1);
+      background-color: var(--color-background-accent-light);
     }
 
     &:disabled {
@@ -184,7 +184,7 @@
     font-size: 18px;
     color: map.get(vars.$colors, actual-blue);
     font-weight: 500;
-    background-color: rgba(58, 84, 218, 0.1);
+    background-color: var(--color-background-accent-light);
     padding: 4px 12px;
     border-radius: 6px;
   }

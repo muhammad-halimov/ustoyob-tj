@@ -227,6 +227,8 @@
     "allCities": "All cities",
     "category": "Category",
     "allCategories": "All categories",
+    "subcategory": "Occupation",
+    "allSubcategories": "All occupations",
     "rating": "Executor/Customer rating",
     "selectRating": "Select rating",
     "reviewCount": "Number of user reviews",

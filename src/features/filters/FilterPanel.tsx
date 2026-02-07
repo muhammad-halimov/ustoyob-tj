@@ -2,10 +2,17 @@ import styles from './FilterPanel.module.scss';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
+interface Occupation {
+    id: number;
+    title: string;
+    categories: { id: number; title: string }[];
+}
+
 export interface FilterState {
     minPrice: string;
     maxPrice: string;
     category: string;
+    subcategory: string; // Добавляем подкатегорию
     rating: string;
     reviewCount: string;
     sortBy: string;
@@ -20,6 +27,7 @@ interface FilterPanelProps {
     onResetFilters: () => void;
     categories: { id: number; name: string }[];
     cities: { id: number; name: string }[]; // Добавляем города
+    occupations: Occupation[]; // Добавляем профессии
 }
 
 function FilterPanel({
@@ -29,7 +37,8 @@ function FilterPanel({
                          filters,
                          onResetFilters,
                          categories,
-                         cities // Добавляем пропс для городов
+                         cities, // Добавляем пропс для городов
+                         occupations // Добавляем пропс для профессий
                      }: FilterPanelProps) {
     const [localFilters, setLocalFilters] = useState<FilterState>(filters);
     const { t } = useTranslation('components');
@@ -52,7 +61,23 @@ function FilterPanel({
     };
 
     const handleCategoryChange = (value: string) => {
-        setLocalFilters(prev => ({ ...prev, category: value }));
+        setLocalFilters(prev => ({ 
+            ...prev, 
+            category: value,
+            subcategory: '' // Сбрасываем подкатегорию при смене категории
+        }));
+    };
+
+    const handleSubcategoryChange = (value: string) => {
+        setLocalFilters(prev => ({ ...prev, subcategory: value }));
+    };
+
+    // Функция для получения подкатегорий для выбранной категории
+    const getFilteredOccupations = () => {
+        if (!localFilters.category) return [];
+        return occupations.filter(occupation => 
+            occupation.categories.some(cat => cat.id.toString() === localFilters.category)
+        );
     };
 
     const handleCityChange = (value: string) => {
@@ -61,7 +86,6 @@ function FilterPanel({
 
     const handleApplyFilters = () => {
         onFilterChange(localFilters);
-        setShowFilters(false);
     };
 
     const handleCancel = () => {
@@ -69,6 +93,7 @@ function FilterPanel({
             minPrice: '',
             maxPrice: '',
             category: '',
+            subcategory: '',
             rating: '',
             reviewCount: '',
             sortBy: '',
@@ -143,6 +168,26 @@ function FilterPanel({
                                     {categories.map(cat => (
                                         <option key={cat.id} value={cat.id.toString()}>
                                             {cat.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Подкатегория */}
+                    {localFilters.category && getFilteredOccupations().length > 0 && (
+                        <div className={styles.filter_section}>
+                            <h3>{t('filters.subcategory')}</h3>
+                            <div className={styles.category_select}>
+                                <select
+                                    value={localFilters.subcategory}
+                                    onChange={e => handleSubcategoryChange(e.target.value)}
+                                >
+                                    <option value="">{t('filters.allSubcategories')}</option>
+                                    {getFilteredOccupations().map(occ => (
+                                        <option key={occ.id} value={occ.id.toString()}>
+                                            {occ.title}
                                         </option>
                                     ))}
                                 </select>

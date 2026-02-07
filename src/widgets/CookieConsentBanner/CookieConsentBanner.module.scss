@@ -5,8 +5,8 @@
   transform: translateX(-50%);
   width: 95%;
   max-width: 1150px;
-  background: #3A54DA;
-  color: white;
+  background: var(--color-background-btn);
+  color: var(--color-primary-text-white);
   border-radius: 16px;
   padding: 24px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
@@ -89,7 +89,7 @@
   display: inline;
 
   &:hover {
-    color: #fff;
+    color: var(--color-primary-text-white);
     text-decoration: none;
   }
 }
@@ -129,7 +129,7 @@
 
 .declineButton {
   background: rgba(255, 255, 255, 0.1);
-  color: white;
+  color: var(--color-primary-text-white);
   border: 2px solid rgba(255, 255, 255, 0.3);
 
   &:hover {
@@ -139,12 +139,12 @@
 }
 
 .acceptButton {
-  background: white;
-  color: #3A54DA;
-  border: 2px solid white;
+  background: var(--color-primary-text-white);
+  color: var(--color-background-btn);
+  border: 2px solid var(--color-primary-text-white);
 
   &:hover {
-    background: #f8f9fa;
+    background: var(--color-background-gray-light);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }

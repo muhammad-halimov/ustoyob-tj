@@ -18,7 +18,7 @@
   border-radius: 10px;
   cursor: pointer;
   &:hover {
-    background: rgba(64, 103, 249, 0.05);
+    background: var(--color-filters-btn-hover);
   }
 }
 
@@ -29,7 +29,7 @@
     width: 100%;
     font-size: 12px;
     &:hover {
-      background: rgba(64, 103, 249, 0.05);
+      background: var(--color-filters-btn-hover);
     }
   }
 }

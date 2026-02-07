@@ -4,6 +4,7 @@ import {Swiper, SwiperSlide} from "swiper/react";
 import "swiper/css";
 import {useNavigate} from "react-router-dom";
 import { useTranslation } from 'react-i18next';
+import { PhotoGallery, usePhotoGallery } from '../../shared/ui/PhotoGallery';
 
 import "swiper/css/navigation";
 import "swiper/css/zoom";
@@ -104,10 +105,11 @@ function Reviews() {
     const [showAllReviews, setShowAllReviews] = useState(false);
     const MAX_INITIAL_REVIEWS = 6;
 
-    // Состояния для модального окна с фото
-    const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
-    const [selectedReviewImages, setSelectedReviewImages] = useState<string[]>([]);
-    const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+    // Состояние для динамических изображений галереи
+    const [galleryImages, setGalleryImages] = useState<string[]>([]);
+    
+    // Хук для управления галереей фотографий
+    const photoGallery = usePhotoGallery({ images: galleryImages });
 
     // Функция для форматирования даты с учетом текущего языка
     const formatLocalizedDate = (dateString: string): string => {
@@ -458,63 +460,14 @@ function Reviews() {
     // Функция открытия модального окна с фото
     const openPhotoModal = (reviewImages: Array<{id: number, image: string}>, startIndex: number = 0) => {
         const imageUrls = reviewImages.map(img => getReviewImageUrl(img.image));
-        setSelectedReviewImages(imageUrls);
-        setCurrentPhotoIndex(startIndex);
-        setIsPhotoModalOpen(true);
-
-        // Блокируем скролл страницы
-        document.body.style.overflow = 'hidden';
-    };
-
-    // Функция закрытия модального окна
-    const closePhotoModal = () => {
-        setIsPhotoModalOpen(false);
-        setSelectedReviewImages([]);
-        setCurrentPhotoIndex(0);
-
-        // Восстанавливаем скролл страницы
-        document.body.style.overflow = 'auto';
-    };
-
-    // Функция для переключения между фото
-    const goToNextPhoto = () => {
-        setCurrentPhotoIndex((prevIndex) =>
-            prevIndex === selectedReviewImages.length - 1 ? 0 : prevIndex + 1
-        );
-    };
-
-    const goToPrevPhoto = () => {
-        setCurrentPhotoIndex((prevIndex) =>
-            prevIndex === 0 ? selectedReviewImages.length - 1 : prevIndex - 1
-        );
+        setGalleryImages(imageUrls);
+        photoGallery.openGallery(startIndex);
     };
 
     // Переключение режима показа отзывов
     const toggleShowAllReviews = () => {
         setShowAllReviews(!showAllReviews);
     };
-
-    // Обработчик нажатия клавиш
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (!isPhotoModalOpen) return;
-
-            switch(e.key) {
-                case 'Escape':
-                    closePhotoModal();
-                    break;
-                case 'ArrowLeft':
-                    goToPrevPhoto();
-                    break;
-                case 'ArrowRight':
-                    goToNextPhoto();
-                    break;
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isPhotoModalOpen]);
 
     if (isLoading) {
         return (
@@ -804,75 +757,17 @@ function Reviews() {
                 </div>
             )}
 
-            {/* Модальное окно для просмотра фотографий */}
-            {isPhotoModalOpen && (
-                <div className={style.photo_modal_overlay} onClick={closePhotoModal}>
-                    <div className={style.photo_modal_content} onClick={(e) => e.stopPropagation()}>
-                        <button
-                            className={style.photo_modal_close}
-                            onClick={closePhotoModal}
-                            aria-label="Закрыть"
-                        >
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M18 6L6 18" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                <path d="M6 6L18 18" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
-                        </button>
-
-                        <div className={style.photo_modal_main}>
-                            <button
-                                className={style.photo_modal_nav}
-                                onClick={goToPrevPhoto}
-                                aria-label="Предыдущее фото"
-                            >
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M15 18L9 12L15 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                </svg>
-                            </button>
-
-                            <div className={style.photo_modal_image_container}>
-                                <img
-                                    src={selectedReviewImages[currentPhotoIndex]}
-                                    alt={`Фото ${currentPhotoIndex + 1}`}
-                                    className={style.photo_modal_image}
-                                    onError={(e) => {
-                                        e.currentTarget.src = '../fonTest5.png';
-                                    }}
-                                />
-                            </div>
-
-                            <button
-                                className={style.photo_modal_nav}
-                                onClick={goToNextPhoto}
-                                aria-label="Следующее фото"
-                            >
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M9 18L15 12L9 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                </svg>
-                            </button>
-                        </div>
-
-                        <div className={style.photo_modal_counter}>
-                            {currentPhotoIndex + 1} / {selectedReviewImages.length}
-                        </div>
-
-                        <div className={style.photo_modal_thumbnails}>
-                            {selectedReviewImages.map((image, index) => (
-                                <img
-                                    key={index}
-                                    src={image}
-                                    alt={`Миниатюра ${index + 1}`}
-                                    className={`${style.photo_modal_thumbnail} ${index === currentPhotoIndex ? style.active : ''}`}
-                                    onClick={() => setCurrentPhotoIndex(index)}
-                                    onError={(e) => {
-                                        e.currentTarget.src = '../fonTest5.png';
-                                    }}
-                                />
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Новый компонент для просмотра фотографий */}
+            <PhotoGallery
+                isOpen={photoGallery.isOpen}
+                images={galleryImages}
+                currentIndex={photoGallery.currentIndex}
+                onClose={photoGallery.closeGallery}
+                onNext={photoGallery.goToNext}
+                onPrevious={photoGallery.goToPrevious}
+                onSelectImage={photoGallery.selectImage}
+                fallbackImage="../fonTest5.png"
+            />
         </div>
     );
 }

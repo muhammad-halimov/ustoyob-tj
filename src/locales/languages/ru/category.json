@@ -1,5 +1,10 @@
 {
   "title": "Категории",
+  "subcategories": "Подкатегории",
+  "allSubcategories": "Все",
+  "searchSubcategories": "Поиск по профессиям...",
+  "searchCategories": "Поиск категорий...",
+  "noResults": "Категории не найдены",
   "loading": "Загрузка категорий...",
   "noCategories": "Нет доступных категорий",
   "viewAll": "Посмотреть все",

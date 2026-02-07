@@ -9,6 +9,13 @@
   flex: 1;
 }
 
+.containerExpanded {
+  @media screen and (min-width: 769px) {
+    max-width: 95%;
+    width: 95%;
+  }
+}
+
 .search_with_filters {
   display: flex;
   gap: 27px;
@@ -206,7 +213,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0,0,0,0.5);
+  background: var(--color-shadow-overlay);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -219,7 +226,7 @@
   padding: 0;
   max-width: 400px;
   width: 90%;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  box-shadow: 0 10px 25px var(--color-shadow-light);
 }
 
 .modalHeader {
@@ -355,7 +362,7 @@
   align-items: center;
   margin-bottom: 16px;
   padding: 12px;
-  background: #f5f5f5;
+  background: var(--color-background-secondary);
   border-radius: 8px;
 
   span:first-child {
@@ -365,16 +372,16 @@
 }
 
 .filter_tag {
-  background: #3A54DA;
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 12px;
 }
 
 .clear_filters_btn {
-  background: #3A54DA;
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
   border: none;
   padding: 4px 8px;
   border-radius: 4px;
@@ -384,21 +391,21 @@
 
 .resultCard {
   position: relative;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border-light);
   border-radius: 8px;
   padding: 16px;
   margin-bottom: 16px;
-  background-color: white;
+  background-color: var(--color-background-primary);
   transition: all 0.3s ease;
 }
 
 .resultCard.fromSelectedCity {
-  border-left: 4px solid #3A54DA;
-  background-color: #f8f9ff;
+  border-left: 4px solid var(--color-primary);
+  background-color: var(--color-background-accent-light);
 }
 
 .resultCard.fromSelectedCity:hover {
-  box-shadow: 0 4px 12px rgba(58, 84, 218, 0.2);
+  box-shadow: 0 4px 12px var(--color-shadow-accent);
   transform: translateY(-2px);
 }
 
@@ -406,8 +413,8 @@
   position: absolute;
   top: 218px;
   right: 17px;
-  background-color: #3A54DA;
-  color: white;
+  background-color: var(--color-primary);
+  color: var(--color-text-inverse);
   padding: 4px 8px;
   border-radius: 12px;
   font-size: 12px;
@@ -425,10 +432,10 @@
   align-items: center;
   gap: 4px;
   padding: 4px 8px;
-  background-color: rgba(58, 84, 218, 0.1);
+  background-color: var(--color-background-accent-light);
   border-radius: 4px;
   font-size: 12px;
-  color: #3A54DA;
+  color: var(--color-primary);
   margin-bottom: 8px;
 
   svg {
@@ -438,6 +445,6 @@
 }
 
 .cityName {
-  color: #666;
+  color: var(--color-text-secondary);
   font-size: 14px;
 }

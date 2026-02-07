@@ -1,5 +1,10 @@
 {
   "title": "Categories",
+  "subcategories": "Subcategories",
+  "allSubcategories": "All",
+  "searchSubcategories": "Search occupations...",
+  "searchCategories": "Search categories...",
+  "noResults": "No categories found",
   "loading": "Loading categories...",
   "noCategories": "No categories available",
   "viewAll": "View all",

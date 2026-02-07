@@ -148,11 +148,11 @@
 .loading, .error, .noReviews {
   text-align: center;
   padding: 20px;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
 .error {
-  color: #ff4444;
+  color: var(--color-danger-red);
 }
 
 .review_images {
@@ -167,7 +167,7 @@
   height: 60px;
   object-fit: cover;
   border-radius: 8px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--color-border-light);
 }
 
 // Для мобильной версии - меньшие изображения
@@ -198,13 +198,13 @@
   height: 60px;
   object-fit: cover;
   border-radius: 8px;
-  border: 2px solid #e8e8e8;
+  border: 2px solid var(--color-border-light);
   cursor: pointer;
   transition: transform 0.2s ease, border-color 0.2s ease;
 
   &:hover {
     transform: scale(1.05);
-    border-color: #3A54DA;
+    border-color: var(--color-primary);
   }
 }
 
@@ -216,7 +216,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.9);
+  background: var(--color-shadow-overlay);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -233,7 +233,7 @@
   align-items: center;
   justify-content: center;
   gap: 16px;
-  background: rgba(0, 0, 0, 0.9);
+  background: var(--color-shadow-overlay);
 }
 
 .photo_modal_close {
@@ -243,7 +243,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: white;
+  color: var(--color-text-inverse);
   z-index: 10001;
   padding: 8px;
 
@@ -277,7 +277,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: white;
+  color: var(--color-text-inverse);
   transition: background 0.2s ease;
 
   svg {
@@ -316,7 +316,7 @@
 
 .photo_modal_counter {
   text-align: center;
-  color: white;
+  color: var(--color-text-inverse);
   font-size: 16px;
   font-weight: 500;
 }
@@ -347,7 +347,7 @@
 
   &.active {
     opacity: 1;
-    border-color: #3A54DA;
+    border-color: var(--color-primary);
   }
 }
 
@@ -416,8 +416,8 @@
 .show_all_button {
   padding: 12px 24px;
   background: transparent;
-  border: 2px solid #3A54DA;
-  color: #3A54DA;
+  border: 2px solid var(--color-primary);
+  color: var(--color-primary);
   border-radius: 8px;
   font-size: 16px;
   font-weight: 500;
@@ -425,8 +425,8 @@
   transition: all 0.3s ease;
 
   &:hover {
-    background: #3A54DA;
-    color: white;
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
   }
 }
 
@@ -445,7 +445,7 @@
   transition: color 0.2s ease;
 
   &:hover {
-    color: #3A54DA;
+    color: var(--color-primary);
   }
 }
 
@@ -454,7 +454,7 @@
   transition: color 0.2s ease;
 
   &:hover {
-    color: #3A54DA;
+    color: var(--color-primary);
   }
 }
 

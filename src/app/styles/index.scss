@@ -7,6 +7,92 @@
   padding: 0;
 }
 
+// Глобальные стили для body и html с поддержкой темизации
+html {
+  // Инициализация темы по умолчанию
+  --color-scheme: light;
+  color-scheme: var(--color-scheme);
+}
+
+html[data-theme="dark"] {
+  --color-scheme: dark;
+}
+
 body {
-  background: map.get(vars.$colors, background-all);
+  background: var(--color-background-all);
+  color: var(--color-text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  min-height: 100vh;
+}
+
+// Глобальные стили для темизации
+:root {
+  // Анимации для переходов между темами
+  --theme-transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+// Стили для элементов ввода и интерактивных компонентов
+input, textarea, select {
+  background: var(--color-background-primary);
+  color: var(--color-text-primary);
+  border-color: var(--color-stroke);
+  transition: var(--theme-transition);
+  
+  &:focus {
+    border-color: var(--color-primary);
+    outline-color: var(--color-primary);
+  }
+  
+  &::placeholder {
+    color: var(--color-text-placeholder);
+  }
+}
+
+// Стили для кнопок
+button {
+  transition: var(--theme-transition);
+  border-color: var(--color-stroke);
+  
+  &:not(:disabled) {
+    &:hover {
+      background-color: var(--color-background-gray-hover);
+    }
+  }
+}
+
+// Стили для ссылок
+a {
+  color: var(--color-primary);
+  transition: color 0.3s ease;
+  
+  &:hover {
+    color: var(--color-primary-hover);
+  }
+}
+
+// Стили для модальных окон и оверлеев
+.modal-overlay {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="dark"] .modal-overlay {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+// Стили для скроллбаров в темной теме
+[data-theme="dark"] ::-webkit-scrollbar {
+  width: 8px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: var(--color-background-primary);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: var(--color-stroke);
+  border-radius: 4px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--color-background-gray-hover);
 }

@@ -10,7 +10,7 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background-color: rgba(0, 0, 0, 0.5);
+      background-color: var(--color-shadow-overlay);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -18,31 +18,31 @@
     }
 
     .auth-modal-content {
-      background: white;
+      background: var(--color-background-primary);
       border-radius: 12px;
       padding: 24px;
       max-width: 400px;
       width: 90%;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+      box-shadow: 0 4px 20px var(--color-shadow-light);
     }
   }
 
   .create_order {
     font-size: 24px;
     text-decoration: none;
-    color: black;
+    color: var(--color-text-primary);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background-color: white;
+    background-color: var(--color-background-primary);
     padding: 32px 40px;
     border-radius: 10px;
     transition: all 0.3s ease;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 2px 8px var(--color-shadow-light);
     margin-bottom: 40px;
 
     &:hover {
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+      box-shadow: 0 4px 16px var(--color-shadow-light);
       transform: translateY(-2px);
     }
 
@@ -59,20 +59,20 @@
     margin: 0 0 24px 0;
     font-size: 32px;
     font-weight: 600;
-    color: #101010;
+    color: var(--color-text-primary);
   }
 
   // Стили для состояний загрузки
   .loading, .error, .no_tickets, .not_authenticated {
-    background-color: white;
+    background-color: var(--color-background-primary);
     padding: 60px 40px;
     border-radius: 10px;
     text-align: center;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 2px 8px var(--color-shadow-light);
 
     p {
       font-size: 18px;
-      color: #585858;
+      color: var(--color-text-secondary);
       margin: 16px 0;
     }
   }
@@ -82,8 +82,8 @@
       display: inline-block;
       width: 40px;
       height: 40px;
-      border: 3px solid #f3f3f3;
-      border-top: 3px solid #3A54DA;
+      border: 3px solid var(--color-border-light);
+      border-top: 3px solid var(--color-primary);
       border-radius: 50%;
       animation: spin 1s linear infinite;
       margin-bottom: 16px;

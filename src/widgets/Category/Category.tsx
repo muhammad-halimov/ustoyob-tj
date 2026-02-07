@@ -17,6 +17,7 @@ export default function Category() {
     const [loading, setLoading] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
     const [showAll, setShowAll] = useState(false);
+    const [searchQuery, setSearchQuery] = useState<string>('');
     const navigate = useNavigate();
     const { t } = useTranslation(['common', 'category']); // Добавьте перевод
 
@@ -86,11 +87,30 @@ export default function Category() {
         setShowAll(false);
     };
 
+    const handleSearch = (query: string) => {
+        setSearchQuery(query);
+        if (query.trim()) {
+            setShowAll(false); // При поиске сбрасываем "показать все"
+        }
+    };
+
+    const getFilteredCategories = () => {
+        if (!searchQuery.trim()) {
+            return categories;
+        }
+        
+        const searchLower = searchQuery.toLowerCase().trim();
+        return categories.filter(category => 
+            category.title.toLowerCase().includes(searchLower) || 
+            (category.description && category.description.toLowerCase().includes(searchLower))
+        );
+    };
+
     // Состояние загрузки
     if (loading) {
         return (
             <div className={styles.category}>
-                <h3>{t('category:title', 'Категории')}</h3> {/* Используйте перевод */}
+                <h3>{t('category:title', 'Категории')}</h3>
                 <div className={styles.loadingContainer}>
                     <p>{t('category:loading', 'Загрузка категорий...')}</p>
                 </div>
@@ -112,29 +132,36 @@ export default function Category() {
 
     // Определяем какие категории показывать
     const getVisibleCategories = () => {
+        const filteredCategories = getFilteredCategories();
+        
+        // Если есть поиск, показываем все результаты
+        if (searchQuery.trim()) {
+            return filteredCategories;
+        }
+        
         if (showAll) {
-            return categories;
+            return filteredCategories;
         }
 
         if (isMobile) {
             // На мобильных показываем 4 или 6 категорий (если меньше - все)
-            return categories.slice(0, Math.min(6, categories.length));
+            return filteredCategories.slice(0, Math.min(6, filteredCategories.length));
         } else {
             // На десктопе показываем 8 категорий (если меньше - все)
-            return categories.slice(0, Math.min(8, categories.length));
+            return filteredCategories.slice(0, Math.min(8, filteredCategories.length));
         }
     };
 
     const visibleItems = getVisibleCategories();
 
     // Проверяем нужно ли показывать кнопку "Посмотреть все"
-    const shouldShowViewAll = !showAll && (
+    const shouldShowViewAll = !showAll && !searchQuery.trim() && (
         (isMobile && categories.length > 6) ||
         (!isMobile && categories.length > 8)
     );
 
     // Проверяем нужно ли показывать кнопку "Свернуть"
-    const shouldShowShowLess = showAll && categories.length > 0;
+    const shouldShowShowLess = showAll && !searchQuery.trim() && categories.length > 0;
 
     // Форматирование URL изображения
     const getImageUrl = (imagePath?: string) => {
@@ -159,34 +186,67 @@ export default function Category() {
     return (
         <div className={styles.category}>
             <h3>{t('category:title', 'Категории')}</h3>
+            
+            {/* Поле поиска */}
+            <div className={styles.category_search}>
+                <div className={styles.search_input_wrapper}>
+                    <svg className={styles.search_icon} width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <input
+                        type="text"
+                        className={styles.search_input}
+                        placeholder={t('category:searchCategories', 'Поиск категорий...')}
+                        value={searchQuery}
+                        onChange={(e) => handleSearch(e.target.value)}
+                    />
+                    {searchQuery && (
+                        <button 
+                            className={styles.clear_search}
+                            onClick={() => handleSearch('')}
+                            aria-label="Очистить поиск"
+                        >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                        </button>
+                    )}
+                </div>
+            </div>
 
             <div className={styles.category_item}>
-                {visibleItems.map((item) => (
-                    <div
-                        key={item.id}
-                        className={styles.category_item_step}
-                        onClick={() => handleCategoryClick(item.id)}
-                        style={{ cursor: 'pointer' }}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                                handleCategoryClick(item.id);
-                            }
-                        }}
-                    >
-                        <img
-                            src={getImageUrl(item.image)}
-                            alt={item.title}
-                            onError={(e) => {
-                                // Если изображение не загружается, используем запасное
-                                e.currentTarget.src = "./fonTest4.png";
+                {visibleItems.length > 0 ? (
+                    visibleItems.map((item) => (
+                        <div
+                            key={item.id}
+                            className={styles.category_item_step}
+                            onClick={() => handleCategoryClick(item.id)}
+                            style={{ cursor: 'pointer' }}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                    handleCategoryClick(item.id);
+                                }
                             }}
-                            loading="lazy"
-                        />
-                        <p>{item.title}</p>
+                        >
+                            <img
+                                src={getImageUrl(item.image)}
+                                alt={item.title}
+                                onError={(e) => {
+                                    // Если изображение не загружается, используем запасное
+                                    e.currentTarget.src = "./fonTest4.png";
+                                }}
+                                loading="lazy"
+                            />
+                            <p>{item.title}</p>
+                        </div>
+                    ))
+                ) : searchQuery.trim() ? (
+                    <div className={styles.no_results}>
+                        <p>{t('category:noResults', 'Категории не найдены')}</p>
                     </div>
-                ))}
+                ) : null}
             </div>
 
             {/* Кнопка "Посмотреть все" */}

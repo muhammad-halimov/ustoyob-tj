@@ -25,7 +25,7 @@
 /* ===== SIDEBAR ===== */
 .sidebar {
   width: 400px;
-  background: white;
+  background: var(--color-background-primary);
   display: flex;
   flex-direction: column;
   border-radius: 20px;
@@ -42,7 +42,7 @@
     right: 0;
     bottom: 0;
     z-index: 10;
-    background: white;
+    background: var(--color-background-primary);
     overflow-y: auto;
 
     .chatAreaActive & {
@@ -55,8 +55,8 @@
   display: flex;
   align-items: center;
   padding: 10px 20px;
-  background-color: #f5f5f5;
-  border-bottom: 1px solid #e0e0e0;
+  background-color: var(--color-background-secondary);
+  border-bottom: 1px solid var(--color-border-light);
   border-radius: 20px;
   margin-bottom: 20px;
 
@@ -82,14 +82,14 @@
     }
 
     &::placeholder {
-      color: #999;
+      color: var(--color-text-placeholder);
     }
   }
 }
 
 .tabs {
   display: flex;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--color-border-light);
 
   @media (max-width: 480px) {
     margin-bottom: 10px;
@@ -103,7 +103,7 @@
     border: none;
     font-weight: 500;
     cursor: pointer;
-    color: #999;
+    color: var(--color-text-placeholder);
     transition: all 0.2s;
     font-size: 16px;
 
@@ -113,13 +113,13 @@
     }
 
     &.active {
-      color: #333;
+      color: var(--color-text-primary);
       font-weight: 600;
-      border-bottom: 2px solid #3A54DA;
+      border-bottom: 2px solid var(--color-primary);
     }
 
     &:hover {
-      background: #f5f5f5;
+      background: var(--color-background-secondary);
     }
   }
 }
@@ -148,7 +148,7 @@
 
   .noChats {
     font-size: 18px;
-    color: #666;
+    color: var(--color-text-secondary);
     margin-bottom: 20px;
 
     @media (max-width: 480px) {
@@ -158,8 +158,8 @@
   }
 
   .createChatButton {
-    background: #3A54DA;
-    color: white;
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
     border: none;
     padding: 12px 24px;
     border-radius: 8px;
@@ -173,7 +173,7 @@
     }
 
     &:hover {
-      background: #2a40b0;
+      background: var(--color-primary-hover);
     }
   }
 
@@ -183,18 +183,18 @@
     padding: 15px 20px;
     cursor: pointer;
     transition: background 0.2s;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--color-border-light);
 
     @media (max-width: 480px) {
       padding: 12px 15px;
     }
 
     &:hover {
-      background: #f8f9ff;
+      background: var(--color-background-accent-light);
     }
 
     &.selected {
-      background: #e8edff;
+      background: var(--color-background-accent-light);
     }
 
     .avatar {
@@ -229,7 +229,7 @@
       .name {
         font-weight: 600;
         font-size: 16px;
-        color: #333;
+        color: var(--color-text-primary);
         margin-bottom: 4px;
         white-space: nowrap;
         overflow: hidden;
@@ -242,7 +242,7 @@
 
       .specialty {
         font-size: 14px;
-        color: #666;
+        color: var(--color-text-secondary);
         margin-bottom: 4px;
         white-space: nowrap;
         overflow: hidden;
@@ -255,7 +255,7 @@
 
       .lastMessage {
         font-size: 14px;
-        color: #888;
+        color: var(--color-text-secondary);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -271,7 +271,7 @@
 
       .time {
         font-size: 12px;
-        color: #888;
+        color: var(--color-text-secondary);
         margin-bottom: 5px;
       }
     }
@@ -283,7 +283,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: white;
+  background: var(--color-background-primary);
   border-radius: 20px;
 
   @media (max-width: 480px) {
@@ -310,7 +310,7 @@
   justify-content: center;
   flex: 1;
   text-align: center;
-  color: #888;
+  color: var(--color-text-secondary);
   font-size: 18px;
 
   @media (max-width: 480px) {
@@ -323,8 +323,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px;
-  border-bottom: 1px solid #e0e0e0;
-  background: white;
+  border-bottom: 1px solid var(--color-border-light);
+  background: var(--color-background-primary);
   border-top-left-radius: 20px;
   border-top-right-radius: 20px;
 

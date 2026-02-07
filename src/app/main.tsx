@@ -4,11 +4,14 @@ import {AppRouter} from "./routers";
 import {store} from "./store";
 import {Provider} from "react-redux";
 import React from "react";
+import { ThemeProvider } from '../contexts';
 
 createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
         <Provider store={store}>
-            <AppRouter />
+            <ThemeProvider>
+                <AppRouter />
+            </ThemeProvider>
         </Provider>
     </React.StrictMode>
 )
