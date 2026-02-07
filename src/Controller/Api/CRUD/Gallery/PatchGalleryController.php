@@ -43,9 +43,10 @@ class PatchGalleryController extends AbstractController
 
         $images = $data['images'];
 
+        foreach ($galleryEntity->getUserServiceGalleryItems() as $image)
+            $galleryEntity->removeUserServiceGalleryItem($image);
+
         if (!empty($images)) {
-            foreach ($galleryEntity->getUserServiceGalleryItems() as $image)
-                $galleryEntity->removeUserServiceGalleryItem($image);
 
             foreach ($images as $imageData) {
                 // Access the 'image' key from each object in the array
@@ -57,9 +58,6 @@ class PatchGalleryController extends AbstractController
                     $this->entityManager->persist($galleryImage);
                 }
             }
-        } else {
-            foreach ($galleryEntity->getUserServiceGalleryItems() as $image)
-                $galleryEntity->removeUserServiceGalleryItem($image);
         }
 
         $this->entityManager->flush();
