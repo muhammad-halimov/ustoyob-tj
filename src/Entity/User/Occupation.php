@@ -119,7 +119,7 @@ class Occupation
     /**
      * @var Collection<int, Education>
      */
-    #[ORM\OneToMany(targetEntity: Education::class, mappedBy: 'occupation')]
+    #[ORM\OneToMany(targetEntity: Education::class, mappedBy: 'occupation', cascade: ['all'])]
     #[Ignore]
     private Collection $education;
 
