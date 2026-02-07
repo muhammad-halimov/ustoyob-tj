@@ -42,9 +42,9 @@ class PostTechSupportPhotoController extends AbstractPhotoUploadController
     protected function processImageFile(object $entity, UploadedFile $imageFile, User $bearerUser): void
     {
         /** @var TechSupport $entity */
-        $reviewImage = (new TechSupportImage())->setImageFile($imageFile);
-        $entity->addTechSupportImage($reviewImage);
-        $this->entityManager->persist($reviewImage);
+        $tehcSupportImage = (new TechSupportImage())->setImageFile($imageFile);
+        $entity->addTechSupportImage($tehcSupportImage);
+        $this->entityManager->persist($tehcSupportImage);
     }
 
     protected function getEntityName(): string

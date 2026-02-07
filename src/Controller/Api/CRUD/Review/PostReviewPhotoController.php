@@ -42,9 +42,9 @@ class PostReviewPhotoController extends AbstractPhotoUploadController
     protected function processImageFile(object $entity, UploadedFile $imageFile, User $bearerUser): void
     {
         /** @var Review $entity */
-        $reviewImage = (new ReviewImage())->setImageFile($imageFile);
-        $entity->addReviewImage($reviewImage);
-        $this->entityManager->persist($reviewImage);
+        $entityImage = (new ReviewImage())->setImageFile($imageFile);
+        $entity->addReviewImage($entityImage);
+        $this->entityManager->persist($entityImage);
     }
 
     protected function getEntityName(): string

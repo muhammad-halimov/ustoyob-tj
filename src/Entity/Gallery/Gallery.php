@@ -10,6 +10,7 @@ use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\Controller\Api\CRUD\Gallery\PatchGalleryController;
 use App\Controller\Api\CRUD\Gallery\PostGalleryController;
 use App\Controller\Api\CRUD\Gallery\PostGalleryPhotoController;
 use App\Controller\Api\Filter\Gallery\PersonalGalleryFilterController;
@@ -38,6 +39,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         new Post(
             uriTemplate: '/galleries',
             controller: PostGalleryController::class,
+            input: false,
         ),
         new Post(
             uriTemplate: '/galleries/{id}/upload-photo',
@@ -49,11 +51,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         new Patch(
             uriTemplate: '/galleries/{id}',
             requirements: ['id' => '\d+'],
-            security:
-                "is_granted('ROLE_ADMIN')
-                            or
-                 (is_granted('ROLE_MASTER') and
-                 object.getUser() == user)",
+            controller: PatchGalleryController::class,
         ),
         new Delete(
             uriTemplate: '/galleries/{id}',

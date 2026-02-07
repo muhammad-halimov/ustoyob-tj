@@ -42,9 +42,9 @@ class PostGalleryPhotoController extends AbstractPhotoUploadController
     protected function processImageFile(object $entity, UploadedFile $imageFile, User $bearerUser): void
     {
         /** @var Gallery $entity */
-        $reviewImage = (new GalleryImage())->setImageFile($imageFile);
-        $entity->addUserServiceGalleryItem($reviewImage);
-        $this->entityManager->persist($reviewImage);
+        $galleryImage = (new GalleryImage())->setImageFile($imageFile);
+        $entity->addUserServiceGalleryItem($galleryImage);
+        $this->entityManager->persist($galleryImage);
     }
 
     protected function getEntityName(): string

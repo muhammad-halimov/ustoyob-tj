@@ -43,16 +43,14 @@ class PatchTicketController extends AbstractController
         /** @var Ticket $ticketEntity */
         $ticketEntity = $this->ticketRepository->find($id);
 
-        if (!$ticketEntity) {
-            return $this->json(['message' => 'Ticket not found'], 404);
-        }
+        if (!$ticketEntity) return $this->json(['message' => 'Ticket not found'], 404);
+
 
         $data = json_decode($request->getContent(), true);
 
         // Проверка валидности JSON
-        if (!is_array($data)) {
-            return $this->json(['message' => 'Invalid JSON data'], 400);
-        }
+        if (!is_array($data)) return $this->json(['message' => 'Invalid JSON data'], 400);
+
 
         $titleParam = $data['title'] ?? $ticketEntity->getTitle();
         $descriptionParam = $data['description'] ?? $ticketEntity->getDescription();
@@ -112,9 +110,7 @@ class PatchTicketController extends AbstractController
 
                     // Проверка принадлежности города к провинции
                     if ($city->getProvince()?->getId() !== $province->getId()) {
-                        return $this->json([
-                            'message' => 'City does not belong to the specified province'
-                        ], 400);
+                        return $this->json(['message' => 'City does not belong to the specified province'], 400);
                     }
 
                     /** @var Suburb|null $suburb */
@@ -123,9 +119,7 @@ class PatchTicketController extends AbstractController
 
                     // Проверка принадлежности suburb к городу
                     if ($suburb && $suburb->getCities()?->getId() !== $city->getId()) {
-                        return $this->json([
-                            'message' => 'Suburb does not belong to the specified city'
-                        ], 400);
+                        return $this->json(['message' => 'Suburb does not belong to the specified city'], 400);
                     }
 
                     $addressEntity->setCity($city)->setSuburb($suburb);
@@ -137,9 +131,7 @@ class PatchTicketController extends AbstractController
 
                     // Проверка принадлежности района к провинции
                     if ($district->getProvince()?->getId() !== $province->getId()) {
-                        return $this->json([
-                            'message' => 'District does not belong to the specified province'
-                        ], 400);
+                        return $this->json(['message' => 'District does not belong to the specified province'], 400);
                     }
 
                     /** @var Community|null $community */
@@ -148,9 +140,7 @@ class PatchTicketController extends AbstractController
 
                     // Проверка принадлежности community к району
                     if ($community && $community->getDistrict()?->getId() !== $district->getId()) {
-                        return $this->json([
-                            'message' => 'Community does not belong to the specified district'
-                        ], 400);
+                        return $this->json(['message' => 'Community does not belong to the specified district'], 400);
                     }
 
                     /** @var Settlement|null $settlement */
@@ -159,9 +149,7 @@ class PatchTicketController extends AbstractController
 
                     // Проверка принадлежности settlement к району
                     if ($settlement && $settlement->getDistrict()?->getId() !== $district->getId()) {
-                        return $this->json([
-                            'message' => 'Settlement does not belong to the specified district'
-                        ], 400);
+                        return $this->json(['message' => 'Settlement does not belong to the specified district'], 400);
                     }
 
                     /** @var Village|null $village */
@@ -170,16 +158,12 @@ class PatchTicketController extends AbstractController
 
                     // Проверка принадлежности village к settlement
                     if ($village && $settlement && $village->getSettlement()?->getId() !== $settlement->getId()) {
-                        return $this->json([
-                            'message' => 'Village does not belong to the specified settlement'
-                        ], 400);
+                        return $this->json(['message' => 'Village does not belong to the specified settlement'], 400);
                     }
 
                     // Если указана деревня без settlement
                     if ($village && !$settlement) {
-                        return $this->json([
-                            'message' => 'Settlement is required when village is specified'
-                        ], 400);
+                        return $this->json(['message' => 'Settlement is required when village is specified'], 400);
                     }
 
                     $addressEntity->setDistrict($district)

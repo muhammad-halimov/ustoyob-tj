@@ -42,9 +42,9 @@ class PostTicketPhotoController extends AbstractPhotoUploadController
     protected function processImageFile(object $entity, UploadedFile $imageFile, User $bearerUser): void
     {
         /** @var Ticket $entity */
-        $reviewImage = (new TicketImage())->setImageFile($imageFile);
-        $entity->addUserTicketImage($reviewImage);
-        $this->entityManager->persist($reviewImage);
+        $ticketImage = (new TicketImage())->setImageFile($imageFile);
+        $entity->addUserTicketImage($ticketImage);
+        $this->entityManager->persist($ticketImage);
     }
 
     protected function getEntityName(): string
