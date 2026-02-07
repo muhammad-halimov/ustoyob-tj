@@ -32,28 +32,37 @@ class PatchGalleryController extends AbstractController
         /** @var Gallery $galleryEntity */
         $galleryEntity = $this->galleryRepository->findUserGallery($bearerUser);
 
-        if (!$galleryEntity) return $this->json(['message' => 'Gallery not found'], 404);
+        if (!$galleryEntity) {
+            return $this->json(['message' => 'Gallery not found'], 404);
+        }
 
         $data = json_decode($request->getContent(), true);
 
-        $imagesParam = $data['images'];
+        // Check if 'images' key exists
+        if (!isset($data['images'])) return $this->json(['message' => 'Invalid JSON data'], 400);
 
-        if (!$imagesParam['images']) {
-            return $this->json(['message' => 'Invalid JSON data'], 400);
-        } elseif ($imagesParam['images'] === []){
-            $galleryEntity->getUserServiceGalleryItems()->clear();
-            return $this->json(['message' => 'Gallery emptied successfully']);
-        } else {
-            $galleryEntity->getUserServiceGalleryItems()->clear();
+        $images = $data['images'];
 
-            foreach ($imagesParam['image'] as $image) {
-                $galleryImage = new GalleryImage()->setImage($image);
-                $galleryEntity->addUserServiceGalleryItem($galleryImage);
-                $this->entityManager->persist($galleryImage);
+        if (!empty($images)) {
+            foreach ($galleryEntity->getUserServiceGalleryItems() as $image)
+                $galleryEntity->removeUserServiceGalleryItem($image);
+
+            foreach ($images as $imageData) {
+                // Access the 'image' key from each object in the array
+                $imagePath = $imageData['image'] ?? null;
+
+                if ($imagePath) {
+                    $galleryImage = new GalleryImage()->setImage($imagePath);
+                    $galleryEntity->addUserServiceGalleryItem($galleryImage);
+                    $this->entityManager->persist($galleryImage);
+                }
             }
-
-            $this->entityManager->flush();
+        } else {
+            foreach ($galleryEntity->getUserServiceGalleryItems() as $image)
+                $galleryEntity->removeUserServiceGalleryItem($image);
         }
+
+        $this->entityManager->flush();
 
         return $this->json($galleryEntity, context: ['groups' => ['galleries:read']]);
     }

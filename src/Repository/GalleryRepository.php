@@ -17,13 +17,13 @@ class GalleryRepository extends ServiceEntityRepository
         parent::__construct($registry, Gallery::class);
     }
 
-    public function findUserGallery(User $user): array
+    public function findUserGallery(User $user): ?Gallery
     {
         return $this
             ->createQueryBuilder('g')
             ->where('g.user = :user')
             ->setParameter('user', $user)
             ->getQuery()
-            ->getResult();
+            ->getOneOrNullResult();
     }
 }
