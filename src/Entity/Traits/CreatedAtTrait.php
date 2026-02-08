@@ -4,11 +4,13 @@ namespace App\Entity\Traits;
 
 use DateTime;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 
 #[Orm\HasLifecycleCallbacks]
 trait CreatedAtTrait
 {
     #[ORM\Column(type: 'datetime', nullable: false)]
+    #[Groups(['legals:read'])]
     protected DateTime $createdAt;
 
     public function getCreatedAt(): DateTime

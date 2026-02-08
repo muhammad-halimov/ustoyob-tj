@@ -10,6 +10,7 @@ use App\Entity\Gallery\Gallery;
 use App\Entity\Geography\City\City;
 use App\Entity\Geography\District\District;
 use App\Entity\Geography\Province;
+use App\Entity\Legal\Legal;
 use App\Entity\Review\Review;
 use App\Entity\TechSupport\TechSupport;
 use App\Entity\Ticket\Category;
@@ -70,6 +71,7 @@ class DashboardController extends AbstractDashboardController
             yield MenuItem::linkToCrud('Категории работ', 'fas fa-list', Category::class);
             yield MenuItem::linkToCrud('Специальности', 'fas fa-user-doctor', Occupation::class);
             yield MenuItem::linkToCrud('Ед. измерения', 'fas fa-gauge', Unit::class);
+            yield MenuItem::linkToCrud('Регуляции', 'fas fa-lock', Legal::class);
             yield MenuItem::linkToUrl('API','fas fa-link', '/api')
                 ->setLinkTarget('_blank');
     }
