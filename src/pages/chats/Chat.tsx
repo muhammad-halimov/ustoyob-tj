@@ -634,8 +634,11 @@ function Chat() {
 
         const handleResize = () => {
             // Когда открывается клавиатура, прокручиваем к последнему сообщению
-            if (window.innerWidth <= 480) {
-                scrollToBottom();
+            if (window.innerWidth <= 480 && selectedChat) {
+                // Небольшая задержка чтобы DOM успел обновиться
+                setTimeout(() => {
+                    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                }, 100);
             }
         };
 
@@ -652,7 +655,7 @@ function Chat() {
                 window.removeEventListener('resize', handleResize);
             };
         }
-    }, [scrollToBottom]);
+    }, [scrollToBottom, selectedChat]);
 
     // Фильтрация чатов по поисковому запросу с оптимизацией
     const filteredChats = useMemo(() => {
@@ -1244,8 +1247,13 @@ function Chat() {
                                 onChange={(e) => setNewMessage(e.target.value)}
                                 onKeyPress={handleKeyPress}
                                 onFocus={() => {
-                                    // Небольшая задержка для того чтобы клавиатура успела открыться
-                                    setTimeout(() => scrollToBottom(), 300);
+                                    // Задержки для надежной прокрутки когда открывается клавиатура
+                                    setTimeout(() => {
+                                        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                                    }, 100);
+                                    setTimeout(() => {
+                                        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                                    }, 300);
                                 }}
                                 disabled={isUploading || currentChat?.isArchived}
                             />
