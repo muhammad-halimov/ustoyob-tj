@@ -157,6 +157,21 @@
     height: 100vh;
   }
 
+  .photo_modal_close {
+    position: fixed;
+    top: max(env(safe-area-inset-top, 0px) + 16px, 60px);
+    right: 16px;
+    z-index: 10002;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 50%;
+    padding: 10px;
+    
+    svg {
+      width: 20px;
+      height: 20px;
+    }
+  }
+
   .photo_modal_main {
     gap: 8px;
     height: 80%;
@@ -192,16 +207,6 @@
 
   .photo_modal_nav:last-of-type {
     right: 10px;
-  }
-
-  .photo_modal_close {
-    top: 10px;
-    right: 10px;
-
-    svg {
-      width: 20px;
-      height: 20px;
-    }
   }
 
   .photo_modal_thumbnail {

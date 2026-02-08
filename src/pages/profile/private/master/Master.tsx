@@ -44,7 +44,10 @@ const SOCIAL_NETWORK_CONFIG: Record<string, {
         label: 'WhatsApp', 
         icon: '💬',
         validate: (value: string) => /^\+?[1-9]\d{1,14}$/.test(value.replace(/\s/g, '')),
-        format: (value: string) => value.replace(/\s/g, ''),
+        format: (value: string) => {
+            const cleaned = value.replace(/\s/g, '');
+            return cleaned.startsWith('+') ? cleaned : `+${cleaned}`;
+        },
         generateUrl: (handle: string) => `https://wa.me/${handle.replace('+', '')}`,
         placeholder: '+992123456789'
     },
@@ -386,6 +389,7 @@ function Master() {
     const [reviews, setReviews] = useState<Review[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(false);
     const [visibleCount, setVisibleCount] = useState(2);
+    const [swiperKey, setSwiperKey] = useState(0);
     const [expandedReviews, setExpandedReviews] = useState<Set<number>>(new Set());
     const [showAllWorkExamples, setShowAllWorkExamples] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
@@ -673,6 +677,11 @@ function Master() {
         }
     }, [editingEducation, occupations, profileData, educationForm.selectedSpecialty, occupationsLoading]);
 
+    // Обновляем ключ Swiper при изменении visibleCount для принудительной перерисовки
+    useEffect(() => {
+        setSwiperKey(prev => prev + 1);
+    }, [visibleCount]);
+
     const updateSocialNetworks = async (updatedNetworks: SocialNetwork[]) => {
         if (!profileData?.id) {
             console.error('No profile ID available');
@@ -688,16 +697,7 @@ function Master() {
 
             // Подготавливаем данные для отправки - отправляем ВСЕ социальные сети (даже пустые)
             const socialNetworksData = updatedNetworks.map(network => {
-                let handle = network.handle.trim();
-
-                // Форматируем handle в зависимости от типа сети
-                if (network.network === 'telegram' || network.network === 'instagram') {
-                    // Убираем @ если пользователь ввел его
-                    handle = handle.replace(/^@/, '');
-                } else if (network.network === 'whatsapp') {
-                    // Убираем все нецифровые символы
-                    handle = handle.replace(/\D/g, '');
-                }
+                const handle = network.handle.trim();
 
                 // Если handle пустой, отправляем null (это важно для очистки)
                 return {
@@ -4364,110 +4364,108 @@ function Master() {
 
                     {/* Примеры работ */}
                     <div className={styles.section_item}>
-                        <div className={styles.section_header}>
-                            <h3>Примеры работ</h3>
-                            {profileData.workExamples.length > 0 && (
-                                <button
-                                    className={styles.delete_all_button}
-                                    onClick={handleDeleteAllWorkExamples}
-                                    disabled={isGalleryOperating}
-                                    title="Удалить все фото"
-                                >
-                                    Удалить все
-                                </button>
-                            )}
-                        </div>
-                        <div className={styles.work_examples}>
-                            {profileData.workExamples.length > 0 ? (
-                                <>
-                                    <div className={styles.work_examples_grid}>
-                                        {profileData.workExamples
-                                            .slice(0, showAllWorkExamples ? undefined : (isMobile ? 6 : 8))
-                                            .map((work, index) => (
-                                        <div key={work.id} className={styles.work_example}>
-                                            <img
-                                                src={getImageUrlWithCacheBust(work.image)}
-                                                alt={work.title}
-                                                onClick={() => {
-                                                    openGallery(index);
-                                                }}
-                                                style={{ cursor: 'pointer' }}
-                                                onError={(e) => {
-                                                    console.log('Image load error for:', work.image);
-                                                    const img = e.currentTarget;
+                        <h3>Примеры работ</h3>
+                        <div className={styles.section_content}>
+                            <div className={styles.work_examples}>
+                                {profileData.workExamples.length > 0 ? (
+                                    <>
+                                        <div className={styles.work_examples_grid}>
+                                            {profileData.workExamples
+                                                .slice(0, showAllWorkExamples ? undefined : (isMobile ? 6 : 8))
+                                                .map((work, index) => (
+                                            <div key={work.id} className={styles.work_example}>
+                                                <img
+                                                    src={getImageUrlWithCacheBust(work.image)}
+                                                    alt={work.title}
+                                                    onClick={() => {
+                                                        openGallery(index);
+                                                    }}
+                                                    style={{ cursor: 'pointer' }}
+                                                    onError={(e) => {
+                                                        console.log('Image load error for:', work.image);
+                                                        const img = e.currentTarget;
 
-                                                    const alternativePaths = [
-                                                        `${API_BASE_URL}/uploads/gallery_images/${work.image.split('/').pop() || work.image}`,
-                                                        "./fonTest6.png"
-                                                    ];
+                                                        const alternativePaths = [
+                                                            `${API_BASE_URL}/uploads/gallery_images/${work.image.split('/').pop() || work.image}`,
+                                                            "./fonTest6.png"
+                                                        ];
 
-                                                    let currentIndex = 0;
-                                                    const tryNextSource = () => {
-                                                        if (currentIndex < alternativePaths.length) {
-                                                            const nextSource = alternativePaths[currentIndex];
-                                                            currentIndex++;
-                                                            console.log('Trying alternative path:', nextSource);
+                                                        let currentIndex = 0;
+                                                        const tryNextSource = () => {
+                                                            if (currentIndex < alternativePaths.length) {
+                                                                const nextSource = alternativePaths[currentIndex];
+                                                                currentIndex++;
+                                                                console.log('Trying alternative path:', nextSource);
 
-                                                            const testImg = new Image();
-                                                            testImg.onload = () => {
-                                                                console.log('Alternative image loaded successfully:', nextSource);
-                                                                img.src = nextSource;
-                                                            };
-                                                            testImg.onerror = () => {
-                                                                console.log('Alternative image failed:', nextSource);
-                                                                tryNextSource();
-                                                            };
-                                                            testImg.src = nextSource;
-                                                        } else {
-                                                            console.log('All alternative paths failed, using placeholder');
-                                                            img.src = "./fonTest6.png";
-                                                        }
-                                                    };
+                                                                const testImg = new Image();
+                                                                testImg.onload = () => {
+                                                                    console.log('Alternative image loaded successfully:', nextSource);
+                                                                    img.src = nextSource;
+                                                                };
+                                                                testImg.onerror = () => {
+                                                                    console.log('Alternative image failed:', nextSource);
+                                                                    tryNextSource();
+                                                                };
+                                                                testImg.src = nextSource;
+                                                            } else {
+                                                                console.log('All alternative paths failed, using placeholder');
+                                                                img.src = "./fonTest6.png";
+                                                            }
+                                                        };
 
-                                                    tryNextSource();
-                                                }}
-                                                onLoad={() => console.log('Portfolio image loaded successfully:', work.image)}
-                                            />
-                                            <button
-                                                className={styles.delete_work_button}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleDeleteWorkExample(work.id);
-                                                }}
-                                                title="Удалить фото"
-                                            >
-                                                ×
-                                            </button>
+                                                        tryNextSource();
+                                                    }}
+                                                    onLoad={() => console.log('Portfolio image loaded successfully:', work.image)}
+                                                />
+                                                <button
+                                                    className={styles.delete_work_button}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleDeleteWorkExample(work.id);
+                                                    }}
+                                                    title="Удалить фото"
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                            ))}
                                         </div>
-                                        ))}
-                                        <button
-                                            className={styles.add_work_button}
-                                            onClick={() => workExampleInputRef.current?.click()}
-                                            title="Добавить фото в портфолио"
-                                        >
-                                            +
-                                        </button>
+                                        {profileData.workExamples.length > (isMobile ? 6 : 8) && (
+                                            <button
+                                                className={styles.show_more_work_button}
+                                                onClick={() => setShowAllWorkExamples(!showAllWorkExamples)}
+                                            >
+                                                {showAllWorkExamples ? 'Скрыть' : `Показать все (${profileData.workExamples.length})`}
+                                            </button>
+                                        )}
+                                    </>
+                                ) : (
+                                    <div className={styles.empty_state}>
+                                        <span>Добавить фото в портфолио</span>
                                     </div>
-                                    {profileData.workExamples.length > (isMobile ? 6 : 8) && (
-                                        <button
-                                            className={styles.show_more_work_button}
-                                            onClick={() => setShowAllWorkExamples(!showAllWorkExamples)}
-                                        >
-                                            {showAllWorkExamples ? 'Скрыть' : `Показать все (${profileData.workExamples.length})`}
-                                        </button>
-                                    )}
-                                </>
-                            ) : (
-                                <div className={styles.empty_state}>
-                                    <span>Добавить фото в портфолио</span>
+                                )}
+                            </div>
+                            
+                            {/* Кнопки управления портфолио */}
+                            <div className={styles.add_education_container}>
+                                {profileData.workExamples.length > 0 && (
                                     <button
-                                        className={styles.add_button}
-                                        onClick={() => workExampleInputRef.current?.click()}
+                                        className={styles.reset_social_btn}
+                                        onClick={handleDeleteAllWorkExamples}
+                                        disabled={isGalleryOperating}
+                                        title="Удалить все фото"
                                     >
-                                        +
+                                        Удалить все
                                     </button>
-                                </div>
-                            )}
+                                )}
+                                <button
+                                    className={styles.add_button}
+                                    onClick={() => workExampleInputRef.current?.click()}
+                                    title="Добавить фото в портфолио"
+                                >
+                                    +
+                                </button>
+                            </div>
                         </div>
                         <input
                             type="file"
@@ -4686,7 +4684,7 @@ function Master() {
                                                             onClick={() => openReviewGallery(getReviewImageIndex(reviewIndex, imageIndex))}
                                                         >
                                                             <img
-                                                                src={getImageUrlWithCacheBust(`${API_BASE_URL}/images/review_photos/${image.image}`)}
+                                                                src={`${API_BASE_URL}/images/review_photos/${image.image}`}
                                                                 alt={`Фото отзыва ${imageIndex + 1}`}
                                                                 onError={(e) => {
                                                                     const target = e.currentTarget;
@@ -4704,14 +4702,16 @@ function Master() {
                                 </div>
 
                                 <div className={styles.reviews_mobile}>
-                                    <Swiper
-                                        spaceBetween={16}
-                                        slidesPerView={1}
-                                        className={styles.reviews_slider}
-                                    >
-                                        {reviews.slice(0, visibleCount).map((review, reviewIndex) => (
-                                            <SwiperSlide key={review.id}>
-                                                <div className={styles.review_item}>
+                                    {visibleCount === 2 ? (
+                                        <Swiper
+                                            key={swiperKey}
+                                            spaceBetween={16}
+                                            slidesPerView={1}
+                                            className={styles.reviews_slider}
+                                        >
+                                            {reviews.slice(0, visibleCount).map((review, reviewIndex) => (
+                                                <SwiperSlide key={review.id}>
+                                                    <div className={styles.review_item}>
                                                     <div className={styles.review_header}>
                                                         <div className={styles.reviewer_info}>
                                                             <img
@@ -4764,7 +4764,7 @@ function Master() {
                                                                     onClick={() => openReviewGallery(getReviewImageIndex(reviewIndex, imageIndex))}
                                                                 >
                                                                     <img
-                                                                        src={getImageUrlWithCacheBust(`${API_BASE_URL}/images/review_photos/${image.image}`)}
+                                                                        src={`${API_BASE_URL}/images/review_photos/${image.image}`}
                                                                         alt={`Фото отзыва ${imageIndex + 1}`}
                                                                         onError={(e) => {
                                                                             const target = e.currentTarget;
@@ -4781,6 +4781,79 @@ function Master() {
                                             </SwiperSlide>
                                         ))}
                                     </Swiper>
+                                    ) : (
+                                        <>
+                                            {reviews.slice(0, visibleCount).map((review, reviewIndex) => (
+                                                <div key={review.id} className={styles.review_item}>
+                                                    <div className={styles.review_header}>
+                                                        <div className={styles.reviewer_info}>
+                                                            <img
+                                                                src={getReviewerAvatarUrl(review)}
+                                                                alt={getReviewerName(review)}
+                                                                onClick={() => handleClientProfileClick(review.reviewer.id)}
+                                                                style={{ cursor: 'pointer' }}
+                                                                className={styles.reviewer_avatar}
+                                                                onError={(e) => {
+                                                                    e.currentTarget.src = "./fonTest5.png";
+                                                                }}
+                                                            />
+                                                            <div className={styles.reviewer_main_info}>
+                                                                <div className={styles.reviewer_name}>{getClientName(review)}</div>
+                                                                <div className={styles.review_service}>
+                                                                    Услуга: <span className={styles.service_title}>{review.services.title}</span>
+                                                                </div>
+                                                                <span className={styles.review_worker}>{getMasterName(review)}</span>
+                                                                <div className={styles.review_rating_main}>
+                                                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                                        <g clipPath="url(#clip0_324_2272)">
+                                                                            <g clipPath="url(#clip1_324_2272)">
+                                                                                <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                                                                <path d="M12 19V18.98" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
+                                                                            </g>
+                                                                        </g>
+                                                                        <defs>
+                                                                            <clipPath id="clip0_324_2272">
+                                                                                <rect width="24" height="24" fill="white"/>
+                                                                            </clipPath>
+                                                                            <clipPath id="clip1_324_2272">
+                                                                                <rect width="24" height="24" fill="white"/>
+                                                                            </clipPath>
+                                                                        </defs>
+                                                                    </svg>
+                                                                    <span className={styles.rating_value}>{review.rating}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {review.description && renderReviewText(review)}
+
+                                                    {review.images && review.images.length > 0 && (
+                                                        <div className={styles.review_images}>
+                                                            {review.images.map((image, imageIndex) => (
+                                                                <div
+                                                                    key={image.id}
+                                                                    className={styles.review_image}
+                                                                    onClick={() => openReviewGallery(getReviewImageIndex(reviewIndex, imageIndex))}
+                                                                >
+                                                                    <img
+                                                                        src={`${API_BASE_URL}/images/review_photos/${image.image}`}
+                                                                        alt={`Фото отзыва ${imageIndex + 1}`}
+                                                                        onError={(e) => {
+                                                                            const target = e.currentTarget;
+                                                                            if (target.dataset.errorHandled) return;
+                                                                            target.dataset.errorHandled = 'true';
+                                                                            target.src = "./fonTest5.png";
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </>
+                                    )}
                                 </div>
                             </>
                         ) : (
