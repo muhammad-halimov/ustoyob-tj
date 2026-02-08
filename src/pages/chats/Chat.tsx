@@ -104,6 +104,7 @@ function Chat() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
+    const messageInputRef = useRef<HTMLInputElement>(null);
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
     const POLLING_INTERVAL = 3000; // Уменьшаем интервал для более реактивного обновления
 
@@ -626,6 +627,32 @@ function Chat() {
     useEffect(() => {
         scrollToBottom();
     }, [messages, scrollToBottom]);
+
+    // Обработка клавиатуры на мобильных устройствах
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        const handleResize = () => {
+            // Когда открывается клавиатура, прокручиваем к последнему сообщению
+            if (window.innerWidth <= 480) {
+                scrollToBottom();
+            }
+        };
+
+        // Используем visualViewport API если доступен (лучше для мобильных)
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', handleResize);
+            return () => {
+                window.visualViewport?.removeEventListener('resize', handleResize);
+            };
+        } else {
+            // Fallback для старых браузеров
+            window.addEventListener('resize', handleResize);
+            return () => {
+                window.removeEventListener('resize', handleResize);
+            };
+        }
+    }, [scrollToBottom]);
 
     // Фильтрация чатов по поисковому запросу с оптимизацией
     const filteredChats = useMemo(() => {
@@ -1210,11 +1237,16 @@ function Chat() {
 
                             <input
                                 type="text"
+                                ref={messageInputRef}
                                 placeholder={currentChat?.isArchived ? t('chat.chatInArchive') : t('chat.messageInput')}
                                 className={`${styles.inputField} ${currentChat?.isArchived ? styles.disabled : ''}`}
                                 value={newMessage}
                                 onChange={(e) => setNewMessage(e.target.value)}
                                 onKeyPress={handleKeyPress}
+                                onFocus={() => {
+                                    // Небольшая задержка для того чтобы клавиатура успела открыться
+                                    setTimeout(() => scrollToBottom(), 300);
+                                }}
                                 disabled={isUploading || currentChat?.isArchived}
                             />
 
