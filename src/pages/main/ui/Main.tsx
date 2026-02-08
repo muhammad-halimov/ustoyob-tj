@@ -163,7 +163,7 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
         if (workerType === "master" && userRole === "master") {
             navigate("/profile/services");
         } else if (workerType === "client" && userRole === "client") {
-            navigate("/create-ad");
+            navigate("/create-ticket");
         } else if (!userRole) {
             if (onOpenAuthModal) {
                 onOpenAuthModal();

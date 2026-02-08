@@ -24,6 +24,12 @@ interface AnnouncementCardProps {
   // Новые пропсы для рейтинга и отзывов
   userRating?: number;
   userReviewCount?: number;
+  // Новые пропсы для редактирования и активности (MyTickets)
+  showEditButton?: boolean;
+  onEditClick?: (e: React.MouseEvent) => void;
+  showActiveToggle?: boolean;
+  isActive?: boolean;
+  onActiveToggle?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 export const truncateText = (text: string, maxLength: number = 110): string => {
@@ -148,7 +154,12 @@ export function AnnouncementCard({
   onFavoriteClick,
   isLikeLoading = false,
   userRating,
-  userReviewCount
+  userReviewCount,
+  showEditButton = false,
+  onEditClick,
+  showActiveToggle = false,
+  isActive = true,
+  onActiveToggle
 }: AnnouncementCardProps) {
   const { t, i18n } = useTranslation('components');
   const [, forceUpdate] = useState({});
@@ -171,7 +182,7 @@ export function AnnouncementCard({
       // Для boolean (как в Recommendations): true = услуга от мастера, false = заказ от клиента
       return ticketType ? t('ticketTypes.serviceFromMaster') : t('ticketTypes.orderFromClient');
     } else if (typeof ticketType === 'string') {
-      // Для строк (как в CategoryTickets и Favorites)
+      // Для строк (как в Category и Favorites)
       if (ticketType === 'master' || ticketType === 'Услуга от мастера') {
         return t('ticketTypes.serviceFromMaster');
       } else if (ticketType === 'client' || ticketType === 'Заказ от клиента') {
@@ -188,11 +199,43 @@ export function AnnouncementCard({
 
   return (
     <div className={styles.card} onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default' }}>
-      {displayTicketType && (
-        <div className={styles.card_ticketType}>
-          {displayTicketType}
+      <div className={styles.card_top_controls}>
+        {displayTicketType && (
+          <div className={styles.card_ticketType}>
+            {displayTicketType}
+          </div>
+        )}
+        <div className={styles.card_top_actions}>
+          {showActiveToggle && (
+            <div className={styles.card_active_toggle} onClick={(e) => e.stopPropagation()}>
+              <label className={styles.switch}>
+                <input
+                  type="checkbox"
+                  checked={isActive}
+                  onChange={onActiveToggle}
+                />
+                <span className={styles.slider}></span>
+              </label>
+              <span className={styles.toggle_label}>
+                {isActive ? 'Активно' : 'Неактивно'}
+              </span>
+            </div>
+          )}
+          {showEditButton && (
+            <button
+              className={styles.card_edit_button}
+              onClick={onEditClick}
+              title="Редактировать"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M7.2302 20.59L2.4502 21.59L3.4502 16.81L17.8902 2.29001C18.1407 2.03889 18.4385 1.83982 18.7663 1.70424C19.0941 1.56865 19.4455 1.49925 19.8002 1.50001C20.5163 1.50001 21.203 1.78447 21.7094 2.29082C22.2157 2.79717 22.5002 3.48392 22.5002 4.20001C22.501 4.55474 22.4315 4.90611 22.296 5.23391C22.1604 5.56171 21.9613 5.85945 21.7102 6.11001L7.2302 20.59Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                <path d="M0.549805 22.5H23.4498" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                <path d="M19.6403 8.17986L15.8203 4.35986" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+              </svg>
+            </button>
+          )}
         </div>
-      )}
+      </div>
       <div className={`${styles.card_header} ${displayTicketType ? styles.with_ticket_type : ''}`}>
         <h3>{truncateText(title, 27)}</h3>
         <div className={styles.card_price_container}>

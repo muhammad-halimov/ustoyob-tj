@@ -1043,11 +1043,6 @@ function Chat() {
                                         {interlocutor.isOnline && !chat.isArchived && (
                                             <div className={styles.onlineIndicator} />
                                         )}
-                                        {chat.isArchived && (
-                                            <div className={styles.archiveIndicator} title={t('chat.chatInArchive')}>
-                                                <IoArchiveOutline size={12} />
-                                            </div>
-                                        )}
                                     </div>
                                     <div className={styles.chatInfo}>
                                         <div className={styles.name}>
@@ -1108,7 +1103,7 @@ function Chat() {
                                         {currentChat?.isArchived && <span className={styles.archiveBadge}> ({t('chat.archive').toLowerCase()})</span>}
                                     </div>
                                     {currentChat?.ticket?.title && (
-                                        <a href={`/order/${currentChat.replyAuthor.id}?ticket=${currentChat.ticket.id}`} className={styles.serviceTitle}>
+                                        <a href={`/ticket/${currentChat.replyAuthor.id}?ticket=${currentChat.ticket.id}`} className={styles.serviceTitle}>
                                             {currentChat.ticket.title}
                                         </a>
                                     )}

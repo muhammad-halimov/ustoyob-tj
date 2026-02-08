@@ -16,20 +16,16 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
-    // Инициализация темы из localStorage или системных настроек
+    // Инициализация темы из localStorage, по умолчанию светлая тема
     const [theme, setThemeState] = useState<Theme>(() => {
-        // Сначала проверяем localStorage
+        // Проверяем localStorage
         const savedTheme = getStorageItem('theme') as Theme;
         if (savedTheme === 'light' || savedTheme === 'dark') {
             return savedTheme;
         }
 
-        // Если нет сохраненной темы, проверяем системные настройки
-        if (typeof window !== 'undefined' && window.matchMedia) {
-            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-        }
-
-        return 'light'; // По умолчанию светлая тема
+        // Если нет сохраненной темы, всегда используем светлую тему
+        return 'light';
     });
 
     // Применяем тему к документу
@@ -74,20 +70,4 @@ export function useTheme() {
         throw new Error('useTheme must be used within a ThemeProvider');
     }
     return context;
-}
-
-// Слушаем изменения системной темы
-if (typeof window !== 'undefined' && window.matchMedia) {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    
-    // Эта функция будет вызываться только если пользователь не установил предпочтение вручную
-    const handleSystemThemeChange = (e: MediaQueryListEvent) => {
-        const savedTheme = getStorageItem('theme');
-        // Применяем системную тему только если пользователь не сохранил собственное предпочтение
-        if (!savedTheme) {
-            document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
-        }
-    };
-
-    mediaQuery.addEventListener('change', handleSystemThemeChange);
 }

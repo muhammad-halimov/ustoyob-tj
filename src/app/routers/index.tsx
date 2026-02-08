@@ -1,26 +1,20 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import {MainPage} from '../../pages/main/ui/Main.tsx';
 import Layout from "../layouts/Layout.tsx";
-import FavoritesPage from "../../pages/favorites/FavoritesPage.tsx";
+import Favorites from "../../pages/favorites/Favorites.tsx";
 import Chat from "../../pages/chats/Chat.tsx";
-import ProfilePage from "../../pages/profile/ProfilePage.tsx";
-import EducationPage from "../../pages/education/EducationPage.tsx";
-import ServicesPage from "../../pages/services/ServicesPage.tsx";
-import AddressPage from "../../pages/addressPage/AddressPage.tsx";
-import {OrderPage} from "../../pages/order/OrderPage.tsx";
-import CreateAdPage from "../../pages/create-ad/CreateAdPage";
-// import OrderHistoryPage from "../../pages/OrderHistory/OrderHistoryPage";
-import SearchServicePage from "../../pages/search/SearchServicePage";
-import TicketsPage from "../../pages/tickets/TicketsPage";
-import MasterProfileViewPage from "../../entities/MasterProfileViewPage/MasterProfileViewPage";
-import ClientProfileViewPage from "../../entities/ClientProfileViewPage/ClientProfileViewPage.tsx";
-import MyTickets from "../../pages/myTickets/MyTickets.tsx";
-import CategoryTicketsPage from "../../pages/categoryTicketsPage/CategoryTicketsPage.tsx";
-import EditServicePage from "../../pages/editServicePage/EditServicePage.tsx";
-import OAuthCallbackPage from "../../pages/OAuthPage/OAuthCallbackPage.tsx";
-import GoogleOAuthPage from "../../pages/OAuthPage/GoogleOAuthPage.tsx";
-import OAuthRedirectPage from "../../pages/OAuthPage/OAuthRedirectPage.tsx";
-import TelegramCallbackPage from "../../pages/OAuthPage/TelegramCallbackPage.tsx";
+import Profile from "../../pages/profile/private/Profile.tsx";
+import {Ticket} from "../../pages/tickets/ticket/Ticket.tsx";
+import Create from "../../pages/tickets/create/Create.tsx";
+import Master from "../../pages/profile/public/master/Master.tsx";
+import Client from "../../pages/profile/public/client/Client.tsx";
+import MyTickets from "../../pages/tickets/my/MyTickets.tsx";
+import Category from "../../pages/tickets/category/Category.tsx";
+import Edit from "../../pages/tickets/edit/Edit.tsx";
+import OAuthCallbackPage from "../../pages/OAuth/OAuthCallbackPage.tsx";
+import GoogleOAuthPage from "../../pages/OAuth/GoogleOAuthPage.tsx";
+import OAuthRedirectPage from "../../pages/OAuth/OAuthRedirectPage.tsx";
+import TelegramCallbackPage from "../../pages/OAuth/TelegramCallbackPage.tsx";
 
 const router = createBrowserRouter([
     {
@@ -28,24 +22,19 @@ const router = createBrowserRouter([
         element: <Layout />,
         children: [
             { index: true, element: <MainPage /> },
-            // { path: 'orders', element: <OrderHistoryPage /> },
-            { path: 'orders', element: <MyTickets /> },
-            { path: 'search-service', element: <SearchServicePage /> },
-            { path: 'favorites', element: <FavoritesPage /> },
+            { path: 'my-tickets', element: <MyTickets /> },
+            { path: 'favorites', element: <Favorites /> },
             { path: 'chats', element: <Chat /> },
-            { path: 'profile', element: <ProfilePage /> },
-            // { path: 'my-tickets', element: <MyTickets /> },
-            { path: 'profile/education', element: <EducationPage /> },
-            { path: 'profile/services', element: <ServicesPage /> },
-            { path: 'profile/address', element: <AddressPage /> },
-            { path: 'order/:id', element: <OrderPage /> },
-            { path: 'ticket/:id', element: <OrderPage /> },
-            { path: 'create-ad', element: <CreateAdPage /> },
-            { path: 'tickets', element: <TicketsPage /> },
-            { path: 'master/:id', element: <MasterProfileViewPage /> },
-            { path: 'client/:id', element: <ClientProfileViewPage /> },
-            { path: 'category-tickets/:categoryId', element: <CategoryTicketsPage /> },
-            { path: 'profile/services/edit', element: <EditServicePage /> },
+            { path: 'profile', element: <Profile /> },
+
+            { path: 'ticket/:id', element: <Ticket /> },
+            { path: 'create-ticket', element: <Create /> },
+            { path: 'edit-ticket', element: <Edit /> },
+
+            { path: 'master/:id', element: <Master /> },
+            { path: 'client/:id', element: <Client /> },
+
+            { path: 'category-tickets/:id', element: <Category /> },
         ],
     },
     {

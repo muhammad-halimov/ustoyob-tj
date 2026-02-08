@@ -38,11 +38,13 @@ interface Announcement {
         name?: string;
         surname?: string;
         rating?: number;
+        reviewCount?: number;
     };
     master?: {
         name?: string;
         surname?: string;
         rating?: number;
+        reviewCount?: number;
     };
 }
 
@@ -58,7 +60,7 @@ function Recommendations() {
     const fetchRecentAnnouncements = async () => {
         try {
             const locale = localStorage.getItem('i18nextLng') || 'ru';
-            const response = await fetch(`${API_BASE_URL}/api/tickets?locale=${locale}&limit=10`, {
+            const response = await fetch(`${API_BASE_URL}/api/tickets?locale=${locale}&limit=10&order[createdAt]=desc`, {
                 headers: {
                     'Accept': 'application/json',
                 }
@@ -66,6 +68,13 @@ function Recommendations() {
 
             if (response.ok) {
                 let data: Announcement[] = await response.json();
+                
+                // Сортируем по дате создания (новые первыми)
+                data = data.sort((a, b) => {
+                    const dateA = new Date(a.createdAt).getTime();
+                    const dateB = new Date(b.createdAt).getTime();
+                    return dateB - dateA; // От новых к старым
+                });
                 
                 // Фильтруем по роли пользователя
                 if (userRole === 'master') {
@@ -142,8 +151,18 @@ function Recommendations() {
         return 0;
     };
 
+    // Функция для получения количества отзывов
+    const getUserReviewCount = (announcement: Announcement): number => {
+        if (announcement.service && announcement.master?.reviewCount !== undefined) {
+            return announcement.master.reviewCount;
+        } else if (!announcement.service && announcement.author?.reviewCount !== undefined) {
+            return announcement.author.reviewCount;
+        }
+        return 0;
+    };
+
     const handleCardClick = (announcementId: number, authorId: number) => {
-        navigate(`/order/${authorId}?ticket=${announcementId}`);
+        navigate(`/ticket/${authorId}?ticket=${announcementId}`);
     };
 
     return (
@@ -169,6 +188,7 @@ function Recommendations() {
                                 ticketType={announcement.service}
                                 userRole={userRole}
                                 userRating={getUserRating(announcement)}
+                                userReviewCount={getUserReviewCount(announcement)}
                                 onClick={() => handleCardClick(announcement.id, announcement.authorId || 0)}
                             />
                         ))}

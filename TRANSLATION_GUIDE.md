@@ -209,12 +209,12 @@ function MyComponent() {
 
 ## Примеры из реальных компонентов
 
-### CategoryTicketsPage.tsx
+### Category.tsx
 
 ```tsx
 import { useTranslation } from 'react-i18next';
 
-function CategoryTicketsPage() {
+function Category() {
     const { t } = useTranslation();
     // ...
     
@@ -253,7 +253,7 @@ const formatTimeAgo = (dateString: string): string => {
 
 - [ ] Header.tsx - языки и навигация
 - [ ] Main.tsx - роли и описания
-- [ ] CategoryTicketsPage.tsx - кнопки и статусы
+- [ ] Category.tsx - кнопки и статусы
 - [ ] MyTickets.tsx - кнопки, статусы, время
 - [ ] Services/EditService.tsx - кнопки формы
 - [ ] Auth modal - кнопки авторизации

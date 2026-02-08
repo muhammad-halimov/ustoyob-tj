@@ -52,13 +52,13 @@
    const userData = getStorageJSON<UserData>('userData');
    ```
 
-2. **FavoritesPage.tsx** — работа с favorites
+2. **Favorites.tsx** — работа с favorites
    ```typescript
    // Вместо: JSON.parse(localStorage.getItem('favorites') || '[]')
    const favorites = getStorageJSON<Favorite[]>('favorites') || [];
    ```
 
-3. **OrderPage.tsx** — аналогично favorites
+3. **Ticket.tsx** — аналогично favorites
 
 ### Средний приоритет:
 4. **Main.tsx** — работа с Google Auth

@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import styles from '../../pages/profile/clientProfilePage/ClientProfilePage.module.scss';
+import styles from '../../pages/profile/private/client/Client.module.scss';
 
 interface PhotoUploaderProps {
     photos: File[];

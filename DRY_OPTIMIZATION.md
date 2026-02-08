@@ -72,7 +72,7 @@ formatRole(role)      // 'client' → 'ROLE_CLIENT'
 
 ### Фронтенд компоненты, которые нужно обновить:
 ```typescript
-// ❌ Старый способ (Header.tsx, FavoritesPage.tsx и др):
+// ❌ Старый способ (Header.tsx, Favorites.tsx и др):
 const userDataStr = localStorage.getItem('userData');
 const userData = userDataStr ? JSON.parse(userDataStr) : null;
 
@@ -83,8 +83,8 @@ const userData = getStorageJSON<UserData>('userData');
 
 ### Список файлов для обновления (в порядке приоритета):
 1. `src/widgets/Header/Header.tsx` — 6+ использований `localStorage.getItem('userData')`
-2. `src/pages/favorites/FavoritesPage.tsx` — работа с `localStorage['favorites']`
-3. `src/pages/order/OrderPage.tsx` — сохранение favorites
+2. `src/pages/favorites/Favorites.tsx` — работа с `localStorage['favorites']`
+3. `src/pages/order/Ticket.tsx` — сохранение favorites
 4. `src/pages/main/ui/Main.tsx` — работа с Google Auth токенами
 5. `src/shared/ui/button/HeaderButton/*.tsx` — проверки `userData` и `userRole`
 

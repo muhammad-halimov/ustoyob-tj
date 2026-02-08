@@ -388,8 +388,8 @@ function Header({ onOpenAuthModal }: HeaderProps) {
     const getActivePage = () => {
         switch (location.pathname) {
             case "/":
-            case "/orders":
-                return "orders";
+            case "/my-tickets":
+                return "my-tickets";
             case "/favorites":
                 return "favorites";
             case "/chats":
@@ -462,9 +462,9 @@ function Header({ onOpenAuthModal }: HeaderProps) {
 
     const handleAdBtnClick = () => {
         if (getUserRole() === 'master') {
-            navigate('/orders');
+            navigate('/my-tickets');
         } else {
-            navigate('/orders');
+            navigate('/my-tickets');
         }
     };
 
@@ -553,6 +553,9 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                                         ))}
                                     </div>
                                 )}
+                            </div>
+                            <div className={styles.theme_toggle_mobile}>
+                                <ThemeToggle className={styles.header_theme_toggle_mobile} />
                             </div>
                             <div className={styles.rightPart_buttons}>
                                 <div className={styles.theme_toggle_container}>

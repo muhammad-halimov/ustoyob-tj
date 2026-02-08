@@ -886,7 +886,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     const handleCardClick = useCallback((ticketId?: number, authorId?: number) => {
         if (!ticketId) return;
         const targetAuthorId = authorId || ticketId;
-        navigate(`/order/${targetAuthorId}?ticket=${ticketId}`);
+        navigate(`/ticket/${targetAuthorId}?ticket=${ticketId}`);
     }, [navigate]);
 
     const handleFilterToggle = useCallback((isVisible: boolean) => {

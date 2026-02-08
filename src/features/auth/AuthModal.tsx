@@ -338,7 +338,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     console.log(`Redirecting to ${provider.toUpperCase()} OAuth with role:`, formData.role);
 
                     // Закрываем модалку и перенаправляем на OAuth
-                    onClose();
+                    handleClose();
                     window.location.href = data.url;
                 })
                 .catch(err => {
@@ -615,7 +615,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         document.body.appendChild(telegramModalContainer);
 
         // Закрываем основную модалку
-        onClose();
+        handleClose();
 
         // Закрываем при клике за пределами модального окна
         telegramModalContainer.onclick = (e) => {
@@ -1052,8 +1052,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         if (onLoginSuccess) {
             onLoginSuccess(token, email);
         }
-        onClose();
+        handleClose();
         window.dispatchEvent(new Event('login'));
+        
+        // Перезагружаем страницу после авторизации
+        setTimeout(() => {
+            window.location.reload();
+        }, 100);
     };
 
     const resetForm = () => {
@@ -1088,6 +1093,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
     };
 
     const handleClose = () => {
+        setCurrentState(AuthModalState.WELCOME);
         onClose();
     };
 

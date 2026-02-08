@@ -1,5 +1,5 @@
 import { useMemo, useState, useCallback } from 'react';
-import styles from '../../pages/profile/clientProfilePage/ClientProfilePage.module.scss';
+import styles from '../../pages/profile/private/client/Client.module.scss';
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
 

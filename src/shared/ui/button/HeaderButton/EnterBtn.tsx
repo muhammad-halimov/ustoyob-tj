@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getAuthToken, logout } from '../../../../utils/auth.ts';
@@ -16,6 +16,7 @@ export function EnterBtn({ onClick, isModalOpen, onModalClose, onLoginSuccess }:
     const [internalModalOpen, setInternalModalOpen] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [userName, setUserName] = useState<string>('');
+    const isLoggingOutRef = useRef(false);
     const navigate = useNavigate();
     const { t } = useTranslation(['header', 'common']);
 
@@ -72,7 +73,9 @@ export function EnterBtn({ onClick, isModalOpen, onModalClose, onLoginSuccess }:
         checkUserStatus();
 
         const handleAuthChange = () => {
-            checkUserStatus();
+            if (!isLoggingOutRef.current) {
+                checkUserStatus();
+            }
         };
 
         // Слушаем события авторизации
@@ -94,41 +97,40 @@ export function EnterBtn({ onClick, isModalOpen, onModalClose, onLoginSuccess }:
         setIsLoggedIn(true);
         closeModal();
 
-        // Обновляем данные пользователя
-        setTimeout(() => {
-            checkUserStatus();
-        }, 500);
-
         if (onLoginSuccess) {
             onLoginSuccess();
         }
 
         window.dispatchEvent(new Event('login'));
+        
+        // Перезагружаем страницу после авторизации
+        setTimeout(() => {
+            window.location.reload();
+        }, 100);
     };
 
     const handleButtonClick = async () => {
-        onClick?.();
-
         if (isLoggedIn) {
-            await handleLogout();
-        } else if (isModalOpen === undefined) {
-            setInternalModalOpen(true);
+            const confirmed = confirm(t('header:logoutConfirm', 'Вы уверены, что хотите выйти?'));
+            if (confirmed) {
+                await handleLogout();
+            }
+        } else {
+            onClick?.();
+            if (isModalOpen === undefined) {
+                setInternalModalOpen(true);
+            }
         }
     };
 
     const handleLogout = async () => {
+        isLoggingOutRef.current = true;
         try {
             await logout();
-            setIsLoggedIn(false);
-            setUserName('');
-            window.dispatchEvent(new Event('logout'));
             navigate('/');
             window.location.reload();
         } catch (error) {
             console.error('Logout error:', error);
-            setIsLoggedIn(false);
-            setUserName('');
-            window.dispatchEvent(new Event('logout'));
             navigate('/');
             window.location.reload();
         }

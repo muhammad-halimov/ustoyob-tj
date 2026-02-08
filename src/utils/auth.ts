@@ -273,34 +273,71 @@ export const isUserApproved = (): boolean => {
     return userData?.approved === true;
 };
 
+// ============ Обновление токена ============
+export const refreshToken = async (): Promise<boolean> => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/refresh_token`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            credentials: 'include', // Важно для отправки cookies с refresh token
+        });
+
+        if (!response.ok) {
+            console.error('Token refresh failed:', response.status);
+            return false;
+        }
+
+        const data = await response.json();
+        
+        if (data.token) {
+            setAuthToken(data.token);
+            console.log('Token refreshed successfully');
+            return true;
+        }
+
+        return false;
+    } catch (error) {
+        console.error('Token refresh error:', error);
+        return false;
+    }
+};
+
 // ============ Автоматическое обновление токена ============
 export const setupTokenRefresh = async (
-    onTokenAboutToExpire?: () => Promise<boolean>,
     onTokenExpired?: () => void
 ): Promise<void> => {
     if (!isClientSide()) return;
 
-    setInterval(async () => {
+    const checkInterval = setInterval(async () => {
         if (isTokenExpired()) {
-            console.log('Token expired');
-            if (onTokenExpired) onTokenExpired();
-            else clearAuthData();
+            console.log('Token expired, logging out...');
+            clearInterval(checkInterval);
+            clearAuthData();
+            if (onTokenExpired) {
+                onTokenExpired();
+            } else {
+                window.location.href = '/';
+            }
             return;
         }
 
-        if (isTokenAboutToExpire()) {
+        // Пытаемся обновить токен за 5 минут до истечения
+        if (isTokenAboutToExpire(5)) {
             console.log('Token about to expire, attempting refresh...');
-            try {
-                const success = onTokenAboutToExpire ? await onTokenAboutToExpire() : false;
-                if (!success) {
-                    clearAuthData();
-                    onTokenExpired?.();
-                }
-            } catch (error) {
-                console.error('Token refresh error:', error);
+            const success = await refreshToken();
+            if (!success) {
+                console.log('Token refresh failed, logging out...');
+                clearInterval(checkInterval);
                 clearAuthData();
-                onTokenExpired?.();
+                if (onTokenExpired) {
+                    onTokenExpired();
+                } else {
+                    window.location.href = '/';
+                }
             }
         }
-    }, 60000);
+    }, 60000); // Проверяем каждую минуту
 };
