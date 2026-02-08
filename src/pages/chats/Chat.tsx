@@ -4,7 +4,7 @@ import { getAuthToken } from "../../utils/auth";
 import styles from "./Chat.module.scss";
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { IoSend, IoAttach, IoClose, IoImages, IoArchiveOutline, IoArchiveSharp } from "react-icons/io5";
-import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import { PhotoGallery, usePhotoGallery } from '../../shared/ui/PhotoGallery';
 
 interface Message {
     id: number;
@@ -99,9 +99,6 @@ function Chat() {
 
     // Состояния для миниатюр и модального окна фото
     const [chatImages, setChatImages] = useState<ChatImageThumbnail[]>([]);
-    const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
-    const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
-    const [selectedPhotoImages, setSelectedPhotoImages] = useState<string[]>([]);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -114,7 +111,9 @@ function Chat() {
     const chatIdFromUrl = searchParams.get('chatId');
     const navigate = useNavigate();
 
-    const [photoOrientations, setPhotoOrientations] = useState<('landscape' | 'portrait')[]>([]);
+    // Хук для галереи фотографий
+    const galleryImages = useMemo(() => chatImages.map(img => img.imageUrl), [chatImages]);
+    const photoGallery = usePhotoGallery({ images: galleryImages });
 
     // Инициализация пользователя и чатов
     useEffect(() => {
@@ -555,51 +554,7 @@ function Chat() {
         }
     }, [newMessage, selectedFiles, selectedChat, currentUser, uploadAllFiles, sendMessageToServer, setNewMessage]);
 
-    // для автоматического определения ориентации
-    const getImageOrientation = useCallback((src: string): Promise<'landscape' | 'portrait'> => {
-        return new Promise((resolve) => {
-            const img = new Image();
-            img.onload = () => {
-                const orientation = img.width > img.height ? 'landscape' : 'portrait';
-                resolve(orientation);
-            };
-            img.onerror = () => resolve('landscape'); // По умолчанию
-            img.src = src;
-        });
-    }, []);
 
-    // ===== ФУНКЦИИ ДЛЯ МОДАЛЬНОГО ОКНА ФОТО =====
-
-    const openPhotoModal = useCallback(async (images: ChatImageThumbnail[], startIndex: number = 0) => {
-        const imageUrls = images.map(img => img.imageUrl);
-        setSelectedPhotoImages(imageUrls);
-        setCurrentPhotoIndex(startIndex);
-        setIsPhotoModalOpen(true);
-
-        const orientations = await Promise.all(
-            imageUrls.map(url => getImageOrientation(url))
-        );
-        setPhotoOrientations(orientations);
-
-        document.body.style.overflow = 'hidden';
-    }, [getImageOrientation]);
-
-    const closePhotoModal = useCallback(() => {
-        setIsPhotoModalOpen(false);
-        document.body.style.overflow = 'auto';
-    }, []);
-
-    const goToPrevPhoto = useCallback(() => {
-        setCurrentPhotoIndex(prev =>
-            prev > 0 ? prev - 1 : selectedPhotoImages.length - 1
-        );
-    }, [selectedPhotoImages.length]);
-
-    const goToNextPhoto = useCallback(() => {
-        setCurrentPhotoIndex(prev =>
-            prev < selectedPhotoImages.length - 1 ? prev + 1 : 0
-        );
-    }, [selectedPhotoImages.length]);
 
     // ===== ОСТАЛЬНЫЕ ФУНКЦИИ =====
 
@@ -1129,7 +1084,7 @@ function Chat() {
                                 {chatImages.length > 0 && (
                                     <button
                                         className={styles.photosButton}
-                                        onClick={() => openPhotoModal(chatImages, 0)}
+                                        onClick={() => photoGallery.openGallery(0)}
                                         aria-label={t('chat.viewAllPhotos')}
                                         title={t('chat.viewAllPhotos')}
                                     >
@@ -1223,7 +1178,7 @@ function Chat() {
                                             <div
                                                 key={image.id}
                                                 className={styles.photoThumbnail}
-                                                onClick={() => openPhotoModal(chatImages, index)}
+                                                onClick={() => photoGallery.openGallery(index)}
                                             >
                                                 <img
                                                     src={image.imageUrl}
@@ -1309,84 +1264,16 @@ function Chat() {
             </div>
 
             {/* Модальное окно для просмотра фото */}
-            {isPhotoModalOpen && (
-                <div className={styles.photoModalOverlay} onClick={closePhotoModal}>
-                    <div className={styles.photoModalContent} onClick={(e) => e.stopPropagation()}>
-                        <button
-                            className={styles.photoModalClose}
-                            onClick={closePhotoModal}
-                            aria-label={t('chat.closeModal')}
-                        >
-                            <IoClose size={24} />
-                        </button>
-
-                        <div className={styles.photoModalMain}>
-                            <button
-                                className={styles.photoModalNav}
-                                onClick={goToPrevPhoto}
-                                aria-label={t('chat.prevPhoto')}
-                            >
-                                <FaChevronLeft size={24} />
-                            </button>
-
-                            <div className={styles.photoModalImageContainer}>
-                                <img
-                                    src={selectedPhotoImages[currentPhotoIndex]}
-                                    alt={t('chat.photoModal', { current: currentPhotoIndex + 1, total: selectedPhotoImages.length })}
-                                    className={styles.photoModalImage}
-                                    data-orientation={photoOrientations[currentPhotoIndex] || 'landscape'}
-                                    onLoad={(e) => {
-                                        // Альтернативный способ, если orientations еще не загружены
-                                        if (!photoOrientations[currentPhotoIndex]) {
-                                            const img = e.currentTarget;
-                                            const isLandscape = img.naturalWidth > img.naturalHeight;
-                                            e.currentTarget.dataset.orientation = isLandscape ? 'landscape' : 'portrait';
-                                        }
-
-                                        // УБИРАЕМ canvas анализ - вызывает CORS ошибку
-                                        // Вместо этого всегда применяем стили для лучшей видимости
-                                        document.querySelectorAll(`.${styles.photoModalNav}, .${styles.photoModalCounter}`).forEach(el => {
-                                            (el as HTMLElement).style.border = '2px solid rgba(0, 0, 0, 0.3)';
-                                            (el as HTMLElement).style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.5)';
-                                            (el as HTMLElement).style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-                                        });
-                                    }}
-                                    onError={(e) => {
-                                        e.currentTarget.src = '../fonTest5.png';
-                                    }}
-                                />
-                            </div>
-
-                            <button
-                                className={styles.photoModalNav}
-                                onClick={goToNextPhoto}
-                                aria-label={t('chat.nextPhoto')}
-                            >
-                                <FaChevronRight size={24} />
-                            </button>
-                        </div>
-
-                        <div className={styles.photoModalCounter}>
-                            {t('chat.photoModal', { current: currentPhotoIndex + 1, total: selectedPhotoImages.length })}
-                        </div>
-
-                        <div className={styles.photoModalThumbnails}>
-                            {selectedPhotoImages.map((image, index) => (
-                                <img
-                                    key={index}
-                                    src={image}
-                                    alt={t('chat.thumbnail', { index: index + 1 })}
-                                    className={`${styles.photoModalThumbnail} ${index === currentPhotoIndex ? styles.active : ''}`}
-                                    onClick={() => setCurrentPhotoIndex(index)}
-                                    onError={(e) => {
-                                        e.currentTarget.src = '../fonTest5.png';
-                                    }}
-                                />
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )}
+            <PhotoGallery
+                isOpen={photoGallery.isOpen}
+                images={galleryImages}
+                currentIndex={photoGallery.currentIndex}
+                onClose={photoGallery.closeGallery}
+                onNext={photoGallery.goToNext}
+                onPrevious={photoGallery.goToPrevious}
+                onSelectImage={photoGallery.selectImage}
+                fallbackImage="../fonTest5.png"
+            />
         </div>
     );
 }
