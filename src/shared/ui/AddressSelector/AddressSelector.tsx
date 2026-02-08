@@ -72,7 +72,7 @@ interface AddressSelectorProps {
     multipleSuburbs?: boolean;
 }
 
-const AddressSelector = ({ value, onChange, required = false, multipleSuburbs = true }: AddressSelectorProps) => {
+const AddressSelector = ({ value, onChange, multipleSuburbs = true }: AddressSelectorProps) => {
     const [provinces, setProvinces] = useState<Province[]>([]);
     const [cities, setCities] = useState<City[]>([]);
     const [districts, setDistricts] = useState<District[]>([]);
@@ -150,10 +150,6 @@ const AddressSelector = ({ value, onChange, required = false, multipleSuburbs = 
     const villagesInSelectedSettlement = selectedSettlement
         ? selectedSettlement.village || []
         : [];
-
-    const selectedProvince = selectedProvinceId
-        ? provinces.find(p => p.id === selectedProvinceId)
-        : null;
 
     // Обработчики выбора
     const handleProvinceSelect = (provinceId: number) => {

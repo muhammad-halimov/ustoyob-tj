@@ -22,30 +22,6 @@ export function EnterBtn({ onClick, isModalOpen, onModalClose, onLoginSuccess }:
 
     const modalOpen = isModalOpen !== undefined ? isModalOpen : internalModalOpen;
 
-    // Функция для проверки статуса пользователя
-    const checkUserStatus = async () => {
-        const token = getAuthToken();
-        const loggedIn = !!token;
-        setIsLoggedIn(loggedIn);
-
-        if (loggedIn) {
-            try {
-                // Получаем данные пользователя для отображения имени
-                const userDataStr = localStorage.getItem('userData');
-                if (userDataStr) {
-                    const userData = JSON.parse(userDataStr);
-                    if (userData.name) {
-                        setUserName(userData.name);
-                    }
-                }
-            } catch (error) {
-                console.error('Error parsing user data:', error);
-            }
-        } else {
-            setUserName('');
-        }
-    };
-
     useEffect(() => {
         const checkUserStatus = async () => {
             const token = getAuthToken();
