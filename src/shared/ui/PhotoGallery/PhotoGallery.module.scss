@@ -9,7 +9,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 10000;
+  z-index: 20000;
   animation: fadeIn 0.3s ease;
 }
 
@@ -33,7 +33,7 @@
   border: none;
   cursor: pointer;
   color: var(--color-text-inverse);
-  z-index: 10001;
+  z-index: 20001;
   padding: 8px;
 
   svg {
@@ -161,7 +161,7 @@
     position: fixed;
     top: max(env(safe-area-inset-top, 0px) + 16px, 60px);
     right: 16px;
-    z-index: 10002;
+    z-index: 20002;
     background: rgba(0, 0, 0, 0.5);
     border-radius: 50%;
     padding: 10px;

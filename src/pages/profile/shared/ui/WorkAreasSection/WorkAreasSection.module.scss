@@ -1,0 +1,265 @@
+@use '../../../../../app/styles/variables' as vars;
+@use 'sass:map';
+
+.section_item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 40px;
+  border-radius: 20px;
+  background-color: map.get(vars.$colors, background-primary);
+  padding: 20px;
+  min-height: 110px;
+
+  h3 {
+    margin-bottom: 10px;
+  }
+}
+
+.section_content {
+  background: #fff;
+  border-radius: 12px;
+  width: 100%;
+}
+
+.remote_work {
+  margin-bottom: 24px;
+  width: 100%;
+}
+
+.switch_container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 52px;
+  height: 32px;
+  flex-shrink: 0;
+
+  input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+
+    &:checked + .slider {
+      background-color: #3A54DA;
+    }
+
+    &:checked + .slider:before {
+      transform: translateX(20px);
+    }
+  }
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 34px;
+
+  &:before {
+    position: absolute;
+    content: "";
+    height: 24px;
+    width: 24px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+  }
+}
+
+.switch_label {
+  flex: 1;
+  min-width: 0;
+
+  .label_main {
+    display: block;
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 4px;
+    color: map.get(vars.$colors, text-black);
+  }
+
+  .label_sub {
+    display: block;
+    font-size: 14px;
+    color: #666;
+    line-height: 1.4;
+  }
+}
+
+.list_item {
+  padding: 16px 0;
+  border-bottom: 1px solid #e8e8e8;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+
+  &:first-child {
+    padding-top: 8px;
+  }
+
+  &.list_item_last {
+    border-bottom: none !important;
+  }
+}
+
+.list_item_content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.list_item_actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.address_text {
+  word-break: break-word;
+  overflow-wrap: break-word;
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+  color: map.get(vars.$colors, text-black);
+}
+
+.edit_icon, .delete_icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  font-size: 14px;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.empty_state {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #666;
+  height: 60px;
+}
+
+.edit_form {
+  width: 100%;
+  padding: 16px 0;
+  border-bottom: 1px solid #e8e8e8;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.form_actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.save_button {
+  background: #3A54DA;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.3s ease;
+
+  &:hover {
+    background: #2a44ca;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.cancel_button {
+  background: #f5f5f5;
+  color: #666;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.3s ease;
+
+  &:hover {
+    background: #e5e5e5;
+  }
+}
+
+.add_education_container {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 16px 0;
+  width: 100%;
+}
+
+.add_button {
+  background: #3A54DA;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: #2a44ca;
+  }
+}
+
+@media (max-width: 768px) {
+  .section_item {
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+
+  .switch_label {
+    .label_main {
+      font-size: 16px;
+    }
+
+    .label_sub {
+      font-size: 12px;
+    }
+  }
+}

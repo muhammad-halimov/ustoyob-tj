@@ -467,7 +467,7 @@ function Client() {
                 reviews: reviews.length
             } : null);
         }
-    }, [reviews, profileData]);
+    }, [reviews]);
 
     // Функция для получения URL изображения галереи
     const getGalleryImageUrl = (imagePath: string) => {

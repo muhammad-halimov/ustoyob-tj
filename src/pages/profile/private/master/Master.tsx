@@ -3,11 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { getAuthToken, removeAuthToken } from '../../../../utils/auth.ts';
 import styles from './Master.module.scss';
 
-import { Swiper, SwiperSlide } from "swiper/react";
-import "swiper/css";
 import { fetchUserById } from "../../../../utils/api.ts";
-import { PhotoGallery, usePhotoGallery } from '../../../../shared/ui/PhotoGallery';
-import AddressSelector, { AddressValue, buildAddressData } from '../../../../shared/ui/AddressSelector';
+import { usePhotoGallery } from '../../../../shared/ui/PhotoGallery';
+import { AddressValue, buildAddressData } from '../../../../shared/ui/AddressSelector';
+
+// Новые компоненты из shared/ui
+import { ProfileHeader } from '../../shared/ui/ProfileHeader';
+import { EducationSection } from '../../shared/ui/EducationSection';
+import { PhonesSection } from '../../shared/ui/PhonesSection';
+import { SocialNetworksSection } from '../../shared/ui/SocialNetworksSection';
+import { WorkExamplesSection } from '../../shared/ui/WorkExamplesSection';
+import { WorkAreasSection } from '../../shared/ui/WorkAreasSection';
+import { ReviewsSection } from '../../shared/ui/ReviewsSection';
 
 // Интерфейс для социальных сетей с API
 interface AvailableSocialNetwork {
@@ -155,6 +162,7 @@ interface ProfileData {
     id: string;
     fullName: string;
     specialty: string;
+    specialties: string[];
     rating: number;
     reviews: number;
     avatar: string | null;
@@ -372,6 +380,7 @@ function Master() {
     const [isLoading, setIsLoading] = useState(true);
     const [profileData, setProfileData] = useState<ProfileData | null>(null);
     const [tempValue, setTempValue] = useState('');
+    const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
     const [editingEducation, setEditingEducation] = useState<string | null>(null);
     const [educationForm, setEducationForm] = useState<{
         institution: string;
@@ -455,22 +464,6 @@ function Master() {
         selectImage
     } = usePhotoGallery({
         images: galleryImages
-    });
-
-    // PhotoGallery hook для отзывов
-    const reviewGalleryImages = reviews.flatMap(review => 
-        review.images?.map(img => `${API_BASE_URL}/images/review_photos/${img.image}`) || []
-    );
-    const {
-        isOpen: isReviewGalleryOpen,
-        currentIndex: reviewGalleryCurrentIndex,
-        openGallery: openReviewGallery,
-        closeGallery: closeReviewGallery,
-        goToNext: goToNextReview,
-        goToPrevious: goToPreviousReview,
-        selectImage: selectReviewImage
-    } = usePhotoGallery({
-        images: reviewGalleryImages
     });
 
     // Вспомогательная функция для получения индекса фото в галерее отзывов
@@ -1561,6 +1554,7 @@ function Master() {
                     .filter(Boolean)
                     .join(' ') || 'Фамилия Имя Отчество',
                 specialty: userData.occupation?.map((occ) => occ.title).join(', ') || 'Специальность',
+                specialties: userData.occupation?.map((occ) => occ.title) || [],
                 rating: userData.rating || 0,
                 reviews: 0,
                 avatar: avatarUrl,
@@ -1584,6 +1578,7 @@ function Master() {
                 id: '',
                 fullName: 'Фамилия Имя Отчество',
                 specialty: 'Специальность',
+                specialties: [],
                 rating: 0,
                 reviews: 0,
                 avatar: null,
@@ -3064,7 +3059,54 @@ function Master() {
 
     const handleEditStart = (field: 'fullName' | 'specialty') => {
         setEditingField(field);
-        setTempValue(field === 'fullName' ? profileData?.fullName || '' : profileData?.specialty || '');
+        if (field === 'fullName') {
+            setTempValue(profileData?.fullName || '');
+        } else if (field === 'specialty') {
+            // Инициализируем массив специальностей из готового массива или парсим строку
+            const currentSpecialties = profileData?.specialties && profileData.specialties.length > 0
+                ? profileData.specialties
+                : (profileData?.specialty 
+                    ? profileData.specialty.split(',').map(s => s.trim()).filter(Boolean)
+                    : []);
+            setSelectedSpecialties(currentSpecialties);
+            setTempValue('');
+        }
+    };
+
+    const handleAddSpecialty = (specialty: string) => {
+        if (specialty && !selectedSpecialties.includes(specialty)) {
+            setSelectedSpecialties(prev => [...prev, specialty]);
+        }
+    };
+
+    const handleRemoveSpecialty = (specialty: string) => {
+        setSelectedSpecialties(prev => prev.filter(s => s !== specialty));
+    };
+
+    const handleSpecialtySave = async () => {
+        if (selectedSpecialties.length === 0) {
+            setEditingField(null);
+            return;
+        }
+
+        const specialtyString = selectedSpecialties.join(', ');
+        
+        // Обновляем данные в API
+        await updateUserData({ 
+            specialty: specialtyString,
+            specialties: selectedSpecialties 
+        });
+        
+        // Обновляем локальное состояние профиля
+        setProfileData(prev => prev ? {
+            ...prev,
+            specialty: specialtyString,
+            specialties: selectedSpecialties
+        } : null);
+        
+        setEditingField(null);
+        setTempValue('');
+        setSelectedSpecialties([]);
     };
 
     const handleInputSave = async (field: 'fullName' | 'specialty') => {
@@ -3291,10 +3333,6 @@ function Master() {
         img.src = "../fonTest6.png";
     };
 
-    const getReviewerName = (review: Review) => {
-        return `${review.reviewer.name} ${review.reviewer.surname}`.trim();
-    };
-
     const getReviewerAvatarUrl = (review: Review) => {
         if (review.reviewer.image) {
             console.log('Reviewer image from data:', review.reviewer.image);
@@ -3356,16 +3394,6 @@ function Master() {
     const handleClientProfileClick = (clientId: number) => {
         console.log('Navigating to client profile:', clientId);
         navigate(`/client/${clientId}`);
-    };
-
-    const handleLeaveReview = () => {
-        const token = getAuthToken();
-        if (!token) {
-            navigate('/auth');
-            return;
-        }
-
-        setShowReviewModal(true);
     };
 
     const handleCloseReviewModal = () => {
@@ -3519,1381 +3547,150 @@ function Master() {
     return (
         <div className={styles.profile}>
             <div className={styles.profile_wrap}>
-                <div className={styles.profile_content}>
-                    <div className={styles.avatar_section}>
-                        <div
-                            className={styles.avatar_container}
-                            onClick={handleAvatarClick}
-                        >
-                            {profileData.avatar ? (
-                                <img
-                                    src={profileData.avatar}
-                                    alt="Аватар"
-                                    className={styles.avatar}
-                                    onError={handleImageError}
-                                    onLoad={() => console.log('Avatar loaded successfully from:', profileData.avatar)}
-                                />
-                            ) : (
-                                <img
-                                    src="../fonTest6.png"
-                                    alt="FonTest6"
-                                    className={styles.avatar_placeholder}
-                                />
-                            )}
-                            <div className={styles.avatar_overlay}>
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                    <path d="M17 8L12 3L7 8" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                    <path d="M12 3V15" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                </svg>
-                                <span>Изменить фото</span>
-                            </div>
-                        </div>
-                        <input
-                            type="file"
-                            ref={fileInputRef}
-                            onChange={handleFileChange}
-                            accept="image/*"
-                            style={{ display: 'none' }}
-                        />
-                    </div>
-
-                    <div className={styles.profile_info}>
-                        <div className={styles.name_specialty}>
-                            <div className={styles.name_row}>
-                                {editingField === 'fullName' ? (
-                                    <div className={styles.full_name_edit}>
-                                        <input
-                                            type="text"
-                                            value={tempValue}
-                                            onChange={(e) => setTempValue(e.target.value)}
-                                            onBlur={() => handleInputSave('fullName')}
-                                            onKeyDown={(e) => handleInputKeyPress(e, 'fullName')}
-                                            className={styles.name_input}
-                                            placeholder="Фамилия Имя Отчество"
-                                            autoFocus
-                                        />
-                                    </div>
-                                ) : (
-                                    <div className={styles.name_with_icon}>
-                                        <span className={styles.name}>
-                                            {profileData.fullName}
-                                        </span>
-                                        <button
-                                            className={styles.edit_icon}
-                                            onClick={() => handleEditStart('fullName')}
-                                        >
-                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                <g clipPath="url(#clip0_188_2958)">
-                                                    <g clipPath="url(#clip1_188_2958)">
-                                                        <path d="M7.2302 20.59L2.4502 21.59L3.4502 16.81L17.8902 2.29001C18.1407 2.03889 18.4385 1.83982 18.7663 1.70424C19.0941 1.56865 19.4455 1.49925 19.8002 1.50001C20.5163 1.50001 21.203 1.78447 21.7094 2.29082C22.2157 2.79717 22.5002 3.48392 22.5002 4.20001C22.501 4.55474 22.4315 4.90611 22.296 5.23391C22.1604 5.56171 21.9613 5.85945 21.7102 6.11001L7.2302 20.59Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                                        <path d="M0.549805 22.5H23.4498" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                                        <path d="M19.6403 8.17986L15.8203 4.35986" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                                    </g>
-                                                </g>
-                                                <defs>
-                                                    <clipPath id="clip0_188_2958">
-                                                        <rect width="24" height="24" fill="white"/>
-                                                    </clipPath>
-                                                    <clipPath id="clip1_188_2958">
-                                                        <rect width="24" height="24" fill="white"/>
-                                                    </clipPath>
-                                                </defs>
-                                            </svg>
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className={styles.specialty_row}>
-                                {editingField === 'specialty' ? (
-                                    <div className={styles.specialty_edit_container}>
-                                        <select
-                                            ref={specialtyInputRef}
-                                            value={tempValue}
-                                            onChange={(e) => setTempValue(e.target.value)}
-                                            className={styles.specialty_select}
-                                            autoFocus
-                                        >
-                                            <option value="">Выберите специальность</option>
-                                            {occupations.map(occupation => (
-                                                <option
-                                                    key={occupation.id}
-                                                    value={occupation.title}
-                                                >
-                                                    {occupation.title}
-                                                </option>
-                                            ))}
-                                        </select>
-
-                                        <div className={styles.specialty_actions}>
-                                            <button
-                                                className={styles.save_occupations_btn}
-                                                onClick={() => {
-                                                    if (tempValue.trim()) {
-                                                        const updateData = { specialty: tempValue };
-                                                        updateUserData(updateData);
-                                                        setEditingField(null);
-                                                    }
-                                                }}
-                                                disabled={isLoading || !tempValue.trim()}
-                                            >
-                                                {isLoading ? 'Сохранение...' : 'Сохранить'}
-                                            </button>
-                                            <button
-                                                className={styles.cancel_occupations_btn}
-                                                onClick={() => {
-                                                    setEditingField(null);
-                                                    setTempValue('');
-                                                }}
-                                            >
-                                                Отмена
-                                            </button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className={styles.specialty_with_icon}>
-                                        <span className={styles.specialty}>{profileData.specialty}</span>
-                                        <button
-                                            className={styles.edit_icon}
-                                            onClick={() => handleEditStart('specialty')}
-                                        >
-                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                <g clipPath="url(#clip0_188_2958)">
-                                                    <g clipPath="url(#clip1_188_2958)">
-                                                        <path d="M7.2302 20.59L2.4502 21.59L3.4502 16.81L17.8902 2.29001C18.1407 2.03889 18.4385 1.83982 18.7663 1.70424C19.0941 1.56865 19.4455 1.49925 19.8002 1.50001C20.5163 1.50001 21.203 1.78447 21.7094 2.29082C22.2157 2.79717 22.5002 3.48392 22.5002 4.20001C22.501 4.55474 22.4315 4.90611 22.296 5.23391C22.1604 5.56171 21.9613 5.85945 21.7102 6.11001L7.2302 20.59Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                                        <path d="M0.549805 22.5H23.4498" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                                        <path d="M19.6403 8.17986L15.8203 4.35986" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                                    </g>
-                                                </g>
-                                                <defs>
-                                                    <clipPath id="clip0_188_2958">
-                                                        <rect width="24" height="24" fill="white"/>
-                                                    </clipPath>
-                                                    <clipPath id="clip1_188_2958">
-                                                        <rect width="24" height="24" fill="white"/>
-                                                    </clipPath>
-                                                </defs>
-                                            </svg>
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className={styles.rating_reviews}>
-                            <span className={styles.rating}>
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <g clipPath="url(#clip0_324_2272)">
-                                    <g clipPath="url(#clip1_324_2272)">
-                                    <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                    <path d="M12 19V18.98" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
-                                    </g>
-                                    </g>
-                                    <defs>
-                                    <clipPath id="clip0_324_2272">
-                                    <rect width="24" height="24" fill="white"/>
-                                    </clipPath>
-                                    <clipPath id="clip1_324_2272">
-                                    <rect width="24" height="24" fill="white"/>
-                                    </clipPath>
-                                    </defs>
-                                </svg>
-                                {profileData.rating}
-                            </span>
-                            <span className={styles.reviews}>
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <g clipPath="url(#clip0_188_2937)">
-                                    <g clipPath="url(#clip1_188_2937)">
-                                    <path d="M12 1.47998C6.2 1.47998 1.5 5.74998 1.5 11C1.52866 13.0153 2.23294 14.9626 3.5 16.53L2.5 21.53L9.16 20.2C10.1031 20.4499 11.0744 20.5776 12.05 20.58C17.85 20.58 22.55 16.3 22.55 11.03C22.55 5.75998 17.8 1.47998 12 1.47998Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                    </g>
-                                    </g>
-                                    <defs>
-                                    <clipPath id="clip0_188_2937">
-                                    <rect width="24" height="24" fill="white"/>
-                                    </clipPath>
-                                    <clipPath id="clip1_188_2937">
-                                    <rect width="24" height="24" fill="white"/>
-                                    </clipPath>
-                                    </defs>
-                                </svg>
-                                {reviews.length} отзыва
-                            </span>
-                        </div>
-                    </div>
-                </div>
+                {/* ProfileHeader Component */}
+                <ProfileHeader
+                    avatar={profileData.avatar}
+                    fullName={profileData.fullName}
+                    specialty={profileData.specialty}
+                    specialties={profileData.specialties}
+                    rating={profileData.rating}
+                    reviewsCount={reviews.length}
+                    editingField={editingField}
+                    tempValue={tempValue}
+                    selectedSpecialties={selectedSpecialties}
+                    occupations={occupations}
+                    fileInputRef={fileInputRef}
+                    specialtyInputRef={specialtyInputRef}
+                    isLoading={isLoading}
+                    onAvatarClick={handleAvatarClick}
+                    onFileChange={handleFileChange}
+                    onImageError={handleImageError}
+                    onEditStart={handleEditStart}
+                    onTempValueChange={setTempValue}
+                    onInputSave={handleInputSave}
+                    onInputKeyPress={handleInputKeyPress}
+                    onSpecialtySave={handleSpecialtySave}
+                    onEditCancel={() => {
+                        setEditingField(null);
+                        setTempValue('');
+                        setSelectedSpecialties([]);
+                    }}
+                    onAddSpecialty={handleAddSpecialty}
+                    onRemoveSpecialty={handleRemoveSpecialty}
+                />
 
                 {/* Секция "О себе" */}
                 <div className={styles.about_section}>
-                    {/* Образование и опыт */}
-                    <div className={styles.section_item}>
-                        <h3>Образование и опыт</h3>
-                        <div className={styles.section_content}>
-                            {profileData.education.map((edu, index) => (
-                                <div key={edu.id} className={`${styles.education_item} ${index === profileData.education.length - 1 ? styles.education_item_last : ''}`}>
-                                    {editingEducation === edu.id ? (
-                                        <div className={styles.education_form}>
-                                            <div className={styles.form_group}>
-                                                <label>Учебное заведение *</label>
-                                                <input
-                                                    type="text"
-                                                    placeholder="Учебное заведение"
-                                                    value={educationForm.institution}
-                                                    onChange={(e) => handleEducationFormChange('institution', e.target.value)}
-                                                />
-                                            </div>
+                    {/* EducationSection Component */}
+                    <EducationSection
+                        education={profileData.education}
+                        editingEducation={editingEducation}
+                        educationForm={educationForm}
+                        occupations={occupations}
+                        occupationsLoading={occupationsLoading}
+                        onEditEducationStart={handleEditEducationStart}
+                        onEditEducationSave={handleEditEducationSave}
+                        onEditEducationCancel={handleEditEducationCancel}
+                        onEducationFormChange={handleEducationFormChange}
+                        onDeleteEducation={handleDeleteEducation}
+                        onAddEducation={handleAddEducation}
+                        setEducationForm={setEducationForm}
+                    />
 
-                                            <div className={styles.form_group}>
-                                                <label>Специальность</label>
-                                                <select
-                                                    className={styles.specialty_select}
-                                                    value={educationForm.selectedSpecialty || ''}
-                                                    onChange={(e) => {
-                                                        const selectedId = parseInt(e.target.value);
-                                                        setEducationForm(prev => ({
-                                                            ...prev,
-                                                            selectedSpecialty: selectedId || undefined
-                                                        }));
-                                                    }}
-                                                >
-                                                    <option value="">Выберите специальность</option>
-                                                    {/* Debug: показываем состояние occupations для нового образования */}
-                                                    {occupationsLoading && (
-                                                        <option disabled>Загружается...</option>
-                                                    )}
-                                                    {occupations.map(occupation => {
-                                                        console.log('Rendering occupation option (new education):', occupation);
-                                                        return (
-                                                            <option key={occupation.id} value={occupation.id}>
-                                                                {occupation.title}
-                                                            </option>
-                                                        );
-                                                    })}
-                                                </select>
-                                            </div>
+                    {/* PhonesSection Component */}
+                    <PhonesSection
+                        phones={profileData.phones}
+                        editingPhone={editingPhone}
+                        phoneForm={phoneForm}
+                        onEditPhoneStart={handleEditPhoneStart}
+                        onEditPhoneSave={handleEditPhoneSave}
+                        onEditPhoneCancel={handleEditPhoneCancel}
+                        setPhoneForm={setPhoneForm}
+                        onDeletePhone={handleDeletePhone}
+                        onAddPhone={handleAddPhone}
+                        onCopyPhone={handleCopyPhone}
+                    />
 
-                                            <div className={styles.year_group}>
-                                                <div className={styles.form_group}>
-                                                    <label>Год начала *</label>
-                                                    <input
-                                                        type="number"
-                                                        placeholder="Год начала"
-                                                        value={educationForm.startYear}
-                                                        onChange={(e) => handleEducationFormChange('startYear', e.target.value)}
-                                                        min="1900"
-                                                        max={new Date().getFullYear()}
-                                                    />
-                                                </div>
+                    {/* SocialNetworksSection Component */}
+                    <SocialNetworksSection
+                        socialNetworks={socialNetworks}
+                        SOCIAL_NETWORK_CONFIG={SOCIAL_NETWORK_CONFIG}
+                        editingSocialNetwork={editingSocialNetwork}
+                        socialNetworkEditValue={socialNetworkEditValue}
+                        socialNetworkValidationError={socialNetworkValidationError}
+                        showAddSocialNetwork={showAddSocialNetwork}
+                        selectedNewNetwork={selectedNewNetwork}
+                        availableSocialNetworks={getAvailableNetworks()}
+                        setEditingSocialNetwork={setEditingSocialNetwork}
+                        setSocialNetworkEditValue={setSocialNetworkEditValue}
+                        setSocialNetworkValidationError={setSocialNetworkValidationError}
+                        setShowAddSocialNetwork={setShowAddSocialNetwork}
+                        setSelectedNewNetwork={setSelectedNewNetwork}
+                        setSocialNetworks={setSocialNetworks}
+                        onUpdateSocialNetworks={updateSocialNetworks}
+                        onRemoveSocialNetwork={handleRemoveSocialNetwork}
+                        onAddSocialNetwork={handleAddSocialNetwork}
+                        onResetSocialNetworks={handleResetSocialNetworks}
+                        onCopySocialNetwork={handleCopySocialNetwork}
+                        renderSocialIcon={renderSocialIcon}
+                        getAvailableNetworks={getAvailableNetworks}
+                    />
 
-                                                <div className={styles.form_group}>
-                                                    <label>Год окончания</label>
-                                                    <input
-                                                        type="number"
-                                                        placeholder="Год окончания"
-                                                        value={educationForm.endYear}
-                                                        onChange={(e) => handleEducationFormChange('endYear', e.target.value)}
-                                                        min={parseInt(educationForm.startYear) || 1900}
-                                                        max={new Date().getFullYear()}
-                                                        disabled={educationForm.currentlyStudying}
-                                                    />
-                                                </div>
-                                            </div>
+                    {/* WorkExamplesSection Component */}
+                    <WorkExamplesSection
+                        workExamples={profileData.workExamples}
+                        showAllWorkExamples={showAllWorkExamples}
+                        isMobile={isMobile}
+                        isGalleryOperating={isGalleryOperating}
+                        galleryImages={galleryImages}
+                        isGalleryOpen={isGalleryOpen}
+                        galleryCurrentIndex={galleryCurrentIndex}
+                        onOpenGallery={openGallery}
+                        onCloseGallery={closeGallery}
+                        onGalleryNext={goToNext}
+                        onGalleryPrevious={goToPrevious}
+                        onSelectGalleryImage={selectImage}
+                        onDeleteWorkExample={handleDeleteWorkExample}
+                        onDeleteAllWorkExamples={handleDeleteAllWorkExamples}
+                        onWorkExampleUpload={handleWorkExampleUpload}
+                        setShowAllWorkExamples={setShowAllWorkExamples}
+                        getImageUrlWithCacheBust={getImageUrlWithCacheBust}
+                        API_BASE_URL={API_BASE_URL}
+                    />
 
-                                            <div className={styles.checkbox_group}>
-                                                <label className={styles.checkbox_label}>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={educationForm.currentlyStudying}
-                                                        onChange={(e) => handleEducationFormChange('currentlyStudying', e.target.checked)}
-                                                    />
-                                                    Учусь сейчас
-                                                </label>
-                                            </div>
-
-                                            <div className={styles.form_actions}>
-                                                <button
-                                                    className={styles.save_button}
-                                                    onClick={handleEditEducationSave}
-                                                    disabled={!educationForm.institution || !educationForm.startYear}
-                                                >
-                                                    Сохранить
-                                                </button>
-                                                <button
-                                                    className={styles.cancel_button}
-                                                    onClick={handleEditEducationCancel}
-                                                >
-                                                    Отмена
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className={styles.education_main}>
-                                            <div className={styles.education_content}>
-                                                <div className={styles.education_header}>
-                                                    <strong>{edu.institution}</strong>
-                                                </div>
-                                                <div className={styles.education_years}>
-                                                    <span>{edu.startYear} - {edu.currentlyStudying ? 'По настоящее время' : edu.endYear}</span>
-                                                </div>
-                                                {edu.specialty && (
-                                                    <div className={styles.education_details}>
-                                                        <span>Специальность: {edu.specialty}</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div className={styles.education_actions}>
-                                                <button
-                                                    className={styles.edit_icon}
-                                                    onClick={() => handleEditEducationStart(edu)}
-                                                    title="Редактировать"
-                                                >
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                                        <path d="M7.2302 20.59L2.4502 21.59L3.4502 16.81L17.8902 2.29001C18.1407 2.03889 18.4385 1.83982 18.7663 1.70424C19.0941 1.56865 19.4455 1.49925 19.8002 1.50001C20.5163 1.50001 21.203 1.78447 21.7094 2.29082C22.2157 2.79717 22.5002 3.48392 22.5002 4.20001C22.501 4.55474 22.4315 4.90611 22.296 5.23391C22.1604 5.56171 21.9613 5.85945 21.7102 6.11001L7.2302 20.59Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                                    </svg>
-                                                </button>
-                                                <button
-                                                    className={styles.delete_icon}
-                                                    onClick={() => handleDeleteEducation(edu.id)}
-                                                    title="Удалить"
-                                                >
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                                        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" fill="#ff4444"/>
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-
-                            {/* Кнопка добавления нового образования */}
-                            {editingEducation === null ? (
-                                <div className={styles.add_education_container}>
-                                    <button
-                                        className={styles.add_button}
-                                        onClick={handleAddEducation}
-                                        title="Добавить образование"
-                                    >
-                                        +
-                                    </button>
-                                </div>
-                            ) : editingEducation.startsWith('new-') ? (
-                                <div className={styles.education_form}>
-                                    <div className={styles.form_group}>
-                                        <label>Учебное заведение *</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Учебное заведение"
-                                            value={educationForm.institution}
-                                            onChange={(e) => handleEducationFormChange('institution', e.target.value)}
-                                        />
-                                    </div>
-
-                                    <div className={styles.form_group}>
-                                        <label>Специальность</label>
-                                        <select
-                                            value={educationForm.selectedSpecialty || ''}
-                                            onChange={(e) => {
-                                                const selectedId = parseInt(e.target.value);
-                                                setEducationForm(prev => ({
-                                                    ...prev,
-                                                    selectedSpecialty: selectedId || undefined
-                                                }));
-                                            }}
-                                        >
-                                            <option value="">Выберите специальность</option>
-                                            {occupationsLoading && (
-                                                <option disabled>Загружается...</option>
-                                            )}
-                                            {occupations.map(occupation => (
-                                                <option key={occupation.id} value={occupation.id}>
-                                                    {occupation.title}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    <div className={styles.year_group}>
-                                        <div className={styles.form_group}>
-                                            <label>Год начала *</label>
-                                            <input
-                                                type="number"
-                                                placeholder="Год начала"
-                                                value={educationForm.startYear}
-                                                onChange={(e) => handleEducationFormChange('startYear', e.target.value)}
-                                                min="1900"
-                                                max={new Date().getFullYear()}
-                                            />
-                                        </div>
-
-                                        <div className={styles.form_group}>
-                                            <label>Год окончания</label>
-                                            <input
-                                                type="number"
-                                                placeholder="Год окончания"
-                                                value={educationForm.endYear}
-                                                onChange={(e) => handleEducationFormChange('endYear', e.target.value)}
-                                                min={parseInt(educationForm.startYear) || 1900}
-                                                max={new Date().getFullYear()}
-                                                disabled={educationForm.currentlyStudying}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className={styles.checkbox_group}>
-                                        <label className={styles.checkbox_label}>
-                                            <input
-                                                type="checkbox"
-                                                checked={educationForm.currentlyStudying}
-                                                onChange={(e) => handleEducationFormChange('currentlyStudying', e.target.checked)}
-                                            />
-                                            Учусь сейчас
-                                        </label>
-                                    </div>
-
-                                    <div className={styles.form_actions}>
-                                        <button
-                                            className={styles.save_button}
-                                            onClick={handleEditEducationSave}
-                                            disabled={!educationForm.institution || !educationForm.startYear}
-                                        >
-                                            Сохранить
-                                        </button>
-                                        <button
-                                            className={styles.cancel_button}
-                                            onClick={handleEditEducationCancel}
-                                        >
-                                            Отмена
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : null}
-                        </div>
-                    </div>
-
-                    {/* Телефоны */}
-                    <div className={styles.section_item}>
-                        <h3>Телефоны</h3>
-                        <div className={styles.section_content}>
-                            {profileData.phones && profileData.phones.map((phone, index) => (
-                                <div key={phone.id} className={`${styles.list_item} ${index === profileData.phones.length - 1 ? styles.list_item_last : ''}`}>
-                                    {editingPhone === phone.id ? (
-                                        <div className={styles.edit_form}>
-                                            <div className={styles.form_group}>
-                                                <label>Тип телефона</label>
-                                                <select
-                                                    value={phoneForm.type}
-                                                    onChange={(e) => setPhoneForm(prev => ({ ...prev, type: e.target.value as 'tj' | 'international' }))}
-                                                    disabled
-                                                >
-                                                    <option value="tj">Таджикистан (+992)</option>
-                                                    <option value="international">Международный</option>
-                                                </select>
-                                            </div>
-                                            <div className={styles.form_group}>
-                                                <label>Номер телефона</label>
-                                                <input
-                                                    type="tel"
-                                                    placeholder={phoneForm.type === 'tj' ? '+992XXXXXXXXX' : '+XXXXXXXXXXX'}
-                                                    value={phoneForm.number}
-                                                    onChange={(e) => {
-                                                        let value = e.target.value;
-                                                        if (!value.startsWith('+')) value = '+' + value;
-                                                        if (phoneForm.type === 'tj' && !value.startsWith('+992')) {
-                                                            value = '+992';
-                                                        }
-                                                        setPhoneForm(prev => ({ ...prev, number: value }));
-                                                    }}
-                                                />
-                                            </div>
-                                            <div className={styles.form_actions}>
-                                                <button
-                                                    className={styles.save_button}
-                                                    onClick={handleEditPhoneSave}
-                                                >
-                                                    Сохранить
-                                                </button>
-                                                <button
-                                                    className={styles.cancel_button}
-                                                    onClick={handleEditPhoneCancel}
-                                                >
-                                                    Отмена
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <div className={styles.list_item_content}>
-                                                <div className={styles.address_text}>
-                                                    <strong>{phone.type === 'tj' ? '🇹🇯 ' : '🌍 '}</strong>
-                                                    <a 
-                                                        href={`tel:${phone.number}`}
-                                                        className={styles.phone_link}
-                                                        onClick={(e) => e.stopPropagation()}
-                                                    >
-                                                        {phone.number}
-                                                    </a>
-                                                </div>
-                                            </div>
-                                            <div className={styles.list_item_actions}>
-                                                <button
-                                                    className={styles.copy_icon}
-                                                    onClick={() => handleCopyPhone(phone.number)}
-                                                    title="Копировать"
-                                                >
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                                        <path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z" fill="#3A54DA"/>
-                                                    </svg>
-                                                </button>
-                                                <button
-                                                    className={styles.edit_icon}
-                                                    onClick={() => handleEditPhoneStart(phone)}
-                                                    title="Редактировать"
-                                                >
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                                        <path d="M7.2302 20.59L2.4502 21.59L3.4502 16.81L17.8902 2.29001C18.1407 2.03889 18.4385 1.83982 18.7663 1.70424C19.0941 1.56865 19.4455 1.49925 19.8002 1.50001C20.5163 1.50001 21.203 1.78447 21.7094 2.29082C22.2157 2.79717 22.5002 3.48392 22.5002 4.20001C22.501 4.55474 22.4315 4.90611 22.296 5.23391C22.1604 5.56171 21.9613 5.85945 21.7102 6.11001L7.2302 20.59Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                                    </svg>
-                                                </button>
-                                                <button
-                                                    className={styles.delete_icon}
-                                                    onClick={() => handleDeletePhone(phone.id)}
-                                                    title="Удалить"
-                                                >
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                                        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" fill="#ff4444"/>
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                            ))}
-
-                            {/* Кнопка добавления или форма нового телефона */}
-                            {editingPhone === null && profileData.phones.length < 2 ? (
-                                <div className={styles.add_education_container}>
-                                    <button
-                                        className={styles.add_button}
-                                        onClick={handleAddPhone}
-                                        title="Добавить телефон"
-                                    >
-                                        +
-                                    </button>
-                                </div>
-                            ) : editingPhone === 'new' ? (
-                                <div className={styles.edit_form}>
-                                    <div className={styles.form_group}>
-                                        <label>Тип телефона</label>
-                                        <select
-                                            value={phoneForm.type}
-                                            onChange={(e) => {
-                                                const type = e.target.value as 'tj' | 'international';
-                                                setPhoneForm({
-                                                    type,
-                                                    number: type === 'tj' ? '+992' : '+'
-                                                });
-                                            }}
-                                        >
-                                            <option value="tj" disabled={profileData.phones.some(p => p.type === 'tj')}>
-                                                Таджикистан (+992)
-                                            </option>
-                                            <option value="international" disabled={profileData.phones.some(p => p.type === 'international')}>
-                                                Международный / Таджикистан (+992)
-                                            </option>
-                                        </select>
-                                    </div>
-                                    <div className={styles.form_group}>
-                                        <label>Номер телефона</label>
-                                        <input
-                                            type="tel"
-                                            placeholder={phoneForm.type === 'tj' ? '+992XXXXXXXXX' : '+XXXXXXXXXXX'}
-                                            value={phoneForm.number}
-                                            onChange={(e) => {
-                                                let value = e.target.value;
-                                                if (!value.startsWith('+')) value = '+' + value;
-                                                if (phoneForm.type === 'tj' && !value.startsWith('+992')) {
-                                                    value = '+992';
-                                                }
-                                                setPhoneForm(prev => ({ ...prev, number: value }));
-                                            }}
-                                        />
-                                    </div>
-                                    <div className={styles.form_actions}>
-                                        <button
-                                            className={styles.save_button}
-                                            onClick={handleEditPhoneSave}
-                                        >
-                                            Добавить
-                                        </button>
-                                        <button
-                                            className={styles.cancel_button}
-                                            onClick={handleEditPhoneCancel}
-                                        >
-                                            Отмена
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : null}
-                        </div>
-                    </div>
-
-                    {/* Социальные сети */}
-                    <div className={styles.section_item}>
-                        <h3>Социальные сети</h3>
-                        <div className={styles.section_content}>
-                            <div className={styles.social_networks}>
-                                {socialNetworks.length === 0 && (
-                                    <div className={styles.empty_social_networks}>
-                                        <p>Социальные сети не добавлены</p>
-                                        {getAvailableNetworks().length > 0 && (
-                                            <p>Нажмите "+" чтобы добавить социальную сеть</p>
-                                        )}
-                                    </div>
-                                )}
-
-                                {socialNetworks.map(network => {
-                                    return (
-                                        <div key={network.id} className={styles.social_network_item}>
-                                            <div className={styles.social_network_icon}>
-                                                {renderSocialIcon(network.network)}
-                                            </div>
-                                            <div className={styles.social_network_info}>
-                                                <span className={styles.social_network_name}>
-                                                    {SOCIAL_NETWORK_CONFIG[network.network]?.label || network.network}
-                                                </span>
-                                                {editingSocialNetwork === network.id ? (
-                                                <div className={styles.social_network_edit}>
-                                                    <input
-                                                        type="text"
-                                                        value={socialNetworkEditValue}
-                                                        placeholder={SOCIAL_NETWORK_CONFIG[network.network]?.placeholder || 'Введите контактные данные'}
-                                                        onChange={(e) => {
-                                                            setSocialNetworkEditValue(e.target.value);
-                                                            setSocialNetworkValidationError('');
-                                                        }}
-                                                        className={styles.social_input}
-                                                        autoFocus
-                                                    />
-                                                    <div className={styles.social_edit_buttons}>
-                                                        <button
-                                                            className={styles.save_social_btn}
-                                                            onClick={async () => {
-                                                                const trimmedValue = socialNetworkEditValue.trim();
-                                                                const config = SOCIAL_NETWORK_CONFIG[network.network];
-                                                                
-                                                                // Валидация
-                                                                if (!trimmedValue) {
-                                                                    setSocialNetworkValidationError('Поле не может быть пустым');
-                                                                    return;
-                                                                }
-
-                                                                if (config && !config.validate(trimmedValue)) {
-                                                                    setSocialNetworkValidationError(`Неверный формат для ${config.label}`);
-                                                                    return;
-                                                                }
-
-                                                                try {
-                                                                    const formattedValue = config?.format(trimmedValue) || trimmedValue;
-                                                                    const updatedNetworks = socialNetworks.map(n =>
-                                                                        n.id === network.id
-                                                                            ? { ...n, handle: formattedValue }
-                                                                            : n
-                                                                    );
-                                                                    setSocialNetworks(updatedNetworks);
-                                                                    const success = await updateSocialNetworks(updatedNetworks);
-                                                                    if (success) {
-                                                                        setEditingSocialNetwork(null);
-                                                                        setSocialNetworkEditValue('');
-                                                                        setSocialNetworkValidationError('');
-                                                                    } else {
-                                                                        setSocialNetworkValidationError('Ошибка при сохранении');
-                                                                    }
-                                                                } catch (error) {
-                                                                    console.error('Error saving social network:', error);
-                                                                    setSocialNetworkValidationError('Ошибка при сохранении');
-                                                                }
-                                                            }}
-                                                            title="Сохранить"
-                                                            disabled={!socialNetworkEditValue.trim()}
-                                                        >
-                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
-                                                                <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"/>
-                                                            </svg>
-                                                        </button>
-                                                    </div>
-                                                    {socialNetworkValidationError && (
-                                                        <div className={styles.validation_error}>
-                                                            {socialNetworkValidationError}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ) : (
-                                                <div className={styles.social_network_display}>
-                                                    <div className={`${styles.social_network_handle} ${!network.handle ? styles.empty_handle : ''}`}>
-                                                        {network.handle ? (
-                                                            <a 
-                                                                href={SOCIAL_NETWORK_CONFIG[network.network]?.generateUrl(network.handle) || '#'}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className={styles.handle_value_link}
-                                                            >
-                                                                {(['telegram', 'instagram'].includes(network.network) && !network.handle.startsWith('@'))
-                                                                    ? `@${network.handle}`
-                                                                    : network.handle}
-                                                            </a>
-                                                        ) : (
-                                                            <span className={styles.handle_placeholder}>
-                                                                Не указано
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <div className={styles.list_item_actions}>
-                                                        {network.handle && (
-                                                            <button
-                                                                className={styles.copy_icon}
-                                                                onClick={() => handleCopySocialNetwork(network.handle)}
-                                                                title="Копировать"
-                                                            >
-                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                                                    <path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z" fill="#3A54DA"/>
-                                                                </svg>
-                                                            </button>
-                                                        )}
-                                                        <button
-                                                            className={styles.edit_icon}
-                                                            onClick={() => {
-                                                                setEditingSocialNetwork(network.id);
-                                                                setSocialNetworkEditValue(network.handle || '');
-                                                                setSocialNetworkValidationError('');
-                                                            }}
-                                                            title="Редактировать"
-                                                        >
-                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                                                <path d="M7.2302 20.59L2.4502 21.59L3.4502 16.81L17.8902 2.29001C18.1407 2.03889 18.4385 1.83982 18.7663 1.70424C19.0941 1.56865 19.4455 1.49925 19.8002 1.50001C20.5163 1.50001 21.203 1.78447 21.7094 2.29082C22.2157 2.79717 22.5002 3.48392 22.5002 4.20001C22.501 4.55474 22.4315 4.90611 22.296 5.23391C22.1604 5.56171 21.9613 5.85945 21.7102 6.11001L7.2302 20.59Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                                            </svg>
-                                                        </button>
-                                                        <button
-                                                            className={styles.delete_icon}
-                                                            onClick={() => {
-                                                                if (confirm(`Удалить ${SOCIAL_NETWORK_CONFIG[network.network]?.label || network.network}?`)) {
-                                                                    handleRemoveSocialNetwork(network.id);
-                                                                }
-                                                            }}
-                                                            title={`Удалить ${SOCIAL_NETWORK_CONFIG[network.network]?.label || network.network}`}
-                                                        >
-                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                                                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" fill="#ff4444"/>
-                                                            </svg>
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                    );
-                                })}
-
-                            {/* Кнопки управления социальными сетями */}
-                            {!showAddSocialNetwork && (getAvailableNetworks().length > 0 || socialNetworks.length > 0) && (
-                                <div className={styles.add_education_container}>
-                                    {socialNetworks.length > 0 && (
-                                        <button
-                                            onClick={handleResetSocialNetworks}
-                                            className={styles.reset_social_btn}
-                                            title="Удалить все социальные сети"
-                                        >
-                                            Удалить все
-                                        </button>
-                                    )}
-                                    {getAvailableNetworks().length > 0 && (
-                                        <button
-                                            className={styles.add_button}
-                                            onClick={() => setShowAddSocialNetwork(true)}
-                                            title="Добавить социальную сеть"
-                                        >
-                                            +
-                                        </button>
-                                    )}
-                                </div>
-                            )}
-
-                                {/* Интерфейс добавления новой социальной сети */}
-                                {showAddSocialNetwork && (
-                                    <div className={styles.add_social_network_form}>
-                                        <h4>Добавить социальную сеть</h4>
-                                        <div className={styles.social_network_select}>
-                                            <label>Выберите социальную сеть:</label>
-                                            <select
-                                                value={selectedNewNetwork}
-                                                onChange={(e) => setSelectedNewNetwork(e.target.value)}
-                                            >
-                                                <option value="">-- Выберите --</option>
-                                                {getAvailableNetworks().map((availableNetwork: AvailableSocialNetwork) => {
-                                                    const config = SOCIAL_NETWORK_CONFIG[availableNetwork.network] || { label: availableNetwork.network, icon: '🌐' };
-                                                    return (
-                                                        <option key={availableNetwork.id} value={availableNetwork.network}>
-                                                            {config.icon} {config.label}
-                                                        </option>
-                                                    );
-                                                })}
-                                            </select>
-                                        </div>
-                                        <div className={styles.add_social_buttons}>
-                                            <button
-                                                onClick={handleAddSocialNetwork}
-                                                disabled={!selectedNewNetwork}
-                                                className={styles.confirm_add_btn}
-                                            >
-                                                Добавить
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    setShowAddSocialNetwork(false);
-                                                    setSelectedNewNetwork('');
-                                                }}
-                                                className={styles.cancel_add_btn}
-                                            >
-                                                Отмена
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Примеры работ */}
-                    <div className={styles.section_item}>
-                        <h3>Примеры работ</h3>
-                        <div className={styles.section_content}>
-                            <div className={styles.work_examples}>
-                                {profileData.workExamples.length > 0 ? (
-                                    <>
-                                        <div className={styles.work_examples_grid}>
-                                            {profileData.workExamples
-                                                .slice(0, showAllWorkExamples ? undefined : (isMobile ? 6 : 8))
-                                                .map((work, index) => (
-                                            <div key={work.id} className={styles.work_example}>
-                                                <img
-                                                    src={getImageUrlWithCacheBust(work.image)}
-                                                    alt={work.title}
-                                                    onClick={() => {
-                                                        openGallery(index);
-                                                    }}
-                                                    style={{ cursor: 'pointer' }}
-                                                    onError={(e) => {
-                                                        console.log('Image load error for:', work.image);
-                                                        const img = e.currentTarget;
-
-                                                        const alternativePaths = [
-                                                            `${API_BASE_URL}/uploads/gallery_images/${work.image.split('/').pop() || work.image}`,
-                                                            "./fonTest6.png"
-                                                        ];
-
-                                                        let currentIndex = 0;
-                                                        const tryNextSource = () => {
-                                                            if (currentIndex < alternativePaths.length) {
-                                                                const nextSource = alternativePaths[currentIndex];
-                                                                currentIndex++;
-                                                                console.log('Trying alternative path:', nextSource);
-
-                                                                const testImg = new Image();
-                                                                testImg.onload = () => {
-                                                                    console.log('Alternative image loaded successfully:', nextSource);
-                                                                    img.src = nextSource;
-                                                                };
-                                                                testImg.onerror = () => {
-                                                                    console.log('Alternative image failed:', nextSource);
-                                                                    tryNextSource();
-                                                                };
-                                                                testImg.src = nextSource;
-                                                            } else {
-                                                                console.log('All alternative paths failed, using placeholder');
-                                                                img.src = "./fonTest6.png";
-                                                            }
-                                                        };
-
-                                                        tryNextSource();
-                                                    }}
-                                                    onLoad={() => console.log('Portfolio image loaded successfully:', work.image)}
-                                                />
-                                                <button
-                                                    className={styles.delete_work_button}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleDeleteWorkExample(work.id);
-                                                    }}
-                                                    title="Удалить фото"
-                                                >
-                                                    ×
-                                                </button>
-                                            </div>
-                                            ))}
-                                        </div>
-                                        {profileData.workExamples.length > (isMobile ? 6 : 8) && (
-                                            <button
-                                                className={styles.show_more_work_button}
-                                                onClick={() => setShowAllWorkExamples(!showAllWorkExamples)}
-                                            >
-                                                {showAllWorkExamples ? 'Скрыть' : `Показать все (${profileData.workExamples.length})`}
-                                            </button>
-                                        )}
-                                    </>
-                                ) : (
-                                    <div className={styles.empty_state}>
-                                        <span>Добавить фото в портфолио</span>
-                                    </div>
-                                )}
-                            </div>
-                            
-                            {/* Кнопки управления портфолио */}
-                            <div className={styles.add_education_container}>
-                                {profileData.workExamples.length > 0 && (
-                                    <button
-                                        className={styles.reset_social_btn}
-                                        onClick={handleDeleteAllWorkExamples}
-                                        disabled={isGalleryOperating}
-                                        title="Удалить все фото"
-                                    >
-                                        Удалить все
-                                    </button>
-                                )}
-                                <button
-                                    className={styles.add_button}
-                                    onClick={() => workExampleInputRef.current?.click()}
-                                    title="Добавить фото в портфолио"
-                                >
-                                    +
-                                </button>
-                            </div>
-                        </div>
-                        <input
-                            type="file"
-                            ref={workExampleInputRef}
-                            onChange={handleWorkExampleUpload}
-                            accept="image/*"
-                            multiple
-                            style={{ display: 'none' }}
-                        />
-                        
-                        {/* PhotoGallery для примеров работ */}
-                        <PhotoGallery
-                            isOpen={isGalleryOpen}
-                            images={galleryImages}
-                            currentIndex={galleryCurrentIndex}
-                            onClose={closeGallery}
-                            onNext={goToNext}
-                            onPrevious={goToPrevious}
-                            onSelectImage={selectImage}
-                        />
-                    </div>
-
-                    {/* Районы работы */}
-                    <div className={styles.section_item}>
-                        <h3>Районы работы</h3>
-
-                        {/* Переключатель удаленной работы */}
-                        <div className={styles.remote_work}>
-                            <div className={styles.switch_container}>
-                                <div className={styles.switch_label}>
-                                    <span className={styles.label_main}>Могу работать удаленно</span>
-                                    <span className={styles.label_sub}>Предложи заказы с дистанционной работой</span>
-                                </div>
-                                <label className={styles.switch}>
-                                    <input
-                                        type="checkbox"
-                                        checked={profileData.canWorkRemotely}
-                                        onChange={handleCanWorkRemotelyToggle}
-                                    />
-                                    <span className={styles.slider}></span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <div className={styles.section_content}>
-                            {profileData.addresses && profileData.addresses.length > 0 ? (
-                                profileData.addresses.map((address, index) => (
-                                    <div key={address.id} className={`${styles.list_item} ${index === profileData.addresses.length - 1 ? styles.list_item_last : ''}`}>
-                                        {editingAddress === address.id ? (
-                                            <div className={styles.edit_form}>
-                                                <AddressSelector
-                                                    value={addressForm}
-                                                    onChange={setAddressForm}
-                                                    required={true}
-                                                    multipleSuburbs={true}
-                                                />
-                                                <div className={styles.form_actions}>
-                                                    <button
-                                                        className={styles.save_button}
-                                                        onClick={handleEditAddressSave}
-                                                    >
-                                                        Сохранить
-                                                    </button>
-                                                    <button
-                                                        className={styles.cancel_button}
-                                                        onClick={handleEditAddressCancel}
-                                                    >
-                                                        Отмена
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <div className={styles.list_item_content}>
-                                                    <span className={styles.address_text}>{address.displayText}</span>
-                                                </div>
-                                                <div className={styles.list_item_actions}>
-                                                    <button
-                                                        className={styles.edit_icon}
-                                                        onClick={() => handleEditAddressStart(address)}
-                                                        title="Редактировать"
-                                                    >
-                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                                            <path d="M7.2302 20.59L2.4502 21.59L3.4502 16.81L17.8902 2.29001C18.1407 2.03889 18.4385 1.83982 18.7663 1.70424C19.0941 1.56865 19.4455 1.49925 19.8002 1.50001C20.5163 1.50001 21.203 1.78447 21.7094 2.29082C22.2157 2.79717 22.5002 3.48392 22.5002 4.20001C22.501 4.55474 22.4315 4.90611 22.296 5.23391C22.1604 5.56171 21.9613 5.85945 21.7102 6.11001L7.2302 20.59Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                                        </svg>
-                                                    </button>
-                                                    <button
-                                                        className={styles.delete_icon}
-                                                        onClick={() => handleDeleteAddress(address.id)}
-                                                        title="Удалить"
-                                                    >
-                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                                            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" fill="#ff4444"/>
-                                                        </svg>
-                                                    </button>
-                                                </div>
-                                            </>
-                                        )}
-                                    </div>
-                                ))
-                            ) : (
-                                <div className={styles.empty_state}>
-                                    <span>Добавьте районы работы</span>
-                                </div>
-                            )}
-
-                            {/* Кнопка добавления нового адреса */}
-                            {!editingAddress && (
-                                <div className={styles.add_education_container}>
-                                    <button
-                                        className={styles.add_button}
-                                        onClick={handleAddAddress}
-                                        title="Добавить адрес"
-                                    >
-                                        +
-                                    </button>
-                                </div>
-                            )}
-
-                            {/* Форма добавления нового адреса */}
-                            {editingAddress && editingAddress.startsWith('new-') && (
-                                <div className={styles.edit_form}>
-                                    <AddressSelector
-                                        value={addressForm}
-                                        onChange={setAddressForm}
-                                        required={true}
-                                        multipleSuburbs={true}
-                                    />
-                                    <div className={styles.form_actions}>
-                                        <button
-                                            className={styles.save_button}
-                                            onClick={handleEditAddressSave}
-                                        >
-                                            Добавить
-                                        </button>
-                                        <button
-                                            className={styles.cancel_button}
-                                            onClick={handleEditAddressCancel}
-                                        >
-                                            Отмена
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
+                    {/* WorkAreasSection Component */}
+                    <WorkAreasSection
+                        addresses={profileData.addresses}
+                        canWorkRemotely={profileData.canWorkRemotely}
+                        editingAddress={editingAddress}
+                        addressForm={addressForm}
+                        setAddressForm={setAddressForm}
+                        onAddAddress={handleAddAddress}
+                        onEditAddressStart={handleEditAddressStart}
+                        onEditAddressSave={handleEditAddressSave}
+                        onEditAddressCancel={handleEditAddressCancel}
+                        onDeleteAddress={handleDeleteAddress}
+                        onCanWorkRemotelyToggle={handleCanWorkRemotelyToggle}
+                    />
                 </div>
 
-                {/* Секция отзывов */}
-                <div className={styles.reviews_section}>
-                    <h3>Отзывы</h3>
-                    <div className={styles.reviews_list}>
-                        {reviewsLoading ? (
-                            <div className={styles.loading}>Загрузка отзывов...</div>
-                        ) : reviews.length > 0 ? (
-                            <>
-                                <div className={styles.reviews_desktop}>
-                                    {reviews.slice(0, visibleCount).map((review, reviewIndex) => (
-                                        <div key={review.id} className={styles.review_item}>
-                                            <div className={styles.review_header}>
-                                                <div className={styles.reviewer_info}>
-                                                    <img
-                                                        src={getReviewerAvatarUrl(review)}
-                                                        alt={getReviewerName(review)}
-                                                        onClick={() => handleClientProfileClick(review.reviewer.id)}
-                                                        style={{ cursor: 'pointer' }}
-                                                        className={styles.reviewer_avatar}
-                                                        onError={(e) => {
-                                                            e.currentTarget.src = "./fonTest5.png";
-                                                        }}
-                                                    />
-                                                    <div className={styles.reviewer_main_info}>
-                                                        <div className={styles.reviewer_name}>{getClientName(review)}</div>
-                                                        <div className={styles.review_service}>
-                                                            Услуга: <span className={styles.service_title}>{review.services.title}</span>
-                                                        </div>
-                                                        <span className={styles.review_worker}>{getMasterName(review)}</span>
-                                                        <div className={styles.review_rating_main}>
-                                                            <span>Поставил: </span>
-                                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                <g clipPath="url(#clip0_324_2272)">
-                                                                    <g clipPath="url(#clip1_324_2272)">
-                                                                        <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                                                        <path d="M12 19V18.98" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
-                                                                    </g>
-                                                                </g>
-                                                                <defs>
-                                                                    <clipPath id="clip0_324_2272">
-                                                                        <rect width="24" height="24" fill="white"/>
-                                                                    </clipPath>
-                                                                    <clipPath id="clip1_324_2272">
-                                                                        <rect width="24" height="24" fill="white"/>
-                                                                    </clipPath>
-                                                                </defs>
-                                                            </svg>
-                                                            <span className={styles.rating_value}>{review.rating}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className={styles.review_details}>
-                                                <div className={styles.review_worker_date}>
-                                                    <span className={styles.review_date}>{review.date}</span>
-                                                </div>
-                                            </div>
-
-                                            {review.description && renderReviewText(review)}
-
-                                            {review.images && review.images.length > 0 && (
-                                                <div className={styles.review_images}>
-                                                    {review.images.map((image, imageIndex) => (
-                                                        <div
-                                                            key={image.id}
-                                                            className={styles.review_image}
-                                                            onClick={() => openReviewGallery(getReviewImageIndex(reviewIndex, imageIndex))}
-                                                        >
-                                                            <img
-                                                                src={`${API_BASE_URL}/images/review_photos/${image.image}`}
-                                                                alt={`Фото отзыва ${imageIndex + 1}`}
-                                                                onError={(e) => {
-                                                                    const target = e.currentTarget;
-                                                                    if (target.dataset.errorHandled) return;
-                                                                    target.dataset.errorHandled = 'true';
-                                                                    target.src = "./fonTest5.png";
-                                                                }}
-                                                            />
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <div className={styles.reviews_mobile}>
-                                    {visibleCount === 2 ? (
-                                        <Swiper
-                                            key={swiperKey}
-                                            spaceBetween={16}
-                                            slidesPerView={1}
-                                            className={styles.reviews_slider}
-                                        >
-                                            {reviews.slice(0, visibleCount).map((review, reviewIndex) => (
-                                                <SwiperSlide key={review.id}>
-                                                    <div className={styles.review_item}>
-                                                    <div className={styles.review_header}>
-                                                        <div className={styles.reviewer_info}>
-                                                            <img
-                                                                src={getReviewerAvatarUrl(review)}
-                                                                alt={getReviewerName(review)}
-                                                                onClick={() => handleClientProfileClick(review.reviewer.id)}
-                                                                style={{ cursor: 'pointer' }}
-                                                                className={styles.reviewer_avatar}
-                                                                onError={(e) => {
-                                                                    e.currentTarget.src = "./fonTest5.png";
-                                                                }}
-                                                            />
-                                                            <div className={styles.reviewer_main_info}>
-                                                                <div className={styles.reviewer_name}>{getClientName(review)}</div>
-                                                                <div className={styles.review_service}>
-                                                                    Услуга: <span className={styles.service_title}>{review.services.title}</span>
-                                                                </div>
-                                                                <span className={styles.review_worker}>{getMasterName(review)}</span>
-                                                                <div className={styles.review_rating_main}>
-                                                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                        <g clipPath="url(#clip0_324_2272)">
-                                                                            <g clipPath="url(#clip1_324_2272)">
-                                                                                <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                                                                <path d="M12 19V18.98" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
-                                                                            </g>
-                                                                        </g>
-                                                                        <defs>
-                                                                            <clipPath id="clip0_324_2272">
-                                                                                <rect width="24" height="24" fill="white"/>
-                                                                            </clipPath>
-                                                                            <clipPath id="clip1_324_2272">
-                                                                                <rect width="24" height="24" fill="white"/>
-                                                                            </clipPath>
-                                                                        </defs>
-                                                                    </svg>
-                                                                    <span className={styles.rating_value}>{review.rating}</span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    {review.description && renderReviewText(review)}
-
-                                                    {review.images && review.images.length > 0 && (
-                                                        <div className={styles.review_images}>
-                                                            {review.images.map((image, imageIndex) => (
-                                                                <div
-                                                                    key={image.id}
-                                                                    className={styles.review_image}
-                                                                    onClick={() => openReviewGallery(getReviewImageIndex(reviewIndex, imageIndex))}
-                                                                >
-                                                                    <img
-                                                                        src={`${API_BASE_URL}/images/review_photos/${image.image}`}
-                                                                        alt={`Фото отзыва ${imageIndex + 1}`}
-                                                                        onError={(e) => {
-                                                                            const target = e.currentTarget;
-                                                                            if (target.dataset.errorHandled) return;
-                                                                            target.dataset.errorHandled = 'true';
-                                                                            target.src = "./fonTest5.png";
-                                                                        }}
-                                                                    />
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </SwiperSlide>
-                                        ))}
-                                    </Swiper>
-                                    ) : (
-                                        <>
-                                            {reviews.slice(0, visibleCount).map((review, reviewIndex) => (
-                                                <div key={review.id} className={styles.review_item}>
-                                                    <div className={styles.review_header}>
-                                                        <div className={styles.reviewer_info}>
-                                                            <img
-                                                                src={getReviewerAvatarUrl(review)}
-                                                                alt={getReviewerName(review)}
-                                                                onClick={() => handleClientProfileClick(review.reviewer.id)}
-                                                                style={{ cursor: 'pointer' }}
-                                                                className={styles.reviewer_avatar}
-                                                                onError={(e) => {
-                                                                    e.currentTarget.src = "./fonTest5.png";
-                                                                }}
-                                                            />
-                                                            <div className={styles.reviewer_main_info}>
-                                                                <div className={styles.reviewer_name}>{getClientName(review)}</div>
-                                                                <div className={styles.review_service}>
-                                                                    Услуга: <span className={styles.service_title}>{review.services.title}</span>
-                                                                </div>
-                                                                <span className={styles.review_worker}>{getMasterName(review)}</span>
-                                                                <div className={styles.review_rating_main}>
-                                                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                                        <g clipPath="url(#clip0_324_2272)">
-                                                                            <g clipPath="url(#clip1_324_2272)">
-                                                                                <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                                                                <path d="M12 19V18.98" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
-                                                                            </g>
-                                                                        </g>
-                                                                        <defs>
-                                                                            <clipPath id="clip0_324_2272">
-                                                                                <rect width="24" height="24" fill="white"/>
-                                                                            </clipPath>
-                                                                            <clipPath id="clip1_324_2272">
-                                                                                <rect width="24" height="24" fill="white"/>
-                                                                            </clipPath>
-                                                                        </defs>
-                                                                    </svg>
-                                                                    <span className={styles.rating_value}>{review.rating}</span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    {review.description && renderReviewText(review)}
-
-                                                    {review.images && review.images.length > 0 && (
-                                                        <div className={styles.review_images}>
-                                                            {review.images.map((image, imageIndex) => (
-                                                                <div
-                                                                    key={image.id}
-                                                                    className={styles.review_image}
-                                                                    onClick={() => openReviewGallery(getReviewImageIndex(reviewIndex, imageIndex))}
-                                                                >
-                                                                    <img
-                                                                        src={`${API_BASE_URL}/images/review_photos/${image.image}`}
-                                                                        alt={`Фото отзыва ${imageIndex + 1}`}
-                                                                        onError={(e) => {
-                                                                            const target = e.currentTarget;
-                                                                            if (target.dataset.errorHandled) return;
-                                                                            target.dataset.errorHandled = 'true';
-                                                                            target.src = "./fonTest5.png";
-                                                                        }}
-                                                                    />
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </>
-                                    )}
-                                </div>
-                            </>
-                        ) : (
-                            <div className={styles.no_reviews}>
-                                Пока нет отзывов от клиентов
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Кнопки управления отзывами */}
-                    <div className={styles.reviews_actions}>
-                        {reviews.length > 2 && (
-                            <button
-                                className={styles.show_all_reviews_btn}
-                                onClick={visibleCount === reviews.length ? handleShowLess : handleShowMore}
-                            >
-                                {visibleCount === reviews.length ? 'Скрыть отзывы' : 'Показать все отзывы'}
-                            </button>
-                        )}
-                        <button
-                            className={styles.leave_review_btn}
-                            onClick={handleLeaveReview}
-                            style={{ display: "none" }}
-                        >
-                            Оставить отзыв
-                        </button>
-                    </div>
-                </div>
+                {/* ReviewsSection Component */}
+                <ReviewsSection
+                    reviews={reviews}
+                    reviewsLoading={reviewsLoading}
+                    visibleCount={visibleCount}
+                    swiperKey={swiperKey}
+                    API_BASE_URL={API_BASE_URL}
+                    onShowMore={handleShowMore}
+                    onShowLess={handleShowLess}
+                    renderReviewText={renderReviewText}
+                    getReviewerAvatarUrl={getReviewerAvatarUrl}
+                    getClientName={getClientName}
+                    getMasterName={getMasterName}
+                    onClientProfileClick={handleClientProfileClick}
+                    getReviewImageIndex={getReviewImageIndex}
+                />
             </div>
-
-            {/* PhotoGallery для отзывов */}
-            <PhotoGallery
-                isOpen={isReviewGalleryOpen}
-                images={reviewGalleryImages}
-                currentIndex={reviewGalleryCurrentIndex}
-                onClose={closeReviewGallery}
-                onNext={goToNextReview}
-                onPrevious={goToPreviousReview}
-                onSelectImage={selectReviewImage}
-            />
 
             {/* Модальное окно для оставления отзыва */}
             {showReviewModal && (

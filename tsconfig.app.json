@@ -21,6 +21,7 @@
   },
   "include": [
     "src",
-    "src/types/asset-types.d.ts"
+    "src/types/asset-types.d.ts",
+    "src/types/vite-env.d.ts"
   ]
 }

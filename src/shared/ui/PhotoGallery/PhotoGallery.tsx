@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import styles from './PhotoGallery.module.scss';
 
 interface PhotoGalleryProps {
@@ -66,7 +67,7 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
         e.currentTarget.src = fallbackImage;
     };
 
-    return (
+    const modalContent = (
         <div className={styles.photo_modal_overlay} onClick={onClose}>
             <div className={styles.photo_modal_content} onClick={(e) => e.stopPropagation()}>
                 <button
@@ -138,4 +139,6 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
             </div>
         </div>
     );
+
+    return createPortal(modalContent, document.body);
 };

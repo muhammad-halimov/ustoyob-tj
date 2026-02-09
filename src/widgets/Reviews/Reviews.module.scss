@@ -220,7 +220,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 10000;
+  z-index: 20000;
   animation: fadeIn 0.3s ease;
 }
 
@@ -244,7 +244,7 @@
   border: none;
   cursor: pointer;
   color: var(--color-text-inverse);
-  z-index: 10001;
+  z-index: 20001;
   padding: 8px;
 
   svg {
@@ -488,7 +488,7 @@
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    z-index: 10001;
+    z-index: 20001;
   }
 
   .photo_modal_nav:first-of-type {
