@@ -427,6 +427,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'masters:read',
         'clients:read',
         'users:me:read',
+
+        'user:public:read',
     ])]
     #[AppAssert\PhoneConstraint]
     #[Assert\Length(
@@ -440,6 +442,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'masters:read',
         'clients:read',
         'users:me:read',
+
+        'user:public:read',
     ])]
     #[Assert\Length(
         max: 20,
@@ -527,6 +531,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups([
         'masters:read',
         'clients:read',
+
+        'user:public:read',
     ])]
     private Collection $socialNetworks;
 

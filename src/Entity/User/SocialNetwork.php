@@ -44,6 +44,8 @@ class SocialNetwork
         'social:read',
         'masters:read',
         'clients:read',
+
+        'user:public:read',
     ])]
     private ?int $id = null;
 
@@ -56,6 +58,8 @@ class SocialNetwork
         'social:read',
         'masters:read',
         'clients:read',
+
+        'user:public:read',
     ])]
     private ?string $network = null;
 
@@ -63,6 +67,8 @@ class SocialNetwork
     #[Groups([
         'masters:read',
         'clients:read',
+
+        'user:public:read',
     ])]
     private ?string $handle = null;
 
