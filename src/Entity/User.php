@@ -617,6 +617,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\ManyToMany(targetEntity: Occupation::class, mappedBy: 'master')]
     #[Groups([
         'masters:read',
+
+        'user:public:read',
     ])]
     private Collection $occupation;
 
