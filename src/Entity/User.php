@@ -252,6 +252,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'favorites:read',
         'techSupport:read',
         'blackLists:read',
+
+        'user:public:read',
     ])]
     private ?string $email = null;
 
