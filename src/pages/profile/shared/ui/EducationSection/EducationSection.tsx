@@ -166,7 +166,7 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
                                     </div>
                                     {edu.specialty && (
                                         <div className={styles.education_details}>
-                                            <span>Специальность: {edu.specialty}</span>
+                                            <span>Специальность: {typeof edu.specialty === 'string' ? edu.specialty : ''}</span>
                                         </div>
                                     )}
                                 </div>

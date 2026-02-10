@@ -15,6 +15,7 @@ interface WorkAreasSectionProps {
     editingAddress: string | null;
     addressForm: AddressValue;
     readOnly?: boolean;
+    userRole?: 'master' | 'client' | null;
     setAddressForm: (form: AddressValue) => void;
     onAddAddress: () => void;
     onEditAddressStart: (address: Address) => void;
@@ -30,6 +31,7 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
     editingAddress,
     addressForm,
     readOnly = false,
+    userRole,
     setAddressForm,
     onAddAddress,
     onEditAddressStart,
@@ -40,25 +42,28 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
 }) => {
     return (
         <div className={styles.section_item}>
-            <h3>Районы работы</h3>
+            <h3>География работ</h3>
 
-            {/* Переключатель удаленной работы */}
-            {!readOnly && <div className={styles.remote_work}>
-                <div className={styles.switch_container}>
-                    <div className={styles.switch_label}>
-                        <span className={styles.label_main}>Могу работать удаленно</span>
-                        <span className={styles.label_sub}>Предложи заказы с дистанционной работой</span>
+            {/* Переключатель удаленной работы - только для мастеров */}
+            {userRole === 'master' && (
+                <div className={styles.remote_work}>
+                    <div className={styles.switch_container}>
+                        <div className={styles.switch_label}>
+                            <span className={styles.label_main}>Могу работать удаленно</span>
+                            <span className={styles.label_sub}>Предложи заказы с дистанционной работой</span>
+                        </div>
+                        <label className={styles.switch}>
+                            <input
+                                type="checkbox"
+                                checked={canWorkRemotely}
+                                onChange={readOnly ? undefined : onCanWorkRemotelyToggle}
+                                disabled={readOnly}
+                            />
+                            <span className={styles.slider}></span>
+                        </label>
                     </div>
-                    <label className={styles.switch}>
-                        <input
-                            type="checkbox"
-                            checked={canWorkRemotely}
-                            onChange={onCanWorkRemotelyToggle}
-                        />
-                        <span className={styles.slider}></span>
-                    </label>
                 </div>
-            </div>}
+            )}
 
             <div className={styles.section_content}>
                 {addresses && addresses.length > 0 ? (
@@ -123,7 +128,7 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
                     ))
                 ) : (
                     <div className={styles.empty_state}>
-                        <span>{readOnly ? 'Не указаны районы работы' : 'Добавьте районы работы'}</span>
+                        <span>{readOnly ? 'Не указаны географии работ' : 'Добавьте географию работ'}</span>
                     </div>
                 )}
 

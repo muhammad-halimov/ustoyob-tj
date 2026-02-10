@@ -1,39 +1,11 @@
 import React, { useMemo } from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { PhotoGallery, usePhotoGallery } from '../../../../../shared/ui/PhotoGallery';
+import { Review } from '../../../../../entities';
 import styles from './ReviewsSection.module.scss';
 
-export interface Review {
-    id: number;
-    user: {
-        id: number;
-        email: string;
-        name: string;
-        surname: string;
-        rating: number;
-        image: string;
-    };
-    reviewer: {
-        id: number;
-        email: string;
-        name: string;
-        surname: string;
-        rating: number;
-        image: string;
-    };
-    rating: number;
-    description: string;
-    forReviewer: boolean;
-    services: {
-        id: number;
-        title: string;
-    };
-    images: {
-        id: number;
-        image: string;
-    }[];
-    date?: string;
-}
+// Экспорт для обратной совместимости
+export type { Review } from '../../../../../entities';
 
 interface ReviewsSectionProps {
     reviews: Review[];
@@ -107,7 +79,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                             <div className={styles.reviewer_main_info}>
                                                 <div className={styles.reviewer_name}>{getClientName(review)}</div>
                                                 <div className={styles.review_service}>
-                                                    Услуга: <span className={styles.service_title}>{review.services.title}</span>
+                                                    Услуга: <span className={styles.service_title}>{typeof review.services === 'object' && review.services && review.services.title ? String(review.services.title) : 'Услуга'}</span>
                                                 </div>
                                                 <span className={styles.review_worker}>{getMasterName(review)}</span>
                                                 <div className={styles.review_rating_main}>
@@ -195,7 +167,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                         <div className={styles.reviewer_main_info}>
                                                             <div className={styles.reviewer_name}>{getClientName(review)}</div>
                                                             <div className={styles.review_service}>
-                                                                Услуга: <span className={styles.service_title}>{review.services.title}</span>
+                                                                Услуга: <span className={styles.service_title}>{typeof review.services === 'object' && review.services && review.services.title ? String(review.services.title) : 'Услуга'}</span>
                                                             </div>
                                                             <span className={styles.review_worker}>{getMasterName(review)}</span>
                                                             <div className={styles.review_rating_main}>
@@ -274,7 +246,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                     <div className={styles.reviewer_main_info}>
                                                         <div className={styles.reviewer_name}>{getClientName(review)}</div>
                                                         <div className={styles.review_service}>
-                                                            Услуга: <span className={styles.service_title}>{review.services.title}</span>
+                                                            Услуга: <span className={styles.service_title}>{typeof review.services === 'object' && review.services && review.services.title ? String(review.services.title) : 'Услуга'}</span>
                                                         </div>
                                                         <span className={styles.review_worker}>{getMasterName(review)}</span>
                                                         <div className={styles.review_rating_main}>
@@ -338,7 +310,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                     </>
                 ) : (
                     <div className={styles.no_reviews}>
-                        Пока нет отзывов от клиентов
+                        Пока нет отзывов
                     </div>
                 )}
             </div>

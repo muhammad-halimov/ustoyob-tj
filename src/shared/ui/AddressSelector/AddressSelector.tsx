@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { getAuthToken } from '../../../utils/auth';
+import { AddressValue, AddressData } from '../../../entities';
 import styles from './AddressSelector.module.scss';
 
+// Локальные интерфейсы для AddressSelector (расширенные версии)
 interface Province {
     id: number;
     title: string;
@@ -43,26 +45,6 @@ interface Community {
 interface Village {
     id: number;
     title: string;
-}
-
-export interface AddressValue {
-    provinceId: number | null;
-    cityId: number | null;
-    suburbIds: number[];
-    districtIds: number[];
-    settlementId: number | null;
-    communityId: number | null;
-    villageId: number | null;
-}
-
-export interface AddressData {
-    province?: string;
-    city?: string;
-    suburb?: string;
-    district?: string;
-    settlement?: string;
-    community?: string;
-    village?: string;
 }
 
 interface AddressSelectorProps {

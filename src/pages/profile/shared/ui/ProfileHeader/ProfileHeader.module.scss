@@ -116,6 +116,9 @@
   font-size: 14px;
   opacity: 0.6;
   transition: opacity 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   &:hover {
     opacity: 1;
@@ -422,5 +425,91 @@
 
   .add_specialty_btn {
     width: 100%;
+  }
+}
+
+.subinfo {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 4px;
+  font-size: 14px;
+  color: #666;
+}
+
+.subinfo .specialty_tag {
+  transition: background 0.2s ease;
+  
+  &:hover {
+    background: #d5ddff;
+  }
+}
+
+.gender_tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #E8ECFF;
+  color: #3A54DA;
+  padding: 8px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.2s ease;
+
+  span {
+    line-height: 1;
+  }
+
+  &:hover {
+    background: #d5ddff;
+  }
+}
+
+.email_tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #E8ECFF;
+  color: #3A54DA;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+
+  span {
+    line-height: 1;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+    display: inline-block;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.name_container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+  gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .subinfo {
+    justify-content: center;
+    text-align: center;
+    max-width: 100%;
+    flex-direction: row;
+    gap: 8px;
+  }
+  
+  .email_tag a {
+    max-width: 160px;
   }
 }

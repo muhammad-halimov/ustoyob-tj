@@ -1,24 +1,36 @@
 import { useState, useRef, useEffect, type ChangeEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getAuthToken, removeAuthToken } from '../../../../utils/auth.ts';
+import { getAuthToken, removeAuthToken } from '../../utils/auth.ts';
 import styles from './Master.module.scss';
 
-import { fetchUserById } from "../../../../utils/api.ts";
-import { usePhotoGallery } from '../../../../shared/ui/PhotoGallery';
-import { AddressValue, buildAddressData } from '../../../../shared/ui/AddressSelector';
+import { fetchUserById } from "../../utils/api.ts";
+import { usePhotoGallery } from '../../shared/ui/PhotoGallery';
+import { AddressValue, buildAddressData } from '../../shared/ui/AddressSelector';
+
+// Импорты из entities
+import {
+    UserApiData, ProfileData,
+    UserAddressApiData,
+    Education, EducationApiData,
+    Occupation,
+    Service,
+    Review, ReviewApiData, ReviewData,
+    GalleryApiData, GalleryImageApiData,
+    ApiResponse
+} from '../../entities';
 
 // Новые компоненты из shared/ui
-import { ProfileHeader } from '../../shared/ui/ProfileHeader';
-import { EducationSection } from '../../shared/ui/EducationSection';
-import { PhonesSection } from '../../shared/ui/PhonesSection';
-import { SocialNetworksSection } from '../../shared/ui/SocialNetworksSection';
-import { WorkExamplesSection } from '../../shared/ui/WorkExamplesSection';
-import { WorkAreasSection } from '../../shared/ui/WorkAreasSection';
-import { ReviewsSection } from '../../shared/ui/ReviewsSection';
-import { ServicesSection } from '../../shared/ui/ServicesSection';
+import { ProfileHeader } from './shared/ui/ProfileHeader';
+import { EducationSection } from './shared/ui/EducationSection';
+import { PhonesSection } from './shared/ui/PhonesSection';
+import { SocialNetworksSection } from './shared/ui/SocialNetworksSection';
+import { WorkExamplesSection } from './shared/ui/WorkExamplesSection';
+import { WorkAreasSection } from './shared/ui/WorkAreasSection';
+import { ServicesSection } from './shared/ui/ServicesSection';
+import { ReviewsSection } from './shared/ui/ReviewsSection';
 
 // Интерфейс для социальных сетей с API
-interface AvailableSocialNetwork {
+interface LocalAvailableSocialNetwork {
     id: number;
     network: string;
 }
@@ -141,256 +153,39 @@ const SOCIAL_NETWORK_CONFIG: Record<string, {
     }
 };
 
-interface SocialNetwork {
+interface LocalSocialNetwork {
     id: string;
     network: string;
     handle: string;
 }
 
-interface Address {
+interface LocalAddress {
     id: string;
     displayText: string;
     addressValue: AddressValue;
 }
 
-interface Phone {
+interface LocalPhone {
     id: string;
     number: string;
     type: 'tj' | 'international';
 }
 
-interface ProfileData {
-    id: string;
-    fullName: string;
-    specialty: string;
-    specialties: string[];
-    rating: number;
-    reviews: number;
-    avatar: string | null;
-    education: Education[];
-    workExamples: WorkExample[];
-    workArea: string;
-    addresses: Address[];
-    canWorkRemotely: boolean;
-    services: Service[];
-    socialNetworks: SocialNetwork[];
-    phones: Phone[];
-}
-
-interface Education {
-    id: string;
-    institution: string;
-    specialty: string;
-    startYear: string;
-    endYear: string;
-    currentlyStudying: boolean;
-}
-
-interface WorkExample {
-    id: string;
-    image: string;
-    title: string;
-}
-
-interface Service {
-    id: number;
-    title: string;
-    description?: string;
-    price: number;
-    unit: string;
-    createdAt?: string;
-    active?: boolean;
-    images?: Array<{  // Добавьте это поле
-        id: number;
-        image: string;
-    }>;
-}
-
-interface Review {
-    id: number;
-    user: {
-        id: number;
-        email: string;
-        name: string;
-        surname: string;
-        rating: number;
-        image: string;
-    };
-    reviewer: {
-        id: number;
-        email: string;
-        name: string;
-        surname: string;
-        rating: number;
-        image: string;
-    };
-    rating: number;
-    description: string;
-    forReviewer: boolean;
-    services: {
-        id: number;
-        title: string;
-    };
-    ticket?: {
-        id: number;
-        title: string;
-        service: boolean;
-        active: boolean;
-        author?: {
-            id: number;
-            email: string;
-            name: string;
-            surname: string;
-        };
-        master?: {
-            id: number;
-            email: string;
-            name: string;
-            surname: string;
-        };
-    };
-    images: {
-        id: number;
-        image: string;
-    }[];
-    vacation?: string;
-    worker?: string;
-    date?: string;
-}
-
-interface ReviewData {
-    type: string;
-    rating: number;
-    description: string;
-    ticket?: string;
-    images?: Array<{ image: string }>;
-    master: string;
-    client: string;
-}
-
-interface UserApiData {
-    id: number;
-    email?: string;
-    name?: string;
-    surname?: string;
-    patronymic?: string;
-    rating?: number;
-    image?: string;
-    atHome?: boolean;
-    occupation?: OccupationApiData[];
-    education?: EducationApiData[];
-    districts?: DistrictApiData[];
-    addresses?: UserAddressApiData[];
-    socialNetworks?: Array<{
-        id?: number;
-        network?: string;
-        handle?: string;
-        [key: string]: unknown;
-    }>;
-    [key: string]: unknown;
-}
-
-interface UserAddressApiData {
-    id: number;
-    suburb?: string | { id?: number; title: string };
-    district?: string | { id?: number; title: string };
-    city?: string | { id?: number; title: string };
-    province?: string | { id?: number; title: string };
-    settlement?: string | { id?: number; title: string };
-    community?: string | { id?: number; title: string };
-    village?: string | { id?: number; title: string };
-    [key: string]: unknown;
-}
-
-interface OccupationApiData {
-    id: number;
-    title: string;
-    [key: string]: unknown;
-}
-
-interface EducationApiData {
-    id: number;
-    uniTitle?: string;
-    beginning?: number;
-    ending?: number;
-    graduated?: boolean;
-    occupation?: string | OccupationApiData | OccupationApiData[]; // может быть IRI строкой, объектом или массивом
-    [key: string]: unknown;
-}
-
-interface DistrictApiData {
-    id: number;
-    title?: string;
-    city?: {
-        id: number;
-        title?: string;
-        [key: string]: unknown;
-    };
-    [key: string]: unknown;
-}
-
-interface ReviewApiData {
-    id: number;
-    master?: { id: number };
-    client?: { id: number };
-    rating?: number;
-    description?: string;
-    forClient?: boolean;
-    services?: { id: number; title: string };
-    ticket?: {
-        id: number;
-        title: string;
-        service: boolean;
-        active: boolean;
-        author?: {
-            id: number;
-            email: string;
-            name: string;
-            surname: string;
-        };
-        master?: {
-            id: number;
-            email: string;
-            name: string;
-            surname: string;
-        };
-    };
-    images?: Array<{ id: number; image: string }>;
-    createdAt?: string;
-    [key: string]: unknown;
-}
-
-interface GalleryApiData {
-    id: number;
-    images?: GalleryImageApiData[];
-    [key: string]: unknown;
-}
-
-interface GalleryImageApiData {
-    id: number;
-    image: string;
-    [key: string]: unknown;
-}
-
-interface ApiResponse<T> {
-    [key: string]: unknown;
-    'hydra:member'?: T[];
-}
-
-interface Occupation {
-    id: number;
-    title: string;
-    description?: string;
-}
-
-function Master() {
+function Profile() {
     const navigate = useNavigate();
-    const { id } = useParams<{ id: string }>();
-    const masterId = id ? parseInt(id) : null;
-    const [editingField, setEditingField] = useState<'fullName' | 'specialty' | null>(null);
+    const { id } = useParams<{ id: string }>(); // Получаем id из URL
+    
+    // Определяем, это публичный профиль или приватный
+    const isPublicProfile = !!id;
+    const readOnly = isPublicProfile; // readOnly = true для публичных профилей
+    const userId = id || null; // userId из URL параметра
+    
+    const [editingField, setEditingField] = useState<'fullName' | 'specialty' | 'gender' | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [userRole, setUserRole] = useState<'master' | 'client' | null>(null);
     const [profileData, setProfileData] = useState<ProfileData | null>(null);
     const [tempValue, setTempValue] = useState('');
+    const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
     const [editingEducation, setEditingEducation] = useState<string | null>(null);
     const [educationForm, setEducationForm] = useState<{
         institution: string;
@@ -407,11 +202,11 @@ function Master() {
     });
     const [reviews, setReviews] = useState<Review[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(false);
+    const [servicesLoading, setServicesLoading] = useState(false);
     const [visibleCount, setVisibleCount] = useState(2);
     const [swiperKey, setSwiperKey] = useState(0);
     const [expandedReviews, setExpandedReviews] = useState<Set<number>>(new Set());
     const [showAllWorkExamples, setShowAllWorkExamples] = useState(false);
-    const [servicesLoading, setServicesLoading] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [reviewText, setReviewText] = useState('');
@@ -425,11 +220,11 @@ function Master() {
     const reviewPhotoInputRef = useRef<HTMLInputElement>(null);
     const specialtyInputRef = useRef<HTMLSelectElement>(null);
     const [editingSocialNetwork, setEditingSocialNetwork] = useState<string | null>(null);
-    const [socialNetworks, setSocialNetworks] = useState<SocialNetwork[]>([]);
+    const [socialNetworks, setSocialNetworks] = useState<LocalSocialNetwork[]>([]);
     const [socialNetworkEditValue, setSocialNetworkEditValue] = useState('');
     const [showAddSocialNetwork, setShowAddSocialNetwork] = useState(false);
     const [selectedNewNetwork, setSelectedNewNetwork] = useState('');
-    const [availableSocialNetworks, setAvailableSocialNetworks] = useState<AvailableSocialNetwork[]>([]);
+    const [availableSocialNetworks, setAvailableSocialNetworks] = useState<LocalAvailableSocialNetwork[]>([]);
     const [socialNetworkValidationError, setSocialNetworkValidationError] = useState('');
     const [isGalleryOperating, setIsGalleryOperating] = useState(false);
     
@@ -530,7 +325,7 @@ function Master() {
             const response = await fetch(`${API_BASE_URL}/api/users/social-networks`);
             
             if (response.ok) {
-                const data: AvailableSocialNetwork[] = await response.json();
+                const data: LocalAvailableSocialNetwork[] = await response.json();
                 setAvailableSocialNetworks(data);
                 console.log('Available social networks loaded:', data);
             } else {
@@ -548,7 +343,7 @@ function Master() {
         const networkConfig = availableSocialNetworks.find(n => n.network === selectedNewNetwork);
         if (!networkConfig) return;
 
-        const newNetwork: SocialNetwork = {
+        const newNetwork: LocalSocialNetwork = {
             id: `new-${Date.now()}`,
             network: selectedNewNetwork,
             handle: ''
@@ -577,23 +372,19 @@ function Master() {
 
     // Получить доступные для добавления сети (исключить уже добавленные)
     const getAvailableNetworks = () => {
-        const addedNetworks = socialNetworks.map((sn: SocialNetwork) => sn.network);
-        return availableSocialNetworks.filter((an: AvailableSocialNetwork) => !addedNetworks.includes(an.network));
-    };
-
-    // Получить конфигурацию социальной сети
-    const getSocialNetworkConfig = (networkType: string) => {
-        return availableSocialNetworks.find((an: AvailableSocialNetwork) => an.network === networkType);
+        const addedNetworks = socialNetworks.map((sn: LocalSocialNetwork) => sn.network);
+        return availableSocialNetworks.filter((an: LocalAvailableSocialNetwork) => !addedNetworks.includes(an.network));
     };
 
     // Рендер иконки социальной сети
     const renderSocialIcon = (networkType: string) => {
-        const config = getSocialNetworkConfig(networkType);
-        if (!config) return <span>🌐</span>;
-
-        switch (networkType) {
+        switch (networkType.toLowerCase()) {
             case 'telegram':
-                return <img src="./telegram.png" alt="tg" width="25"/>;
+                return (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="#0088CC">
+                        <path d="M9.78 18.65L10.06 14.42L17.74 7.5C18.08 7.19 17.67 7.04 17.22 7.31L7.74 13.3L3.64 12C2.76 11.75 2.75 11.14 3.84 10.7L19.81 4.54C20.54 4.21 21.24 4.72 20.96 5.84L18.24 18.65C18.05 19.56 17.5 19.78 16.74 19.36L12.6 16.3L10.61 18.23C10.38 18.46 10.19 18.65 9.78 18.65Z"/>
+                    </svg>
+                );
             case 'instagram':
                 return (
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="#E4405F">
@@ -601,31 +392,116 @@ function Master() {
                     </svg>
                 );
             case 'whatsapp':
-                return <img src="./whatsapp-icon-free-png.png" alt="whatsapp" width="25"/>;
+                return (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="#25D366">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.893 3.488"/>
+                    </svg>
+                );
+            case 'facebook':
+                return (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="#1877F2">
+                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                    </svg>
+                );
+            case 'vk':
+                return (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="#0077FF">
+                        <path d="M15.684 0H8.316C1.592 0 0 1.592 0 8.316v7.368C0 22.408 1.592 24 8.316 24h7.368C22.408 24 24 22.408 24 15.684V8.316C24 1.592 22.408 0 15.684 0zM18.947 16.842h-2.368c-.702 0-.917-.563-2.177-1.825-1.097-1.097-1.586-.351-1.586.421v1.404c0 .351-.105.702-1.053.702-2.177 0-4.596-1.263-6.316-3.614C3.193 9.193 2.667 6.737 2.667 6.211c0-.351.105-.702.702-.702h2.368c.702 0 .632.351.912 1.053.807 1.973 2.193 3.509 2.755 3.509.351 0 .526-.175.526-.842V6.842c-.105-1.228-.702-1.333-.702-1.754 0-.281.211-.492.526-.492h3.86c.632 0 .772.281.772.983v3.825c0 .632.281.772.456.772.351 0 .632-.175 1.263-.807 1.474-1.474 2.456-3.719 2.456-3.719.175-.351.526-.632.912-.632h2.368c.842 0 1.053.351.842 1.053-.351 1.053-2.789 4.596-2.789 4.596-.281.351-.351.526 0 .912.281.281 1.228 1.193 1.825 1.93.842.842 1.474 1.544 1.649 2.035.175.842-.281 1.228-1.053 1.228z"/>
+                    </svg>
+                );
+            case 'youtube':
+                return (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="#FF0000">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                    </svg>
+                );
+            case 'twitter':
+            case 'x':
+                return (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="#1DA1F2">
+                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                    </svg>
+                );
+            case 'linkedin':
+                return (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="#0A66C2">
+                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                    </svg>
+                );
+            case 'site':
+            case 'website':
+                return (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="#666666">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                    </svg>
+                );
+            case 'viber':
+                return (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="#665CAC">
+                        <path d="M13.7 2.3c3.8.4 6.8 3.4 7.2 7.2.1.6.1 1.1.1 1.7v.6c0 .5-.4.9-.9.9s-.9-.4-.9-.9v-.6c0-.5 0-.9-.1-1.3-.3-2.9-2.6-5.2-5.5-5.5-.4-.1-.8-.1-1.3-.1h-.6c-.5 0-.9-.4-.9-.9s.4-.9.9-.9h.6c.5 0 1.1 0 1.4.1zm-1.3 3.6c2.2.2 3.9 1.9 4.1 4.1.1.6.1 1.2.1 1.8 0 .5-.4.9-.9.9s-.9-.4-.9-.9c0-.5 0-1-.1-1.5-.1-1.4-1.1-2.4-2.5-2.5-.5-.1-1-.1-1.5-.1-.5 0-.9-.4-.9-.9s.4-.9.9-.9c.6 0 1.2 0 1.7.1zm3.8 9.3c-.4-.2-.8-.4-1.2-.7-1.1-.8-2.1-1.7-3-2.7v-.1c0-.1.1-.2.1-.3.1-.5.2-1 .1-1.5-.1-.8-.6-1.4-1.4-1.5h-.1c-.8 0-1.5.6-1.6 1.4 0 .1 0 .3-.1.4-.2 1.8-.2 3.6.1 5.4.1.6.3 1.2.6 1.7.8 1.4 2.1 2.4 3.7 2.8 1.8.4 3.6.4 5.4.1.1 0 .3-.1.4-.1.8-.1 1.4-.8 1.4-1.6v-.1c-.1-.8-.7-1.3-1.5-1.4-.5-.1-1 0-1.5.1-.1 0-.2.1-.3.1h-.1zm-9.4 5.3c-3.8-.4-6.8-3.4-7.2-7.2-.1-.6-.1-1.1-.1-1.7v-.6c0-.5.4-.9.9-.9s.9.4.9.9v.6c0 .5 0 .9.1 1.3.3 2.9 2.6 5.2 5.5 5.5.4.1.8.1 1.3.1h.6c.5 0 .9.4.9.9s-.4.9-.9.9h-.6c-.5 0-1.1 0-1.4-.1zm1.3-3.6c-2.2-.2-3.9-1.9-4.1-4.1-.1-.6-.1-1.2-.1-1.8 0-.5.4-.9.9-.9s.9.4.9.9c0 .5 0 1 .1 1.5.1 1.4 1.1 2.4 2.5 2.5.5.1 1 .1 1.5.1.5 0 .9.4.9.9s-.4.9-.9.9c-.6 0-1.2 0-1.7-.1z"/>
+                    </svg>
+                );
+            case 'imo':
+                return (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="#1589D1">
+                        <circle cx="12" cy="12" r="10" strokeWidth="2"/>
+                        <text x="12" y="16" textAnchor="middle" fontSize="8" fill="currentColor">IMO</text>
+                    </svg>
+                );
+            case 'wechat':
+                return (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="#1AAD19">
+                        <path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 0 1 .213.665l-.39 1.298c-.115.379.21.747.579.65L5.8 16.9a.58.58 0 0 1 .548.054 11.757 11.757 0 0 0 2.343.238c.366 0 .724-.027 1.075-.08-.22-.412-.346-.88-.346-1.372 0-3.476 3.408-6.288 7.611-6.288.845 0 1.65.138 2.389.385C18.476 4.881 14.067 2.188 8.691 2.188zm-2.46 5.695a.862.862 0 1 1 0-1.724.862.862 0 0 1 0 1.724zm4.919 0a.862.862 0 1 1 0-1.724.862.862 0 0 1 0 1.724zm5.863.662c-3.477 0-6.29 2.476-6.29 5.531 0 3.055 2.813 5.531 6.29 5.531a9.793 9.793 0 0 0 1.926-.192.579.579 0 0 1 .464.046l1.781.781a.56.56 0 0 0 .755-.518l-.315-1.076a.567.567 0 0 1 .173-.602 4.96 4.96 0 0 0 2.406-4.211c0-3.055-2.814-5.29-6.29-5.29zm-2.854 4.274a.944.944 0 1 1 0-1.888.944.944 0 0 1 0 1.888zm5.708 0a.944.944 0 1 1 0-1.888.944.944 0 0 1 0 1.888z"/>
+                    </svg>
+                );
+            case 'google':
+                return (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="#4285f4">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                );
             default:
-                return <span style={{ fontSize: '20px' }}>{SOCIAL_NETWORK_CONFIG[networkType]?.icon || '🌐'}</span>;
+                return (
+                    <span style={{ fontSize: '20px', color: '#666' }}>
+                        {SOCIAL_NETWORK_CONFIG[networkType]?.icon || '🌐'}
+                    </span>
+                );
         }
     };
 
     useEffect(() => {
-        if (!masterId) {
-            console.log('No master ID provided');
+        const token = getAuthToken();
+        
+        // Для приватных профилей требуется токен
+        if (!readOnly && !token) {
+            console.log('No JWT token found, redirecting to login');
+            navigate('/');
             return;
         }
-        console.log('=== LOADING PUBLIC PROFILE PAGE ===');
-        console.log('Master ID:', masterId);
+        
+        console.log('=== LOADING PROFILE PAGE ===');
+        console.log(`Loading ${readOnly ? 'public' : 'private'} profile`);
+        if (userId) console.log('User ID:', userId);
+        
         fetchUserData();
         fetchOccupationsList();
-        fetchAvailableSocialNetworks(); // Загружаем доступные социальные сети
-    }, [masterId, navigate]);
+        
+        // Загружаем доступные социальные сети только для приватных профилей
+        if (!readOnly) {
+            fetchAvailableSocialNetworks();
+        }
+    }, [navigate, readOnly, userId]);
 
     useEffect(() => {
         if (profileData?.id) {
             console.log('Profile loaded, fetching gallery, reviews, services, and occupations');
             fetchUserGallery();
             fetchReviews();
-            fetchServices();  // Add this line
-            fetchOccupationsList();
+            fetchServices();
+            fetchOccupationsList(); // Загружаем специальности сразу при загрузке профиля
         }
     }, [profileData?.id]);
 
@@ -685,7 +561,7 @@ function Master() {
         setSwiperKey(prev => prev + 1);
     }, [visibleCount]);
 
-    const updateSocialNetworks = async (updatedNetworks: SocialNetwork[]) => {
+    const updateSocialNetworks = async (updatedNetworks: LocalSocialNetwork[]) => {
         if (!profileData?.id) {
             console.error('No profile ID available');
             return false;
@@ -770,7 +646,7 @@ function Master() {
         }
 
         // Очищаем все социальные сети
-        const emptyNetworks: SocialNetwork[] = [];
+        const emptyNetworks: LocalSocialNetwork[] = [];
 
         // Обновляем локальное состояние сразу для лучшего UX
         setSocialNetworks(emptyNetworks);
@@ -870,7 +746,7 @@ function Master() {
         });
     };
 
-    const handleEditAddressStart = (address: Address) => {
+    const handleEditAddressStart = (address: LocalAddress) => {
         setEditingAddress(address.id);
         setAddressForm(address.addressValue);
     };
@@ -988,7 +864,7 @@ function Master() {
                     const updatedAddresses = updatedUserData.addresses || [];
 
                     // Преобразуем адреса в формат для отображения
-                    const loadedAddresses: Address[] = [];
+                    const loadedAddresses: LocalAddress[] = [];
                     for (let i = 0; i < updatedAddresses.length; i++) {
                         const addr = updatedAddresses[i];
                         const addressText = await getFullAddressText(addr);
@@ -1131,7 +1007,7 @@ function Master() {
         setEditingPhone('new');
     };
 
-    const handleEditPhoneStart = (phone: Phone) => {
+    const handleEditPhoneStart = (phone: LocalPhone) => {
         setEditingPhone(phone.id);
         setPhoneForm({ number: phone.number, type: phone.type });
     };
@@ -1162,7 +1038,7 @@ function Master() {
                 return;
             }
 
-            let updatedPhones: Phone[];
+            let updatedPhones: LocalPhone[];
             
             if (editingPhone === 'new') {
                 // Добавление нового телефона
@@ -1411,20 +1287,33 @@ function Master() {
     const fetchUserData = async () => {
         try {
             setIsLoading(true);
+            const token = getAuthToken();
             
-            if (!masterId) {
-                console.error('Master ID is not provided');
-                setIsLoading(false);
+            // Для приватных профилей требуется токен
+            if (!readOnly && !token) {
+                navigate('/login');
                 return;
             }
 
-            const response = await fetch(`${API_BASE_URL}/api/users/${masterId}`, {
+            // Определяем endpoint: /api/users/me для приватного или /api/users/:id для публичного
+            const endpoint = userId ? `${API_BASE_URL}/api/users/${userId}` : `${API_BASE_URL}/api/users/me`;
+
+            const response = await fetch(endpoint, {
                 method: 'GET',
                 headers: {
+                    ...(token && { 'Authorization': `Bearer ${token}` }),
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
                 },
             });
+
+            if (response.status === 401 && !readOnly) {
+                console.log('Token is invalid or expired');
+                removeAuthToken();
+                window.dispatchEvent(new Event('logout'));
+                navigate('/');
+                return;
+            }
 
             if (!response.ok) {
                 throw new Error(`Failed to fetch user data: ${response.status} ${response.statusText}`);
@@ -1433,6 +1322,12 @@ function Master() {
             const userData: UserApiData = await response.json();
             console.log('User data received:', userData);
             console.log('User addresses:', userData.addresses);
+            
+            // Определяем роль пользователя
+            const roles = Array.isArray(userData.roles) ? userData.roles : [];
+            const role = roles.includes('ROLE_MASTER') ? 'master' : 'client';
+            setUserRole(role);
+            console.log('User role:', role);
 
             const avatarUrl = await getAvatarUrl(userData);
             let workArea = '';
@@ -1480,7 +1375,7 @@ function Master() {
             console.log('Final work area:', workArea);
 
             // Создаем пустой массив социальных сетей - показываем только те, что есть в API
-            const loadedSocialNetworks: SocialNetwork[] = [];
+            const loadedSocialNetworks: LocalSocialNetwork[] = [];
 
             // Если в API есть социальные сети, добавляем их
             if (userData.socialNetworks && Array.isArray(userData.socialNetworks)) {
@@ -1507,7 +1402,7 @@ function Master() {
             setSocialNetworks(loadedSocialNetworks);
 
             // Преобразуем адреса в нужный формат
-            const loadedAddresses: Address[] = [];
+            const loadedAddresses: LocalAddress[] = [];
             if (userAddresses && Array.isArray(userAddresses)) {
                 for (let i = 0; i < userAddresses.length; i++) {
                     const addr = userAddresses[i];
@@ -1534,7 +1429,7 @@ function Master() {
             }
 
             // Преобразуем телефоны из phone1 и phone2
-            const loadedPhones: Phone[] = [];
+            const loadedPhones: LocalPhone[] = [];
             if (userData.phone1 && typeof userData.phone1 === 'string') {
                 loadedPhones.push({
                     id: 'phone-tj',
@@ -1555,8 +1450,14 @@ function Master() {
                 fullName: [userData.surname, userData.name, userData.patronymic]
                     .filter(Boolean)
                     .join(' ') || 'Фамилия Имя Отчество',
-                specialty: userData.occupation?.map((occ) => occ.title).join(', ') || 'Специальность',
-                specialties: userData.occupation?.map((occ) => occ.title) || [],
+                email: userData.email || undefined,
+                gender: (userData as any).gender || (userData as any).sex || undefined,
+                specialty: Array.isArray(userData.occupation) 
+                    ? userData.occupation.map((occ) => typeof occ === 'object' && occ.title ? String(occ.title) : '').filter(Boolean).join(', ') || 'Специальность'
+                    : 'Специальность',
+                specialties: Array.isArray(userData.occupation) 
+                    ? userData.occupation.map((occ) => typeof occ === 'object' && occ.title ? String(occ.title) : '').filter(Boolean) 
+                    : [],
                 rating: userData.rating || 0,
                 reviews: 0,
                 avatar: avatarUrl,
@@ -1579,6 +1480,8 @@ function Master() {
             setProfileData({
                 id: '',
                 fullName: 'Фамилия Имя Отчество',
+                email: undefined,
+                gender: undefined,
                 specialty: 'Специальность',
                 specialties: [],
                 rating: 0,
@@ -1762,19 +1665,29 @@ function Master() {
     const fetchReviews = async () => {
         try {
             setReviewsLoading(true);
+            const token = getAuthToken();
+            
+            // Для публичных профилей токен необязателен
+            if (!readOnly && !token) {
+                console.log('No token available for fetching reviews');
+                return;
+            }
 
             if (!profileData?.id) {
                 console.log('No profile data ID available');
                 return;
             }
 
-            console.log('Fetching reviews for master ID:', profileData.id);
-            const endpoint = `/api/reviews?exists[master]=true&master=${profileData.id}`;
+            console.log(`Fetching reviews for ${userRole} ID:`, profileData.id);
+            const endpoint = userRole === 'client' 
+                ? `/api/reviews?exists[services]=true&exists[master]=true&exists[client]=true&type=client&client=${profileData.id}`
+                : `/api/reviews?exists[services]=true&exists[master]=true&exists[client]=true&type=master&master=${profileData.id}`;
             console.log(`Trying endpoint: ${endpoint}`);
 
             const response = await fetch(`${API_BASE_URL}${endpoint}`, {
                 method: 'GET',
                 headers: {
+                    ...(token && { 'Authorization': `Bearer ${token}` }),
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
                 },
@@ -1783,9 +1696,11 @@ function Master() {
             console.log(`Response status: ${response.status}`);
             console.log(`Response ok: ${response.ok}`);
 
-            if (response.status === 401) {
-                console.log('Unauthorized - reviews might require authentication');
-                setReviews([]);
+            if (response.status === 401 && !readOnly) {
+                console.log('Unauthorized, redirecting to login');
+                removeAuthToken();
+                window.dispatchEvent(new Event('logout'));
+                navigate('/login');
                 return;
             }
 
@@ -1818,16 +1733,10 @@ function Master() {
 
             console.log(`Processing ${reviewsArray.length} reviews`);
             if (reviewsArray.length > 0) {
-                const masterReviews = reviewsArray.filter(review => {
-                    const reviewMasterId = review.master?.id;
-                    const isForCurrentMaster = reviewMasterId?.toString() === profileData.id;
-                    console.log(`Review ${review.id}: master ID ${reviewMasterId}, is for current master: ${isForCurrentMaster}`);
-                    return isForCurrentMaster;
-                });
-
-                console.log(`Found ${masterReviews.length} reviews for master ${profileData.id}`);
+                // Убираем фильтрацию - отзывы уже приходят отфильтрованными из API
+                console.log(`Found ${reviewsArray.length} reviews for ${userRole} ${profileData.id}`);
                 const transformedReviews = await Promise.all(
-                    masterReviews.map(async (review) => {
+                    reviewsArray.map(async (review) => {
                         console.log('Processing review:', review);
                         const masterId = review.master?.id;
                         const clientId = review.client?.id;
@@ -1872,7 +1781,7 @@ function Master() {
                             image: ''
                         };
 
-                        const serviceTitle = review.ticket?.title || review.services?.title || 'Услуга';
+                        const serviceTitle = String(review.ticket?.title || review.services?.title || 'Услуга');
                         console.log(`Review ${review.id} has service title: ${serviceTitle}`);
 
                         const transformedReview: Review = {
@@ -1882,13 +1791,13 @@ function Master() {
                             forReviewer: review.forClient || false,
                             services: {
                                 id: review.ticket?.id || review.services?.id || 0,
-                                title: serviceTitle
+                                title: String(serviceTitle) // Ensure it's always a string
                             },
                             ticket: review.ticket,
                             images: review.images || [],
                             user: user,
                             reviewer: reviewer,
-                            vacation: serviceTitle,
+                            vacation: String(serviceTitle), // Ensure string
                             worker: clientData ?
                                 `${clientData.name || 'Клиент'} ${clientData.surname || ''}`.trim() :
                                 'Клиент',
@@ -1905,7 +1814,11 @@ function Master() {
                 console.log('All transformed reviews:', transformedReviews);
                 setReviews(transformedReviews);
 
-                const userReviews = transformedReviews.filter(r => r.user.id === parseInt(profileData.id));
+                // Для мастеров фильтруем по user.id (получатели отзывов)
+                // Для клиентов фильтруем по reviewer.id (оставляющие отзывы) 
+                const userReviews = userRole === 'client' 
+                    ? transformedReviews.filter(r => r.reviewer.id === parseInt(profileData.id))
+                    : transformedReviews.filter(r => r.user.id === parseInt(profileData.id));
                 const newRating = calculateAverageRating(userReviews);
 
                 console.log('User reviews for rating calculation:', userReviews);
@@ -1922,7 +1835,7 @@ function Master() {
                 }
 
             } else {
-                console.log('No reviews data found for this master');
+                console.log(`No reviews data found for this ${userRole}`);
                 setReviews([]);
                 setProfileData(prev => prev ? {
                     ...prev,
@@ -1945,47 +1858,65 @@ function Master() {
     const fetchServices = async () => {
         try {
             setServicesLoading(true);
-
-            if (!profileData?.id) {
-                console.log('No profile data ID available for services');
+            const token = getAuthToken();
+            
+            // Для публичных профилей токен необязателен
+            if (!readOnly && !token) {
+                console.log('No token available for fetching services');
                 return;
             }
 
-            console.log('Fetching services for master ID:', profileData.id);
-            const endpoint = `/api/tickets?active=true&service=true&exists[master]=true&master=${profileData.id}`;
-            console.log(`Fetching services from: ${endpoint}`);
+            if (!profileData?.id) {
+                console.log('No profile data ID available');
+                return;
+            }
+
+            console.log(`Fetching services for ${userRole} ID:`, profileData.id);
+            const endpoint = userRole === 'client' 
+                ? `/api/tickets?exists[client]=true&client=${profileData.id}&service=false&active=true`
+                : `/api/tickets?exists[master]=true&master=${profileData.id}&service=true&active=true`;
+            console.log(`Trying endpoint: ${endpoint}`);
 
             const response = await fetch(`${API_BASE_URL}${endpoint}`, {
                 method: 'GET',
                 headers: {
+                    ...(token && { 'Authorization': `Bearer ${token}` }),
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
                 },
             });
 
-            console.log(`Services response status: ${response.status}`);
+            console.log(`Response status: ${response.status}`);
+            console.log(`Response ok: ${response.ok}`);
 
-            if (response.status === 401) {
-                console.log('Unauthorized - services might require authentication');
-                setProfileData(prev => prev ? { ...prev, services: [] } : null);
+            if (response.status === 401 && !readOnly) {
+                console.log('Unauthorized, redirecting to login');
+                removeAuthToken();
+                window.dispatchEvent(new Event('logout'));
+                navigate('/login');
                 return;
             }
 
             if (response.status === 404) {
-                console.log('No services found for this master');
-                setProfileData(prev => prev ? { ...prev, services: [] } : null);
+                console.log(`No services found for this ${userRole}`);
+                setProfileData(prev => prev ? {
+                    ...prev,
+                    services: []
+                } : null);
                 return;
             }
 
             if (!response.ok) {
                 console.error(`Failed to fetch services: ${response.status} ${response.statusText}`);
-                setProfileData(prev => prev ? { ...prev, services: [] } : null);
+                setProfileData(prev => prev ? {
+                    ...prev,
+                    services: []
+                } : null);
                 return;
             }
 
             const servicesData = await response.json();
             console.log('Raw services data:', servicesData);
-            
             let servicesArray: any[] = [];
 
             if (Array.isArray(servicesData)) {
@@ -1994,34 +1925,38 @@ function Master() {
                 const apiResponse = servicesData as ApiResponse<any>;
                 if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
                     servicesArray = apiResponse['hydra:member'];
-                } else if (servicesData.id) {
-                    servicesArray = [servicesData];
                 }
             }
 
-            console.log(`Found ${servicesArray.length} services`);
+            console.log(`Processing ${servicesArray.length} services`);
+            
+            const transformedServices: Service[] = servicesArray.map(service => {
+                // Преобразуем изображения в правильный формат
+                let serviceImages: Array<{id: number; image: string}> = [];
+                if (service.images && Array.isArray(service.images)) {
+                    serviceImages = service.images
+                        .filter((img: any) => img && typeof img === 'object')
+                        .map((img: any) => ({
+                            id: img.id || 0,
+                            image: img.image || img.url || img.path || ''
+                        }))
+                        .filter((img: any) => img.image); // Оставляем только изображения с путём
+                }
 
-            // Transform the services data to match the Service interface
-            const transformedServices: Service[] = servicesArray.map(service => ({
-                id: service.id,
-                title: service.title || 'Без названия',
-                description: service.description || '',
-                price: service.budget || 0,
-                unit: service.unit?.title || 'час',
-                createdAt: service.createdAt,
-                active: service.active !== false,
-                images: service.images || [] // Добавляем изображения
-            }));
+                return {
+                    id: service.id,
+                    title: service.title || 'Услуга',
+                    description: service.description || '',
+                    price: service.price || 0,
+                    unit: service.unit || 'сомони',
+                    createdAt: service.createdAt,
+                    active: service.active !== false,
+                    images: serviceImages
+                };
+            }).reverse(); // Реверс массива
 
-            // Сортировка по дате создания (новые сначала)
-            transformedServices.sort((a, b) => {
-                const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                return dateB - dateA; // От большей даты к меньшей (новые сначала)
-            });
-
-            console.log('Transformed and sorted services:', transformedServices);
-
+            console.log('Transformed services:', transformedServices);
+            
             setProfileData(prev => prev ? {
                 ...prev,
                 services: transformedServices
@@ -2029,7 +1964,10 @@ function Master() {
 
         } catch (error) {
             console.error('Error fetching services:', error);
-            setProfileData(prev => prev ? { ...prev, services: [] } : null);
+            setProfileData(prev => prev ? {
+                ...prev,
+                services: []
+            } : null);
         } finally {
             setServicesLoading(false);
         }
@@ -2049,7 +1987,7 @@ function Master() {
             }
 
             console.log('Starting batch photo upload...');
-            let galleryId = await getUserGalleryId();
+            let galleryId = await getUserGalleryId(token);
 
             if (!galleryId) {
                 console.log('No gallery found, trying to create new one...');
@@ -2166,23 +2104,59 @@ function Master() {
         }
     };
 
-    const getUserGallery = async (): Promise<GalleryApiData | null> => {
+    const getUserGallery = async (token: string): Promise<GalleryApiData | null> => {
         try {
-            if (!masterId) {
-                console.log('No master ID available');
-                return null;
-            }
-
-            console.log('Fetching gallery for master ID:', masterId);
-            const filterResponse = await fetch(`${API_BASE_URL}/api/galleries?user=${masterId}`, {
+            console.log('Fetching user gallery...');
+            const response = await fetch(`${API_BASE_URL}/api/galleries/me`, {
                 method: 'GET',
                 headers: {
+                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
                 },
             });
 
-            console.log('Gallery response status:', filterResponse.status);
+            console.log('Gallery /me response status:', response.status);
+
+            if (response.ok) {
+                const galleriesData = await response.json();
+                console.log('Galleries data from /me:', galleriesData);
+                let galleryArray: GalleryApiData[] = [];
+
+                if (Array.isArray(galleriesData)) {
+                    galleryArray = galleriesData;
+                } else if (galleriesData && typeof galleriesData === 'object') {
+                    const apiResponse = galleriesData as ApiResponse<GalleryApiData>;
+                    if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
+                        galleryArray = apiResponse['hydra:member'];
+                    } else if ((galleriesData as GalleryApiData).id) {
+                        galleryArray = [galleriesData as GalleryApiData];
+                    }
+                }
+
+                if (galleryArray.length > 0) {
+                    console.log('Found gallery via /me:', galleryArray[0]);
+                    return galleryArray[0];
+                }
+            }
+
+            console.log('Trying to find gallery via /api/galleries with user filter...');
+            const currentUserId = await getCurrentUserId(token);
+            if (!currentUserId) {
+                console.log('Cannot get current user ID');
+                return null;
+            }
+
+            const filterResponse = await fetch(`${API_BASE_URL}/api/galleries?user=${currentUserId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+            });
+
+            console.log('Filter response status:', filterResponse.status);
 
             if (filterResponse.ok) {
                 const filterData = await filterResponse.json();
@@ -2201,22 +2175,63 @@ function Master() {
                 }
 
                 if (filteredArray.length > 0) {
-                    console.log('Found gallery:', filteredArray[0]);
+                    console.log('Found gallery via user filter:', filteredArray[0]);
                     return filteredArray[0];
                 }
             }
 
-            console.log('No gallery found for master');
+            console.log('Trying to find gallery via all galleries...');
+            const allGalleriesResponse = await fetch(`${API_BASE_URL}/api/galleries`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+            });
+
+            if (allGalleriesResponse.ok) {
+                const allGalleriesData = await allGalleriesResponse.json();
+                console.log('All galleries data:', allGalleriesData);
+                let allGalleryArray: GalleryApiData[] = [];
+
+                if (Array.isArray(allGalleriesData)) {
+                    allGalleryArray = allGalleriesData;
+                } else if (allGalleriesData && typeof allGalleriesData === 'object') {
+                    const apiResponse = allGalleriesData as ApiResponse<GalleryApiData>;
+                    if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
+                        allGalleryArray = apiResponse['hydra:member'];
+                    } else if ((allGalleriesData as GalleryApiData).id) {
+                        allGalleryArray = [allGalleriesData as GalleryApiData];
+                    }
+                }
+
+                if (allGalleryArray.length > 0) {
+                    const userGallery = allGalleryArray.find(gallery => {
+                        if (gallery.user && typeof gallery.user === 'object' && 'id' in gallery.user) {
+                            return gallery.user.id === currentUserId;
+                        }
+                        return false;
+                    });
+
+                    if (userGallery) {
+                        console.log('Found user gallery in all galleries:', userGallery);
+                        return userGallery;
+                    }
+                }
+            }
+
+            console.log('No gallery found for user');
             return null;
         } catch (error) {
-            console.error('Error getting master gallery:', error);
+            console.error('Error getting user gallery:', error);
             return null;
         }
     };
 
-    const getUserGalleryId = async (): Promise<number | null> => {
+    const getUserGalleryId = async (token: string): Promise<number | null> => {
         try {
-            const gallery = await getUserGallery();
+            const gallery = await getUserGallery(token);
             if (gallery && gallery.id) {
                 console.log('Gallery ID found:', gallery.id);
                 return gallery.id;
@@ -2247,7 +2262,7 @@ function Master() {
             }
 
             console.log('Getting gallery for deletion...');
-            const gallery = await getUserGallery();
+            const gallery = await getUserGallery(token);
 
             if (!gallery || !gallery.id) {
                 console.log('No gallery found for user');
@@ -2343,7 +2358,7 @@ function Master() {
             }
 
             console.log('Getting gallery for deletion of all images...');
-            const gallery = await getUserGallery();
+            const gallery = await getUserGallery(token);
 
             if (!gallery || !gallery.id) {
                 console.log('No gallery found for user');
@@ -2393,6 +2408,30 @@ function Master() {
         } finally {
             setIsGalleryOperating(false);
         }
+    };
+
+    const testGalleryAPI = async (token: string) => {
+        try {
+            console.log('Testing Gallery API...');
+            const response = await fetch(`${API_BASE_URL}/api/galleries/me`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log('Gallery /me response:', data);
+                return data;
+            } else {
+                console.error('Failed to get galleries:', response.status);
+            }
+        } catch (error) {
+            console.error('Error testing API:', error);
+        }
+        return null;
     };
 
     const getCurrentUserId = async (token: string): Promise<number | null> => {
@@ -2556,8 +2595,11 @@ function Master() {
     const fetchUserGallery = async () => {
         try {
             console.log('Fetching user gallery...');
-            
-            const gallery = await getUserGallery();
+            const token = getAuthToken();
+            if (!token) return;
+
+            await testGalleryAPI(token);
+            const gallery = await getUserGallery(token);
 
             if (gallery) {
                 console.log('Gallery found:', gallery);
@@ -2687,17 +2729,31 @@ function Master() {
                     specialty = foundOccupation?.title || '';
                 } else if (Array.isArray(edu.occupation)) {
                     // occupation как массив объектов
-                    specialty = edu.occupation.map((occ) => occ.title).join(', ');
+                    specialty = edu.occupation.map((occ) => {
+                        if (typeof occ === 'object' && occ.title) {
+                            return occ.title;
+                        }
+                        return '';
+                    }).filter(Boolean).join(', ');
                 } else if (typeof edu.occupation === 'object' && edu.occupation.title) {
                     // occupation как единичный объект {id, title, image}
-                    specialty = edu.occupation.title;
+                    specialty = String(edu.occupation.title);
+                }
+            }
+            
+            // Дополнительная проверка: если specialty по какой-то причине объект, преобразуем его
+            if (typeof specialty === 'object' && specialty !== null) {
+                if ('title' in specialty) {
+                    specialty = String((specialty as any).title);
+                } else {
+                    specialty = '';
                 }
             }
             
             return {
                 id: edu.id?.toString() || Date.now().toString(),
                 institution: edu.uniTitle || '',
-                specialty: specialty,
+                specialty: String(specialty), // Принудительно преобразуем в строку
                 startYear: edu.beginning?.toString() || '',
                 endYear: edu.ending?.toString() || '',
                 currentlyStudying: !edu.graduated
@@ -2755,6 +2811,17 @@ function Master() {
                 }
             }
 
+            // Обработка пола
+            if (updatedData.gender !== undefined) {
+                if (updatedData.gender === 'male') {
+                    apiData.gender = 'gender_male';
+                } else if (updatedData.gender === 'female') {
+                    apiData.gender = 'gender_female';
+                } else {
+                    apiData.gender = 'gender_neutral';
+                }
+            }
+
             console.log('Sending update data:', apiData);
             const response = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
                 method: 'PATCH',
@@ -2779,9 +2846,18 @@ function Master() {
             }
 
             console.log('User data updated successfully');
+            
+            // Ensure specialties is always an array of strings when updating state
+            const safeUpdatedData = { ...updatedData };
+            if (safeUpdatedData.specialties) {
+                safeUpdatedData.specialties = safeUpdatedData.specialties.map(s =>
+                    typeof s === 'string' ? s : (typeof s === 'object' && s && 'title' in s ? String((s as any).title) : '')
+                ).filter(Boolean);
+            }
+            
             setProfileData(prev => prev ? {
                 ...prev,
-                ...updatedData
+                ...safeUpdatedData
             } : null);
 
         } catch (error) {
@@ -3040,27 +3116,92 @@ function Master() {
         }
     };
 
-    const handleEditStart = (field: 'fullName' | 'specialty') => {
+    const handleEditStart = (field: 'fullName' | 'specialty' | 'gender') => {
         setEditingField(field);
-        setTempValue(field === 'fullName' ? profileData?.fullName || '' : profileData?.specialty || '');
+        if (field === 'fullName') {
+            setTempValue(profileData?.fullName || '');
+        } else if (field === 'specialty') {
+            // Инициализируем массив специальностей из готового массива или парсим строку
+            // Обязательно преобразуем в строки на случай, если API вернул объекты
+            let currentSpecialties: string[] = [];
+            if (profileData?.specialties && profileData.specialties.length > 0) {
+                currentSpecialties = profileData.specialties.map(s => 
+                    typeof s === 'string' ? s : (typeof s === 'object' && s && 'title' in s ? String((s as any).title) : '')
+                ).filter(Boolean);
+            } else if (profileData?.specialty) {
+                currentSpecialties = profileData.specialty.split(',').map(s => s.trim()).filter(Boolean);
+            }
+            setSelectedSpecialties(currentSpecialties);
+            setTempValue('');
+        } else if (field === 'gender') {
+            setTempValue(profileData?.gender || '');
+        }
     };
 
-    const handleInputSave = async (field: 'fullName' | 'specialty') => {
-        if (!profileData || !tempValue.trim()) {
+    const handleAddSpecialty = (specialty: string) => {
+        if (specialty && !selectedSpecialties.includes(specialty)) {
+            setSelectedSpecialties(prev => [...prev, specialty]);
+        }
+    };
+
+    const handleRemoveSpecialty = (specialty: string) => {
+        setSelectedSpecialties(prev => prev.filter(s => s !== specialty));
+    };
+
+    const handleSpecialtySave = async () => {
+        if (selectedSpecialties.length === 0) {
             setEditingField(null);
             return;
         }
 
-        const trimmedValue = tempValue.trim();
-        if (trimmedValue !== (field === 'fullName' ? profileData.fullName : profileData.specialty)) {
-            await updateUserData({ [field]: trimmedValue });
+        // Ensure all specialties are strings
+        const safeSpecialties = selectedSpecialties.map(s => 
+            typeof s === 'string' ? s : (typeof s === 'object' && s && 'title' in s ? String((s as any).title) : '')
+        ).filter(Boolean);
+
+        const specialtyString = safeSpecialties.join(', ');
+        
+        // Обновляем данные в API
+        await updateUserData({ 
+            specialty: specialtyString,
+            specialties: safeSpecialties 
+        });
+        
+        // Обновляем локальное состояние профиля
+        setProfileData(prev => prev ? {
+            ...prev,
+            specialty: specialtyString,
+            specialties: safeSpecialties
+        } : null);
+        
+        setEditingField(null);
+        setTempValue('');
+        setSelectedSpecialties([]);
+    };
+
+    const handleInputSave = async (field: 'fullName' | 'specialty' | 'gender') => {
+        if (!profileData) {
+            setEditingField(null);
+            return;
+        }
+
+        const trimmedValue = (tempValue || '').trim();
+        if (!trimmedValue && field !== 'gender') {
+            setEditingField(null);
+            setTempValue('');
+            return;
+        }
+
+        const currentValue = field === 'fullName' ? profileData.fullName : (field === 'specialty' ? profileData.specialty : profileData.gender || '');
+        if (trimmedValue !== currentValue) {
+            await updateUserData({ [field]: trimmedValue } as Partial<ProfileData>);
         }
 
         setEditingField(null);
         setTempValue('');
     };
 
-    const handleInputKeyPress = (e: React.KeyboardEvent, field: 'fullName' | 'specialty') => {
+    const handleInputKeyPress = (e: React.KeyboardEvent, field: 'fullName' | 'specialty' | 'gender') => {
         if (e.key === 'Enter') {
             handleInputSave(field);
         } else if (e.key === 'Escape') {
@@ -3329,7 +3470,7 @@ function Master() {
 
     const handleClientProfileClick = (clientId: number) => {
         console.log('Navigating to client profile:', clientId);
-        navigate(`/client/${clientId}`);
+        navigate(`/profile/${clientId}`);
     };
 
     const handleCloseReviewModal = () => {
@@ -3487,17 +3628,21 @@ function Master() {
                 <ProfileHeader
                     avatar={profileData.avatar}
                     fullName={profileData.fullName}
+                    email={profileData.email}
+                    gender={profileData.gender}
                     specialty={profileData.specialty}
                     specialties={profileData.specialties}
                     rating={profileData.rating}
                     reviewsCount={reviews.length}
                     editingField={editingField}
                     tempValue={tempValue}
+                    selectedSpecialties={selectedSpecialties}
                     occupations={occupations}
                     fileInputRef={fileInputRef}
                     specialtyInputRef={specialtyInputRef}
                     isLoading={isLoading}
-                    readOnly={true}
+                    readOnly={readOnly}
+                    userRole={userRole}
                     onAvatarClick={handleAvatarClick}
                     onFileChange={handleFileChange}
                     onImageError={handleImageError}
@@ -3505,44 +3650,43 @@ function Master() {
                     onTempValueChange={setTempValue}
                     onInputSave={handleInputSave}
                     onInputKeyPress={handleInputKeyPress}
-                    onSpecialtySave={() => {
-                        if (tempValue.trim()) {
-                            const updateData = { specialty: tempValue };
-                            updateUserData(updateData);
-                            setEditingField(null);
-                        }
-                    }}
+                    onSpecialtySave={handleSpecialtySave}
                     onEditCancel={() => {
                         setEditingField(null);
                         setTempValue('');
+                        setSelectedSpecialties([]);
                     }}
+                    onAddSpecialty={handleAddSpecialty}
+                    onRemoveSpecialty={handleRemoveSpecialty}
                 />
 
                 {/* Секция "О себе" */}
                 <div className={styles.about_section}>
-                    {/* EducationSection Component */}
-                    <EducationSection
-                        education={profileData.education}
-                        editingEducation={editingEducation}
-                        educationForm={educationForm}
-                        occupations={occupations}
-                        occupationsLoading={occupationsLoading}
-                        readOnly={true}
-                        onEditEducationStart={handleEditEducationStart}
-                        onEditEducationSave={handleEditEducationSave}
-                        onEditEducationCancel={handleEditEducationCancel}
-                        onEducationFormChange={handleEducationFormChange}
-                        onDeleteEducation={handleDeleteEducation}
-                        onAddEducation={handleAddEducation}
-                        setEducationForm={setEducationForm}
-                    />
+                    {/* EducationSection Component - только для мастеров */}
+                    {userRole === 'master' && (
+                        <EducationSection
+                            education={profileData.education}
+                            editingEducation={editingEducation}
+                            educationForm={educationForm}
+                            occupations={occupations}
+                            occupationsLoading={occupationsLoading}
+                            readOnly={readOnly}
+                            onEditEducationStart={handleEditEducationStart}
+                            onEditEducationSave={handleEditEducationSave}
+                            onEditEducationCancel={handleEditEducationCancel}
+                            onEducationFormChange={handleEducationFormChange}
+                            onDeleteEducation={handleDeleteEducation}
+                            onAddEducation={handleAddEducation}
+                            setEducationForm={setEducationForm}
+                        />
+                    )}
 
                     {/* PhonesSection Component */}
                     <PhonesSection
                         phones={profileData.phones}
                         editingPhone={editingPhone}
                         phoneForm={phoneForm}
-                        readOnly={true}
+                        readOnly={readOnly}
                         onEditPhoneStart={handleEditPhoneStart}
                         onEditPhoneSave={handleEditPhoneSave}
                         onEditPhoneCancel={handleEditPhoneCancel}
@@ -3562,7 +3706,7 @@ function Master() {
                         showAddSocialNetwork={showAddSocialNetwork}
                         selectedNewNetwork={selectedNewNetwork}
                         availableSocialNetworks={getAvailableNetworks()}
-                        readOnly={true}
+                        readOnly={readOnly}
                         setEditingSocialNetwork={setEditingSocialNetwork}
                         setSocialNetworkEditValue={setSocialNetworkEditValue}
                         setSocialNetworkValidationError={setSocialNetworkValidationError}
@@ -3578,34 +3722,36 @@ function Master() {
                         getAvailableNetworks={getAvailableNetworks}
                     />
 
-                    {/* WorkExamplesSection Component */}
-                    <WorkExamplesSection
-                        workExamples={profileData.workExamples}
-                        showAllWorkExamples={showAllWorkExamples}
-                        isMobile={isMobile}
-                        isGalleryOperating={isGalleryOperating}
-                        galleryImages={galleryImages}
-                        isGalleryOpen={isGalleryOpen}
-                        galleryCurrentIndex={galleryCurrentIndex}
-                        readOnly={true}
-                        onOpenGallery={openGallery}
-                        onCloseGallery={closeGallery}
-                        onGalleryNext={goToNext}
-                        onGalleryPrevious={goToPrevious}
-                        onSelectGalleryImage={selectImage}
-                        onDeleteWorkExample={handleDeleteWorkExample}
-                        onDeleteAllWorkExamples={handleDeleteAllWorkExamples}
-                        onWorkExampleUpload={handleWorkExampleUpload}
-                        setShowAllWorkExamples={setShowAllWorkExamples}
-                        getImageUrlWithCacheBust={getImageUrlWithCacheBust}
-                        API_BASE_URL={API_BASE_URL}
-                    />
+                    {/* WorkExamplesSection Component - только для мастеров */}
+                    {userRole === 'master' && (
+                        <WorkExamplesSection
+                            workExamples={profileData.workExamples}
+                            showAllWorkExamples={showAllWorkExamples}
+                            isMobile={isMobile}
+                            isGalleryOperating={isGalleryOperating}
+                            galleryImages={galleryImages}
+                            isGalleryOpen={isGalleryOpen}
+                            galleryCurrentIndex={galleryCurrentIndex}
+                            readOnly={readOnly}
+                            onOpenGallery={openGallery}
+                            onCloseGallery={closeGallery}
+                            onGalleryNext={goToNext}
+                            onGalleryPrevious={goToPrevious}
+                            onSelectGalleryImage={selectImage}
+                            onDeleteWorkExample={handleDeleteWorkExample}
+                            onDeleteAllWorkExamples={handleDeleteAllWorkExamples}
+                            onWorkExampleUpload={handleWorkExampleUpload}
+                            setShowAllWorkExamples={setShowAllWorkExamples}
+                            getImageUrlWithCacheBust={getImageUrlWithCacheBust}
+                            API_BASE_URL={API_BASE_URL}
+                        />
+                    )}
 
                     {/* ServicesSection Component */}
                     <ServicesSection
                         services={profileData.services}
                         servicesLoading={servicesLoading}
-                        readOnly={true}
+                        readOnly={readOnly}
                         API_BASE_URL={API_BASE_URL}
                     />
 
@@ -3615,7 +3761,8 @@ function Master() {
                         canWorkRemotely={profileData.canWorkRemotely}
                         editingAddress={editingAddress}
                         addressForm={addressForm}
-                        readOnly={true}
+                        readOnly={readOnly}
+                        userRole={userRole}
                         setAddressForm={setAddressForm}
                         onAddAddress={handleAddAddress}
                         onEditAddressStart={handleEditAddressStart}
@@ -3779,4 +3926,4 @@ function Master() {
     );
 }
 
-export default Master;
+export default Profile;

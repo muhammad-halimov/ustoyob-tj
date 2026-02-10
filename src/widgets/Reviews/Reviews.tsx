@@ -213,21 +213,21 @@ function Reviews() {
             if (userInfo && userInfo.roles) {
                 if (userInfo.roles.includes('ROLE_MASTER')) {
                     console.log('Navigating to master profile');
-                    navigate(`/master/${userId}`);
+                    navigate(`/profile/${userId}`);
                 } else if (userInfo.roles.includes('ROLE_CLIENT')) {
                     console.log('Navigating to client profile');
-                    navigate(`/client/${userId}`);
+                    navigate(`/profile/${userId}`);
                 } else {
-                    console.log('Unknown role, defaulting to master');
-                    navigate(`/master/${userId}`);
+                    console.log('Unknown role, defaulting to profile');
+                    navigate(`/profile/${userId}`);
                 }
             } else {
-                console.log('Could not determine role, defaulting to master');
-                navigate(`/master/${userId}`);
+                console.log('Could not determine role, defaulting to profile');
+                navigate(`/profile/${userId}`);
             }
         } catch (error) {
             console.error('Error determining role:', error);
-            navigate(`/master/${userId}`);
+            navigate(`/profile/${userId}`);
         }
     };
 

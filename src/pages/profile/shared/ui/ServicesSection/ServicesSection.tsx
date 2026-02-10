@@ -1,20 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Service } from '../../../../../entities';
 import styles from './ServicesSection.module.scss';
-
-interface Service {
-    id: number;
-    title: string;
-    description?: string;
-    price: number;
-    unit: string;
-    createdAt?: string;
-    active?: boolean;
-    images?: Array<{
-        id: number;
-        image: string;
-    }>;
-}
+import { truncateText } from '../../../../../shared/ui/AnnouncementCard/AnnouncementCard';
 
 interface ServicesSectionProps {
     services: Service[];
@@ -54,15 +42,22 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
 
     const getServiceImage = (service: Service): string => {
         // Если есть массив изображений и в нём есть хотя бы одно изображение
-        if (service.images && service.images.length > 0) {
-            const firstImage = service.images[0].image;
-            
-            // Проверяем, это URL или путь к файлу
-            if (firstImage.startsWith('http')) {
-                return firstImage;
-            } else {
-                // Формируем полный URL к изображению
-                return `${API_BASE_URL}/images/ticket_photos/${firstImage}`;
+        if (service.images && Array.isArray(service.images) && service.images.length > 0) {
+            const firstImageObj = service.images[0];
+            // Проверяем, что это объект с полем image
+            if (firstImageObj && typeof firstImageObj === 'object' && 'image' in firstImageObj) {
+                const firstImage = firstImageObj.image;
+                
+                // Проверяем, что image это строка
+                if (typeof firstImage === 'string' && firstImage.length > 0) {
+                    // Проверяем, это URL или путь к файлу
+                    if (firstImage.startsWith('http')) {
+                        return firstImage;
+                    } else {
+                        // Формируем полный URL к изображению
+                        return `${API_BASE_URL}/images/ticket_photos/${firstImage}`;
+                    }
+                }
             }
         }
         
@@ -76,7 +71,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
 
     return (
         <div className={styles.section_item}>
-            <h3>Услуги ({activeServices.length})</h3>
+            <h3>Объявления / Услуги ({activeServices.length})</h3>
             <div className={styles.section_content}>
                 {servicesLoading ? (
                     <div className={styles.loading}>Загрузка услуг...</div>
@@ -91,19 +86,19 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                                 <div className={styles.service_image}>
                                     <img 
                                         src={getServiceImage(service)} 
-                                        alt={service.title}
+                                        alt={typeof service.title === 'string' ? service.title : 'Услуга'}
                                         onError={handleImageError}
                                     />
                                 </div>
                                 <div className={styles.service_content}>
                                     <div className={styles.service_header}>
-                                        <h4 className={styles.service_title}>{service.title}</h4>
+                                        <h4 className={styles.service_title}>{truncateText(typeof service.title === 'string' ? service.title : (typeof service.title === 'object' && service.title && 'title' in service.title ? String((service.title as any).title) : 'Услуга'), 20)}</h4>
                                         <div className={styles.service_price}>
-                                            {service.price} TJS / {service.unit}
+                                            {typeof service.price === 'number' ? service.price : (typeof service.price === 'object' && service.price && 'value' in service.price ? Number((service.price as any).value) : 0)} TJS / {typeof service.unit === 'string' ? service.unit : (typeof service.unit === 'object' && service.unit && 'title' in service.unit ? String((service.unit as any).title) : 'шт')}
                                         </div>
                                     </div>
                                     {service.description && (
-                                        <p className={styles.service_description}>{service.description}</p>
+                                        <p className={styles.service_description}>{typeof service.description === 'string' ? service.description : (typeof service.description === 'object' && service.description && 'text' in service.description ? String((service.description as any).text) : '')}</p>
                                     )}
                                     {service.createdAt && (
                                         <div className={styles.service_date}>

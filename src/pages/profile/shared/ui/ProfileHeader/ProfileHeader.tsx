@@ -1,28 +1,32 @@
 import React, { ChangeEvent, RefObject } from 'react';
+import { UserRole, Occupation } from '../../../../../entities';
 import styles from './ProfileHeader.module.scss';
 
 interface ProfileHeaderProps {
     avatar: string | null;
     fullName: string;
+    email?: string;
+    gender?: string;
     specialty: string;
     specialties?: string[];
     rating: number;
     reviewsCount: number;
-    editingField: 'fullName' | 'specialty' | null;
+    editingField: 'fullName' | 'specialty' | 'gender' | null;
     tempValue: string;
     selectedSpecialties?: string[];
-    occupations: { id: number; title: string }[];
+    occupations: Occupation[];
     fileInputRef: RefObject<HTMLInputElement | null>;
     specialtyInputRef: RefObject<HTMLSelectElement | null>;
     isLoading: boolean;
     readOnly?: boolean;
+    userRole?: UserRole | null;
     onAvatarClick: () => void;
     onFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
     onImageError: (e: React.SyntheticEvent<HTMLImageElement, Event>) => void;
-    onEditStart: (field: 'fullName' | 'specialty') => void;
+    onEditStart: (field: 'fullName' | 'specialty' | 'gender') => void;
     onTempValueChange: (value: string) => void;
-    onInputSave: (field: 'fullName' | 'specialty') => void;
-    onInputKeyPress: (e: React.KeyboardEvent, field: 'fullName' | 'specialty') => void;
+    onInputSave: (field: 'fullName' | 'specialty' | 'gender') => void;
+    onInputKeyPress: (e: React.KeyboardEvent, field: 'fullName' | 'specialty' | 'gender') => void;
     onSpecialtySave: () => void;
     onEditCancel: () => void;
     onAddSpecialty?: (specialty: string) => void;
@@ -32,6 +36,8 @@ interface ProfileHeaderProps {
 export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     avatar,
     fullName,
+    email,
+    gender,
     specialty,
     specialties = [],
     rating,
@@ -44,6 +50,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     specialtyInputRef,
     isLoading,
     readOnly = false,
+    userRole,
     onAvatarClick,
     onFileChange,
     onImageError,
@@ -56,11 +63,24 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     onAddSpecialty,
     onRemoveSpecialty,
 }) => {
-    const displaySpecialties = specialties.length > 0 ? specialties : [specialty];
+    const getGenderDisplay = (value: string | undefined): string => {
+        if (!value) return 'Не указано';
+        if (value === 'male' || value === 'gender_male') return 'Мужской';
+        if (value === 'female' || value === 'gender_female') return 'Женский';
+        return 'Не указано';
+    };
+
+    // Ensure displaySpecialties contains only strings
+    const safeSpecialties = specialties.length > 0 
+        ? specialties.map(s => typeof s === 'string' ? s : (typeof s === 'object' && s && 'title' in s ? String((s as any).title) : '')).filter(Boolean)
+        : [specialty].filter(s => s && typeof s === 'string');
+    
+    const displaySpecialties = safeSpecialties.length > 0 ? safeSpecialties : ['Специальность'];
+    
     // В режиме редактирования используем selectedSpecialties, иначе specialties для отображения
     const currentSelectedSpecialties = editingField === 'specialty' 
         ? selectedSpecialties 
-        : (specialties.length > 0 ? specialties : []);
+        : safeSpecialties;
 
     const handleAddSpecialty = () => {
         if (tempValue.trim() && onAddSpecialty && !currentSelectedSpecialties.includes(tempValue)) {
@@ -134,136 +154,145 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                             </div>
                         ) : (
                             <div className={styles.name_with_icon}>
-                                <span className={styles.name}>{fullName}</span>
-                                {!readOnly && <button
-                                    className={styles.edit_icon}
-                                    onClick={() => onEditStart('fullName')}
-                                >
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <g clipPath="url(#clip0_188_2958)">
-                                            <g clipPath="url(#clip1_188_2958)">
+                                <div>
+                                    <div className={styles.name_container}>
+                                        <span className={styles.name}>{fullName}</span>
+                                        {!readOnly && <button
+                                            className={styles.edit_icon}
+                                            onClick={() => onEditStart('fullName')}
+                                        >
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                                                 <path d="M7.2302 20.59L2.4502 21.59L3.4502 16.81L17.8902 2.29001C18.1407 2.03889 18.4385 1.83982 18.7663 1.70424C19.0941 1.56865 19.4455 1.49925 19.8002 1.50001C20.5163 1.50001 21.203 1.78447 21.7094 2.29082C22.2157 2.79717 22.5002 3.48392 22.5002 4.20001C22.501 4.55474 22.4315 4.90611 22.296 5.23391C22.1604 5.56171 21.9613 5.85945 21.7102 6.11001L7.2302 20.59Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                                <path d="M0.549805 22.5H23.4498" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                                <path d="M19.6403 8.17986L15.8203 4.35986" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                            </g>
-                                        </g>
-                                        <defs>
-                                            <clipPath id="clip0_188_2958">
-                                                <rect width="24" height="24" fill="white"/>
-                                            </clipPath>
-                                            <clipPath id="clip1_188_2958">
-                                                <rect width="24" height="24" fill="white"/>
-                                            </clipPath>
-                                        </defs>
-                                    </svg>
-                                </button>}
+                                            </svg>
+                                        </button>}
+                                    </div>
+                                    <div className={styles.subinfo}>
+                                        {editingField === 'gender' ? (
+                                            <select
+                                                value={tempValue}
+                                                onChange={(e) => onTempValueChange(e.target.value)}
+                                                onBlur={() => onInputSave('gender')}
+                                                onKeyDown={(e) => onInputKeyPress(e, 'gender')}
+                                                className={styles.specialty_select}
+                                                autoFocus
+                                            >
+                                                <option value="">Не указан</option>
+                                                <option value="male">Мужской</option>
+                                                <option value="female">Женский</option>
+                                            </select>
+                                        ) : (
+                                            <>
+                                                <div 
+                                                    className={styles.gender_tag} 
+                                                    onClick={!readOnly ? () => onEditStart('gender') : undefined}
+                                                    style={!readOnly ? { cursor: 'pointer' } : undefined}
+                                                >
+                                                    <span>{getGenderDisplay(gender)}</span>
+                                                </div>
+                                                {email && (
+                                                    <div className={styles.email_tag}>
+                                                        <a href={`mailto:${email}`}>{email}</a>
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>
 
-                    <div className={styles.specialty_row}>
-                        {editingField === 'specialty' ? (
-                            <div className={styles.specialty_edit_container}>
-                                {/* Список выбранных специальностей */}
-                                {currentSelectedSpecialties.length > 0 && (
-                                    <div className={styles.selected_specialties}>
-                                        {currentSelectedSpecialties.map((spec, index) => (
-                                            <div key={index} className={styles.specialty_tag}>
-                                                <span>{spec}</span>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleRemoveSpecialty(spec)}
-                                                    className={styles.remove_specialty_btn}
-                                                    aria-label="Удалить специальность"
-                                                >
-                                                    ×
-                                                </button>
-                                            </div>
+                    {userRole === 'master' && (
+                        <div className={styles.specialty_row}>
+                            {editingField === 'specialty' ? (
+                                <div className={styles.specialty_edit_container}>
+                                    {/* Список выбранных специальностей */}
+                                    {currentSelectedSpecialties.length > 0 && (
+                                        <div className={styles.selected_specialties}>
+                                            {currentSelectedSpecialties.map((spec, index) => (
+                                                <div key={index} className={styles.specialty_tag}>
+                                                    <span>{typeof spec === 'string' ? spec : ''}</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRemoveSpecialty(spec)}
+                                                        className={styles.remove_specialty_btn}
+                                                        aria-label="Удалить специальность"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Селект для добавления новой специальности */}
+                                    <div className={styles.add_specialty_container}>
+                                        <select
+                                            key={`specialty-select-${currentSelectedSpecialties.length}`}
+                                            ref={specialtyInputRef}
+                                            value={tempValue}
+                                            onChange={(e) => onTempValueChange(e.target.value)}
+                                            className={styles.specialty_select}
+                                        >
+                                            <option value="">Добавить специальность</option>
+                                            {occupations
+                                                .filter(occupation => !currentSelectedSpecialties.includes(occupation.title))
+                                                .map(occupation => (
+                                                    <option
+                                                        key={occupation.id}
+                                                        value={occupation.title}
+                                                    >
+                                                        {occupation.title}
+                                                    </option>
+                                                ))}
+                                        </select>
+                                        <button
+                                            type="button"
+                                            className={styles.add_specialty_btn}
+                                            onClick={handleAddSpecialty}
+                                            disabled={!tempValue.trim()}
+                                        >
+                                            Добавить
+                                        </button>
+                                    </div>
+
+                                    <div className={styles.specialty_actions}>
+                                        <button
+                                            className={styles.save_occupations_btn}
+                                            onClick={onSpecialtySave}
+                                            disabled={isLoading || currentSelectedSpecialties.length === 0}
+                                        >
+                                            {isLoading ? 'Сохранение...' : 'Сохранить'}
+                                        </button>
+                                        <button
+                                            className={styles.cancel_occupations_btn}
+                                            onClick={onEditCancel}
+                                        >
+                                            Отмена
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className={styles.specialty_with_icon}>
+                                    <div className={styles.specialties_display}>
+                                        {displaySpecialties.map((spec, index) => (
+                                            <span key={index} className={styles.specialty_badge}>
+                                                {typeof spec === 'string' ? spec : ''}
+                                            </span>
                                         ))}
                                     </div>
-                                )}
-
-                                {/* Селект для добавления новой специальности */}
-                                <div className={styles.add_specialty_container}>
-                                    <select
-                                        key={`specialty-select-${currentSelectedSpecialties.length}`}
-                                        ref={specialtyInputRef}
-                                        value={tempValue}
-                                        onChange={(e) => onTempValueChange(e.target.value)}
-                                        className={styles.specialty_select}
+                                    {!readOnly && <button
+                                        className={styles.edit_icon}
+                                        onClick={() => onEditStart('specialty')}
                                     >
-                                        <option value="">Добавить специальность</option>
-                                        {occupations
-                                            .filter(occupation => !currentSelectedSpecialties.includes(occupation.title))
-                                            .map(occupation => (
-                                                <option
-                                                    key={occupation.id}
-                                                    value={occupation.title}
-                                                >
-                                                    {occupation.title}
-                                                </option>
-                                            ))}
-                                    </select>
-                                    <button
-                                        type="button"
-                                        className={styles.add_specialty_btn}
-                                        onClick={handleAddSpecialty}
-                                        disabled={!tempValue.trim()}
-                                    >
-                                        Добавить
-                                    </button>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                            <path d="M7.2302 20.59L2.4502 21.59L3.4502 16.81L17.8902 2.29001C18.1407 2.03889 18.4385 1.83982 18.7663 1.70424C19.0941 1.56865 19.4455 1.49925 19.8002 1.50001C20.5163 1.50001 21.203 1.78447 21.7094 2.29082C22.2157 2.79717 22.5002 3.48392 22.5002 4.20001C22.501 4.55474 22.4315 4.90611 22.296 5.23391C22.1604 5.56171 21.9613 5.85945 21.7102 6.11001L7.2302 20.59Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                        </svg>
+                                    </button>}
                                 </div>
-
-                                <div className={styles.specialty_actions}>
-                                    <button
-                                        className={styles.save_occupations_btn}
-                                        onClick={onSpecialtySave}
-                                        disabled={isLoading || currentSelectedSpecialties.length === 0}
-                                    >
-                                        {isLoading ? 'Сохранение...' : 'Сохранить'}
-                                    </button>
-                                    <button
-                                        className={styles.cancel_occupations_btn}
-                                        onClick={onEditCancel}
-                                    >
-                                        Отмена
-                                    </button>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className={styles.specialty_with_icon}>
-                                <div className={styles.specialties_display}>
-                                    {displaySpecialties.map((spec, index) => (
-                                        <span key={index} className={styles.specialty_badge}>
-                                            {spec}
-                                        </span>
-                                    ))}
-                                </div>
-                                {!readOnly && <button
-                                    className={styles.edit_icon}
-                                    onClick={() => onEditStart('specialty')}
-                                >
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <g clipPath="url(#clip0_188_2958)">
-                                            <g clipPath="url(#clip1_188_2958)">
-                                                <path d="M7.2302 20.59L2.4502 21.59L3.4502 16.81L17.8902 2.29001C18.1407 2.03889 18.4385 1.83982 18.7663 1.70424C19.0941 1.56865 19.4455 1.49925 19.8002 1.50001C20.5163 1.50001 21.203 1.78447 21.7094 2.29082C22.2157 2.79717 22.5002 3.48392 22.5002 4.20001C22.501 4.55474 22.4315 4.90611 22.296 5.23391C22.1604 5.56171 21.9613 5.85945 21.7102 6.11001L7.2302 20.59Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                                <path d="M0.549805 22.5H23.4498" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                                <path d="M19.6403 8.17986L15.8203 4.35986" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                            </g>
-                                        </g>
-                                        <defs>
-                                            <clipPath id="clip0_188_2958">
-                                                <rect width="24" height="24" fill="white"/>
-                                            </clipPath>
-                                            <clipPath id="clip1_188_2958">
-                                                <rect width="24" height="24" fill="white"/>
-                                            </clipPath>
-                                        </defs>
-                                    </svg>
-                                </button>}
-                            </div>
-                        )}
-                    </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <div className={styles.rating_reviews}>

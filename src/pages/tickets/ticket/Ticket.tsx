@@ -220,7 +220,7 @@ export function Ticket() {
             }
 
             // Конкретный запрос отзывов для определенного мастера/пользователя
-            const reviewsResponse = await fetch(`${API_BASE_URL}/api/reviews?services.service=true&exists[services]=true&exists[master]=true&exists[client]=true&master=${userId}`, {headers});
+            const reviewsResponse = await fetch(`${API_BASE_URL}/api/reviews?exists[services]=true&exists[master]=true&exists[client]=true&master=${userId}`, {headers});
 
             if (!reviewsResponse.ok) {
                 console.error('Failed to fetch reviews:', reviewsResponse.status);
@@ -1320,17 +1320,17 @@ export function Ticket() {
             if (userInfo && userInfo.roles) {
                 if (userInfo.roles.includes('ROLE_MASTER')) {
                     console.log('Navigating to master profile');
-                    navigate(`/master/${userId}`); // Используйте navigate вместо window.location.href
+                    navigate(`/profile/${userId}`);
                 } else if (userInfo.roles.includes('ROLE_CLIENT')) {
                     console.log('Navigating to client profile');
-                    navigate(`/client/${userId}`); // Используйте navigate вместо window.location.href
+                    navigate(`/profile/${userId}`);
                 } else {
-                    console.log('Unknown role, defaulting to master');
-                    navigate(`/master/${userId}`); // Используйте navigate вместо window.location.href
+                    console.log('Unknown role, defaulting to profile');
+                    navigate(`/profile/${userId}`);
                 }
             } else {
-                console.log('Could not determine role, defaulting to master');
-                navigate(`/master/${userId}`); // Используйте navigate вместо window.location.href
+                console.log('Could not determine role, defaulting to profile');
+                navigate(`/profile/${userId}`);
             }
         } catch (error) {
             console.error('Error determining role:', error);
