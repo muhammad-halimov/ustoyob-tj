@@ -156,7 +156,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         specialty: '',
         newPassword: '',
         phoneOrEmail: '',
-        role: 'master',
+        role: 'client', // Безопасный дефолт (client вместо master)
         code: ''
     });
     const [isLoading, setIsLoading] = useState(false);
@@ -447,19 +447,30 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 setUserEmail(data.user.email);
             }
 
+            console.log('🔥🔥🔥 OAuth saveUserData - data.user:', data.user);
+            console.log('🔥 formData.role:', formData.role);
+            console.log('🔥 data.user.roles from OAuth:', data.user.roles);
+
             // Определяем роль из ответа сервера
             if (data.user.roles && data.user.roles.length > 0) {
                 const roles = data.user.roles.map(r => r.toLowerCase());
+                console.log('🔥 roles after toLowerCase():', roles);
 
                 if (roles.includes('role_master') || roles.includes('master')) {
+                    console.log('✅ OAuth MATCHED: role_master or master → setUserRole("master")');
                     setUserRole('master');
                 } else if (roles.includes('role_client') || roles.includes('client')) {
+                    console.log('✅ OAuth MATCHED: role_client or client → setUserRole("client")');
                     setUserRole('client');
                 } else {
-                    setUserRole(formData.role);
+                    // Роли не распознаны - используем client как безопасный дефолт
+                    console.log('⚠️ OAuth NO MATCH in roles:', roles, '→ Using safe default: "client"');
+                    setUserRole('client');
                 }
             } else {
-                setUserRole(formData.role);
+                // Нет ролей в ответе - используем client как безопасный дефолт
+                console.log('⚠️ OAuth no roles in response → Using safe default: "client"');
+                setUserRole('client');
             }
 
             // Сохраняем occupation если есть
@@ -661,7 +672,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
             if (userResponse.ok) {
                 const userData = await userResponse.json();
-                console.log('User data from /me endpoint:', userData);
+                console.log('🔥🔥🔥 User data from /me endpoint:', userData);
 
                 // Сохраняем данные пользователя
                 setUserData(userData);
@@ -670,26 +681,43 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     setUserEmail(userData.email);
                 }
 
-                // Определяем роль из данных пользователя
-                let userRole = formData.role; // По умолчанию берем из формы
+                // Определяем роль из данных пользователя (ТОЛЬКО ОТ API, НЕ ИЗ ФОРМЫ!)
+                let userRole: 'client' | 'master' | null = null;
+
+                console.log('🔥🔥🔥 LOGIN - userData.roles from API:', userData.roles);
+                console.log('🔥 userData.roles type:', typeof userData.roles, 'isArray:', Array.isArray(userData.roles));
 
                 if (userData.roles && userData.roles.length > 0) {
                     const roles = userData.roles.map((r: string) => r.toLowerCase());
+                    console.log('🔥 roles after toLowerCase():', roles);
 
                     if (roles.includes('role_master') || roles.includes('master')) {
                         userRole = 'master';
+                        console.log('✅ LOGIN MATCHED: role_master or master → userRole = "master"');
                     } else if (roles.includes('role_client') || roles.includes('client')) {
                         userRole = 'client';
+                        console.log('✅ LOGIN MATCHED: role_client or client → userRole = "client"');
+                    } else {
+                        // API вернул роли, но они не распознаны - используем client как безопасный дефолт
+                        userRole = 'client';
+                        console.log('⚠️ LOGIN NO MATCH in roles:', roles, '→ Using safe default: "client"');
                     }
 
-                    console.log('User roles from API:', userData.roles);
-                    console.log('Detected role from API:', userRole);
+                    console.log('🔥 Final detected role from API:', userRole);
                 } else {
-                    console.log('No roles in API response, using role from form:', userRole);
+                    // API вообще не вернул роли - используем client как безопасный дефолт
+                    userRole = 'client';
+                    console.log('⚠️ LOGIN No roles in API response → Using safe default: "client"');
                 }
 
-                // Устанавливаем роль
-                setUserRole(userRole);
+                console.log('💾💾💾 LOGIN Calling setUserRole with:', userRole);
+                // Устанавливаем роль (должна быть client или master, не null)
+                if (userRole) {
+                    setUserRole(userRole);
+                } else {
+                    console.error('❌ LOGIN userRole is null! This should never happen!');
+                    setUserRole('client'); // Крайний fallback
+                }
 
                 // Сохраняем occupation если есть
                 if (userData.occupation) {
@@ -926,16 +954,19 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
                     // Проверяем роли из API
                     if (userData.roles && userData.roles.length > 0) {
-                        console.log('User roles from API:', userData.roles);
+                        console.log('🔥🔥🔥 Registration - User roles from API:', userData.roles);
 
                         const roles = userData.roles.map((r: string) => r.toLowerCase());
+                        console.log('🔥 roles after toLowerCase():', roles);
 
                         if (roles.includes('role_master') || roles.includes('master')) {
+                            console.log('✅ Registration MATCHED: role_master → setUserRole("master")');
                             setUserRole('master');
-                            console.log('Setting role from API as master');
                         } else if (roles.includes('role_client') || roles.includes('client')) {
+                            console.log('✅ Registration MATCHED: role_client → setUserRole("client")');
                             setUserRole('client');
-                            console.log('Setting role from API as client');
+                        } else {
+                            console.log('⚠️ Registration NO MATCH in roles, keeping formData.role:', formData.role);
                         }
                     }
                 } else {
@@ -1035,17 +1066,14 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             setUserEmail(email);
         }
 
-        // Проверяем, есть ли уже сохраненная роль
+        // НЕ перезаписываем роль здесь! Роль уже установлена в fetchUserData/saveUserData
         const existingRole = getUserRole();
-
-        // Если нет сохраненной роли, используем роль из формы
+        console.log('🔥🔥🔥 handleSuccessfulAuth - existing role in localStorage:', existingRole);
+        
         if (!existingRole) {
-            console.log('Setting role from form after successful auth:', formData.role);
-            setUserRole(formData.role);
-        } else {
-            console.log('Role already exists:', existingRole);
-            // Все равно обновляем роль из формы на всякий случай
-            setUserRole(formData.role);
+            console.error('❌ No role found after auth! This should not happen!');
+            // Крайний случай - используем client как безопасный дефолт
+            setUserRole('client');
         }
 
         resetForm();
@@ -1071,7 +1099,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             specialty: '',
             newPassword: '',
             phoneOrEmail: '',
-            role: 'master',
+            role: 'client', // Безопасный дефолт (client вместо master)
             code: ''
         });
         setError('');

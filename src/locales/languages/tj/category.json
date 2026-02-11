@@ -8,5 +8,30 @@
   "loading": "Бор кардани категорияҳо...",
   "noCategories": "Категорияҳо дастрас нестанд",
   "viewAll": "Ҳамаро дидан",
-  "showLess": "Камтар кардан"
+  "showLess": "Камтар кардан",
+  "filters": {
+    "onlyServices": "Фақат хизматҳо",
+    "onlyServicesDesc": "Намоиш додани фақат пешниҳодҳои хизматҳо аз устоҳо",
+    "onlyAnnouncements": "Фақат эълонҳо",
+    "onlyAnnouncementsDesc": "Намоиш додани фақат фармоишҳо аз мизоҷон"
+  },
+  "sorting": {
+    "primarySort": "Тартиби асосӣ:",
+    "secondarySort": "Иловагӣ:",
+    "timePeriod": "Давра:",
+    "newest": "Аз навтаринҳо",
+    "oldest": "Аз кӯҳнатаринҳо",
+    "priceAsc": "Аз рӯи нарх (афзоиш)",
+    "priceDesc": "Аз рӯи нарх (коҳиш)",
+    "reviewsAsc": "Аз рӯи шарҳҳо (афзоиш)",
+    "reviewsDesc": "Аз рӯи шарҳҳо (коҳиш)",
+    "ratingAsc": "Аз рӯи рейтинг (афзоиш)",
+    "ratingDesc": "Аз рӯи рейтинг (коҳиш)",
+    "none": "Нест",
+    "all": "Ҳамавақт",
+    "today": "Имрӯз",
+    "yesterday": "Дирӯз",
+    "week": "Ҳафта",
+    "month": "Моҳ"
+  }
 }

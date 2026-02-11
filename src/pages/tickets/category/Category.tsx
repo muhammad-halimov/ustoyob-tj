@@ -1,10 +1,14 @@
 import {useState, useEffect, useCallback} from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getAuthToken, getUserRole } from '../../../utils/auth.ts';
+import { getAuthToken, getUserRole, getUserData } from '../../../utils/auth.ts';
+import { getStorageItem } from '../../../utils/storageHelper.ts';
 import { useLanguageChange } from '../../../hooks/useLanguageChange.ts';
 import styles from './Category.module.scss';
 import { AnnouncementCard } from '../../../shared/ui/AnnouncementCard/AnnouncementCard.tsx';
+import { ServiceTypeFilter } from '../../../widgets/Sorting/ServiceTypeFilter';
+import { SortingFilter } from '../../../widgets/Sorting/SortingFilter';
 import { useTranslation } from 'react-i18next';
+import CookieConsentBanner from "../../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
 
 interface Occupation {
     id: number;
@@ -112,27 +116,80 @@ function Category() {
     const [selectedSubcategory, setSelectedSubcategory] = useState<number | null>(null);
     const [showAllOccupations, setShowAllOccupations] = useState(false);
     const [subcategorySearchQuery, setSubcategorySearchQuery] = useState<string>('');
-    const { t } = useTranslation(['components', 'category']);
+    const [showOnlyServices, setShowOnlyServices] = useState(false);
+    const [showOnlyAnnouncements, setShowOnlyAnnouncements] = useState(false);
+    const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'price-asc' | 'price-desc' | 'reviews-asc' | 'reviews-desc' | 'rating-asc' | 'rating-desc'>('newest');
+    const [secondarySortBy, setSecondarySortBy] = useState<'none' | 'newest' | 'oldest' | 'price-asc' | 'price-desc' | 'reviews-asc' | 'reviews-desc' | 'rating-asc' | 'rating-desc'>('none');
+    const [timeFilter, setTimeFilter] = useState<'all' | 'today' | 'yesterday' | 'week' | 'month'>('all');
+    const { t, i18n } = useTranslation(['components', 'category']);
+    const locale = i18n.language;
     
     useLanguageChange(() => {
         // При смене языка переполучаем данные для обновления локализованного контента
         if (id) {
             fetchCategoryName();
             fetchOccupations();
-            fetchTicketsByCategory();
+            // fetchTicketsByCategory вызовется автоматически через useEffect при изменении языка
         }
     });
 
     useEffect(() => {
         const role = getUserRole();
+        const rawRole = typeof window !== 'undefined' ? localStorage.getItem('userRole') : null;
+        console.log('🔥 Category - Initial mount');
+        console.log('🔥 localStorage["userRole"]:', rawRole);
+        console.log('🔥 getUserRole() returned:', role);
         setUserRole(role);
 
         if (id) {
-            fetchTicketsByCategory();
+            // НЕ вызываем fetchTicketsByCategory здесь, он вызовется из useEffect с зависимостью userRole
             fetchCategoryName();
             fetchOccupations();
         }
     }, [id]);
+
+    // Отслеживаем изменения роли и перезагружаем данные
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const currentRole = getUserRole();
+            const rawRole = typeof window !== 'undefined' ? localStorage.getItem('userRole') : null;
+            if (currentRole !== userRole) {
+                console.log('🔥 Category - Role changed from', userRole, 'to', currentRole);
+                console.log('🔥 localStorage["userRole"]:', rawRole);
+                setUserRole(currentRole);
+            }
+        }, 1000);
+        
+        return () => clearInterval(interval);
+    }, [userRole]);
+
+    // Перезагружаем данные при изменении роли или языка
+    useEffect(() => {
+        if (id) {
+            const token = getAuthToken();
+            
+            // Загружаем данные если:
+            // 1) userRole !== null (пользователь авторизован и роль загружена)
+            // 2) !token (пользователь НЕ авторизован, userRole будет null - это нормально)
+            // НЕ загружаем если: token && userRole === null (авторизован, но роль еще не загрузилась из localStorage)
+            const shouldFetch = userRole !== null || !token;
+            
+            console.log('Category - Check if should fetch:', {
+                id,
+                userRole,
+                hasToken: !!token,
+                shouldFetch,
+                locale
+            });
+            
+            if (shouldFetch) {
+                console.log('Category - Triggering data reload for role:', userRole, 'locale:', locale);
+                fetchTicketsByCategory();
+            } else {
+                console.log('⏳ Category - Waiting for userRole to load from localStorage...');
+            }
+        }
+    }, [userRole, id, locale, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter]);
 
     const formatProfileImageUrl = (imagePath: string): string => {
         if (!imagePath) return '';
@@ -165,16 +222,14 @@ function Category() {
 
     const fetchCategoryName = async () => {
         try {
-            const headers: HeadersInit = {
-                'Accept': 'application/json'
-            };
             const token = getAuthToken();
+            const locale = getStorageItem('i18nextLng') || 'ru';
+            const headers: HeadersInit = {
+                'Accept': 'application/json',
+                ...(token && { 'Authorization': `Bearer ${token}` })
+            };
 
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-
-            const response = await fetch(`${API_BASE_URL}/api/categories/${id}?locale=${localStorage.getItem('i18nextLng') || 'ru'}`, {
+            const response = await fetch(`${API_BASE_URL}/api/categories/${id}?locale=${locale}`, {
                 headers: headers
             });
 
@@ -192,16 +247,14 @@ function Category() {
 
     const fetchOccupations = async () => {
         try {
-            const headers: HeadersInit = {
-                'Accept': 'application/json'
-            };
             const token = getAuthToken();
+            const currentLang = getStorageItem('i18nextLng') || 'ru';
+            const languageParam = currentLang === 'tj' ? 'tj' : (currentLang === 'ru' ? 'ru' : 'eng');
+            const headers: HeadersInit = {
+                'Accept': 'application/json',
+                ...(token && { 'Authorization': `Bearer ${token}` })
+            };
 
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-
-            const languageParam = (localStorage.getItem('i18nextLng') || 'ru') === 'tj' ? 'tj' : ((localStorage.getItem('i18nextLng') || 'ru') === 'ru' ? 'ru' : 'eng');
             const response = await fetch(`${API_BASE_URL}/api/occupations?locale=${languageParam}`, {
                 headers: headers,
             });
@@ -377,65 +430,79 @@ function Category() {
         try {
             setIsLoading(true);
             const token = getAuthToken();
-            const role = getUserRole();
+            const userData = getUserData();
+            const currentUserId = userData?.id;
+            const rawRole = typeof window !== 'undefined' ? localStorage.getItem('userRole') : null;
 
-            console.log('Fetching tickets for category:', id);
-            console.log('Selected subcategory:', selectedSubcategory);
-            console.log('User role:', role);
-            console.log('Token exists:', !!token);
+            console.log('============================================');
+            console.log('🚀 Category - Fetching tickets for category:', id);
+            console.log('🚀 Category - Selected subcategory:', selectedSubcategory);
+            console.log('🚀 Category - locale:', locale);
+            console.log('🚀 localStorage["userRole"]:', rawRole);
+            console.log('🚀 Category - userRole STATE:', userRole);
+            console.log('🚀 Category - getUserRole():', getUserRole());
+            console.log('🚀 Category - Current user ID:', currentUserId);
+            console.log('🚀 Category - Token exists:', !!token);
+            console.log('============================================');
 
-            // Убеждаемся, что id есть
             if (!id) {
-                console.error('No category ID provided');
+                console.error('Category - No category ID provided');
                 setTickets([]);
                 return;
             }
 
-            let ticketsData: Ticket[] = [];
-
-            if (!token || role === null) {
-                // Для неавторизованных - получаем все тикеты (и услуги и заказы)
-                console.log('Fetching all tickets for unauthorized user');
-                const [masterTickets, clientTickets] = await Promise.all([
-                    fetchTicketsWithParams({
-                        active: 'true',
-                        service: 'true',
-                        'exists[master]': 'true',
-                        'category': id,
-                        ...(selectedSubcategory && { 'subcategory': selectedSubcategory.toString() })
-                    }),
-                    fetchTicketsWithParams({
-                        active: 'true',
-                        service: 'false',
-                        'exists[author]': 'true',
-                        'category': id,
-                        ...(selectedSubcategory && { 'subcategory': selectedSubcategory.toString() })
-                    })
-                ]);
-                ticketsData = [...masterTickets, ...clientTickets];
-            } else if (role === 'client') {
-                // Для клиентов - получаем тикеты мастеров (услуги)
-                console.log('Fetching master tickets for client');
-                ticketsData = await fetchTicketsWithParams({
-                    active: 'true',
-                    service: 'true',
-                    'exists[master]': 'true',
-                    'category': id,
-                    ...(selectedSubcategory && { 'subcategory': selectedSubcategory.toString() })
-                }, token);
-            } else if (role === 'master') {
-                // Для мастеров - получаем тикеты клиентов (заказы)
-                console.log('Fetching client tickets for master');
-                ticketsData = await fetchTicketsWithParams({
-                    active: 'true',
-                    service: 'false',
-                    'exists[author]': 'true',
-                    'category': id,
-                    ...(selectedSubcategory && { 'subcategory': selectedSubcategory.toString() })
-                }, token);
+            // Если есть токен но роль еще не загрузилась - ждем
+            if (token && userRole === null) {
+                console.log('⏳ Category - Waiting for userRole to load...');
+                setIsLoading(false);
+                return;
             }
 
-            console.log('Total tickets received:', ticketsData.length);
+            console.log('🔍 TERNARY CHECK - userRole === "client":', userRole === 'client');
+            console.log('🔍 TERNARY CHECK - userRole === "master":', userRole === 'master');
+            console.log('🔍 TERNARY CHECK - userRole value:', userRole, 'type:', typeof userRole);
+            console.log('🔍 TERNARY CHECK - showOnlyServices:', showOnlyServices);
+            console.log('🔍 TERNARY CHECK - showOnlyAnnouncements:', showOnlyAnnouncements);
+
+            // Формируем базовый endpoint с учетом фильтров "Только услуги" и "Только объявления"
+            let endpoint = '';
+            
+            if (userRole === 'client') {
+                endpoint = `/api/tickets?locale=${locale}&active=true&service=true&exists[author]=false&exists[master]=true&category=${id}${selectedSubcategory ? `&subcategory=${selectedSubcategory}` : ''}${currentUserId ? `&master.id[ne]=${currentUserId}` : ''}`;
+            } else if (userRole === 'master') {
+                endpoint = `/api/tickets?locale=${locale}&active=true&service=false&exists[author]=true&exists[master]=false&category=${id}${selectedSubcategory ? `&subcategory=${selectedSubcategory}` : ''}${currentUserId ? `&author.id[ne]=${currentUserId}` : ''}`;
+            } else {
+                // Для неавторизованных: применяем фильтры
+                if (showOnlyServices) {
+                    // Только услуги от мастеров (service=true)
+                    endpoint = `/api/tickets?locale=${locale}&active=true&service=true&category=${id}${selectedSubcategory ? `&subcategory=${selectedSubcategory}` : ''}`;
+                } else if (showOnlyAnnouncements) {
+                    // Только объявления от клиентов (service=false)
+                    endpoint = `/api/tickets?locale=${locale}&active=true&service=false&category=${id}${selectedSubcategory ? `&subcategory=${selectedSubcategory}` : ''}`;
+                } else {
+                    // Все объявления
+                    endpoint = `/api/tickets?locale=${locale}&active=true&category=${id}${selectedSubcategory ? `&subcategory=${selectedSubcategory}` : ''}`;
+                }
+            }
+
+            console.log('✅ Category - Selected endpoint:', `${API_BASE_URL}${endpoint}`);
+
+            const headers: HeadersInit = {
+                'Accept': 'application/json',
+                ...(token && { 'Authorization': `Bearer ${token}` })
+            };
+
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, { headers });
+
+            let ticketsData: Ticket[] = [];
+            if (response.ok) {
+                const data = await response.json();
+                ticketsData = Array.isArray(data) ? data : [];
+            } else {
+                console.error('Category - Error fetching tickets:', response.status, response.statusText);
+            }
+
+            console.log('Category - Total tickets received:', ticketsData.length);
 
             // Форматируем тикеты
             const formattedTickets: FormattedTicket[] = ticketsData.map(ticket => {
@@ -468,53 +535,79 @@ function Category() {
                 };
             });
 
-            setTickets(formattedTickets);
+            // Применяем фильтр по времени
+            let filteredTickets = formattedTickets;
+            if (timeFilter !== 'all') {
+                const now = new Date();
+                const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const startOfYesterday = new Date(startOfToday);
+                startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+                const startOfWeek = new Date(startOfToday);
+                startOfWeek.setDate(startOfWeek.getDate() - 7);
+                const startOfMonth = new Date(startOfToday);
+                startOfMonth.setMonth(startOfMonth.getMonth() - 1);
+
+                filteredTickets = formattedTickets.filter(ticket => {
+                    const ticketDate = new Date(ticket.date);
+                    
+                    switch (timeFilter) {
+                        case 'today':
+                            return ticketDate >= startOfToday;
+                        case 'yesterday':
+                            return ticketDate >= startOfYesterday && ticketDate < startOfToday;
+                        case 'week':
+                            return ticketDate >= startOfWeek;
+                        case 'month':
+                            return ticketDate >= startOfMonth;
+                        default:
+                            return true;
+                    }
+                });
+            }
+
+            // Применяем сортировку
+            const sortedTickets = [...filteredTickets].sort((a, b) => {
+                // Вспомогательная функция для получения значения сортировки
+                const getSortValue = (ticket: FormattedTicket, sortType: typeof sortBy | typeof secondarySortBy): number => {
+                    switch (sortType) {
+                        case 'newest':
+                            return new Date(ticket.date).getTime();
+                        case 'oldest':
+                            return -new Date(ticket.date).getTime();
+                        case 'price-asc':
+                            return ticket.price;
+                        case 'price-desc':
+                            return -ticket.price;
+                        case 'reviews-asc':
+                            return ticket.userReviewCount || 0;
+                        case 'reviews-desc':
+                            return -(ticket.userReviewCount || 0);
+                        case 'rating-asc':
+                            return ticket.userRating || 0;
+                        case 'rating-desc':
+                            return -(ticket.userRating || 0);
+                        default:
+                            return 0;
+                    }
+                };
+
+                // Основная сортировка
+                const primaryDiff = getSortValue(b, sortBy) - getSortValue(a, sortBy);
+                
+                // Если значения равны и есть вторичная сортировка, применяем её
+                if (primaryDiff === 0 && secondarySortBy !== 'none') {
+                    return getSortValue(b, secondarySortBy) - getSortValue(a, secondarySortBy);
+                }
+                
+                return primaryDiff;
+            });
+
+            setTickets(sortedTickets);
         } catch (error) {
             console.error('Error fetching tickets:', error);
             setTickets([]);
         } finally {
             setIsLoading(false);
-        }
-    };
-
-    // Универсальная функция для получения тикетов с query-параметрами
-    const fetchTicketsWithParams = async (params: Record<string, string>, token?: string): Promise<Ticket[]> => {
-        try {
-            const headers: HeadersInit = {
-                'Accept': 'application/json'
-            };
-
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-
-            // Создаем URL с query-параметрами
-            const url = new URL(`${API_BASE_URL}/api/tickets?locale=${localStorage.getItem('i18nextLng') || 'ru'}`);
-
-            // Добавляем параметры, убедившись, что они не undefined
-            Object.entries(params).forEach(([key, value]) => {
-                if (value !== undefined && value !== null) {
-                    url.searchParams.append(key, value);
-                }
-            });
-
-            console.log('Fetching from URL:', url.toString());
-
-            const response = await fetch(url.toString(), {
-                headers: headers
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                console.log(`Tickets fetched with params:`, data.length);
-                return Array.isArray(data) ? data : [];
-            } else {
-                console.error(`Error fetching tickets: ${response.status} ${response.statusText}`);
-                return [];
-            }
-        } catch (error) {
-            console.error(`Error fetching tickets with params:`, error);
-            return [];
         }
     };
 
@@ -536,6 +629,28 @@ function Category() {
         // При поиске сбрасываем "показать все", чтобы показать все результаты поиска
         if (query.trim()) {
             setShowAllOccupations(false);
+        }
+    };
+
+    const handleServiceToggle = () => {
+        if (!showOnlyServices) {
+            // Включаем "Только услуги" и выключаем "Только объявления"
+            setShowOnlyServices(true);
+            setShowOnlyAnnouncements(false);
+        } else {
+            // Выключаем "Только услуги"
+            setShowOnlyServices(false);
+        }
+    };
+
+    const handleAnnouncementsToggle = () => {
+        if (!showOnlyAnnouncements) {
+            // Включаем "Только объявления" и выключаем "Только услуги"
+            setShowOnlyAnnouncements(true);
+            setShowOnlyServices(false);
+        } else {
+            // Выключаем "Только объявления"
+            setShowOnlyAnnouncements(false);
         }
     };
 
@@ -569,7 +684,15 @@ function Category() {
     // Обновляем тикеты при изменении выбранной подкатегории
     useEffect(() => {
         if (id) {
-            fetchTicketsByCategory();
+            const token = getAuthToken();
+            const shouldFetch = userRole !== null || !token;
+            
+            if (shouldFetch) {
+                console.log('Category - Reloading due to subcategory change:', selectedSubcategory);
+                fetchTicketsByCategory();
+            } else {
+                console.log('⏳ Category - Waiting for userRole before reloading subcategory...');
+            }
         }
     }, [selectedSubcategory]);
 
@@ -743,6 +866,30 @@ function Category() {
                 </div>
             )}
 
+            {/* Переключатель "Только услуги" - показываем для неавторизованных и клиентов */}
+            {(userRole === null || userRole === 'client') && (
+                <div className={styles.service_filter_wrapper}>
+                    <ServiceTypeFilter
+                        showOnlyServices={showOnlyServices}
+                        showOnlyAnnouncements={showOnlyAnnouncements}
+                        onServiceToggle={handleServiceToggle}
+                        onAnnouncementsToggle={handleAnnouncementsToggle}
+                    />
+                </div>
+            )}
+
+            {/* Блок сортировки и фильтрации */}
+            <div className={styles.sorting_filter_wrapper}>
+                <SortingFilter
+                    sortBy={sortBy}
+                    secondarySortBy={secondarySortBy}
+                    timeFilter={timeFilter}
+                    onSortChange={setSortBy}
+                    onSecondarySortChange={setSecondarySortBy}
+                    onTimeFilterChange={setTimeFilter}
+                />
+            </div>
+
             <div className={styles.searchResults}>
                 {isLoading ? (
                     <div className={styles.loading}><p>Загрузка...</p></div>
@@ -783,6 +930,7 @@ function Category() {
                     ))
                 )}
             </div>
+            <CookieConsentBanner/>
         </div>
     );
 }

@@ -7,6 +7,7 @@ import { cleanText } from '../../utils/cleanText';
 import { useTranslation } from 'react-i18next';
 import { useLanguageChange } from '../../hooks/useLanguageChange';
 import { AnnouncementCard } from '../../shared/ui/AnnouncementCard/AnnouncementCard';
+import CookieConsentBanner from "../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
 
 interface FavoriteTicket {
     id: number;
@@ -1596,6 +1597,7 @@ function Favorites() {
                     </div>
                 </div>
             )}
+            <CookieConsentBanner/>
         </div>
     );
 }

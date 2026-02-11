@@ -1,0 +1,253 @@
+@use '../../app/styles/variables' as vars;
+@use 'sass:map';
+
+.container {
+  max-width: 800px;
+  margin: 40px auto 20px;
+  padding: 0 20px;
+  min-height: 60vh;
+}
+
+.header {
+  margin-bottom: 40px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid map.get(vars.$colors, color-stroke);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.navigation {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.navButton {
+  font-family: vars.$font-family;
+  background-color: transparent;
+  display: inline-flex;
+  color: map.get(vars.$colors, text-black);
+  font-size: map.get(vars.$font-sizes, 'lg');
+  box-sizing: border-box;
+  border: 2px solid map.get(vars.$colors, color-stroke);
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  padding: 10px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+
+  &:hover {
+    border-color: map.get(vars.$colors, color-primary);
+    color: map.get(vars.$colors, color-primary);
+    background-color: transparent;
+  }
+
+  &.active {
+    border-color: map.get(vars.$colors, background-btn);
+    background-color: map.get(vars.$colors, background-btn);
+    color: map.get(vars.$colors, primary-text-white);
+
+    &:hover {
+      background-color: map.get(vars.$colors, actual-blue);
+      border-color: map.get(vars.$colors, actual-blue);
+    }
+  }
+}
+
+.content {
+  line-height: 1.6;
+}
+
+.title {
+  font-size: 36px;
+  font-weight: 600;
+  color: map.get(vars.$colors, text-black);
+  margin-bottom: 16px;
+}
+
+.meta {
+  margin-bottom: 32px;
+  
+  p {
+    color: map.get(vars.$colors, text-gray);
+    font-size: 14px;
+    margin: 0;
+  }
+}
+
+.description {
+  color: map.get(vars.$colors, text-black);
+  font-size: 16px;
+  
+  h1, h2, h3, h4, h5, h6 {
+    color: map.get(vars.$colors, text-black);
+    margin: 32px 0 16px 0;
+    
+    &:first-child {
+      margin-top: 0;
+    }
+  }
+  
+  p {
+    margin: 16px 0;
+  }
+  
+  ul, ol {
+    margin: 16px 0;
+    padding-left: 24px;
+    
+    li {
+      margin: 8px 0;
+    }
+  }
+  
+  strong {
+    font-weight: 600;
+  }
+  
+  em {
+    font-style: italic;
+  }
+  
+  a {
+    color: map.get(vars.$colors, color-primary);
+    text-decoration: underline;
+    
+    &:hover {
+      text-decoration: none;
+    }
+  }
+}
+
+.loading, .error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 40vh;
+  text-align: center;
+  
+  h1 {
+    font-size: 24px;
+    margin-bottom: 16px;
+    color: map.get(vars.$colors, text-black);
+  }
+  
+  p {
+    color: map.get(vars.$colors, text-gray);
+    font-size: 16px;
+    margin-bottom: 24px;
+  }
+}
+
+.backButton {
+  padding: 12px 24px;
+  background-color: map.get(vars.$colors, color-primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    opacity: 0.9;
+  }
+}
+
+// Адаптивные стили
+@media screen and (max-width: 768px) {
+  .container {
+    margin: 20px auto;
+    padding: 0 16px;
+  }
+  
+  .title {
+    font-size: 28px;
+  }
+  
+  .navigation {
+    gap: 12px;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .navButton {
+    padding: 10px 16px;
+    font-size: 12px;
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .description {
+    font-size: 15px;
+  }
+}
+
+// Стили для темной темы
+:global(html[data-theme="dark"]) {
+  .header {
+    border-color: var(--color-stroke);
+  }
+  
+  .navButton {
+    border-color: var(--color-stroke);
+    color: var(--color-text-primary);
+    
+    &:hover {
+      border-color: var(--background-btn);
+      background-color: var(--background-btn);
+      color: var(--primary-text-white);
+    }
+    
+    &.active {
+      border-color: var(--background-btn);
+      background-color: var(--background-btn);
+      color: var(--primary-text-white);
+      
+      &:hover {
+        background-color: var(--actual-blue);
+        border-color: var(--actual-blue);
+      }
+    }
+  }
+  
+  .title {
+    color: var(--color-text-primary);
+  }
+  
+  .meta p {
+    color: var(--color-text-gray);
+  }
+  
+  .description {
+    color: var(--color-text-primary);
+    
+    h1, h2, h3, h4, h5, h6 {
+      color: var(--color-text-primary);
+    }
+    
+    a {
+      color: var(--color-primary);
+    }
+  }
+  
+  .loading, .error {
+    h1 {
+      color: var(--color-text-primary);
+    }
+    
+    p {
+      color: var(--color-text-gray);
+    }
+  }
+  
+  .backButton {
+    background-color: var(--color-primary);
+  }
+}

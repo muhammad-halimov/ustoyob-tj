@@ -36,5 +36,19 @@
     "one": "review",
     "few": "reviews",
     "many": "reviews"
+  },
+  "footer": {
+    "privacyPolicy": "Privacy Policy",
+    "termsOfUse": "Terms of Use"
+  },
+  "legal": {
+    "notFound": "Document not found",
+    "lastUpdated": "Last updated"
+  },
+  "navigation": {
+    "goHome": "Go Home"
+  },
+  "error": {
+    "title": "Error"
   }
 }

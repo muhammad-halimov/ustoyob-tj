@@ -36,5 +36,19 @@
     "one": "ниҳод",
     "few": "ниҳодҳо",
     "many": "ниҳодҳо"
+  },
+  "footer": {
+    "privacyPolicy": "Сиёсати махфият",
+    "termsOfUse": "Шартҳои истифода"
+  },
+  "legal": {
+    "notFound": "Ҳуҷҷат ёфт нашуд",
+    "lastUpdated": "Навсозии охирин"
+  },
+  "navigation": {
+    "goHome": "Ба саҳифаи асосӣ"
+  },
+  "error": {
+    "title": "Хатогӣ"
   }
 }

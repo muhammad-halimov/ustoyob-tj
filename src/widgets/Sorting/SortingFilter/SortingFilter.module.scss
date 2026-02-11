@@ -1,0 +1,93 @@
+@use 'sass:map';
+@use '../../../app/styles/variables' as vars;
+
+.sort_filter_block {
+  display: flex;
+  gap: 20px;
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 12px;
+  border: 1px solid map.get(vars.$colors, color-stroke);
+  flex-wrap: wrap;
+}
+
+.sort_filter_item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 200px;
+  flex: 1;
+
+  label {
+    font-size: 14px;
+    font-weight: 500;
+    color: map.get(vars.$colors, text-black);
+  }
+
+  .select {
+    padding: 10px 14px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    background-color: #fff;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+
+    &:hover {
+      border-color: #3A54DA;
+    }
+
+    &:focus {
+      outline: none;
+      border-color: #3A54DA;
+      box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.1);
+    }
+  }
+}
+
+// Адаптивные стили
+@media screen and (max-width: 768px) {
+  .sort_filter_block {
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
+
+    .sort_filter_item {
+      min-width: 100%;
+    }
+  }
+}
+
+// Стили для темной темы
+:global(html[data-theme="dark"]) {
+  .sort_filter_block {
+    background-color: var(--color-background-primary);
+    border-color: var(--color-stroke);
+  }
+
+  .sort_filter_item {
+    label {
+      color: var(--color-text-primary);
+    }
+
+    .select {
+      background-color: var(--color-background-all);
+      border-color: var(--color-stroke);
+      color: var(--color-text-primary);
+
+      option {
+        background-color: var(--color-background-all);
+        color: var(--color-text-primary);
+      }
+
+      &:hover {
+        border-color: var(--color-primary);
+      }
+
+      &:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 3px rgba(76, 125, 255, 0.2);
+      }
+    }
+  }
+}

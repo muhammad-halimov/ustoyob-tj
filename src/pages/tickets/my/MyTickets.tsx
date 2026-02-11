@@ -4,6 +4,7 @@ import { getAuthToken } from '../../../utils/auth.ts';
 import styles from './MyTickets.module.scss';
 import AuthModal from "../../../features/auth/AuthModal.tsx";
 import { AnnouncementCard } from '../../../shared/ui/AnnouncementCard/AnnouncementCard.tsx';
+import CookieConsentBanner from "../../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
 
 interface Ticket {
     id: number;
@@ -604,6 +605,7 @@ function MyTickets() {
                     </div>
                 </div>
             )}
+            <CookieConsentBanner/>
         </div>
     );
 }

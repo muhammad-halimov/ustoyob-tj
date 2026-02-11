@@ -13,6 +13,7 @@ import OAuthCallbackPage from "../../pages/OAuth/OAuthCallbackPage.tsx";
 import GoogleOAuthPage from "../../pages/OAuth/GoogleOAuthPage.tsx";
 import OAuthRedirectPage from "../../pages/OAuth/OAuthRedirectPage.tsx";
 import TelegramCallbackPage from "../../pages/OAuth/TelegramCallbackPage.tsx";
+import { Legal } from "../../pages/legal";
 
 const router = createBrowserRouter([
     {
@@ -33,6 +34,10 @@ const router = createBrowserRouter([
             { path: 'edit-ticket', element: <Edit /> },
 
             { path: 'category-tickets/:id', element: <Category /> },
+
+            // Legal pages
+            { path: 'privacy-policy', element: <Legal /> },
+            { path: 'terms-of-use', element: <Legal /> },
         ],
     },
     {

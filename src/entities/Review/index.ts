@@ -10,6 +10,7 @@ export interface ReviewUser {
     surname: string;
     rating: number;
     image: string;
+    imageExternalUrl?: string;
 }
 
 export interface ReviewService {
@@ -72,6 +73,7 @@ export interface ReviewMaster {
     surname: string;
     patronymic?: string;
     image?: string;
+    imageExternalUrl?: string;
     rating?: number;
     reviews?: number;
 }

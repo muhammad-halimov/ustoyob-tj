@@ -1,6 +1,6 @@
 import React from 'react';
 import AddressSelector from '../../../../../shared/ui/AddressSelector/AddressSelector';
-import { AddressValue } from '../../../../../shared/ui/AddressSelector';
+import { AddressValue } from '../../../../../entities';
 import styles from './WorkAreasSection.module.scss';
 
 interface Address {

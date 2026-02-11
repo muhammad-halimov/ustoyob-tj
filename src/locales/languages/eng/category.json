@@ -8,5 +8,30 @@
   "loading": "Loading categories...",
   "noCategories": "No categories available",
   "viewAll": "View all",
-  "showLess": "Show less"
+  "showLess": "Show less",
+  "filters": {
+    "onlyServices": "Services only",
+    "onlyServicesDesc": "Show only service offers from masters",
+    "onlyAnnouncements": "Announcements only",
+    "onlyAnnouncementsDesc": "Show only orders from clients"
+  },
+  "sorting": {
+    "primarySort": "Primary sorting:",
+    "secondarySort": "Secondary:",
+    "timePeriod": "Period:",
+    "newest": "Newest first",
+    "oldest": "Oldest first",
+    "priceAsc": "Price (ascending)",
+    "priceDesc": "Price (descending)",
+    "reviewsAsc": "Reviews (ascending)",
+    "reviewsDesc": "Reviews (descending)",
+    "ratingAsc": "Rating (ascending)",
+    "ratingDesc": "Rating (descending)",
+    "none": "None",
+    "all": "All time",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "week": "Week",
+    "month": "Month"
+  }
 }

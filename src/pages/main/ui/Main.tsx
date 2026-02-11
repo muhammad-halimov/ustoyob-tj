@@ -2,7 +2,7 @@ import styles from "./Main.module.scss";
 import Search from "../../../features/search/Search.tsx";
 import { AdBtn } from "../../../shared/ui/button/HeaderButton/AdBtn.tsx";
 import Category from "../../../widgets/Category/Category.tsx";
-import Reviews from "../../../widgets/Reviews/Reviews.tsx";
+import { MainReviewsSection } from "../../../features/reviews";
 import Recommendations from "../../../widgets/Recommendations/Recommendations.tsx";
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -234,7 +234,7 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
 
                     {/*<About />*/}
                     <Recommendations />
-                    <Reviews />
+                    <MainReviewsSection />
                 </>
             )}
 

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import styles from './Create.module.scss';
 import { getAuthToken, getUserRole } from '../../../utils/auth.ts';
 import AddressSelector, { AddressValue, buildAddressData } from '../../../shared/ui/AddressSelector';
+import CookieConsentBanner from "../../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
 
 interface Category {
     id: number;
@@ -494,6 +495,7 @@ const Create = () => {
                     </div>
                 </div>
             )}
+            <CookieConsentBanner/>
         </>
     );
 };

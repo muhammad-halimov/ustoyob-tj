@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Header from "../../widgets/Header/Header.tsx";
+import { Footer } from "../../widgets/Footer";
 import AuthModal from "../../features/auth/AuthModal.tsx";
 import { setupTokenRefresh, isAuthenticated } from '../../utils/auth';
 
@@ -46,6 +47,7 @@ export default function Layout() {
             <main>
                 <Outlet />
             </main>
+            <Footer />
             <AuthModal
                 isOpen={isAuthModalOpen}
                 onClose={closeAuthModal}

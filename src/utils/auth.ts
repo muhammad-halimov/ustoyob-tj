@@ -183,11 +183,16 @@ const formatRole = (role: 'client' | 'master'): string =>
 
 export const getUserRole = (): 'client' | 'master' | null => {
     const role = getItem(STORAGE_KEYS.USER_ROLE);
-    return role ? normalizeRole(role) : null;
+    const normalizedRole = role ? normalizeRole(role) : null;
+
+    return normalizedRole;
 };
 
 export const setUserRole = (role: 'client' | 'master'): void => {
-    setItem(STORAGE_KEYS.USER_ROLE, formatRole(role));
+    const formatted = formatRole(role);
+    console.log('💾💾💾 setUserRole - Setting role:', role, '-> Formatted:', formatted);
+    console.trace('💾 setUserRole CALL STACK');
+    setItem(STORAGE_KEYS.USER_ROLE, formatted);
 };
 
 export const hasRole = (role: 'client' | 'master' | string): boolean => {

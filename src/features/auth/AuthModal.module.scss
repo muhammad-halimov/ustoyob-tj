@@ -223,7 +223,6 @@
 
 .nameRow {
   display: flex;
-  gap: map.get(vars.$spacing, 4);
 
   .inputGroup {
     flex: 1;

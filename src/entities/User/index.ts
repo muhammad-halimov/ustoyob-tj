@@ -8,6 +8,7 @@ export interface User {
     gender?: string;
     rating?: number;
     image?: string;
+    imageExternalUrl?: string;
     avatar?: string | null;
     atHome?: boolean;
     canWorkRemotely?: boolean;

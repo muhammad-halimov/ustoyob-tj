@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { getAuthToken } from '../../../utils/auth.ts';
 import AddressSelector, { AddressValue, buildAddressData } from '../../../shared/ui/AddressSelector';
 import styles from './Edit.module.scss';
+import CookieConsentBanner from "../../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
 
 interface ServiceData {
     id?: number;
@@ -560,6 +561,7 @@ const Edit = () => {
                     </div>
                 </div>
             )}
+            <CookieConsentBanner/>
         </div>
     );
 };

@@ -5,6 +5,7 @@ import styles from "./Chat.module.scss";
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { IoSend, IoAttach, IoClose, IoImages, IoArchiveOutline, IoArchiveSharp } from "react-icons/io5";
 import { PhotoGallery, usePhotoGallery } from '../../shared/ui/PhotoGallery';
+import CookieConsentBanner from "../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
 
 interface Message {
     id: number;
@@ -1314,6 +1315,7 @@ function Chat() {
                 onSelectImage={photoGallery.selectImage}
                 fallbackImage="../fonTest5.png"
             />
+            <CookieConsentBanner/>
         </div>
     );
 }

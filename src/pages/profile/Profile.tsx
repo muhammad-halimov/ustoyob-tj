@@ -1,33 +1,39 @@
-import { useState, useRef, useEffect, type ChangeEvent } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { getAuthToken, removeAuthToken } from '../../utils/auth.ts';
+import {type ChangeEvent, useEffect, useRef, useState} from 'react';
+import {useNavigate, useParams} from 'react-router-dom';
+import {getAuthToken, removeAuthToken} from '../../utils/auth.ts';
 import styles from './Master.module.scss';
 
-import { fetchUserById } from "../../utils/api.ts";
-import { usePhotoGallery } from '../../shared/ui/PhotoGallery';
-import { AddressValue, buildAddressData } from '../../shared/ui/AddressSelector';
+import {fetchUserById} from "../../utils/api.ts";
+import {usePhotoGallery} from '../../shared/ui/PhotoGallery';
+import {AddressValue, buildAddressData} from '../../shared/ui/AddressSelector';
 
 // Импорты из entities
 import {
-    UserApiData, ProfileData,
-    UserAddressApiData,
-    Education, EducationApiData,
+    ApiResponse,
+    Education,
+    EducationApiData,
+    GalleryApiData,
+    GalleryImageApiData,
     Occupation,
+    ProfileData,
+    Review,
+    ReviewApiData,
+    ReviewData,
     Service,
-    Review, ReviewApiData, ReviewData,
-    GalleryApiData, GalleryImageApiData,
-    ApiResponse
+    UserAddressApiData,
+    UserApiData
 } from '../../entities';
 
 // Новые компоненты из shared/ui
-import { ProfileHeader } from './shared/ui/ProfileHeader';
-import { EducationSection } from './shared/ui/EducationSection';
-import { PhonesSection } from './shared/ui/PhonesSection';
-import { SocialNetworksSection } from './shared/ui/SocialNetworksSection';
-import { WorkExamplesSection } from './shared/ui/WorkExamplesSection';
-import { WorkAreasSection } from './shared/ui/WorkAreasSection';
-import { ServicesSection } from './shared/ui/ServicesSection';
-import { ReviewsSection } from './shared/ui/ReviewsSection';
+import {ProfileHeader} from './shared/ui/ProfileHeader';
+import {EducationSection} from './shared/ui/EducationSection';
+import {PhonesSection} from './shared/ui/PhonesSection';
+import {SocialNetworksSection} from './shared/ui/SocialNetworksSection';
+import {WorkExamplesSection} from './shared/ui/WorkExamplesSection';
+import {WorkAreasSection} from './shared/ui/WorkAreasSection';
+import {ServicesSection} from './shared/ui/ServicesSection';
+import {ReviewsSection} from './shared/ui/ReviewsSection';
+import CookieConsentBanner from "../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
 
 // Интерфейс для социальных сетей с API
 interface LocalAvailableSocialNetwork {
@@ -98,7 +104,7 @@ const SOCIAL_NETWORK_CONFIG: Record<string, {
     site: { 
         label: 'Веб-сайт', 
         icon: '🌍',
-        validate: (value: string) => /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/.test(value),
+        validate: (value: string) => /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/.test(value),
         format: (value: string) => value.startsWith('http') ? value : `https://${value}`,
         generateUrl: (handle: string) => handle.startsWith('http') ? handle : `https://${handle}`,
         placeholder: 'example.com или https://example.com'
@@ -560,6 +566,13 @@ function Profile() {
     useEffect(() => {
         setSwiperKey(prev => prev + 1);
     }, [visibleCount]);
+
+    // Автоматически показываем все отзывы если их больше 1 (только при первой загрузке)
+    useEffect(() => {
+        if (reviews.length > 1 && visibleCount === 1) {
+            setVisibleCount(reviews.length);
+        }
+    }, [reviews.length]);
 
     const updateSocialNetworks = async (updatedNetworks: LocalSocialNetwork[]) => {
         if (!profileData?.id) {
@@ -2588,8 +2601,7 @@ function Profile() {
         if (!imagePath) return "../fonTest6.png";
         if (imagePath.startsWith("http")) return imagePath;
         if (imagePath.startsWith("/")) return `${API_BASE_URL}${imagePath}`;
-        const galleryPhotoUrl = `${API_BASE_URL}/images/gallery_photos/${imagePath}`;
-        return galleryPhotoUrl;
+        return `${API_BASE_URL}/images/gallery_photos/${imagePath}`;
     };
 
     const fetchUserGallery = async () => {
@@ -2676,40 +2688,34 @@ function Profile() {
         if (!userData) return null;
 
         console.log(`Getting avatar URL for ${userType}:`, userData.id);
+        console.log(`${userType} imageExternalUrl:`, userData.imageExternalUrl);
         console.log(`${userType} image data:`, userData.image);
 
+        // Приоритет 1: image (локальное изображение)
         if (userData.image) {
-            const serverUrl = `${API_BASE_URL}/images/profile_photos/${userData.image}`;
-            console.log(`Checking server avatar for ${userType}:`, serverUrl);
-
-            if (await checkImageExists(serverUrl)) {
-                console.log(`Using server avatar for ${userType}`);
-                return serverUrl;
+            // Если это полный URL (начинается с http), используем его
+            if (userData.image.startsWith('http')) {
+                console.log(`Using full HTTP URL for ${userType}:`, userData.image);
+                return userData.image;
             }
-
-            const alternativeUrl = `${API_BASE_URL}/${userData.image}`;
-            console.log(`Checking alternative avatar URL for ${userType}:`, alternativeUrl);
-
-            if (await checkImageExists(alternativeUrl)) {
-                console.log(`Using alternative avatar URL for ${userType}`);
-                return alternativeUrl;
+            
+            // Если это путь, начинающийся с /, добавляем только API_BASE_URL
+            if (userData.image.startsWith('/')) {
+                const fullUrl = `${API_BASE_URL}${userData.image}`;
+                console.log(`Using path with slash for ${userType}:`, fullUrl);
+                return fullUrl;
             }
+            
+            // Иначе это имя файла - строим путь через profile_photos
+            const imagePath = `${API_BASE_URL}/images/profile_photos/${userData.image}`;
+            console.log(`Using profile_photos path for ${userType}:`, imagePath);
+            return imagePath;
+        }
 
-            if (userType === 'client') {
-                const clientPaths = [
-                    `${API_BASE_URL}/uploads/profile_photos/${userData.image}`,
-                    `${API_BASE_URL}/uploads/clients/${userData.image}`,
-                    `${API_BASE_URL}/images/clients/${userData.image}`
-                ];
-
-                for (const path of clientPaths) {
-                    console.log(`Checking client avatar path:`, path);
-                    if (await checkImageExists(path)) {
-                        console.log(`Using client avatar from:`, path);
-                        return path;
-                    }
-                }
-            }
+        // Приоритет 2: imageExternalUrl (внешние ссылки - Google, VK, Facebook и т.д.)
+        if (userData.imageExternalUrl) {
+            console.log(`Using external URL for ${userType}:`, userData.imageExternalUrl);
+            return userData.imageExternalUrl;
         }
 
         console.log(`No avatar found for ${userType}, using placeholder`);
@@ -3411,28 +3417,29 @@ function Profile() {
     };
 
     const getReviewerAvatarUrl = (review: Review) => {
+        // Приоритет 1: image (локальное изображение)
         if (review.reviewer.image) {
-            console.log('Reviewer image from data:', review.reviewer.image);
-
-            const possiblePaths = [
-                review.reviewer.image,
-                `${API_BASE_URL}/images/profile_photos/${review.reviewer.image}`,
-                `${API_BASE_URL}/uploads/profile_photos/${review.reviewer.image}`,
-                `${API_BASE_URL}/uploads/clients/${review.reviewer.image}`,
-                `${API_BASE_URL}/images/clients/${review.reviewer.image}`,
-                `${API_BASE_URL}/${review.reviewer.image}`
-            ];
-
-            for (const path of possiblePaths) {
-                if (path && path !== "../fonTest6.png") {
-                    console.log('Trying reviewer avatar path:', path);
-                    return path;
-                }
+            // Если это полный URL (начинается с http), используем его
+            if (review.reviewer.image.startsWith('http')) {
+                return review.reviewer.image;
             }
+            
+            // Если это путь, начинающийся с /, добавляем только API_BASE_URL
+            if (review.reviewer.image.startsWith('/')) {
+                return `${API_BASE_URL}${review.reviewer.image}`;
+            }
+            
+            // Иначе это имя файла - строим путь через profile_photos
+            return `${API_BASE_URL}/images/profile_photos/${review.reviewer.image}`;
         }
-
-        console.log('Using default avatar for reviewer');
-        return "../fonTest6.png";
+        
+        // Приоритет 2: imageExternalUrl (внешние ссылки - Google, VK, Facebook и т.д.)
+        if (review.reviewer.imageExternalUrl && review.reviewer.imageExternalUrl.trim()) {
+            return review.reviewer.imageExternalUrl;
+        }
+        
+        // Приоритет 3: дефолтное изображение
+        return "../default_user.png";
     };
 
     const calculateAverageRating = (reviews: Review[]): number => {
@@ -3471,6 +3478,16 @@ function Profile() {
     const handleClientProfileClick = (clientId: number) => {
         console.log('Navigating to client profile:', clientId);
         navigate(`/profile/${clientId}`);
+    };
+
+    const handleMasterProfileClick = (masterId: number) => {
+        console.log('Navigating to master profile:', masterId);
+        navigate(`/profile/${masterId}`);
+    };
+
+    const handleServiceClick = (ticketId: number) => {
+        console.log('Navigating to ticket:', ticketId);
+        navigate(`/ticket/${ticketId}`);
     };
 
     const handleCloseReviewModal = () => {
@@ -3780,6 +3797,7 @@ function Profile() {
                     visibleCount={visibleCount}
                     swiperKey={swiperKey}
                     API_BASE_URL={API_BASE_URL}
+                    userRole={userRole || 'master'}
                     onShowMore={handleShowMore}
                     onShowLess={handleShowLess}
                     renderReviewText={renderReviewText}
@@ -3787,6 +3805,8 @@ function Profile() {
                     getClientName={getClientName}
                     getMasterName={getMasterName}
                     onClientProfileClick={handleClientProfileClick}
+                    onMasterProfileClick={handleMasterProfileClick}
+                    onServiceClick={handleServiceClick}
                     getReviewImageIndex={getReviewImageIndex}
                 />
             </div>
@@ -3922,6 +3942,7 @@ function Profile() {
                     </div>
                 </div>
             )}
+            <CookieConsentBanner/>
         </div>
     );
 }

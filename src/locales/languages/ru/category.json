@@ -8,5 +8,30 @@
   "loading": "Загрузка категорий...",
   "noCategories": "Нет доступных категорий",
   "viewAll": "Посмотреть все",
-  "showLess": "Свернуть"
+  "showLess": "Свернуть",
+  "filters": {
+    "onlyServices": "Только услуги",
+    "onlyServicesDesc": "Показать только предложения услуг от мастеров",
+    "onlyAnnouncements": "Только объявления",
+    "onlyAnnouncementsDesc": "Показать только заказы от клиентов"
+  },
+  "sorting": {
+    "primarySort": "Основная сортировка:",
+    "secondarySort": "Дополнительная:",
+    "timePeriod": "Период:",
+    "newest": "По новизне",
+    "oldest": "По старизне",
+    "priceAsc": "По цене (возрастание)",
+    "priceDesc": "По цене (убывание)",
+    "reviewsAsc": "По отзывам (возрастание)",
+    "reviewsDesc": "По отзывам (убывание)",
+    "ratingAsc": "По рейтингу (возрастание)",
+    "ratingDesc": "По рейтингу (убывание)",
+    "none": "Нет",
+    "all": "Все время",
+    "today": "Сегодня",
+    "yesterday": "Вчера",
+    "week": "Неделя",
+    "month": "Месяц"
+  }
 }

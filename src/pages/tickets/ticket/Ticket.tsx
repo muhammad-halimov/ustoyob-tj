@@ -5,6 +5,7 @@ import styles from './Ticket.module.scss';
 import {createChatWithAuthor, initChatModals} from "../../../utils/chatUtils.ts";
 import AuthModal from "../../../features/auth/AuthModal.tsx";
 import {cleanText} from "../../../utils/cleanText.ts";
+import CookieConsentBanner from "../../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
 // import { fetchUserWithRole } from "../../utils/api.ts";
 
 interface ApiTicket {
@@ -1819,7 +1820,7 @@ export function Ticket() {
                     </div>
                 </div>
             )}
-
+            <CookieConsentBanner/>
         </div>
     );
 }

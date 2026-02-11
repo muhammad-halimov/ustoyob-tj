@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getUserRole } from '../../utils/auth.ts';
+import { getUserRole, getAuthToken, getUserData } from '../../utils/auth.ts';
 import { useLanguageChange } from '../../hooks/useLanguageChange';
 import { AnnouncementCard } from '../../shared/ui/AnnouncementCard/AnnouncementCard';
 import styles from './Recommendations.module.scss';
@@ -53,18 +53,44 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 function Recommendations() {
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const userRole = getUserRole();
+    const [userRole, setUserRole] = useState<'client' | 'master' | null>(getUserRole());
     const navigate = useNavigate();
-    const { t } = useTranslation('components');
+    const { t, i18n } = useTranslation('components');
+    const locale = i18n.language;
 
     const fetchRecentAnnouncements = async () => {
         try {
-            const locale = localStorage.getItem('i18nextLng') || 'ru';
-            const response = await fetch(`${API_BASE_URL}/api/tickets?locale=${locale}&limit=10&order[createdAt]=desc`, {
-                headers: {
-                    'Accept': 'application/json',
-                }
-            });
+            const token = getAuthToken();
+            const userData = getUserData();
+            const currentUserId = userData?.id;
+            
+            // Предотвращаем fetch если роль еще не загружена из localStorage
+            if (token && userRole === null) {
+                console.log('⏳ Recommendations - Waiting for userRole to load...');
+                setIsLoading(false);
+                return;
+            }
+            
+            console.log('============================================');
+            console.log('Recommendations - userRole:', userRole);
+            console.log('Recommendations - Current user ID:', currentUserId);
+            console.log('Recommendations - Token exists:', !!token);
+            
+            const endpoint = userRole === 'master'
+                ? `/api/tickets?locale=${locale}&active=true&service=false&exists[master]=false&exists[author]=true${currentUserId ? `&author.id[ne]=${currentUserId}` : ''}`
+                : userRole === 'client'
+                ? `/api/tickets?locale=${locale}&active=true&service=true&exists[master]=true&exists[author]=false${currentUserId ? `&master.id[ne]=${currentUserId}` : ''}`
+                : `/api/tickets?locale=${locale}&active=true&service=true`;
+            
+            console.log('Recommendations - Endpoint:', `${API_BASE_URL}${endpoint}`);
+            console.log('============================================');
+
+            const headers: HeadersInit = {
+                'Accept': 'application/json',
+                ...(token && { 'Authorization': `Bearer ${token}` })
+            };
+
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, { headers });
 
             if (response.ok) {
                 let data: Announcement[] = await response.json();
@@ -76,16 +102,6 @@ function Recommendations() {
                     return dateB - dateA; // От новых к старым
                 });
                 
-                // Фильтруем по роли пользователя
-                if (userRole === 'master') {
-                    // Мастер видит только услуги (service: true)
-                    data = data.filter(item => item.service === true);
-                } else if (userRole === 'client') {
-                    // Клиент видит только заказы (service: false)
-                    data = data.filter(item => item.service === false);
-                }
-                // Если не авторизован или неизвестная роль - показываем все
-                
                 setAnnouncements(data.slice(0, 3));
             }
         } catch (error) {
@@ -96,13 +112,49 @@ function Recommendations() {
     };
 
     useLanguageChange(() => {
-        // При смене языка переполучаем данные для обновления локализованного контента
-        fetchRecentAnnouncements();
+        // Обновление данных при смене языка происходит через useEffect ниже
     });
 
     useEffect(() => {
-        fetchRecentAnnouncements();
+        // Инициализация роли (fetch происходит во втором useEffect)
+        const currentRole = getUserRole();
+        setUserRole(currentRole);
+        
+        // Проверяем изменение роли при каждом монтировании
+        const interval = setInterval(() => {
+            const newRole = getUserRole();
+            if (newRole !== userRole) {
+                console.log('Recommendations - Role changed from', userRole, 'to', newRole);
+                setUserRole(newRole);
+            }
+        }, 1000);
+        
+        return () => clearInterval(interval);
     }, [userRole]);
+
+    // Перезагружаем данные при изменении роли или языка
+    useEffect(() => {
+        const token = getAuthToken();
+        
+        // Загружаем данные если:
+        // 1) userRole !== null (авторизован и роль загружена)
+        // 2) !token (НЕ авторизован, userRole будет null - это нормально)
+        const shouldFetch = userRole !== null || !token;
+        
+        console.log('Recommendations - Check if should fetch:', {
+            userRole,
+            hasToken: !!token,
+            shouldFetch,
+            locale
+        });
+        
+        if (shouldFetch) {
+            console.log('Recommendations - Triggering data reload for role:', userRole);
+            fetchRecentAnnouncements();
+        } else {
+            console.log('⏳ Recommendations - Waiting for userRole to load...');
+        }
+    }, [userRole, locale]);
 
     const getFullAddress = (announcement: Announcement): string => {
         if (!announcement.addresses || announcement.addresses.length === 0) {

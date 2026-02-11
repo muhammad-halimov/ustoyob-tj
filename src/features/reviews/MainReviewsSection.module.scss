@@ -1,0 +1,420 @@
+@use '../../app/styles/variables' as vars;
+@use 'sass:map';
+
+.main_reviews {
+  width: 100%;
+  margin-top: 60px;
+
+  .container {
+    @include vars.Container;
+  }
+
+  @media (max-width: 768px) {
+    padding: 0 20px;
+  }
+
+  h3 {
+    font-size: 36px;
+    margin-bottom: 40px;
+    font-weight: 400;
+    color: map.get(vars.$colors, text-primary);
+
+    @media (max-width: 768px) {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+  }
+
+  .loading {
+    text-align: center;
+    padding: 40px 0;
+    color: map.get(vars.$colors, text-secondary);
+  }
+
+  .no_reviews {
+    text-align: center;
+    padding: 40px 0;
+    color: map.get(vars.$colors, text-secondary);
+    font-size: 18px;
+  }
+}
+
+.reviews_wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 27px;
+
+  @media (max-width: 480px) {
+    display: none;
+  }
+
+    .reviews_item {
+      background-color: map.get(vars.$colors, background-primary);
+      border-radius: 20px;
+      padding: 20px;
+      width: calc((100% - 54px) / 3);
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      cursor: default;
+      position: relative;
+
+      @media (max-width: 1200px) {
+        width: calc((100% - 27px) / 2);
+      }
+
+      @media (max-width: 768px) {
+        width: 100%;
+      }
+
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      }
+
+    .reviews_naming {
+      display: flex;
+      align-items: center;
+      margin-bottom: 15px;
+
+      .reviewer_avatar {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        object-fit: cover;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+        flex-shrink: 0;
+
+        &:hover {
+          transform: scale(1.05);
+        }
+      }
+
+      .reviews_naming_title {
+        display: flex;
+        flex-direction: column;
+        margin-left: 12px;
+        flex: 1;
+        min-width: 0;
+
+        .clickable_name {
+          font-size: 18px;
+          font-weight: 600;
+          margin: 0 0 8px 0;
+          color: map.get(vars.$colors, text-primary);
+          cursor: pointer;
+          transition: color 0.2s ease;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          max-width: 100%;
+
+          &:hover {
+            color: map.get(vars.$colors, primary);
+          }
+        }
+
+        .reviews_naming_raiting {
+          display: flex;
+          align-items: center;
+          margin-bottom: 8px;
+
+          svg {
+            margin-right: 6px;
+            flex-shrink: 0;
+          }
+
+          span {
+            font-size: 14px;
+            font-weight: 600;
+            color: map.get(vars.$colors, text-primary);
+          }
+        }
+
+        .service_master_info {
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 4px;
+          font-size: 14px;
+          color: map.get(vars.$colors, text-secondary);
+
+          .service_title {
+            cursor: pointer;
+            color: map.get(vars.$colors, primary);
+            font-weight: 500;
+            transition: color 0.2s ease;
+
+            &:hover {
+              color: map.get(vars.$colors, actual-blue);
+              text-decoration: none;
+            }
+          }
+
+          .divider {
+            color: map.get(vars.$colors, text-secondary);
+            margin: 0 4px;
+          }
+
+          .master_name {
+            cursor: pointer;
+            color: map.get(vars.$colors, primary);
+            font-weight: 500;
+            transition: color 0.2s ease;
+
+            &:hover {
+              color: map.get(vars.$colors, actual-blue);
+              text-decoration: none;
+            }
+          }
+        }
+
+        .review_date {
+          font-size: 12px;
+          color: map.get(vars.$colors, text-secondary);
+          margin-top: 4px;
+        }
+      }
+    }
+
+    .reviews_about {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+
+      .reviews_about_title {
+        flex: 1;
+        font-size: 14px;
+        line-height: 1.5;
+        color: map.get(vars.$colors, text-primary);
+        margin-bottom: 15px;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        display: -webkit-box;
+        -webkit-line-clamp: 4;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .review_images {
+        display: flex;
+        gap: 8px;
+        margin-top: auto;
+      }
+
+      .review_image {
+        width: 60px;
+        height: 60px;
+        object-fit: cover;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+
+        &:hover {
+          transform: scale(1.05);
+        }
+      }
+
+      .review_date_bottom {
+        position: absolute;
+        bottom: 15px;
+        right: 20px;
+        font-size: 12px;
+        color: map.get(vars.$colors, text-secondary);
+        background: rgba(255, 255, 255, 0.9);
+        padding: 3px 8px;
+        border-radius: 6px;
+        z-index: 1;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      }
+    }
+  }
+}
+
+.reviews_slider {
+  display: none;
+
+  @media (max-width: 480px) {
+    display: block;
+  }
+
+  .reviews_item {
+    background-color: map.get(vars.$colors, background-primary);
+    border-radius: 20px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    position: relative;
+
+    .reviews_naming {
+      display: flex;
+      margin-bottom: 15px;
+
+      .reviewer_avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        object-fit: cover;
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+
+      .reviews_naming_title {
+        display: flex;
+        flex-direction: column;
+        margin-left: 12px;
+        flex: 1;
+        min-width: 0;
+
+        .clickable_name {
+          font-size: 16px;
+          font-weight: 600;
+          margin: 0 0 6px 0;
+          color: map.get(vars.$colors, text-primary);
+          cursor: pointer;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+
+          &:hover {
+            color: map.get(vars.$colors, primary);
+          }
+        }
+
+        .reviews_naming_raiting {
+          display: flex;
+          align-items: center;
+          margin-bottom: 6px;
+
+          svg {
+            margin-right: 4px;
+            flex-shrink: 0;
+          }
+
+          span {
+            font-size: 12px;
+            font-weight: 600;
+            color: map.get(vars.$colors, text-primary);
+          }
+        }
+
+        .service_master_info {
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 4px;
+          font-size: 12px;
+          color: map.get(vars.$colors, text-secondary);
+
+          .service_title {
+            cursor: pointer;
+            color: map.get(vars.$colors, primary);
+            font-weight: 500;
+
+            &:hover {
+              color: map.get(vars.$colors, actual-blue);
+              text-decoration: none;
+            }
+          }
+
+          .divider {
+            color: map.get(vars.$colors, text-secondary);
+            margin: 0 2px;
+          }
+
+          .master_name {
+            cursor: pointer;
+            color: map.get(vars.$colors, primary);
+            font-weight: 500;
+
+            &:hover {
+              color: map.get(vars.$colors, actual-blue);
+              text-decoration: none;
+            }
+          }
+        }
+
+        .review_date {
+          font-size: 10px;
+          color: map.get(vars.$colors, text-secondary);
+          margin-top: 2px;
+        }
+      }
+    }
+
+    .reviews_about {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+
+      .reviews_about_title {
+        flex: 1;
+        font-size: 14px;
+        line-height: 1.4;
+        color: map.get(vars.$colors, text-primary);
+        margin-bottom: 12px;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+      }
+
+      .review_images {
+        display: flex;
+        gap: 6px;
+        margin-top: auto;
+      }
+
+      .review_image {
+        width: 50px;
+        height: 50px;
+        object-fit: cover;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+
+        &:hover {
+          transform: scale(1.05);
+        }
+      }
+
+      .review_date_bottom {
+        position: absolute;
+        bottom: 10px;
+        right: 15px;
+        font-size: 11px;
+        color: map.get(vars.$colors, text-secondary);
+        background: rgba(255, 255, 255, 0.9);
+        padding: 2px 6px;
+        border-radius: 4px;
+        z-index: 1;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+      }
+    }
+  }
+}
+
+// Кнопка "показать все" - стиль из ReviewsSection
+.reviews_actions {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-top: 30px;
+}
+
+.show_all_reviews_btn {
+  background: #3A54DA;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 12px 24px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+
+  &:hover {
+    background: #2a44ca;
+    color: black;
+  }
+}

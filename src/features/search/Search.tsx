@@ -7,6 +7,8 @@ import {cleanText} from "../../utils/cleanText.ts";
 import { useTranslation } from 'react-i18next';
 import { useLanguageChange } from "../../hooks/useLanguageChange";
 import { AnnouncementCard } from "../../shared/ui/AnnouncementCard/AnnouncementCard";
+import { ServiceTypeFilter } from "../../widgets/Sorting/ServiceTypeFilter";
+import { SortingFilter } from "../../widgets/Sorting/SortingFilter";
 
 // Интерфейсы
 interface ApiTicket {
@@ -149,12 +151,22 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     const [occupations, setOccupations] = useState<Occupation[]>([]);
     const [cities, setCities] = useState<City[]>([]); // Состояние для городов
     const [userRole, setUserRole] = useState<'client' | 'master' | null>(null);
+    const [showOnlyServices, setShowOnlyServices] = useState(false);
+    const [showOnlyAnnouncements, setShowOnlyAnnouncements] = useState(false);
+    const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'price-asc' | 'price-desc' | 'reviews-asc' | 'reviews-desc' | 'rating-asc' | 'rating-desc'>('newest');
+    const [secondarySortBy, setSecondarySortBy] = useState<'none' | 'newest' | 'oldest' | 'price-asc' | 'price-desc' | 'reviews-asc' | 'reviews-desc' | 'rating-asc' | 'rating-desc'>('none');
+    const [timeFilter, setTimeFilter] = useState<'all' | 'today' | 'yesterday' | 'week' | 'month'>('all');
     const navigate = useNavigate();
 
     const previousSearchRef = useRef<{
         query: string;
         filters: FilterState;
         userRole: 'client' | 'master' | null;
+        showOnlyServices: boolean;
+        showOnlyAnnouncements: boolean;
+        sortBy: string;
+        secondarySortBy: string;
+        timeFilter: string;
     }>({
         query: '',
         filters: {
@@ -167,7 +179,12 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             sortBy: '',
             city: ''
         },
-        userRole: null
+        userRole: null,
+        showOnlyServices: false,
+        showOnlyAnnouncements: false,
+        sortBy: 'newest',
+        secondarySortBy: 'none',
+        timeFilter: 'all'
     });
 
     // Функция для загрузки городов из API
@@ -423,8 +440,12 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         }
     }, [selectedCity, getAddressInfo]);
 
-    // Функция сортировки с учетом приоритета города
-    const sortTicketsWithPriority = useCallback(async (tickets: TypedTicket[], sortBy: string): Promise<TypedTicket[]> => {
+    // Функция сортировки с учетом приоритета города и множественной сортировки
+    const sortTicketsWithPriority = useCallback(async (
+        tickets: TypedTicket[], 
+        primarySort: string,
+        secondarySort: string = 'none'
+    ): Promise<TypedTicket[]> => {
         // Получаем приоритет для каждого тикета
         const ticketsWithPriority = await Promise.all(
             tickets.map(async (ticket) => ({
@@ -432,6 +453,47 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 priority: await getTicketPriority(ticket)
             }))
         );
+
+        // Функция для получения значения сортировки
+        const getSortValue = (ticket: TypedTicket, sortType: string): number => {
+            switch (sortType) {
+                case 'newest':
+                    return new Date(ticket.createdAt).getTime();
+                case 'oldest':
+                    return -new Date(ticket.createdAt).getTime();
+                case 'price-asc':
+                    return ticket.budget;
+                case 'price-desc':
+                    return -ticket.budget;
+                case 'reviews-asc':
+                    return ticket.userReviewCount || 0;
+                case 'reviews-desc':
+                    return -(ticket.userReviewCount || 0);
+                case 'rating-asc':
+                    return ticket.userRating || 0;
+                case 'rating-desc':
+                    return -(ticket.userRating || 0);
+                // Поддержка старых форматов для обратной совместимости
+                case 'rating_desc':
+                    return -(ticket.userRating || 0);
+                case 'rating_asc':
+                    return ticket.userRating || 0;
+                case 'reviews_desc':
+                    return -(ticket.userReviewCount || 0);
+                case 'reviews_asc':
+                    return ticket.userReviewCount || 0;
+                case 'price_desc':
+                    return -ticket.budget;
+                case 'price_asc':
+                    return ticket.budget;
+                case 'date_desc':
+                    return new Date(ticket.createdAt).getTime();
+                case 'date_asc':
+                    return -new Date(ticket.createdAt).getTime();
+                default:
+                    return 0;
+            }
+        };
 
         // Сортируем по приоритету города, затем по выбранной сортировке
         return ticketsWithPriority
@@ -441,27 +503,15 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     return b.priority - a.priority;
                 }
 
-                // Затем по выбранной сортировке
-                switch (sortBy) {
-                    case 'rating_desc':
-                        return (b.ticket.userRating || 0) - (a.ticket.userRating || 0);
-                    case 'rating_asc':
-                        return (a.ticket.userRating || 0) - (b.ticket.userRating || 0);
-                    case 'reviews_desc':
-                        return b.ticket.userReviewCount - a.ticket.userReviewCount;
-                    case 'reviews_asc':
-                        return a.ticket.userReviewCount - b.ticket.userReviewCount;
-                    case 'price_desc':
-                        return b.ticket.budget - a.ticket.budget;
-                    case 'price_asc':
-                        return a.ticket.budget - b.ticket.budget;
-                    case 'date_desc':
-                        return new Date(b.ticket.createdAt).getTime() - new Date(a.ticket.createdAt).getTime();
-                    case 'date_asc':
-                        return new Date(a.ticket.createdAt).getTime() - new Date(b.ticket.createdAt).getTime();
-                    default:
-                        return new Date(b.ticket.createdAt).getTime() - new Date(a.ticket.createdAt).getTime();
+                // Основная сортировка
+                const primaryDiff = getSortValue(b.ticket, primarySort) - getSortValue(a.ticket, primarySort);
+                
+                // Если значения равны и есть вторичная сортировка
+                if (primaryDiff === 0 && secondarySort !== 'none') {
+                    return getSortValue(b.ticket, secondarySort) - getSortValue(a.ticket, secondarySort);
                 }
+                
+                return primaryDiff;
             })
             .map(item => item.ticket);
     }, [getTicketPriority]);
@@ -638,7 +688,12 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             params.append('active', 'true');
             params.append('locale', localStorage.getItem('i18nextLng') || 'ru');
 
-            if (userRole === 'client') {
+            // Применяем фильтры типа сервиса (переопределяют userRole если установлены)
+            if (showOnlyServices) {
+                params.append('service', 'true');
+            } else if (showOnlyAnnouncements) {
+                params.append('service', 'false');
+            } else if (userRole === 'client') {
                 params.append('service', 'true');
             } else if (userRole === 'master') {
                 params.append('service', 'false');
@@ -755,6 +810,36 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
             let filteredData = typedTickets;
 
+            // Фильтрация по времени
+            if (timeFilter && timeFilter !== 'all') {
+                const now = new Date();
+                const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const startOfYesterday = new Date(startOfToday);
+                startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+                const startOfWeek = new Date(startOfToday);
+                startOfWeek.setDate(startOfWeek.getDate() - 7);
+                const startOfMonth = new Date(startOfToday);
+                startOfMonth.setMonth(startOfMonth.getMonth() - 1);
+
+                filteredData = filteredData.filter(ticket => {
+                    const ticketDate = new Date(ticket.createdAt);
+                    
+                    switch (timeFilter) {
+                        case 'today':
+                            return ticketDate >= startOfToday;
+                        case 'yesterday':
+                            return ticketDate >= startOfYesterday && ticketDate < startOfToday;
+                        case 'week':
+                            return ticketDate >= startOfWeek;
+                        case 'month':
+                            return ticketDate >= startOfMonth;
+                        default:
+                            return true;
+                    }
+                });
+                console.log(`After time filtering (${timeFilter}): ${filteredData.length} tickets`);
+            }
+
             // Фильтрация по городу
             if (filterParams.city) {
                 filteredData = await filterByCity(filteredData, filterParams.city);
@@ -768,9 +853,13 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 console.log(`After review count filtering: ${filteredData.length} tickets`);
             }
 
-            // Сортировка с учетом приоритета города
-            if (filterParams.sortBy || selectedCity) {
-                filteredData = await sortTicketsWithPriority(filteredData, filterParams.sortBy || 'date_desc');
+            // Сортировка с учетом приоритета города и множественной сортировки
+            if (sortBy || selectedCity) {
+                filteredData = await sortTicketsWithPriority(
+                    filteredData, 
+                    sortBy || 'newest',
+                    secondarySortBy
+                );
             }
 
             // Создаем финальные результаты
@@ -810,7 +899,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         } finally {
             setIsLoading(false);
         }
-    }, [userRole, filterByCity, selectedCity, sortTicketsWithPriority, getUserName, getAddressInfo, getTicketPriority]);
+    }, [userRole, filterByCity, selectedCity, sortTicketsWithPriority, getUserName, getAddressInfo, getTicketPriority, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter]);
 
     // Флаг для предотвращения дублирующих запросов
     const isSearchInProgressRef = useRef(false);
@@ -825,7 +914,12 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         const currentSearch = {
             query: searchQuery.trim(),
             filters,
-            userRole
+            userRole,
+            showOnlyServices,
+            showOnlyAnnouncements,
+            sortBy,
+            secondarySortBy,
+            timeFilter
         };
         const previousSearch = previousSearchRef.current;
 
@@ -837,7 +931,12 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             currentSearch.filters.rating !== previousSearch.filters.rating ||
             currentSearch.filters.reviewCount !== previousSearch.filters.reviewCount ||
             currentSearch.filters.sortBy !== previousSearch.filters.sortBy ||
-            currentSearch.filters.city !== previousSearch.filters.city; // Добавляем проверку города
+            currentSearch.filters.city !== previousSearch.filters.city ||
+            currentSearch.showOnlyServices !== previousSearch.showOnlyServices ||
+            currentSearch.showOnlyAnnouncements !== previousSearch.showOnlyAnnouncements ||
+            currentSearch.sortBy !== previousSearch.sortBy ||
+            currentSearch.secondarySortBy !== previousSearch.secondarySortBy ||
+            currentSearch.timeFilter !== previousSearch.timeFilter;
         const hasRoleChanged = currentSearch.userRole !== previousSearch.userRole;
 
         if (!hasQueryChanged && !hasFiltersChanged && !hasRoleChanged) {
@@ -903,8 +1002,13 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             rating: '',
             reviewCount: '',
             sortBy: '',
-            city: '' // Сбрасываем город
+            city: ''
         });
+        setShowOnlyServices(false);
+        setShowOnlyAnnouncements(false);
+        setSortBy('newest');
+        setSecondarySortBy('none');
+        setTimeFilter('all');
         setShowResults(false);
         setSearchResults([]);
         onSearchResults([]);
@@ -920,9 +1024,14 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 sortBy: '',
                 city: ''
             },
-            userRole
+            userRole,
+            showOnlyServices: false,
+            showOnlyAnnouncements: false,
+            sortBy: 'newest',
+            secondarySortBy: 'none',
+            timeFilter: 'all'
         };
-    }, [searchQuery, userRole, onSearchResults]);
+    }, [searchQuery, userRole, onSearchResults, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter]);
 
     const handleFilterChange = useCallback((newFilters: FilterState) => {
         setFilters(newFilters);
@@ -957,7 +1066,12 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     city: '',
                     subcategory: ''
                 },
-                userRole: null
+                userRole: null,
+                showOnlyServices: false,
+                showOnlyAnnouncements: false,
+                sortBy: 'newest',
+                secondarySortBy: 'none',
+                timeFilter: 'all'
             };
             // Если есть результаты - обновляем их независимо от наличия поискового запроса
             handleSearch();
@@ -997,9 +1111,14 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         filters.rating,
         filters.reviewCount,
         filters.sortBy,
-        filters.city, // Добавляем город в зависимости
+        filters.city,
         userRole,
         selectedCity,
+        showOnlyServices,
+        showOnlyAnnouncements,
+        sortBy,
+        secondarySortBy,
+        timeFilter,
         handleSearch
     ]);
 
@@ -1021,6 +1140,11 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 sortBy: '',
                 city: ''
             });
+            setShowOnlyServices(false);
+            setShowOnlyAnnouncements(false);
+            setSortBy('newest');
+            setSecondarySortBy('none');
+            setTimeFilter('all');
             
             // Сбрасываем предыдущий поиск
             previousSearchRef.current = {
@@ -1035,7 +1159,12 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     sortBy: '',
                     city: ''
                 },
-                userRole: null
+                userRole: null,
+                showOnlyServices: false,
+                showOnlyAnnouncements: false,
+                sortBy: 'newest',
+                secondarySortBy: 'none',
+                timeFilter: 'all'
             };
         };
 
@@ -1170,6 +1299,36 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                             <p>{t('search.filters')}</p>
                         </button>
                     </div>
+
+                    {showResults && (
+                        <>
+                            {/* Фильтр типа сервиса - показываем для неавторизованных и клиентов */}
+                            {(userRole === null || userRole === 'client') && (
+                                <ServiceTypeFilter
+                                    showOnlyServices={showOnlyServices}
+                                    showOnlyAnnouncements={showOnlyAnnouncements}
+                                    onServiceToggle={() => {
+                                        setShowOnlyServices(!showOnlyServices);
+                                        if (!showOnlyServices) setShowOnlyAnnouncements(false);
+                                    }}
+                                    onAnnouncementsToggle={() => {
+                                        setShowOnlyAnnouncements(!showOnlyAnnouncements);
+                                        if (!showOnlyAnnouncements) setShowOnlyServices(false);
+                                    }}
+                                />
+                            )}
+
+                            {/* Сортировка и фильтрация по времени */}
+                            <SortingFilter
+                                sortBy={sortBy}
+                                secondarySortBy={secondarySortBy}
+                                timeFilter={timeFilter}
+                                onSortChange={setSortBy}
+                                onSecondarySortChange={setSecondarySortBy}
+                                onTimeFilterChange={setTimeFilter}
+                            />
+                        </>
+                    )}
 
                     <div className={`${styles.searchResults} ${!showResults ? styles.hidden : ''}`}>
                         {renderedResults}

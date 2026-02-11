@@ -1,0 +1,78 @@
+@use '../../app/styles/variables' as vars;
+@use 'sass:map';
+
+.footer {
+  margin-top: auto;
+  padding: 40px 20px 20px;
+  border-top: 1px solid map.get(vars.$colors, color-stroke);
+  background-color: map.get(vars.$colors, color-background-all);
+}
+
+.container {
+  max-width: 1250px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.links {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.link {
+  color: map.get(vars.$colors, text-gray);
+  text-decoration: none;
+  font-size: 14px;
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: map.get(vars.$colors, color-primary);
+    text-decoration: underline;
+  }
+}
+
+.separator {
+  color: map.get(vars.$colors, text-gray);
+  font-size: 14px;
+  user-select: none;
+}
+
+// Адаптивные стили
+@media screen and (max-width: 768px) {
+  .footer {
+    padding: 20px;
+  }
+  
+  .links {
+    flex-direction: column;
+    gap: 12px;
+    text-align: center;
+  }
+  
+  .separator {
+    display: none;
+  }
+}
+
+// Стили для темной темы
+:global(html[data-theme="dark"]) {
+  .footer {
+    border-color: var(--color-stroke);
+    background-color: var(--color-background-all);
+  }
+  
+  .link {
+    color: var(--color-text-gray);
+    
+    &:hover {
+      color: var(--color-primary);
+    }
+  }
+  
+  .separator {
+    color: var(--color-text-gray);
+  }
+}
