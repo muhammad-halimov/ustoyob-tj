@@ -30,9 +30,15 @@ class PostGalleryController extends AbstractController
         if ($this->galleryRepository->findUserGallery($bearerUser))
             return $this->json(['message' => "This user has gallery, patch instead"], 400);
 
-        $this->entityManager->persist((new Gallery())->setUser($bearerUser));
+        $gallery = (new Gallery())->setUser($bearerUser);
+
+        $this->entityManager->persist($gallery);
         $this->entityManager->flush();
 
-        return $this->json(['message' => 'Resource successfully posted']);
+        return $this->json([
+            'id' => $gallery->getId(),
+            'user' => "/api/users/{$gallery->getUser()->getId()}",
+            'message' => 'Resource successfully posted',
+        ]);
     }
 }
