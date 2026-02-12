@@ -57,7 +57,10 @@ class PostAppealConntroller extends AbstractController
         if (!$respondent)
             return $this->json(['message' => 'Respondent not found'], 404);
 
-        if (!$this->chatRepository->findChatBetweenUsers($bearerUser, $respondent))
+        if (
+            !$this->chatRepository->findChatBetweenUsers($bearerUser, $respondent) &&
+            !$this->chatRepository->findChatBetweenUsers($respondent, $bearerUser)
+        )
             return $this->json(['message' => 'No interactions between users'], 422);
 
         $message = [
