@@ -3,6 +3,7 @@
 namespace App\Controller\Admin\Legal;
 
 use App\Entity\Legal\Legal;
+use App\Repository\Legal\LegalRepository;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
@@ -15,6 +16,9 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
 class LegalCrudController extends AbstractCrudController
 {
+    public function __construct(private readonly LegalRepository $legalRepository){}
+
+
     public static function getEntityFqcn(): string
     {
         return Legal::class;
@@ -42,6 +46,14 @@ class LegalCrudController extends AbstractCrudController
                 Action::EDIT,
                 Action::DELETE
             ]);
+
+        if ($this->legalRepository->count() >= count(Legal::TYPES)) {
+            $actions
+                ->remove(Crud::PAGE_INDEX, Action::NEW)
+                ->remove(Crud::PAGE_DETAIL, Action::NEW)
+                ->remove(Crud::PAGE_NEW, Action::NEW)
+                ->remove(Crud::PAGE_EDIT, Action::NEW);
+        }
 
         return parent::configureActions($actions)
             ->setPermissions([
