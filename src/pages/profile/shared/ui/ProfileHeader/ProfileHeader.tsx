@@ -98,6 +98,11 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
 
     return (
         <div className={styles.profile_content}>
+            {userRole && (
+                <div className={styles.profile_type_badge}>
+                    {userRole === 'master' ? 'Профиль мастера' : 'Профиль клиента'}
+                </div>
+            )}
             <div className={styles.avatar_section}>
                 <div
                     className={styles.avatar_container}

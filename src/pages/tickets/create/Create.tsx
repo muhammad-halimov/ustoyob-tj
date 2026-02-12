@@ -4,6 +4,7 @@ import styles from './Create.module.scss';
 import { getAuthToken, getUserRole } from '../../../utils/auth.ts';
 import AddressSelector, { AddressValue, buildAddressData } from '../../../shared/ui/AddressSelector';
 import CookieConsentBanner from "../../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
+import StatusModal from '../../../shared/ui/Modal/StatusModal';
 
 interface Category {
     id: number;
@@ -290,7 +291,7 @@ const Create = () => {
 
     const handleSuccessClose = () => {
         setShowSuccessModal(false);
-        navigate(`/my-tickets`);
+        navigate(`/ticket/me`);
     };
 
     if (!token) {
@@ -477,24 +478,12 @@ const Create = () => {
                 </div>
             </div>
 
-            {/* Модальное окно успеха */}
-            {showSuccessModal && (
-                <div className={styles.modalOverlay} onClick={handleSuccessClose}>
-                    <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-                        <h2 className={styles.successTitle}>Предложение успешно опубликовано!</h2>
-                        <div className={styles.successIcon}>
-                            <img src="./uspeh.png" alt="uspeh"/>
-                        </div>
-
-                        <button
-                            className={styles.successButton}
-                            onClick={handleSuccessClose}
-                        >
-                            Понятно
-                        </button>
-                    </div>
-                </div>
-            )}
+            <StatusModal
+                type="success"
+                isOpen={showSuccessModal}
+                onClose={handleSuccessClose}
+                message="Предложение успешно опубликовано!"
+            />
             <CookieConsentBanner/>
         </>
     );

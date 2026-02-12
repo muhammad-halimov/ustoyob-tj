@@ -9,8 +9,9 @@ export interface Service {
     id: number;
     title: string;
     description?: string;
-    price: number;
-    unit: string;
+    budget: number;
+    price?: number; // deprecated, используется budget
+    unit: string | { id: number; title: string };
     createdAt?: string;
     active?: boolean;
     images?: ServiceImage[];

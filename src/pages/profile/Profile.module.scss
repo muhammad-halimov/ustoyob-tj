@@ -1578,7 +1578,7 @@
   margin-left: 12px;
 }
 
-// Добавьте эти стили в ваш Master.module.scss
+// Добавьте эти стили в ваш Profile.module.scss
 
 .complaint_section {
   //margin-top: 16px;
@@ -3568,7 +3568,7 @@
 }
 
 
-/* Master.module.scss */
+/* Profile.module.scss */
 
 /* Стили для социальных сетей */
 .social_networks {
@@ -4451,4 +4451,48 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+// Кнопки действий в профиле (отзывы и жалобы)
+.profile_actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 32px;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+}
+
+.review_button,
+.complaint_button {
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.review_button {
+  background: #3A54DA;
+  color: white;
+
+  &:hover {
+    background: #2a44ca;
+    color: black;
+  }
+}
+
+.complaint_button {
+  background: #f5f5f5;
+  color: #333;
+  border: 1px solid #ddd;
+
+  &:hover {
+    background: #e8e8e8;
+    color: black;
+  }
 }

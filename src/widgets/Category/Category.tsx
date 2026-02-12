@@ -1,5 +1,5 @@
 import styles from "./Category.module.scss";
-import { AdBtn } from "../../shared/ui/button/HeaderButton/AdBtn.tsx";
+import { AdBtn } from "../../shared/ui/Button/HeaderButton/AdBtn.tsx";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from 'react-i18next';
@@ -76,7 +76,7 @@ export default function Category() {
 
     const handleCategoryClick = (categoryId: number) => {
         console.log('Category clicked:', categoryId);
-        navigate(`/category-tickets/${categoryId}`);
+        navigate(`/ticket/category/${categoryId}`);
     };
 
     const handleViewAll = () => {

@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { getAuthToken } from '../../../utils/auth.ts';
 import styles from './MyTickets.module.scss';
 import AuthModal from "../../../features/auth/AuthModal.tsx";
-import { AnnouncementCard } from '../../../shared/ui/AnnouncementCard/AnnouncementCard.tsx';
+import { TicketCard } from '../../../shared/ui/TicketCard/TicketCard.tsx';
 import CookieConsentBanner from "../../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
+import StatusModal from '../../../shared/ui/Modal/StatusModal';
 
 interface Ticket {
     id: number;
@@ -179,27 +180,35 @@ function MyTickets() {
 
                 console.log('My tickets:', myTickets);
 
-                const formattedTickets: FormattedTicket[] = myTickets.map(ticket => ({
-                    id: ticket.id,
-                    title: ticket.title || 'Без названия',
-                    price: ticket.budget || 0,
-                    unit: ticket.unit?.title || 'N/A',
-                    description: ticket.description || 'Описание отсутствует',
-                    address: getFullAddress(ticket),
-                    date: formatDate(ticket.createdAt),
-                    author: `${ticket.author?.name || ''} ${ticket.author?.surname || ''}`.trim() ||
-                        (ticket.service ? 'Мастер' : 'Клиент'),
-                    master: `${ticket.master?.name || ''} ${ticket.master?.surname || ''}`.trim() ||
-                        (ticket.service ? 'Мастер' : 'Клиент'),
-                    authorId: ticket.author?.id || 0,
-                    masterId: ticket.master?.id || 0,
-                    timeAgo: ticket.createdAt,
-                    category: ticket.category?.title || 'другое',
-                    status: ticket.active ? 'Активно' : 'Завершено',
-                    type: ticket.service ? 'master' : 'client',
-                    authorImage: ticket.author?.image ? formatProfileImageUrl(ticket.author.image) : undefined,
-                    active: ticket.active
-                }));
+                const formattedTickets: FormattedTicket[] = myTickets.map(ticket => {
+                    // Для услуг мастера (service = true) автор - это мастер (user в API)
+                    // Для заказов клиента (service = false) автор - это клиент (author в API)
+                    const isService = ticket.service;
+                    const authorData = isService ? ticket.master : ticket.author;
+                    const authorName = `${authorData?.name || ''} ${authorData?.surname || ''}`.trim() ||
+                        (isService ? 'Мастер' : 'Клиент');
+                    
+                    return {
+                        id: ticket.id,
+                        title: ticket.title || 'Без названия',
+                        price: ticket.budget || 0,
+                        unit: ticket.unit?.title || 'N/A',
+                        description: ticket.description || 'Описание отсутствует',
+                        address: getFullAddress(ticket),
+                        date: formatDate(ticket.createdAt),
+                        author: authorName,
+                        master: `${ticket.master?.name || ''} ${ticket.master?.surname || ''}`.trim() ||
+                            (ticket.service ? 'Мастер' : 'Клиент'),
+                        authorId: ticket.author?.id || 0,
+                        masterId: ticket.master?.id || 0,
+                        timeAgo: ticket.createdAt,
+                        category: ticket.category?.title || 'другое',
+                        status: ticket.active ? 'Активно' : 'Завершено',
+                        type: ticket.service ? 'master' : 'client',
+                        authorImage: authorData?.image ? formatProfileImageUrl(authorData.image) : undefined,
+                        active: ticket.active
+                    };
+                });
 
                 // Сортируем по дате создания (новые первыми)
                 formattedTickets.sort((a, b) => {
@@ -324,7 +333,7 @@ function MyTickets() {
             return;
         }
 
-        navigate('/create-ticket');
+        navigate('/ticket/create');
     };
 
     const handleClose = () => {
@@ -464,7 +473,7 @@ function MyTickets() {
                 images: ticketData.images || []
             };
 
-            navigate('/edit-ticket', {
+            navigate('/ticket/edit', {
                 state: {
                     serviceData: serviceData
                 }
@@ -537,7 +546,7 @@ function MyTickets() {
                     </div>
                 ) : (
                     displayedTickets.map((ticket) => (
-                        <AnnouncementCard
+                        <TicketCard
                             key={ticket.id}
                             title={ticket.title}
                             description={ticket.description}
@@ -568,43 +577,19 @@ function MyTickets() {
                 />
             )}
 
-            {/* Модалка успеха */}
-            {showSuccessModal && (
-                <div className={styles.modalOverlay} onClick={handleCloseSuccessModal}>
-                    <div className={`${styles.modalContent} ${styles.successModal}`} onClick={(e) => e.stopPropagation()}>
-                        <h2 className={styles.successTitle}>Успешно!</h2>
-                        <div className={styles.successIcon}>
-                            <img src="../uspeh.png" alt="Успех"/>
-                        </div>
-                        <p className={styles.successMessage}>{modalMessage}</p>
-                        <button
-                            className={styles.successButton}
-                            onClick={handleCloseSuccessModal}
-                        >
-                            Понятно
-                        </button>
-                    </div>
-                </div>
-            )}
+            <StatusModal
+                type="success"
+                isOpen={showSuccessModal}
+                onClose={handleCloseSuccessModal}
+                message={modalMessage}
+            />
 
-            {/* Модалка ошибки */}
-            {showErrorModal && (
-                <div className={styles.modalOverlay} onClick={handleCloseErrorModal}>
-                    <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-                        <h2 className={styles.errorTitle}>Ошибка</h2>
-                        <div className={styles.errorIcon}>
-                            <img src="../error.png" alt="Ошибка"/>
-                        </div>
-                        <p className={styles.errorMessage}>{modalMessage}</p>
-                        <button
-                            className={styles.errorButton}
-                            onClick={handleCloseErrorModal}
-                        >
-                            Понятно
-                        </button>
-                    </div>
-                </div>
-            )}
+            <StatusModal
+                type="error"
+                isOpen={showErrorModal}
+                onClose={handleCloseErrorModal}
+                message={modalMessage}
+            />
             <CookieConsentBanner/>
         </div>
     );

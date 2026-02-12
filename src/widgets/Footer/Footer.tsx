@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { ROUTES } from '../../app/routers/routes';
 import styles from "./Footer.module.scss";
 
 function Footer() {
@@ -9,12 +10,16 @@ function Footer() {
         <footer className={styles.footer}>
             <div className={styles.container}>
                 <div className={styles.links}>
-                    <Link to="/terms-of-use" className={styles.link}>
+                    <Link to={ROUTES.TERMS_OF_USE} className={styles.link}>
                         {t('footer.termsOfUse', 'Условия использования')}
                     </Link>
                     <span className={styles.separator}>•</span>
-                    <Link to="/privacy-policy" className={styles.link}>
+                    <Link to={ROUTES.PRIVACY_POLICY} className={styles.link}>
                         {t('footer.privacyPolicy', 'Политика конфиденциальности')}
+                    </Link>
+                    <span className={styles.separator}>•</span>
+                    <Link to={ROUTES.PUBLIC_OFFER} className={styles.link}>
+                        {t('footer.publicOffer', 'Публичная оферта')}
                     </Link>
                 </div>
             </div>

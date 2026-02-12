@@ -2,12 +2,13 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Service } from '../../../../../entities';
 import styles from './ServicesSection.module.scss';
-import { truncateText } from '../../../../../shared/ui/AnnouncementCard/AnnouncementCard';
+import { truncateText } from '../../../../../shared/ui/TicketCard/TicketCard.tsx';
 
 interface ServicesSectionProps {
     services: Service[];
     servicesLoading: boolean;
     readOnly?: boolean;
+    userRole?: 'master' | 'client' | null;
     API_BASE_URL?: string;
 }
 
@@ -15,6 +16,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
     services,
     servicesLoading,
     readOnly = false,
+    userRole = null,
     API_BASE_URL = import.meta.env.VITE_API_BASE_URL,
 }) => {
     const navigate = useNavigate();
@@ -71,7 +73,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
 
     return (
         <div className={styles.section_item}>
-            <h3>Объявления / Услуги ({activeServices.length})</h3>
+            <h3>{userRole === 'client' ? 'Объявления' : 'Услуги'} ({activeServices.length})</h3>
             <div className={styles.section_content}>
                 {servicesLoading ? (
                     <div className={styles.loading}>Загрузка услуг...</div>
@@ -94,7 +96,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                                     <div className={styles.service_header}>
                                         <h4 className={styles.service_title}>{truncateText(typeof service.title === 'string' ? service.title : (typeof service.title === 'object' && service.title && 'title' in service.title ? String((service.title as any).title) : 'Услуга'), 20)}</h4>
                                         <div className={styles.service_price}>
-                                            {typeof service.price === 'number' ? service.price : (typeof service.price === 'object' && service.price && 'value' in service.price ? Number((service.price as any).value) : 0)} TJS / {typeof service.unit === 'string' ? service.unit : (typeof service.unit === 'object' && service.unit && 'title' in service.unit ? String((service.unit as any).title) : 'шт')}
+                                            {typeof service.budget === 'number' ? service.budget : 0} TJS / {typeof service.unit === 'string' ? service.unit : (typeof service.unit === 'object' && service.unit && 'title' in service.unit ? String((service.unit as any).title) : 'шт')}
                                         </div>
                                     </div>
                                     {service.description && (
@@ -116,7 +118,10 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                     </>
                 ) : (
                     <div className={styles.empty_state}>
-                        <span>{readOnly ? 'Услуги пока не добавлены' : 'Добавьте свои услуги'}</span>
+                        <span>{readOnly 
+                            ? (userRole === 'client' ? 'Объявления пока не добавлены' : 'Услуги пока не добавлены')
+                            : (userRole === 'client' ? 'Добавьте свои объявления' : 'Добавьте свои услуги')
+                        }</span>
                     </div>
                 )}
             </div>

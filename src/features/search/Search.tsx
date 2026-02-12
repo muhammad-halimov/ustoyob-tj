@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import {cleanText} from "../../utils/cleanText.ts";
 import { useTranslation } from 'react-i18next';
 import { useLanguageChange } from "../../hooks/useLanguageChange";
-import { AnnouncementCard } from "../../shared/ui/AnnouncementCard/AnnouncementCard";
+import { TicketCard } from "../../shared/ui/TicketCard/TicketCard.tsx";
 import { ServiceTypeFilter } from "../../widgets/Sorting/ServiceTypeFilter";
 import { SortingFilter } from "../../widgets/Sorting/SortingFilter";
 
@@ -881,7 +881,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                         date: ticket.createdAt,
                         author: userName,
                         authorId,
-                        timeAgo: ticket.createdAt, // Передаём сырую дату, чтобы AnnouncementCard мог сам вычислить timeAgo
+                        timeAgo: ticket.createdAt, // Передаём сырую дату, чтобы TicketCard мог сам вычислить timeAgo
                         category: ticket.category?.title || 'другое',
                         type: ticket.type,
                         isInSelectedCity: priority > 0,
@@ -1191,7 +1191,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             });
             
             return (
-                <AnnouncementCard
+                <TicketCard
                     key={result.id}
                     title={result.title}
                     description={cleanText(result.description)}
@@ -1201,7 +1201,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     date={result.date}
                     author={result.author}
                     category={result.category}
-                    timeAgo={result.timeAgo} // Передаём сырую дату, AnnouncementCard сам отформатирует
+                    timeAgo={result.timeAgo} // Передаём сырую дату, TicketCard сам отформатирует
                     ticketType={result.type}
                     userRole={userRole}
                     userRating={result.userRating}

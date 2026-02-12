@@ -42,7 +42,7 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
 }) => {
     return (
         <div className={styles.section_item}>
-            <h3>География работ</h3>
+            <h3>{userRole === 'client' ? 'География объявлений' : 'География услуг'}</h3>
 
             {/* Переключатель удаленной работы - только для мастеров */}
             {userRole === 'master' && (

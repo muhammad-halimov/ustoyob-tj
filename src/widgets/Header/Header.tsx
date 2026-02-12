@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import styles from "./Header.module.scss";
-import { AdBtn } from "../../shared/ui/button/HeaderButton/AdBtn.tsx";
-import { EnterBtn } from "../../shared/ui/button/HeaderButton/EnterBtn.tsx";
+import { AdBtn } from "../../shared/ui/Button/HeaderButton/AdBtn.tsx";
+import { EnterBtn } from "../../shared/ui/Button/HeaderButton/EnterBtn.tsx";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {getAuthToken, getUserRole, removeAuthToken} from "../../utils/auth";
 import { useTranslation } from 'react-i18next';
@@ -388,8 +388,8 @@ function Header({ onOpenAuthModal }: HeaderProps) {
     const getActivePage = () => {
         switch (location.pathname) {
             case "/":
-            case "/my-tickets":
-                return "my-tickets";
+            case "/ticket/me":
+                return "ticket/me";
             case "/favorites":
                 return "favorites";
             case "/chats":
@@ -462,9 +462,9 @@ function Header({ onOpenAuthModal }: HeaderProps) {
 
     const handleAdBtnClick = () => {
         if (getUserRole() === 'master') {
-            navigate('/my-tickets');
+            navigate('/ticket/me');
         } else {
-            navigate('/my-tickets');
+            navigate('/ticket/me');
         }
     };
 

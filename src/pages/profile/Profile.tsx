@@ -1,7 +1,7 @@
 import {type ChangeEvent, useEffect, useRef, useState} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
 import {getAuthToken, removeAuthToken} from '../../utils/auth.ts';
-import styles from './Master.module.scss';
+import styles from './Profile.module.scss';
 
 import {fetchUserById} from "../../utils/api.ts";
 import {usePhotoGallery} from '../../shared/ui/PhotoGallery';
@@ -18,7 +18,6 @@ import {
     ProfileData,
     Review,
     ReviewApiData,
-    ReviewData,
     Service,
     UserAddressApiData,
     UserApiData
@@ -34,6 +33,10 @@ import {WorkAreasSection} from './shared/ui/WorkAreasSection';
 import {ServicesSection} from './shared/ui/ServicesSection';
 import {ReviewsSection} from './shared/ui/ReviewsSection';
 import CookieConsentBanner from "../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
+import StatusModal from '../../shared/ui/Modal/StatusModal';
+import ReviewModal from '../../shared/ui/Modal/ReviewModal';
+import ComplaintModal from '../../shared/ui/Modal/ComplaintModal';
+import AuthModal from '../../features/auth/AuthModal';
 
 // Интерфейс для социальных сетей с API
 interface LocalAvailableSocialNetwork {
@@ -210,20 +213,20 @@ function Profile() {
     const [reviewsLoading, setReviewsLoading] = useState(false);
     const [servicesLoading, setServicesLoading] = useState(false);
     const [visibleCount, setVisibleCount] = useState(2);
-    const [swiperKey, setSwiperKey] = useState(0);
     const [expandedReviews, setExpandedReviews] = useState<Set<number>>(new Set());
     const [showAllWorkExamples, setShowAllWorkExamples] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     const [showReviewModal, setShowReviewModal] = useState(false);
-    const [reviewText, setReviewText] = useState('');
-    const [selectedStars, setSelectedStars] = useState(0);
-    const [reviewPhotos, setReviewPhotos] = useState<File[]>([]);
-    const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+    const [showComplaintModal, setShowComplaintModal] = useState(false);
+    const [showAuthModal, setShowAuthModal] = useState(false);
+    const [authModalAction, setAuthModalAction] = useState<'review' | 'complaint' | null>(null);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [showErrorModal, setShowErrorModal] = useState(false);
+    const [modalMessage, setModalMessage] = useState('');
     const [occupations, setOccupations] = useState<Occupation[]>([]);
     const [occupationsLoading, setOccupationsLoading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const workExampleInputRef = useRef<HTMLInputElement>(null);
-    const reviewPhotoInputRef = useRef<HTMLInputElement>(null);
     const specialtyInputRef = useRef<HTMLSelectElement>(null);
     const [editingSocialNetwork, setEditingSocialNetwork] = useState<string | null>(null);
     const [socialNetworks, setSocialNetworks] = useState<LocalSocialNetwork[]>([]);
@@ -561,18 +564,6 @@ function Profile() {
             }
         }
     }, [editingEducation, occupations, profileData, educationForm.selectedSpecialty, occupationsLoading]);
-
-    // Обновляем ключ Swiper при изменении visibleCount для принудительной перерисовки
-    useEffect(() => {
-        setSwiperKey(prev => prev + 1);
-    }, [visibleCount]);
-
-    // Автоматически показываем все отзывы если их больше 1 (только при первой загрузке)
-    useEffect(() => {
-        if (reviews.length > 1 && visibleCount === 1) {
-            setVisibleCount(reviews.length);
-        }
-    }, [reviews.length]);
 
     const updateSocialNetworks = async (updatedNetworks: LocalSocialNetwork[]) => {
         if (!profileData?.id) {
@@ -1886,8 +1877,8 @@ function Profile() {
 
             console.log(`Fetching services for ${userRole} ID:`, profileData.id);
             const endpoint = userRole === 'client' 
-                ? `/api/tickets?exists[client]=true&client=${profileData.id}&service=false&active=true`
-                : `/api/tickets?exists[master]=true&master=${profileData.id}&service=true&active=true`;
+                ? `/api/tickets?service=false&active=true&exists[master]=false&exists[author]=true&author=${profileData.id}`
+                : `/api/tickets?service=true&active=true&exists[author]=false&exists[master]=true&master=${profileData.id}`;
             console.log(`Trying endpoint: ${endpoint}`);
 
             const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -1960,7 +1951,8 @@ function Profile() {
                     id: service.id,
                     title: service.title || 'Услуга',
                     description: service.description || '',
-                    price: service.price || 0,
+                    budget: service.budget || 0,
+                    price: service.budget || 0, // deprecated, используется budget
                     unit: service.unit || 'сомони',
                     createdAt: service.createdAt,
                     active: service.active !== false,
@@ -2000,27 +1992,8 @@ function Profile() {
             }
 
             console.log('Starting batch photo upload...');
-            let galleryId = await getUserGalleryId(token);
-
-            if (!galleryId) {
-                console.log('No gallery found, trying to create new one...');
-                galleryId = await findExistingGallery(token, await getCurrentUserId(token) || 0);
-
-                if (!galleryId) {
-                    console.log('Creating new gallery...');
-                    galleryId = await createUserGallery(token);
-
-                    if (!galleryId) {
-                        console.log('Could not create gallery, trying alternative approach...');
-                        await uploadPhotosWithoutGallery(files, token);
-                        return;
-                    }
-                }
-            }
-
-            console.log('Using gallery ID:', galleryId);
-
-            // Валидация файлов и создание FormData для batch-загрузки
+            
+            // Валидация файлов
             const formData = new FormData();
             const validFiles: File[] = [];
 
@@ -2037,7 +2010,6 @@ function Profile() {
                     continue;
                 }
 
-                // Добавляем файл в FormData как массив
                 formData.append("imageFile[]", file);
                 validFiles.push(file);
             }
@@ -2048,9 +2020,27 @@ function Profile() {
                 return;
             }
 
-            console.log(`Uploading ${validFiles.length} photos in batch to gallery ${galleryId}`);
+            // Получаем или создаем галерею (один GET запрос)
+            console.log('Fetching gallery...');
+            const galleryData = await getUserGallery(token);
+            let galleryId = galleryData?.id || null;
 
-            // Отправляем один запрос со всеми файлами
+            if (!galleryId) {
+                console.log('No gallery found, creating new one...');
+                galleryId = await createUserGallery(token);
+                
+                if (!galleryId) {
+                    alert('Не удалось создать галерею. Попробуйте еще раз или обратитесь в поддержку.');
+                    setIsGalleryOperating(false);
+                    return;
+                }
+                
+                console.log('Gallery ready with ID:', galleryId);
+            }
+
+            console.log(`Uploading ${validFiles.length} photos to gallery ${galleryId}`);
+
+            // Загружаем фото в галерею
             const response = await fetch(`${API_BASE_URL}/api/galleries/${galleryId}/upload-photo`, {
                 method: "POST",
                 headers: {
@@ -2060,37 +2050,17 @@ function Profile() {
             });
 
             const responseText = await response.text();
-            console.log(`Batch upload response:`, response.status, responseText);
+            console.log(`Upload response:`, response.status, responseText);
 
             if (!response.ok) {
-                if (response.status === 404) {
-                    console.log(`Gallery ${galleryId} not found, trying to create new one...`);
-                    const newGalleryId = await createUserGallery(token);
-                    if (newGalleryId) {
-                        const retryResponse = await fetch(`${API_BASE_URL}/api/galleries/${newGalleryId}/upload-photo`, {
-                            method: "POST",
-                            headers: {
-                                "Authorization": `Bearer ${token}`,
-                            },
-                            body: formData,
-                        });
-
-                        if (retryResponse.ok) {
-                            await fetchUserGallery();
-                            alert(`${validFiles.length} фото успешно добавлены в портфолио!`);
-                            return;
-                        }
-                    }
-                }
-
-                console.error(`Ошибка при batch-загрузке:`, responseText);
+                console.error(`Ошибка при загрузке:`, responseText);
                 alert("Не удалось загрузить фото. Попробуйте еще раз.");
+                setIsGalleryOperating(false);
                 return;
             }
 
-            // Обновляем галерею только для блока с примерами работ
+            // Обновляем галерею
             await fetchUserGallery();
-
             alert(`${validFiles.length} фото успешно добавлены в портфолио!`);
 
         } catch (error) {
@@ -2102,156 +2072,47 @@ function Profile() {
         }
     };
 
-    const uploadPhotosWithoutGallery = async (files: FileList, token: string) => {
-        try {
-            console.log('Trying to upload photos without gallery...');
-            console.log('Files count:', files.length);
-            console.log('Token available:', !!token);
-            alert('В данный момент загрузка фото временно недоступна. Пожалуйста, попробуйте позже или обратитесь в поддержку.');
-            return [];
-
-        } catch (error) {
-            console.error('Error uploading without gallery:', error);
-            alert('Ошибка при загрузке фото');
-            throw error;
-        }
-    };
-
     const getUserGallery = async (token: string): Promise<GalleryApiData | null> => {
         try {
-            console.log('Fetching user gallery...');
+            console.log('Fetching user gallery via /api/galleries/me...');
             const response = await fetch(`${API_BASE_URL}/api/galleries/me`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
                     'Accept': 'application/json',
                 },
             });
 
-            console.log('Gallery /me response status:', response.status);
-
-            if (response.ok) {
-                const galleriesData = await response.json();
-                console.log('Galleries data from /me:', galleriesData);
-                let galleryArray: GalleryApiData[] = [];
-
-                if (Array.isArray(galleriesData)) {
-                    galleryArray = galleriesData;
-                } else if (galleriesData && typeof galleriesData === 'object') {
-                    const apiResponse = galleriesData as ApiResponse<GalleryApiData>;
-                    if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
-                        galleryArray = apiResponse['hydra:member'];
-                    } else if ((galleriesData as GalleryApiData).id) {
-                        galleryArray = [galleriesData as GalleryApiData];
-                    }
-                }
-
-                if (galleryArray.length > 0) {
-                    console.log('Found gallery via /me:', galleryArray[0]);
-                    return galleryArray[0];
-                }
-            }
-
-            console.log('Trying to find gallery via /api/galleries with user filter...');
-            const currentUserId = await getCurrentUserId(token);
-            if (!currentUserId) {
-                console.log('Cannot get current user ID');
+            if (!response.ok) {
+                console.log('Gallery not found, status:', response.status);
                 return null;
             }
 
-            const filterResponse = await fetch(`${API_BASE_URL}/api/galleries?user=${currentUserId}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-            });
+            const galleriesData = await response.json();
+            console.log('Galleries data:', galleriesData);
+            
+            let galleryArray: GalleryApiData[] = [];
 
-            console.log('Filter response status:', filterResponse.status);
-
-            if (filterResponse.ok) {
-                const filterData = await filterResponse.json();
-                console.log('Galleries with user filter:', filterData);
-                let filteredArray: GalleryApiData[] = [];
-
-                if (Array.isArray(filterData)) {
-                    filteredArray = filterData;
-                } else if (filterData && typeof filterData === 'object') {
-                    const apiResponse = filterData as ApiResponse<GalleryApiData>;
-                    if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
-                        filteredArray = apiResponse['hydra:member'];
-                    } else if ((filterData as GalleryApiData).id) {
-                        filteredArray = [filterData as GalleryApiData];
-                    }
-                }
-
-                if (filteredArray.length > 0) {
-                    console.log('Found gallery via user filter:', filteredArray[0]);
-                    return filteredArray[0];
+            if (Array.isArray(galleriesData)) {
+                galleryArray = galleriesData;
+            } else if (galleriesData && typeof galleriesData === 'object') {
+                const apiResponse = galleriesData as ApiResponse<GalleryApiData>;
+                if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
+                    galleryArray = apiResponse['hydra:member'];
+                } else if ((galleriesData as GalleryApiData).id) {
+                    galleryArray = [galleriesData as GalleryApiData];
                 }
             }
 
-            console.log('Trying to find gallery via all galleries...');
-            const allGalleriesResponse = await fetch(`${API_BASE_URL}/api/galleries`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-            });
-
-            if (allGalleriesResponse.ok) {
-                const allGalleriesData = await allGalleriesResponse.json();
-                console.log('All galleries data:', allGalleriesData);
-                let allGalleryArray: GalleryApiData[] = [];
-
-                if (Array.isArray(allGalleriesData)) {
-                    allGalleryArray = allGalleriesData;
-                } else if (allGalleriesData && typeof allGalleriesData === 'object') {
-                    const apiResponse = allGalleriesData as ApiResponse<GalleryApiData>;
-                    if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
-                        allGalleryArray = apiResponse['hydra:member'];
-                    } else if ((allGalleriesData as GalleryApiData).id) {
-                        allGalleryArray = [allGalleriesData as GalleryApiData];
-                    }
-                }
-
-                if (allGalleryArray.length > 0) {
-                    const userGallery = allGalleryArray.find(gallery => {
-                        if (gallery.user && typeof gallery.user === 'object' && 'id' in gallery.user) {
-                            return gallery.user.id === currentUserId;
-                        }
-                        return false;
-                    });
-
-                    if (userGallery) {
-                        console.log('Found user gallery in all galleries:', userGallery);
-                        return userGallery;
-                    }
-                }
+            if (galleryArray.length > 0) {
+                console.log('Found gallery:', galleryArray[0].id);
+                return galleryArray[0];
             }
 
-            console.log('No gallery found for user');
+            console.log('No galleries found');
             return null;
         } catch (error) {
             console.error('Error getting user gallery:', error);
-            return null;
-        }
-    };
-
-    const getUserGalleryId = async (token: string): Promise<number | null> => {
-        try {
-            const gallery = await getUserGallery(token);
-            if (gallery && gallery.id) {
-                console.log('Gallery ID found:', gallery.id);
-                return gallery.id;
-            }
-            return null;
-        } catch (error) {
-            console.error('Error getting user gallery ID:', error);
             return null;
         }
     };
@@ -2447,43 +2308,10 @@ function Profile() {
         return null;
     };
 
-    const getCurrentUserId = async (token: string): Promise<number | null> => {
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/users/me`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (response.ok) {
-                const userData: UserApiData = await response.json();
-                console.log('Current user data:', userData);
-                return userData.id;
-            }
-            return null;
-        } catch (error) {
-            console.error('Error getting current user ID:', error);
-            return null;
-        }
-    };
-
     const createUserGallery = async (token: string): Promise<number | null> => {
         try {
             console.log('Creating new gallery...');
-            const currentUserId = await getCurrentUserId(token);
-            if (!currentUserId) {
-                alert('Не удалось определить ID пользователя');
-                return null;
-            }
-
-            console.log('Creating gallery for user ID:', currentUserId);
-            const requestBody = {
-                images: []
-            };
-
-            console.log('Creating gallery with data:', requestBody);
+            const requestBody = { images: [] };
 
             const response = await fetch(`${API_BASE_URL}/api/galleries`, {
                 method: "POST",
@@ -2496,103 +2324,51 @@ function Profile() {
             });
 
             const responseText = await response.text();
-            console.log('Create gallery response status:', response.status);
-            console.log('Create gallery response text:', responseText);
+            console.log('Create gallery response:', response.status, responseText);
 
-            if (response.ok) {
-                let galleryData: GalleryApiData;
-                try {
-                    galleryData = JSON.parse(responseText);
-                    console.log('Gallery created successfully:', galleryData);
-                    return galleryData.id;
-                } catch (e) {
-                    console.error('Error parsing gallery response:', e);
-                    return await findExistingGallery(token, currentUserId);
+            if (!response.ok) {
+                console.error('Failed to create gallery:', response.status, responseText);
+                // Если 422, возможно галерея уже есть - проверяем
+                if (response.status === 422) {
+                    console.log('422 error - checking if gallery exists...');
+                    const existingGallery = await getUserGallery(token);
+                    return existingGallery?.id || null;
                 }
-            } else if (response.status === 422) {
-                console.log('Validation error, gallery might already exist');
-                return await findExistingGallery(token, currentUserId);
-            } else {
-                console.error('Failed to create gallery:', responseText);
-                console.log('Trying to find existing gallery instead...');
-                return await findExistingGallery(token, currentUserId);
+                return null;
             }
+
+            // Галерея создана успешно
+            console.log('Gallery created successfully, parsing response...');
+            
+            // Пробуем распарсить ответ (новый формат: {id, user, message})
+            try {
+                const responseData = JSON.parse(responseText);
+                
+                // Проверяем наличие id (работает и для старого, и для нового формата)
+                if (responseData.id) {
+                    console.log('Gallery ID from response:', responseData.id);
+                    return responseData.id;
+                }
+                
+                console.log('Response parsed but no ID found:', responseData);
+            } catch (e) {
+                console.error('Failed to parse response:', e);
+            }
+            
+            // Если парсинг не удался или нет ID - делаем GET запрос
+            console.log('Fetching created gallery as fallback...');
+            await new Promise(resolve => setTimeout(resolve, 300));
+            const createdGallery = await getUserGallery(token);
+            
+            if (createdGallery?.id) {
+                console.log('Created gallery ID from GET:', createdGallery.id);
+                return createdGallery.id;
+            }
+            
+            console.error('Could not get gallery ID after creation');
+            return null;
         } catch (error) {
             console.error('Error creating gallery:', error);
-            alert("Ошибка при создании галереи. Попробуйте загрузить фото позже.");
-            return null;
-        }
-    };
-
-    const findExistingGallery = async (token: string, userId: number): Promise<number | null> => {
-        try {
-            console.log('Searching for existing gallery for user:', userId);
-            const response = await fetch(`${API_BASE_URL}/api/galleries/me`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json',
-                },
-            });
-
-            if (response.ok) {
-                const galleriesData = await response.json();
-                console.log('Galleries from /me:', galleriesData);
-                let galleryArray: GalleryApiData[] = [];
-
-                if (Array.isArray(galleriesData)) {
-                    galleryArray = galleriesData;
-                } else if (galleriesData && typeof galleriesData === 'object') {
-                    const apiResponse = galleriesData as ApiResponse<GalleryApiData>;
-                    if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
-                        galleryArray = apiResponse['hydra:member'];
-                    } else if ((galleriesData as GalleryApiData).id) {
-                        galleryArray = [galleriesData as GalleryApiData];
-                    }
-                }
-
-                if (galleryArray.length > 0) {
-                    const gallery = galleryArray[0];
-                    console.log('Found existing gallery:', gallery);
-                    return gallery.id;
-                }
-            }
-
-            const directResponse = await fetch(`${API_BASE_URL}/api/galleries?user=${userId}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json',
-                },
-            });
-
-            if (directResponse.ok) {
-                const directData = await directResponse.json();
-                console.log('Galleries from direct query:', directData);
-                let directArray: GalleryApiData[] = [];
-
-                if (Array.isArray(directData)) {
-                    directArray = directData;
-                } else if (directData && typeof directData === 'object') {
-                    const apiResponse = directData as ApiResponse<GalleryApiData>;
-                    if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
-                        directArray = apiResponse['hydra:member'];
-                    } else if ((directData as GalleryApiData).id) {
-                        directArray = [directData as GalleryApiData];
-                    }
-                }
-
-                if (directArray.length > 0) {
-                    const gallery = directArray[0];
-                    console.log('Found existing gallery via direct query:', gallery);
-                    return gallery.id;
-                }
-            }
-
-            console.log('No existing gallery found');
-            return null;
-        } catch (error) {
-            console.error('Error finding existing gallery:', error);
             return null;
         }
     };
@@ -3492,142 +3268,75 @@ function Profile() {
 
     const handleCloseReviewModal = () => {
         setShowReviewModal(false);
-        setReviewText('');
-        setSelectedStars(0);
-        setReviewPhotos([]);
     };
 
-    const handleStarClick = (starCount: number) => {
-        setSelectedStars(starCount);
+    const handleCloseComplaintModal = () => {
+        setShowComplaintModal(false);
     };
 
-    const handleReviewPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
-            const files = Array.from(e.target.files);
-            setReviewPhotos(prev => [...prev, ...files]);
-        }
+    const handleComplaintSuccess = (message: string) => {
+        setModalMessage(message);
+        setShowSuccessModal(true);
+        setTimeout(() => setShowSuccessModal(false), 3000);
     };
 
-    const removeReviewPhoto = (index: number) => {
-        setReviewPhotos(prev => prev.filter((_, i) => i !== index));
+    const handleComplaintError = (message: string) => {
+        setModalMessage(message);
+        setShowErrorModal(true);
+        setTimeout(() => setShowErrorModal(false), 3000);
     };
 
-    const handleSubmitReview = async () => {
-        if (!reviewText.trim()) {
-            alert('Пожалуйста, напишите комментарий');
+    const handleReviewSuccess = (message: string) => {
+        setModalMessage(message);
+        setShowSuccessModal(true);
+        setTimeout(() => setShowSuccessModal(false), 3000);
+        // Обновляем список отзывов
+        fetchReviews();
+    };
+
+    const handleReviewError = (message: string) => {
+        setModalMessage(message);
+        setShowErrorModal(true);
+        setTimeout(() => setShowErrorModal(false), 3000);
+    };
+
+    const handleReviewSubmitted = async (updatedCount: number) => {
+        // Обновляем количество отзывов в профиле
+        setProfileData(prev => prev ? {
+            ...prev,
+            reviews: updatedCount
+        } : null);
+    };
+
+    const handleReviewButtonClick = () => {
+        const token = getAuthToken();
+        if (!token) {
+            setAuthModalAction('review');
+            setShowAuthModal(true);
             return;
         }
-
-        if (selectedStars === 0) {
-            alert('Пожалуйста, поставьте оценку');
-            return;
-        }
-
-        try {
-            setIsSubmittingReview(true);
-            const token = getAuthToken();
-            if (!token) {
-                alert('Необходима авторизация');
-                return;
-            }
-
-            const currentUserId = await getCurrentUserId(token);
-            if (!currentUserId || !profileData) {
-                alert('Не удалось определить пользователя или мастера');
-                return;
-            }
-
-            const reviewData: ReviewData = {
-                type: 'master',
-                rating: selectedStars,
-                description: reviewText,
-                master: `/api/users/${profileData.id}`,
-                client: `/api/users/${currentUserId}`
-            };
-
-            console.log('Sending review data:', reviewData);
-            const response = await fetch(`${API_BASE_URL}/api/reviews`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(reviewData)
-            });
-
-            if (response.ok) {
-                const reviewResponse = await response.json();
-                console.log('Review created successfully:', reviewResponse);
-
-                if (reviewPhotos.length > 0) {
-                    try {
-                        await uploadReviewPhotos(reviewResponse.id, reviewPhotos, token);
-                        console.log('All review photos uploaded successfully');
-                    } catch (uploadError) {
-                        console.error('Error uploading photos, but review was created:', uploadError);
-                        alert('Отзыв отправлен, но возникла ошибка при загрузке фото');
-                    }
-                }
-
-                handleCloseReviewModal();
-                alert('Отзыв успешно отправлен!');
-                await fetchReviews();
-
-            } else {
-                const errorText = await response.text();
-                console.error('Error creating review. Status:', response.status, 'Response:', errorText);
-
-                let errorMessage = 'Ошибка при отправке отзыва';
-                if (response.status === 422) {
-                    errorMessage = 'Ошибка валидации данных. Проверьте введенные данные.';
-                } else if (response.status === 400) {
-                    errorMessage = 'Неверные данные для отправки отзыва.';
-                } else if (response.status === 404) {
-                    errorMessage = 'Ресурс не найден. Возможно, пользователь не существует.';
-                }
-
-                alert(errorMessage);
-            }
-
-        } catch (error) {
-            console.error('Error submitting review:', error);
-            alert('Произошла непредвиденная ошибка при отправке отзыва');
-        } finally {
-            setIsSubmittingReview(false);
-        }
+        setShowReviewModal(true);
     };
 
-    const uploadReviewPhotos = async (reviewId: number, photos: File[], token: string) => {
-        try {
-            console.log(`Uploading ${photos.length} photos for review ${reviewId}`);
-
-            for (const photo of photos) {
-                const formData = new FormData();
-                formData.append('image', photo);
-
-                console.log(`Uploading review photo: ${photo.name}`);
-                const response = await fetch(`${API_BASE_URL}/api/reviews/${reviewId}/upload-photo`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
-                    body: formData
-                });
-
-                if (response.ok) {
-                    const uploadResult = await response.json();
-                    console.log('Review photo uploaded successfully:', uploadResult);
-                } else {
-                    const errorText = await response.text();
-                    console.error(`Error uploading photo for review ${reviewId}:`, errorText);
-                }
-            }
-
-            console.log('All review photos uploaded successfully');
-        } catch (error) {
-            console.error('Error uploading review photos:', error);
-            throw error;
+    const handleComplaintClick = () => {
+        const token = getAuthToken();
+        if (!token) {
+            setAuthModalAction('complaint');
+            setShowAuthModal(true);
+            return;
         }
+        setShowComplaintModal(true);
+    };
+
+    const handleAuthSuccess = () => {
+        setShowAuthModal(false);
+        // После успешной авторизации открываем нужную модалку
+        if (authModalAction === 'review') {
+            setShowReviewModal(true);
+        } else if (authModalAction === 'complaint') {
+            setShowComplaintModal(true);
+        }
+        setAuthModalAction(null);
     };
 
     if (isLoading) {
@@ -3769,6 +3478,7 @@ function Profile() {
                         services={profileData.services}
                         servicesLoading={servicesLoading}
                         readOnly={readOnly}
+                        userRole={userRole}
                         API_BASE_URL={API_BASE_URL}
                     />
 
@@ -3795,7 +3505,6 @@ function Profile() {
                     reviews={reviews}
                     reviewsLoading={reviewsLoading}
                     visibleCount={visibleCount}
-                    swiperKey={swiperKey}
                     API_BASE_URL={API_BASE_URL}
                     userRole={userRole || 'master'}
                     onShowMore={handleShowMore}
@@ -3811,137 +3520,68 @@ function Profile() {
                 />
             </div>
 
-            {/* Модальное окно для оставления отзыва */}
-            {showReviewModal && (
-                <div className={styles.modalOverlay}>
-                    <div className={styles.reviewModal}>
-                        <div className={styles.modalHeader}>
-                            <h2>Оставьте отзыв о работе</h2>
-                        </div>
-
-                        <div className={styles.modalContent}>
-                            <div className={styles.commentSection}>
-                                <textarea
-                                    value={reviewText}
-                                    onChange={(e) => setReviewText(e.target.value)}
-                                    placeholder="Расскажите о вашем опыте работы..."
-                                    className={styles.commentTextarea}
-                                />
-                            </div>
-
-                            <div className={styles.photoSection}>
-                                <label>Приложите фото</label>
-                                <div className={styles.photoUploadContainer}>
-                                    <div className={styles.photoPreviews}>
-                                        {reviewPhotos.map((photo, index) => (
-                                            <div key={index} className={styles.photoPreview}>
-                                                <img
-                                                    src={URL.createObjectURL(photo)}
-                                                    alt={`Preview ${index + 1}`}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeReviewPhoto(index)}
-                                                    className={styles.removePhoto}
-                                                >
-                                                    ×
-                                                </button>
-                                            </div>
-                                        ))}
-
-                                        <div className={styles.photoUpload}>
-                                            <input
-                                                type="file"
-                                                id="review-photos"
-                                                multiple
-                                                accept="image/*"
-                                                onChange={handleReviewPhotoUpload}
-                                                className={styles.fileInput}
-                                                ref={reviewPhotoInputRef}
-                                            />
-                                            <label htmlFor="review-photos" className={styles.photoUploadButton}>
-                                                +
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className={styles.ratingSection}>
-                                <label>Поставьте оценку</label>
-                                <div className={styles.stars}>
-                                    {[1, 2, 3, 4, 5].map((star) => (
-                                        <button
-                                            key={star}
-                                            type="button"
-                                            className={`${styles.star} ${star <= selectedStars ? styles.active : ''}`}
-                                            onClick={() => handleStarClick(star)}
-                                        >
-                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                                                <g clipPath="url(#clip0_248_13358)">
-                                                    <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10"/>
-                                                    <path d="M12 19V18.98" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10"/>
-                                                </g>
-                                                <defs>
-                                                    <clipPath id="clip0_248_13358">
-                                                        <rect width="24" height="24" fill="white"/>
-                                                    </clipPath>
-                                                </defs>
-                                            </svg>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className={styles.modalActions}>
-                            <button
-                                className={styles.closeButton}
-                                onClick={handleCloseReviewModal}
-                                disabled={isSubmittingReview}
-                            >
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <g clipPath="url(#clip0_551_2371)">
-                                        <g clipPath="url(#clip1_551_2371)">
-                                            <path d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z" stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
-                                            <path d="M16.7705 7.22998L7.23047 16.77" stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
-                                            <path d="M7.23047 7.22998L16.7705 16.77" stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
-                                        </g>
-                                    </g>
-                                    <defs>
-                                        <clipPath id="clip0_551_2371">
-                                            <rect width="24" height="24" fill="white"/>
-                                        </clipPath>
-                                        <clipPath id="clip1_551_2371">
-                                            <rect width="24" height="24" fill="white"/>
-                                        </clipPath>
-                                    </defs>
-                                </svg>
-                                Закрыть
-                            </button>
-                            <button
-                                className={styles.submitButton}
-                                onClick={handleSubmitReview}
-                                disabled={isSubmittingReview || !reviewText.trim() || selectedStars === 0}
-                            >
-                                {isSubmittingReview ? 'Отправка...' : 'Отправить'}
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <g clipPath="url(#clip0_551_2758)">
-                                        <path d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z" stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
-                                        <path d="M6.26953 12H17.7295" stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
-                                        <path d="M12.96 7.22998L17.73 12L12.96 16.77" stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
-                                    </g>
-                                    <defs>
-                                        <clipPath id="clip0_551_2758">
-                                            <rect width="24" height="24" fill="white"/>
-                                        </clipPath>
-                                    </defs>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
+            {readOnly && (
+                <div className={styles.profile_actions}>
+                    <button 
+                        className={styles.review_button}
+                        onClick={handleReviewButtonClick}
+                    >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+                        </svg>
+                        Оставить отзыв
+                    </button>
+                    <button 
+                        className={styles.complaint_button}
+                        onClick={handleComplaintClick}
+                    >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2L2 20H22L12 2ZM12 17C11.45 17 11 16.55 11 16C11 15.45 11.45 15 12 15C12.55 15 13 15.45 13 16C13 16.55 12.55 17 12 17ZM13 13H11V8H13V13Z"/>
+                        </svg>
+                        Пожаловаться
+                    </button>
                 </div>
             )}
+
+            <ReviewModal
+                isOpen={showReviewModal}
+                onClose={handleCloseReviewModal}
+                onSuccess={handleReviewSuccess}
+                onError={handleReviewError}
+                ticketId={0}
+                targetUserId={profileData?.id ? parseInt(profileData.id) : 0}
+                onReviewSubmitted={handleReviewSubmitted}
+                showServiceSelector={true}
+            />
+
+            <ComplaintModal
+                isOpen={showComplaintModal}
+                onClose={handleCloseComplaintModal}
+                onSuccess={handleComplaintSuccess}
+                onError={handleComplaintError}
+                targetUserId={profileData?.id ? parseInt(profileData.id) : 0}
+            />
+
+            <AuthModal
+                isOpen={showAuthModal}
+                onClose={() => setShowAuthModal(false)}
+                onLoginSuccess={handleAuthSuccess}
+            />
+
+            <StatusModal
+                type="success"
+                isOpen={showSuccessModal}
+                onClose={() => setShowSuccessModal(false)}
+                message={modalMessage}
+            />
+
+            <StatusModal
+                type="error"
+                isOpen={showErrorModal}
+                onClose={() => setShowErrorModal(false)}
+                message={modalMessage}
+            />
+
             <CookieConsentBanner/>
         </div>
     );

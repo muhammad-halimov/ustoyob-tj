@@ -6,7 +6,7 @@ import { createChatWithAuthor } from "../../utils/chatUtils";
 import { cleanText } from '../../utils/cleanText';
 import { useTranslation } from 'react-i18next';
 import { useLanguageChange } from '../../hooks/useLanguageChange';
-import { AnnouncementCard } from '../../shared/ui/AnnouncementCard/AnnouncementCard';
+import { TicketCard } from '../../shared/ui/TicketCard/TicketCard.tsx';
 import CookieConsentBanner from "../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
 
 interface FavoriteTicket {
@@ -1335,7 +1335,7 @@ function Favorites() {
             <div className={styles.recommendation_wrap}>
                 {/* Отображение заказов */}
                 {(activeTab === 'orders' || !showTabs) && hasOrders && favoriteTickets.map((ticket, index) => (
-                    <AnnouncementCard
+                    <TicketCard
                         key={`${ticket.id}-${ticket.type}-${index}`}
                         title={ticket.title}
                         description={cleanText(ticket.description)}

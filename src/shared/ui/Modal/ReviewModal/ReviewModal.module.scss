@@ -1,0 +1,410 @@
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.reviewModal {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modalHeader {
+  margin-bottom: 20px;
+
+  h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    text-align: center;
+    color: #333;
+  }
+}
+
+.modalContent {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.commentSection,
+.photoSection,
+.ratingSection,
+.serviceSection {
+  &label {
+    margin-bottom: 10px;
+    font-weight: 500;
+    color: #333;
+    font-size: 14px;
+
+  }
+}
+
+.serviceSelect {
+  width: 100%;
+  padding: 12px;
+  margin-top: 10px;
+  background-color: #F2F2F5;
+  border-radius: 10px;
+  border: none;
+  font-family: inherit;
+  font-size: 14px;
+  color: #333;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+    background-color: #e8e8eb;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.loadingServices,
+.noServices {
+  padding: 12px;
+  background-color: #F2F2F5;
+  border-radius: 10px;
+  text-align: center;
+  color: #666;
+  font-size: 14px;
+}
+
+.commentTextarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  background-color: #F2F2F5;
+  border-radius: 10px;
+  resize: vertical;
+  font-family: inherit;
+  border: none;
+  font-size: 14px;
+
+  &:focus {
+    outline: none;
+  }
+
+  &::placeholder {
+    color: #999;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.photoUploadContainer {
+  margin-top: 8px;
+}
+
+.photoPreviews {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  min-height: 60px;
+}
+
+.photoPreview {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  flex-shrink: 0;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+  }
+}
+
+.removePhoto {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  background: #ff4444;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+
+  &:hover {
+    background: #ff3333;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.photoUpload {
+  width: 60px;
+  height: 60px;
+  flex-shrink: 0;
+}
+
+.fileInput {
+  display: none;
+}
+
+.photoUploadButton {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 300;
+  line-height: 1;
+  color: #3A54DA;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #F2F2F5;
+  border: 1px solid #e0e0e0;
+
+  &:hover {
+    background: #e6e6e8;
+  }
+}
+
+.stars {
+  display: flex;
+  gap: 8px;
+  padding: 20px;
+  border-radius: 10px;
+  background-color: #F2F2F5;
+  max-width: 200px;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.star {
+  background: none;
+  border: none;
+  font-size: 30px;
+  color: #A6A6A6;
+  transition: color 0.2s;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+
+  &.active {
+    color: #FFC107;
+  }
+
+  &:hover:not(:disabled) {
+    color: #ffc107;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+}
+
+.modalActions {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-top: 24px;
+
+  button {
+    padding: 10px 20px;
+    border-radius: 6px;
+    border: none;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.closeButton {
+  background: #f5f5f5;
+  color: #333;
+
+  svg {
+    margin-right: 10px;
+    color: #101010;
+  }
+
+  &:hover:not(:disabled) {
+    background: #e0e0e0;
+  }
+}
+
+.submitButton {
+  background: #3A54DA;
+  color: white;
+
+  svg {
+    margin-left: 10px;
+  }
+
+  &:hover:not(:disabled) {
+    background: #2a44ca;
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .reviewModal {
+    max-width: 95%;
+    padding: 20px;
+  }
+
+  .modalHeader h2 {
+    font-size: 18px;
+  }
+
+  .stars {
+    padding: 15px;
+  }
+
+  .star {
+    font-size: 24px;
+  }
+
+  .photoPreview,
+  .photoUpload {
+    width: 50px;
+    height: 50px;
+  }
+}
+
+// Темная тема
+:global(html[data-theme="dark"]) {
+  .reviewModal {
+    background-color: var(--color-background-primary);
+    color: var(--color-text-primary);
+  }
+
+  .modalHeader h2 {
+    color: var(--color-text-primary);
+  }
+
+  .commentSection,
+  .photoSection,
+  .ratingSection,
+  .serviceSection {
+    label {
+      color: var(--color-text-primary);
+    }
+  }
+
+  .serviceSelect {
+    background-color: var(--color-background-all);
+    color: var(--color-text-primary);
+    border-color: var(--color-stroke);
+
+    option {
+      background-color: var(--color-background-all);
+      color: var(--color-text-primary);
+    }
+
+    &:focus {
+      background-color: var(--color-background-secondary);
+    }
+  }
+
+  .loadingServices,
+  .noServices {
+    background-color: var(--color-background-all);
+    color: var(--color-text-secondary);
+  }
+
+  .commentTextarea {
+    background-color: var(--color-background-all);
+    color: var(--color-text-primary);
+    border-color: var(--color-stroke);
+
+    &::placeholder {
+      color: var(--color-text-secondary);
+    }
+
+    &:focus {
+      background-color: var(--color-background-secondary);
+    }
+  }
+
+  .photoPreview img {
+    border-color: var(--color-stroke);
+  }
+
+  .photoUploadButton {
+    background-color: var(--color-background-all);
+    border-color: var(--color-stroke);
+    color: #3A54DA;
+
+    &:hover {
+      background-color: var(--color-background-secondary);
+    }
+  }
+
+  .stars {
+    background-color: var(--color-background-all);
+  }
+
+  .closeButton {
+    background-color: var(--color-background-all);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-stroke);
+
+    svg {
+      color: var(--color-text-primary);
+    }
+
+    &:hover:not(:disabled) {
+      background-color: var(--color-background-secondary);
+    }
+  }
+}

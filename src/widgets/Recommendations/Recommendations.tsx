@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getUserRole, getAuthToken, getUserData } from '../../utils/auth.ts';
 import { useLanguageChange } from '../../hooks/useLanguageChange';
-import { AnnouncementCard } from '../../shared/ui/AnnouncementCard/AnnouncementCard';
+import { TicketCard } from '../../shared/ui/TicketCard/TicketCard.tsx';
 import styles from './Recommendations.module.scss';
 import { useTranslation } from 'react-i18next';
 
@@ -226,7 +226,7 @@ function Recommendations() {
                 ) : announcements.length > 0 ? (
                     <div className={styles.recommendation__list}>
                         {announcements.map((announcement) => (
-                            <AnnouncementCard
+                            <TicketCard
                                 key={announcement.id}
                                 title={announcement.title}
                                 description={announcement.description}

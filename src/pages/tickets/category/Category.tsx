@@ -4,7 +4,7 @@ import { getAuthToken, getUserRole, getUserData } from '../../../utils/auth.ts';
 import { getStorageItem } from '../../../utils/storageHelper.ts';
 import { useLanguageChange } from '../../../hooks/useLanguageChange.ts';
 import styles from './Category.module.scss';
-import { AnnouncementCard } from '../../../shared/ui/AnnouncementCard/AnnouncementCard.tsx';
+import { TicketCard } from '../../../shared/ui/TicketCard/TicketCard.tsx';
 import { ServiceTypeFilter } from '../../../widgets/Sorting/ServiceTypeFilter';
 import { SortingFilter } from '../../../widgets/Sorting/SortingFilter';
 import { useTranslation } from 'react-i18next';
@@ -910,7 +910,7 @@ function Category() {
                     </div>
                 ) : (
                     tickets.map((ticket) => (
-                        <AnnouncementCard
+                        <TicketCard
                             key={ticket.id}
                             title={ticket.title}
                             description={cleanText(ticket.description)}

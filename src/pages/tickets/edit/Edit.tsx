@@ -4,6 +4,7 @@ import { getAuthToken } from '../../../utils/auth.ts';
 import AddressSelector, { AddressValue, buildAddressData } from '../../../shared/ui/AddressSelector';
 import styles from './Edit.module.scss';
 import CookieConsentBanner from "../../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
+import StatusModal from '../../../shared/ui/Modal/StatusModal';
 
 interface ServiceData {
     id?: number;
@@ -306,7 +307,7 @@ const Edit = () => {
             setShowSuccessModal(true);
             setTimeout(() => {
                 setShowSuccessModal(false);
-                navigate('/my-tickets');
+                navigate('/ticket/me');
             }, 2000);
 
         } catch (error) {
@@ -540,27 +541,15 @@ const Edit = () => {
                 </div>
             </form>
 
-            {/* Модалка успеха */}
-            {showSuccessModal && (
-                <div className={styles.modalOverlay} onClick={() => setShowSuccessModal(false)}>
-                    <div className={`${styles.modalContent} ${styles.successModal}`} onClick={(e) => e.stopPropagation()}>
-                        <h2 className={styles.successTitle}>Успешно!</h2>
-                        <div className={styles.successIcon}>
-                            <img src="/uspeh.png" alt="Успех"/>
-                        </div>
-                        <p className={styles.successMessage}>Услуга успешно обновлена!</p>
-                        <button
-                            className={styles.successButton}
-                            onClick={() => {
-                                setShowSuccessModal(false);
-                                navigate('/my-tickets');
-                            }}
-                        >
-                            Понятно
-                        </button>
-                    </div>
-                </div>
-            )}
+            <StatusModal
+                type="success"
+                isOpen={showSuccessModal}
+                onClose={() => {
+                    setShowSuccessModal(false);
+                    navigate('/ticket/me');
+                }}
+                message="Услуга успешно обновлена!"
+            />
             <CookieConsentBanner/>
         </div>
     );

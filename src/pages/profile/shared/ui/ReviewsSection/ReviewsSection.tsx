@@ -11,7 +11,7 @@ interface ReviewsSectionProps {
     reviews: Review[];
     reviewsLoading: boolean;
     visibleCount: number;
-    swiperKey: number;
+
     API_BASE_URL: string;
     userRole?: 'master' | 'client'; // Добавляем тип профиля
     onShowMore: () => void;
@@ -30,7 +30,6 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
     reviews,
     reviewsLoading,
     visibleCount,
-    swiperKey,
     API_BASE_URL,
     userRole = 'master', // По умолчанию мастер
     onShowMore,
@@ -325,7 +324,6 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                         <div className={styles.reviews_mobile}>
                             {visibleCount === 2 ? (
                                 <Swiper
-                                    key={swiperKey}
                                     spaceBetween={16}
                                     slidesPerView={1}
                                     className={styles.reviews_slider}
@@ -606,7 +604,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
 
             {/* Кнопки управления отзывами */}
             <div className={styles.reviews_actions}>
-                {reviews.length > visibleCount && (
+                {reviews.length >= 2 && visibleCount < reviews.length && (
                     <button
                         className={styles.show_all_reviews_btn}
                         onClick={onShowMore}
@@ -621,6 +619,11 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                     >
                         Скрыть отзывы
                     </button>
+                )}
+                {reviews.length >= 2 && visibleCount <= 2 && (
+                    <div className={styles.swipe_hint}>
+                        Листайте вправо
+                    </div>
                 )}
             </div>
 

@@ -1,6 +1,6 @@
 import styles from "./Main.module.scss";
 import Search from "../../../features/search/Search.tsx";
-import { AdBtn } from "../../../shared/ui/button/HeaderButton/AdBtn.tsx";
+import { AdBtn } from "../../../shared/ui/Button/HeaderButton/AdBtn.tsx";
 import Category from "../../../widgets/Category/Category.tsx";
 import { MainReviewsSection } from "../../../features/reviews";
 import Recommendations from "../../../widgets/Recommendations/Recommendations.tsx";
@@ -161,9 +161,9 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
 
     const handleAdBtnClick = (workerType: "client" | "master") => {
         if (workerType === "master" && userRole === "master") {
-            navigate("/profile/services");
+            navigate("/profile/create");
         } else if (workerType === "client" && userRole === "client") {
-            navigate("/create-ticket");
+            navigate("/ticket/create");
         } else if (!userRole) {
             if (onOpenAuthModal) {
                 onOpenAuthModal();

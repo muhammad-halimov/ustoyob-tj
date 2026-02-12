@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getAuthToken } from '../../utils/auth';
+import { ROUTES } from '../../app/routers/routes';
 import styles from './Legal.module.scss';
 
 interface LegalDocument {
@@ -13,7 +14,7 @@ interface LegalDocument {
     updatedAt: string;
 }
 
-type DocumentType = 'privacy_policy' | 'terms_of_use';
+type DocumentType = 'privacy_policy' | 'terms_of_use' | 'public_offer';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -33,6 +34,8 @@ function Legal() {
             setActiveType('privacy_policy');
         } else if (path.includes('terms-of-use')) {
             setActiveType('terms_of_use');
+        } else if (path.includes('public-offer')) {
+            setActiveType('public_offer');
         }
     }, [location.pathname]);
 
@@ -81,7 +84,12 @@ function Legal() {
     const handleTypeChange = (type: DocumentType) => {
         if (type !== activeType) {
             setActiveType(type);
-            const newPath = type === 'privacy_policy' ? '/privacy-policy' : '/terms-of-use';
+            let newPath: string = ROUTES.PRIVACY_POLICY;
+            if (type === 'terms_of_use') {
+                newPath = ROUTES.TERMS_OF_USE;
+            } else if (type === 'public_offer') {
+                newPath = ROUTES.PUBLIC_OFFER;
+            }
             navigate(newPath, { replace: true });
         }
     };
@@ -89,6 +97,28 @@ function Legal() {
     if (isLoading) {
         return (
             <div className={styles.container}>
+                <div className={styles.header}>
+                    <div className={styles.navigation}>
+                        <button 
+                            className={`${styles.navButton} ${activeType === 'terms_of_use' ? styles.active : ''}`}
+                            onClick={() => handleTypeChange('terms_of_use')}
+                        >
+                            {t('footer.termsOfUse', 'Условия использования')}
+                        </button>
+                        <button 
+                            className={`${styles.navButton} ${activeType === 'privacy_policy' ? styles.active : ''}`}
+                            onClick={() => handleTypeChange('privacy_policy')}
+                        >
+                            {t('footer.privacyPolicy', 'Политика конфиденциальности')}
+                        </button>
+                        <button 
+                            className={`${styles.navButton} ${activeType === 'public_offer' ? styles.active : ''}`}
+                            onClick={() => handleTypeChange('public_offer')}
+                        >
+                            {t('footer.publicOffer', 'Публичная оферта')}
+                        </button>
+                    </div>
+                </div>
                 <div className={styles.loading}>
                     <p>{t('app.loading', 'Загрузка...')}</p>
                 </div>
@@ -99,12 +129,34 @@ function Legal() {
     if (error || !document) {
         return (
             <div className={styles.container}>
-                <div className={styles.error}>
-                    <h1>{t('error.title', 'Ошибка')}</h1>
-                    <p>{error || t('legal.notFound', 'Документ не найден')}</p>
-                    <button onClick={() => navigate('/')} className={styles.backButton}>
-                        {t('navigation.goHome', 'На главную')}
-                    </button>
+                <div className={styles.header}>
+                    <div className={styles.navigation}>
+                        <button 
+                            className={`${styles.navButton} ${activeType === 'terms_of_use' ? styles.active : ''}`}
+                            onClick={() => handleTypeChange('terms_of_use')}
+                        >
+                            {t('footer.termsOfUse', 'Условия использования')}
+                        </button>
+                        <button 
+                            className={`${styles.navButton} ${activeType === 'privacy_policy' ? styles.active : ''}`}
+                            onClick={() => handleTypeChange('privacy_policy')}
+                        >
+                            {t('footer.privacyPolicy', 'Политика конфиденциальности')}
+                        </button>
+                        <button 
+                            className={`${styles.navButton} ${activeType === 'public_offer' ? styles.active : ''}`}
+                            onClick={() => handleTypeChange('public_offer')}
+                        >
+                            {t('footer.publicOffer', 'Публичная оферта')}
+                        </button>
+                    </div>
+                </div>
+                <div className={styles.content}>
+                    <div className={styles.error}>
+                        <h1>{t('error.title', 'Ошибка')}</h1>
+                        <p>{error || t('legal.notFound', 'Документ не найден')}</p>
+                        <p>{t('legal.tryAnotherDocument', 'Попробуйте выбрать другой документ из навигации выше')}</p>
+                    </div>
                 </div>
             </div>
         );
@@ -125,6 +177,12 @@ function Legal() {
                         onClick={() => handleTypeChange('privacy_policy')}
                     >
                         {t('footer.privacyPolicy', 'Политика конфиденциальности')}
+                    </button>
+                    <button 
+                        className={`${styles.navButton} ${activeType === 'public_offer' ? styles.active : ''}`}
+                        onClick={() => handleTypeChange('public_offer')}
+                    >
+                        {t('footer.publicOffer', 'Публичная оферта')}
                     </button>
                 </div>
             </div>

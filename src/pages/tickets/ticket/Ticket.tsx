@@ -6,6 +6,8 @@ import {createChatWithAuthor, initChatModals} from "../../../utils/chatUtils.ts"
 import AuthModal from "../../../features/auth/AuthModal.tsx";
 import {cleanText} from "../../../utils/cleanText.ts";
 import CookieConsentBanner from "../../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
+import StatusModal from '../../../shared/ui/Modal/StatusModal';
+import ReviewModal from '../../../shared/ui/Modal/ReviewModal';
 // import { fetchUserWithRole } from "../../utils/api.ts";
 
 interface ApiTicket {
@@ -88,12 +90,6 @@ interface City {
     districts: { id: number }[];
 }
 
-interface Review {
-    id: number;
-    master?: { id: number };
-    client?: { id: number };
-}
-
 interface Favorite {
     id: number;
     tickets?: { id: number }[];
@@ -125,9 +121,6 @@ export function Ticket() {
     const [rating, setRating] = useState<number>(0);
 
     const [showReviewModal, setShowReviewModal] = useState(false);
-    const [reviewText, setReviewText] = useState('');
-    const [selectedStars, setSelectedStars] = useState(0);
-    const [reviewPhotos, setReviewPhotos] = useState<File[]>([]);
     const [showAuthModal, setShowAuthModal] = useState(false);
 
     const ticketType = searchParams.get('type');
@@ -209,249 +202,6 @@ export function Ticket() {
         setShowInfoModal(false);
     };
 
-    const fetchReviewCount = async (userId: number): Promise<number> => {
-        try {
-            const token = getAuthToken();
-            const headers: HeadersInit = {
-                'Content-Type': 'application/json',
-            };
-
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-
-            // Конкретный запрос отзывов для определенного мастера/пользователя
-            const reviewsResponse = await fetch(`${API_BASE_URL}/api/reviews?exists[services]=true&exists[master]=true&exists[client]=true&master=${userId}`, {headers});
-
-            if (!reviewsResponse.ok) {
-                console.error('Failed to fetch reviews:', reviewsResponse.status);
-                return 0;
-            }
-
-            const reviewsData = await reviewsResponse.json();
-
-            // Получаем массив отзывов
-            let reviewsArray: Review[] = [];
-            if (Array.isArray(reviewsData)) {
-                reviewsArray = reviewsData;
-            } else if (reviewsData && typeof reviewsData === 'object') {
-                if (reviewsData['hydra:member'] && Array.isArray(reviewsData['hydra:member'])) {
-                    reviewsArray = reviewsData['hydra:member'];
-                }
-            }
-
-            // Фильтруем отзывы для данного пользователя
-            // Пользователь может быть как мастером (master), так и клиентом (client)
-            const userReviews = reviewsArray.filter(review => {
-                const reviewMasterId = review.master?.id;
-                const reviewClientId = review.client?.id;
-                return reviewMasterId === userId || reviewClientId === userId;
-            });
-
-            console.log(`Found ${userReviews.length} reviews for user ${userId}`);
-            return userReviews.length;
-        } catch (error) {
-            console.error('Error fetching review count:', error);
-            return 0;
-        }
-    };
-
-    const handleStarClick = (starCount: number) => {
-        setSelectedStars(starCount);
-    };
-
-    const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
-            const files = Array.from(e.target.files);
-            setReviewPhotos(prev => [...prev, ...files]);
-        }
-    };
-
-    const removePhoto = (index: number) => {
-        setReviewPhotos(prev => prev.filter((_, i) => i !== index));
-    };
-
-    const handleSubmitReview = async () => {
-        if (!reviewText.trim()) {
-            alert('Пожалуйста, напишите комментарий');
-            return;
-        }
-
-        if (selectedStars === 0) {
-            alert('Пожалуйста, поставьте оценку');
-            return;
-        }
-
-        try {
-            const token = getAuthToken();
-            if (!token) {
-                alert('Необходима авторизация');
-                return;
-            }
-
-            const userRole = getUserRole();
-            const currentUserId = await getCurrentUserId();
-
-            if (!currentUserId || !order) {
-                alert('Не удалось определить пользователя или заказ');
-                return;
-            }
-
-            if (!order.authorId) {
-                alert('Не удалось определить автора заказа');
-                return;
-            }
-
-            // Проверяем что не оставляем отзыв самому себе
-            if (currentUserId === order.authorId) {
-                alert('Нельзя оставлять отзыв самому себе');
-                return;
-            }
-
-            interface ReviewData {
-                type: string;
-                rating: number;
-                description: string;
-                ticket: string;
-                master?: string;
-                client?: string;
-            }
-
-            const reviewData: ReviewData = {
-                type: '', // Будет установлено ниже
-                rating: selectedStars,
-                description: reviewText,
-                ticket: `/api/tickets/${order.id}`,
-            };
-
-            // Определяем тип отзыва и IRI пользователей
-            if (userRole === 'master') {
-                // Мастер оставляет отзыв клиенту
-                reviewData.type = 'client';
-                reviewData.master = `/api/users/${currentUserId}`;
-                reviewData.client = `/api/users/${order.authorId}`;
-            } else if (userRole === 'client') {
-                // Клиент оставляет отзыв мастеру
-                reviewData.type = 'master';
-                reviewData.client = `/api/users/${currentUserId}`;
-                reviewData.master = `/api/users/${order.authorId}`;
-            } else {
-                alert('Неизвестная роль пользователя');
-                return;
-            }
-
-            console.log('Sending review data:', reviewData);
-
-            // Отправка отзыва
-            const response = await fetch(`${API_BASE_URL}/api/reviews`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify(reviewData)
-            });
-
-            if (response.ok || response.status === 201) {
-                const reviewResponse = await response.json();
-                console.log('Review created successfully:', reviewResponse);
-
-                // Загружаем фото если есть
-                if (reviewPhotos.length > 0 && reviewResponse.id) {
-                    try {
-                        await uploadReviewPhotos(reviewResponse.id, reviewPhotos, token);
-                        console.log('All photos uploaded successfully');
-                    } catch (uploadError) {
-                        console.error('Error uploading photos, but review was created:', uploadError);
-                        // Не показываем alert для пользователя, т.к. отзыв уже создан
-                    }
-                }
-
-                // Обновляем количество отзывов
-                if (order?.authorId) {
-                    const updatedCount = await fetchReviewCount(order.authorId);
-                    setReviewCount(updatedCount);
-                }
-
-                handleCloseModal();
-
-                // Показываем уведомление об успехе
-                setModalMessage('Отзыв успешно отправлен!');
-                setShowSuccessModal(true);
-                setTimeout(() => setShowSuccessModal(false), 3000);
-
-            } else {
-                const errorText = await response.text();
-                console.error('Error creating review. Status:', response.status, 'Response:', errorText);
-
-                let errorMessage = 'Ошибка при отправке отзыва';
-                if (response.status === 422) {
-                    try {
-                        const errorData = JSON.parse(errorText);
-                        if (errorData.violations && errorData.violations.length > 0) {
-                            errorMessage = errorData.violations.map((v: any) => v.message).join(', ');
-                        }
-                    } catch (e) {
-                        errorMessage = 'Ошибка валидации данных';
-                    }
-                } else if (response.status === 400) {
-                    errorMessage = 'Неверные данные для отправки отзыва';
-                } else if (response.status === 404) {
-                    errorMessage = 'Ресурс не найден';
-                } else if (response.status === 403) {
-                    errorMessage = 'Нет доступа для отправки отзыва';
-                }
-
-                setModalMessage(errorMessage);
-                setShowErrorModal(true);
-                setTimeout(() => setShowErrorModal(false), 3000);
-            }
-
-        } catch (error) {
-            console.error('Error submitting review:', error);
-            setModalMessage('Произошла непредвиденная ошибка при отправке отзыва');
-            setShowErrorModal(true);
-            setTimeout(() => setShowErrorModal(false), 3000);
-        }
-    };
-
-    const uploadReviewPhotos = async (reviewId: number, photos: File[], token: string) => {
-        try {
-            console.log(`Uploading ${photos.length} photos for review ${reviewId}`);
-
-            for (const photo of photos) {
-                const formData = new FormData();
-                formData.append('imageFile', photo); // Поле должно быть 'imageFile' согласно API
-
-                console.log(`Uploading photo: ${photo.name}`);
-
-                const response = await fetch(`${API_BASE_URL}/api/reviews/${reviewId}/upload-photo`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        // Не указываем Content-Type, FormData установит его автоматически
-                    },
-                    body: formData
-                });
-
-                if (response.ok || response.status === 201) {
-                    const uploadResult = await response.json();
-                    console.log('Photo uploaded successfully:', uploadResult);
-                } else {
-                    const errorText = await response.text();
-                    console.error(`Error uploading photo for review ${reviewId}:`, errorText);
-                    throw new Error(`Failed to upload photo: ${response.status}`);
-                }
-            }
-
-            console.log('All photos uploaded successfully');
-        } catch (error) {
-            console.error('Error uploading review photos:', error);
-            throw error;
-        }
-    };
-
     const getCurrentUserId = async (): Promise<number | null> => {
         try {
             const token = getAuthToken();
@@ -475,11 +225,24 @@ export function Ticket() {
         }
     };
 
-    const handleCloseModal = () => {
+    const handleCloseReviewModal = () => {
         setShowReviewModal(false);
-        setReviewText('');
-        setSelectedStars(0);
-        setReviewPhotos([]);
+    };
+
+    const handleReviewSuccess = (message: string) => {
+        setModalMessage(message);
+        setShowSuccessModal(true);
+        setTimeout(() => setShowSuccessModal(false), 3000);
+    };
+
+    const handleReviewError = (message: string) => {
+        setModalMessage(message);
+        setShowErrorModal(true);
+        setTimeout(() => setShowErrorModal(false), 3000);
+    };
+
+    const handleReviewSubmitted = (updatedCount: number) => {
+        setReviewCount(updatedCount);
     };
 
     const checkFavoriteStatus = async () => {
@@ -1613,154 +1376,16 @@ export function Ticket() {
                 </section>
             </div>
 
-            {/* Модальное окно отзыва */}
-            {showReviewModal && (
-                <div className={styles.modalOverlay}>
-                    <div className={styles.reviewModal}>
-                        <div className={styles.modalHeader}>
-                            <h2>Оставьте отзыв о работе</h2>
-                        </div>
+            <ReviewModal
+                isOpen={showReviewModal}
+                onClose={handleCloseReviewModal}
+                onSuccess={handleReviewSuccess}
+                onError={handleReviewError}
+                ticketId={order?.id || 0}
+                targetUserId={order?.authorId || 0}
+                onReviewSubmitted={handleReviewSubmitted}
+            />
 
-                        <div className={styles.modalContent}>
-                            {/* Поле для комментария */}
-                            <div className={styles.commentSection}>
-                                <textarea
-                                    value={reviewText}
-                                    onChange={(e) => setReviewText(e.target.value)}
-                                    placeholder="Расскажите о вашем опыте работы..."
-                                    className={styles.commentTextarea}
-                                />
-                            </div>
-
-                            {/* Загрузка фото */}
-                            <div className={styles.photoSection}>
-                                <label>Приложите фото</label>
-                                <div className={styles.photoUploadContainer}>
-                                    {/* Превью загруженных фото */}
-                                    <div className={styles.photoPreviews}>
-                                        {reviewPhotos.map((photo, index) => (
-                                            <div key={index} className={styles.photoPreview}>
-                                                <img
-                                                    src={URL.createObjectURL(photo)}
-                                                    alt={`Preview ${index + 1}`}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removePhoto(index)}
-                                                    className={styles.removePhoto}
-                                                >
-                                                    ×
-                                                </button>
-                                            </div>
-                                        ))}
-
-                                        {/* Кнопка добавления фото (всегда справа) */}
-                                        <div className={styles.photoUpload}>
-                                            <input
-                                                type="file"
-                                                id="review-photos"
-                                                multiple
-                                                accept="image/*"
-                                                onChange={handlePhotoUpload}
-                                                className={styles.fileInput}
-                                            />
-                                            <label htmlFor="review-photos" className={styles.photoUploadButton}>
-                                                +
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Рейтинг звездами */}
-                            <div className={styles.ratingSection}>
-                                <label>Поставьте оценку</label>
-                                <div className={styles.stars}>
-                                    {[1, 2, 3, 4, 5].map((star) => (
-                                        <button
-                                            key={star}
-                                            type="button"
-                                            className={`${styles.star} ${star <= selectedStars ? styles.active : ''}`}
-                                            onClick={() => handleStarClick(star)}
-                                        >
-                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"
-                                                 xmlns="http://www.w3.org/2000/svg">
-                                                <g clipPath="url(#clip0_248_13358)">
-                                                    <path
-                                                        d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z"
-                                                        stroke="currentColor" strokeWidth="2" strokeMiterlimit="10"/>
-                                                    <path d="M12 19V18.98" stroke="currentColor" strokeWidth="2"
-                                                          strokeMiterlimit="10"/>
-                                                </g>
-                                                <defs>
-                                                    <clipPath id="clip0_248_13358">
-                                                        <rect width="24" height="24" fill="white"/>
-                                                    </clipPath>
-                                                </defs>
-                                            </svg>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Кнопки модалки */}
-                        <div className={styles.modalActions}>
-                            <button
-                                className={styles.closeButton}
-                                onClick={handleCloseModal}
-                            >
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                     xmlns="http://www.w3.org/2000/svg">
-                                    <g clipPath="url(#clip0_551_2371)">
-                                        <g clipPath="url(#clip1_551_2371)">
-                                            <path
-                                                d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z"
-                                                stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
-                                            <path d="M16.7705 7.22998L7.23047 16.77" stroke="#101010" strokeWidth="2"
-                                                  strokeMiterlimit="10"/>
-                                            <path d="M7.23047 7.22998L16.7705 16.77" stroke="#101010" strokeWidth="2"
-                                                  strokeMiterlimit="10"/>
-                                        </g>
-                                    </g>
-                                    <defs>
-                                        <clipPath id="clip0_551_2371">
-                                            <rect width="24" height="24" fill="white"/>
-                                        </clipPath>
-                                        <clipPath id="clip1_551_2371">
-                                            <rect width="24" height="24" fill="white"/>
-                                        </clipPath>
-                                    </defs>
-                                </svg>
-                                Закрыть
-                            </button>
-                            <button
-                                className={styles.submitButton}
-                                onClick={handleSubmitReview}
-                            >
-                                Отправить
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                     xmlns="http://www.w3.org/2000/svg">
-                                    <g clipPath="url(#clip0_551_2758)">
-                                        <path
-                                            d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z"
-                                            stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
-                                        <path d="M6.26953 12H17.7295" stroke="white" strokeWidth="2"
-                                              strokeMiterlimit="10"/>
-                                        <path d="M12.96 7.22998L17.73 12L12.96 16.77" stroke="white" strokeWidth="2"
-                                              strokeMiterlimit="10"/>
-                                    </g>
-                                    <defs>
-                                        <clipPath id="clip0_551_2758">
-                                            <rect width="24" height="24" fill="white"/>
-                                        </clipPath>
-                                    </defs>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
             {showAuthModal && (
                 <AuthModal
                     isOpen={showAuthModal}
@@ -1768,58 +1393,26 @@ export function Ticket() {
                     onLoginSuccess={handleLoginSuccess}
                 />
             )}
-            {showSuccessModal && (
-                <div className={styles.modalOverlay} onClick={handleCloseSuccessModal}>
-                    <div className={`${styles.modalContent} ${styles.successModal}`} onClick={(e) => e.stopPropagation()}>
-                        <h2 className={styles.successTitle}>Успешно!</h2>
-                        <div className={styles.successIcon}>
-                            <img src="../uspeh.png" alt="Успех"/>
-                        </div>
-                        <p className={styles.successMessage}>{modalMessage}</p>
-                        <button
-                            className={styles.successButton}
-                            onClick={handleCloseSuccessModal}
-                        >
-                            Понятно
-                        </button>
-                    </div>
-                </div>
-            )}
+            <StatusModal
+                type="success"
+                isOpen={showSuccessModal}
+                onClose={handleCloseSuccessModal}
+                message={modalMessage}
+            />
 
-            {/* Модалка ошибки */}
-            {showErrorModal && (
-                <div className={styles.modalOverlay} onClick={handleCloseErrorModal}>
-                    <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-                        <h2 className={styles.errorTitle}>Ошибка</h2>
-                        <div className={styles.errorIcon}>
-                            <img src="../error.png" alt="Ошибка"/>
-                        </div>
-                        <p className={styles.errorMessage}>{modalMessage}</p>
-                        <button
-                            className={styles.errorButton}
-                            onClick={handleCloseErrorModal}
-                        >
-                            Понятно
-                        </button>
-                    </div>
-                </div>
-            )}
+            <StatusModal
+                type="error"
+                isOpen={showErrorModal}
+                onClose={handleCloseErrorModal}
+                message={modalMessage}
+            />
 
-            {/* Модалка информации */}
-            {showInfoModal && (
-                <div className={styles.modalOverlay} onClick={handleCloseInfoModal}>
-                    <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-                        <h2 className={styles.infoTitle}>Информация</h2>
-                        <p className={styles.infoMessage}>{modalMessage}</p>
-                        <button
-                            className={styles.infoButton}
-                            onClick={handleCloseInfoModal}
-                        >
-                            Понятно
-                        </button>
-                    </div>
-                </div>
-            )}
+            <StatusModal
+                type="info"
+                isOpen={showInfoModal}
+                onClose={handleCloseInfoModal}
+                message={modalMessage}
+            />
             <CookieConsentBanner/>
         </div>
     );

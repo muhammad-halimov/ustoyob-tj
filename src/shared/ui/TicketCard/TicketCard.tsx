@@ -1,4 +1,4 @@
-import styles from './AnnouncementCard.module.scss';
+import styles from './TicketCard.module.scss';
 import { useTranslation } from 'react-i18next';
 import { useLanguageChange } from '../../../hooks/useLanguageChange';
 import { useState } from 'react';
@@ -137,7 +137,7 @@ export const getTimeAgo = (dateString: string, t: any): string => {
   }
 };
 
-export function AnnouncementCard({
+export function TicketCard({
   title,
   description,
   price,

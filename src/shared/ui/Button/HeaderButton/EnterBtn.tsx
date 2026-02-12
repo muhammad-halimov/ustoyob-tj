@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef } from "react";
-import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getAuthToken, logout } from '../../../../utils/auth.ts';
 import AuthModal from "../../../../features/auth/AuthModal.tsx";
@@ -17,7 +16,6 @@ export function EnterBtn({ onClick, isModalOpen, onModalClose, onLoginSuccess }:
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [userName, setUserName] = useState<string>('');
     const isLoggingOutRef = useRef(false);
-    const navigate = useNavigate();
     const { t } = useTranslation(['header', 'common']);
 
     const modalOpen = isModalOpen !== undefined ? isModalOpen : internalModalOpen;
@@ -103,11 +101,12 @@ export function EnterBtn({ onClick, isModalOpen, onModalClose, onLoginSuccess }:
         isLoggingOutRef.current = true;
         try {
             await logout();
-            navigate('/');
+            // Диспатчим событие для обновления UI компонентов
+            window.dispatchEvent(new Event('logout'));
+            // Перезагружаем страницу для полной очистки состояния
             window.location.reload();
         } catch (error) {
             console.error('Logout error:', error);
-            navigate('/');
             window.location.reload();
         }
     };

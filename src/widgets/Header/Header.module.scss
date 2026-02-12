@@ -237,7 +237,46 @@
 
   .headerWrap {
     padding: 12px 20px !important;
+    flex-wrap: nowrap;
+    gap: 8px;
   }
+  
+  .locate {
+    font-size: 14px !important;
+    padding-left: 0 !important;
+    
+    svg {
+      width: 20px !important;
+      height: 20px !important;
+    }
+    
+    .locate_title {
+      font-size: 14px !important;
+    }
+  }
+  
+  .rightPart_lang {
+    gap: 8px !important;
+    
+    .rightPart_lang__box {
+      font-size: 14px !important;
+      gap: 4px !important;
+      
+      .language_selector {
+        font-size: 14px !important;
+        
+        .current_language {
+          font-size: 14px !important;
+        }
+        
+        svg {
+          width: 14px !important;
+          height: 10px !important;
+        }
+      }
+    }
+  }
+  
   .flagIcon {
     width: 25px !important;
     height: 17px !important;
