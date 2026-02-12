@@ -47,19 +47,14 @@ class LegalCrudController extends AbstractCrudController
                 Action::DELETE
             ]);
 
-        if ($this->legalRepository->count() >= count(Legal::TYPES)) {
-            $actions
-                ->remove(Crud::PAGE_INDEX, Action::NEW)
-                ->remove(Crud::PAGE_NEW, Action::NEW)
-                ->remove(Crud::PAGE_EDIT, Action::NEW);
-        }
+        if ($this->legalRepository->count() >= count(Legal::TYPES))
+            $actions->remove(Crud::PAGE_INDEX, Action::NEW);
 
-        return parent::configureActions($actions)
-            ->setPermissions([
-                Action::NEW => 'ROLE_ADMIN',
-                Action::DELETE => 'ROLE_ADMIN',
-                Action::EDIT => 'ROLE_ADMIN',
-            ]);
+        return parent::configureActions($actions)->setPermissions([
+            Action::NEW => 'ROLE_ADMIN',
+            Action::DELETE => 'ROLE_ADMIN',
+            Action::EDIT => 'ROLE_ADMIN',
+        ]);
     }
 
     public function configureFields(string $pageName): iterable
