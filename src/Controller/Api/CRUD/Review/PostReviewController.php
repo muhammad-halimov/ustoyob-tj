@@ -57,7 +57,7 @@ class PostReviewController extends AbstractController
             !$this->chatRepository->findChatBetweenUsers($bearerUser, $master) &&
             !$this->chatRepository->findChatBetweenUsers($bearerUser, $client)
         )
-            return $this->json(['message' => 'No interactions between users'], 400);
+            return $this->json(['message' => 'No interactions between users'], 422);
 
         $message = [
             'type' => $typeParam,
@@ -67,7 +67,7 @@ class PostReviewController extends AbstractController
 
         if ($typeParam === 'client') {
             if (!$clientParam)
-                return $this->json(['message' => 'Client parameter is required'], 400);
+                return $this->json(['message' => 'Client parameter is required'], 422);
 
             if (!$client)
                 return $this->json(['message' => 'Client not found'], 404);
@@ -100,7 +100,7 @@ class PostReviewController extends AbstractController
         }
         elseif ($typeParam === 'master') {
             if (!$masterParam)
-                return $this->json(['message' => 'Master parameter is required'], 400);
+                return $this->json(['message' => 'Master parameter is required'], 422);
 
             if (!$master)
                 return $this->json(['message' => 'Master not found'], 404);
