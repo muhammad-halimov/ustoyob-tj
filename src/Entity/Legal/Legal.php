@@ -43,6 +43,7 @@ class Legal
     public const array TYPES = [
         'Политики использования' => 'terms_of_use',
         'Политика конфиденциальности' => 'privacy_policy',
+        'Публичная оферта' => 'public_offer',
     ];
 
     #[ORM\Id]
