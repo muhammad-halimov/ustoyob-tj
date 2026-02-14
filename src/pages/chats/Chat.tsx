@@ -1089,7 +1089,7 @@ function Chat() {
                                         {currentChat?.isArchived && <span className={styles.archiveBadge}> ({t('chat.archive').toLowerCase()})</span>}
                                     </div>
                                     {currentChat?.ticket?.title && (
-                                        <a href={`/ticket/${currentChat.replyAuthor.id}?ticket=${currentChat.ticket.id}`} className={styles.serviceTitle}>
+                                        <a href={`/ticket/${currentChat.ticket.id}`} className={styles.serviceTitle}>
                                             {currentChat.ticket.title}
                                         </a>
                                     )}

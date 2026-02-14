@@ -6,6 +6,7 @@ import styles from './Profile.module.scss';
 import {fetchUserById} from "../../utils/api.ts";
 import {usePhotoGallery} from '../../shared/ui/PhotoGallery';
 import {AddressValue, buildAddressData} from '../../shared/ui/AddressSelector';
+import {getOccupations} from '../../utils/dataCache.ts';
 
 // Импорты из entities
 import {
@@ -1208,61 +1209,17 @@ function Profile() {
     const fetchOccupationsList = async () => {
         try {
             setOccupationsLoading(true);
-            const token = getAuthToken();
-            if (!token) {
-                console.warn('No auth token available for occupations API');
-                setOccupationsLoading(false);
-                return;
-            }
-
-            const locale = localStorage.getItem('i18nextLng') || 'ru';
-            const apiUrl = `${API_BASE_URL}/api/occupations?locale=${locale}`;
-            console.log('Fetching occupations from:', apiUrl);
+            const occupationsData = await getOccupations();
             
-            const response = await fetch(apiUrl, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-            });
-
-            console.log('Occupations API response status:', response.status);
+            console.log('Occupations from cache:', occupationsData);
+            console.log('Occupations count:', occupationsData.length);
             
-            if (response.ok) {
-                const data = await response.json();
-                console.log('Occupations loaded:', Array.isArray(data) ? data.length : typeof data);
-                if (data && typeof data === 'object' && !Array.isArray(data)) {
-                    console.log('Object keys:', Object.keys(data));
-                }
-                
-                let occupationsArray: Occupation[] = [];
-
-                if (Array.isArray(data)) {
-                    occupationsArray = data;
-                } else if (data && typeof data === 'object') {
-                    const apiResponse = data as ApiResponse<Occupation>;
-                    if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
-                        occupationsArray = apiResponse['hydra:member'];
-                    } else if ((data as Occupation).id) {
-                        occupationsArray = [data as Occupation];
-                    }
-                }
-
-                console.log('Transformed occupations array:', occupationsArray);
-                console.log('Occupations count:', occupationsArray.length);
-                
-                // Проверяем, что у нас есть валидные данные
-                const validOccupations = occupationsArray.filter(occ => occ && occ.id && occ.title);
-                console.log('Valid occupations count:', validOccupations.length);
-                console.log('Valid occupations sample:', validOccupations.slice(0, 3));
-                
-                setOccupations(validOccupations);
-            } else {
-                console.error('Failed to fetch occupations. Status:', response.status, 'Status Text:', response.statusText);
-                setOccupations([]);
-            }
+            // Проверяем, что у нас есть валидные данные
+            const validOccupations = occupationsData.filter(occ => occ && occ.id && occ.title);
+            console.log('Valid occupations count:', validOccupations.length);
+            console.log('Valid occupations sample:', validOccupations.slice(0, 3));
+            
+            setOccupations(validOccupations);
         } catch (error) {
             console.error('Error fetching occupations:', error);
             setOccupations([]);

@@ -9,6 +9,7 @@ import { ServiceTypeFilter } from '../../../widgets/Sorting/ServiceTypeFilter';
 import { SortingFilter } from '../../../widgets/Sorting/SortingFilter';
 import { useTranslation } from 'react-i18next';
 import CookieConsentBanner from "../../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
+import { getOccupations } from '../../../utils/dataCache.ts';
 
 interface Occupation {
     id: number;
@@ -247,59 +248,23 @@ function Category() {
 
     const fetchOccupations = async () => {
         try {
-            const token = getAuthToken();
-            const currentLang = getStorageItem('i18nextLng') || 'ru';
-            const languageParam = currentLang === 'tj' ? 'tj' : (currentLang === 'ru' ? 'ru' : 'eng');
-            const headers: HeadersInit = {
-                'Accept': 'application/json',
-                ...(token && { 'Authorization': `Bearer ${token}` })
-            };
+            const occupationsData = await getOccupations();
+            
+            const formatted: Occupation[] = occupationsData.filter((occ: { 
+                id: number; 
+                title: string;
+                image?: string;
+                categories?: { id: number; title: string }[] 
+            }) => 
+                occ.categories?.some(cat => cat.id.toString() === id) || false
+            ).map((occ) => ({
+                id: occ.id,
+                title: occ.title,
+                image: occ.image,
+                categories: occ.categories || []
+            }));
 
-            const response = await fetch(`${API_BASE_URL}/api/occupations?locale=${languageParam}`, {
-                headers: headers,
-            });
-
-            if (response.ok) {
-                const occupationsData = await response.json();
-
-                let formatted: Occupation[] = [];
-                if (Array.isArray(occupationsData)) {
-                    formatted = occupationsData.filter((occ: { 
-                        id: number; 
-                        title: string;
-                        image?: string;
-                        categories: { id: number; title: string }[] 
-                    }) => 
-                        occ.categories.some(cat => cat.id.toString() === id)
-                    ).map((occ) => ({
-                        id: occ.id,
-                        title: occ.title,
-                        image: occ.image,
-                        categories: occ.categories
-                    }));
-                } else if (occupationsData && typeof occupationsData === 'object' && 'hydra:member' in occupationsData) {
-                    const hydraMember = (occupationsData as { 
-                        'hydra:member': { 
-                            id: number; 
-                            title: string;
-                            image?: string;
-                            categories: { id: number; title: string }[] 
-                        }[] 
-                    })['hydra:member'];
-                    if (Array.isArray(hydraMember)) {
-                        formatted = hydraMember.filter((occ) => 
-                            occ.categories.some(cat => cat.id.toString() === id)
-                        ).map((occ) => ({
-                            id: occ.id,
-                            title: occ.title,
-                            image: occ.image,
-                            categories: occ.categories
-                        }));
-                    }
-                }
-
-                setOccupations(formatted);
-            }
+            setOccupations(formatted);
         } catch (error) {
             console.error('Error fetching occupations:', error);
         }
@@ -696,8 +661,8 @@ function Category() {
         }
     }, [selectedSubcategory]);
 
-    const handleCardClick = (ticketId: number, authorId: number) => {
-        navigate(`/ticket/${authorId}?ticket=${ticketId}`);
+    const handleCardClick = (ticketId: number) => {
+        navigate(`/ticket/${ticketId}`);
     };
 
     const handleClose = () => {
@@ -925,7 +890,7 @@ function Category() {
                             userRole={userRole}
                             userRating={ticket.userRating}
                             userReviewCount={ticket.userReviewCount}
-                            onClick={() => handleCardClick(ticket.id, ticket.authorId)}
+                            onClick={() => handleCardClick(ticket.id)}
                         />
                     ))
                 )}

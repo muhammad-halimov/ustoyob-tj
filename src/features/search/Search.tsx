@@ -9,6 +9,7 @@ import { useLanguageChange } from "../../hooks/useLanguageChange";
 import { TicketCard } from "../../shared/ui/TicketCard/TicketCard.tsx";
 import { ServiceTypeFilter } from "../../widgets/Sorting/ServiceTypeFilter";
 import { SortingFilter } from "../../widgets/Sorting/SortingFilter";
+import { getCities, getOccupations } from "../../utils/dataCache.ts";
 
 // Интерфейсы
 interface ApiTicket {
@@ -190,58 +191,25 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     // Функция для загрузки городов из API
     const fetchCities = useCallback(async () => {
         try {
-            const locale = localStorage.getItem('i18nextLng') || 'ru';
-            const token = getAuthToken();
-            const headers: HeadersInit = {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-            };
+            const citiesData = await getCities();
+            const formatted: City[] = citiesData.map((city: { id: number; title: string }) => ({
+                id: city.id,
+                name: city.title
+            }));
 
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-
-            // Загружаем города из адресов тикетов или отдельного эндпоинта
-            const response = await fetch(`${API_BASE_URL}/api/cities?locale=${locale}`, {
-                method: 'GET',
-                headers: headers,
-            });
-
-            if (response.ok) {
-                const citiesData = await response.json();
-                let formatted: City[] = [];
-
-                if (Array.isArray(citiesData)) {
-                    formatted = citiesData.map((city: { id: number; title: string }) => ({
-                        id: city.id,
-                        name: city.title
-                    }));
-                } else if (citiesData && typeof citiesData === 'object' && 'hydra:member' in citiesData) {
-                    const hydraMember = (citiesData as { 'hydra:member': { id: number; title: string }[] })['hydra:member'];
-                    if (Array.isArray(hydraMember)) {
-                        formatted = hydraMember.map((city: { id: number; title: string }) => ({
-                            id: city.id,
-                            name: city.title
-                        }));
-                    }
+            // Убираем дубликаты и сортируем
+            const uniqueCities = formatted.reduce((acc: City[], city: City) => {
+                if (!acc.some(c => c.id === city.id)) {
+                    acc.push(city);
                 }
-
-                // Удаляем дубликаты по имени
-                const uniqueCities = formatted.reduce((acc: City[], current) => {
-                    if (!acc.find(city => city.name.toLowerCase() === current.name.toLowerCase())) {
-                        acc.push(current);
-                    }
-                    return acc;
-                }, []);
-
-                // Сортируем по алфавиту
-                uniqueCities.sort((a, b) => a.name.localeCompare(b.name));
-
-                setCities(uniqueCities);
-            }
+                return acc;
+            }, []);
+            
+            uniqueCities.sort((a, b) => a.name.localeCompare(b.name));
+            setCities(uniqueCities);
         } catch (error) {
             console.error('Error fetching cities:', error);
-            // Если нет отдельного эндпоинта для городов, попробуем получить города из тикетов
+            // Фоллбек - извлекаем города из тикетов
             await extractCitiesFromTickets();
         }
     }, []);
@@ -616,53 +584,18 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     // Функция для получения профессий
     const fetchOccupations = useCallback(async () => {
         try {
-            const token = getAuthToken();
-            const languageParam = (localStorage.getItem('i18nextLng') || 'ru') === 'tj' ? 'tj' : ((localStorage.getItem('i18nextLng') || 'ru') === 'ru' ? 'ru' : 'eng');
-            const headers: HeadersInit = {
-                'Content-Type': 'application/json',
-                'Accept': 'application/ld+json, application/json',
-            };
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
+            const occupationsData = await getOccupations();
+            const formatted: Occupation[] = occupationsData.map((occ: { 
+                id: number; 
+                title: string; 
+                categories?: { id: number; title: string }[] 
+            }) => ({
+                id: occ.id,
+                title: occ.title,
+                categories: occ.categories || []
+            }));
 
-            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/occupations?locale=${languageParam}`, {
-                headers: headers,
-            });
-
-            if (response.ok) {
-                const occupationsData = await response.json();
-
-                let formatted: Occupation[] = [];
-                if (Array.isArray(occupationsData)) {
-                    formatted = occupationsData.map((occ: { 
-                        id: number; 
-                        title: string; 
-                        categories: { id: number; title: string }[] 
-                    }) => ({
-                        id: occ.id,
-                        title: occ.title,
-                        categories: occ.categories
-                    }));
-                } else if (occupationsData && typeof occupationsData === 'object' && 'hydra:member' in occupationsData) {
-                    const hydraMember = (occupationsData as { 
-                        'hydra:member': { 
-                            id: number; 
-                            title: string; 
-                            categories: { id: number; title: string }[] 
-                        }[] 
-                    })['hydra:member'];
-                    if (Array.isArray(hydraMember)) {
-                        formatted = hydraMember.map((occ) => ({
-                            id: occ.id,
-                            title: occ.title,
-                            categories: occ.categories
-                        }));
-                    }
-                }
-
-                setOccupations(formatted);
-            }
+            setOccupations(formatted);
         } catch (error) {
             console.error('Error fetching occupations:', error);
         }
@@ -982,10 +915,9 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     }, [searchQuery, filters, userRole, fetchAllTickets, onSearchResults]);
 
     // Обработчики событий
-    const handleCardClick = useCallback((ticketId?: number, authorId?: number) => {
+    const handleCardClick = useCallback((ticketId?: number) => {
         if (!ticketId) return;
-        const targetAuthorId = authorId || ticketId;
-        navigate(`/ticket/${targetAuthorId}?ticket=${ticketId}`);
+        navigate(`/ticket/${ticketId}`);
     }, [navigate]);
 
     const handleFilterToggle = useCallback((isVisible: boolean) => {
@@ -1206,7 +1138,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     userRole={userRole}
                     userRating={result.userRating}
                     userReviewCount={result.userReviewCount}
-                    onClick={() => handleCardClick(result.id, result.authorId)}
+                    onClick={() => handleCardClick(result.id)}
                 />
             );
         });

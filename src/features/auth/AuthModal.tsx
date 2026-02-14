@@ -11,6 +11,7 @@ import {
     setUserRole,
     setUserOccupation,
 } from '../../utils/auth';
+import { getOccupations } from '../../utils/dataCache.ts';
 
 const AuthModalState = {
     WELCOME: 'welcome',
@@ -243,12 +244,15 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
     useEffect(() => {
         const loadCategories = async () => {
             try {
-                const currentLang = localStorage.getItem('i18nextLng') || 'ru';
-                const response = await fetch(`${API_BASE_URL}/api/occupations?locale=${currentLang}`);
-                if (response.ok) {
-                    const data = await response.json();
-                    setCategories(data);
-                }
+                const data = await getOccupations();
+                // Преобразуем Occupation в Category
+                const categories: Category[] = data.map(occ => ({
+                    id: occ.id,
+                    title: occ.title,
+                    description: occ.description || '',
+                    imageFile: occ.image || ''
+                }));
+                setCategories(categories);
             } catch (err) {
                 console.error('Error loading categories:', err);
             }
@@ -257,8 +261,20 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         loadCategories();
 
         // Слушаем смену языка для перезагрузки категорий
-        const handleLanguageChange = () => {
-            loadCategories();
+        const handleLanguageChange = async () => {
+            try {
+                const data = await getOccupations();
+                // Преобразуем Occupation в Category
+                const categories: Category[] = data.map(occ => ({
+                    id: occ.id,
+                    title: occ.title,
+                    description: occ.description || '',
+                    imageFile: occ.image || ''
+                }));
+                setCategories(categories);
+            } catch (err) {
+                console.error('Error loading categories on language change:', err);
+            }
         };
 
         window.addEventListener('languageChanged', handleLanguageChange);

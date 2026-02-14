@@ -308,7 +308,7 @@ function MyTickets() {
         }
     };
 
-    const handleCardClick = useCallback((type: string, ticketId?: number, authorId?: number, masterId?: number) => {
+    const handleCardClick = useCallback((ticketId?: number, authorId?: number, masterId?: number) => {
         if (!ticketId) return;
 
         const token = getAuthToken();
@@ -319,10 +319,7 @@ function MyTickets() {
         }
 
         // Если авторизован, выполняем переход
-        if (authorId)
-            navigate(`/ticket/${authorId}?ticket=${ticketId}&type=${type}`);
-        if (masterId)
-            navigate(`/ticket/${masterId}?ticket=${ticketId}&type=${type}`);
+        if (authorId || masterId) navigate(`/ticket/${ticketId}`);
     }, [navigate]);
 
     const handleCreateNew = () => {
@@ -352,13 +349,10 @@ function MyTickets() {
 
         if (redirectData) {
             try {
-                const { type, ticketId, authorId, masterId } = JSON.parse(redirectData);
+                const { ticketId, authorId, masterId } = JSON.parse(redirectData);
 
                 // Выполняем переход
-                if (authorId)
-                    navigate(`/ticket/${authorId}?ticket=${ticketId}&type=${type}`);
-                if (masterId)
-                    navigate(`/ticket/${masterId}?ticket=${ticketId}&type=${type}`);
+                if (authorId || masterId) navigate(`/ticket/${ticketId}`);
 
                 // Очищаем сохраненные данные
                 sessionStorage.removeItem('redirectAfterAuth');
@@ -558,7 +552,7 @@ function MyTickets() {
                             category={ticket.category}
                             timeAgo={ticket.timeAgo}
                             ticketType={ticket.type}
-                            onClick={() => handleCardClick(ticket.type, ticket.id, ticket.authorId, ticket.masterId)}
+                            onClick={() => handleCardClick(ticket.id, ticket.authorId, ticket.masterId)}
                             showEditButton={true}
                             onEditClick={(e) => handleEditTicket(e, ticket.id)}
                             showActiveToggle={true}

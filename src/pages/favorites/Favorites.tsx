@@ -612,7 +612,7 @@ function Favorites() {
             return;
         }
         console.log('Navigating to ticket:', ticketId, 'of author:', authorId);
-        navigate(`/ticket/${authorId}?ticket=${ticketId}`);
+        navigate(`/ticket/${ticketId}`);
     };
 
     // Функция для снятия лайка с тикета

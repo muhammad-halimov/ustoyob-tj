@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { changeLanguage, Language } from '../../locales/i18n.ts';
 import { useLanguageChange } from '../../hooks/useLanguageChange';
 import { ThemeToggle } from '../ThemeToggle';
+import { getCities } from '../../utils/dataCache.ts';
 
 interface HeaderProps {
     onOpenAuthModal?: () => void; // Добавьте этот интерфейс
@@ -96,35 +97,53 @@ function Header({ onOpenAuthModal }: HeaderProps) {
     const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[1];
 
     useEffect(() => {
-        const fetchCities = async () => {
+        const loadCities = async () => {
             try {
-                const locale = localStorage.getItem('i18nextLng') || 'ru';
-                const response = await fetch(`${API_BASE_URL}/api/cities?locale=${locale}`);
-                const data = await response.json();
-                console.log('Cities from server:', data.map((city: City) => city.title));
-                setCities(data);
+                const data = await getCities();
+                console.log('Cities from cache:', data.map(city => city.title));
+                // Преобразуем к локальному типу City
+                const mappedCities: City[] = data.map(city => ({
+                    id: city.id,
+                    title: city.title,
+                    description: city.description || '',
+                    image: city.image || '',
+                    districts: (city.districts || []).map(d => ({
+                        id: d.id,
+                        title: '',
+                        image: ''
+                    })),
+                    province: city.province || { id: 0, title: '' }
+                }));
+                setCities(mappedCities);
             } catch (error) {
-                console.error('Error fetching cities:', error);
+                console.error('Error loading cities:', error);
             }
         };
 
-        fetchCities();
-    }, [API_BASE_URL]);
+        loadCities();
+    }, []);
 
     // При смене языка переполучаем города
-    useLanguageChange(() => {
-        const fetchCities = async () => {
-            try {
-                const locale = localStorage.getItem('i18nextLng') || 'ru';
-                const response = await fetch(`${API_BASE_URL}/api/cities?locale=${locale}`);
-                const data = await response.json();
-                setCities(data);
-            } catch (error) {
-                console.error('Error fetching cities:', error);
-            }
-        };
-
-        fetchCities();
+    useLanguageChange(async () => {
+        try {
+            const data = await getCities();
+            // Преобразуем к локальному типу City
+            const mappedCities: City[] = data.map(city => ({
+                id: city.id,
+                title: city.title,
+                description: city.description || '',
+                image: city.image || '',
+                districts: (city.districts || []).map(d => ({
+                    id: d.id,
+                    title: '',
+                    image: ''
+                })),
+                province: city.province || { id: 0, title: '' }
+            }));
+            setCities(mappedCities);
+        } catch (error) {
+            console.error('Error loading cities on language change:', error);
+        }
     });
 
     // Обновляем отображаемое название города при изменении cities или selectedCity

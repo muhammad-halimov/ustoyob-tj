@@ -213,8 +213,8 @@ function Recommendations() {
         return 0;
     };
 
-    const handleCardClick = (announcementId: number, authorId: number) => {
-        navigate(`/ticket/${authorId}?ticket=${announcementId}`);
+    const handleCardClick = (announcementId: number) => {
+        navigate(`/ticket/${announcementId}`);
     };
 
     return (
@@ -241,7 +241,7 @@ function Recommendations() {
                                 userRole={userRole}
                                 userRating={getUserRating(announcement)}
                                 userReviewCount={getUserReviewCount(announcement)}
-                                onClick={() => handleCardClick(announcement.id, announcement.authorId || 0)}
+                                onClick={() => handleCardClick(announcement.id)}
                             />
                         ))}
                     </div>

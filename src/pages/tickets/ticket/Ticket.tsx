@@ -1,6 +1,6 @@
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import {useState, useEffect} from 'react';
-import { getAuthToken, getUserRole } from '../../../utils/auth.ts';
+import { useParams, useNavigate } from 'react-router-dom';
+import {useState, useEffect, useRef} from 'react';
+import { getAuthToken, getUserData } from '../../../utils/auth.ts';
 import styles from './Ticket.module.scss';
 import {createChatWithAuthor, initChatModals} from "../../../utils/chatUtils.ts";
 import AuthModal from "../../../features/auth/AuthModal.tsx";
@@ -8,6 +8,8 @@ import {cleanText} from "../../../utils/cleanText.ts";
 import CookieConsentBanner from "../../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
 import StatusModal from '../../../shared/ui/Modal/StatusModal';
 import ReviewModal from '../../../shared/ui/Modal/ReviewModal';
+import { PhotoGallery } from '../../../shared/ui/PhotoGallery/PhotoGallery';
+import { usePhotoGallery } from '../../../shared/ui/PhotoGallery/usePhotoGallery';
 // import { fetchUserWithRole } from "../../utils/api.ts";
 
 interface ApiTicket {
@@ -51,8 +53,26 @@ interface ApiTicket {
         } | null;
     }[];
     createdAt: string;
-    master: { id: number; name?: string; surname?: string; image?: string } | null;
-    author: { id: number; name?: string; surname?: string; image?: string };
+    master: { 
+        id: number; 
+        name?: string; 
+        surname?: string; 
+        image?: string; 
+        rating?: number;
+        education?: {
+            id: number;
+            uniTitle: string;
+            beginning: number;
+            ending: number;
+            graduated: boolean;
+            occupation: {
+                id: number;
+                title: string | null;
+                image: string | null;
+            };
+        }[];
+    } | null;
+    author: { id: number; name?: string; surname?: string; image?: string; rating?: number };
     category: { id: number; title: string };
     notice?: string;
     images?: { id: number; image: string }[];
@@ -80,14 +100,7 @@ interface Order {
     rating: number;
     authorImage?: string;
     active?: boolean;
-}
-
-interface City {
-    id: number;
-    title: string;
-    description: string;
-    image: string | null;
-    districts: { id: number }[];
+    hasEducation?: boolean;
 }
 
 interface Favorite {
@@ -97,19 +110,10 @@ interface Favorite {
     clients?: { id: number }[];
 }
 
-interface UserData {
-    id: number;
-    name?: string;
-    surname?: string;
-    rating?: number;
-    image?: string;
-}
-
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export function Ticket() {
     const {id} = useParams<{ id: string }>();
-    const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const [order, setOrder] = useState<Order | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -123,8 +127,6 @@ export function Ticket() {
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
 
-    const ticketType = searchParams.get('type');
-    const specificTicketId = searchParams.get('ticket');
     const [reviewCount, setReviewCount] = useState<number>(0);
 
     const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -136,8 +138,16 @@ export function Ticket() {
     const [isTicketActive, setIsTicketActive] = useState(true);
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
     const [isTogglingActive, setIsTogglingActive] = useState(false);
+    const isLoadingRef = useRef<boolean>(false); // Отслеживаем текущие запросы
+
+    // Photo gallery
+    const photoGallery = usePhotoGallery({
+        images: order?.photos || [],
+    });
 
     useEffect(() => {
+        console.log('Ticket useEffect triggered with id:', id);
+        
         initChatModals({
             showSuccessModal: (message: string) => {
                 setModalMessage(message);
@@ -157,16 +167,31 @@ export function Ticket() {
             }
         });
 
-        const role = getUserRole();
         const loadData = async () => {
-            await fetchCities();
+            // Проверяем что нет активного запроса
+            if (isLoadingRef.current) {
+                console.log('Fetch already in progress, skipping duplicate request for ID:', id);
+                return;
+            }
+
+            // Получаем ID текущего пользователя из localStorage (без API запроса)
+            const userData = getUserData();
+            setCurrentUserId(userData?.id || null);
+            
+            // Загружаем тикет если есть ID
             if (id) {
-                await fetchOrder(parseInt(id), role, ticketType, specificTicketId ? parseInt(specificTicketId) : undefined);
+                console.log('Starting fetchOrder for ticket ID:', id);
+                isLoadingRef.current = true;
+                try {
+                    await fetchOrder(parseInt(id));
+                } finally {
+                    isLoadingRef.current = false;
+                }
             }
         };
 
         loadData();
-    }, [id, ticketType, specificTicketId]);
+    }, [id]); // Убираем isLoading из зависимостей
 
     useEffect(() => {
         if (order) {
@@ -174,21 +199,7 @@ export function Ticket() {
         }
     }, [order]);
 
-    useEffect(() => {
-        const role = getUserRole();
-        const loadData = async () => {
-            // Fetch current user ID first
-            const userId = await getCurrentUserId();
-            setCurrentUserId(userId);
-            
-            await fetchCities();
-            if (id) {
-                await fetchOrder(parseInt(id), role, ticketType, specificTicketId ? parseInt(specificTicketId) : undefined);
-            }
-        };
 
-        loadData();
-    }, [id, ticketType, specificTicketId]);
 
     const handleCloseSuccessModal = () => {
         setShowSuccessModal(false);
@@ -200,29 +211,6 @@ export function Ticket() {
 
     const handleCloseInfoModal = () => {
         setShowInfoModal(false);
-    };
-
-    const getCurrentUserId = async (): Promise<number | null> => {
-        try {
-            const token = getAuthToken();
-            if (!token) return null;
-
-            const response = await fetch(`${API_BASE_URL}/api/users/me`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json',
-                },
-            });
-
-            if (response.ok) {
-                const userData = await response.json();
-                return userData.id;
-            }
-            return null;
-        } catch (error) {
-            console.error('Error getting current user ID:', error);
-            return null;
-        }
     };
 
     const handleCloseReviewModal = () => {
@@ -536,28 +524,6 @@ export function Ticket() {
         }
     };
 
-    const fetchCities = async (): Promise<City[]> => {
-        try {
-            const token = getAuthToken();
-            if (!token) return [];
-
-            const response = await fetch(`${API_BASE_URL}/api/cities`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (!response.ok) return [];
-
-            const citiesData: City[] = await response.json();
-            return citiesData;
-        } catch (error) {
-            console.error('Error fetching cities:', error);
-            return [];
-        }
-    };
-
     const getFullAddress = (ticketData: ApiTicket): string => {
         console.log('getFullAddress input:', ticketData);
 
@@ -639,32 +605,15 @@ export function Ticket() {
         }
     };
 
-    const fetchOrder = async (userId: number, role: string | null, ticketTypeParam: string | null, specificTicketId?: number) => {
+    const fetchOrder = async (ticketId: number) => {
+        const fetchTime = Date.now();
+        console.log(`[${fetchTime}] fetchOrder STARTED for ticket ID:`, ticketId);
+        
         try {
             setIsLoading(true);
             setError(null);
 
-            console.log('Fetching order with params:', {
-                userId,
-                role,
-                ticketType: ticketTypeParam,
-                specificTicketId
-            });
-
-            let endpoint: string;
-            const targetUserId = userId; // Изменено с let на const
-
-            // Определяем endpoint и ID пользователя для запроса
-            // НЕ фильтруем по active=true, чтобы разрешить владельцам смотреть неактивные объявления
-            if (ticketTypeParam === 'client') {
-                endpoint = `/api/tickets?service=false&exists[author]=true&client=${targetUserId}`;
-            } else if (ticketTypeParam === 'master') {
-                endpoint = `/api/tickets?service=true&exists[master]=true&master=${targetUserId}`;
-            } else {
-                endpoint = `/api/tickets`;
-            }
-
-            console.log('Fetching from endpoint:', endpoint);
+            console.log('Fetching ticket with ID:', ticketId);
 
             const headers: HeadersInit = {
                 'Content-Type': 'application/json',
@@ -675,45 +624,45 @@ export function Ticket() {
                 headers['Authorization'] = `Bearer ${token}`;
             }
 
-            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+            const response = await fetch(`${API_BASE_URL}/api/tickets/${ticketId}`, {
                 method: 'GET',
                 headers: headers,
             });
 
             if (!response.ok) {
-                if (response.status === 404) setError('Тикеты не найдены');
-                else throw new Error(`HTTP error! status: ${response.status}`);
-                return;
-            }
-
-            const ticketsData = await response.json();
-            console.log('Received tickets data:', ticketsData);
-
-            let ticketData: ApiTicket | null = null;
-
-            if (Array.isArray(ticketsData)) {
-                if (ticketsData.length === 0) {
-                    setError('У пользователя нет активных тикетов');
+                if (response.status === 404) {
+                    setError('Тикет не найден');
                     return;
-                }
-
-                if (specificTicketId) {
-                    ticketData = ticketsData.find((ticket: ApiTicket) => ticket.id === specificTicketId) || null;
-                    if (!ticketData) {
-                        setError('Тикет не найден');
-                        return;
-                    }
-                } else {
-                    ticketData = ticketsData[0];
-                }
-            } else {
-                ticketData = ticketsData as ApiTicket;
+                } else if (response.status === 403) {
+                    setError('Нет доступа к этому объявлению');
+                    return;
             }
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-            if (!ticketData) {
+        const responseData = await response.json();
+        console.log('Raw API response:', responseData);
+
+        // API может возвращать как объект, так и массив с одним элементом
+        let ticketData: ApiTicket;
+        
+        if (Array.isArray(responseData)) {
+            if (responseData.length === 0) {
                 setError('Тикет не найден');
                 return;
             }
+            ticketData = responseData[0];
+        } else {
+            ticketData = responseData;
+        }
+
+        console.log('Processed ticket data:', ticketData);
+
+        // Проверяем что у нас есть валидные данные тикета
+        if (!ticketData || !ticketData.id) {
+            setError('Неверный формат данных тикета');
+            return;
+        }
 
             // Проверяем доступ к неактивным объявлениям
             // Неактивные объявления видны только их владельцам
@@ -725,66 +674,49 @@ export function Ticket() {
                 }
             }
 
-            // Определяем, чью информацию показывать
+            // Определяем кого показывать: мастера или клиента
+            // Если есть master - это заявка клиента, показываем мастера
+            // Если master === null - это услуга мастера, показываем автора (клиента)
             let displayUserId: number;
             let displayUserName: string;
             let displayUserImage: string;
             let userTypeForRating: string | null;
+            let userRating: number = 0; // Рейтинг берем из данных тикета
 
-            if (ticketTypeParam === 'client') {
-                // Если смотрим тикеты клиента, показываем информацию о клиенте (авторе)
-                displayUserId = ticketData.author?.id || 0;
-                displayUserName = ticketData.author ? `${ticketData.author.name || ''} ${ticketData.author.surname || ''}`.trim() : 'Клиент';
-                displayUserImage = ticketData.author?.image ? formatProfileImageUrl(ticketData.author.image) : '';
-                userTypeForRating = 'client';
-            } else if (ticketTypeParam === 'master') {
-                // Если смотрим тикеты мастера, показываем информацию о мастере
-                displayUserId = ticketData.master?.id || 0;
-                displayUserName = ticketData.master ? `${ticketData.master.name || ''} ${ticketData.master.surname || ''}`.trim() : 'Мастер';
-                displayUserImage = ticketData.master?.image ? formatProfileImageUrl(ticketData.master.image) : '';
+            if (ticketData.master) {
+                // Заявка клиента - показываем мастера
+                displayUserId = ticketData.master.id;
+                displayUserName = `${ticketData.master.name || ''} ${ticketData.master.surname || ''}`.trim() || 'Мастер';
+                displayUserImage = ticketData.master.image ? formatProfileImageUrl(ticketData.master.image) : '';
                 userTypeForRating = 'master';
+                userRating = ticketData.master.rating || 0; // Рейтинг мастера из тикета
             } else {
-                // Если тип не указан, по умолчанию показываем автора
-                displayUserId = ticketData.author?.id || 0;
-                displayUserName = ticketData.author ? `${ticketData.author.name || ''} ${ticketData.author.surname || ''}`.trim() : 'Пользователь';
-                displayUserImage = ticketData.author?.image ? formatProfileImageUrl(ticketData.author.image) : '';
-                userTypeForRating = null;
+                // Услуга мастера - показываем автора
+                displayUserId = ticketData.author.id;
+                displayUserName = `${ticketData.author.name || ''} ${ticketData.author.surname || ''}`.trim() || 'Клиент';
+                displayUserImage = ticketData.author.image ? formatProfileImageUrl(ticketData.author.image) : '';
+                userTypeForRating = 'client';
+                userRating = ticketData.author.rating || 0; // Рейтинг автора из тикета
             }
 
-            // Если не удалось определить ID из тикета, используем userId из URL
-            if (displayUserId === 0 && userId) {
-                displayUserId = userId;
-                console.log('Using userId from URL as displayUserId:', displayUserId);
-
-                // Получаем дополнительную информацию о пользователе
-                const userInfo = await fetchUserInfo(displayUserId, userTypeForRating);
-                if (!displayUserName || displayUserName === 'Клиент' || displayUserName === 'Мастер' || displayUserName === 'Пользователь') {
-                    displayUserName = userInfo.name;
-                }
-                if (!displayUserImage) {
-                    displayUserImage = userInfo.image;
-                }
-            }
-
-            console.log('Final user info:', {
+            console.log('Display user info:', {
                 displayUserId,
                 displayUserName,
                 userTypeForRating,
-                displayUserImage
+                displayUserImage,
+                userRating
             });
 
-            // Используем reviewsCount из API тикета вместо отдельного запроса
+            // Используем reviewsCount из API тикета если есть
             const reviewCountForUser = ticketData.reviewsCount || 0;
             setReviewCount(reviewCountForUser);
-            console.log(`Using reviewsCount from ticket: ${reviewCountForUser}`);
 
-            // Получаем рейтинг пользователя
-            const userRatingInfo = await fetchUserInfo(displayUserId, userTypeForRating);
-            const userRating = userRatingInfo.rating;
+            // Используем рейтинг из данных тикета (БЕЗ дополнительного API запроса)
             setRating(userRating);
 
             const fullAddress = getFullAddress(ticketData);
 
+            // Собираем фото из разных источников
             const photos: string[] = [];
             if (ticketData.images?.length) {
                 photos.push(...ticketData.images.map(img => {
@@ -799,6 +731,11 @@ export function Ticket() {
                     return imageUrl;
                 }));
             }
+
+            // Проверяем есть ли образование у пользователя (только для мастеров)
+            const hasEducation = ticketData.master && 
+                                ticketData.master.education && 
+                                ticketData.master.education.length > 0;
 
             const orderData: Order = {
                 id: ticketData.id,
@@ -818,6 +755,7 @@ export function Ticket() {
                 rating: userRating,
                 authorImage: displayUserImage || undefined,
                 active: ticketData.active,
+                hasEducation: hasEducation || false,
             };
 
             console.log('Final order data:', orderData);
@@ -825,116 +763,14 @@ export function Ticket() {
             setIsTicketActive(ticketData.active);
 
         } catch (error) {
-            console.error('Error fetching order:', error);
-            setError('Не удалось загрузить данные заказа');
+            const fetchTime = Date.now();
+            console.error(`[${fetchTime}] fetchOrder ERROR for ticket:`, error);
+            setError('Не удалось загрузить данные тикета');
         } finally {
+            const fetchTime = Date.now();
+            console.log(`[${fetchTime}] fetchOrder COMPLETED, setting isLoading to false`);
             setIsLoading(false);
         }
-    };
-
-    const fetchUserInfo = async (userId: number, userType: string | null): Promise<{
-        name: string;
-        rating: number;
-        image: string
-    }> => {
-        try {
-            if (!userId || userId === 0) {
-                return {name: 'Пользователь', rating: 0, image: ''};
-            }
-
-            const headers: HeadersInit = {
-                'Content-Type': 'application/json',
-            };
-
-            const token = getAuthToken();
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-
-            try {
-                console.log(`Trying direct fetch for user ID: ${userId}`);
-                const directResponse = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
-                    headers: headers,
-                });
-
-                if (directResponse.ok) {
-                    const userData: UserData = await directResponse.json();
-                    console.log('Direct fetch successful:', userData);
-                    return formatUserInfo(userData);
-                }
-            } catch (directError) {
-                console.log('Direct fetch failed, trying filtered fetch...', directError);
-            }
-
-            let url = `${API_BASE_URL}/api/users`;
-
-            if (userType === 'master') {
-                url += `?roles[]=ROLE_MASTER`;
-            } else if (userType === 'client') {
-                url += `?roles[]=ROLE_CLIENT`;
-            }
-
-            console.log(`Fetching user info from filtered URL: ${url}`);
-
-            const response = await fetch(url, {headers});
-
-            if (!response.ok) {
-                console.log(`Failed to fetch users list: ${response.status}`);
-                return {name: 'Пользователь', rating: 0, image: ''};
-            }
-
-            const usersData = await response.json();
-
-            // Проверяем разные форматы ответа
-            let usersArray: UserData[] = [];
-            if (Array.isArray(usersData)) {
-                usersArray = usersData;
-            } else if (usersData && typeof usersData === 'object') {
-                if (usersData['hydra:member'] && Array.isArray(usersData['hydra:member'])) {
-                    usersArray = usersData['hydra:member'];
-                } else if (usersData.id) {
-                    usersArray = [usersData as UserData];
-                }
-            }
-
-            // Ищем пользователя по ID в массиве
-            const userData = usersArray.find(user => user.id === userId);
-
-            if (userData) {
-                return formatUserInfo(userData);
-            }
-
-            // Если пользователь не найден, возвращаем fallback
-            console.log(`User ${userId} not found in list`);
-            return {name: 'Пользователь', rating: 0, image: ''};
-
-        } catch (error) {
-            console.error('Error fetching user info:', error);
-            return {name: 'Пользователь', rating: 0, image: ''};
-        }
-    };
-
-    const formatUserInfo = (userData: UserData): { name: string; rating: number; image: string } => {
-        if (!userData) {
-            return {name: 'Пользователь', rating: 0, image: ''};
-        }
-
-        const name = `${userData.name || ''} ${userData.surname || ''}`.trim() || 'Пользователь';
-        const rating = userData.rating || 0;
-
-        let image = '';
-        if (userData.image) {
-            if (userData.image.startsWith('/images/profile_photos/')) {
-                image = `${API_BASE_URL}${userData.image}`;
-            } else if (userData.image.startsWith('http')) {
-                image = userData.image;
-            } else {
-                image = `${API_BASE_URL}/images/profile_photos/${userData.image}`;
-            }
-        }
-
-        console.log('User info found:', {name, rating, image});
-        return {name, rating, image};
     };
 
     const formatDate = (dateString: string) => {
@@ -1214,6 +1050,8 @@ export function Ticket() {
                                         src={photo}
                                         alt={`Фото ${index + 1}`}
                                         className={styles.photo}
+                                        onClick={() => photoGallery.openGallery(index)}
+                                        style={{cursor: 'pointer'}}
                                         onError={(e) => {
                                             (e.target as HTMLImageElement).src = '../fonTest1.png';
                                         }}
@@ -1291,88 +1129,90 @@ export function Ticket() {
                             </svg>
                             <p>{reviewCount} {getReviewWord(reviewCount)}</p>
                         </div>
-                        <div className={styles.rate_item}>
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                 xmlns="http://www.w3.org/2000/svg">
-                                <g clipPath="url(#clip0_214_6844)">
-                                    <g clipPath="url(#clip1_214_6844)">
-                                        <path
-                                            d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z"
-                                            stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                                        <path d="M6.27002 11.9997L10.09 15.8197L17.73 8.17969" stroke="#3A54DA"
-                                              strokeWidth="2" strokeMiterlimit="10"/>
-                                    </g>
-                                </g>
-                                <defs>
-                                    <clipPath id="clip0_214_6844">
-                                        <rect width="24" height="24" fill="white"/>
-                                    </clipPath>
-                                    <clipPath id="clip1_214_6844">
-                                        <rect width="24" height="24" fill="white"/>
-                                    </clipPath>
-                                </defs>
-                            </svg>
-                            <p>Диплом об образовании</p>
-                        </div>
-                    </div>
-
-                    <div className={styles.actionButtons}>
-                        <div className={styles.topRow}>
-                            <div
-                                className={`${styles.favoriteButton} ${isLikeLoading ? styles.loading : ''}`}
-                                onClick={handleLikeClick}
-                                title={isLiked ? "Удалить из избранного" : "Добавить в избранное"}
-                            >
-                                <svg width="64" height="44" viewBox="0 0 64 44" fill="none"
+                        {order.hasEducation && (
+                            <div className={styles.rate_item}>
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
                                      xmlns="http://www.w3.org/2000/svg">
-                                    <rect
-                                        x="1"
-                                        y="1"
-                                        width="62"
-                                        height="42"
-                                        rx="9"
-                                        stroke="#3A54DA"
-                                        strokeWidth="2"
-                                        fill={isLiked ? "#3A54DA" : "none"}
-                                    />
-                                    <g clipPath="url(#clip0_214_6848)">
-                                        <path
-                                            d="M36.77 12.4502C35.7961 12.4711 34.8444 12.7448 34.0081 13.2444C33.1719 13.7441 32.4799 14.4525 32 15.3002C31.5201 14.4525 30.8281 13.7441 29.9919 13.2444C29.1556 12.7448 28.2039 12.4711 27.23 12.4502C24.06 12.4502 21.5 15.3002 21.5 18.8202C21.5 25.1802 32 31.5502 32 31.5502C32 31.5502 42.5 25.1802 42.5 18.8202C42.5 15.3002 39.94 12.4502 36.77 12.4502Z"
-                                            stroke={isLiked ? "white" : "#3A54DA"}
-                                            strokeWidth="2"
-                                            strokeMiterlimit="10"
-                                            fill={isLiked ? "white" : "none"}
-                                        />
+                                    <g clipPath="url(#clip0_214_6844)">
+                                        <g clipPath="url(#clip1_214_6844)">
+                                            <path
+                                                d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z"
+                                                stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                            <path d="M6.27002 11.9997L10.09 15.8197L17.73 8.17969" stroke="#3A54DA"
+                                                  strokeWidth="2" strokeMiterlimit="10"/>
+                                        </g>
                                     </g>
                                     <defs>
-                                        <clipPath id="clip0_214_6848">
-                                            <rect width="24" height="24" fill="white" transform="translate(20 10)"/>
+                                        <clipPath id="clip0_214_6844">
+                                            <rect width="24" height="24" fill="white"/>
+                                        </clipPath>
+                                        <clipPath id="clip1_214_6844">
+                                            <rect width="24" height="24" fill="white"/>
                                         </clipPath>
                                     </defs>
                                 </svg>
+                                <p>Диплом об образовании</p>
                             </div>
+                        )}
+                    </div>
+                </section>
 
-                            <button className={styles.respondButton}
-                                    onClick={() => order?.authorId && handleRespondClick(order.authorId)}>
-                                Откликнуться
-                            </button>
+                <section className={styles.actionButtons}>
+                    <div className={styles.topRow}>
+                        <div
+                            className={`${styles.favoriteButton} ${isLikeLoading ? styles.loading : ''}`}
+                            onClick={handleLikeClick}
+                            title={isLiked ? "Удалить из избранного" : "Добавить в избранное"}
+                        >
+                            <svg width="64" height="44" viewBox="0 0 64 44" fill="none"
+                                 xmlns="http://www.w3.org/2000/svg">
+                                <rect
+                                    x="1"
+                                    y="1"
+                                    width="62"
+                                    height="42"
+                                    rx="9"
+                                    stroke="#3A54DA"
+                                    strokeWidth="2"
+                                    fill={isLiked ? "#3A54DA" : "none"}
+                                />
+                                <g clipPath="url(#clip0_214_6848)">
+                                    <path
+                                        d="M36.77 12.4502C35.7961 12.4711 34.8444 12.7448 34.0081 13.2444C33.1719 13.7441 32.4799 14.4525 32 15.3002C31.5201 14.4525 30.8281 13.7441 29.9919 13.2444C29.1556 12.7448 28.2039 12.4711 27.23 12.4502C24.06 12.4502 21.5 15.3002 21.5 18.8202C21.5 25.1802 32 31.5502 32 31.5502C32 31.5502 42.5 25.1802 42.5 18.8202C42.5 15.3002 39.94 12.4502 36.77 12.4502Z"
+                                        stroke={isLiked ? "white" : "#3A54DA"}
+                                        strokeWidth="2"
+                                        strokeMiterlimit="10"
+                                        fill={isLiked ? "white" : "none"}
+                                    />
+                                </g>
+                                <defs>
+                                    <clipPath id="clip0_214_6848">
+                                        <rect width="24" height="24" fill="white" transform="translate(20 10)"/>
+                                    </clipPath>
+                                </defs>
+                            </svg>
                         </div>
 
-                        <button
-                            className={styles.reviewButton}
-                            onClick={() => {
-                                const token = getAuthToken();
-                                if (!token) {
-
-                                    setShowAuthModal(true);
-                                } else {
-                                    handleLeaveReview();
-                                }
-                            }}
-                        >
-                            Оставить отзыв
+                        <button className={styles.respondButton}
+                                onClick={() => order?.authorId && handleRespondClick(order.authorId)}>
+                            Откликнуться
                         </button>
                     </div>
+
+                    <button
+                        className={styles.reviewButton}
+                        onClick={() => {
+                            const token = getAuthToken();
+                            if (!token) {
+
+                                setShowAuthModal(true);
+                            } else {
+                                handleLeaveReview();
+                            }
+                        }}
+                    >
+                        Оставить отзыв
+                    </button>
                 </section>
             </div>
 
@@ -1413,6 +1253,19 @@ export function Ticket() {
                 onClose={handleCloseInfoModal}
                 message={modalMessage}
             />
+
+            {order?.photos && order.photos.length > 0 && (
+                <PhotoGallery
+                    isOpen={photoGallery.isOpen}
+                    images={order.photos}
+                    currentIndex={photoGallery.currentIndex}
+                    onClose={photoGallery.closeGallery}
+                    onNext={photoGallery.goToNext}
+                    onPrevious={photoGallery.goToPrevious}
+                    onSelectImage={photoGallery.selectImage}
+                />
+            )}
+
             <CookieConsentBanner/>
         </div>
     );
