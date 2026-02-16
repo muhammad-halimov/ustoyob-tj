@@ -81,7 +81,7 @@ use Symfony\Component\Validator\Constraints as Assert;
     paginationEnabled: false,
 )]
 #[ApiFilter(BooleanFilter::class, properties: ['services.service'])]
-#[ApiFilter(ExistsFilter::class, properties: ['services', 'master', 'client', 'reviewImages',])]
+#[ApiFilter(ExistsFilter::class, properties: ['services', 'master', 'client', 'services', 'reviewImages',])]
 #[ApiFilter(SearchFilter::class, properties: [
     'type',
     'master',
