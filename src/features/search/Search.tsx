@@ -70,6 +70,10 @@ interface ApiTicket {
         id: number;
         title: string;
     };
+    subcategory?: {
+        id: number;
+        title: string;
+    } | null;
     reviewsCount: number;
     service: boolean;
     active: boolean;
@@ -99,6 +103,7 @@ interface SearchResult {
     authorId?: number;
     timeAgo: string;
     category: string;
+    subcategory?: string;
     type: 'client' | 'master';
     isInSelectedCity?: boolean;
     userRating?: number;
@@ -816,6 +821,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                         authorId,
                         timeAgo: ticket.createdAt, // Передаём сырую дату, чтобы TicketCard мог сам вычислить timeAgo
                         category: ticket.category?.title || 'другое',
+                        subcategory: ticket.subcategory?.title,
                         type: ticket.type,
                         isInSelectedCity: priority > 0,
                         userRating: ticket.userRating,
@@ -1132,7 +1138,9 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     address={result.address}
                     date={result.date}
                     author={result.author}
+                    authorId={result.authorId}
                     category={result.category}
+                    subcategory={result.subcategory}
                     timeAgo={result.timeAgo} // Передаём сырую дату, TicketCard сам отформатирует
                     ticketType={result.type}
                     userRole={userRole}

@@ -21,6 +21,10 @@ interface Announcement {
         id?: number;
         title?: string;
     };
+    subcategory?: {
+        id?: number;
+        title?: string;
+    } | null;
     addresses: Array<{
         title?: string;
         city?: {
@@ -236,6 +240,7 @@ function Recommendations() {
                                 date={announcement.createdAt}
                                 author={getAuthorName(announcement)}
                                 category={announcement.category?.title}
+                                subcategory={announcement.subcategory?.title}
                                 timeAgo={announcement.createdAt}
                                 ticketType={announcement.service}
                                 userRole={userRole}

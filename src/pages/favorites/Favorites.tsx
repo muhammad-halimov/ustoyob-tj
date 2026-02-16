@@ -20,6 +20,7 @@ interface FavoriteTicket {
     author: string;
     timeAgo: string;
     category: string;
+    subcategory?: string;
     status: string;
     authorId: number;
     type: 'client' | 'master';
@@ -130,6 +131,7 @@ interface ApiTicket {
     master: { id: number; name?: string; surname?: string; image?: string; rating?: number } | null;
     author: { id: number; name?: string; surname?: string; image?: string; rating?: number };
     category: { title: string };
+    subcategory?: { title: string } | null;
     active: boolean;
     notice?: string;
     service: boolean;
@@ -166,8 +168,6 @@ interface TicketData {
     service?: boolean;
 }
 
-const API_BASE_URL = 'https://admin.ustoyob.tj';
-
 function Favorites() {
     const [favoriteTickets, setFavoriteTickets] = useState<FavoriteTicket[]>([]);
     const [favoriteMasters, setFavoriteMasters] = useState<Master[]>([]);
@@ -180,10 +180,15 @@ function Favorites() {
     const navigate = useNavigate();
     const userRole = getUserRole();
     const { t } = useTranslation(['components', 'common']);
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+    
+    // Загрузка избранного при монтировании
+    useEffect(() => {
+        fetchFavorites();
+    }, []);
     
     // Хук для реактивного обновления при смене языка
     useLanguageChange(() => {
-        // Перезагружаем данные с сервера для обновления локализованного контента
         fetchFavorites();
     });
 
@@ -217,8 +222,6 @@ function Favorites() {
     };
 
     useEffect(() => {
-        fetchFavorites();
-
         const handleFavoritesUpdate = () => {
             console.log('Favorites updated, refreshing...');
             fetchFavorites();
@@ -325,6 +328,7 @@ function Favorites() {
                         authorId: authorId,
                         timeAgo: ticket.createdAt,
                         category: ticket.category?.title || 'другое',
+                        subcategory: ticket.subcategory?.title,
                         status: getTicketStatus(ticket.active, ticket.service),
                         type: userType,
                         active: ticket.active,
@@ -552,6 +556,7 @@ function Favorites() {
                         authorId: authorId,
                         timeAgo: ticket.createdAt,
                         category: ticket.category?.title || 'другое',
+                        subcategory: ticket.subcategory?.title,
                         status: getTicketStatus(ticket.active, ticket.service),
                         type: userType,
                         active: ticket.active,
@@ -1344,13 +1349,14 @@ function Favorites() {
                         address={ticket.address}
                         date={ticket.date}
                         author={ticket.author}
+                        authorId={ticket.authorId}
                         category={ticket.category}
+                        subcategory={ticket.subcategory}
                         timeAgo={ticket.timeAgo}
                         ticketType={ticket.type}
                         userRole={userRole}
                         userRating={ticket.userRating}
                         userReviewCount={ticket.userReviewCount}
-                        showFavoriteButton={true}
                         isFavorite={favoriteTickets.some(favTicket => favTicket.id === ticket.id)}
                         onFavoriteClick={(e) => {
                             e.stopPropagation();

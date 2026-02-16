@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getAuthToken, getUserRole } from '../../../../utils/auth.ts';
+import AuthModal from '../../../../features/auth/AuthModal.tsx';
 import styles from './ReviewModal.module.scss';
 
 interface ReviewModalProps {
@@ -40,13 +41,22 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
     const [services, setServices] = useState<Service[]>([]);
     const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
     const [loadingServices, setLoadingServices] = useState(false);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+    // Проверяем авторизацию при открытии модалки
+    React.useEffect(() => {
+        if (isOpen) {
+            const token = getAuthToken();
+            setIsAuthenticated(!!token);
+        }
+    }, [isOpen]);
 
     // Загружаем услуги при открытии модалки если нужен выбор услуги
     React.useEffect(() => {
-        if (isOpen && showServiceSelector && targetUserId) {
+        if (isOpen && isAuthenticated && showServiceSelector && targetUserId) {
             fetchServices();
         }
-    }, [isOpen, showServiceSelector, targetUserId]);
+    }, [isOpen, isAuthenticated, showServiceSelector, targetUserId]);
 
     const fetchServices = async () => {
         try {
@@ -243,7 +253,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
         setIsSubmitting(true);
 
         try {
-            const token = getAuthToken()!; // Получаем токен для запросов (! так как проверили выше)
+            const token = getAuthToken()!;
 
             const userRole = getUserRole();
             const currentUserId = await getCurrentUserId();
@@ -379,9 +389,29 @@ const ReviewModal: React.FC<ReviewModalProps> = ({
         setReviewPhotos([]);
         setSelectedServiceId(null);
         setServices([]);
+        setIsAuthenticated(false);
         onClose();
     };
 
+    const handleAuthSuccess = (token: string) => {
+        console.log('Login successful, token:', token);
+        setIsAuthenticated(true);
+    };
+
+    if (!isOpen) return null;
+
+    // Если пользователь не авторизован - показываем только AuthModal
+    if (!isAuthenticated) {
+        return (
+            <AuthModal
+                isOpen={true}
+                onClose={handleCloseModal}
+                onLoginSuccess={handleAuthSuccess}
+            />
+        );
+    }
+
+    // Если авторизован - показываем форму отзыва
     return (
         <div className={styles.modalOverlay} onClick={handleCloseModal}>
             <div className={styles.reviewModal} onClick={(e) => e.stopPropagation()}>

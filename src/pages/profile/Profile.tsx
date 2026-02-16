@@ -1,4 +1,4 @@
-import {type ChangeEvent, useEffect, useRef, useState} from 'react';
+import {type ChangeEvent, useCallback, useEffect, useRef, useState} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
 import {getAuthToken, removeAuthToken} from '../../utils/auth.ts';
 import styles from './Profile.module.scss';
@@ -190,6 +190,7 @@ function Profile() {
     const readOnly = isPublicProfile; // readOnly = true для публичных профилей
     const userId = id || null; // userId из URL параметра
     
+    const [currentUser, setCurrentUser] = useState<{ id: number; email: string; name: string; surname: string } | null>(null);
     const [editingField, setEditingField] = useState<'fullName' | 'specialty' | 'gender' | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [userRole, setUserRole] = useState<'master' | 'client' | null>(null);
@@ -255,6 +256,49 @@ function Profile() {
     const [phoneForm, setPhoneForm] = useState({ number: '', type: 'tj' as 'tj' | 'international' });
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+    
+    // Как в MyTickets - загрузка текущего пользователя для приватного профиля
+    const getCurrentUser = useCallback(async () => {
+        if (readOnly) {
+            // Для публичного профиля не требуется авторизация
+            setCurrentUser({ id: 0, email: '', name: '', surname: '' });
+            return true;
+        }
+
+        try {
+            const token = getAuthToken();
+            if (!token) {
+                console.log('No auth token available');
+                setIsLoading(false);
+                return false;
+            }
+
+            const response = await fetch(`${API_BASE_URL}/api/users/me`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                },
+            });
+
+            if (response.ok) {
+                const userData = await response.json();
+                console.log('Current user loaded successfully:', {
+                    id: userData.id,
+                    name: userData.name
+                });
+                setCurrentUser(userData);
+                return true;
+            } else {
+                console.error('Failed to fetch current user:', response.status);
+                setIsLoading(false);
+                return false;
+            }
+        } catch (err) {
+            console.error('Error fetching current user:', err);
+            setIsLoading(false);
+            return false;
+        }
+    }, [API_BASE_URL, readOnly]);
     
     // Определение размера экрана
     useEffect(() => {
@@ -483,26 +527,28 @@ function Profile() {
     };
 
     useEffect(() => {
-        const token = getAuthToken();
-        
-        // Для приватных профилей требуется токен
-        if (!readOnly && !token) {
-            console.log('No JWT token found, redirecting to login');
-            navigate('/');
-            return;
-        }
-        
-        console.log('=== LOADING PROFILE PAGE ===');
-        console.log(`Loading ${readOnly ? 'public' : 'private'} profile`);
-        if (userId) console.log('User ID:', userId);
-        
-        fetchUserData();
-        fetchOccupationsList();
-        
-        // Загружаем доступные социальные сети только для приватных профилей
-        if (!readOnly) {
-            fetchAvailableSocialNetworks();
-        }
+        const initializeProfile = async () => {
+            console.log('Initializing Profile...');
+            const authenticated = await getCurrentUser();
+            
+            if (!readOnly && !authenticated) {
+                // Для приватного профиля без авторизации - останавливаемся
+                return;
+            }
+
+            console.log('=== LOADING PROFILE PAGE ===');
+            console.log(`Loading ${readOnly ? 'public' : 'private'} profile`);
+            if (userId) console.log('User ID:', userId);
+            
+            fetchUserData();
+            fetchOccupationsList();
+            
+            // Загружаем доступные социальные сети только для приватных профилей
+            if (!readOnly) {
+                fetchAvailableSocialNetworks();
+            }
+        };
+        initializeProfile();
     }, [navigate, readOnly, userId]);
 
     useEffect(() => {
@@ -3298,6 +3344,17 @@ function Profile() {
 
     if (isLoading) {
         return <div className={styles.profileSet}>Загрузка...</div>;
+    }
+
+    // Если это приватный профиль и нет currentUser - показать AuthModal
+    if (!readOnly && !currentUser) {
+        return (
+            <AuthModal
+                isOpen={true}
+                onClose={() => navigate('/')}
+                onLoginSuccess={() => window.location.reload()}
+            />
+        );
     }
 
     if (!profileData) {

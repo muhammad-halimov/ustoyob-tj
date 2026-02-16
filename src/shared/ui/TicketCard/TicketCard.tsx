@@ -1,7 +1,9 @@
 import styles from './TicketCard.module.scss';
 import { useTranslation } from 'react-i18next';
 import { useLanguageChange } from '../../../hooks/useLanguageChange';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { useFavorites } from '../useFavorites';
 
 interface AnnouncementCardProps {
   title: string;
@@ -11,16 +13,20 @@ interface AnnouncementCardProps {
   address: string;
   date: string; // Может быть как отформатированная дата, так и ISO строка
   author: string;
+  authorId?: number;
   category?: string;
+  subcategory?: string;
   timeAgo?: string; // Может быть как отформатированное время, так и ISO строка
   ticketType?: string | boolean; // Принимаем либо строку, либо boolean
   userRole?: 'client' | 'master' | null; // Добавляем userRole для условного отображения
   onClick?: () => void;
-  // Новые пропсы для избранного
-  showFavoriteButton?: boolean;
+  // Пропсы для избранного - внешнее управление
   isFavorite?: boolean;
   onFavoriteClick?: (e: React.MouseEvent) => void;
   isLikeLoading?: boolean;
+  // Пропсы для избранного - внутреннее управление
+  ticketId?: number;
+  useManagedFavorites?: boolean;
   // Новые пропсы для рейтинга и отзывов
   userRating?: number;
   userReviewCount?: number;
@@ -145,14 +151,17 @@ export function TicketCard({
   address,
   date,
   author,
+  authorId,
   category,
+  subcategory,
   timeAgo,
   ticketType,
   onClick,
-  showFavoriteButton = false,
-  isFavorite = false,
-  onFavoriteClick,
-  isLikeLoading = false,
+  isFavorite: externalIsFavorite,
+  onFavoriteClick: externalOnFavoriteClick,
+  isLikeLoading: externalIsLikeLoading,
+  ticketId,
+  useManagedFavorites,
   userRating,
   userReviewCount,
   showEditButton = false,
@@ -163,6 +172,39 @@ export function TicketCard({
 }: AnnouncementCardProps) {
   const { t, i18n } = useTranslation('components');
   const [, forceUpdate] = useState({});
+  
+  // Автоматически включаем управляемое состояние, если передан ticketId и не задано явно useManagedFavorites
+  const shouldUseManagedFavorites = useManagedFavorites !== undefined ? useManagedFavorites : !!ticketId;
+  
+  // Используем внутреннее управление избранным если включено
+  const managedFavorites = useFavorites({
+    itemId: ticketId || 0,
+    itemType: 'ticket',
+    onSuccess: () => console.log('Favorite action successful'),
+    onError: (message) => console.error('Favorite action error:', message)
+  });
+
+  // Проверяем статус избранного при монтировании если используем управляемое состояние
+  useEffect(() => {
+    if (shouldUseManagedFavorites && ticketId) {
+      managedFavorites.checkFavoriteStatus();
+    }
+  }, [shouldUseManagedFavorites, ticketId]);
+
+  // Выбираем источник данных для избранного
+  const isFavorite = shouldUseManagedFavorites ? managedFavorites.isLiked : (externalIsFavorite || false);
+  const isLikeLoading = shouldUseManagedFavorites ? managedFavorites.isLikeLoading : (externalIsLikeLoading || false);
+  const onFavoriteClick = shouldUseManagedFavorites 
+    ? (e: React.MouseEvent) => {
+        e.stopPropagation();
+        managedFavorites.handleLikeClick();
+      }
+    : (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (externalOnFavoriteClick) {
+          externalOnFavoriteClick(e);
+        }
+      };
   
   // Хук для реактивного обновления переводов
   useLanguageChange(() => {
@@ -234,31 +276,27 @@ export function TicketCard({
               </svg>
             </button>
           )}
+          <button
+            className={styles.card_favorite_button}
+            onClick={onFavoriteClick}
+            disabled={isLikeLoading}
+            title={isFavorite ? t('removeFavorite') : t('addFavorite')}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M16.77 2.45C15.7961 2.47092 14.8444 2.74461 14.0081 3.24424C13.1719 3.74388 12.4799 4.45229 12 5.3C11.5201 4.45229 10.8281 3.74388 9.99186 3.24424C9.15563 2.74461 8.2039 2.47092 7.23 2.45C4.06 2.45 1.5 5.3 1.5 8.82C1.5 15.18 12 21.55 12 21.55C12 21.55 22.5 15.18 22.5 8.82C22.5 5.3 19.94 2.45 16.77 2.45Z"
+                fill={isFavorite ? "#3A54DA" : "none"}
+                stroke="#3A54DA"
+                strokeWidth="2"
+                strokeMiterlimit="10"
+              />
+            </svg>
+          </button>
         </div>
       </div>
       <div className={`${styles.card_header} ${displayTicketType ? styles.with_ticket_type : ''}`}>
         <h3>{truncateText(title, 27)}</h3>
-        <div className={styles.card_price_container}>
-          <span className={styles.card_price}>{price.toLocaleString('ru-RU')} TJS, {unit}</span>
-          {showFavoriteButton && (
-            <button
-              className={styles.card_favorite_button}
-              onClick={onFavoriteClick}
-              disabled={isLikeLoading}
-              title={isFavorite ? t('removeFavorite') : t('addFavorite')}
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M16.77 2.45C15.7961 2.47092 14.8444 2.74461 14.0081 3.24424C13.1719 3.74388 12.4799 4.45229 12 5.3C11.5201 4.45229 10.8281 3.74388 9.99186 3.24424C9.15563 2.74461 8.2039 2.47092 7.23 2.45C4.06 2.45 1.5 5.3 1.5 8.82C1.5 15.18 12 21.55 12 21.55C12 21.55 22.5 15.18 22.5 8.82C22.5 5.3 19.94 2.45 16.77 2.45Z"
-                  fill={isFavorite ? "#3A54DA" : "none"}
-                  stroke="#3A54DA"
-                  strokeWidth="2"
-                  strokeMiterlimit="10"
-                />
-              </svg>
-            </button>
-          )}
-        </div>
+        <span className={styles.card_price}>{price.toLocaleString('ru-RU')} TJS, {unit}</span>
       </div>
 
       <p className={styles.card_description}>{truncateText(description)}</p>
@@ -281,25 +319,47 @@ export function TicketCard({
 
       <div className={styles.card_footer}>
         <div className={styles.card_author_section}>
-          <span className={styles.card_author}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <g clipPath="url(#clip0_auth)">
-                <g clipPath="url(#clip1_auth)">
-                  <path d="M11.9995 12.9795C15.1641 12.9795 17.7295 10.4141 17.7295 7.24953C17.7295 4.08494 15.1641 1.51953 11.9995 1.51953C8.83494 1.51953 6.26953 4.08494 6.26953 7.24953C6.26953 10.4141 8.83494 12.9795 11.9995 12.9795Z" stroke="#5D5D5D" strokeWidth="2" strokeMiterlimit="10"/>
-                  <path d="M1.5 23.48L1.87 21.43C2.3071 19.0625 3.55974 16.9229 5.41031 15.3828C7.26088 13.8428 9.59246 12.9997 12 13C14.4104 13.0006 16.7443 13.8465 18.5952 15.3905C20.4462 16.9345 21.6971 19.0788 22.13 21.45L22.5 23.5" stroke="#5D5D5D" strokeWidth="2" strokeMiterlimit="10"/>
+          {authorId ? (
+            <Link to={`/profile/${authorId}`} className={styles.card_author} onClick={(e) => e.stopPropagation()}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <g clipPath="url(#clip0_auth)">
+                  <g clipPath="url(#clip1_auth)">
+                    <path d="M11.9995 12.9795C15.1641 12.9795 17.7295 10.4141 17.7295 7.24953C17.7295 4.08494 15.1641 1.51953 11.9995 1.51953C8.83494 1.51953 6.26953 4.08494 6.26953 7.24953C6.26953 10.4141 8.83494 12.9795 11.9995 12.9795Z" stroke="#5D5D5D" strokeWidth="2" strokeMiterlimit="10"/>
+                    <path d="M1.5 23.48L1.87 21.43C2.3071 19.0625 3.55974 16.9229 5.41031 15.3828C7.26088 13.8428 9.59246 12.9997 12 13C14.4104 13.0006 16.7443 13.8465 18.5952 15.3905C20.4462 16.9345 21.6971 19.0788 22.13 21.45L22.5 23.5" stroke="#5D5D5D" strokeWidth="2" strokeMiterlimit="10"/>
+                  </g>
                 </g>
-              </g>
-              <defs>
-                <clipPath id="clip0_auth">
-                  <rect width="24" height="24" fill="white"/>
-                </clipPath>
-                <clipPath id="clip1_auth">
-                  <rect width="24" height="24" fill="white"/>
-                </clipPath>
-              </defs>
-            </svg>
-            {author}
-          </span>
+                <defs>
+                  <clipPath id="clip0_auth">
+                    <rect width="24" height="24" fill="white"/>
+                  </clipPath>
+                  <clipPath id="clip1_auth">
+                    <rect width="24" height="24" fill="white"/>
+                  </clipPath>
+                </defs>
+              </svg>
+              {author}
+            </Link>
+          ) : (
+            <span className={styles.card_author}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <g clipPath="url(#clip0_auth)">
+                  <g clipPath="url(#clip1_auth)">
+                    <path d="M11.9995 12.9795C15.1641 12.9795 17.7295 10.4141 17.7295 7.24953C17.7295 4.08494 15.1641 1.51953 11.9995 1.51953C8.83494 1.51953 6.26953 4.08494 6.26953 7.24953C6.26953 10.4141 8.83494 12.9795 11.9995 12.9795Z" stroke="#5D5D5D" strokeWidth="2" strokeMiterlimit="10"/>
+                    <path d="M1.5 23.48L1.87 21.43C2.3071 19.0625 3.55974 16.9229 5.41031 15.3828C7.26088 13.8428 9.59246 12.9997 12 13C14.4104 13.0006 16.7443 13.8465 18.5952 15.3905C20.4462 16.9345 21.6971 19.0788 22.13 21.45L22.5 23.5" stroke="#5D5D5D" strokeWidth="2" strokeMiterlimit="10"/>
+                  </g>
+                </g>
+                <defs>
+                  <clipPath id="clip0_auth">
+                    <rect width="24" height="24" fill="white"/>
+                  </clipPath>
+                  <clipPath id="clip1_auth">
+                    <rect width="24" height="24" fill="white"/>
+                  </clipPath>
+                </defs>
+              </svg>
+              {author}
+            </span>
+          )}
           {(userRating !== undefined) && (
             <div className={styles.card_rating}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -324,7 +384,10 @@ export function TicketCard({
           )}
         </div>
         <div className={styles.card_footer_right}>
-          {category && <span className={styles.card_category}>{category}</span>}
+          <div className={styles.card_categories}>
+            {category && <span className={styles.card_category}>{truncateText(category, 30)}</span>}
+            {subcategory && <span className={styles.card_subcategory}>{truncateText(subcategory, 30)}</span>}
+          </div>
           {formattedTimeAgo && <span className={styles.card_timeAgo}>{formattedTimeAgo}</span>}
         </div>
       </div>

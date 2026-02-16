@@ -3,7 +3,7 @@ import styles from "./Header.module.scss";
 import { AdBtn } from "../../shared/ui/Button/HeaderButton/AdBtn.tsx";
 import { EnterBtn } from "../../shared/ui/Button/HeaderButton/EnterBtn.tsx";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import {getAuthToken, getUserRole, removeAuthToken} from "../../utils/auth";
+import {getAuthToken, removeAuthToken} from "../../utils/auth";
 import { useTranslation } from 'react-i18next';
 import { changeLanguage, Language } from '../../locales/i18n.ts';
 import { useLanguageChange } from '../../hooks/useLanguageChange';
@@ -423,13 +423,22 @@ function Header({ onOpenAuthModal }: HeaderProps) {
     const isActivePage = getActivePage();
     const isAuthenticated = !!getAuthToken();
 
-    const handleProfileClick = (e: React.MouseEvent) => {
+    // Универсальная функция для проверки авторизации
+    const handleAuthCheck = (e: React.MouseEvent) => {
         const token = getAuthToken();
 
         if (!token) {
             e.preventDefault();
-            handleEnterBtnClick();
+            if (onOpenAuthModal) {
+                onOpenAuthModal();
+            }
         }
+    };
+
+    const handleProfileClick = (e: React.MouseEvent) => handleAuthCheck(e);
+    const handleChatsClick = (e: React.MouseEvent) => handleAuthCheck(e);
+    const handleFavoritesClick = () => {
+        // Favorites доступны всем без авторизации
     };
 
     const handleEnterBtnClick = () => {
@@ -480,11 +489,16 @@ function Header({ onOpenAuthModal }: HeaderProps) {
     };
 
     const handleAdBtnClick = () => {
-        if (getUserRole() === 'master') {
-            navigate('/ticket/me');
-        } else {
-            navigate('/ticket/me');
+        const token = getAuthToken();
+        if (!token) {
+            // Если не авторизован - показываем модалку авторизации БЕЗ перехода
+            if (onOpenAuthModal) {
+                onOpenAuthModal();
+            }
+            return;
         }
+        // Если авторизован - переходим на страницу
+        navigate('/ticket/me');
     };
 
     return (
@@ -674,7 +688,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                                 </Link>
                             </li>
                             <li className={`${styles.bottomHeader_item} ${isActivePage === "favorites" ? styles.active : ""}`}>
-                                <Link to="/favorites" className={styles.navLink}>
+                                <Link to="/favorites" className={styles.navLink} onClick={handleFavoritesClick}>
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                         <g clipPath="url(#clip0_324_3328)">
                                             <g clipPath="url(#clip1_324_3328)">
@@ -695,7 +709,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                             </li>
                             <li className={`${styles.bottomHeader_item} ${isActivePage === "chats" ? styles.active : ""}`}>
                                 {isAuthenticated ? (
-                                    <Link to="/chats" className={styles.navLink}>
+                                    <Link to="/chats" className={styles.navLink} onClick={handleChatsClick}>
                                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <g clipPath="url(#clip0_324_3538)">
                                                 <g clipPath="url(#clip1_324_3538)">
@@ -715,9 +729,9 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                                     </Link>
                                 ) : (
                                     <Link
-                                        to="/profile"
+                                        to="/chats"
                                         className={styles.navLink}
-                                        onClick={handleProfileClick}
+                                        onClick={handleChatsClick}
                                     >
                                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <g clipPath="url(#clip0_324_3538)">
@@ -740,7 +754,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                             </li>
                             <li className={`${styles.bottomHeader_item} ${isActivePage === "profile" ? styles.active : ""}`}>
                                 {isAuthenticated ? (
-                                    <Link to="/profile" className={styles.navLink}>
+                                    <Link to="/profile" className={styles.navLink} onClick={handleProfileClick}>
                                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
                                              xmlns="http://www.w3.org/2000/svg">
                                             <g clipPath="url(#clip0_324_3342)">
@@ -812,20 +826,20 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                             </Link>
                         </li>
                         <li className={`${styles.bottomHeader_item} ${isActivePage === "favorites" ? styles.active : ""}`}>
-                            <Link to="/favorites" className={styles.navLink}>
+                            <Link to="/favorites" className={styles.navLink} onClick={handleFavoritesClick}>
                                 <p>{t('header:favorites')}</p>
                             </Link>
                         </li>
                         <li className={`${styles.bottomHeader_item} ${isActivePage === "chats" ? styles.active : ""}`}>
                             {isAuthenticated ? (
-                                <Link to="/chats" className={styles.navLink}>
+                                <Link to="/chats" className={styles.navLink} onClick={handleChatsClick}>
                                     <p>{t('header:chats')}</p>
                                 </Link>
                             ) : (
                                 <Link
-                                    to="/profile"
+                                    to="/chats"
                                     className={styles.navLink}
-                                    onClick={handleProfileClick}
+                                    onClick={handleChatsClick}
                                 >
                                     <p>{t('header:chats')}</p>
                                 </Link>
@@ -833,7 +847,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                         </li>
                         <li className={`${styles.bottomHeader_item} ${isActivePage === "profile" ? styles.active : ""}`}>
                             {isAuthenticated ? (
-                                <Link to="/profile" className={styles.navLink}>
+                                <Link to="/profile" className={styles.navLink} onClick={handleProfileClick}>
                                     <p>{t('header:profile')}</p>
                                 </Link>
                             ) : (

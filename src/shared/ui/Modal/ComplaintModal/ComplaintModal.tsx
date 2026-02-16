@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getAuthToken, getUserRole } from '../../../../utils/auth.ts';
+import AuthModal from '../../../../features/auth/AuthModal.tsx';
 import styles from './ComplaintModal.module.scss';
 
 interface ComplaintModalProps {
@@ -9,6 +10,7 @@ interface ComplaintModalProps {
     onSuccess: (message: string) => void;
     onError: (message: string) => void;
     targetUserId: number;
+    ticketId?: number; // Опциональный ID тикета для отправки жалобы прямо с тикета
 }
 
 interface Ticket {
@@ -24,7 +26,8 @@ const ComplaintModal: React.FC<ComplaintModalProps> = ({
     onClose,
     onSuccess,
     onError,
-    targetUserId
+    targetUserId,
+    ticketId
 }) => {
     const { t } = useTranslation('components');
     
@@ -45,16 +48,29 @@ const ComplaintModal: React.FC<ComplaintModalProps> = ({
     const [description, setDescription] = useState('');
     const [reason, setReason] = useState('');
     const [tickets, setTickets] = useState<Ticket[]>([]);
-    const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
+    const [selectedTicketId, setSelectedTicketId] = useState<number | null>(ticketId || null);
     const [loadingTickets, setLoadingTickets] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-    // Загружаем тикеты при открытии модалки
+    // Проверяем авторизацию при открытии модалки
     React.useEffect(() => {
-        if (isOpen && targetUserId) {
+        if (isOpen) {
+            const token = getAuthToken();
+            setIsAuthenticated(!!token);
+        }
+    }, [isOpen]);
+
+    // Загружаем тикеты при открытии модалки (только если не передан ticketId)
+    React.useEffect(() => {
+        if (isOpen && isAuthenticated && targetUserId && !ticketId) {
             fetchTickets();
         }
-    }, [isOpen, targetUserId]);
+        // Устанавливаем selectedTicketId если передан ticketId
+        if (isOpen && ticketId) {
+            setSelectedTicketId(ticketId);
+        }
+    }, [isOpen, isAuthenticated, targetUserId, ticketId]);
 
     const fetchTickets = async () => {
         try {
@@ -135,7 +151,7 @@ const ComplaintModal: React.FC<ComplaintModalProps> = ({
         setIsSubmitting(true);
 
         try {
-            const token = getAuthToken()!; // Получаем токен для запросов (! так как проверили выше)
+            const token = getAuthToken()!;
 
             const complaintData = {
                 type: 'ticket',
@@ -216,9 +232,29 @@ const ComplaintModal: React.FC<ComplaintModalProps> = ({
         setReason('');
         setSelectedTicketId(null);
         setTickets([]);
+        setIsAuthenticated(false);
         onClose();
     };
 
+    const handleAuthSuccess = (token: string) => {
+        console.log('Login successful, token:', token);
+        setIsAuthenticated(true);
+    };
+
+    if (!isOpen) return null;
+
+    // Если пользователь не авторизован - показываем только AuthModal
+    if (!isAuthenticated) {
+        return (
+            <AuthModal
+                isOpen={true}
+                onClose={handleCloseModal}
+                onLoginSuccess={handleAuthSuccess}
+            />
+        );
+    }
+
+    // Если авторизован - показываем форму жалобы
     return (
         <div className={styles.modalOverlay} onClick={handleCloseModal}>
             <div className={styles.complaintModal} onClick={(e) => e.stopPropagation()}>
@@ -227,29 +263,31 @@ const ComplaintModal: React.FC<ComplaintModalProps> = ({
                 </div>
 
                 <div className={styles.modalContent}>
-                    {/* Выбор тикета/услуги */}
-                    <div className={styles.ticketSection}>
-                        <label>{t('complaintModal.selectTicket')}</label>
-                        {loadingTickets ? (
-                            <div className={styles.loadingTickets}>{t('complaintModal.loadingTickets')}</div>
-                        ) : tickets.length === 0 ? (
-                            <div className={styles.noTickets}>{t('complaintModal.noTickets')}</div>
-                        ) : (
-                            <select
-                                value={selectedTicketId || ''}
-                                onChange={(e) => setSelectedTicketId(Number(e.target.value))}
-                                className={styles.ticketSelect}
-                                disabled={isSubmitting}
-                            >
-                                <option value="">{t('complaintModal.selectTicketPlaceholder')}</option>
-                                {tickets.map(ticket => (
-                                    <option key={ticket.id} value={ticket.id}>
-                                        {ticket.title}
-                                    </option>
-                                ))}
-                            </select>
-                        )}
-                    </div>
+                    {/* Выбор тикета/услуги - показываем только если не передан ticketId */}
+                    {!ticketId && (
+                        <div className={styles.ticketSection}>
+                            <label>{t('complaintModal.selectTicket')}</label>
+                            {loadingTickets ? (
+                                <div className={styles.loadingTickets}>{t('complaintModal.loadingTickets')}</div>
+                            ) : tickets.length === 0 ? (
+                                <div className={styles.noTickets}>{t('complaintModal.noTickets')}</div>
+                            ) : (
+                                <select
+                                    value={selectedTicketId || ''}
+                                    onChange={(e) => setSelectedTicketId(Number(e.target.value))}
+                                    className={styles.ticketSelect}
+                                    disabled={isSubmitting}
+                                >
+                                    <option value="">{t('complaintModal.selectTicketPlaceholder')}</option>
+                                    {tickets.map(ticket => (
+                                        <option key={ticket.id} value={ticket.id}>
+                                            {ticket.title}
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
+                        </div>
+                    )}
 
                     {/* Выбор причины жалобы */}
                     <div className={styles.reasonSection}>

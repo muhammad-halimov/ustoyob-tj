@@ -2,10 +2,24 @@ import {useState, useEffect, useCallback} from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAuthToken } from '../../../utils/auth.ts';
 import styles from './MyTickets.module.scss';
-import AuthModal from "../../../features/auth/AuthModal.tsx";
+import AuthModal from '../../../features/auth/AuthModal.tsx';
 import { TicketCard } from '../../../shared/ui/TicketCard/TicketCard.tsx';
 import CookieConsentBanner from "../../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
 import StatusModal from '../../../shared/ui/Modal/StatusModal';
+
+interface ApiUser {
+    id: number;
+    email: string;
+    name: string;
+    surname: string;
+    phone1: string;
+    phone2: string;
+    image?: string;
+    isOnline?: boolean;
+    lastSeen?: string;
+    approved?: boolean;
+    active?: boolean;
+}
 
 interface Ticket {
     id: number;
@@ -19,6 +33,11 @@ interface Ticket {
         title: string;
         image: string;
     };
+    subcategory?: {
+        id: number;
+        title: string;
+        image: string;
+    } | null;
     author: {
         id: number;
         email: string;
@@ -92,6 +111,7 @@ interface FormattedTicket {
     master: string;
     timeAgo: string;
     category: string;
+    subcategory?: string;
     status: string;
     authorId: number;
     masterId: number;
@@ -104,12 +124,13 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 function MyTickets() {
     const navigate = useNavigate();
+    
+    const [currentUser, setCurrentUser] = useState<ApiUser | null>(null);
     const [allTickets, setAllTickets] = useState<FormattedTicket[]>([]);
     const [displayedTickets, setDisplayedTickets] = useState<FormattedTicket[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'active' | 'inactive'>('active');
 
-    const [showAuthModal, setShowAuthModal] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [showErrorModal, setShowErrorModal] = useState(false);
     const [modalMessage, setModalMessage] = useState('');
@@ -122,9 +143,21 @@ function MyTickets() {
         setShowErrorModal(false);
     };
 
+    // Инициализация - ТОЧНО КАК В Chat.tsx
     useEffect(() => {
-        fetchMyTickets();
+        const initializeMyTickets = async () => {
+            console.log('Initializing My Tickets...');
+            await getCurrentUser();
+        };
+        initializeMyTickets();
     }, []);
+
+    // Загрузка тикетов ТОЛЬКО ПОСЛЕ загрузки пользователя
+    useEffect(() => {
+        if (currentUser) {
+            fetchMyTickets();
+        }
+    }, [currentUser]);
 
     useEffect(() => {
         const filtered = activeTab === 'active' 
@@ -133,29 +166,58 @@ function MyTickets() {
         setDisplayedTickets(filtered);
     }, [activeTab, allTickets]);
 
+    // ТОЧНО КАК В Chat.tsx - загрузка текущего пользователя
+    const getCurrentUser = useCallback(async (): Promise<ApiUser | null> => {
+        try {
+            const token = getAuthToken();
+            if (!token) {
+                console.log('No auth token available');
+                setIsLoading(false);
+                return null;
+            }
+
+            const response = await fetch(`${API_BASE_URL}/api/users/me`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                },
+            });
+
+            if (response.ok) {
+                const userData = await response.json();
+                console.log('Current user loaded successfully:', {
+                    id: userData.id,
+                    name: userData.name
+                });
+                setCurrentUser(userData);
+                return userData;
+            } else {
+                console.error('Failed to fetch current user:', response.status);
+                setIsLoading(false);
+                return null;
+            }
+        } catch (err) {
+            console.error('Error fetching current user:', err);
+            setIsLoading(false);
+            return null;
+        }
+    }, []);
+
     const fetchMyTickets = async () => {
+        if (!currentUser) {
+            console.log('No current user, skipping fetch');
+            return;
+        }
+
         try {
             setIsLoading(true);
             const token = getAuthToken();
 
             if (!token) {
-                setShowAuthModal(true);
+                console.error('Token not found in fetchMyTickets');
+                setIsLoading(false);
                 return;
             }
-
-            // Получаем информацию о текущем пользователе
-            const userResponse = await fetch(`${API_BASE_URL}/api/users/me`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json',
-                },
-            });
-
-            if (!userResponse.ok) {
-                throw new Error('Не удалось получить информацию о пользователе');
-            }
-
-            const userData = await userResponse.json();
 
             // Получаем все тикеты
             const url = `${API_BASE_URL}/api/tickets?locale=${localStorage.getItem('i18nextLng') || 'ru'}`;
@@ -174,8 +236,8 @@ function MyTickets() {
 
                 // Фильтруем тикеты текущего пользователя
                 const myTickets = ticketsData.filter(ticket =>
-                    ticket.author?.id === userData.id ||
-                    ticket.master?.id === userData.id
+                    ticket.author?.id === currentUser.id ||
+                    ticket.master?.id === currentUser.id
                 );
 
                 console.log('My tickets:', myTickets);
@@ -203,6 +265,7 @@ function MyTickets() {
                         masterId: ticket.master?.id || 0,
                         timeAgo: ticket.createdAt,
                         category: ticket.category?.title || 'другое',
+                        subcategory: ticket.subcategory?.title,
                         status: ticket.active ? 'Активно' : 'Завершено',
                         type: ticket.service ? 'master' : 'client',
                         authorImage: authorData?.image ? formatProfileImageUrl(authorData.image) : undefined,
@@ -310,26 +373,12 @@ function MyTickets() {
 
     const handleCardClick = useCallback((ticketId?: number, authorId?: number, masterId?: number) => {
         if (!ticketId) return;
-
-        const token = getAuthToken();
-
-        if (!token) {
-            setShowAuthModal(true);
-            return;
-        }
-
-        // Если авторизован, выполняем переход
+        // Авторизация проверена в начале компонента
         if (authorId || masterId) navigate(`/ticket/${ticketId}`);
     }, [navigate]);
 
     const handleCreateNew = () => {
-        const token = getAuthToken();
-
-        if (!token) {
-            setShowAuthModal(true);
-            return;
-        }
-
+        // Авторизация проверена в начале компонента
         navigate('/ticket/create');
     };
 
@@ -337,44 +386,13 @@ function MyTickets() {
         navigate(-1);
     };
 
-    const handleLoginSuccess = (token: string, email?: string) => {
-        console.log('Login successful, token:', token);
-        if (email) {
-            console.log('User email:', email);
-        }
-        setShowAuthModal(false);
-
-        // Получаем сохраненные данные для редиректа
-        const redirectData = sessionStorage.getItem('redirectAfterAuth');
-
-        if (redirectData) {
-            try {
-                const { ticketId, authorId, masterId } = JSON.parse(redirectData);
-
-                // Выполняем переход
-                if (authorId || masterId) navigate(`/ticket/${ticketId}`);
-
-                // Очищаем сохраненные данные
-                sessionStorage.removeItem('redirectAfterAuth');
-            } catch (error) {
-                console.error('Error parsing redirect data:', error);
-                // Если произошла ошибка, показываем сообщение
-                setModalMessage('Ошибка при переходе к объявлению');
-                setShowErrorModal(true);
-                setTimeout(() => setShowErrorModal(false), 3000);
-            }
-        } else {
-            // Если нет сохраненных данных, просто закрываем модалку
-            setShowAuthModal(false);
-        }
-    };
-
     const handleToggleTicketActive = async (e: React.ChangeEvent<HTMLInputElement>, ticketId: number, currentActive: boolean) => {
         e.stopPropagation();
 
         const token = getAuthToken();
         if (!token) {
-            navigate('/login');
+            // Не должно произойти, так как проверка в начале компонента
+            console.error('Token not found in handleToggleTicketActive');
             return;
         }
 
@@ -421,7 +439,8 @@ function MyTickets() {
 
         const token = getAuthToken();
         if (!token) {
-            setShowAuthModal(true);
+            // Не должно произойти, так как проверка в начале компонента
+            console.error('Token not found in handleEditTicket');
             return;
         }
 
@@ -483,6 +502,26 @@ function MyTickets() {
     // const getTicketTypeLabel = (type: 'client' | 'master') => {
     //     return type === 'master' ? 'Услуга мастера' : 'Заказ клиента';
     // };
+
+    // Пока загружается currentUser или тикеты - показать загрузку
+    if (isLoading) {
+        return (
+            <div className={styles.container}>
+                <div className={styles.loadingMessage}>Загрузка...</div>
+            </div>
+        );
+    }
+
+    // Если нет currentUser после загрузки - показать AuthModal
+    if (!currentUser) {
+        return (
+            <AuthModal
+                isOpen={true}
+                onClose={() => navigate('/')}
+                onLoginSuccess={() => window.location.reload()}
+            />
+        );
+    }
 
     return (
         <div className={styles.container}>
@@ -549,7 +588,9 @@ function MyTickets() {
                             address={ticket.address}
                             date={ticket.date}
                             author={ticket.author}
+                            authorId={ticket.authorId}
                             category={ticket.category}
+                            subcategory={ticket.subcategory}
                             timeAgo={ticket.timeAgo}
                             ticketType={ticket.type}
                             onClick={() => handleCardClick(ticket.id, ticket.authorId, ticket.masterId)}
@@ -562,14 +603,6 @@ function MyTickets() {
                     ))
                 )}
             </div>
-            {/* Модальное окно авторизации */}
-            {showAuthModal && (
-                <AuthModal
-                    isOpen={showAuthModal}
-                    onClose={() => setShowAuthModal(false)}
-                    onLoginSuccess={handleLoginSuccess}
-                />
-            )}
 
             <StatusModal
                 type="success"

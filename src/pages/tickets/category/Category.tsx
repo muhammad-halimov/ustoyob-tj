@@ -10,6 +10,7 @@ import { SortingFilter } from '../../../widgets/Sorting/SortingFilter';
 import { useTranslation } from 'react-i18next';
 import CookieConsentBanner from "../../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
 import { getOccupations } from '../../../utils/dataCache.ts';
+import { truncateText } from '../../../shared/ui/TicketCard/TicketCard.tsx';
 
 interface Occupation {
     id: number;
@@ -31,6 +32,11 @@ interface Ticket {
         title: string;
         image: string;
     };
+    subcategory?: {
+        id: number;
+        title: string;
+        image: string;
+    } | null;
     author: {
         id: number;
         email: string;
@@ -96,6 +102,7 @@ interface FormattedTicket {
     author: string;
     timeAgo: string;
     category: string;
+    subcategory?: string;
     status: string;
     authorId: number;
     type: 'client' | 'master';
@@ -492,6 +499,7 @@ function Category() {
                     authorId: authorId,
                     timeAgo: ticket.createdAt,
                     category: ticket.category?.title || 'другое',
+                    subcategory: ticket.subcategory?.title,
                     status: ticket.active ? 'В работе' : 'Завершен',
                     type: isMasterTicket ? 'master' : 'client',
                     authorImage: author?.image ? formatProfileImageUrl(author.image) : undefined,
@@ -682,7 +690,7 @@ function Category() {
             roleText = ' - Все объявления';
         }
 
-        return `${categoryName}${roleText}`;
+        return `${truncateText(categoryName, 30)}${roleText}`;
     };
 
     // Если категория ID не передан
@@ -884,7 +892,9 @@ function Category() {
                             address={ticket.fullAddress}
                             date={ticket.date}
                             author={ticket.author}
+                            authorId={ticket.authorId}
                             category={ticket.category}
+                            subcategory={ticket.subcategory}
                             timeAgo={ticket.timeAgo}
                             ticketType={ticket.type}
                             userRole={userRole}

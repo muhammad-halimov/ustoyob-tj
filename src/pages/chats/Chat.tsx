@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from 'react-i18next';
 import { getAuthToken } from "../../utils/auth";
+import AuthModal from '../../features/auth/AuthModal';
 import styles from "./Chat.module.scss";
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { IoSend, IoAttach, IoClose, IoImages, IoArchiveOutline, IoArchiveSharp } from "react-icons/io5";
 import { PhotoGallery, usePhotoGallery } from '../../shared/ui/PhotoGallery';
 import CookieConsentBanner from "../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
@@ -947,7 +948,21 @@ function Chat() {
     const currentInterlocutor = currentChat ? getInterlocutorFromChat(currentChat) : null;
     const showChatArea = selectedChat !== null && currentInterlocutor !== null;
 
-    if (isLoading) return <div className={styles.chat}>{t('chat.loadingChats')}</div>;
+    // Пока загружается - показать загрузку
+    if (isLoading) {
+        return <div className={styles.chat}>{t('chat.loadingChats')}</div>;
+    }
+
+    // Если нет currentUser после загрузки - показать AuthModal
+    if (!currentUser) {
+        return (
+            <AuthModal
+                isOpen={true}
+                onClose={() => navigate('/')}
+                onLoginSuccess={() => window.location.reload()}
+            />
+        );
+    }
 
     return (
         <div className={`${styles.chat} ${isMobileChatActive ? styles.chatAreaActive : ''}`}>
@@ -1066,26 +1081,30 @@ function Chat() {
                                 >
                                     ←
                                 </button>
-                                <div className={styles.avatar}>
-                                    {currentInterlocutor.image ? (
-                                        <img
-                                            src={`${API_BASE_URL}${currentInterlocutor.image.startsWith('/') ? currentInterlocutor.image : '/images/profile_photos/' + currentInterlocutor.image}`}
-                                            className={styles.avatarImage}
-                                            alt={`${currentInterlocutor.name} ${currentInterlocutor.surname}`}
-                                        />
-                                    ) : (
-                                        <>
-                                            {currentInterlocutor.name?.charAt(0)}
-                                            {currentInterlocutor.surname?.charAt(0)}
-                                        </>
-                                    )}
-                                    {currentInterlocutor.isOnline && !currentChat?.isArchived && (
-                                        <div className={styles.onlineIndicator} />
-                                    )}
-                                </div>
+                                <Link to={`/profile/${currentInterlocutor.id}`} style={{ textDecoration: 'none' }}>
+                                    <div className={styles.avatar}>
+                                        {currentInterlocutor.image ? (
+                                            <img
+                                                src={`${API_BASE_URL}${currentInterlocutor.image.startsWith('/') ? currentInterlocutor.image : '/images/profile_photos/' + currentInterlocutor.image}`}
+                                                className={styles.avatarImage}
+                                                alt={`${currentInterlocutor.name} ${currentInterlocutor.surname}`}
+                                            />
+                                        ) : (
+                                            <>
+                                                {currentInterlocutor.name?.charAt(0)}
+                                                {currentInterlocutor.surname?.charAt(0)}
+                                            </>
+                                        )}
+                                        {currentInterlocutor.isOnline && !currentChat?.isArchived && (
+                                            <div className={styles.onlineIndicator} />
+                                        )}
+                                    </div>
+                                </Link>
                                 <div className={styles.headerInfo}>
                                     <div className={styles.name}>
-                                        {currentInterlocutor.name} {currentInterlocutor.surname}
+                                        <Link to={`/profile/${currentInterlocutor.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                                            {currentInterlocutor.name} {currentInterlocutor.surname}
+                                        </Link>
                                         {currentChat?.isArchived && <span className={styles.archiveBadge}> ({t('chat.archive').toLowerCase()})</span>}
                                     </div>
                                     {currentChat?.ticket?.title && (

@@ -8,8 +8,10 @@ import {cleanText} from "../../../utils/cleanText.ts";
 import CookieConsentBanner from "../../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
 import StatusModal from '../../../shared/ui/Modal/StatusModal';
 import ReviewModal from '../../../shared/ui/Modal/ReviewModal';
+import ComplaintModal from '../../../shared/ui/Modal/ComplaintModal/ComplaintModal';
 import { PhotoGallery } from '../../../shared/ui/PhotoGallery/PhotoGallery';
 import { usePhotoGallery } from '../../../shared/ui/PhotoGallery/usePhotoGallery';
+import { useFavorites } from '../../../shared/ui/useFavorites';
 // import { fetchUserWithRole } from "../../utils/api.ts";
 
 interface ApiTicket {
@@ -103,13 +105,6 @@ interface Order {
     hasEducation?: boolean;
 }
 
-interface Favorite {
-    id: number;
-    tickets?: { id: number }[];
-    masters?: { id: number }[];
-    clients?: { id: number }[];
-}
-
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export function Ticket() {
@@ -119,13 +114,23 @@ export function Ticket() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const [isLiked, setIsLiked] = useState(false);
-    const [isLikeLoading, setIsLikeLoading] = useState(false);
-    const [favoriteId, setFavoriteId] = useState<number | null>(null);
     const [rating, setRating] = useState<number>(0);
+
+    // Используем хук для управления избранным
+    const favorites = useFavorites({
+        itemId: order?.id || 0,
+        itemType: 'ticket',
+        onSuccess: () => console.log('Favorite updated'),
+        onError: (message) => {
+            setModalMessage(message);
+            setShowErrorModal(true);
+            setTimeout(() => setShowErrorModal(false), 3000);
+        }
+    });
 
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
+    const [showComplaintModal, setShowComplaintModal] = useState(false);
 
     const [reviewCount, setReviewCount] = useState<number>(0);
 
@@ -139,6 +144,10 @@ export function Ticket() {
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
     const [isTogglingActive, setIsTogglingActive] = useState(false);
     const isLoadingRef = useRef<boolean>(false); // Отслеживаем текущие запросы
+
+    // States for chat checking
+    const [existingChatId, setExistingChatId] = useState<number | null>(null);
+    const [isCheckingChats, setIsCheckingChats] = useState(false);
 
     // Photo gallery
     const photoGallery = usePhotoGallery({
@@ -195,9 +204,13 @@ export function Ticket() {
 
     useEffect(() => {
         if (order) {
-            checkFavoriteStatus();
+            favorites.checkFavoriteStatus();
+            // Проверяем существующие чаты если пользователь авторизован
+            if (currentUserId) {
+                checkExistingChats();
+            }
         }
-    }, [order]);
+    }, [order, favorites.checkFavoriteStatus, currentUserId]);
 
 
 
@@ -217,6 +230,22 @@ export function Ticket() {
         setShowReviewModal(false);
     };
 
+    const handleCloseComplaintModal = () => {
+        setShowComplaintModal(false);
+    };
+
+    const handleComplaintSuccess = (message: string) => {
+        setModalMessage(message);
+        setShowSuccessModal(true);
+        setTimeout(() => setShowSuccessModal(false), 3000);
+    };
+
+    const handleComplaintError = (message: string) => {
+        setModalMessage(message);
+        setShowErrorModal(true);
+        setTimeout(() => setShowErrorModal(false), 3000);
+    };
+
     const handleReviewSuccess = (message: string) => {
         setModalMessage(message);
         setShowSuccessModal(true);
@@ -231,297 +260,6 @@ export function Ticket() {
 
     const handleReviewSubmitted = (updatedCount: number) => {
         setReviewCount(updatedCount);
-    };
-
-    const checkFavoriteStatus = async () => {
-        const token = getAuthToken();
-        if (!token || !order) return;
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/favorites/me`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (response.ok) {
-                const favorite: Favorite = await response.json();
-                console.log('Favorite data:', favorite);
-
-                const isTicketInFavorites = favorite.tickets?.some((t: { id: number }) => t.id === order.id);
-                setIsLiked(!!isTicketInFavorites);
-
-                if (isTicketInFavorites) {
-                    setFavoriteId(favorite.id);
-                } else {
-                    setFavoriteId(null);
-                }
-            } else if (response.status === 404) {
-                setIsLiked(false);
-                setFavoriteId(null);
-            }
-        } catch (error) {
-            console.error('Error checking favorite status:', error);
-        }
-    };
-
-    const loadLocalStorageFavorites = (): { masters: number[], tickets: number[] } => {
-        try {
-            const stored = localStorage.getItem('favorites');
-            if (stored) {
-                return JSON.parse(stored);
-            }
-        } catch (error) {
-            console.error('Error loading favorites from localStorage:', error);
-        }
-        return {masters: [], tickets: []};
-    };
-
-    const saveLocalStorageFavorites = (favorites: { masters: number[], tickets: number[] }) => {
-        try {
-            localStorage.setItem('favorites', JSON.stringify(favorites));
-        } catch (error) {
-            console.error('Error saving favorites to localStorage:', error);
-        }
-    };
-
-    const handleLikeClick = async () => {
-        const token = getAuthToken();
-        const ticketId = order?.id;
-
-        if (!ticketId) {
-            console.error('No ticket ID to add to favorites');
-            return;
-        }
-
-        // Для неавторизованных пользователей работаем с localStorage
-        if (!token) {
-            const localFavorites = loadLocalStorageFavorites();
-            const isCurrentlyLiked = localFavorites.tickets.includes(ticketId);
-
-            if (isCurrentlyLiked) {
-                // Снимаем лайк
-                const updatedLocalFavorites = loadLocalStorageFavorites();
-                const updatedTickets = updatedLocalFavorites.tickets.filter(id => id !== order?.id);
-                saveLocalStorageFavorites({
-                    ...updatedLocalFavorites,
-                    tickets: updatedTickets
-                });
-                setIsLiked(false);
-                window.dispatchEvent(new Event('favoritesUpdated'));
-            } else {
-                // Ставим лайк
-                const updatedTickets = [...localFavorites.tickets, ticketId];
-                saveLocalStorageFavorites({
-                    ...localFavorites,
-                    tickets: updatedTickets
-                });
-                setIsLiked(true);
-            }
-            window.dispatchEvent(new Event('favoritesUpdated'));
-            return;
-        }
-
-        if (isLiked && favoriteId) {
-            await handleUnlike();
-            return;
-        }
-
-        setIsLikeLoading(true);
-        try {
-            if (!ticketId) {
-                console.error('No ticket ID to add to favorites');
-                return;
-            }
-
-            const currentFavoritesResponse = await fetch(`${API_BASE_URL}/api/favorites/me`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            let existingFavoriteId: number | null = null;
-            let existingMasters: string[] = [];
-            let existingClients: string[] = [];
-            let existingTickets: string[] = [];
-
-            if (currentFavoritesResponse.ok) {
-                const currentFavorite: Favorite = await currentFavoritesResponse.json();
-                existingFavoriteId = currentFavorite.id;
-
-                existingMasters = currentFavorite.masters?.map((master: {
-                    id: number
-                }) => `/api/users/${master.id}`) || [];
-                existingClients = currentFavorite.clients?.map((client: {
-                    id: number
-                }) => `/api/users/${client.id}`) || [];
-                existingTickets = currentFavorite.tickets?.map((ticket: {
-                    id: number
-                }) => `/api/tickets/${ticket.id}`) || [];
-
-                console.log('Existing favorites:', {
-                    masters: existingMasters,
-                    clients: existingClients,
-                    tickets: existingTickets
-                });
-            }
-
-            const favoriteIdToUse = existingFavoriteId;
-            const ticketIri = `/api/tickets/${ticketId}`;
-
-            if (existingTickets.includes(ticketIri)) {
-                console.log('Ticket already in favorites');
-                setIsLiked(true);
-                return;
-            }
-
-            if (favoriteIdToUse) {
-                interface FavoriteUpdateData {
-                    masters: string[];
-                    clients: string[];
-                    tickets: string[];
-                }
-
-                const updateData: FavoriteUpdateData = {
-                    masters: existingMasters,
-                    clients: existingClients,
-                    tickets: [...existingTickets, ticketIri]
-                };
-
-                console.log('Updating favorite with data:', updateData);
-
-                const patchResponse = await fetch(`${API_BASE_URL}/api/favorites/${favoriteIdToUse}`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/merge-patch+json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(updateData)
-                });
-
-                if (patchResponse.ok) {
-                    setIsLiked(true);
-                    setFavoriteId(favoriteIdToUse);
-                    console.log('Successfully added ticket to favorites');
-                    window.dispatchEvent(new Event('favoritesUpdated'));
-                } else {
-                    const errorText = await patchResponse.text();
-                    console.error('Failed to update favorite:', errorText);
-                    alert('Ошибка при добавлении в избранное');
-                }
-            } else {
-                interface FavoriteCreateData {
-                    masters: string[];
-                    clients: string[];
-                    tickets: string[];
-                }
-
-                const createData: FavoriteCreateData = {
-                    masters: [],
-                    clients: [],
-                    tickets: [ticketIri]
-                };
-
-                console.log('Creating new favorite with data:', createData);
-
-                const createResponse = await fetch(`${API_BASE_URL}/api/favorites`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(createData)
-                });
-
-                if (createResponse.ok) {
-                    const newFavorite: Favorite = await createResponse.json();
-                    setIsLiked(true);
-                    setFavoriteId(newFavorite.id);
-                    console.log('Successfully created favorite with ticket');
-                } else {
-                    const errorText = await createResponse.text();
-                    console.error('Failed to create favorite:', errorText);
-                    alert('Ошибка при создании избранного');
-                }
-            }
-
-        } catch (error) {
-            console.error('Error adding to favorites:', error);
-            alert('Ошибка при добавлении в избранное');
-        } finally {
-            setIsLikeLoading(false);
-        }
-    };
-
-    const handleUnlike = async () => {
-        if (!favoriteId) return;
-
-        setIsLikeLoading(true);
-        try {
-            const token = getAuthToken();
-            const ticketIdToRemove = order?.id;
-
-            if (!ticketIdToRemove) return;
-
-            const currentFavoritesResponse = await fetch(`${API_BASE_URL}/api/favorites/me`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (!currentFavoritesResponse.ok) return;
-
-            const currentFavorite: Favorite = await currentFavoritesResponse.json();
-
-            const newMasters = currentFavorite.masters?.map((m: { id: number }) => `/api/users/${m.id}`) || [];
-            const newClients = currentFavorite.clients?.map((c: { id: number }) => `/api/users/${c.id}`) || [];
-            const newTickets = currentFavorite.tickets?.map((t: { id: number }) => `/api/tickets/${t.id}`) || [];
-
-            const removeIri = `/api/tickets/${ticketIdToRemove}`;
-            const updatedTickets = newTickets.filter((ticketIri: string) => ticketIri !== removeIri);
-
-            interface UnlikeUpdateData {
-                masters: string[];
-                clients: string[];
-                tickets: string[];
-            }
-
-            const updateData: UnlikeUpdateData = {
-                masters: newMasters,
-                clients: newClients,
-                tickets: updatedTickets
-            };
-
-            console.log("PATCH UNLIKE:", updateData);
-
-            const patchResponse = await fetch(`${API_BASE_URL}/api/favorites/${currentFavorite.id}`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/merge-patch+json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(updateData)
-            });
-
-            if (patchResponse.ok) {
-                setIsLiked(false);
-                setFavoriteId(null);
-                console.log('Successfully removed from favorites');
-                window.dispatchEvent(new Event('favoritesUpdated'));
-            } else {
-                console.error("PATCH error:", await patchResponse.text());
-                alert('Ошибка при удалении из избранного');
-            }
-
-        } catch (error) {
-            console.error('Error removing from favorites:', error);
-            alert('Ошибка при удалении из избранного');
-        } finally {
-            setIsLikeLoading(false);
-        }
     };
 
     const getFullAddress = (ticketData: ApiTicket): string => {
@@ -865,19 +603,63 @@ export function Ticket() {
             return;
         }
 
+        // Проверяем, что пользователь не пытается откликнуться на свое объявление
+        if (currentUserId === authorId) {
+            setModalMessage('Вы не можете откликнуться на своё собственное объявление');
+            setShowErrorModal(true);
+            setTimeout(() => setShowErrorModal(false), 3000);
+            return;
+        }
+
+        // Проверяем, что объявление активно
+        if (!isTicketActive) {
+            setModalMessage('Данное объявление неактивно');
+            setShowInfoModal(true);
+            setTimeout(() => setShowInfoModal(false), 3000);
+            return;
+        }
+
+        // Если уже есть чат, переходим к нему вместо создания нового
+        if (existingChatId) {
+            setModalMessage('Вы уже откликнулись на это объявление. Переходим к чату...');
+            setShowInfoModal(true);
+            setTimeout(() => {
+                setShowInfoModal(false);
+                navigate(`/chats?chatId=${existingChatId}`);
+            }, 2000);
+            return;
+        }
+
         try {
             const chat = await createChatWithAuthor(authorId, order?.id);
 
             if (chat && chat.id) {
                 console.log('Navigating to chat:', chat.id);
-                navigate(`/chats?chatId=${chat.id}`);
+                setModalMessage('Чат успешно создан!');
+                setShowSuccessModal(true);
+                setTimeout(() => {
+                    setShowSuccessModal(false);
+                    navigate(`/chats?chatId=${chat.id}`);
+                }, 1500);
+                // Обновляем список чатов после создания
+                setExistingChatId(chat.id);
             } else {
                 console.error('Failed to create chat');
-                navigate(`/chats`);
+                setModalMessage('Не удалось создать чат. Попробуйте позже.');
+                setShowErrorModal(true);
+                setTimeout(() => {
+                    setShowErrorModal(false);
+                    navigate(`/chats`);
+                }, 3000);
             }
         } catch (error) {
             console.error('Error creating chat:', error);
-            navigate(`/chats`);
+            setModalMessage('Ошибка при создании чата. Переходим в общий раздел чатов...');
+            setShowErrorModal(true);
+            setTimeout(() => {
+                setShowErrorModal(false);
+                navigate(`/chats`);
+            }, 3000);
         }
     };
 
@@ -958,6 +740,50 @@ export function Ticket() {
         } catch (error) {
             console.error('Error fetching user info:', error);
             throw error;
+        }
+    };
+
+    // Проверяем существующие чаты пользователя
+    const checkExistingChats = async () => {
+        const token = getAuthToken();
+        if (!token || !order) return;
+
+        setIsCheckingChats(true);
+        
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/chats/me`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                },
+            });
+
+            if (response.ok) {
+                const responseData = await response.json();
+                let chatsData: any[] = [];
+
+                if (Array.isArray(responseData)) {
+                    chatsData = responseData;
+                } else if (responseData && responseData['hydra:member']) {
+                    chatsData = responseData['hydra:member'];
+                }
+
+                // Ищем чат связанный с этим тикетом
+                const existingChat = chatsData.find((chat: any) => 
+                    chat.ticket?.id === order.id
+                );
+
+                if (existingChat) {
+                    console.log('Found existing chat for ticket:', existingChat.id);
+                    setExistingChatId(existingChat.id);
+                } else {
+                    setExistingChatId(null);
+                }
+            }
+        } catch (error) {
+            console.error('Error checking existing chats:', error);
+        } finally {
+            setIsCheckingChats(false);
         }
     };
 
@@ -1157,63 +983,129 @@ export function Ticket() {
                     </div>
                 </section>
 
+                {currentUserId !== order?.authorId && (
                 <section className={styles.actionButtons}>
-                    <div className={styles.topRow}>
-                        <div
-                            className={`${styles.favoriteButton} ${isLikeLoading ? styles.loading : ''}`}
-                            onClick={handleLikeClick}
-                            title={isLiked ? "Удалить из избранного" : "Добавить в избранное"}
-                        >
-                            <svg width="64" height="44" viewBox="0 0 64 44" fill="none"
-                                 xmlns="http://www.w3.org/2000/svg">
-                                <rect
-                                    x="1"
-                                    y="1"
-                                    width="62"
-                                    height="42"
-                                    rx="9"
-                                    stroke="#3A54DA"
+                    <div
+                        className={`${styles.favoriteButton} ${favorites.isLikeLoading ? styles.loading : ''}`}
+                        onClick={favorites.handleLikeClick}
+                        title={favorites.isLiked ? "Удалить из избранного" : "Добавить в избранное"}
+                    >
+                        <svg width="64" height="44" viewBox="0 0 64 44" fill="none"
+                             xmlns="http://www.w3.org/2000/svg">
+                            <rect
+                                x="1"
+                                y="1"
+                                width="62"
+                                height="42"
+                                rx="9"
+                                stroke="#3A54DA"
+                                strokeWidth="2"
+                                fill={favorites.isLiked ? "#3A54DA" : "none"}
+                            />
+                            <g clipPath="url(#clip0_214_6848)">
+                                <path
+                                    d="M36.77 12.4502C35.7961 12.4711 34.8444 12.7448 34.0081 13.2444C33.1719 13.7441 32.4799 14.4525 32 15.3002C31.5201 14.4525 30.8281 13.7441 29.9919 13.2444C29.1556 12.7448 28.2039 12.4711 27.23 12.4502C24.06 12.4502 21.5 15.3002 21.5 18.8202C21.5 25.1802 32 31.5502 32 31.5502C32 31.5502 42.5 25.1802 42.5 18.8202C42.5 15.3002 39.94 12.4502 36.77 12.4502Z"
+                                    stroke={favorites.isLiked ? "white" : "#3A54DA"}
                                     strokeWidth="2"
-                                    fill={isLiked ? "#3A54DA" : "none"}
+                                    strokeMiterlimit="10"
+                                    fill={favorites.isLiked ? "white" : "none"}
                                 />
-                                <g clipPath="url(#clip0_214_6848)">
-                                    <path
-                                        d="M36.77 12.4502C35.7961 12.4711 34.8444 12.7448 34.0081 13.2444C33.1719 13.7441 32.4799 14.4525 32 15.3002C31.5201 14.4525 30.8281 13.7441 29.9919 13.2444C29.1556 12.7448 28.2039 12.4711 27.23 12.4502C24.06 12.4502 21.5 15.3002 21.5 18.8202C21.5 25.1802 32 31.5502 32 31.5502C32 31.5502 42.5 25.1802 42.5 18.8202C42.5 15.3002 39.94 12.4502 36.77 12.4502Z"
-                                        stroke={isLiked ? "white" : "#3A54DA"}
-                                        strokeWidth="2"
-                                        strokeMiterlimit="10"
-                                        fill={isLiked ? "white" : "none"}
-                                    />
-                                </g>
-                                <defs>
-                                    <clipPath id="clip0_214_6848">
-                                        <rect width="24" height="24" fill="white" transform="translate(20 10)"/>
-                                    </clipPath>
-                                </defs>
-                            </svg>
-                        </div>
-
-                        <button className={styles.respondButton}
-                                onClick={() => order?.authorId && handleRespondClick(order.authorId)}>
-                            Откликнуться
-                        </button>
+                            </g>
+                            <defs>
+                                <clipPath id="clip0_214_6848">
+                                    <rect width="24" height="24" fill="white" transform="translate(20 10)"/>
+                                </clipPath>
+                            </defs>
+                        </svg>
                     </div>
 
-                    <button
+                    <div
+                        className={styles.complaintButton}
+                        onClick={() => setShowComplaintModal(true)}
+                        title="Пожаловаться"
+                    >
+                        <svg width="64" height="44" viewBox="0 0 64 44" fill="none"
+                             xmlns="http://www.w3.org/2000/svg">
+                            <rect
+                                x="1"
+                                y="1"
+                                width="62"
+                                height="42"
+                                rx="9"
+                                stroke="#3A54DA"
+                                strokeWidth="2"
+                                fill="none"
+                            />
+                            <g clipPath="url(#clip0_complaint)">
+                                <circle cx="32" cy="22" r="9" stroke="#3A54DA" strokeWidth="2" fill="none"/>
+                                <path d="M32 17V22" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round"/>
+                                <circle cx="32" cy="25.5" r="0.75" fill="#3A54DA"/>
+                            </g>
+                            <defs>
+                                <clipPath id="clip0_complaint">
+                                    <rect width="24" height="24" fill="white" transform="translate(20 10)"/>
+                                </clipPath>
+                            </defs>
+                        </svg>
+                    </div>
+
+                    <div
                         className={styles.reviewButton}
                         onClick={() => {
                             const token = getAuthToken();
                             if (!token) {
-
                                 setShowAuthModal(true);
                             } else {
                                 handleLeaveReview();
                             }
                         }}
+                        title="Оставить отзыв"
                     >
-                        Оставить отзыв
+                        <svg width="64" height="44" viewBox="0 0 64 44" fill="none"
+                             xmlns="http://www.w3.org/2000/svg">
+                            <rect
+                                x="1"
+                                y="1"
+                                width="62"
+                                height="42"
+                                rx="9"
+                                stroke="#3A54DA"
+                                strokeWidth="2"
+                                fill="none"
+                            />
+                            <g clipPath="url(#clip0_review_star)">
+                                <path
+                                    d="M32 12.49L35.51 18.17L42 19.76L37.68 24.85L38.18 31.51L32 28.98L25.82 31.51L26.32 24.85L22 19.76L28.49 18.17L32 12.49Z"
+                                    stroke="#3A54DA"
+                                    strokeWidth="2"
+                                    strokeLinejoin="round"
+                                    fill="none"
+                                />
+                            </g>
+                            <defs>
+                                <clipPath id="clip0_review_star">
+                                    <rect width="24" height="24" fill="white" transform="translate(20 10)"/>
+                                </clipPath>
+                            </defs>
+                        </svg>
+                    </div>
+
+                    <button 
+                        className={`${styles.respondButton} ${
+                            (existingChatId || !isTicketActive || isCheckingChats) 
+                            ? styles.respondButtonDisabled 
+                            : ''
+                        }`}
+                        onClick={() => order?.authorId && handleRespondClick(order.authorId)}
+                        disabled={existingChatId !== null || !isTicketActive || isCheckingChats}
+                    >
+                        {isCheckingChats ? 'Проверка...' :
+                         existingChatId ? 'Готово ✅' :
+                         !isTicketActive ? 'Неактивно' :
+                         'Откликнуться'}
                     </button>
                 </section>
+                )}
             </div>
 
             <ReviewModal
@@ -1233,6 +1125,16 @@ export function Ticket() {
                     onLoginSuccess={handleLoginSuccess}
                 />
             )}
+
+            <ComplaintModal
+                isOpen={showComplaintModal}
+                onClose={handleCloseComplaintModal}
+                onSuccess={handleComplaintSuccess}
+                onError={handleComplaintError}
+                targetUserId={order?.authorId || 0}
+                ticketId={order?.id}
+            />
+
             <StatusModal
                 type="success"
                 isOpen={showSuccessModal}
@@ -1265,7 +1167,6 @@ export function Ticket() {
                     onSelectImage={photoGallery.selectImage}
                 />
             )}
-
             <CookieConsentBanner/>
         </div>
     );
