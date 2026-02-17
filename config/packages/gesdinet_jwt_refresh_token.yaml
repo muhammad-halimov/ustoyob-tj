@@ -18,5 +18,5 @@ when@prod:
 when@dev:
     gesdinet_jwt_refresh_token:
         cookie:
-            same_site: none
-            secure: true
+            same_site: lax
+            secure: false
