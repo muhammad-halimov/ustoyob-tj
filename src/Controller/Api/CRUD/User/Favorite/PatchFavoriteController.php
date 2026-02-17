@@ -38,7 +38,6 @@ class PatchFavoriteController extends AbstractController
         if (!$favorite)
             return $this->json(['message' => "Resource not found"], 404);
 
-        // Проверяем, что избранное принадлежит текущему пользователю
         if ($favorite->getUser()->getId() !== $bearerUser->getId())
             return $this->json(['message' => "Ownership doesn't match"], 403);
 
@@ -48,17 +47,14 @@ class PatchFavoriteController extends AbstractController
         $mastersParam = $data['masters'] ?? null;
         $ticketsParam = $data['tickets'] ?? null;
 
-        // Проверка, что хотя бы одно поле передано
         if (is_null($clientsParam) && is_null($mastersParam) && is_null($ticketsParam))
             return $this->json(['message' => 'At least one field (clients, masters, or tickets) must be provided'], 400);
 
         $masters = [];
         $clients = [];
         $tickets = [];
-
         $messages = [];
 
-        // Обработка мастеров (если переданы)
         if (!is_null($mastersParam)) {
             foreach (array_unique($mastersParam) as $master) {
                 /** @var User $user */
@@ -74,22 +70,15 @@ class PatchFavoriteController extends AbstractController
                     continue;
                 }
 
-                // Пропускаем, если мастер уже есть в избранном
-                if ($favorite->getMasters()->contains($user))
-                    continue;
-
-                // Проверяем чёрный список - если в ЧС, пропускаем без ошибки
                 try {
                     $this->accessService->checkBlackList($bearerUser, $user);
                     $masters[] = $user;
                 } catch (Exception $e) {
                     $messages[] = "Master #{$user->getId()} skipped: " . $e->getMessage();
-                    continue;
                 }
             }
         }
 
-        // Обработка клиентов (если переданы)
         if (!is_null($clientsParam)) {
             foreach (array_unique($clientsParam) as $client) {
                 /** @var User $user */
@@ -105,22 +94,15 @@ class PatchFavoriteController extends AbstractController
                     continue;
                 }
 
-                // Пропускаем, если клиент уже есть в избранном
-                if ($favorite->getClients()->contains($user))
-                    continue;
-
-                // Проверяем чёрный список - если в ЧС, пропускаем без ошибки
                 try {
                     $this->accessService->checkBlackList($bearerUser, $user);
                     $clients[] = $user;
                 } catch (Exception $e) {
                     $messages[] = "Client #{$user->getId()} skipped: " . $e->getMessage();
-                    continue;
                 }
             }
         }
 
-        // Обработка тикетов (если переданы)
         if (!is_null($ticketsParam)) {
             foreach (array_unique($ticketsParam) as $ticket) {
                 /** @var Ticket $ticketInternal */
@@ -131,22 +113,15 @@ class PatchFavoriteController extends AbstractController
                     continue;
                 }
 
-                // Пропускаем, если тикет уже есть в избранном
-                if ($favorite->getTickets()->contains($ticketInternal))
-                    continue;
-
-                // Проверяем доступ к тикету
                 try {
                     $this->accessService->checkBlackList($bearerUser, ticket: $ticketInternal);
                     $tickets[] = $ticketInternal;
                 } catch (Exception $e) {
                     $messages[] = "Ticket #{$ticketInternal->getId()} skipped: " . $e->getMessage();
-                    continue;
                 }
             }
         }
 
-        // Очищаем только те коллекции, которые были переданы в запросе
         if (!is_null($mastersParam)) {
             $favorite->getMasters()->clear();
             foreach ($masters as $master) $favorite->addMaster($master);
