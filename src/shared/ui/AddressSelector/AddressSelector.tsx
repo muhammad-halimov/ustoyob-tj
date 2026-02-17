@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getAuthToken } from '../../../utils/auth';
+import { getAuthToken, handleUnauthorized } from '../../../utils/auth';
 import { AddressValue, AddressData } from '../../../entities';
 import styles from './AddressSelector.module.scss';
 
@@ -77,11 +77,27 @@ const AddressSelector = ({ value, onChange, multipleSuburbs = true }: AddressSel
                 const token = getAuthToken();
                 if (!token) return;
 
-                const [provincesRes, citiesRes, districtsRes] = await Promise.all([
-                    fetch(`${API_BASE_URL}/api/provinces`, { headers: { 'Authorization': `Bearer ${token}` } }),
-                    fetch(`${API_BASE_URL}/api/cities`, { headers: { 'Authorization': `Bearer ${token}` } }),
-                    fetch(`${API_BASE_URL}/api/districts`, { headers: { 'Authorization': `Bearer ${token}` } })
-                ]);
+                const makeRequest = async () => {
+                    const currentToken = getAuthToken();
+                    return Promise.all([
+                        fetch(`${API_BASE_URL}/api/provinces`, { headers: { 'Authorization': `Bearer ${currentToken}` } }),
+                        fetch(`${API_BASE_URL}/api/cities`, { headers: { 'Authorization': `Bearer ${currentToken}` } }),
+                        fetch(`${API_BASE_URL}/api/districts`, { headers: { 'Authorization': `Bearer ${currentToken}` } })
+                    ]);
+                };
+
+                let [provincesRes, citiesRes, districtsRes] = await makeRequest();
+
+                // Проверяем на 401 и пробуем обновить токен
+                if (provincesRes.status === 401 || citiesRes.status === 401 || districtsRes.status === 401) {
+                    const refreshed = await handleUnauthorized();
+                    if (refreshed) {
+                        // Повторяем запросы с новым токеном
+                        [provincesRes, citiesRes, districtsRes] = await makeRequest();
+                    } else {
+                        return;
+                    }
+                }
 
                 if (provincesRes.ok) setProvinces(await provincesRes.json());
                 if (citiesRes.ok) setCities(await citiesRes.json());

@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { getAuthToken } from '../../utils/auth';
+import { getStorageJSON, setStorageJSON } from '../../utils/storageHelper';
 
 interface Favorite {
     id: number;
@@ -29,9 +30,9 @@ export const useFavorites = ({ itemId, itemType, onSuccess, onError }: UseFavori
 
     const loadLocalStorageFavorites = (): LocalStorageFavorites => {
         try {
-            const stored = localStorage.getItem('favorites');
+            const stored = getStorageJSON<LocalStorageFavorites>('favorites');
             if (stored) {
-                return JSON.parse(stored);
+                return stored;
             }
         } catch (error) {
             console.error('Error loading favorites from localStorage:', error);
@@ -41,11 +42,38 @@ export const useFavorites = ({ itemId, itemType, onSuccess, onError }: UseFavori
 
     const saveLocalStorageFavorites = (favorites: LocalStorageFavorites) => {
         try {
-            localStorage.setItem('favorites', JSON.stringify(favorites));
+            setStorageJSON('favorites', favorites);
         } catch (error) {
             console.error('Error saving favorites to localStorage:', error);
         }
     };
+
+    // Функция для получения текущих избранных через API
+    const getCurrentFavorites = useCallback(async (token: string) => {
+        const response = await fetch(`${API_BASE_URL}/api/favorites/me`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch favorites: ${response.status}`);
+        }
+
+        const currentFavorite: Favorite = await response.json();
+        console.log('🔍 Raw data from API:', currentFavorite);
+        
+        const result = {
+            favoriteId: currentFavorite.id,
+            masters: currentFavorite.masters?.map((m: { id: number }) => `/api/users/${m.id}`) || [],
+            clients: currentFavorite.clients?.map((c: { id: number }) => `/api/users/${c.id}`) || [],
+            tickets: currentFavorite.tickets?.map((t: { id: number }) => `/api/tickets/${t.id}`) || []
+        };
+
+        console.log('🔍 Processed favorites:', result);
+        return result;
+    }, []);
 
     const checkFavoriteStatus = useCallback(async () => {
         const token = getAuthToken();
@@ -58,32 +86,19 @@ export const useFavorites = ({ itemId, itemType, onSuccess, onError }: UseFavori
         }
 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/favorites/me`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (response.ok) {
-                const favorite: Favorite = await response.json();
-                const items = itemType === 'ticket' ? favorite.tickets : favorite.masters;
-                const isItemInFavorites = items?.some((item: { id: number }) => item.id === itemId);
-                setIsLiked(!!isItemInFavorites);
-
-                if (isItemInFavorites) {
-                    setFavoriteId(favorite.id);
-                } else {
-                    setFavoriteId(favorite.id);
-                }
-            } else if (response.status === 404) {
-                setIsLiked(false);
-                setFavoriteId(null);
-            }
+            const currentFavorites = await getCurrentFavorites(token);
+            const items = itemType === 'ticket' ? currentFavorites.tickets : currentFavorites.masters;
+            const itemIri = itemType === 'ticket' ? `/api/tickets/${itemId}` : `/api/users/${itemId}`;
+            const isItemInFavorites = items.includes(itemIri);
+            
+            setIsLiked(isItemInFavorites);
+            setFavoriteId(currentFavorites.favoriteId);
         } catch (error) {
-            console.error('Error checking favorite status:', error);
+            // Если у пользователя нет записи favorites (404), это нормально
+            setIsLiked(false);
+            setFavoriteId(null);
         }
-    }, [itemId, itemType]);
+    }, [itemId, itemType, getCurrentFavorites]);
 
     const handleUnlike = async () => {
         if (!favoriteId) return;
@@ -91,37 +106,25 @@ export const useFavorites = ({ itemId, itemType, onSuccess, onError }: UseFavori
         setIsLikeLoading(true);
         try {
             const token = getAuthToken();
+            if (!token) return;
 
-            const currentFavoritesResponse = await fetch(`${API_BASE_URL}/api/favorites/me`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (!currentFavoritesResponse.ok) return;
-
-            const currentFavorite: Favorite = await currentFavoritesResponse.json();
-
-            const newMasters = currentFavorite.masters?.map((m: { id: number }) => `/api/users/${m.id}`) || [];
-            const newClients = currentFavorite.clients?.map((c: { id: number }) => `/api/users/${c.id}`) || [];
-            const newTickets = currentFavorite.tickets?.map((t: { id: number }) => `/api/tickets/${t.id}`) || [];
+            const currentFavorites = await getCurrentFavorites(token);
 
             const removeIri = itemType === 'ticket' ? `/api/tickets/${itemId}` : `/api/users/${itemId}`;
             const updatedTickets = itemType === 'ticket' 
-                ? newTickets.filter((ticketIri: string) => ticketIri !== removeIri)
-                : newTickets;
+                ? currentFavorites.tickets.filter((ticketIri: string) => ticketIri !== removeIri)
+                : currentFavorites.tickets;
             const updatedMasters = itemType === 'master'
-                ? newMasters.filter((masterIri: string) => masterIri !== removeIri)
-                : newMasters;
+                ? currentFavorites.masters.filter((masterIri: string) => masterIri !== removeIri)
+                : currentFavorites.masters;
 
             const updateData = {
                 masters: updatedMasters,
-                clients: newClients,
+                clients: currentFavorites.clients,
                 tickets: updatedTickets
             };
 
-            const patchResponse = await fetch(`${API_BASE_URL}/api/favorites/${currentFavorite.id}`, {
+            const patchResponse = await fetch(`${API_BASE_URL}/api/favorites/${currentFavorites.favoriteId}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/merge-patch+json',
@@ -159,18 +162,20 @@ export const useFavorites = ({ itemId, itemType, onSuccess, onError }: UseFavori
             if (isCurrentlyLiked) {
                 // Снимаем лайк
                 const updatedItems = items.filter(id => id !== itemId);
-                saveLocalStorageFavorites({
+                const updatedFavorites = {
                     ...localFavorites,
                     [itemType === 'ticket' ? 'tickets' : 'masters']: updatedItems
-                });
+                };
+                saveLocalStorageFavorites(updatedFavorites);
                 setIsLiked(false);
             } else {
                 // Ставим лайк
                 const updatedItems = [...items, itemId];
-                saveLocalStorageFavorites({
+                const updatedFavorites = {
                     ...localFavorites,
                     [itemType === 'ticket' ? 'tickets' : 'masters']: updatedItems
-                });
+                };
+                saveLocalStorageFavorites(updatedFavorites);
                 setIsLiked(true);
             }
             window.dispatchEvent(new Event('favoritesUpdated'));
@@ -184,67 +189,21 @@ export const useFavorites = ({ itemId, itemType, onSuccess, onError }: UseFavori
 
         setIsLikeLoading(true);
         try {
-            const currentFavoritesResponse = await fetch(`${API_BASE_URL}/api/favorites/me`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            let existingFavoriteId: number | null = null;
-            let existingMasters: string[] = [];
-            let existingClients: string[] = [];
-            let existingTickets: string[] = [];
-
-            if (currentFavoritesResponse.ok) {
-                const currentFavorite: Favorite = await currentFavoritesResponse.json();
-                existingFavoriteId = currentFavorite.id;
-
-                existingMasters = currentFavorite.masters?.map((master: { id: number }) => `/api/users/${master.id}`) || [];
-                existingClients = currentFavorite.clients?.map((client: { id: number }) => `/api/users/${client.id}`) || [];
-                existingTickets = currentFavorite.tickets?.map((ticket: { id: number }) => `/api/tickets/${ticket.id}`) || [];
-            }
-
-            const favoriteIdToUse = existingFavoriteId;
-            const itemIri = itemType === 'ticket' ? `/api/tickets/${itemId}` : `/api/users/${itemId}`;
-            const existingItems = itemType === 'ticket' ? existingTickets : existingMasters;
-
-            if (existingItems.includes(itemIri)) {
-                console.log(`${itemType} already in favorites`);
-                setIsLiked(true);
-                return;
-            }
-
-            if (favoriteIdToUse) {
-                const updateData = {
-                    masters: itemType === 'master' ? [...existingMasters, itemIri] : existingMasters,
-                    clients: existingClients,
-                    tickets: itemType === 'ticket' ? [...existingTickets, itemIri] : existingTickets
-                };
-
-                const patchResponse = await fetch(`${API_BASE_URL}/api/favorites/${favoriteIdToUse}`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/merge-patch+json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(updateData)
-                });
-
-                if (patchResponse.ok) {
-                    setIsLiked(true);
-                    setFavoriteId(favoriteIdToUse);
-                    window.dispatchEvent(new Event('favoritesUpdated'));
-                    if (onSuccess) onSuccess();
-                } else {
-                    if (onError) onError('Ошибка при добавлении в избранное');
-                }
-            } else {
+            let currentFavorites;
+            
+            try {
+                currentFavorites = await getCurrentFavorites(token);
+                console.log('🔍 Current favorites before adding:', currentFavorites);
+            } catch (error) {
+                console.log('🔍 No existing favorites found, creating new');
+                // Если у пользователя нет записи favorites (404), создаем новую
                 const createData = {
-                    masters: itemType === 'master' ? [itemIri] : [],
+                    masters: itemType === 'master' ? [`/api/users/${itemId}`] : [],
                     clients: [],
-                    tickets: itemType === 'ticket' ? [itemIri] : []
+                    tickets: itemType === 'ticket' ? [`/api/tickets/${itemId}`] : []
                 };
+
+                console.log('🔍 Creating new favorites:', createData);
 
                 const createResponse = await fetch(`${API_BASE_URL}/api/favorites`, {
                     method: 'POST',
@@ -257,13 +216,64 @@ export const useFavorites = ({ itemId, itemType, onSuccess, onError }: UseFavori
 
                 if (createResponse.ok) {
                     const newFavorite = await createResponse.json();
+                    console.log('🔍 Created new favorite:', newFavorite);
                     setIsLiked(true);
                     setFavoriteId(newFavorite.id);
                     window.dispatchEvent(new Event('favoritesUpdated'));
                     if (onSuccess) onSuccess();
                 } else {
+                    console.error('❌ Failed to create favorites:', createResponse.status);
                     if (onError) onError('Ошибка при создании избранного');
                 }
+                return;
+            }
+            
+            const itemIri = itemType === 'ticket' ? `/api/tickets/${itemId}` : `/api/users/${itemId}`;
+            const existingItems = itemType === 'ticket' ? currentFavorites.tickets : currentFavorites.masters;
+
+            console.log('🔍 Item IRI to add:', itemIri);
+            console.log('🔍 Existing items of this type:', existingItems);
+
+            // Проверяем, что элемент еще не в избранном
+            if (existingItems.includes(itemIri)) {
+                console.log(`✅ ${itemType} already in favorites`);
+                setIsLiked(true);
+                setFavoriteId(currentFavorites.favoriteId);
+                return;
+            }
+
+            // Добавляем новый элемент к существующим
+            const updateData = {
+                masters: itemType === 'master' ? [...currentFavorites.masters, itemIri] : currentFavorites.masters,
+                clients: currentFavorites.clients, // Сохраняем существующих клиентов
+                tickets: itemType === 'ticket' ? [...currentFavorites.tickets, itemIri] : currentFavorites.tickets
+            };
+
+            console.log('🔍 Update data to send:', updateData);
+            console.log('🔍 Favorites ID:', currentFavorites.favoriteId);
+
+            const patchResponse = await fetch(`${API_BASE_URL}/api/favorites/${currentFavorites.favoriteId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/merge-patch+json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(updateData)
+            });
+
+            console.log('🔍 PATCH response status:', patchResponse.status);
+
+            if (patchResponse.ok) {
+                const updatedFavorite = await patchResponse.json();
+                console.log('🔍 Updated favorite from server:', updatedFavorite);
+                setIsLiked(true);
+                setFavoriteId(currentFavorites.favoriteId);
+                window.dispatchEvent(new Event('favoritesUpdated'));
+                if (onSuccess) onSuccess();
+            } else {
+                const errorText = await patchResponse.text();
+                console.error('❌ PATCH failed:', patchResponse.status, errorText);
+                if (onError) onError('Ошибка при добавлении в избранное');
             }
 
         } catch (error) {

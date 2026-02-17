@@ -1,6 +1,7 @@
 import {type ChangeEvent, useCallback, useEffect, useRef, useState} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
-import {getAuthToken, removeAuthToken} from '../../utils/auth.ts';
+import {getAuthToken, handleUnauthorized} from '../../utils/auth.ts';
+import { ROUTES } from '../../app/routers/routes';
 import styles from './Profile.module.scss';
 
 import {fetchUserById} from "../../utils/api.ts";
@@ -621,7 +622,8 @@ function Profile() {
         try {
             const token = getAuthToken();
             if (!token) {
-                navigate('/login');
+                // Нет токена - переходим на главную
+                navigate(ROUTES.HOME);
                 return false;
             }
 
@@ -1298,7 +1300,8 @@ function Profile() {
             
             // Для приватных профилей требуется токен
             if (!readOnly && !token) {
-                navigate('/login');
+                // Нет токена - переходим на главную
+                navigate(ROUTES.HOME);
                 return;
             }
 
@@ -1316,9 +1319,11 @@ function Profile() {
 
             if (response.status === 401 && !readOnly) {
                 console.log('Token is invalid or expired');
-                removeAuthToken();
-                window.dispatchEvent(new Event('logout'));
-                navigate('/');
+                const refreshed = await handleUnauthorized();
+                if (refreshed) {
+                    // Повторяем запрос
+                    fetchUserData();
+                }
                 return;
             }
 
@@ -1598,9 +1603,11 @@ function Profile() {
             });
 
             if (response.status === 401) {
-                removeAuthToken();
-                window.dispatchEvent(new Event('logout'));
-                navigate('/login');
+                const refreshed = await handleUnauthorized();
+                if (refreshed) {
+                    // Повторяем запрос
+                    updateUserRating(rating);
+                }
                 return;
             }
 
@@ -1705,9 +1712,11 @@ function Profile() {
 
             if (response.status === 401 && !readOnly) {
                 console.log('Unauthorized, redirecting to login');
-                removeAuthToken();
-                window.dispatchEvent(new Event('logout'));
-                navigate('/login');
+                const refreshed = await handleUnauthorized();
+                if (refreshed) {
+                    // Повторяем запрос
+                    fetchReviews();
+                }
                 return;
             }
 
@@ -1898,9 +1907,11 @@ function Profile() {
 
             if (response.status === 401 && !readOnly) {
                 console.log('Unauthorized, redirecting to login');
-                removeAuthToken();
-                window.dispatchEvent(new Event('logout'));
-                navigate('/login');
+                const refreshed = await handleUnauthorized();
+                if (refreshed) {
+                    // Повторяем запрос
+                    fetchServices();
+                }
                 return;
             }
 
@@ -1990,7 +2001,7 @@ function Profile() {
         try {
             const token = getAuthToken();
             if (!token) {
-                navigate("/");
+                navigate(ROUTES.HOME);
                 return;
             }
 
@@ -2134,7 +2145,7 @@ function Profile() {
         try {
             const token = getAuthToken();
             if (!token) {
-                navigate("/");
+                navigate(ROUTES.HOME);
                 return;
             }
 
@@ -2230,7 +2241,7 @@ function Profile() {
         try {
             const token = getAuthToken();
             if (!token) {
-                navigate("/");
+                navigate(ROUTES.HOME);
                 return;
             }
 
@@ -2552,7 +2563,7 @@ function Profile() {
         try {
             const token = getAuthToken();
             if (!token) {
-                navigate('/login');
+                navigate(ROUTES.HOME);
                 return;
             }
 
@@ -2618,9 +2629,11 @@ function Profile() {
             });
 
             if (response.status === 401) {
-                removeAuthToken();
-                window.dispatchEvent(new Event('logout'));
-                navigate('/login');
+                const refreshed = await handleUnauthorized();
+                if (refreshed) {
+                    // Повторяем запрос
+                    updateUserData(updatedData);
+                }
                 return;
             }
 
@@ -2686,7 +2699,8 @@ function Profile() {
     try {
         const token = getAuthToken();
         if (!token) {
-            navigate('/login');
+            // Нет токена - переходим на главную
+            navigate(ROUTES.HOME);
             return;
         }
 
@@ -2790,7 +2804,7 @@ function Profile() {
         try {
             const token = getAuthToken();
             if (!token) {
-                navigate('/login');
+                navigate(ROUTES.HOME);
                 return;
             }
 
@@ -3094,7 +3108,7 @@ function Profile() {
         try {
             const token = getAuthToken();
             if (!token) {
-                navigate("/");
+                navigate(ROUTES.HOME);
                 return;
             }
 
@@ -3256,17 +3270,17 @@ function Profile() {
 
     const handleClientProfileClick = (clientId: number) => {
         console.log('Navigating to client profile:', clientId);
-        navigate(`/profile/${clientId}`);
+        navigate(ROUTES.PROFILE_BY_ID(clientId));
     };
 
     const handleMasterProfileClick = (masterId: number) => {
         console.log('Navigating to master profile:', masterId);
-        navigate(`/profile/${masterId}`);
+        navigate(ROUTES.PROFILE_BY_ID(masterId));
     };
 
     const handleServiceClick = (ticketId: number) => {
         console.log('Navigating to ticket:', ticketId);
-        navigate(`/ticket/${ticketId}`);
+        navigate(ROUTES.TICKET_BY_ID(ticketId));
     };
 
     const handleCloseReviewModal = () => {
@@ -3351,7 +3365,7 @@ function Profile() {
         return (
             <AuthModal
                 isOpen={true}
-                onClose={() => navigate('/')}
+                onClose={() => navigate(ROUTES.HOME)}
                 onLoginSuccess={() => window.location.reload()}
             />
         );

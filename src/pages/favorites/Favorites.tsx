@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { getAuthToken, getUserRole } from '../../utils/auth';
 import styles from './Favorite.module.scss';
 import { useNavigate } from 'react-router-dom';
+import { ROUTES } from '../../app/routers/routes';
 import { createChatWithAuthor } from "../../utils/chatUtils";
 import { cleanText } from '../../utils/cleanText';
 import { useTranslation } from 'react-i18next';
@@ -617,7 +618,7 @@ function Favorites() {
             return;
         }
         console.log('Navigating to ticket:', ticketId, 'of author:', authorId);
-        navigate(`/ticket/${ticketId}`);
+        navigate(ROUTES.TICKET_BY_ID(ticketId));
     };
 
     // Функция для снятия лайка с тикета
@@ -1081,7 +1082,7 @@ function Favorites() {
 
         const chat = await createChatWithAuthor(authorId);
         if (chat) {
-            navigate(`/chats?chatId=${chat.id}`);
+            navigate(`${ROUTES.CHATS}?chatId=${chat.id}`);
         } else {
             alert('Не удалось создать чат');
         }

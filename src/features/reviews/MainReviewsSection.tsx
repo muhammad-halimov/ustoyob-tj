@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ROUTES } from '../../app/routers/routes';
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
 import styles from './MainReviewsSection.module.scss';
@@ -16,7 +17,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
     const navigate = useNavigate();
     
 
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     // Загружаем отзывы с API
     useEffect(() => {
@@ -187,15 +188,15 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
 
     // Навигация к профилям
     const handleClientProfileClick = (clientId: number) => {
-        navigate(`/profile/${clientId}`);
+        navigate(ROUTES.PROFILE_BY_ID(clientId));
     };
 
     const handleMasterProfileClick = (masterId: number) => {
-        navigate(`/profile/${masterId}`);
+        navigate(ROUTES.PROFILE_BY_ID(masterId));
     };
 
     const handleServiceClick = (ticketId: number) => {
-        navigate(`/ticket/${ticketId}`);
+        navigate(ROUTES.TICKET_BY_ID(ticketId));
     };
 
     // Функция для получения индекса изображения в общей галерее

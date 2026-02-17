@@ -1,4 +1,4 @@
-import { getAuthToken } from './auth';
+import { getAuthToken, handleUnauthorized } from './auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -107,7 +107,7 @@ export const createChatWithAuthor = async (replyAuthorId: number, ticketId?: num
         console.log('Creating chat with params:', { replyAuthorId, ticketId });
 
         // Проверяем существующие чаты
-        const existingChat = await findExistingChat(replyAuthorId, token);
+        const existingChat = await findExistingChat(replyAuthorId);
         if (existingChat) {
             console.log('Found existing chat:', existingChat.id);
             return existingChat;
@@ -133,15 +133,30 @@ export const createChatWithAuthor = async (replyAuthorId: number, ticketId?: num
 
         console.log('Creating chat with data:', chatData);
 
-        const response = await fetch(`${API_BASE_URL}/api/chats`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-            },
-            body: JSON.stringify(chatData)
-        });
+        const createChat = async (): Promise<Response> => {
+            return fetch(`${API_BASE_URL}/api/chats`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${getAuthToken()}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify(chatData)
+            });
+        };
+
+        let response = await createChat();
+
+        // Если 401, пробуем обновить токен
+        if (response.status === 401) {
+            const refreshed = await handleUnauthorized();
+            if (refreshed) {
+                response = await createChat();
+            } else {
+                showModalWithAutoClose('error', 'Сессия истекла. Пожалуйста, войдите снова.');
+                return null;
+            }
+        }
 
         if (response.ok) {
             const chatResponse: ChatData = await response.json();
@@ -176,12 +191,26 @@ export const checkUserStatus = async (userId: number): Promise<{ approved: boole
         const token = getAuthToken();
         if (!token) return { approved: false, active: false };
 
-        const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/json',
-            },
-        });
+        const checkUser = async (): Promise<Response> => {
+            return fetch(`${API_BASE_URL}/api/users/${userId}`, {
+                headers: {
+                    'Authorization': `Bearer ${getAuthToken()}`,
+                    'Accept': 'application/json',
+                },
+            });
+        };
+
+        let response = await checkUser();
+
+        // Если 401, пробуем обновить токен
+        if (response.status === 401) {
+            const refreshed = await handleUnauthorized();
+            if (refreshed) {
+                response = await checkUser();
+            } else {
+                return { approved: false, active: false };
+            }
+        }
 
         if (response.ok) {
             const userData: UserData = await response.json();
@@ -197,14 +226,28 @@ export const checkUserStatus = async (userId: number): Promise<{ approved: boole
     }
 };
 
-const findExistingChat = async (replyAuthorId: number, token: string): Promise<ChatData | null> => {
+const findExistingChat = async (replyAuthorId: number): Promise<ChatData | null> => {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/chats/me`, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/json',
-            },
-        });
+        const getChats = async (): Promise<Response> => {
+            return fetch(`${API_BASE_URL}/api/chats/me`, {
+                headers: {
+                    'Authorization': `Bearer ${getAuthToken()}`,
+                    'Accept': 'application/json',
+                },
+            });
+        };
+
+        let response = await getChats();
+
+        // Если 401, пробуем обновить токен
+        if (response.status === 401) {
+            const refreshed = await handleUnauthorized();
+            if (refreshed) {
+                response = await getChats();
+            } else {
+                return null;
+            }
+        }
 
         if (response.ok) {
             const responseData = await response.json();

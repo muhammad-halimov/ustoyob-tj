@@ -6,6 +6,7 @@ import { MainReviewsSection } from "../../../features/reviews";
 import Recommendations from "../../../widgets/Recommendations/Recommendations.tsx";
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { ROUTES } from '../../../app/routers/routes';
 import { getUserRole } from "../../../utils/auth.ts";
 import { useTranslation } from "react-i18next";
 
@@ -161,9 +162,9 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
 
     const handleAdBtnClick = (workerType: "client" | "master") => {
         if (workerType === "master" && userRole === "master") {
-            navigate("/profile/create");
+            navigate(ROUTES.PROFILE_CREATE);
         } else if (workerType === "client" && userRole === "client") {
-            navigate("/ticket/create");
+            navigate(ROUTES.TICKET_CREATE);
         } else if (!userRole) {
             if (onOpenAuthModal) {
                 onOpenAuthModal();

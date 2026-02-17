@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import FilterPanel, { FilterState } from "../filters/FilterPanel.tsx";
 import { getAuthToken, getUserRole } from "../../utils/auth";
 import { useNavigate } from "react-router-dom";
+import { ROUTES } from '../../app/routers/routes';
 import {cleanText} from "../../utils/cleanText.ts";
 import { useTranslation } from 'react-i18next';
 import { useLanguageChange } from "../../hooks/useLanguageChange";
@@ -923,7 +924,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     // Обработчики событий
     const handleCardClick = useCallback((ticketId?: number) => {
         if (!ticketId) return;
-        navigate(`/ticket/${ticketId}`);
+        navigate(ROUTES.TICKET_BY_ID(ticketId));
     }, [navigate]);
 
     const handleFilterToggle = useCallback((isVisible: boolean) => {

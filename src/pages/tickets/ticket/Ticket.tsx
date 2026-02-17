@@ -12,6 +12,7 @@ import ComplaintModal from '../../../shared/ui/Modal/ComplaintModal/ComplaintMod
 import { PhotoGallery } from '../../../shared/ui/PhotoGallery/PhotoGallery';
 import { usePhotoGallery } from '../../../shared/ui/PhotoGallery/usePhotoGallery';
 import { useFavorites } from '../../../shared/ui/useFavorites';
+import { ROUTES } from '../../../app/routers/routes';
 // import { fetchUserWithRole } from "../../utils/api.ts";
 
 interface ApiTicket {
@@ -551,7 +552,7 @@ export function Ticket() {
     const handleToggleActive = async () => {
         const token = getAuthToken();
         if (!token) {
-            navigate('/login');
+            navigate(ROUTES.HOME);
             return;
         }
 
@@ -625,7 +626,7 @@ export function Ticket() {
             setShowInfoModal(true);
             setTimeout(() => {
                 setShowInfoModal(false);
-                navigate(`/chats?chatId=${existingChatId}`);
+                navigate(`${ROUTES.CHATS}?chatId=${existingChatId}`);
             }, 2000);
             return;
         }
@@ -639,7 +640,7 @@ export function Ticket() {
                 setShowSuccessModal(true);
                 setTimeout(() => {
                     setShowSuccessModal(false);
-                    navigate(`/chats?chatId=${chat.id}`);
+                    navigate(`${ROUTES.CHATS}?chatId=${chat.id}`);
                 }, 1500);
                 // Обновляем список чатов после создания
                 setExistingChatId(chat.id);
@@ -649,7 +650,7 @@ export function Ticket() {
                 setShowErrorModal(true);
                 setTimeout(() => {
                     setShowErrorModal(false);
-                    navigate(`/chats`);
+                    navigate(ROUTES.CHATS);
                 }, 3000);
             }
         } catch (error) {
@@ -658,7 +659,7 @@ export function Ticket() {
             setShowErrorModal(true);
             setTimeout(() => {
                 setShowErrorModal(false);
-                navigate(`/chats`);
+                navigate(ROUTES.CHATS);
             }, 3000);
         }
     };
@@ -676,20 +677,20 @@ export function Ticket() {
                     const chat = await createChatWithAuthor(order.authorId, order.id);
                     if (chat && chat.id) {
                         console.log('Navigating to chat after login:', chat.id);
-                        navigate(`/chats?chatId=${chat.id}`);
+                        navigate(`${ROUTES.CHATS}?chatId=${chat.id}`);
                     } else {
                         console.error('Failed to create chat after login');
-                        navigate(`/chats`);
+                        navigate(ROUTES.CHATS);
                     }
                 } catch (error) {
                     console.error('Error creating chat after login:', error);
-                    navigate(`/chats`);
+                    navigate(ROUTES.CHATS);
                 }
             };
             createChat();
         } else {
             // Если нет order, просто идем в чаты
-            navigate(`/chats`); // Уже правильный путь
+            navigate(ROUTES.CHATS);
         }
     };
 
@@ -702,21 +703,21 @@ export function Ticket() {
             if (userInfo && userInfo.roles) {
                 if (userInfo.roles.includes('ROLE_MASTER')) {
                     console.log('Navigating to master profile');
-                    navigate(`/profile/${userId}`);
+                    navigate(ROUTES.PROFILE_BY_ID(userId));
                 } else if (userInfo.roles.includes('ROLE_CLIENT')) {
                     console.log('Navigating to client profile');
-                    navigate(`/profile/${userId}`);
+                    navigate(ROUTES.PROFILE_BY_ID(userId));
                 } else {
                     console.log('Unknown role, defaulting to profile');
-                    navigate(`/profile/${userId}`);
+                    navigate(ROUTES.PROFILE_BY_ID(userId));
                 }
             } else {
                 console.log('Could not determine role, defaulting to profile');
-                navigate(`/profile/${userId}`);
+                navigate(ROUTES.PROFILE_BY_ID(userId));
             }
         } catch (error) {
             console.error('Error determining role:', error);
-            navigate(`/master/${userId}`); // Используйте navigate вместо window.location.href
+            navigate(ROUTES.PROFILE_BY_ID(userId));
         }
     };
 

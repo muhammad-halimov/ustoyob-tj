@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ROUTES } from '../../../app/routers/routes';
 import styles from './Create.module.scss';
 import { getAuthToken, getUserRole } from '../../../utils/auth.ts';
 import AddressSelector, { AddressValue, buildAddressData } from '../../../shared/ui/AddressSelector';
@@ -63,7 +64,7 @@ const Create = () => {
 
     useEffect(() => {
         if (!token) {
-            navigate('/');
+            navigate(ROUTES.HOME);
             return;
         }
 
@@ -291,7 +292,7 @@ const Create = () => {
 
     const handleSuccessClose = () => {
         setShowSuccessModal(false);
-        navigate(`/ticket/me`);
+        navigate(ROUTES.TICKET_ME);
     };
 
     if (!token) {

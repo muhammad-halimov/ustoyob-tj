@@ -1,5 +1,6 @@
 import {useState, useEffect, useCallback} from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ROUTES } from '../../../app/routers/routes';
 import { getAuthToken } from '../../../utils/auth.ts';
 import styles from './MyTickets.module.scss';
 import AuthModal from '../../../features/auth/AuthModal.tsx';
@@ -374,12 +375,12 @@ function MyTickets() {
     const handleCardClick = useCallback((ticketId?: number, authorId?: number, masterId?: number) => {
         if (!ticketId) return;
         // Авторизация проверена в начале компонента
-        if (authorId || masterId) navigate(`/ticket/${ticketId}`);
+        if (authorId || masterId) navigate(ROUTES.TICKET_BY_ID(ticketId));
     }, [navigate]);
 
     const handleCreateNew = () => {
         // Авторизация проверена в начале компонента
-        navigate('/ticket/create');
+        navigate(ROUTES.TICKET_CREATE);
     };
 
     const handleClose = () => {
@@ -486,7 +487,7 @@ function MyTickets() {
                 images: ticketData.images || []
             };
 
-            navigate('/ticket/edit', {
+            navigate(ROUTES.TICKET_EDIT, {
                 state: {
                     serviceData: serviceData
                 }
@@ -517,7 +518,7 @@ function MyTickets() {
         return (
             <AuthModal
                 isOpen={true}
-                onClose={() => navigate('/')}
+                onClose={() => navigate(ROUTES.HOME)}
                 onLoginSuccess={() => window.location.reload()}
             />
         );
@@ -581,6 +582,7 @@ function MyTickets() {
                     displayedTickets.map((ticket) => (
                         <TicketCard
                             key={ticket.id}
+                            ticketId={ticket.id}
                             title={ticket.title}
                             description={ticket.description}
                             price={ticket.price}

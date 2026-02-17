@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ROUTES } from '../../../../../app/routers/routes';
 import { Service } from '../../../../../entities';
 import styles from './ServicesSection.module.scss';
 import { truncateText } from '../../../../../shared/ui/TicketCard/TicketCard.tsx';
@@ -25,7 +26,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
     const activeServices = services.filter(service => service.active !== false);
 
     const handleServiceClick = (serviceId: number) => {
-        navigate(`/ticket/${serviceId}`);
+        navigate(ROUTES.TICKET_BY_ID(serviceId));
     };
 
     const formatDate = (dateString?: string): string => {

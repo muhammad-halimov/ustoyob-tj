@@ -5,6 +5,7 @@ import { useLanguageChange } from '../../hooks/useLanguageChange';
 import { TicketCard } from '../../shared/ui/TicketCard/TicketCard.tsx';
 import styles from './Recommendations.module.scss';
 import { useTranslation } from 'react-i18next';
+import { ROUTES } from '../../app/routers/routes';
 
 interface Announcement {
     id: number;
@@ -39,12 +40,14 @@ interface Announcement {
     }>;
     createdAt: string;
     author?: {
+        id?: number;
         name?: string;
         surname?: string;
         rating?: number;
         reviewCount?: number;
     };
     master?: {
+        id?: number;
         name?: string;
         surname?: string;
         rating?: number;
@@ -197,6 +200,16 @@ function Recommendations() {
         return 'Автор';
     };
 
+    const getAuthorId = (announcement: Announcement): number | undefined => {
+        if (announcement.service && announcement.master) {
+            return announcement.master.id;
+        }
+        if (!announcement.service && announcement.author) {
+            return announcement.author.id;
+        }
+        return undefined;
+    };
+
     // Функция для получения рейтинга пользователя
     const getUserRating = (announcement: Announcement): number => {
         if (announcement.service && announcement.master?.rating) {
@@ -218,7 +231,7 @@ function Recommendations() {
     };
 
     const handleCardClick = (announcementId: number) => {
-        navigate(`/ticket/${announcementId}`);
+        navigate(ROUTES.TICKET_BY_ID(announcementId));
     };
 
     return (
@@ -232,6 +245,7 @@ function Recommendations() {
                         {announcements.map((announcement) => (
                             <TicketCard
                                 key={announcement.id}
+                                ticketId={announcement.id}
                                 title={announcement.title}
                                 description={announcement.description}
                                 price={announcement.budget}
@@ -239,6 +253,7 @@ function Recommendations() {
                                 address={getFullAddress(announcement)}
                                 date={announcement.createdAt}
                                 author={getAuthorName(announcement)}
+                                authorId={getAuthorId(announcement)}
                                 category={announcement.category?.title}
                                 subcategory={announcement.subcategory?.title}
                                 timeAgo={announcement.createdAt}

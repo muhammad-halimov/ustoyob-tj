@@ -12,11 +12,15 @@ export const ROUTES = {
     // Профили
     PROFILE: '/profile',
     PROFILE_BY_ID: (id: number | string) => `/profile/${id}`,
+    PROFILE_CREATE: '/profile/create',
     
     // Тикеты
     TICKET_BY_ID: (id: number | string) => `/ticket/${id}`,
+    TICKET_ME: '/ticket/me',
     MY_TICKETS: '/ticket/me',
+    TICKET_CREATE: '/ticket/create',
     CREATE_TICKET: '/ticket/create',
+    TICKET_EDIT: '/ticket/edit',
     EDIT_TICKET: '/ticket/edit',
     CATEGORY_TICKETS: (id: number | string) => `/ticket/category/${id}`,
     

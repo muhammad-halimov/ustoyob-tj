@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ROUTES } from '../../app/routers/routes';
 import {
     setAuthToken,
     setAuthTokenExpiry,
@@ -57,7 +58,7 @@ const OAuthCallbackPage = () => {
         if (!detectedProvider) {
             setError('Неизвестный провайдер авторизации');
             setLoading(false);
-            setTimeout(() => navigate('/'), 3000);
+            setTimeout(() => navigate(ROUTES.HOME), 3000);
             return;
         }
 
@@ -89,14 +90,14 @@ const OAuthCallbackPage = () => {
                 const errorMsg = errorDescription || errorParam;
                 setError(`Ошибка ${detectedProvider}: ${decodeURIComponent(errorMsg)}`);
                 setLoading(false);
-                setTimeout(() => navigate('/'), 3000);
+                setTimeout(() => navigate(ROUTES.HOME), 3000);
                 return;
             }
 
             if (!code || !state) {
                 setError('Не удалось получить данные авторизации');
                 setLoading(false);
-                setTimeout(() => navigate('/'), 3000);
+                setTimeout(() => navigate(ROUTES.HOME), 3000);
                 return;
             }
 
@@ -195,7 +196,7 @@ const OAuthCallbackPage = () => {
                     sessionStorage.removeItem(savedSpecialtyKey);
 
                     // Редирект на главную
-                    navigate('/');
+                    navigate(ROUTES.HOME);
 
                     // Имитируем событие логина
                     window.dispatchEvent(new Event('login'));
@@ -206,7 +207,7 @@ const OAuthCallbackPage = () => {
             } catch (err) {
                 console.error(`${detectedProvider} OAuth error:`, err);
                 setError(err instanceof Error ? err.message : 'Ошибка авторизации');
-                setTimeout(() => navigate('/'), 3000);
+                setTimeout(() => navigate(ROUTES.HOME), 3000);
             } finally {
                 setLoading(false);
             }
@@ -309,7 +310,7 @@ const OAuthCallbackPage = () => {
                     </p>
                 </div>
                 <button
-                    onClick={() => navigate('/')}
+                    onClick={() => navigate(ROUTES.HOME)}
                     style={{
                         padding: '12px 24px',
                         backgroundColor: '#4285f4',

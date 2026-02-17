@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { ROUTES } from '../routers/routes';
 import Header from "../../widgets/Header/Header.tsx";
 import { Footer } from "../../widgets/Footer";
 import AuthModal from "../../features/auth/AuthModal.tsx";
@@ -18,7 +19,7 @@ export default function Layout() {
         if (isAuthenticated()) {
             setupTokenRefresh(() => {
                 console.log('Token expired, redirecting to home...');
-                navigate('/');
+                navigate(ROUTES.HOME);
                 window.location.reload();
             });
         }

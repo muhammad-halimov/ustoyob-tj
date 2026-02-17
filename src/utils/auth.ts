@@ -1,5 +1,5 @@
 // utils/auth.ts
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://admin.ustoyob.tj';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // Константы для хранения ключей в localStorage
 const STORAGE_KEYS = {
@@ -92,17 +92,19 @@ const performLogout = async (token: string, wait: boolean = true): Promise<void>
     if (!wait) controller.abort();
 
     try {
+        // Сначала инвалидируем токен
+        await fetch(`${API_BASE_URL}/api/invalidate_token`, {
+            method: 'POST',
+            credentials: 'include'
+        });
+        
+        // Затем выполняем logout
         await fetch(`${API_BASE_URL}/api/logout`, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-            },
-            body: JSON.stringify({ token }),
-            signal: wait ? undefined : controller.signal,
+            headers: { 'Authorization': `Bearer ${token}` },
+            credentials: 'include',
+            signal: wait ? undefined : controller.signal
         });
-        console.log('Token invalidated on server');
     } catch (error) {
         console.warn('Server logout error (non-critical):', error);
     }
@@ -287,7 +289,7 @@ export const refreshToken = async (): Promise<boolean> => {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
             },
-            credentials: 'include', // Важно для отправки cookies с refresh token
+            credentials: 'include',
         });
 
         if (!response.ok) {
@@ -308,6 +310,23 @@ export const refreshToken = async (): Promise<boolean> => {
         console.error('Token refresh error:', error);
         return false;
     }
+};
+
+// ============ Обработка 401 ошибки с автоматическим обновлением токена ============
+export const handleUnauthorized = async (): Promise<boolean> => {
+    console.log('Handling 401 Unauthorized - attempting token refresh...');
+    
+    const refreshSuccess = await refreshToken();
+    
+    if (refreshSuccess) {
+        console.log('Token refresh successful, can retry request');
+        return true;
+    }
+    
+    console.log('Token refresh failed, logging out...');
+    await logout();
+    window.dispatchEvent(new Event('logout'));
+    return false;
 };
 
 // ============ Автоматическое обновление токена ============

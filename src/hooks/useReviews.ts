@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { makeApiRequest } from '../utils/apiHelper';
-import { getAuthToken } from '../utils/auth.ts';
+import { getAuthToken, handleUnauthorized } from '../utils/auth.ts';
 
 export interface Review {
     id: number;
@@ -155,13 +155,27 @@ export const useReviews = () => {
 
                 console.log(`Uploading photo for review ${reviewId}`);
 
-                const response = await fetch(`${API_BASE_URL}/api/reviews/${reviewId}/upload-photo`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${getAuthToken()}`,
-                    },
-                    body: formData,
-                });
+                const uploadPhoto = async (): Promise<Response> => {
+                    return fetch(`${API_BASE_URL}/api/reviews/${reviewId}/upload-photo`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${getAuthToken()}`,
+                        },
+                        body: formData,
+                    });
+                };
+
+                let response = await uploadPhoto();
+
+                // Если 401, пробуем обновить токен и повторить
+                if (response.status === 401) {
+                    const refreshed = await handleUnauthorized();
+                    if (refreshed) {
+                        response = await uploadPhoto();
+                    } else {
+                        throw new Error(`Failed to upload photo: 401 Unauthorized`);
+                    }
+                }
 
                 if (!response.ok) {
                     const errorText = await response.text();

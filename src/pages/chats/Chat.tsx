@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from 'react-i18next';
 import { getAuthToken } from "../../utils/auth";
+import { ROUTES } from '../../app/routers/routes';
 import AuthModal from '../../features/auth/AuthModal';
 import styles from "./Chat.module.scss";
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
@@ -941,7 +942,7 @@ function Chat() {
     }, []);
 
     const handleBackToHome = useCallback(() => {
-        navigate('/');
+        navigate(ROUTES.HOME);
     }, [navigate]);
 
     const currentChat = chats.find(chat => chat.id === selectedChat);
@@ -958,7 +959,7 @@ function Chat() {
         return (
             <AuthModal
                 isOpen={true}
-                onClose={() => navigate('/')}
+                onClose={() => navigate(ROUTES.HOME)}
                 onLoginSuccess={() => window.location.reload()}
             />
         );
@@ -1081,7 +1082,7 @@ function Chat() {
                                 >
                                     ←
                                 </button>
-                                <Link to={`/profile/${currentInterlocutor.id}`} style={{ textDecoration: 'none' }}>
+                                <Link to={ROUTES.PROFILE_BY_ID(currentInterlocutor.id)} style={{ textDecoration: 'none' }}>
                                     <div className={styles.avatar}>
                                         {currentInterlocutor.image ? (
                                             <img
@@ -1102,7 +1103,7 @@ function Chat() {
                                 </Link>
                                 <div className={styles.headerInfo}>
                                     <div className={styles.name}>
-                                        <Link to={`/profile/${currentInterlocutor.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                                        <Link to={ROUTES.PROFILE_BY_ID(currentInterlocutor.id)} style={{ textDecoration: 'none', color: 'inherit' }}>
                                             {currentInterlocutor.name} {currentInterlocutor.surname}
                                         </Link>
                                         {currentChat?.isArchived && <span className={styles.archiveBadge}> ({t('chat.archive').toLowerCase()})</span>}

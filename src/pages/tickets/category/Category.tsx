@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { getAuthToken, getUserRole, getUserData } from '../../../utils/auth.ts';
 import { getStorageItem } from '../../../utils/storageHelper.ts';
 import { useLanguageChange } from '../../../hooks/useLanguageChange.ts';
+import { ROUTES } from '../../../app/routers/routes';
 import styles from './Category.module.scss';
 import { TicketCard } from '../../../shared/ui/TicketCard/TicketCard.tsx';
 import { ServiceTypeFilter } from '../../../widgets/Sorting/ServiceTypeFilter';
@@ -670,7 +671,7 @@ function Category() {
     }, [selectedSubcategory]);
 
     const handleCardClick = (ticketId: number) => {
-        navigate(`/ticket/${ticketId}`);
+        navigate(ROUTES.TICKET_BY_ID(ticketId));
     };
 
     const handleClose = () => {
@@ -885,6 +886,7 @@ function Category() {
                     tickets.map((ticket) => (
                         <TicketCard
                             key={ticket.id}
+                            ticketId={ticket.id}
                             title={ticket.title}
                             description={cleanText(ticket.description)}
                             price={ticket.price}

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { ROUTES } from '../../../app/routers/routes';
 import { getAuthToken } from '../../../utils/auth.ts';
 import AddressSelector, { AddressValue, buildAddressData } from '../../../shared/ui/AddressSelector';
 import styles from './Edit.module.scss';
@@ -307,7 +308,7 @@ const Edit = () => {
             setShowSuccessModal(true);
             setTimeout(() => {
                 setShowSuccessModal(false);
-                navigate('/ticket/me');
+                navigate(ROUTES.TICKET_ME);
             }, 2000);
 
         } catch (error) {
@@ -526,7 +527,7 @@ const Edit = () => {
                     <button
                         type="button"
                         className={styles.cancelButton}
-                        onClick={() => navigate('/profile')}
+                        onClick={() => navigate(ROUTES.PROFILE)}
                         disabled={isSubmitting}
                     >
                         Отмена
@@ -546,7 +547,7 @@ const Edit = () => {
                 isOpen={showSuccessModal}
                 onClose={() => {
                     setShowSuccessModal(false);
-                    navigate('/ticket/me');
+                    navigate(ROUTES.TICKET_ME);
                 }}
                 message="Услуга успешно обновлена!"
             />

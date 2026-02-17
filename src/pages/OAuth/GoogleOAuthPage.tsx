@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { setAuthToken, setAuthTokenExpiry } from '../../utils/auth';
+import { ROUTES } from '../../app/routers/routes';
 
 const GoogleOAuthPage = () => {
     const [searchParams] = useSearchParams();
@@ -21,7 +22,7 @@ const GoogleOAuthPage = () => {
 
             if (!code || !state) {
                 setError('Не удалось получить данные авторизации');
-                setTimeout(() => navigate('/'), 3000);
+                setTimeout(() => navigate(ROUTES.HOME), 3000);
                 return;
             }
 
@@ -82,7 +83,7 @@ const GoogleOAuthPage = () => {
                     sessionStorage.removeItem('pendingGoogleSpecialty');
 
                     // Редирект на главную
-                    navigate('/');
+                    navigate(ROUTES.HOME);
                 } else {
                     throw new Error('Токен не получен');
                 }
@@ -90,7 +91,7 @@ const GoogleOAuthPage = () => {
             } catch (err) {
                 console.error('Google OAuth error:', err);
                 setError(err instanceof Error ? err.message : 'Ошибка авторизации');
-                setTimeout(() => navigate('/'), 3000);
+                setTimeout(() => navigate(ROUTES.HOME), 3000);
             }
         };
 

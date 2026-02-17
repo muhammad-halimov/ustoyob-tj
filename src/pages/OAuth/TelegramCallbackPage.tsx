@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { ROUTES } from '../../app/routers/routes';
 import {
     setAuthToken,
     setAuthTokenExpiry,
@@ -67,7 +68,7 @@ const TelegramCallbackPage = () => {
                 if (!id || !firstName || !hash || !authDate) {
                     setError('Недостаточно данных для авторизации');
                     setLoading(false);
-                    setTimeout(() => navigate('/'), 3000);
+                    setTimeout(() => navigate(ROUTES.HOME), 3000);
                     return;
                 }
 
@@ -77,7 +78,7 @@ const TelegramCallbackPage = () => {
                 if (currentTime - authTime > 600) {
                     setError('Запрос устарел. Пожалуйста, повторите попытку');
                     setLoading(false);
-                    setTimeout(() => navigate('/'), 3000);
+                    setTimeout(() => navigate(ROUTES.HOME), 3000);
                     return;
                 }
 
@@ -189,7 +190,7 @@ const TelegramCallbackPage = () => {
                     sessionStorage.removeItem('pendingTelegramSpecialty');
 
                     // Редирект на главную
-                    navigate('/');
+                    navigate(ROUTES.HOME);
 
                     // Имитируем событие логина
                     window.dispatchEvent(new Event('login'));
@@ -201,7 +202,7 @@ const TelegramCallbackPage = () => {
                 console.error('Telegram OAuth error:', err);
                 setError(err instanceof Error ? err.message : 'Ошибка авторизации');
                 setLoading(false);
-                setTimeout(() => navigate('/'), 3000);
+                setTimeout(() => navigate(ROUTES.HOME), 3000);
             }
         };
 
@@ -277,7 +278,7 @@ const TelegramCallbackPage = () => {
                     {error}
                 </p>
                 <button
-                    onClick={() => navigate('/')}
+                    onClick={() => navigate(ROUTES.HOME)}
                     style={{
                         padding: '12px 24px',
                         backgroundColor: '#0088cc',

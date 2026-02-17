@@ -4,6 +4,7 @@ import { useLanguageChange } from '../../../hooks/useLanguageChange';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useFavorites } from '../useFavorites';
+import { ROUTES } from '../../../app/routers/routes';
 
 interface AnnouncementCardProps {
   title: string;
@@ -180,8 +181,8 @@ export function TicketCard({
   const managedFavorites = useFavorites({
     itemId: ticketId || 0,
     itemType: 'ticket',
-    onSuccess: () => console.log('Favorite action successful'),
-    onError: (message) => console.error('Favorite action error:', message)
+    onSuccess: () => console.log('🎉 Favorite action successful'),
+    onError: (message) => console.error('❌ Favorite action error:', message)
   });
 
   // Проверяем статус избранного при монтировании если используем управляемое состояние
@@ -320,7 +321,7 @@ export function TicketCard({
       <div className={styles.card_footer}>
         <div className={styles.card_author_section}>
           {authorId ? (
-            <Link to={`/profile/${authorId}`} className={styles.card_author} onClick={(e) => e.stopPropagation()}>
+            <Link to={ROUTES.PROFILE_BY_ID(authorId)} className={styles.card_author} onClick={(e) => e.stopPropagation()}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <g clipPath="url(#clip0_auth)">
                   <g clipPath="url(#clip1_auth)">

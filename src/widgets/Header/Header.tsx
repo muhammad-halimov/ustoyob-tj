@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import styles from "./Header.module.scss";
+import { ROUTES } from '../../app/routers/routes';
 import { AdBtn } from "../../shared/ui/Button/HeaderButton/AdBtn.tsx";
 import { EnterBtn } from "../../shared/ui/Button/HeaderButton/EnterBtn.tsx";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import {getAuthToken, removeAuthToken} from "../../utils/auth";
+import {getAuthToken, handleUnauthorized} from "../../utils/auth";
 import { useTranslation } from 'react-i18next';
 import { changeLanguage, Language } from '../../locales/i18n.ts';
 import { useLanguageChange } from '../../hooks/useLanguageChange';
@@ -11,7 +12,7 @@ import { ThemeToggle } from '../ThemeToggle';
 import { getCities } from '../../utils/dataCache.ts';
 
 interface HeaderProps {
-    onOpenAuthModal?: () => void; // Добавьте этот интерфейс
+    onOpenAuthModal?: () => void;
 }
 
 interface City {
@@ -229,9 +230,13 @@ function Header({ onOpenAuthModal }: HeaderProps) {
 
                     if (response.status === 401) {
                         console.error('Unauthorized: Token is invalid or expired');
-                        removeAuthToken();
-                        setShowConfirmationBanner(false);
-                        window.dispatchEvent(new Event('logout'));
+                        const refreshed = await handleUnauthorized();
+                        if (refreshed) {
+                            // Повторяем запрос с новым токеном
+                            checkAccountConfirmation();
+                        } else {
+                            setShowConfirmationBanner(false);
+                        }
                         return;
                     }
 
@@ -383,7 +388,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
         window.dispatchEvent(new Event('resetAllStates'));
         
         // Переходим на главную страницу
-        navigate('/', { replace: true });
+        navigate(ROUTES.HOME, { replace: true });
     };
 
     const handleCitySelect = (cityTitle: string) => {
@@ -406,14 +411,14 @@ function Header({ onOpenAuthModal }: HeaderProps) {
 
     const getActivePage = () => {
         switch (location.pathname) {
-            case "/":
-            case "/ticket/me":
+            case ROUTES.HOME:
+            case ROUTES.TICKET_ME:
                 return "ticket/me";
-            case "/favorites":
+            case ROUTES.FAVORITES:
                 return "favorites";
-            case "/chats":
+            case ROUTES.CHATS:
                 return "chats";
-            case "/profile":
+            case ROUTES.PROFILE:
                 return "profile";
             default:
                 return "orders";
@@ -498,7 +503,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
             return;
         }
         // Если авторизован - переходим на страницу
-        navigate('/ticket/me');
+        navigate(ROUTES.TICKET_ME);
     };
 
     return (
@@ -620,7 +625,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
             </div>
             <div className={styles.bottomHeader}>
                 <div className={styles.bottomHeader_wrap}>
-                    <Link to="/" className={styles.bottomHeader_logo} onClick={handleLogoClick}>
+                    <Link to={ROUTES.HOME} className={styles.bottomHeader_logo} onClick={handleLogoClick}>
                         {!showLogo ? (
                             <svg width="301" height="50" viewBox="0 0 301 50" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M28.929 20.9145C28.392 21.5877 28.5758 22.1222 29.5472 23.2972C30.8578 24.4875 31.5488 24.8045 32.6957 24.9859L44.5009 20.1881C45.344 19.9571 44.7288 19.1333 43.7295 17.9892C42.7298 16.8457 41.5773 15.8856 40.7341 16.1167L28.929 20.9145Z" fill="#A5A5A5" stroke="#A5A5A5"/>
@@ -667,7 +672,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                     <nav className={styles.bottomHeader_nav}>
                         <ul className={styles.bottomHeader_navList}>
                             <li className={`${styles.bottomHeader_item} ${isActivePage == "orders" ? styles.active : ""}`}>
-                                <Link to="/" className={styles.navLink}>
+                                <Link to={ROUTES.HOME} className={styles.navLink}>
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                         <g clipPath="url(#clip0_324_3320)">
                                             <g clipPath="url(#clip1_324_3320)">
@@ -688,7 +693,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                                 </Link>
                             </li>
                             <li className={`${styles.bottomHeader_item} ${isActivePage === "favorites" ? styles.active : ""}`}>
-                                <Link to="/favorites" className={styles.navLink} onClick={handleFavoritesClick}>
+                                <Link to={ROUTES.FAVORITES} className={styles.navLink} onClick={handleFavoritesClick}>
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                         <g clipPath="url(#clip0_324_3328)">
                                             <g clipPath="url(#clip1_324_3328)">
@@ -709,7 +714,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                             </li>
                             <li className={`${styles.bottomHeader_item} ${isActivePage === "chats" ? styles.active : ""}`}>
                                 {isAuthenticated ? (
-                                    <Link to="/chats" className={styles.navLink} onClick={handleChatsClick}>
+                                    <Link to={ROUTES.CHATS} className={styles.navLink} onClick={handleChatsClick}>
                                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <g clipPath="url(#clip0_324_3538)">
                                                 <g clipPath="url(#clip1_324_3538)">
@@ -729,7 +734,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                                     </Link>
                                 ) : (
                                     <Link
-                                        to="/chats"
+                                        to={ROUTES.CHATS}
                                         className={styles.navLink}
                                         onClick={handleChatsClick}
                                     >
@@ -754,7 +759,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                             </li>
                             <li className={`${styles.bottomHeader_item} ${isActivePage === "profile" ? styles.active : ""}`}>
                                 {isAuthenticated ? (
-                                    <Link to="/profile" className={styles.navLink} onClick={handleProfileClick}>
+                                    <Link to={ROUTES.PROFILE} className={styles.navLink} onClick={handleProfileClick}>
                                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
                                              xmlns="http://www.w3.org/2000/svg">
                                             <g clipPath="url(#clip0_324_3342)">
@@ -783,7 +788,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                                     </Link>
                                 ) : (
                                     <Link
-                                        to="/profile"
+                                        to={ROUTES.PROFILE}
                                         className={styles.navLink}
                                         onClick={handleProfileClick}
                                     >
@@ -821,23 +826,23 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                 <div className={styles.mobile_header}>
                     <ul className={styles.bottomHeader_navList}>
                         <li className={`${styles.bottomHeader_item} ${isActivePage == "orders" ? styles.active : ""}`}>
-                            <Link to="/" className={styles.navLink}>
+                            <Link to={ROUTES.HOME} className={styles.navLink}>
                                 <p>{t('header:orders')}</p>
                             </Link>
                         </li>
                         <li className={`${styles.bottomHeader_item} ${isActivePage === "favorites" ? styles.active : ""}`}>
-                            <Link to="/favorites" className={styles.navLink} onClick={handleFavoritesClick}>
+                            <Link to={ROUTES.FAVORITES} className={styles.navLink} onClick={handleFavoritesClick}>
                                 <p>{t('header:favorites')}</p>
                             </Link>
                         </li>
                         <li className={`${styles.bottomHeader_item} ${isActivePage === "chats" ? styles.active : ""}`}>
                             {isAuthenticated ? (
-                                <Link to="/chats" className={styles.navLink} onClick={handleChatsClick}>
+                                <Link to={ROUTES.CHATS} className={styles.navLink} onClick={handleChatsClick}>
                                     <p>{t('header:chats')}</p>
                                 </Link>
                             ) : (
                                 <Link
-                                    to="/chats"
+                                    to={ROUTES.CHATS}
                                     className={styles.navLink}
                                     onClick={handleChatsClick}
                                 >
@@ -847,12 +852,12 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                         </li>
                         <li className={`${styles.bottomHeader_item} ${isActivePage === "profile" ? styles.active : ""}`}>
                             {isAuthenticated ? (
-                                <Link to="/profile" className={styles.navLink} onClick={handleProfileClick}>
+                                <Link to={ROUTES.PROFILE} className={styles.navLink} onClick={handleProfileClick}>
                                     <p>{t('header:profile')}</p>
                                 </Link>
                             ) : (
                                 <Link
-                                    to="/profile"
+                                    to={ROUTES.PROFILE}
                                     className={styles.navLink}
                                     onClick={handleProfileClick}
                                 >
