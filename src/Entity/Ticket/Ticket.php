@@ -7,7 +7,6 @@ use ApiPlatform\Doctrine\Orm\Filter\ExistsFilter;
 use ApiPlatform\Doctrine\Orm\Filter\RangeFilter;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
-use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
@@ -47,19 +46,35 @@ use Symfony\Component\Validator\Constraints as Assert;
         new GetCollection(
             uriTemplate: '/tickets/me',
             controller: PersonalTicketFilterController::class,
+            normalizationContext: [
+                'groups' => ['masterTickets:read', 'clientTickets:read', 'ticketImages:read'],
+                'skip_null_values' => false,
+            ],
         ),
         new Get(
             uriTemplate: '/tickets/{id}',
             requirements: ['id' => '\d+'],
+            normalizationContext: [
+                'groups' => ['masterTickets:read', 'clientTickets:read', 'ticketImages:read'],
+                'skip_null_values' => false,
+            ],
             provider: TicketGeographyLocalizationProvider::class,
         ),
         new GetCollection(
             uriTemplate: '/tickets',
+            normalizationContext: [
+                'groups' => ['masterTickets:read', 'clientTickets:read', 'ticketImages:read'],
+                'skip_null_values' => false,
+            ],
             provider: TicketGeographyLocalizationProvider::class,
         ),
         new Post(
             uriTemplate: '/tickets',
             controller: PostTicketController::class,
+            normalizationContext: [
+                'groups' => ['masterTickets:read', 'clientTickets:read'],
+                'skip_null_values' => false,
+            ],
             input: TicketInput::class,
         ),
         new Post(
@@ -67,17 +82,21 @@ use Symfony\Component\Validator\Constraints as Assert;
             inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
             controller: PostTicketPhotoController::class,
+            normalizationContext: [
+                'groups' => ['masterTickets:read', 'clientTickets:read'],
+                'skip_null_values' => false,
+            ],
             input: ImageInput::class,
         ),
         new Patch(
             uriTemplate: '/tickets/{id}',
             requirements: ['id' => '\d+'],
             controller: PatchTicketController::class,
+            normalizationContext: [
+                'groups' => ['masterTickets:read', 'clientTickets:read', 'ticketImages:read'],
+                'skip_null_values' => false,
+            ],
         ),
-    ],
-    normalizationContext: [
-        'groups' => ['masterTickets:read', 'clientTickets:read'],
-        'skip_null_values' => false,
     ],
     paginationEnabled: false,
 )]
@@ -237,8 +256,8 @@ class Ticket
      */
     #[ORM\OneToMany(targetEntity: TicketImage::class, mappedBy: 'userTicket', cascade: ['all'])]
     #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
+        'ticketImages:read',
+
         'reviews:read',
         'favorites:read',
         'appeal:ticket:read',

@@ -2,6 +2,7 @@
 
 namespace App\Entity\Ticket;
 
+use ApiPlatform\Metadata\ApiProperty;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Repository\TicketImageRepository;
@@ -29,8 +30,8 @@ class TicketImage
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
+        'ticketImages:read',
+
         'reviews:read',
         'favorites:read',
         'appeal:ticket:read',
@@ -42,12 +43,13 @@ class TicketImage
 
     #[Vich\UploadableField(mapping: 'ticket_photos', fileNameProperty: 'image')]
     #[Assert\Image(mimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])]
+    #[ApiProperty(readable: false)]
     private ?File $imageFile = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
+        'ticketImages:read',
+
         'reviews:read',
         'favorites:read',
         'appeal:ticket:read',
