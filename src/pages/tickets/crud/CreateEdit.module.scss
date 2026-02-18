@@ -481,7 +481,8 @@
 }
 
 .existingPhotoGrid {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 15px;
 }
@@ -752,17 +753,11 @@
   }
 
   .budgetRow {
-    flex-direction: column;
     gap: 12px;
   }
 
   .budgetField:last-child {
-    flex: 0 0 auto;
-    width: 100%;
-  }
-
-  .unitSelect {
-    max-width: 100%;
+    flex: 0 0 140px;
   }
 
   .submitSection {

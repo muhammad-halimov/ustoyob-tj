@@ -1,6 +1,6 @@
-import { useParams, useNavigate } from 'react-router-dom';
-import {useState, useEffect, useRef} from 'react';
-import { getAuthToken, getUserData } from '../../../utils/auth.ts';
+import {useNavigate, useParams} from 'react-router-dom';
+import {useEffect, useRef, useState} from 'react';
+import {getAuthToken, getUserData} from '../../../utils/auth.ts';
 import styles from './Ticket.module.scss';
 import {createChatWithAuthor, initChatModals} from "../../../utils/chatUtils.ts";
 import AuthModal from "../../../features/auth/AuthModal.tsx";
@@ -9,10 +9,12 @@ import CookieConsentBanner from "../../../widgets/CookieConsentBanner/CookieCons
 import StatusModal from '../../../shared/ui/Modal/StatusModal';
 import ReviewModal from '../../../shared/ui/Modal/ReviewModal';
 import ComplaintModal from '../../../shared/ui/Modal/ComplaintModal/ComplaintModal';
-import { PhotoGallery } from '../../../shared/ui/PhotoGallery/PhotoGallery';
-import { usePhotoGallery } from '../../../shared/ui/PhotoGallery/usePhotoGallery';
-import { useFavorites } from '../../../shared/ui/useFavorites';
-import { ROUTES } from '../../../app/routers/routes';
+import {PhotoGallery, usePhotoGallery} from '../../../shared/ui/PhotoGallery';
+import {useFavorites} from '../../../shared/ui/useFavorites';
+import {ROUTES} from '../../../app/routers/routes';
+import {ReviewsSection} from '../../profile/shared/ui/ReviewsSection';
+import type {Review} from '../../../entities';
+
 // import { fetchUserWithRole } from "../../utils/api.ts";
 
 interface ApiTicket {
@@ -77,6 +79,7 @@ interface ApiTicket {
     } | null;
     author: { id: number; name?: string; surname?: string; image?: string; rating?: number };
     category: { id: number; title: string };
+    subcategory?: { id: number; title: string };
     notice?: string;
     images?: { id: number; image: string }[];
     ticketImages?: { id: number; image: string }[];
@@ -97,6 +100,7 @@ interface Order {
     authorId: number;
     timeAgo: string;
     category: string;
+    subcategory?: string;
     additionalComments?: string;
     photos?: string[];
     notice?: string;
@@ -132,6 +136,12 @@ export function Ticket() {
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [showComplaintModal, setShowComplaintModal] = useState(false);
+
+    // States for reviews
+    const [reviews, setReviews] = useState<Review[]>([]);
+    const [reviewsLoading, setReviewsLoading] = useState(false);
+    const [visibleReviewCount, setVisibleReviewCount] = useState(2);
+    const [expandedReviews, setExpandedReviews] = useState<Set<number>>(new Set());
 
     const [reviewCount, setReviewCount] = useState<number>(0);
 
@@ -210,6 +220,8 @@ export function Ticket() {
             if (currentUserId) {
                 checkExistingChats();
             }
+            // Загружаем отзывы
+            fetchReviews();
         }
     }, [order, favorites.checkFavoriteStatus, currentUserId]);
 
@@ -420,7 +432,7 @@ export function Ticket() {
             let displayUserName: string;
             let displayUserImage: string;
             let userTypeForRating: string | null;
-            let userRating: number = 0; // Рейтинг берем из данных тикета
+            let userRating: number; // Рейтинг берем из данных тикета
 
             if (ticketData.master) {
                 // Заявка клиента - показываем мастера
@@ -466,8 +478,7 @@ export function Ticket() {
 
             if (ticketData.ticketImages?.length) {
                 photos.push(...ticketData.ticketImages.map(img => {
-                    const imageUrl = img.image.startsWith('http') ? img.image : formatTicketImageUrl(img.image);
-                    return imageUrl;
+                    return img.image.startsWith('http') ? img.image : formatTicketImageUrl(img.image);
                 }));
             }
 
@@ -488,6 +499,7 @@ export function Ticket() {
                 authorId: displayUserId,
                 timeAgo: getTimeAgo(ticketData.createdAt),
                 category: ticketData.category?.title ? cleanText(ticketData.category.title) : 'другое',
+                subcategory: ticketData.subcategory?.title ? cleanText(ticketData.subcategory.title) : undefined,
                 additionalComments: ticketData.notice ? cleanText(ticketData.notice) : undefined,
                 photos: photos.length > 0 ? photos : undefined,
                 notice: ticketData.notice ? cleanText(ticketData.notice) : undefined,
@@ -743,6 +755,54 @@ export function Ticket() {
             throw error;
         }
     };
+    
+    // Получаем полную информацию о пользователе для отзывов
+    const getUserInfo = async (userId: number): Promise<{
+        id: number;
+        email: string;
+        name: string;
+        surname: string;
+        rating: number;
+        image: string;
+        imageExternalUrl?: string;
+    } | null> => {
+        console.log('Getting user info for ID:', userId);
+        
+        if (!userId) {
+            console.warn('getUserInfo called with invalid userId:', userId);
+            return null;
+        }
+        
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                const userData = await response.json();
+                console.log('User data received:', userData);
+                
+                return {
+                    id: userData.id || userId,
+                    email: userData.email || '',
+                    name: userData.name || '',
+                    surname: userData.surname || '',
+                    rating: userData.rating || 0,
+                    image: userData.image || '',
+                    imageExternalUrl: userData.imageExternalUrl || ''
+                };
+            } else {
+                console.error(`Failed to fetch user ${userId}:`, response.status);
+                return null;
+            }
+        } catch (error) {
+            console.error('Error fetching user info:', error);
+            return null;
+        }
+    };
 
     // Проверяем существующие чаты пользователя
     const checkExistingChats = async () => {
@@ -794,6 +854,238 @@ export function Ticket() {
         return 'отзывов';
     };
 
+    // ===== Функции для работы с отзывами =====
+    
+    const fetchReviews = async () => {
+        if (!order) return;
+        
+        setReviewsLoading(true);
+        
+        try {
+            const token = getAuthToken();
+            
+            // Определяем тип тикета: service=true (услуга мастера) или service=false (заявка клиента)
+            const isService = order.id ? await checkIfService(order.id) : false;
+            
+            // Формируем правильный эндпоинт
+            const serviceParam = isService ? 'true' : 'false';
+            const url = `${API_BASE_URL}/api/reviews?services.service=${serviceParam}&exists[services]=true&exists[master]=true&exists[client]=true&services=${order.id}`;
+            
+            const headers: HeadersInit = {
+                'Content-Type': 'application/json',
+            };
+            
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: headers,
+            });
+            
+            if (!response.ok) {
+                console.error('Failed to fetch reviews:', response.statusText);
+                setReviews([]);
+                return;
+            }
+            
+            const data = await response.json();
+            
+            // API может вернуть объект с 'hydra:member' или массив
+            const reviewsData = data['hydra:member'] || data || [];
+            
+            console.log('=== Ticket Reviews Debug ===');
+            console.log('Total reviews:', reviewsData.length);
+            if (reviewsData.length > 0) {
+                console.log('First review sample:', reviewsData[0]);
+                console.log('Review master:', reviewsData[0].master);
+                console.log('Review client:', reviewsData[0].client);
+                console.log('Review services:', reviewsData[0].services);
+                console.log('Review ticket:', reviewsData[0].ticket);
+            }
+            
+            // Трансформируем отзывы - получаем полные данные пользователей
+            const transformedReviews = await Promise.all(
+                reviewsData.map(async (review: any) => {
+                    const masterId = review.master?.id;
+                    const clientId = review.client?.id;
+                    
+                    console.log(`Processing review ${review.id}: master=${masterId}, client=${clientId}`);
+                    
+                    // Получаем полные данные мастера и клиента
+                    const [masterData, clientData] = await Promise.all([
+                        masterId ? getUserInfo(masterId) : Promise.resolve(null),
+                        clientId ? getUserInfo(clientId) : Promise.resolve(null)
+                    ]);
+                    
+                    console.log('Master data:', masterData);
+                    console.log('Client data:', clientData);
+                    
+                    const serviceTitle = String(review.ticket?.title || review.services?.title || 'Услуга');
+                    
+                    return {
+                        id: review.id,
+                        rating: review.rating || 0,
+                        description: review.description || '',
+                        forReviewer: review.forClient || false,
+                        services: {
+                            id: review.ticket?.id || review.services?.id || 0,
+                            title: serviceTitle
+                        },
+                        ticket: review.ticket,
+                        images: review.images || [],
+                        user: masterData || {
+                            id: masterId || 0,
+                            email: '',
+                            name: 'Мастер',
+                            surname: '',
+                            rating: 0,
+                            image: ''
+                        },
+                        reviewer: clientData || {
+                            id: clientId || 0,
+                            email: '',
+                            name: 'Клиент',
+                            surname: '',
+                            rating: 0,
+                            image: ''
+                        },
+                        date: review.createdAt 
+                            ? new Date(review.createdAt).toLocaleDateString('ru-RU')
+                            : ''
+                    };
+                })
+            );
+            
+            console.log('Transformed reviews:', transformedReviews);
+            setReviews(transformedReviews);
+            
+        } catch (error) {
+            console.error('Error fetching reviews:', error);
+            setReviews([]);
+        } finally {
+            setReviewsLoading(false);
+        }
+    };
+    
+    // Проверяем тип тикета (service или заявка)
+    const checkIfService = async (ticketId: number): Promise<boolean> => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/tickets/${ticketId}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+            
+            if (!response.ok) {
+                return false;
+            }
+            
+            const data = await response.json();
+            const ticketData = Array.isArray(data) ? data[0] : data;
+            
+            return ticketData.service === true;
+        } catch (error) {
+            console.error('Error checking ticket type:', error);
+            return false;
+        }
+    };
+    
+    // Функция для переключения развернутого состояния отзыва
+    const toggleReviewExpanded = (reviewId: number) => {
+        setExpandedReviews(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(reviewId)) {
+                newSet.delete(reviewId);
+            } else {
+                newSet.add(reviewId);
+            }
+            return newSet;
+        });
+    };
+    
+    // Функция для отображения текста отзыва
+    const renderReviewText = (review: Review) => {
+        const MAX_LENGTH = 200;
+        const text = review.description.replace(/<[^>]*>/g, '');
+        const isExpanded = expandedReviews.has(review.id);
+        
+        if (text.length <= MAX_LENGTH) {
+            return <p className={styles.review_text}>{text}</p>;
+        }
+
+        return (
+            <div className={styles.review_text_container}>
+                <p className={styles.review_text}>
+                    {isExpanded ? text : `${text.slice(0, MAX_LENGTH)}...`}
+                </p>
+                <button 
+                    className={styles.show_more_btn}
+                    onClick={() => toggleReviewExpanded(review.id)}
+                >
+                    {isExpanded ? 'Скрыть' : 'Показать полностью'}
+                </button>
+            </div>
+        );
+    };
+    
+    const getReviewerAvatarUrl = (review: Review) => {
+        // Приоритет 1: image (локальное изображение)
+        if (review.reviewer?.image) {
+            const reviewerImage = review.reviewer.image;
+            
+            // Если это полный URL (начинается с http), используем его
+            if (reviewerImage.startsWith('http')) {
+                return reviewerImage;
+            }
+            
+            // Если это путь, начинающийся с /, добавляем только API_BASE_URL
+            if (reviewerImage.startsWith('/')) {
+                return `${API_BASE_URL}${reviewerImage}`;
+            }
+            
+            // Иначе это имя файла - строим путь через profile_photos
+            return `${API_BASE_URL}/images/profile_photos/${reviewerImage}`;
+        }
+        
+        // Приоритет 2: imageExternalUrl (внешние ссылки)
+        if (review.reviewer?.imageExternalUrl && review.reviewer.imageExternalUrl.trim()) {
+            return review.reviewer.imageExternalUrl;
+        }
+        
+        // Приоритет 3: дефолтное изображение
+        return '/default_user.png';
+    };
+    
+    const getMasterName = (review: Review) => {
+        const master = review.user;
+        return master ? `${master.name || ''} ${master.surname || ''}`.trim() || 'Мастер' : 'Мастер';
+    };
+    
+    const getClientName = (review: Review) => {
+        const reviewer = review.reviewer;
+        return reviewer ? `${reviewer.name || ''} ${reviewer.surname || ''}`.trim() || 'Клиент' : 'Клиент';
+    };
+    
+    const handleShowMoreReviews = () => {
+        setVisibleReviewCount(reviews.length);
+    };
+    
+    const handleShowLessReviews = () => {
+        setVisibleReviewCount(2);
+    };
+    
+    // Вспомогательная функция для получения индекса фото в галерее отзывов
+    const getReviewImageIndex = (reviewIndex: number, imageIndex: number): number => {
+        let totalIndex = 0;
+        for (let i = 0; i < reviewIndex; i++) {
+            totalIndex += reviews[i].images?.length || 0;
+        }
+        return totalIndex + imageIndex;
+    };
+
     if (isLoading) return <div className={styles.loading}>Загрузка...</div>;
     if (error) return (
         <div className={styles.error}>
@@ -830,7 +1122,15 @@ export function Ticket() {
                         </div>
                     )}
                 </div>
-                <span className={styles.category}>{order.category}</span>
+                <div className={styles.categoryContainer}>
+                    <span className={styles.category}>{order.category}</span>
+                    {order.subcategory && (
+                        <>
+                            <span className={styles.categorySeparator}> / </span>
+                            <span className={styles.subcategory}>{order.subcategory}</span>
+                        </>
+                    )}
+                </div>
                 <div className={styles.priceSection}>
                     <span className={styles.price}>{order.price} TJS, {order.unit}</span>
                 </div>
@@ -894,12 +1194,12 @@ export function Ticket() {
                 <section className={styles.section}>
                     <div className={styles.section_photo}>
                         <img
-                            src={order.authorImage || '../default_user.png'}
+                            src={order.authorImage || '/default_user.png'}
                             alt="authorImage"
                             onClick={() => handleProfileClick(order.authorId)}
                             style={{cursor: 'pointer'}}
                             onError={(e) => {
-                                (e.target as HTMLImageElement).src = '../default_user.png';
+                                (e.target as HTMLImageElement).src = '/default_user.png';
                             }}
                         />
                         <div className={styles.authorSection}>
@@ -1108,6 +1408,27 @@ export function Ticket() {
                 </section>
                 )}
             </div>
+            
+            {/* Секция отзывов - независимая от основного контейнера */}
+            {reviews.length > 0 && (
+                <ReviewsSection
+                    reviews={reviews}
+                    reviewsLoading={reviewsLoading}
+                    visibleCount={visibleReviewCount}
+                    API_BASE_URL={API_BASE_URL}
+                    userRole={order.hasEducation ? 'master' : 'client'}
+                    onShowMore={handleShowMoreReviews}
+                    onShowLess={handleShowLessReviews}
+                    renderReviewText={renderReviewText}
+                    getReviewerAvatarUrl={getReviewerAvatarUrl}
+                    getClientName={getClientName}
+                    getMasterName={getMasterName}
+                    onClientProfileClick={handleProfileClick}
+                    onMasterProfileClick={handleProfileClick}
+                    onServiceClick={(ticketId) => navigate(ROUTES.TICKET_BY_ID(ticketId))}
+                    getReviewImageIndex={getReviewImageIndex}
+                />
+            )}
 
             <ReviewModal
                 isOpen={showReviewModal}

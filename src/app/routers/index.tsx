@@ -5,10 +5,9 @@ import Favorites from "../../pages/favorites/Favorites.tsx";
 import Chat from "../../pages/chats/Chat.tsx";
 import Profile from "../../pages/profile/Profile.tsx";
 import {Ticket} from "../../pages/tickets/ticket/Ticket.tsx";
-import Create from "../../pages/tickets/create/Create.tsx";
+import CreateEdit from "../../pages/tickets/crud/CreateEdit.tsx";
 import MyTickets from "../../pages/tickets/me/MyTickets.tsx";
 import Category from "../../pages/tickets/category/Category.tsx";
-import Edit from "../../pages/tickets/edit/Edit.tsx";
 import OAuthCallbackPage from "../../pages/OAuth/OAuthCallbackPage.tsx";
 import GoogleOAuthPage from "../../pages/OAuth/GoogleOAuthPage.tsx";
 import OAuthRedirectPage from "../../pages/OAuth/OAuthRedirectPage.tsx";
@@ -33,8 +32,8 @@ const router = createBrowserRouter([
             // Ticket pages
             { path: ROUTE_PATTERNS.TICKET_BY_ID, element: <Ticket /> },
             { path: ROUTE_PATTERNS.MY_TICKETS, element: <MyTickets /> },
-            { path: ROUTE_PATTERNS.CREATE_TICKET, element: <Create /> },
-            { path: ROUTE_PATTERNS.EDIT_TICKET, element: <Edit /> },
+            { path: ROUTE_PATTERNS.CREATE_TICKET, element: <CreateEdit /> },
+            { path: ROUTE_PATTERNS.EDIT_TICKET, element: <CreateEdit /> },
             { path: ROUTE_PATTERNS.CATEGORY_TICKETS, element: <Category /> },
 
             // Legal pages

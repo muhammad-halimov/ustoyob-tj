@@ -18,10 +18,8 @@ export const ROUTES = {
     TICKET_BY_ID: (id: number | string) => `/ticket/${id}`,
     TICKET_ME: '/ticket/me',
     MY_TICKETS: '/ticket/me',
-    TICKET_CREATE: '/ticket/create',
-    CREATE_TICKET: '/ticket/create',
-    TICKET_EDIT: '/ticket/edit',
-    EDIT_TICKET: '/ticket/edit',
+    TICKET_CREATE: '/ticket/new',
+    TICKET_EDIT: (id: number | string) => `/ticket/${id}/edit`,
     CATEGORY_TICKETS: (id: number | string) => `/ticket/category/${id}`,
     
     // Юридические документы
@@ -48,8 +46,8 @@ export const ROUTE_PATTERNS = {
     PROFILE_BY_ID: 'profile/:id',
     TICKET_BY_ID: 'ticket/:id',
     MY_TICKETS: 'ticket/me',
-    CREATE_TICKET: 'ticket/create',
-    EDIT_TICKET: 'ticket/edit',
+    CREATE_TICKET: 'ticket/new',
+    EDIT_TICKET: 'ticket/:id/edit',
     CATEGORY_TICKETS: 'ticket/category/:id',
     PRIVACY_POLICY: 'legal/privacy-policy',
     TERMS_OF_USE: 'legal/terms-of-use',

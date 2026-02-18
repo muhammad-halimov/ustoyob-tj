@@ -29,11 +29,30 @@
   max-width: 70%;
 }
 
+.categoryContainer {
+  display: flex;
+  align-items: center;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
 .category {
   border-radius: 20px;
   font-size: 24px;
   color: map.get(vars.$colors, text-category);
-  margin-top: 10px;
+}
+
+.categorySeparator {
+  font-size: 24px;
+  color: map.get(vars.$colors, text-category);
+  margin: 0 5px;
+}
+
+.subcategory {
+  border-radius: 20px;
+  font-size: 20px;
+  color: map.get(vars.$colors, text-category);
+  opacity: 0.8;
 }
 
 .priceSection {

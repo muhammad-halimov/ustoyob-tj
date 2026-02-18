@@ -386,6 +386,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                                 {getWorkerName(review)}
                                                             </span>
                                                             <div className={styles.review_rating_main}>
+                                                                <span>Поставил: </span>
                                                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                                     <g clipPath="url(#clip0_324_2272)">
                                                                         <g clipPath="url(#clip1_324_2272)">

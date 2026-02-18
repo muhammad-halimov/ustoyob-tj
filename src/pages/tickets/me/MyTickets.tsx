@@ -445,59 +445,9 @@ function MyTickets() {
             return;
         }
 
-        try {
-            // Загружаем все тикеты и находим нужный по id
-            const url = `${API_BASE_URL}/api/tickets?locale=${localStorage.getItem('i18nextLng') || 'ru'}`;
-            const response = await fetch(url, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error('Не удалось загрузить данные тикетов');
-            }
-
-            const ticketsData: Ticket[] = await response.json();
-            
-            // Находим нужный тикет по id
-            const ticketData = ticketsData.find(ticket => ticket.id === ticketId);
-
-            if (!ticketData) {
-                throw new Error('Тикет не найден');
-            }
-
-            // Преобразуем Ticket в формат ServiceData для Edit
-            const serviceData = {
-                id: ticketData.id,
-                title: ticketData.title || '',
-                description: ticketData.description || '',
-                notice: ticketData.notice || '',
-                budget: String(ticketData.budget || 0),
-                category: ticketData.category ? {
-                    id: ticketData.category.id,
-                    title: ticketData.category.title
-                } : undefined,
-                unit: ticketData.unit ? {
-                    id: ticketData.unit.id,
-                    title: ticketData.unit.title
-                } : undefined,
-                addresses: ticketData.addresses || [],
-                images: ticketData.images || []
-            };
-
-            navigate(ROUTES.TICKET_EDIT, {
-                state: {
-                    serviceData: serviceData
-                }
-            });
-        } catch (error) {
-            console.error('Error loading ticket data:', error);
-            setModalMessage('Ошибка при загрузке данных тикета');
-            setShowErrorModal(true);
-            setTimeout(() => setShowErrorModal(false), 3000);
-        }
+        // Просто переходим на страницу редактирования
+        // CreateEdit сам загрузит данные по ID из URL
+        navigate(ROUTES.TICKET_EDIT(ticketId));
     };
 
     // const getTicketTypeLabel = (type: 'client' | 'master') => {
