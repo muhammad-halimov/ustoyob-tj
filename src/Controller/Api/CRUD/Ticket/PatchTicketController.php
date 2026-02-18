@@ -15,6 +15,7 @@ use App\Entity\Ticket\Ticket;
 use App\Entity\Ticket\TicketImage;
 use App\Entity\Ticket\Unit;
 use App\Entity\User;
+use App\Entity\User\Occupation;
 use App\Repository\TicketRepository;
 use App\Service\Extra\AccessService;
 use App\Service\Extra\ExtractIriService;
@@ -62,13 +63,20 @@ class PatchTicketController extends AbstractController
         $budgetParam = $data['budget'] ?? $ticketEntity->getBudget();
         $activeParam = isset($data['active']) ? (bool)$data['active'] : $ticketEntity->getActive();
         $categoryParam = $data['category'] ?? null;
+        $subcategoryParam = $data['subcategory'] ?? null;
         $unitParam = $data['unit'] ?? null;
         $addressParam = $data['address'] ?? null;
         $imagesParam = $data['images'] ?? null;
 
         // Извлечение Category и Unit
+        /** @var Category $category */
         $category = $categoryParam ? $this->extractIriService->extract($categoryParam, Category::class, 'categories') : $ticketEntity->getCategory();
+
+        /** @var Unit $unit */
         $unit = $unitParam ? $this->extractIriService->extract($unitParam, Unit::class, 'units') : $ticketEntity->getUnit();
+
+        /** @var Occupation $subcategory */
+        $subcategory = $subcategoryParam ? $this->extractIriService->extract($subcategoryParam, Occupation::class, 'occupations') : null;
 
         // Проверка и добавление адресов с исключением дубликатов
         if ($addressParam && is_array($addressParam)) {
@@ -209,6 +217,7 @@ class PatchTicketController extends AbstractController
             ->setBudget($budgetParam)
             ->setActive($activeParam)
             ->setCategory($category)
+            ->setSubcategory($subcategory ?? $ticketEntity->getSubcategory())
             ->setUnit($unit);
 
         $this->entityManager->flush();
