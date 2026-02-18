@@ -31,6 +31,12 @@ class TicketImage
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
+        'reviews:read',
+        'favorites:read',
+        'appeal:ticket:read',
+        'appeal:chat:read',
+        'blackLists:read',
+        'chats:read',
     ])]
     private ?int $id = null;
 
@@ -42,6 +48,12 @@ class TicketImage
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
+        'reviews:read',
+        'favorites:read',
+        'appeal:ticket:read',
+        'appeal:chat:read',
+        'blackLists:read',
+        'chats:read',
     ])]
     private ?string $image = null;
 

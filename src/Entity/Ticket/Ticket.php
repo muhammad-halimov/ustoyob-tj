@@ -239,9 +239,14 @@ class Ticket
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
+        'reviews:read',
+        'favorites:read',
+        'appeal:ticket:read',
+        'appeal:chat:read',
+        'blackLists:read',
+        'chats:read',
     ])]
     #[SerializedName('images')]
-    #[ApiProperty(writable: false)]
     private Collection $userTicketImages;
 
     #[ORM\ManyToOne(cascade: ['all'], inversedBy: 'userTickets')]
