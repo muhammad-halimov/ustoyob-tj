@@ -20,7 +20,6 @@ readonly class TicketGeographyLocalizationProvider implements ProviderInterface
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
     {
-        // Получаем данные от стандартного провайдера (с применением всех фильтров)
         $result = $this->decorated->provide($operation, $uriVariables, $context);
 
         $request = $this->requestStack->getCurrentRequest();
@@ -30,7 +29,8 @@ readonly class TicketGeographyLocalizationProvider implements ProviderInterface
             throw new NotFoundHttpException("Locale not found");
         }
 
-        // Применяем локализацию к результату
+        $isSingleWrappedInArray = is_array($result) && count($result) === 1 && isset($result[0]) && $result[0] instanceof Ticket;
+
         foreach ($result as $entity) {
             if ($entity instanceof Ticket) {
                 $this->localizationService->localizeGeography($entity, $locale);
@@ -46,6 +46,6 @@ readonly class TicketGeographyLocalizationProvider implements ProviderInterface
             }
         }
 
-        return $result;
+        return $isSingleWrappedInArray ? $result[0] : $result;
     }
 }
