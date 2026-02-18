@@ -34,7 +34,7 @@ class DeleteChatMessageController extends AbstractController
             return $this->json(['message' => "Resource not found"], 404);
 
         if ($chatMessage->getAuthor() !== $bearerUser)
-            return $this->json(['message' => "Ownership doesn't match"], 400);
+            return $this->json(['message' => "Ownership doesn't match"], 403);
 
         $this->entityManager->remove($chatMessage);
         $this->entityManager->flush();

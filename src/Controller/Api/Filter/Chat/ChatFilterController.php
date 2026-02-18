@@ -32,7 +32,7 @@ class ChatFilterController extends AbstractController
             return $this->json(['message' => 'Chat not found'], 404);
 
         if ($chat->getAuthor() !== $bearerUser && $chat->getReplyAuthor() !== $bearerUser)
-            return $this->json(['message' => "Ownership doesn't match"], 400);
+            return $this->json(['message' => "Ownership doesn't match"], 403);
 
         return empty($chat)
             ? $this->json(['message' => 'Resource not found'], 404)

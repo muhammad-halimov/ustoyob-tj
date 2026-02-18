@@ -12,11 +12,13 @@ use App\Entity\Geography\District\Village;
 use App\Entity\Geography\Province;
 use App\Entity\Ticket\Category;
 use App\Entity\Ticket\Ticket;
+use App\Entity\Ticket\TicketImage;
 use App\Entity\Ticket\Unit;
 use App\Entity\User;
 use App\Repository\TicketRepository;
 use App\Service\Extra\AccessService;
 use App\Service\Extra\ExtractIriService;
+use App\Service\Extra\LocalizationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -29,6 +31,7 @@ class PatchTicketController extends AbstractController
         private readonly EntityManagerInterface $entityManager,
         private readonly ExtractIriService      $extractIriService,
         private readonly TicketRepository       $ticketRepository,
+        private readonly LocalizationService    $localizationService,
         private readonly AccessService          $accessService,
         private readonly Security               $security,
     ) {}
@@ -45,12 +48,13 @@ class PatchTicketController extends AbstractController
 
         if (!$ticketEntity) return $this->json(['message' => 'Ticket not found'], 404);
 
-
         $data = json_decode($request->getContent(), true);
 
         // Проверка валидности JSON
         if (!is_array($data)) return $this->json(['message' => 'Invalid JSON data'], 400);
 
+        if ($ticketEntity->getAuthor() !== $bearerUser && $ticketEntity->getMaster() !== $bearerUser)
+            return $this->json(['message' => "Ownership doesn't match"], 403);
 
         $titleParam = $data['title'] ?? $ticketEntity->getTitle();
         $descriptionParam = $data['description'] ?? $ticketEntity->getDescription();
@@ -60,6 +64,7 @@ class PatchTicketController extends AbstractController
         $categoryParam = $data['category'] ?? null;
         $unitParam = $data['unit'] ?? null;
         $addressParam = $data['address'] ?? null;
+        $imagesParam = $data['images'] ?? null;
 
         // Извлечение Category и Unit
         $category = $categoryParam ? $this->extractIriService->extract($categoryParam, Category::class, 'categories') : $ticketEntity->getCategory();
@@ -177,6 +182,26 @@ class PatchTicketController extends AbstractController
             }
         }
 
+        if (is_array($imagesParam)) {
+            // Очищаем старые изображения
+            foreach ($ticketEntity->getUserTicketImages() as $oldImage) {
+                $ticketEntity->removeUserTicketImage($oldImage);
+                $this->entityManager->remove($oldImage);
+            }
+
+            // Добавляем новые
+            foreach ($imagesParam as $imageData) {
+                if (!isset($imageData['image']) || !$imageData['image']) {
+                    return $this->json(['message' => 'Image filename is required'], 400);
+                }
+
+                $ticketImage = new TicketImage();
+                $ticketImage->setImage($imageData['image']);
+                $ticketEntity->addUserTicketImage($ticketImage);
+                $this->entityManager->persist($ticketImage);
+            }
+        }
+
         $ticketEntity
             ->setTitle($titleParam)
             ->setDescription($descriptionParam)
@@ -188,23 +213,18 @@ class PatchTicketController extends AbstractController
 
         $this->entityManager->flush();
 
-        $message = [
-            'id' => $ticketEntity->getId(),
-            'title' => $ticketEntity->getTitle(),
-            'description' => $ticketEntity->getDescription(),
-            'notice' => $ticketEntity->getNotice(),
-            'budget' => $ticketEntity->getBudget(),
-            'active' => $ticketEntity->getActive(),
-            'category' => $category ? "/api/categories/{$category->getId()}" : null,
-            'unit' => $unit ? "/api/units/{$unit->getId()}" : null,
-            'master' => $ticketEntity->getMaster()?->getId() ? "/api/users/{$ticketEntity->getMaster()->getId()}" : null,
-            'author' => $ticketEntity->getAuthor()?->getId() ? "/api/users/{$ticketEntity->getAuthor()->getId()}" : null,
-            'addresses' => array_map(
-                fn(Address $a) => "/api/addresses/{$a->getId()}",
-                $ticketEntity->getAddresses()->toArray()
-            )
-        ];
+        $locale = $request->query->get('locale', 'tj');
+        $this->localizationService->localizeGeography($ticketEntity, $locale);
 
-        return $this->json($message);
+        if ($ticketEntity->getCategory())
+            $this->localizationService->localizeEntity($ticketEntity->getCategory(), $locale);
+
+        if ($ticketEntity->getUnit())
+            $this->localizationService->localizeEntity($ticketEntity->getUnit(), $locale);
+
+        if ($ticketEntity->getSubcategory())
+            $this->localizationService->localizeEntity($ticketEntity->getSubcategory(), $locale);
+
+        return $this->json($ticketEntity, context: ['groups' => ['masterTickets:read', 'clientTickets:read', 'ticketImages:read']]);
     }
 }

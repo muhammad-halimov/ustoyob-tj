@@ -34,7 +34,7 @@ class PostReviewPhotoController extends AbstractPhotoUploadController
     {
         /** @var Review $entity */
         if ($entity->getClient() !== $bearerUser && $entity->getMaster() !== $bearerUser) {
-            return $this->json(['message' => "Ownership doesn't match"], 400);
+            return $this->json(['message' => "Ownership doesn't match"], 403);
         }
         return null;
     }

@@ -36,7 +36,7 @@ class PatchChatController extends AbstractController
         if (!$chat) return $this->json(['message' => "Resource not found"], 404);
 
         if ($chat->getAuthor() !== $bearerUser && $chat->getReplyAuthor() !== $bearerUser)
-            return $this->json(['message' => "Ownership doesn't match"], 400);
+            return $this->json(['message' => "Ownership doesn't match"], 403);
 
         $this->accessService->checkBlackList($chat->getAuthor(), $chat->getReplyAuthor());
 

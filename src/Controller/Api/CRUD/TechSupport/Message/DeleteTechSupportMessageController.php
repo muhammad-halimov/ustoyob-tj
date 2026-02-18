@@ -34,7 +34,7 @@ class DeleteTechSupportMessageController extends AbstractController
             return $this->json(['message' => "Resource not found"], 404);
 
         if ($techSupportMessage->getAuthor() !== $bearerUser)
-            return $this->json(['message' => "Ownership doesn't match"], 400);
+            return $this->json(['message' => "Ownership doesn't match"], 403);
 
         $this->entityManager->remove($techSupportMessage);
         $this->entityManager->flush();

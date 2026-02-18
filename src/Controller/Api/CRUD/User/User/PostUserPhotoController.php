@@ -51,7 +51,7 @@ class PostUserPhotoController extends AbstractPhotoUploadController
     {
         /** @var User $entity */
         if ($entity !== $bearerUser) {
-            return $this->json(["message" => "Ownership doesn't match"], 404);
+            return $this->json(["message" => "Ownership doesn't match"], 403);
         }
         return null;
     }

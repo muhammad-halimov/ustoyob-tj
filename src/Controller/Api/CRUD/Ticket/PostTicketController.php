@@ -17,6 +17,7 @@ use App\Entity\User;
 use App\Entity\User\Occupation;
 use App\Service\Extra\AccessService;
 use App\Service\Extra\ExtractIriService;
+use App\Service\Extra\LocalizationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -28,6 +29,7 @@ class PostTicketController extends AbstractController
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly ExtractIriService      $extractIriService,
+        private readonly LocalizationService    $localizationService,
         private readonly AccessService          $accessService,
         private readonly Security               $security,
     ){}
@@ -224,36 +226,18 @@ class PostTicketController extends AbstractController
             ->setSubcategory($subcategory)
             ->setUnit($unit);
 
-        $message = [
-            'title' => $titleParam,
-            'description' => $descriptionParam,
-            'notice' => $noticeParam,
-            'budget' => $budgetParam,
-            'active' => $activeParam,
-            'category' => "/api/categories/{$category->getId()}",
-            'unit' => "/api/units/{$unit->getId()}",
-        ];
-
         if (in_array("ROLE_CLIENT", $bearerUser->getRoles())) {
             $ticketEntity
                 ->setAuthor($bearerUser)
                 ->setMaster(null)
                 ->setService(false);
 
-            $message += [
-                'author' => "/api/users/{$bearerUser->getId()}",
-                'service' => false,
-            ];
         } elseif (in_array("ROLE_MASTER", $bearerUser->getRoles())) {
             $ticketEntity
                 ->setMaster($bearerUser)
                 ->setAuthor(null)
                 ->setService(true);
 
-            $message += [
-                'master' => "/api/users/{$bearerUser->getId()}",
-                'service' => true,
-            ];
         } else {
             return $this->json(['message' => 'Access denied'], 403);
         }
@@ -261,12 +245,19 @@ class PostTicketController extends AbstractController
         $this->entityManager->persist($ticketEntity);
         $this->entityManager->flush();
 
-        return $this->json(([
-                'id' => $ticketEntity->getId(),
-                'addresses' => array_map(
-                    fn(Address $a) => "/api/addresses/{$a->getId()}",
-                    $ticketEntity->getAddresses()->toArray()
-                )
-            ] + $message), 201);
+        $locale = $request->query->get('locale', 'tj');
+        $this->localizationService->localizeGeography($ticketEntity, $locale);
+
+        if ($ticketEntity->getCategory())
+            $this->localizationService->localizeEntity($ticketEntity->getCategory(), $locale);
+
+        if ($ticketEntity->getUnit())
+            $this->localizationService->localizeEntity($ticketEntity->getUnit(), $locale);
+
+        if ($ticketEntity->getSubcategory())
+            $this->localizationService->localizeEntity($ticketEntity->getSubcategory(), $locale);
+
+
+        return $this->json($ticketEntity, context: ['groups' => ['masterTickets:read', 'clientTickets:read', 'ticketImages:read']]);
     }
 }

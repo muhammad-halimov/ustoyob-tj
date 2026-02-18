@@ -34,7 +34,7 @@ class PostGalleryPhotoController extends AbstractPhotoUploadController
     {
         /** @var Gallery $entity */
         if ($entity->getUser() !== $bearerUser) {
-            return $this->json(['message' => "Ownership doesn't match"], 400);
+            return $this->json(['message' => "Ownership doesn't match"], 403);
         }
         return null;
     }

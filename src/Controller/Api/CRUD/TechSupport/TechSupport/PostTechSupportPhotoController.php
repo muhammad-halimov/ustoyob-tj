@@ -34,7 +34,7 @@ class PostTechSupportPhotoController extends AbstractPhotoUploadController
     {
         /** @var TechSupport $entity */
         if ($entity->getAuthor() !== $bearerUser && $entity->getAdministrant() !== $bearerUser) {
-            return $this->json(['message' => "Ownership doesn't match"], 400);
+            return $this->json(['message' => "Ownership doesn't match"], 403);
         }
         return null;
     }

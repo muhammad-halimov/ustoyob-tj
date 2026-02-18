@@ -19,6 +19,7 @@ use App\Controller\Api\Filter\Address\AddressFilter;
 use App\Controller\Api\Filter\Ticket\PersonalTicketFilterController;
 use App\Dto\Image\ImageInput;
 use App\Dto\Ticket\TicketInput;
+use App\Dto\Ticket\TicketPatchInput;
 use App\Entity\Appeal\AppealTypes\AppealTicket;
 use App\Entity\Chat\Chat;
 use App\Entity\Extra\BlackList;
@@ -82,10 +83,6 @@ use Symfony\Component\Validator\Constraints as Assert;
             inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
             controller: PostTicketPhotoController::class,
-            normalizationContext: [
-                'groups' => ['masterTickets:read', 'clientTickets:read'],
-                'skip_null_values' => false,
-            ],
             input: ImageInput::class,
         ),
         new Patch(
@@ -96,6 +93,7 @@ use Symfony\Component\Validator\Constraints as Assert;
                 'groups' => ['masterTickets:read', 'clientTickets:read', 'ticketImages:read'],
                 'skip_null_values' => false,
             ],
+            input: TicketPatchInput::class,
         ),
     ],
     paginationEnabled: false,
