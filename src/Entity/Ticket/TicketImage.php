@@ -43,7 +43,7 @@ class TicketImage
 
     #[Vich\UploadableField(mapping: 'ticket_photos', fileNameProperty: 'image')]
     #[Assert\Image(mimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])]
-    #[ApiProperty(readable: false)]
+    #[ApiProperty(writable: false)]
     private ?File $imageFile = null;
 
     #[ORM\Column(length: 255, nullable: true)]
