@@ -78,6 +78,10 @@ class PatchTicketController extends AbstractController
         /** @var Occupation $subcategory */
         $subcategory = $subcategoryParam ? $this->extractIriService->extract($subcategoryParam, Occupation::class, 'occupations') : null;
 
+        if ($subcategory && $subcategory !== $category->getOccupation()) {
+            return $this->json(['message' => "Subcategory doesn't belong to this category"], 404);
+        }
+
         // Проверка и добавление адресов с исключением дубликатов
         if ($addressParam && is_array($addressParam)) {
             // Если address передан как объект, преобразуем в массив
