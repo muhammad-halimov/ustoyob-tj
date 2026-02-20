@@ -2,6 +2,7 @@
 
 namespace App\State\Localization\Geography;
 
+use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\Entity\Extra\Translation;
@@ -30,21 +31,31 @@ readonly class UserGeographyLocalizationProvider implements ProviderInterface
             throw new NotFoundHttpException("Locale not found");
         }
 
-        // Проверяем, это массив с одним элементом или коллекция
-        $isSingleWrappedInArray = is_array($result) && count($result) === 1 && isset($result[0]) && $result[0] instanceof User;
-
-        // Применяем локализацию к результату
-        foreach ($result as $entity) {
-            if ($entity instanceof User) {
-                $this->localizationService->localizeGeography($entity, $locale);
-
-                foreach ($entity->getOccupation() as $occupation) {
-                    $this->localizationService->localizeEntity($occupation, $locale);
+        if ($operation instanceof GetCollection) {
+            // Коллекция — итерируем и локализуем каждого юзера
+            foreach ($result as $entity) {
+                if ($entity instanceof User) {
+                    $this->localizeUser($entity, $locale);
                 }
             }
+            return $result;
+        } else {
+            // Одиночный Get — декоратор может вернуть массив, анврапим
+            $user = is_array($result) ? ($result[0] ?? null) : $result;
+            if ($user instanceof User) {
+                $this->localizeUser($user, $locale);
+            }
+            return $user;
         }
+    }
 
-        // Если был один User в массиве, возвращаем его напрямую
-        return $isSingleWrappedInArray ? $result[0] : $result;
+    // Локализуем географию и специализации юзера
+    private function localizeUser(User $entity, string $locale): void
+    {
+        $this->localizationService->localizeGeography($entity, $locale);
+
+        foreach ($entity->getOccupation() as $occupation) {
+            $this->localizationService->localizeEntity($occupation, $locale);
+        }
     }
 }

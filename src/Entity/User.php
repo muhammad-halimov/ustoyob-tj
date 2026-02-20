@@ -253,7 +253,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'techSupport:read',
         'blackLists:read',
 
-        'user:public:read',
+//        'user:public:read',
     ])]
     private ?string $email = null;
 
@@ -354,7 +354,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'clients:read',
         'blackLists:read',
 
-        'user:public:read',
+//        'user:public:read',
     ])]
     private ?string $gender = null;
 
@@ -430,7 +430,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'clients:read',
         'users:me:read',
 
-        'user:public:read',
+//        'user:public:read',
     ])]
     #[AppAssert\PhoneConstraint]
     #[Assert\Length(
@@ -445,7 +445,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'clients:read',
         'users:me:read',
 
-        'user:public:read',
+//        'user:public:read',
     ])]
     #[Assert\Length(
         max: 20,
@@ -534,7 +534,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'masters:read',
         'clients:read',
 
-        'user:public:read',
+//        'user:public:read',
     ])]
     private Collection $socialNetworks;
 
@@ -567,7 +567,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'masters:read',
         'masterTickets:read',
 
-        'user:public:read',
+//        'user:public:read',
     ])]
     private Collection $education;
 
@@ -709,7 +709,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'masters:read',
         'clients:read',
 
-        'user:public:read',
+//        'user:public:read',
     ])]
     private Collection $addresses;
 

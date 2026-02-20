@@ -2,6 +2,7 @@
 
 namespace App\State\Localization\Geography;
 
+use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\Entity\Extra\Translation;
@@ -20,6 +21,7 @@ readonly class TicketGeographyLocalizationProvider implements ProviderInterface
 
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
     {
+        // Получаем данные от стандартного провайдера (с применением всех фильтров)
         $result = $this->decorated->provide($operation, $uriVariables, $context);
 
         $request = $this->requestStack->getCurrentRequest();
@@ -29,23 +31,36 @@ readonly class TicketGeographyLocalizationProvider implements ProviderInterface
             throw new NotFoundHttpException("Locale not found");
         }
 
-        $isSingleWrappedInArray = is_array($result) && count($result) === 1 && isset($result[0]) && $result[0] instanceof Ticket;
-
-        foreach ($result as $entity) {
-            if ($entity instanceof Ticket) {
-                $this->localizationService->localizeGeography($entity, $locale);
-
-                if ($entity->getCategory())
-                    $this->localizationService->localizeEntity($entity->getCategory(), $locale);
-
-                if ($entity->getUnit())
-                    $this->localizationService->localizeEntity($entity->getUnit(), $locale);
-
-                if ($entity->getSubcategory())
-                    $this->localizationService->localizeEntity($entity->getSubcategory(), $locale);
+        if ($operation instanceof GetCollection) {
+            // Коллекция — итерируем и локализуем каждый тикет
+            foreach ($result as $entity) {
+                if ($entity instanceof Ticket) {
+                    $this->localizeTicket($entity, $locale);
+                }
             }
+            return $result;
+        } else {
+            // Одиночный Get — декоратор может вернуть массив, анврапим
+            $ticket = is_array($result) ? ($result[0] ?? null) : $result;
+            if ($ticket instanceof Ticket) {
+                $this->localizeTicket($ticket, $locale);
+            }
+            return $ticket;
         }
+    }
 
-        return $isSingleWrappedInArray ? $result[0] : $result;
+    // Локализуем географию и связанные справочники тикета
+    private function localizeTicket(Ticket $entity, string $locale): void
+    {
+        $this->localizationService->localizeGeography($entity, $locale);
+
+        if ($entity->getCategory())
+            $this->localizationService->localizeEntity($entity->getCategory(), $locale);
+
+        if ($entity->getUnit())
+            $this->localizationService->localizeEntity($entity->getUnit(), $locale);
+
+        if ($entity->getSubcategory())
+            $this->localizationService->localizeEntity($entity->getSubcategory(), $locale);
     }
 }
