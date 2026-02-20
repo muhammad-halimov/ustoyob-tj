@@ -458,7 +458,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'masters:read',
         'clients:read',
 
-        'user:public:read',
+//        'user:public:read',
     ])]
     private ?bool $atHome = null;
 
