@@ -56,6 +56,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -1838,6 +1839,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function setDateOfBirth(?DateTime $dateOfBirth): static
     {
+        if ($dateOfBirth !== null) {
+            $age = (new DateTime())->diff($dateOfBirth)->y;
+
+            if ($age < 18) {
+                throw new InvalidArgumentException('User must be at least 18 years old');
+            }
+        }
+
         $this->dateOfBirth = $dateOfBirth;
 
         return $this;
