@@ -86,6 +86,7 @@ class Category
         'categories:read',
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
         'occupations:read'
     ])]
     private ?int $id = null;
@@ -95,6 +96,7 @@ class Category
         'categories:read',
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
         'occupations:read'
     ])]
     #[ApiProperty(writable: false)]
@@ -116,6 +118,7 @@ class Category
         'categories:read',
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
         'occupations:read'
     ])]
     #[ApiProperty(writable: false)]

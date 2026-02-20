@@ -69,6 +69,7 @@ class Unit
         'units:read',
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
     ])]
     private ?int $id = null;
 
@@ -77,6 +78,7 @@ class Unit
         'units:read',
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
     ])]
     private ?string $title = null;
 

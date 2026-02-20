@@ -156,6 +156,7 @@ class Ticket
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
     ])]
     private ?string $description = null;
 
@@ -163,6 +164,7 @@ class Ticket
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
     ])]
     private ?string $notice = null;
 
@@ -170,6 +172,7 @@ class Ticket
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
     ])]
     #[Assert\PositiveOrZero(message: 'Field cannot be less than zero')]
     private ?float $budget = null;
@@ -178,6 +181,7 @@ class Ticket
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
     ])]
     private ?bool $negotiableBudget = null;
 
@@ -212,6 +216,7 @@ class Ticket
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
     ])]
     private ?Category $category = null;
 
@@ -220,6 +225,7 @@ class Ticket
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
     ])]
     private ?Occupation $subcategory = null;
 
@@ -271,6 +277,7 @@ class Ticket
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
     ])]
     private ?Unit $unit = null;
 

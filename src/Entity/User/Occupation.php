@@ -76,6 +76,7 @@ class Occupation
 
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
 
         'user:public:read',
     ])]
@@ -89,6 +90,7 @@ class Occupation
 
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
 
         'user:public:read',
     ])]
@@ -112,6 +114,7 @@ class Occupation
 
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
     ])]
     #[ApiProperty(writable: false)]
     private ?string $image = null;
