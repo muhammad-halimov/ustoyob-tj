@@ -84,6 +84,16 @@
   margin-bottom: 4px;
 }
 
+.reviewer_name_link {
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.2s;
+
+  &:hover {
+    color: #3A54DA;
+  }
+}
+
 .review_service {
   font-size: 14px;
   color: #666;
@@ -106,12 +116,16 @@
 .review_worker {
   font-size: 14px;
   color: #666;
-  
+  text-decoration: none;
+
   &.clickable {
+    cursor: pointer;
     color: map.get(vars.$colors, color-primary);
-    
+    text-decoration: none;
+
     &:hover {
       color: map.get(vars.$colors, actual-blue);
+      text-decoration: none;
     }
   }
 }
@@ -160,7 +174,7 @@
 .review_images {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 5px;
   margin-top: 15px;
   padding-bottom: 16px;
 }
@@ -279,5 +293,39 @@
 
   .review_text {
     font-size: 16px;
+  }
+}
+
+:global(html[data-theme="dark"]) {
+  .reviews_section {
+    background: var(--color-background-primary);
+  }
+
+  .review_item {
+    background-color: var(--color-background-primary);
+    border-bottom-color: var(--color-stroke);
+  }
+
+  .reviewer_name {
+    color: var(--color-text-black);
+  }
+
+  .rating_value {
+    color: var(--color-text-black);
+  }
+
+  .review_service,
+  .review_worker,
+  .review_date {
+    color: var(--color-text-secondary);
+  }
+
+  .review_text {
+    color: var(--color-text-primary);
+  }
+
+  .loading,
+  .no_reviews {
+    color: var(--color-text-secondary);
   }
 }

@@ -317,3 +317,48 @@
     margin: 10px 0;
   }
 }
+
+:global(html[data-theme="dark"]) {
+  .section_item {
+    background-color: var(--color-background-primary);
+  }
+
+  .section_content,
+  .education_form {
+    background: var(--color-background-primary);
+    border-color: var(--color-stroke);
+  }
+
+  .education_item {
+    border-bottom-color: var(--color-stroke);
+  }
+
+  .education_header strong {
+    color: var(--color-text-primary);
+  }
+
+  .education_years {
+    color: var(--color-text-secondary);
+  }
+
+  .education_details {
+    color: var(--color-text-secondary);
+  }
+
+  .form_group {
+    label {
+      color: var(--color-text-primary);
+    }
+
+    input,
+    select {
+      background-color: var(--color-background-all);
+      border-color: var(--color-stroke);
+      color: var(--color-text-primary);
+    }
+  }
+
+  .empty_state {
+    color: var(--color-text-secondary);
+  }
+}

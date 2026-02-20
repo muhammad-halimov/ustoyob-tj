@@ -248,3 +248,18 @@
   }
 }
 
+:global(html[data-theme="dark"]) {
+  .main {
+    .searchResults .resultCard,
+    .performers .performers_orders,
+    .performers .performers_masters,
+    .searchMasters .searchMasters_item {
+      background: var(--color-background-primary);
+    }
+  }
+
+  .modalContent {
+    background: var(--color-background-primary);
+  }
+}
+

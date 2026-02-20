@@ -43,6 +43,7 @@ interface FormData {
     phoneOrEmail: string;
     role: 'master' | 'client';
     code: string;
+    dateOfBirth: string;
 }
 
 interface Category {
@@ -158,7 +159,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         newPassword: '',
         phoneOrEmail: '',
         role: 'client', // Безопасный дефолт (client вместо master)
-        code: ''
+        code: '',
+        dateOfBirth: ''
     });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string>('');
@@ -849,12 +851,17 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             password: string;
             roles?: string[];
             occupation?: string[];
+            dateOfBirth?: string;
         } = {
             email,
             name: formData.firstName,
             surname: formData.lastName,
             password: formData.password,
         };
+
+        if (formData.dateOfBirth) {
+            userData.dateOfBirth = new Date(formData.dateOfBirth).toISOString();
+        }
 
         // Формируем массив ролей - пробуем разные форматы
         const rolesArray = [];
@@ -1116,7 +1123,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
             newPassword: '',
             phoneOrEmail: '',
             role: 'client', // Безопасный дефолт (client вместо master)
-            code: ''
+            code: '',
+            dateOfBirth: ''
         });
         setError('');
         setCurrentState(AuthModalState.WELCOME);
@@ -1439,6 +1447,17 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                             placeholder={t('auth.enterLastName')}
                         />
                     </div>
+                </div>
+
+                <div className={styles.inputGroup}>
+                    <input
+                        type="date"
+                        name="dateOfBirth"
+                        value={formData.dateOfBirth}
+                        onChange={handleInputChange}
+                        disabled={isLoading}
+                        max={new Date(new Date().setFullYear(new Date().getFullYear() - 16)).toISOString().split('T')[0]}
+                    />
                 </div>
 
                 {formData.role === 'master' && (

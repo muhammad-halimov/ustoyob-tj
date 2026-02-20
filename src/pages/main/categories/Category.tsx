@@ -1,10 +1,10 @@
 import styles from "./Category.module.scss";
-import { AdBtn } from "../../shared/ui/Button/HeaderButton/AdBtn.tsx";
+import { AdBtn } from "../../../shared/ui/Button/HeaderButton/AdBtn.tsx";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ROUTES } from '../../app/routers/routes';
+import { ROUTES } from '../../../app/routers/routes.ts';
 import { useTranslation } from 'react-i18next';
-import { useLanguageChange } from '../../hooks/useLanguageChange';
+import { useLanguageChange } from '../../../hooks/useLanguageChange.ts';
 
 interface CategoryItem {
     id: number;

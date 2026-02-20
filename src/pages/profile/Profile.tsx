@@ -4,7 +4,7 @@ import {getAuthToken, handleUnauthorized} from '../../utils/auth.ts';
 import { ROUTES } from '../../app/routers/routes';
 import styles from './Profile.module.scss';
 
-import {fetchUserById} from "../../utils/api.ts";
+
 import {usePhotoGallery} from '../../shared/ui/PhotoGallery';
 import {AddressValue, buildAddressData} from '../../shared/ui/AddressSelector';
 import {getOccupations} from '../../utils/dataCache.ts';
@@ -34,11 +34,12 @@ import {WorkExamplesSection} from './shared/ui/WorkExamplesSection';
 import {WorkAreasSection} from './shared/ui/WorkAreasSection';
 import {ServicesSection} from './shared/ui/ServicesSection';
 import {ReviewsSection} from './shared/ui/ReviewsSection';
-import CookieConsentBanner from "../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
+import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 import StatusModal from '../../shared/ui/Modal/StatusModal';
 import ReviewModal from '../../shared/ui/Modal/ReviewModal';
 import ComplaintModal from '../../shared/ui/Modal/ComplaintModal';
 import AuthModal from '../../features/auth/AuthModal';
+import AuthBanner from '../../widgets/Banners/AuthBanner/AuthBanner';
 
 // Интерфейс для социальных сетей с API
 interface LocalAvailableSocialNetwork {
@@ -1464,6 +1465,7 @@ function Profile() {
                     .join(' ') || 'Фамилия Имя Отчество',
                 email: userData.email || undefined,
                 gender: (userData as any).gender || (userData as any).sex || undefined,
+                dateOfBirth: userData.dateOfBirth || undefined,
                 specialty: Array.isArray(userData.occupation) 
                     ? userData.occupation.map((occ) => typeof occ === 'object' && occ.title ? String(occ.title) : '').filter(Boolean).join(', ') || 'Специальность'
                     : 'Специальность',
@@ -1581,7 +1583,8 @@ function Profile() {
     };
 
     const updateUserRating = async (rating: number) => {
-        if (!profileData?.id) return;
+        // Only update rating for the authenticated user's own profile
+        if (readOnly || !profileData?.id) return;
 
         try {
             const token = getAuthToken();
@@ -1591,7 +1594,8 @@ function Profile() {
             }
 
             console.log(`Updating user rating to: ${rating}`);
-            const response = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
+            // Use /api/users/me for own profile so we never PATCH a wrong ID
+            const response = await fetch(`${API_BASE_URL}/api/users/me`, {
                 method: 'PATCH',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -1605,7 +1609,6 @@ function Profile() {
             if (response.status === 401) {
                 const refreshed = await handleUnauthorized();
                 if (refreshed) {
-                    // Повторяем запрос
                     updateUserRating(rating);
                 }
                 return;
@@ -1622,58 +1625,6 @@ function Profile() {
         } catch (error) {
             console.error('Error updating user rating:', error);
         }
-    };
-
-    const getUserInfo = async (userId: number, userType: 'master' | 'client'): Promise<{
-        id: number;
-        email: string;
-        name: string;
-        surname: string;
-        rating: number;
-        image: string;
-    }> => {
-        console.log(`Getting user info for ${userType} ID:`, userId);
-
-        if (!userId) {
-            console.log('No user ID provided');
-            return {
-                id: 0,
-                email: '',
-                name: userType === 'master' ? 'Мастер' : 'Клиент',
-                surname: '',
-                rating: 0,
-                image: ''
-            };
-        }
-
-        try {
-            const userData = await fetchUserById(userId);
-            if (userData) {
-                const avatarUrl = await getAvatarUrl(userData, userType);
-                const userInfo = {
-                    id: userData.id,
-                    email: userData.email || '',
-                    name: userData.name || '',
-                    surname: userData.surname || '',
-                    rating: typeof userData.rating === 'number' ? userData.rating : 0,
-                    image: avatarUrl || ''
-                };
-                console.log(`User info for ${userType}:`, userInfo);
-                return userInfo;
-            }
-        } catch (error) {
-            console.error(`Error fetching user info for ${userType} ID ${userId}:`, error);
-        }
-
-        console.log(`Using fallback for ${userType} ID:`, userId);
-        return {
-            id: userId,
-            email: '',
-            name: userType === 'master' ? 'Мастер' : 'Клиент',
-            surname: '',
-            rating: 0,
-            image: ''
-        };
     };
 
     const fetchReviews = async () => {
@@ -1754,15 +1705,34 @@ function Profile() {
                 const transformedReviews = await Promise.all(
                     reviewsArray.map(async (review) => {
                         console.log('Processing review:', review);
-                        const masterId = review.master?.id;
-                        const clientId = review.client?.id;
-                        console.log('Master ID from review:', masterId);
-                        console.log('Client ID from review:', clientId);
 
-                        const [masterData, clientData] = await Promise.all([
-                            masterId ? getUserInfo(masterId, 'master') : Promise.resolve(null),
-                            clientId ? getUserInfo(clientId, 'client') : Promise.resolve(null)
+                        // Use embedded master/client data from the review response instead of
+                        // making separate GET /api/users/{id} requests for each review.
+                        const masterRaw = review.master as any;
+                        const clientRaw = review.client as any;
+
+                        const [masterAvatarUrl, clientAvatarUrl] = await Promise.all([
+                            masterRaw ? getAvatarUrl(masterRaw as UserApiData, 'master') : Promise.resolve(null),
+                            clientRaw ? getAvatarUrl(clientRaw as UserApiData, 'client') : Promise.resolve(null)
                         ]);
+
+                        const masterData = masterRaw ? {
+                            id: masterRaw.id,
+                            email: '',
+                            name: masterRaw.name || '',
+                            surname: masterRaw.surname || '',
+                            rating: typeof masterRaw.rating === 'number' ? masterRaw.rating : 0,
+                            image: masterAvatarUrl || ''
+                        } : null;
+
+                        const clientData = clientRaw ? {
+                            id: clientRaw.id,
+                            email: '',
+                            name: clientRaw.name || '',
+                            surname: clientRaw.surname || '',
+                            rating: typeof clientRaw.rating === 'number' ? clientRaw.rating : 0,
+                            image: clientAvatarUrl || ''
+                        } : null;
 
                         console.log('Master data:', masterData);
                         console.log('Client data:', clientData);
@@ -1846,7 +1816,8 @@ function Profile() {
                     rating: newRating
                 } : null);
 
-                if (userReviews.length > 0) {
+                // Only PATCH if rating actually changed to avoid a write on every page load
+                if (userReviews.length > 0 && newRating !== profileData.rating) {
                     await updateUserRating(newRating);
                 }
 
@@ -3384,6 +3355,7 @@ function Profile() {
                     fullName={profileData.fullName}
                     email={profileData.email}
                     gender={profileData.gender}
+                    dateOfBirth={profileData.dateOfBirth}
                     specialty={profileData.specialty}
                     specialties={profileData.specialties}
                     rating={profileData.rating}
@@ -3413,6 +3385,11 @@ function Profile() {
                     onAddSpecialty={handleAddSpecialty}
                     onRemoveSpecialty={handleRemoveSpecialty}
                 />
+
+                {/* Баннер для неавторизованных пользователей */}
+                {readOnly && !getAuthToken() && (
+                    <AuthBanner onLoginClick={() => setShowAuthModal(true)} />
+                )}
 
                 {/* Секция "О себе" */}
                 <div className={styles.about_section}>

@@ -4496,3 +4496,37 @@
     color: black;
   }
 }
+
+:global(html[data-theme="dark"]) {
+  .profile_content {
+    background-color: var(--color-background-primary);
+  }
+
+  .name,
+  .rating {
+    color: var(--color-text-black);
+  }
+
+  .specialty,
+  .reviews {
+    color: var(--color-text-secondary);
+  }
+
+  .name_input,
+  .specialty_input {
+    border-color: var(--color-stroke);
+    color: var(--color-text-primary);
+    background: var(--color-background-primary);
+  }
+
+  .complaint_button {
+    background: var(--color-background-all);
+    color: var(--color-text-primary);
+    border-color: var(--color-stroke);
+
+    &:hover {
+      background: var(--color-background-secondary);
+      color: var(--color-text-primary);
+    }
+  }
+}

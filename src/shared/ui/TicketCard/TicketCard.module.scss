@@ -421,3 +421,26 @@
     }
   }
 }
+
+:global(html[data-theme="dark"]) {
+  .card {
+    background: var(--color-background-primary);
+    border-color: var(--color-stroke);
+
+    &_header h3,
+    &_description,
+    &_details span,
+    &_address,
+    &_date,
+    &_author,
+    &_rating .rating_value,
+    &_active_toggle .toggle_label {
+      color: var(--color-text-black);
+    }
+
+    &_price {
+      color: var(--color-text-black);
+      background-color: var(--color-background-all);
+    }
+  }
+}

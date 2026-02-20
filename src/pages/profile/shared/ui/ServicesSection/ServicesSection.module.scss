@@ -186,3 +186,38 @@
     font-size: 13px;
   }
 }
+
+:global(html[data-theme="dark"]) {
+  .section_item {
+    background-color: var(--color-background-primary);
+  }
+
+  .section_content {
+    background: var(--color-background-primary);
+  }
+
+  .service_item {
+    border-bottom-color: var(--color-stroke);
+
+    &:hover {
+      background-color: var(--color-background-all);
+    }
+  }
+
+  .service_title {
+    color: var(--color-text-primary);
+  }
+
+  .service_description {
+    color: var(--color-text-secondary);
+  }
+
+  .service_date {
+    color: var(--color-text-secondary);
+  }
+
+  .loading,
+  .empty_state {
+    color: var(--color-text-secondary);
+  }
+}

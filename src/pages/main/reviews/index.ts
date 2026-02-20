@@ -1,0 +1,1 @@
+export { MainReviewsSection } from './MainReviewsSection.tsx';

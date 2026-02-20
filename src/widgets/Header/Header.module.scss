@@ -510,3 +510,13 @@
     }
   }
 }
+
+:global(html[data-theme="dark"]) {
+  .header {
+    background-color: var(--color-background-primary);
+  }
+
+  .modalContent {
+    background: var(--color-background-primary);
+  }
+}

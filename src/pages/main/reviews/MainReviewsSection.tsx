@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ROUTES } from '../../app/routers/routes';
+import { ROUTES } from '../../../app/routers/routes.ts';
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
 import styles from './MainReviewsSection.module.scss';
-import { PhotoGallery, usePhotoGallery } from '../../shared/ui/PhotoGallery';
+import { PhotoGallery, usePhotoGallery } from '../../../shared/ui/PhotoGallery';
 
 interface MainReviewsSectionProps {
     className?: string;

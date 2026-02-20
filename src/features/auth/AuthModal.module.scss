@@ -687,3 +687,69 @@
 .passwordContainer {
   position: relative;
 }
+
+:global(html[data-theme="dark"]) {
+  .modalContent {
+    background: var(--color-background-primary);
+    color: var(--color-text-primary);
+  }
+
+  .closeButton {
+    color: var(--color-text-secondary);
+
+    &:hover {
+      color: var(--color-text-primary);
+      background: var(--color-background-all);
+    }
+  }
+
+  .form h2,
+  .welcomeScreen h2 {
+    color: var(--color-text-primary);
+  }
+
+  .roleSelector {
+    background: var(--color-background-all);
+
+    button {
+      background: var(--color-background-all);
+      color: var(--color-text-primary);
+
+      &:hover:not(.roleButtonActive) {
+        background: var(--color-background-secondary);
+      }
+    }
+  }
+
+  .inputGroup {
+    select,
+    input {
+      background-color: var(--color-background-all);
+      color: var(--color-text-primary);
+
+      &:focus {
+        background-color: var(--color-background-primary);
+      }
+
+      option {
+        background: var(--color-background-primary);
+      }
+    }
+  }
+
+  .secondaryButton {
+    background: var(--color-background-primary);
+
+    &:hover:not(:disabled) {
+      background: var(--color-background-all);
+    }
+  }
+
+  .subtitle {
+    color: var(--color-text-secondary);
+  }
+
+  .passwordStrength {
+    background-color: var(--color-background-all);
+  }
+}

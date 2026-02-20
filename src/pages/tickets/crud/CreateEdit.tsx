@@ -4,7 +4,7 @@ import { ROUTES } from '../../../app/routers/routes.ts';
 import styles from './CreateEdit.module.scss';
 import { getAuthToken, getUserRole } from '../../../utils/auth.ts';
 import AddressSelector, { AddressValue, buildAddressData } from '../../../shared/ui/AddressSelector';
-import CookieConsentBanner from "../../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
+import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 import StatusModal from '../../../shared/ui/Modal/StatusModal';
 import { PhotoGallery, usePhotoGallery } from '../../../shared/ui/PhotoGallery';
 

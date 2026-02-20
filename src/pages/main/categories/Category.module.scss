@@ -1,4 +1,4 @@
-@use '../../app/styles/variables' as vars;
+@use '../../../app/styles/variables' as vars;
 @use 'sass:map';
 
 .category {
@@ -193,6 +193,18 @@
   .category {
     .category_item {
       grid-template-columns: 1fr;
+    }
+  }
+}
+
+:global(html[data-theme="dark"]) {
+  .category {
+    .category_item .category_item_step {
+      background-color: var(--color-background-primary);
+
+      p {
+        color: var(--color-text-black);
+      }
     }
   }
 }

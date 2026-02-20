@@ -7,7 +7,7 @@ import styles from "./Chat.module.scss";
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { IoSend, IoAttach, IoClose, IoImages, IoArchiveOutline, IoArchiveSharp } from "react-icons/io5";
 import { PhotoGallery, usePhotoGallery } from '../../shared/ui/PhotoGallery';
-import CookieConsentBanner from "../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
+import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 
 interface Message {
     id: number;

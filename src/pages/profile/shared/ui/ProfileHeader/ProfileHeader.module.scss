@@ -500,6 +500,22 @@
   }
 }
 
+.age_tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #E8ECFF;
+  color: #3A54DA;
+  padding: 8px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+
+  span {
+    line-height: 1;
+  }
+}
+
 .email_tag {
   display: inline-flex;
   align-items: center;
@@ -545,5 +561,42 @@
   
   .email_tag a {
     max-width: 160px;
+  }
+}
+
+:global(html[data-theme="dark"]) {
+  .profile_content {
+    background-color: var(--color-background-primary);
+  }
+
+  .name,
+  .rating {
+    color: var(--color-text-black);
+  }
+
+  .specialty,
+  .reviews {
+    color: var(--color-text-secondary);
+  }
+
+  .name_input {
+    border-color: var(--color-stroke);
+    color: var(--color-text-primary);
+    background: var(--color-background-primary);
+  }
+
+  .specialty_select {
+    border-color: var(--color-stroke);
+    color: var(--color-text-secondary);
+    background: var(--color-background-primary);
+  }
+
+  .cancel_occupations_btn {
+    border-color: var(--color-stroke);
+    color: var(--color-text-secondary);
+
+    &:hover {
+      background: var(--color-background-all);
+    }
   }
 }

@@ -1,9 +1,9 @@
 import styles from "./Main.module.scss";
-import Search from "../../../features/search/Search.tsx";
+import Search from "../../../features/search/search/Search.tsx";
 import { AdBtn } from "../../../shared/ui/Button/HeaderButton/AdBtn.tsx";
-import Category from "../../../widgets/Category/Category.tsx";
-import { MainReviewsSection } from "../../../features/reviews";
-import Recommendations from "../../../widgets/Recommendations/Recommendations.tsx";
+import Category from "../categories/Category.tsx";
+import { MainReviewsSection } from "../reviews";
+import Recommendations from "../recommendations/Recommendations.tsx";
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ROUTES } from '../../../app/routers/routes';
@@ -11,7 +11,7 @@ import { getUserRole } from "../../../utils/auth.ts";
 import { useTranslation } from "react-i18next";
 
 import "swiper/css";
-import CookieConsentBanner from "../../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
+import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 
 interface SearchResult {
     id: number;

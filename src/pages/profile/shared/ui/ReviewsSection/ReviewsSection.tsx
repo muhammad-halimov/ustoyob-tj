@@ -140,10 +140,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
     };
 
     const isWorkerClickable = () => {
-        // Worker кликабельный если это не профиль самого человека
-        // Для мастера: worker это он сам - НЕ кликабельный
-        // Для клиента: worker это он сам - НЕ кликабельный
-        return false; // Worker всегда показывает владельца профиля, поэтому не кликабельный
+        return true;
     };
     // Собираем все изображения из отзывов для галереи
     const reviewGalleryImages = useMemo(() => {
@@ -224,7 +221,12 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                 }}
                                             />
                                             <div className={styles.reviewer_main_info}>
-                                                <div className={styles.reviewer_name}>{getReviewAuthorName(review)}</div>
+                                                <div
+                                                    className={`${styles.reviewer_name} ${styles.reviewer_name_link}`}
+                                                    onClick={() => handleAuthorClick(review)}
+                                                >
+                                                    {getReviewAuthorName(review)}
+                                                </div>
                                                 <div className={styles.review_service}>
                                                     <span 
                                                         className={`${styles.service_title} ${onServiceClick ? styles.clickable : ''}`}
@@ -364,7 +366,12 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                             }}
                                                         />
                                                         <div className={styles.reviewer_main_info}>
-                                                            <div className={styles.reviewer_name}>{getReviewAuthorName(review)}</div>
+                                                            <div
+                                                                className={`${styles.reviewer_name} ${styles.reviewer_name_link}`}
+                                                                onClick={() => handleAuthorClick(review)}
+                                                            >
+                                                                {getReviewAuthorName(review)}
+                                                            </div>
                                                             <div className={styles.review_service}>
                                                                 <span 
                                                                     className={`${styles.service_title} ${onServiceClick ? styles.clickable : ''}`}
@@ -497,7 +504,12 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                         }}
                                                     />
                                                     <div className={styles.reviewer_main_info}>
-                                                        <div className={styles.reviewer_name}>{getReviewAuthorName(review)}</div>
+                                                        <div
+                                                            className={`${styles.reviewer_name} ${styles.reviewer_name_link}`}
+                                                            onClick={() => handleAuthorClick(review)}
+                                                        >
+                                                            {getReviewAuthorName(review)}
+                                                        </div>
                                                         <div className={styles.review_service}>
                                                             <span 
                                                                 className={`${styles.service_title} ${onServiceClick ? styles.clickable : ''}`}

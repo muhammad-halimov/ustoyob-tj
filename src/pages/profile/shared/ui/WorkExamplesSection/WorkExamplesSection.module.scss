@@ -167,3 +167,26 @@
     height: 100px;
   }
 }
+
+:global(html[data-theme="dark"]) {
+  .section_item {
+    background-color: var(--color-background-primary);
+  }
+
+  .section_content {
+    background: var(--color-background-primary);
+  }
+
+  .empty_state {
+    color: var(--color-text-secondary);
+  }
+
+  .show_more_work_button {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+
+    &:hover {
+      background: var(--color-primary);
+    }
+  }
+}

@@ -1,5 +1,5 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
-import {MainPage} from '../../pages/main/ui/Main.tsx';
+import {MainPage} from '../../pages/main/main/Main.tsx';
 import Layout from "../layouts/Layout.tsx";
 import Favorites from "../../pages/favorites/Favorites.tsx";
 import Chat from "../../pages/chats/Chat.tsx";

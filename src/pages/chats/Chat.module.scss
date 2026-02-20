@@ -1727,3 +1727,13 @@
     color: #333;
   }
 }
+
+:global(html[data-theme="dark"]) {
+  .clearSearchButton {
+    color: var(--color-text-secondary);
+
+    &:hover {
+      color: var(--color-text-primary);
+    }
+  }
+}

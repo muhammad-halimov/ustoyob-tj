@@ -5,7 +5,7 @@ import { getAuthToken } from '../../../utils/auth.ts';
 import styles from './MyTickets.module.scss';
 import AuthModal from '../../../features/auth/AuthModal.tsx';
 import { TicketCard } from '../../../shared/ui/TicketCard/TicketCard.tsx';
-import CookieConsentBanner from "../../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
+import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 import StatusModal from '../../../shared/ui/Modal/StatusModal';
 
 interface ApiUser {

@@ -235,3 +235,9 @@
     }
   }
 }
+
+:global(html[data-theme="dark"]) {
+  .photo_modal_content {
+    background: var(--color-shadow-overlay);
+  }
+}

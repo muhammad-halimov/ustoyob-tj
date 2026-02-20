@@ -1,4 +1,4 @@
-@use '../../app/styles/variables' as vars;
+@use '../../../app/styles/variables' as vars;
 @use 'sass:map';
 
 .filters_panel {
@@ -373,6 +373,49 @@
 
     .star_label {
       font-size: map.get(vars.$font-sizes, sm);
+    }
+  }
+}
+
+:global(html[data-theme="dark"]) {
+  .filters_panel {
+    background: var(--color-background-primary);
+  }
+
+  .filters_header h2,
+  .filter_section h3,
+  .characteristic_item .characteristic_title h3,
+  .characteristic_item .characteristic_title span {
+    color: var(--color-text-black);
+  }
+
+  .price_inputs {
+    background-color: var(--color-background-all);
+
+    .price_input input {
+      background: var(--color-background-primary);
+      color: var(--color-text-black);
+    }
+  }
+
+  .category_select select {
+    background: var(--color-background-primary);
+    color: var(--color-text-black);
+    border-color: var(--color-stroke);
+  }
+
+  .activeFilters {
+    background: var(--color-background-all);
+
+    span:first-child {
+      color: var(--color-text-black);
+    }
+  }
+
+  .filter_actions {
+    .cancel_btn {
+      background: var(--color-background-all);
+      color: var(--color-text-black);
     }
   }
 }

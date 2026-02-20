@@ -1,4 +1,4 @@
-@use '../../app/styles/variables' as vars;
+@use '../../../app/styles/variables' as vars;
 @use 'sass:map';
 
 .container {
@@ -447,4 +447,52 @@
 .cityName {
   color: var(--color-text-secondary);
   font-size: 14px;
+}
+
+:global(html[data-theme="dark"]) {
+  .search {
+    background: var(--color-background-primary);
+
+    .title {
+      color: var(--color-text-black);
+    }
+
+    .search_wrap {
+      .input {
+        background-color: var(--color-background-primary);
+        color: var(--color-text-primary);
+      }
+    }
+  }
+
+  .searchResults {
+    .resultCard {
+      background: var(--color-background-primary);
+      border-color: var(--color-stroke);
+
+      .resultHeader h3,
+      .description,
+      .resultDetails span,
+      .resultDetails .category {
+        color: var(--color-text-primary);
+      }
+
+      .resultDetails .price,
+      .resultDetails .category {
+        background-color: var(--color-background-all);
+      }
+    }
+  }
+
+  .modalContent {
+    background: var(--color-background-primary);
+  }
+
+  .modalHeader {
+    border-bottom-color: var(--color-stroke);
+
+    h2 {
+      color: var(--color-text-secondary);
+    }
+  }
 }

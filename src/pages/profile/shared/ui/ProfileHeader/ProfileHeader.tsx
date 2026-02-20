@@ -7,6 +7,7 @@ interface ProfileHeaderProps {
     fullName: string;
     email?: string;
     gender?: string;
+    dateOfBirth?: string;
     specialty: string;
     specialties?: string[];
     rating: number;
@@ -38,6 +39,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     fullName,
     email,
     gender,
+    dateOfBirth,
     specialty,
     specialties = [],
     rating,
@@ -69,6 +71,19 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         if (value === 'female' || value === 'gender_female') return 'Женский';
         return 'Не указано';
     };
+
+    const calculateAge = (dob: string | undefined): number | null => {
+        if (!dob) return null;
+        const birth = new Date(dob);
+        if (isNaN(birth.getTime())) return null;
+        const today = new Date();
+        let age = today.getFullYear() - birth.getFullYear();
+        const m = today.getMonth() - birth.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+        return age > 0 ? age : null;
+    };
+
+    const age = calculateAge(dateOfBirth);
 
     // Ensure displaySpecialties contains only strings
     const safeSpecialties = specialties.length > 0 
@@ -194,6 +209,11 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                                                 >
                                                     <span>{getGenderDisplay(gender)}</span>
                                                 </div>
+                                                {age !== null && (
+                                                    <div className={styles.age_tag}>
+                                                        <span>{age} лет</span>
+                                                    </div>
+                                                )}
                                                 {email && (
                                                     <div className={styles.email_tag}>
                                                         <a href={`mailto:${email}`}>{email}</a>

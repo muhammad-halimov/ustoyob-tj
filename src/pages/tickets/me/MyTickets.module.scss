@@ -508,3 +508,16 @@
     }
   }
 }
+
+:global(html[data-theme="dark"]) {
+  .ticketCard {
+    h3 {
+      color: var(--color-text-primary);
+    }
+
+    .price {
+      color: var(--color-text-primary);
+      background-color: var(--color-background-all);
+    }
+  }
+}

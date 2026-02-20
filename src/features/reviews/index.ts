@@ -1,1 +1,0 @@
-export { MainReviewsSection } from './MainReviewsSection';

@@ -1,4 +1,4 @@
-@use '../../app/styles/variables' as vars;
+@use '../../../app/styles/variables' as vars;
 @use 'sass:map';
 
 .main_reviews {
@@ -416,5 +416,17 @@
   &:hover {
     background: #2a44ca;
     color: black;
+  }
+}
+
+:global(html[data-theme="dark"]) {
+  .reviews_wrap .reviews_item {
+    background-color: var(--color-background-primary);
+  }
+
+  .main_reviews {
+    h3 {
+      color: var(--color-text-primary);
+    }
   }
 }

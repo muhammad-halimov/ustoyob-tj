@@ -78,3 +78,14 @@
     }
   }
 }
+
+:global(html[data-theme="dark"]) {
+  .modalContent {
+    background: var(--color-background-primary);
+    color: var(--color-text-primary);
+
+    .message {
+      color: var(--color-text-secondary);
+    }
+  }
+}

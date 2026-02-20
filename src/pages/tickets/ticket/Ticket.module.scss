@@ -997,3 +997,48 @@
     white-space: nowrap;
   }
 }
+
+:global(html[data-theme="dark"]) {
+  .orderCard {
+    background: var(--color-background-primary);
+  }
+
+  .orderTitle {
+    color: var(--color-text-primary);
+  }
+
+  .section {
+    .section_about,
+    .section_more,
+    h2 {
+      color: var(--color-text-black);
+    }
+
+    .commentsContent {
+      background-color: var(--color-background-all);
+      color: var(--color-text-secondary);
+    }
+  }
+
+  .description {
+    color: var(--color-text-black);
+  }
+
+  .address,
+  .published {
+    color: var(--color-text-black);
+    border-color: var(--color-stroke);
+  }
+
+  .authorInfo h3 {
+    color: var(--color-text-primary);
+  }
+
+  .timeAgo {
+    color: var(--color-text-secondary);
+  }
+
+  .toggle_label {
+    color: var(--color-text-black);
+  }
+}

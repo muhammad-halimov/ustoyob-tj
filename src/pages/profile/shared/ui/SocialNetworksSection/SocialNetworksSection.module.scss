@@ -423,3 +423,41 @@
     padding: 10px 12px;
   }
 }
+
+:global(html[data-theme="dark"]) {
+  .section_item {
+    background-color: var(--color-background-primary);
+  }
+
+  .section_content {
+    background: var(--color-background-primary);
+  }
+
+  .social_network_item {
+    background: var(--color-background-primary);
+    border-color: var(--color-stroke);
+
+    &:hover {
+      background: var(--color-background-all);
+    }
+  }
+
+  .social_network_name {
+    color: var(--color-text-primary);
+  }
+
+  .social_network_handle {
+    background: var(--color-background-all);
+    border-color: var(--color-stroke);
+  }
+
+  .social_input {
+    background: var(--color-background-primary);
+    border-color: var(--color-stroke);
+    color: var(--color-text-primary);
+  }
+
+  .empty_social_networks {
+    color: var(--color-text-secondary);
+  }
+}

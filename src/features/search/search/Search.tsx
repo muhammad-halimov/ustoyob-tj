@@ -1,16 +1,16 @@
 import styles from './Search.module.scss';
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import FilterPanel, { FilterState } from "../filters/FilterPanel.tsx";
-import { getAuthToken, getUserRole } from "../../utils/auth";
+import { getAuthToken, getUserRole } from "../../../utils/auth.ts";
 import { useNavigate } from "react-router-dom";
-import { ROUTES } from '../../app/routers/routes';
-import {cleanText} from "../../utils/cleanText.ts";
+import { ROUTES } from '../../../app/routers/routes.ts';
+import {cleanText} from "../../../utils/cleanText.ts";
 import { useTranslation } from 'react-i18next';
-import { useLanguageChange } from "../../hooks/useLanguageChange";
-import { TicketCard } from "../../shared/ui/TicketCard/TicketCard.tsx";
-import { ServiceTypeFilter } from "../../widgets/Sorting/ServiceTypeFilter";
-import { SortingFilter } from "../../widgets/Sorting/SortingFilter";
-import { getCities, getOccupations } from "../../utils/dataCache.ts";
+import { useLanguageChange } from "../../../hooks/useLanguageChange.ts";
+import { TicketCard } from "../../../shared/ui/TicketCard/TicketCard.tsx";
+import { ServiceTypeFilter } from "../../../widgets/Sorting/ServiceTypeFilter";
+import { SortingFilter } from "../../../widgets/Sorting/SortingFilter";
+import { getCities, getOccupations } from "../../../utils/dataCache.ts";
 
 // Интерфейсы
 interface ApiTicket {

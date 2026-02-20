@@ -237,3 +237,47 @@
     margin-bottom: 20px;
   }
 }
+
+:global(html[data-theme="dark"]) {
+  .section_item {
+    background-color: var(--color-background-primary);
+  }
+
+  .section_content {
+    background: var(--color-background-primary);
+  }
+
+  .list_item {
+    border-bottom-color: var(--color-stroke);
+  }
+
+  .edit_form {
+    border-bottom-color: var(--color-stroke);
+  }
+
+  .form_group {
+    label {
+      color: var(--color-text-primary);
+    }
+
+    input,
+    select {
+      background-color: var(--color-background-all);
+      border-color: var(--color-stroke);
+      color: var(--color-text-primary);
+    }
+  }
+
+  .cancel_button {
+    background: var(--color-background-all);
+    color: var(--color-text-secondary);
+
+    &:hover {
+      background: var(--color-background-secondary);
+    }
+  }
+
+  .empty_state {
+    color: var(--color-text-secondary);
+  }
+}

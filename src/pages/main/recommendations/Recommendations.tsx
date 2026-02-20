@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getUserRole, getAuthToken, getUserData } from '../../utils/auth.ts';
-import { useLanguageChange } from '../../hooks/useLanguageChange';
-import { TicketCard } from '../../shared/ui/TicketCard/TicketCard.tsx';
+import { getUserRole, getAuthToken, getUserData } from '../../../utils/auth.ts';
+import { useLanguageChange } from '../../../hooks/useLanguageChange.ts';
+import { TicketCard } from '../../../shared/ui/TicketCard/TicketCard.tsx';
 import styles from './Recommendations.module.scss';
 import { useTranslation } from 'react-i18next';
-import { ROUTES } from '../../app/routers/routes';
+import { ROUTES } from '../../../app/routers/routes.ts';
 
 interface Announcement {
     id: number;
@@ -53,6 +53,7 @@ interface Announcement {
         rating?: number;
         reviewCount?: number;
     };
+    reviewsCount?: number;
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -222,6 +223,9 @@ function Recommendations() {
 
     // Функция для получения количества отзывов
     const getUserReviewCount = (announcement: Announcement): number => {
+        if (announcement.reviewsCount !== undefined) {
+            return announcement.reviewsCount;
+        }
         if (announcement.service && announcement.master?.reviewCount !== undefined) {
             return announcement.master.reviewCount;
         } else if (!announcement.service && announcement.author?.reviewCount !== undefined) {

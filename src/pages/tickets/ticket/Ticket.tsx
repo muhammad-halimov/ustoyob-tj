@@ -5,7 +5,7 @@ import styles from './Ticket.module.scss';
 import {createChatWithAuthor, initChatModals} from "../../../utils/chatUtils.ts";
 import AuthModal from "../../../features/auth/AuthModal.tsx";
 import {cleanText} from "../../../utils/cleanText.ts";
-import CookieConsentBanner from "../../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
+import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 import StatusModal from '../../../shared/ui/Modal/StatusModal';
 import ReviewModal from '../../../shared/ui/Modal/ReviewModal';
 import ComplaintModal from '../../../shared/ui/Modal/ComplaintModal/ComplaintModal';

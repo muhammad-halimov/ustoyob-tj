@@ -892,3 +892,53 @@
     }
   }
 }
+
+:global(html[data-theme="dark"]) {
+  .container_wrap,
+  .form {
+    background: var(--color-background-primary);
+  }
+
+  .header h1,
+  .section h2 {
+    color: var(--color-text-primary);
+  }
+
+  .province_section h3,
+  .combined_section h3,
+  .cities_container h4,
+  .districts_container h4,
+  .suburbs_section h3,
+  .nested_selection_section h3,
+  .communities_container h4,
+  .settlements_container h4,
+  .villages_section h4,
+  .city_section h3 {
+    color: var(--color-text-primary);
+  }
+
+  .titleInput,
+  .categorySelect {
+    background-color: var(--color-background-all);
+    color: var(--color-text-primary);
+  }
+
+  .province_card,
+  .city_card {
+    background-color: var(--color-background-all);
+    border-color: var(--color-stroke);
+    color: var(--color-text-primary);
+
+    &:hover {
+      background-color: var(--color-background-secondary);
+    }
+  }
+
+  .province_section,
+  .combined_section,
+  .suburbs_section,
+  .nested_selection_section,
+  .villages_section {
+    border-bottom-color: var(--color-stroke);
+  }
+}

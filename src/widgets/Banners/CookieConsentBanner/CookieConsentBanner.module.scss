@@ -153,3 +153,9 @@
     transform: translateY(0);
   }
 }
+
+:global(html[data-theme="dark"]) {
+  .cookieBanner {
+    background: var(--color-background-btn);
+  }
+}

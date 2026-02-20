@@ -1,4 +1,4 @@
-@use '../../app/styles/variables' as vars;
+@use '../../../app/styles/variables' as vars;
 @use 'sass:map';
 
 .recommendation {
@@ -42,6 +42,14 @@
       font-size: 24px;
       font-weight: 600;
       margin-bottom: 20px;
+    }
+  }
+}
+
+:global(html[data-theme="dark"]) {
+  .recommendation {
+    &__title {
+      color: var(--color-text-black);
     }
   }
 }

@@ -9,7 +9,7 @@ import { TicketCard } from '../../../shared/ui/TicketCard/TicketCard.tsx';
 import { ServiceTypeFilter } from '../../../widgets/Sorting/ServiceTypeFilter';
 import { SortingFilter } from '../../../widgets/Sorting/SortingFilter';
 import { useTranslation } from 'react-i18next';
-import CookieConsentBanner from "../../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
+import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 import { getOccupations } from '../../../utils/dataCache.ts';
 import { truncateText } from '../../../shared/ui/TicketCard/TicketCard.tsx';
 
@@ -89,6 +89,7 @@ interface Ticket {
     }>;
     createdAt: string;
     updatedAt: string;
+    reviewsCount?: number;
 }
 
 interface FormattedTicket {
@@ -431,17 +432,19 @@ function Category() {
                 return;
             }
 
-            console.log('🔍 TERNARY CHECK - userRole === "client":', userRole === 'client');
-            console.log('🔍 TERNARY CHECK - userRole === "master":', userRole === 'master');
-            console.log('🔍 TERNARY CHECK - userRole value:', userRole, 'type:', typeof userRole);
-            console.log('🔍 TERNARY CHECK - showOnlyServices:', showOnlyServices);
-            console.log('🔍 TERNARY CHECK - showOnlyAnnouncements:', showOnlyAnnouncements);
-
             // Формируем базовый endpoint с учетом фильтров "Только услуги" и "Только объявления"
             let endpoint = '';
             
             if (userRole === 'client') {
-                endpoint = `/api/tickets?locale=${locale}&active=true&service=true&exists[author]=false&exists[master]=true&category=${id}${selectedSubcategory ? `&subcategory=${selectedSubcategory}` : ''}${currentUserId ? `&master.id[ne]=${currentUserId}` : ''}`;
+                // Для клиентов: применяем фильтры (аналогично неавторизованным)
+                if (showOnlyServices) {
+                    endpoint = `/api/tickets?locale=${locale}&active=true&service=true&exists[author]=false&exists[master]=true&category=${id}${selectedSubcategory ? `&subcategory=${selectedSubcategory}` : ''}${currentUserId ? `&master.id[ne]=${currentUserId}` : ''}`;
+                } else if (showOnlyAnnouncements) {
+                    endpoint = `/api/tickets?locale=${locale}&active=true&service=false&exists[author]=true&exists[master]=false&category=${id}${selectedSubcategory ? `&subcategory=${selectedSubcategory}` : ''}${currentUserId ? `&author.id[ne]=${currentUserId}` : ''}`;
+                } else {
+                    // Все объявления (без фильтра service)
+                    endpoint = `/api/tickets?locale=${locale}&active=true&category=${id}${selectedSubcategory ? `&subcategory=${selectedSubcategory}` : ''}${currentUserId ? `&author.id[ne]=${currentUserId}&master.id[ne]=${currentUserId}` : ''}`;
+                }
             } else if (userRole === 'master') {
                 endpoint = `/api/tickets?locale=${locale}&active=true&service=false&exists[author]=true&exists[master]=false&category=${id}${selectedSubcategory ? `&subcategory=${selectedSubcategory}` : ''}${currentUserId ? `&author.id[ne]=${currentUserId}` : ''}`;
             } else {
@@ -505,7 +508,7 @@ function Category() {
                     type: isMasterTicket ? 'master' : 'client',
                     authorImage: author?.image ? formatProfileImageUrl(author.image) : undefined,
                     userRating: author?.rating || 0,
-                    userReviewCount: 0 // Пока устанавливаем 0, позже добавим реальное получение
+                    userReviewCount: ticket.reviewsCount || 0
                 };
             });
 

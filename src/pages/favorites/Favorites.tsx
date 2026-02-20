@@ -8,7 +8,9 @@ import { cleanText } from '../../utils/cleanText';
 import { useTranslation } from 'react-i18next';
 import { useLanguageChange } from '../../hooks/useLanguageChange';
 import { TicketCard } from '../../shared/ui/TicketCard/TicketCard.tsx';
-import CookieConsentBanner from "../../widgets/CookieConsentBanner/CookieConsentBanner.tsx";
+import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
+import { ServiceTypeFilter } from '../../widgets/Sorting/ServiceTypeFilter/ServiceTypeFilter';
+import { SortingFilter } from '../../widgets/Sorting/SortingFilter/SortingFilter';
 
 interface FavoriteTicket {
     id: number;
@@ -85,22 +87,41 @@ interface Favorite {
     tickets: Array<{
         id: number;
         title: string;
+        description: string;
+        budget: number;
+        unit: { id: number; title: string };
         active: boolean;
+        service: boolean;
+        createdAt: string;
+        reviewsCount?: number;
+        category: { title: string };
+        subcategory?: { title: string } | null;
         author: {
             id: number;
             email: string;
             name: string;
             surname: string;
             image: string;
-        };
+            rating?: number;
+        } | null;
         master: {
             id: number;
             email: string;
             name: string;
             surname: string;
             image: string;
-        };
-        service: boolean;
+            rating?: number;
+        } | null;
+        addresses?: Array<{
+            id: number;
+            province?: { id: number; title: string };
+            city?: { image: string | null; id: number; title: string };
+            district?: { id: number; title: string };
+            suburb?: { id: number; title: string };
+            village?: { id: number; title: string };
+            settlement?: { id: number; title: string };
+            community?: { id: number; title: string };
+        }>;
     }>;
 }
 
@@ -136,6 +157,7 @@ interface ApiTicket {
     active: boolean;
     notice?: string;
     service: boolean;
+    reviewsCount?: number;
     images?: { id: number; image: string }[];
 }
 
@@ -169,6 +191,10 @@ interface TicketData {
     service?: boolean;
 }
 
+type SortByType = 'newest' | 'oldest' | 'price-asc' | 'price-desc' | 'reviews-asc' | 'reviews-desc' | 'rating-asc' | 'rating-desc';
+type SecondarySortByType = 'none' | SortByType;
+type TimeFilterType = 'all' | 'today' | 'yesterday' | 'week' | 'month';
+
 function Favorites() {
     const [favoriteTickets, setFavoriteTickets] = useState<FavoriteTicket[]>([]);
     const [favoriteMasters, setFavoriteMasters] = useState<Master[]>([]);
@@ -178,6 +204,23 @@ function Favorites() {
     const [likedTickets, setLikedTickets] = useState<number[]>([]);
     const [isLikeLoading, setIsLikeLoading] = useState<number | null>(null);
     const [favoriteId, setFavoriteId] = useState<number | null>(null);
+
+    // Фильтры
+    const [showOnlyServices, setShowOnlyServices] = useState(false);
+    const [showOnlyAnnouncements, setShowOnlyAnnouncements] = useState(false);
+    const [sortBy, setSortBy] = useState<SortByType>('newest');
+    const [secondarySortBy, setSecondarySortBy] = useState<SecondarySortByType>('none');
+    const [timeFilter, setTimeFilter] = useState<TimeFilterType>('all');
+
+    const handleServiceToggle = () => {
+        setShowOnlyServices(prev => !prev);
+        if (!showOnlyServices) setShowOnlyAnnouncements(false);
+    };
+
+    const handleAnnouncementsToggle = () => {
+        setShowOnlyAnnouncements(prev => !prev);
+        if (!showOnlyAnnouncements) setShowOnlyServices(false);
+    };
     const navigate = useNavigate();
     const userRole = getUserRole();
     const { t } = useTranslation(['components', 'common']);
@@ -282,72 +325,68 @@ function Favorites() {
     };
 
 
-    const fetchTicketDetailsForUnauthorized = async (ticketId: number): Promise<FavoriteTicket | null> => {
+    const fetchTicketDetails = async (ticketId: number): Promise<FavoriteTicket | null> => {
         try {
-            // Для неавторизованных используем тот же эндпоинт без токена
-            const response = await fetch(`${API_BASE_URL}/api/tickets?locale=${localStorage.getItem('i18nextLng') || 'ru'}`, {
+            const token = getAuthToken();
+            const locale = localStorage.getItem('i18nextLng') || 'ru';
+
+            const response = await fetch(`${API_BASE_URL}/api/tickets/${ticketId}?locale=${locale}`, {
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    ...(token && { 'Authorization': `Bearer ${token}` })
                 }
             });
 
-            if (response.ok) {
-                const ticketsData: ApiTicket[] = await response.json();
-                console.log(`Found ${ticketsData.length} tickets for unauthorized user`);
-
-                // Ищем тикет по ID
-                const ticket = ticketsData.find(t => t.id === ticketId);
-
-                if (ticket) {
-                    console.log(`Found ticket ${ticketId} for unauthorized user:`, ticket);
-
-                    // Определяем тип пользователя
-                    const isMasterTicket = !!ticket.master?.id;
-                    const userType = isMasterTicket ? 'master' : 'client';
-                    const authorId = isMasterTicket
-                        ? ticket.master?.id || 0
-                        : ticket.author?.id || 0;
-
-                    // Определяем имя автора
-                    let authorName = 'Неизвестный';
-                    if (isMasterTicket && ticket.master) {
-                        authorName = `${ticket.master.name || ''} ${ticket.master.surname || ''}`.trim() || 'Мастер';
-                    } else if (ticket.author) {
-                        authorName = `${ticket.author.name || ''} ${ticket.author.surname || ''}`.trim() || 'Клиент';
-                    }
-
-                    return {
-                        id: ticket.id,
-                        title: ticket.title || 'Без названия',
-                        price: ticket.budget || 0,
-                        unit: ticket.unit?.title || 'tjs',
-                        description: ticket.description || 'Описание отсутствует',
-                        address: getFullAddress(ticket),
-                        date: ticket.createdAt,
-                        author: authorName,
-                        authorId: authorId,
-                        timeAgo: ticket.createdAt,
-                        category: ticket.category?.title || 'другое',
-                        subcategory: ticket.subcategory?.title,
-                        status: getTicketStatus(ticket.active, ticket.service),
-                        type: userType,
-                        active: ticket.active,
-                        service: ticket.service,
-                        userRating: isMasterTicket ? (ticket.master?.rating || 0) : (ticket.author?.rating || 0),
-                        userReviewCount: 0 // Пока 0, позже добавим реальное получение
-                    };
-                }
+            if (!response.ok) {
+                console.error(`Error fetching ticket ${ticketId}, status:`, response.status);
+                return null;
             }
 
-            console.log(`Ticket with ID ${ticketId} not found for unauthorized user`);
-            return null;
+            const ticket: ApiTicket = await response.json();
+
+            const isMasterTicket = ticket.service === true;
+            const userType = isMasterTicket ? 'master' : 'client';
+            const authorId = isMasterTicket
+                ? ticket.master?.id || 0
+                : ticket.author?.id || 0;
+
+            let authorName = 'Неизвестный';
+            if (isMasterTicket && ticket.master) {
+                authorName = `${ticket.master.name || ''} ${ticket.master.surname || ''}`.trim() || 'Мастер';
+            } else if (ticket.author) {
+                authorName = `${ticket.author.name || ''} ${ticket.author.surname || ''}`.trim() || 'Клиент';
+            }
+
+            return {
+                id: ticket.id,
+                title: ticket.title || 'Без названия',
+                price: ticket.budget || 0,
+                unit: ticket.unit?.title || 'tjs',
+                description: ticket.description || 'Описание отсутствует',
+                address: getFullAddress(ticket),
+                date: ticket.createdAt,
+                author: authorName,
+                authorId: authorId,
+                timeAgo: ticket.createdAt,
+                category: ticket.category?.title || 'другое',
+                subcategory: ticket.subcategory?.title,
+                status: getTicketStatus(ticket.active, ticket.service),
+                type: userType,
+                active: ticket.active,
+                service: ticket.service,
+                userRating: isMasterTicket ? (ticket.master?.rating || 0) : (ticket.author?.rating || 0),
+                userReviewCount: ticket.reviewsCount || 0
+            };
 
         } catch (error) {
-            console.error('Error fetching ticket details for unauthorized:', error);
+            console.error(`Error fetching ticket details for ID ${ticketId}:`, error);
             return null;
         }
     };
+
+    // Алиас для обратной совместимости с вызовами для неавторизованных
+    const fetchTicketDetailsForUnauthorized = fetchTicketDetails;
 
     const fetchFavorites = async () => {
         try {
@@ -396,34 +435,50 @@ function Favorites() {
                 const tickets: FavoriteTicket[] = [];
                 const masters: Master[] = [];
 
-                // Обрабатываем тикеты
+                // Обрабатываем тикеты напрямую из /api/favorites/me
                 if (favorite.tickets && favorite.tickets.length > 0) {
-                    console.log(`Found ${favorite.tickets.length} favorite tickets`);
                     for (const ticket of favorite.tickets) {
-                        console.log('Processing ticket:', ticket);
-                        const ticketDetails = await fetchTicketDetails(ticket.id);
-                        if (ticketDetails) {
-                            const status = getTicketStatus(ticket.active, ticket.service);
-                            // Получаем изображение автора
-                            const authorImage = ticket.author?.image
-                                ? formatProfileImageUrl(ticket.author.image)
-                                : ticket.master?.image
-                                    ? formatProfileImageUrl(ticket.master.image)
-                                    : undefined;
+                        const isMasterTicket = ticket.service === true;
+                        const userType = isMasterTicket ? 'master' : 'client';
+                        const authorId = isMasterTicket
+                            ? ticket.master?.id || 0
+                            : ticket.author?.id || 0;
 
-                            tickets.push({
-                                ...ticketDetails,
-                                active: ticket.active,
-                                service: ticket.service,
-                                status: status,
-                                authorImage: authorImage
-                            });
-                        } else {
-                            console.log(`Could not fetch details for ticket ${ticket.id}`);
+                        let authorName = 'Неизвестный';
+                        if (isMasterTicket && ticket.master) {
+                            authorName = `${ticket.master.name || ''} ${ticket.master.surname || ''}`.trim() || 'Мастер';
+                        } else if (ticket.author) {
+                            authorName = `${ticket.author.name || ''} ${ticket.author.surname || ''}`.trim() || 'Клиент';
                         }
+
+                        const authorImage = isMasterTicket && ticket.master?.image
+                            ? formatProfileImageUrl(ticket.master.image)
+                            : !isMasterTicket && ticket.author?.image
+                                ? formatProfileImageUrl(ticket.author.image)
+                                : undefined;
+
+                        tickets.push({
+                            id: ticket.id,
+                            title: ticket.title || 'Без названия',
+                            price: ticket.budget || 0,
+                            unit: ticket.unit?.title || 'tjs',
+                            description: ticket.description || 'Описание отсутствует',
+                            address: getFullAddress(ticket as unknown as ApiTicket),
+                            date: ticket.createdAt,
+                            author: authorName,
+                            authorId: authorId,
+                            timeAgo: ticket.createdAt,
+                            category: ticket.category?.title || 'другое',
+                            subcategory: ticket.subcategory?.title,
+                            status: getTicketStatus(ticket.active, ticket.service),
+                            type: userType,
+                            active: ticket.active,
+                            service: ticket.service,
+                            authorImage: authorImage,
+                            userRating: isMasterTicket ? (ticket.master?.rating || 0) : (ticket.author?.rating || 0),
+                            userReviewCount: ticket.reviewsCount || 0
+                        });
                     }
-                } else {
-                    console.log('No favorite tickets found in API response');
                 }
 
                 // Обрабатываем мастеров
@@ -505,79 +560,6 @@ function Favorites() {
             console.error(`Error fetching master details for ID ${masterId}:`, error);
         }
         return null;
-    };
-
-    const fetchTicketDetails = async (ticketId: number): Promise<FavoriteTicket | null> => {
-        try {
-            const token = getAuthToken();
-
-            // Для всех пользователей используем единый эндпоинт
-            const response = await fetch(`${API_BASE_URL}/api/tickets?locale=${localStorage.getItem('i18nextLng') || 'ru'}`, {
-                headers: {
-                    'Authorization': token ? `Bearer ${token}` : '',
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                }
-            });
-
-            if (response.ok) {
-                const ticketsData: ApiTicket[] = await response.json();
-                console.log(`Found ${ticketsData.length} tickets from API`);
-
-                // Ищем тикет по ID
-                const ticket = ticketsData.find(t => t.id === ticketId);
-
-                if (ticket) {
-                    console.log(`Found ticket ${ticketId}:`, ticket);
-
-                    // Определяем тип пользователя (автор или мастер)
-                    const isMasterTicket = !!ticket.master?.id;
-                    const userType = isMasterTicket ? 'master' : 'client';
-                    const authorId = isMasterTicket
-                        ? ticket.master?.id || 0
-                        : ticket.author?.id || 0;
-
-                    // Определяем имя автора
-                    let authorName = 'Неизвестный';
-                    if (isMasterTicket && ticket.master) {
-                        authorName = `${ticket.master.name || ''} ${ticket.master.surname || ''}`.trim() || 'Мастер';
-                    } else if (ticket.author) {
-                        authorName = `${ticket.author.name || ''} ${ticket.author.surname || ''}`.trim() || 'Клиент';
-                    }
-
-                    return {
-                        id: ticket.id,
-                        title: ticket.title || 'Без названия',
-                        price: ticket.budget || 0,
-                        unit: ticket.unit?.title || 'tjs',
-                        description: ticket.description || 'Описание отсутствует',
-                        address: getFullAddress(ticket),
-                        date: ticket.createdAt,
-                        author: authorName,
-                        authorId: authorId,
-                        timeAgo: ticket.createdAt,
-                        category: ticket.category?.title || 'другое',
-                        subcategory: ticket.subcategory?.title,
-                        status: getTicketStatus(ticket.active, ticket.service),
-                        type: userType,
-                        active: ticket.active,
-                        service: ticket.service,
-                        userRating: isMasterTicket ? (ticket.master?.rating || 0) : (ticket.author?.rating || 0),
-                        userReviewCount: 0 // Пока 0, позже добавим реальное получение
-                    };
-                } else {
-                    console.log(`Ticket with ID ${ticketId} not found in API response`);
-                }
-            } else {
-                console.log(`Error fetching tickets, status:`, response.status);
-            }
-
-            return null;
-
-        } catch (error) {
-            console.error('Error fetching ticket details:', error);
-            return null;
-        }
     };
 
     const getFullAddress = (ticket: ApiTicket): string => {
@@ -1281,6 +1263,63 @@ function Favorites() {
     const hasMasters = favoriteMasters.length > 0;
     const hasNoFavorites = !hasOrders && !hasMasters;
 
+    // Применяем фильтры и сортировку к тикетам
+    const applySort = (tickets: FavoriteTicket[], sort: SortByType): FavoriteTicket[] => {
+        return [...tickets].sort((a, b) => {
+            switch (sort) {
+                case 'newest': return new Date(b.date).getTime() - new Date(a.date).getTime();
+                case 'oldest': return new Date(a.date).getTime() - new Date(b.date).getTime();
+                case 'price-asc': return (a.price || 0) - (b.price || 0);
+                case 'price-desc': return (b.price || 0) - (a.price || 0);
+                case 'reviews-asc': return (a.userReviewCount || 0) - (b.userReviewCount || 0);
+                case 'reviews-desc': return (b.userReviewCount || 0) - (a.userReviewCount || 0);
+                case 'rating-asc': return (a.userRating || 0) - (b.userRating || 0);
+                case 'rating-desc': return (b.userRating || 0) - (a.userRating || 0);
+                default: return 0;
+            }
+        });
+    };
+
+    const filteredTickets = (() => {
+        let result = [...favoriteTickets];
+
+        // Фильтр по типу
+        if (showOnlyServices) result = result.filter(t => t.service === true);
+        else if (showOnlyAnnouncements) result = result.filter(t => t.service === false);
+
+        // Фильтр по времени
+        const now = new Date();
+        if (timeFilter !== 'all') {
+            result = result.filter(t => {
+                const d = new Date(t.date);
+                if (timeFilter === 'today') {
+                    return d.toDateString() === now.toDateString();
+                } else if (timeFilter === 'yesterday') {
+                    const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+                    return d.toDateString() === yesterday.toDateString();
+                } else if (timeFilter === 'week') {
+                    const week = new Date(now); week.setDate(now.getDate() - 7);
+                    return d >= week;
+                } else if (timeFilter === 'month') {
+                    const month = new Date(now); month.setDate(now.getDate() - 30);
+                    return d >= month;
+                }
+                return true;
+            });
+        }
+
+        // Основная сортировка
+        result = applySort(result, sortBy);
+
+        // Вторичная сортировка
+        if (secondarySortBy !== 'none') {
+            const primary = applySort(result, sortBy);
+            result = applySort(primary, secondarySortBy);
+        }
+
+        return result;
+    })();
+
     // Для неавторизованных пользователей показываем сообщение о необходимости авторизации
     const token = getAuthToken();
     if (!token && hasNoFavorites) {
@@ -1338,9 +1377,34 @@ function Favorites() {
                 </div>
             )}
 
+            {/* Фильтры для вкладки заказов */}
+            {(activeTab === 'orders' || !showTabs) && hasOrders && (
+                <div className={styles.filtersWrapper}>
+                    <ServiceTypeFilter
+                        showOnlyServices={showOnlyServices}
+                        showOnlyAnnouncements={showOnlyAnnouncements}
+                        onServiceToggle={handleServiceToggle}
+                        onAnnouncementsToggle={handleAnnouncementsToggle}
+                    />
+                    <SortingFilter
+                        sortBy={sortBy}
+                        secondarySortBy={secondarySortBy}
+                        timeFilter={timeFilter}
+                        onSortChange={setSortBy}
+                        onSecondarySortChange={setSecondarySortBy}
+                        onTimeFilterChange={setTimeFilter}
+                    />
+                </div>
+            )}
+
             <div className={styles.recommendation_wrap}>
+                {/* Сообщение об отсутствии результатов после фильтрации */}
+                {(activeTab === 'orders' || !showTabs) && hasOrders && filteredTickets.length === 0 && (
+                    <p className={styles.noResults}>Ничего не найдено. Попробуйте изменить фильтры.</p>
+                )}
+
                 {/* Отображение заказов */}
-                {(activeTab === 'orders' || !showTabs) && hasOrders && favoriteTickets.map((ticket, index) => (
+                {(activeTab === 'orders' || !showTabs) && hasOrders && filteredTickets.map((ticket, index) => (
                     <TicketCard
                         key={`${ticket.id}-${ticket.type}-${index}`}
                         title={ticket.title}

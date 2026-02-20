@@ -22,6 +22,7 @@ export interface UserApiData extends User {
     districts?: import('../Address').DistrictApiData[];
     addresses?: import('../Address').UserAddressApiData[];
     socialNetworks?: import('../SocialNetwork').SocialNetworkApiData[];
+    dateOfBirth?: string;
 }
 
 export interface ProfileData {
@@ -29,6 +30,7 @@ export interface ProfileData {
     fullName: string;
     email?: string;
     gender?: string;
+    dateOfBirth?: string;
     specialty: string;
     specialties: string[];
     rating: number;

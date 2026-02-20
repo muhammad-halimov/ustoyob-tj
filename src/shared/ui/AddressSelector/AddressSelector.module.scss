@@ -337,3 +337,13 @@
         gap: 16px;
     }
 }
+
+:global(html[data-theme="dark"]) {
+  .province_card,
+  .city_card,
+  .district_card {
+    background: var(--color-background-primary);
+    border-color: var(--color-stroke);
+    color: var(--color-text-primary);
+  }
+}
