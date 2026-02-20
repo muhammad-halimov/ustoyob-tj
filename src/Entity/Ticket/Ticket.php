@@ -332,6 +332,7 @@ class Ticket
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
     ])]
     private Collection $addresses;
 
@@ -346,6 +347,7 @@ class Ticket
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
     ])]
     protected DateTime $createdAt;
 
@@ -353,6 +355,7 @@ class Ticket
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
     ])]
     protected DateTime $updatedAt;
 

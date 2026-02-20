@@ -61,6 +61,7 @@ class Address
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
         'masters:read',
         'clients:read',
 
@@ -72,6 +73,7 @@ class Address
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
         'masters:read',
         'clients:read',
 
@@ -83,6 +85,7 @@ class Address
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
         'masters:read',
         'clients:read',
 
@@ -94,6 +97,7 @@ class Address
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
         'masters:read',
         'clients:read',
 
@@ -105,6 +109,7 @@ class Address
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
         'masters:read',
         'clients:read',
 
@@ -116,6 +121,7 @@ class Address
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
         'masters:read',
         'clients:read',
 
@@ -127,6 +133,7 @@ class Address
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
         'masters:read',
         'clients:read',
 
@@ -138,6 +145,7 @@ class Address
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
         'masters:read',
         'clients:read',
 

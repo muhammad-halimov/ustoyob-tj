@@ -52,6 +52,7 @@ class District extends AddressComponent
         'provinces:read',
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
         'masters:read',
     ])]
     #[ApiProperty(writable: false)]

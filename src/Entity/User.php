@@ -341,6 +341,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'clients:read',
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
 
         'user:public:read'
     ])]

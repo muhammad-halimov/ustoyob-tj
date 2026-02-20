@@ -58,6 +58,7 @@ class City extends AddressComponent
         'provinces:read',
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
         'districts:read',
         'masters:read',
     ])]
