@@ -32,6 +32,11 @@ class PersonalUserFilterController extends AbstractController
         if ($bearerUser->getOccupation())
             $this->localizationService->localizeEntity($bearerUser->getOccupation(), $locale);
 
+        if ($bearerUser->getEducation())
+            foreach ($bearerUser->getEducation() as $education) {
+                $this->localizationService->localizeEntity($education->getOccupation(), $locale);
+            }
+
         return empty($bearerUser)
             ? $this->json(['message' => 'Resource not found'], 404)
             : $this->json($bearerUser, context: ['groups' => ['masters:read', 'clients:read', 'users:me:read']]);
