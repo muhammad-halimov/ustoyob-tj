@@ -57,5 +57,9 @@ readonly class UserGeographyLocalizationProvider implements ProviderInterface
         foreach ($entity->getOccupation() as $occupation) {
             $this->localizationService->localizeEntity($occupation, $locale);
         }
+
+        foreach ($entity->getEducation() as $education) {
+            $this->localizationService->localizeEntity($education->getOccupation(), $locale);
+        }
     }
 }
