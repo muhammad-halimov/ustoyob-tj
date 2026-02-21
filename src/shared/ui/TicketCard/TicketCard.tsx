@@ -194,17 +194,19 @@ export function TicketCard({
   // Выбираем источник данных для избранного
   const isFavorite = shouldUseManagedFavorites ? managedFavorites.isLiked : (externalIsFavorite || false);
   const isLikeLoading = shouldUseManagedFavorites ? managedFavorites.isLikeLoading : (externalIsLikeLoading || false);
-  const onFavoriteClick = shouldUseManagedFavorites 
-    ? (e: React.MouseEvent) => {
-        e.stopPropagation();
-        managedFavorites.handleLikeClick();
-      }
-    : (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (externalOnFavoriteClick) {
-          externalOnFavoriteClick(e);
-        }
-      };
+
+  const handleFavoriteClick = (e: React.MouseEvent | React.TouchEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (isLikeLoading) return;
+    if (shouldUseManagedFavorites) {
+      managedFavorites.handleLikeClick();
+    } else if (externalOnFavoriteClick) {
+      externalOnFavoriteClick(e as React.MouseEvent);
+    }
+  };
+
+  const onFavoriteClick = handleFavoriteClick;
   
   // Хук для реактивного обновления переводов
   useLanguageChange(() => {
@@ -249,7 +251,12 @@ export function TicketCard({
         )}
         <div className={styles.card_top_actions}>
           {showActiveToggle && (
-            <div className={styles.card_active_toggle} onClick={(e) => e.stopPropagation()}>
+            <div
+              className={styles.card_active_toggle}
+              onClick={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onTouchEnd={(e) => e.stopPropagation()}
+            >
               <label className={styles.switch}>
                 <input
                   type="checkbox"
@@ -267,6 +274,8 @@ export function TicketCard({
             <button
               className={styles.card_edit_button}
               onClick={onEditClick}
+              onTouchStart={(e) => e.stopPropagation()}
+              onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); if (onEditClick) onEditClick(e as unknown as React.MouseEvent); }}
               title="Редактировать"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -279,6 +288,8 @@ export function TicketCard({
           <button
             className={styles.card_favorite_button}
             onClick={onFavoriteClick}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={onFavoriteClick}
             disabled={isLikeLoading}
             title={isFavorite ? t('removeFavorite') : t('addFavorite')}
           >
@@ -320,7 +331,13 @@ export function TicketCard({
       <div className={styles.card_footer}>
         <div className={styles.card_author_section}>
           {authorId ? (
-            <Link to={ROUTES.PROFILE_BY_ID(authorId)} className={styles.card_author} onClick={(e) => e.stopPropagation()}>
+            <Link
+              to={ROUTES.PROFILE_BY_ID(authorId)}
+              className={styles.card_author}
+              onClick={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onTouchEnd={(e) => e.stopPropagation()}
+            >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <g clipPath="url(#clip0_auth)">
                   <g clipPath="url(#clip1_auth)">

@@ -52,9 +52,16 @@
     border-radius: 8px;
     transition: background-color 0.2s;
     flex-shrink: 0;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
 
     &:hover {
       background-color: var(--color-background-gray-light);
+    }
+
+    &:active {
+      background-color: var(--color-background-gray-light);
+      transform: scale(0.9);
     }
 
     svg {
@@ -169,9 +176,16 @@
     align-items: center;
     justify-content: center;
     transition: background-color 0.2s ease;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
 
     &:hover {
       background-color: var(--color-background-accent-light);
+    }
+
+    &:active {
+      background-color: var(--color-background-accent-light);
+      transform: scale(0.9);
     }
 
     &:disabled {
@@ -320,6 +334,9 @@
   .card {
     padding: 15px;
     min-height: auto;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
 
     &_top_controls {
       flex-wrap: wrap;
@@ -328,11 +345,21 @@
 
     &_top_actions {
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 4px;
+    }
+
+    &_favorite_button {
+      min-width: 44px;
+      min-height: 44px;
+      padding: 10px;
+      margin: -4px; /* compensate for extra padding without changing layout */
     }
 
     &_edit_button {
-      padding: 6px;
+      min-width: 44px;
+      min-height: 44px;
+      padding: 10px;
+      margin: -4px;
     }
 
     &_header {
