@@ -91,6 +91,16 @@ class Category
     ])]
     private ?int $id = null;
 
+    #[ORM\Column(type: Types::INTEGER, nullable: true)]
+    #[Groups([
+        'categories:read',
+        'masterTickets:read',
+        'clientTickets:read',
+        'favorites:read',
+        'occupations:read'
+    ])]
+    private ?int $order = null;
+
     #[ORM\Column(length: 64, nullable: true)]
     #[Groups([
         'categories:read',
@@ -146,6 +156,18 @@ class Category
     public function getId(): ?int
     {
         return $this->id;
+    }
+
+    public function getOrder(): ?int
+    {
+        return $this->order;
+    }
+
+    public function setOrder(?int $order): Category
+    {
+        $this->order = $order;
+
+        return $this;
     }
 
     public function getTitle(): ?string

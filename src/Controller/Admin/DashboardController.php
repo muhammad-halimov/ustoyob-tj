@@ -68,8 +68,10 @@ class DashboardController extends AbstractDashboardController
                 MenuItem::linkToCrud('Район', 'fas fa-building', District::class),
                 MenuItem::linkToCrud('Область', 'fas fa-map-pin', Province::class),
             ]);
-            yield MenuItem::linkToCrud('Категории работ', 'fas fa-list', Category::class);
-            yield MenuItem::linkToCrud('Специальности', 'fas fa-user-doctor', Occupation::class);
+            yield MenuItem::subMenu('Категории', 'fas fa-layer-group')->setSubItems([
+                MenuItem::linkToCrud('Категории работ', 'fas fa-briefcase', Category::class),
+                MenuItem::linkToCrud('Специальности / Подкатегории', 'fas fa-user-doctor', Occupation::class),
+            ]);
             yield MenuItem::linkToCrud('Ед. измерения', 'fas fa-gauge', Unit::class);
             yield MenuItem::linkToCrud('Регуляции', 'fas fa-lock', Legal::class);
             yield MenuItem::linkToUrl('API','fas fa-link', '/api')

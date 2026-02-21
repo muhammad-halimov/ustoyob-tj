@@ -13,6 +13,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 
 class OccupationCrudController extends AbstractCrudController
@@ -87,6 +88,10 @@ class OccupationCrudController extends AbstractCrudController
             ')
             ->onlyOnForms()
             ->setColumns(12);
+
+        yield IntegerField::new('order', 'Порядок')
+            ->setColumns(2)
+            ->setRequired(false);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
             ->hideOnForm();
