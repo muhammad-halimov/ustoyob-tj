@@ -463,6 +463,10 @@
         color: var(--color-text-primary);
       }
     }
+
+    .filters_btn {
+      color: var(--color-text-white);
+    }
   }
 
   .searchResults {
@@ -494,5 +498,34 @@
     h2 {
       color: var(--color-text-secondary);
     }
+  }
+
+  .closeButton {
+    color: var(--color-text-secondary);
+
+    &:hover {
+      color: var(--color-text-primary);
+      background: var(--color-background-all);
+    }
+  }
+
+  .modalBody {
+    p {
+      color: var(--color-text-secondary);
+    }
+  }
+
+  .secondaryButton {
+    background: var(--color-background-all);
+    color: var(--color-text-secondary);
+
+    &:hover {
+      background: var(--color-background-secondary);
+    }
+  }
+
+  .resultCard {
+    background-color: var(--color-background-primary);
+    border-color: var(--color-stroke);
   }
 }

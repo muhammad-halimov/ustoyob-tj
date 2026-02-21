@@ -39,7 +39,8 @@
   },
   "footer": {
     "privacyPolicy": "Сиёсати махфият",
-    "termsOfUse": "Шартҳои истифода"
+    "termsOfUse": "Шартҳои истифода",
+    "publicOffer": "Пешниҳоди оммавӣ"
   },
   "legal": {
     "notFound": "Ҳуҷҷат ёфт нашуд",
@@ -50,5 +51,20 @@
   },
   "error": {
     "title": "Хатогӣ"
+  },
+  "oauth": {
+    "loading": "Тасдиқшавӣ...",
+    "pleaseWait": "Лутфан, интизор шавед",
+    "processingGoogle": "Коркарди тасдиқшавии Google...",
+    "processingVia": "Тасдиқшавӣ тавассути {{provider}}...",
+    "processingTelegram": "Тасдиқшавӣ тавассути Telegram...",
+    "errorTitle": "Хатои тасдиқшавӣ",
+    "redirecting": "Гузариш ба саҳифаи асосӣ...",
+    "backToHome": "Бозгашт ба саҳифаи асосӣ",
+    "noAuthData": "Маълумоти тасдиқшавӣ гирифта нашуд",
+    "unknownProvider": "Провайдери тасдиқшавӣ номаълум аст",
+    "tokenNotReceived": "Токен гирифта нашуд",
+    "expiredRequest": "Дархост кӯҳна шудааст. Лутфан, такрор кунед",
+    "insufficientData": "Барои тасдиқшавӣ маълумот кофӣ нест"
   }
 }

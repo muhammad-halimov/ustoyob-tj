@@ -1,4 +1,11 @@
-export const cleanText = (text: string): string => {
+export const truncateText = (text: string, maxLength: number = 110): string => {
+    if (text.length > maxLength) {
+        return text.slice(0, maxLength) + '...';
+    }
+    return text;
+};
+
+export const textHelper = (text: string): string => {
     if (!text) return '';
 
     // 1. Заменяем HTML-сущности на обычные символы

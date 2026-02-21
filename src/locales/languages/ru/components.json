@@ -329,7 +329,7 @@
   "pages": {
     "main": {
       "categories": "Категории",
-      "postTicket": "Разместить заказ",
+      "postTicket": "Разместить объявление",
       "postService": "Разместить услугу"
     },
     "favorites": {

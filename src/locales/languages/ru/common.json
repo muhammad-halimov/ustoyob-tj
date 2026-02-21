@@ -39,7 +39,8 @@
   },
   "footer": {
     "privacyPolicy": "Политика конфиденциальности",
-    "termsOfUse": "Условия использования"
+    "termsOfUse": "Условия использования",
+    "publicOffer": "Публичная оферта"
   },
   "legal": {
     "notFound": "Документ не найден",
@@ -50,5 +51,20 @@
   },
   "error": {
     "title": "Ошибка"
+  },
+  "oauth": {
+    "loading": "Авторизация...",
+    "pleaseWait": "Пожалуйста, подождите",
+    "processingGoogle": "Обработка авторизации Google...",
+    "processingVia": "Авторизация через {{provider}}...",
+    "processingTelegram": "Авторизация через Telegram...",
+    "errorTitle": "Ошибка авторизации",
+    "redirecting": "Перенаправление на главную страницу...",
+    "backToHome": "Вернуться на главную",
+    "noAuthData": "Не удалось получить данные авторизации",
+    "unknownProvider": "Неизвестный провайдер авторизации",
+    "tokenNotReceived": "Токен не получен",
+    "expiredRequest": "Запрос устарел. Пожалуйста, повторите попытку",
+    "insufficientData": "Недостаточно данных для авторизации"
   }
 }

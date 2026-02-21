@@ -316,12 +316,13 @@
 
   .review_service,
   .review_worker,
-  .review_date {
+  .review_date,
+  .service_title {
     color: var(--color-text-secondary);
   }
 
   .review_text {
-    color: var(--color-text-primary);
+    color: var(--color-text-white);
   }
 
   .loading,

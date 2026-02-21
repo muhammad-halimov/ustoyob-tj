@@ -442,5 +442,31 @@
       color: var(--color-text-black);
       background-color: var(--color-background-all);
     }
+
+    &_reviews .reviews_count {
+      color: var(--color-primary-text-white);
+    }
+
+    &_timeAgo {
+      color: var(--color-primary-text-white);
+    }
+
+    &_category {
+      background-color: var(--color-background-accent-light);
+      color: var(--color-primary-text-white);
+    }
+
+    &_subcategory {
+      background-color: var(--color-background-all);
+      color: var(--color-text-accent);
+    }
+
+    &_author {
+      color: var(--color-text-primary) !important;
+
+      svg path {
+        stroke: var(--color-text-who);
+      }
+    }
   }
 }

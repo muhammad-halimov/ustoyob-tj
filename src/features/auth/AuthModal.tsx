@@ -1247,7 +1247,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         return (
             <div className={styles.welcomeScreen}>
                 <div className={styles.welcomeButtons}>
-                    <img className={styles.enterPic} src="../Logo.svg" alt="enter" width="120"/>
+                    <img className={styles.enterPic} src="/Logo.svg" alt="enter" width="120"/>
                     <h2>{t('auth.entrance')}</h2>
                     <button
                         className={styles.primaryButton}
@@ -1340,7 +1340,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         disabled={isLoading}
                         title={t('auth.loginViaGoogle')}
                     >
-                        <img src="../chrome.png" alt="Google" />
+                        <img src="/chrome.png" alt="Google" />
                     </button>
                     <button
                         type="button"
@@ -1349,7 +1349,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         disabled={isLoading}
                         title={t('auth.loginViaFacebook')}
                     >
-                        <img src="../facebook.png" alt="Facebook" />
+                        <img src="/facebook.png" alt="Facebook" />
                     </button>
                     <button
                         type="button"
@@ -1358,7 +1358,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         disabled={isLoading}
                         title={t('auth.loginViaInstagram')}
                     >
-                        <img src="../instagram.png" alt="Instagram" />
+                        <img src="/instagram.png" alt="Instagram" />
                     </button>
                     <button
                         type="button"
@@ -1367,7 +1367,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         disabled={isLoading}
                         title={t('auth.loginViaTelegram')}
                     >
-                        <img src="../telegram.png" alt="Telegram" />
+                        <img src="/telegram.png" alt="Telegram" />
                     </button>
                 </div>
 
@@ -1568,7 +1568,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         disabled={isLoading}
                         title={t('auth.registerViaGoogle')}
                     >
-                        <img src="../chrome.png" alt="Google" />
+                        <img src="/chrome.png" alt="Google" />
                     </button>
                     <button
                         type="button"
@@ -1577,7 +1577,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         disabled={isLoading}
                         title={t('auth.registerViaFacebook')}
                     >
-                        <img src="../facebook.png" alt="Facebook" />
+                        <img src="/facebook.png" alt="Facebook" />
                     </button>
                     <button
                         type="button"
@@ -1586,7 +1586,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         disabled={isLoading}
                         title={t('auth.registerViaInstagram')}
                     >
-                        <img src="../instagram.png" alt="Instagram" />
+                        <img src="/instagram.png" alt="Instagram" />
                     </button>
                     <button
                         type="button"
@@ -1595,7 +1595,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         disabled={isLoading}
                         title={t('auth.registerViaTelegram')}
                     >
-                        <img src="../telegram.png" alt="Telegram" />
+                        <img src="/telegram.png" alt="Telegram" />
                     </button>
                 </div>
 

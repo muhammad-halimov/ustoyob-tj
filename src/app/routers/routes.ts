@@ -12,15 +12,14 @@ export const ROUTES = {
     // Профили
     PROFILE: '/profile',
     PROFILE_BY_ID: (id: number | string) => `/profile/${id}`,
-    PROFILE_CREATE: '/profile/create',
     
     // Тикеты
     TICKET_BY_ID: (id: number | string) => `/ticket/${id}`,
     TICKET_ME: '/ticket/me',
     MY_TICKETS: '/ticket/me',
     TICKET_CREATE: '/ticket/new',
-    TICKET_EDIT: (id: number | string) => `/ticket/${id}/edit`,
-    CATEGORY_TICKETS: (id: number | string) => `/ticket/category/${id}`,
+    TICKET_EDIT_BY_ID: (id: number | string) => `/ticket/${id}/edit`,
+    CATEGORY_TICKETS_BY_ID: (id: number | string) => `/ticket/category/${id}`,
     
     // Юридические документы
     PRIVACY_POLICY: '/legal/privacy-policy',
@@ -48,7 +47,7 @@ export const ROUTE_PATTERNS = {
     MY_TICKETS: 'ticket/me',
     CREATE_TICKET: 'ticket/new',
     EDIT_TICKET: 'ticket/:id/edit',
-    CATEGORY_TICKETS: 'ticket/category/:id',
+    CATEGORY_TICKETS_BY_ID: 'ticket/category/:id',
     PRIVACY_POLICY: 'legal/privacy-policy',
     TERMS_OF_USE: 'legal/terms-of-use',
     PUBLIC_OFFER: 'legal/public-offer',

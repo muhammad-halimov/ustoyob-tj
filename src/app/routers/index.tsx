@@ -34,7 +34,7 @@ const router = createBrowserRouter([
             { path: ROUTE_PATTERNS.MY_TICKETS, element: <MyTickets /> },
             { path: ROUTE_PATTERNS.CREATE_TICKET, element: <CreateEdit /> },
             { path: ROUTE_PATTERNS.EDIT_TICKET, element: <CreateEdit /> },
-            { path: ROUTE_PATTERNS.CATEGORY_TICKETS, element: <Category /> },
+            { path: ROUTE_PATTERNS.CATEGORY_TICKETS_BY_ID, element: <Category /> },
 
             // Legal pages
             { path: ROUTE_PATTERNS.PRIVACY_POLICY, element: <Legal /> },

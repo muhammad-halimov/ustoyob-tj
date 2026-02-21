@@ -123,6 +123,30 @@
   text-overflow: ellipsis;
 }
 
+.service_description_desktop {
+  display: none;
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+  line-height: 1.4;
+
+  @media (min-width: 768px) {
+    display: block;
+  }
+}
+
+.service_description_mobile {
+  display: block;
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+  line-height: 1.4;
+
+  @media (min-width: 768px) {
+    display: none;
+  }
+}
+
 .service_date {
   font-size: 13px;
   color: #999;
@@ -163,8 +187,8 @@
   }
 
   .service_image {
-    width: 80px;
-    height: 80px;
+    width: 90px;
+    height: 90px;
     margin-right: 8px;
   }
 

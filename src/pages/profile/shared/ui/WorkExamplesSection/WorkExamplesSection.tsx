@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PhotoGallery } from '../../../../../shared/ui/PhotoGallery';
 import styles from './WorkExamplesSection.module.scss';
 
@@ -52,10 +53,11 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
     API_BASE_URL,
 }) => {
     const workExampleInputRef = useRef<HTMLInputElement>(null);
+    const { t } = useTranslation(['profile']);
 
     return (
         <div className={styles.section_item}>
-            <h3>Примеры работ</h3>
+            <h3>{t('profile:workExamplesTitle')}</h3>
             <div className={styles.section_content}>
                 <div className={styles.work_examples}>
                     {workExamples.length > 0 ? (
@@ -105,7 +107,7 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
                                                     e.stopPropagation();
                                                     onDeleteWorkExample(work.id);
                                                 }}
-                                                title="Удалить фото"
+                                                title={t('profile:deletePhotoTitle')}
                                             >
                                                 ×
                                             </button>}
@@ -117,13 +119,13 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
                                     className={styles.show_more_work_button}
                                     onClick={() => setShowAllWorkExamples(!showAllWorkExamples)}
                                 >
-                                    {showAllWorkExamples ? 'Скрыть' : `Показать все (${workExamples.length})`}
+                                    {showAllWorkExamples ? t('profile:hideAll') : t('profile:showAll', { count: workExamples.length })}
                                 </button>
                             )}
                         </>
                     ) : (
                         <div className={styles.empty_state}>
-                            <span>{readOnly ? 'Пока нет примеров работ' : 'Добавить фото в портфолио'}</span>
+                            <span>{readOnly ? t('profile:noWorkExamples') : t('profile:addWorkExamples')}</span>
                         </div>
                     )}
                 </div>
@@ -135,15 +137,15 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
                             className={styles.reset_social_btn}
                             onClick={onDeleteAllWorkExamples}
                             disabled={isGalleryOperating}
-                            title="Удалить все фото"
+                            title={t('profile:deleteAllPhotosTitle')}
                         >
-                            Удалить все
+                            {t('profile:deleteAllPhotos')}
                         </button>
                     )}
                     <button
                         className={styles.add_button}
                         onClick={() => workExampleInputRef.current?.click()}
-                        title="Добавить фото в портфолио"
+                        title={t('profile:addPhotosTitle')}
                     >
                         +
                     </button>

@@ -449,6 +449,17 @@
   .social_network_handle {
     background: var(--color-background-all);
     border-color: var(--color-stroke);
+    color: var(--color-text-primary);
+
+    &.empty_handle {
+      background: var(--color-background-secondary);
+      border-color: var(--color-stroke);
+      color: var(--color-text-secondary);
+    }
+  }
+
+  .handle_placeholder {
+    color: var(--color-text-secondary);
   }
 
   .social_input {
@@ -459,5 +470,40 @@
 
   .empty_social_networks {
     color: var(--color-text-secondary);
+  }
+
+  .social_network_icon {
+    background: var(--color-background-all);
+    box-shadow: none;
+  }
+
+  .add_social_network_form {
+    background: var(--color-background-all);
+    border-color: var(--color-stroke);
+
+    h4 {
+      color: var(--color-text-primary);
+    }
+  }
+
+  .social_network_select {
+    label {
+      color: var(--color-text-primary);
+    }
+
+    select {
+      background: var(--color-background-primary);
+      border-color: var(--color-stroke);
+      color: var(--color-text-primary);
+
+      option {
+        background: var(--color-background-primary);
+      }
+    }
+  }
+
+  .cancel_add_btn {
+    color: var(--color-text-secondary);
+    border-color: var(--color-stroke);
   }
 }

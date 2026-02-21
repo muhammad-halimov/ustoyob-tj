@@ -31,10 +31,11 @@
   cursor: pointer;
   padding: 8px;
   border-radius: 50%;
+  color: var(--color-text-primary);
   transition: background-color 0.2s;
 
   &:hover {
-    background-color: #f8f9fa;
+    background-color: var(--color-background-secondary);
   }
 }
 
@@ -591,6 +592,66 @@
       &:focus {
         border-color: var(--color-primary);
         box-shadow: 0 0 0 3px rgba(76, 125, 255, 0.2);
+      }
+    }
+  }
+
+  .subcategories {
+    h3 {
+      color: var(--color-text-primary);
+    }
+
+    .subcategory_search {
+      .search_input_wrapper {
+        .search_input {
+          background-color: var(--color-background-all);
+          border-color: var(--color-stroke);
+          color: var(--color-text-primary);
+
+          &::placeholder {
+            color: var(--color-text-secondary);
+          }
+        }
+
+        .search_icon {
+          color: var(--color-text-secondary);
+        }
+
+        .clear_search {
+          color: var(--color-text-secondary);
+
+          &:hover {
+            background-color: var(--color-background-secondary);
+          }
+        }
+      }
+    }
+
+    .subcategory_item {
+      .subcategory_item_step {
+        background-color: var(--color-background-primary);
+        border-color: var(--color-stroke);
+        color: var(--color-text-primary);
+
+        img {
+          &.img_fallback {
+            filter: brightness(0) invert(1);
+          }
+        }
+
+        p {
+          color: var(--color-text-primary);
+        }
+
+        &:hover {
+          border-color: var(--color-primary);
+          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        &.active {
+          border-color: var(--color-primary);
+          background-color: rgba(76, 125, 255, 0.12);
+        }
       }
     }
   }

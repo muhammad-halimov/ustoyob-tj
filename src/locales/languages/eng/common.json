@@ -39,7 +39,8 @@
   },
   "footer": {
     "privacyPolicy": "Privacy Policy",
-    "termsOfUse": "Terms of Use"
+    "termsOfUse": "Terms of Use",
+    "publicOffer": "Public Offer"
   },
   "legal": {
     "notFound": "Document not found",
@@ -50,5 +51,20 @@
   },
   "error": {
     "title": "Error"
+  },
+  "oauth": {
+    "loading": "Authorizing...",
+    "pleaseWait": "Please wait",
+    "processingGoogle": "Processing Google authorization...",
+    "processingVia": "Authorizing via {{provider}}...",
+    "processingTelegram": "Authorizing via Telegram...",
+    "errorTitle": "Authorization error",
+    "redirecting": "Redirecting to home page...",
+    "backToHome": "Back to home",
+    "noAuthData": "Failed to retrieve authorization data",
+    "unknownProvider": "Unknown authorization provider",
+    "tokenNotReceived": "Token not received",
+    "expiredRequest": "Request expired. Please try again",
+    "insufficientData": "Insufficient data for authorization"
   }
 }

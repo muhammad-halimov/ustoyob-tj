@@ -1,0 +1,20 @@
+{
+  "title": "Address",
+  "provinces": "Regions",
+  "loadingProvinces": "Loading regions...",
+  "noProvinces": "No regions found",
+  "cities": "Cities",
+  "districts": "Districts",
+  "suburbs": "Neighborhoods",
+  "suburbsSubtitle": "Select the neighborhoods where you work",
+  "settlementAreas": "Settlements/Towns",
+  "settlementSubtitle": "Select a town or settlement",
+  "communities": "Urban-type settlements",
+  "settlements": "Settlements",
+  "villages": "Villages",
+  "villagesIn": "Villages in",
+  "quartersCount": "{{count}} neighborhoods",
+  "settlementsCount": "Settlements: {{count}}",
+  "communitiesCount": "Towns: {{count}}",
+  "villagesCount": "{{count}} villages"
+}

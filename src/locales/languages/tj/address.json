@@ -1,0 +1,20 @@
+{
+  "title": "Суроға",
+  "provinces": "Вилоятҳо",
+  "loadingProvinces": "Боркунии вилоятҳо...",
+  "noProvinces": "Вилоятҳо ёфт нашуданд",
+  "cities": "Шаҳрҳо",
+  "districts": "Ноҳияҳо",
+  "suburbs": "Маҳаллаҳо",
+  "suburbsSubtitle": "Маҳаллаҳоеро интихоб кунед, ки дар онҳо кор мекунед",
+  "settlementAreas": "Шаҳракҳо/ШНТ",
+  "settlementSubtitle": "ШНТ ё шаҳракро интихоб кунед",
+  "communities": "Шаҳракҳои навъи шаҳрӣ (ШНТ)",
+  "settlements": "Шаҳракҳо",
+  "villages": "Деҳаҳо",
+  "villagesIn": "Деҳаҳои шаҳрак",
+  "quartersCount": "{{count}} маҳалла",
+  "settlementsCount": "Шаҳракҳо: {{count}}",
+  "communitiesCount": "ШНТ: {{count}}",
+  "villagesCount": "{{count}} деҳа"
+}

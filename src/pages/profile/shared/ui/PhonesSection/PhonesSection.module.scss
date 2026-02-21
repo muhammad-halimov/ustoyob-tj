@@ -251,6 +251,20 @@
     border-bottom-color: var(--color-stroke);
   }
 
+  .address_text {
+    color: var(--color-text-black);
+  }
+
+  .phone_link {
+    color: var(--color-text-primary);
+    text-decoration: none;
+
+    &:hover {
+      color: var(--color-actual-blue);
+      text-decoration: none;
+    }
+  }
+
   .edit_form {
     border-bottom-color: var(--color-stroke);
   }

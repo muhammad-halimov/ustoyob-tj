@@ -8,7 +8,12 @@ import enComponents from './languages/eng/components.json';
 import enHeader from './languages/eng/header.json';
 import enSearch from './languages/eng/search.json';
 import enButtons from './languages/eng/buttons.json';
-import enCategory from './languages/eng/category.json'; // Добавьте этот импорт
+import enCategory from './languages/eng/category.json';
+import enTicket from './languages/eng/ticket.json';
+import enProfile from './languages/eng/profile.json';
+import enCreateEdit from './languages/eng/createEdit.json';
+import enAddress from './languages/eng/address.json';
+import enMyTickets from './languages/eng/myTickets.json';
 
 // Импорты для русского языка
 import ruCommon from './languages/ru/common.json';
@@ -16,7 +21,12 @@ import ruComponents from './languages/ru/components.json';
 import ruHeader from './languages/ru/header.json';
 import ruSearch from './languages/ru/search.json';
 import ruButtons from './languages/ru/buttons.json';
-import ruCategory from './languages/ru/category.json'; // Добавьте этот импорт
+import ruCategory from './languages/ru/category.json';
+import ruTicket from './languages/ru/ticket.json';
+import ruProfile from './languages/ru/profile.json';
+import ruCreateEdit from './languages/ru/createEdit.json';
+import ruAddress from './languages/ru/address.json';
+import ruMyTickets from './languages/ru/myTickets.json';
 
 // Импорты для таджикского языка
 import tjCommon from './languages/tj/common.json';
@@ -25,6 +35,11 @@ import tjHeader from './languages/tj/header.json';
 import tjSearch from './languages/tj/search.json';
 import tjButtons from './languages/tj/buttons.json';
 import tjCategory from './languages/tj/category.json';
+import tjTicket from './languages/tj/ticket.json';
+import tjProfile from './languages/tj/profile.json';
+import tjCreateEdit from './languages/tj/createEdit.json';
+import tjAddress from './languages/tj/address.json';
+import tjMyTickets from './languages/tj/myTickets.json';
 
 export type Language = 'tj' | 'ru' | 'eng';
 
@@ -46,6 +61,11 @@ i18n
                 search: enSearch,
                 buttons: enButtons,
                 category: enCategory,
+                ticket: enTicket,
+                profile: enProfile,
+                createEdit: enCreateEdit,
+                address: enAddress,
+                myTickets: enMyTickets,
             },
             ru: {
                 common: ruCommon,
@@ -54,6 +74,11 @@ i18n
                 search: ruSearch,
                 buttons: ruButtons,
                 category: ruCategory,
+                ticket: ruTicket,
+                profile: ruProfile,
+                createEdit: ruCreateEdit,
+                address: ruAddress,
+                myTickets: ruMyTickets,
             },
             tj: {
                 common: tjCommon,
@@ -62,6 +87,11 @@ i18n
                 search: tjSearch,
                 buttons: tjButtons,
                 category: tjCategory,
+                ticket: tjTicket,
+                profile: tjProfile,
+                createEdit: tjCreateEdit,
+                address: tjAddress,
+                myTickets: tjMyTickets,
             },
         },
         fallbackLng: 'ru',
@@ -70,7 +100,7 @@ i18n
         interpolation: {
             escapeValue: false,
         },
-        ns: ['common', 'components', 'header', 'search', 'buttons', 'category'],
+        ns: ['common', 'components', 'header', 'search', 'buttons', 'category', 'ticket', 'profile', 'createEdit', 'address', 'myTickets'],
         defaultNS: 'common',
         react: {
             useSuspense: false,

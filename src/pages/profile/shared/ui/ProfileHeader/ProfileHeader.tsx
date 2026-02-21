@@ -1,4 +1,5 @@
 import React, { ChangeEvent, RefObject } from 'react';
+import { useTranslation } from 'react-i18next';
 import { UserRole, Occupation } from '../../../../../entities';
 import styles from './ProfileHeader.module.scss';
 
@@ -65,11 +66,13 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     onAddSpecialty,
     onRemoveSpecialty,
 }) => {
+    const { t } = useTranslation(['profile']);
+
     const getGenderDisplay = (value: string | undefined): string => {
-        if (!value) return 'Не указано';
-        if (value === 'male' || value === 'gender_male') return 'Мужской';
-        if (value === 'female' || value === 'gender_female') return 'Женский';
-        return 'Не указано';
+        if (!value) return t('profile:notSpecified');
+        if (value === 'male' || value === 'gender_male') return t('profile:genderMale');
+        if (value === 'female' || value === 'gender_female') return t('profile:genderFemale');
+        return t('profile:notSpecified');
     };
 
     const calculateAge = (dob: string | undefined): number | null => {
@@ -90,7 +93,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         ? specialties.map(s => typeof s === 'string' ? s : (typeof s === 'object' && s && 'title' in s ? String((s as any).title) : '')).filter(Boolean)
         : [specialty].filter(s => s && typeof s === 'string');
     
-    const displaySpecialties = safeSpecialties.length > 0 ? safeSpecialties : ['Специальность'];
+    const displaySpecialties = safeSpecialties.length > 0 ? safeSpecialties : [t('profile:specialty')];
     
     // В режиме редактирования используем selectedSpecialties, иначе specialties для отображения
     const currentSelectedSpecialties = editingField === 'specialty' 
@@ -115,7 +118,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         <div className={styles.profile_content}>
             {userRole && (
                 <div className={styles.profile_type_badge}>
-                    {userRole === 'master' ? 'Профиль мастера' : 'Профиль клиента'}
+                    {userRole === 'master' ? t('profile:profileMaster') : t('profile:profileClient')}
                 </div>
             )}
             <div className={styles.avatar_section}>
@@ -144,7 +147,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                             <path d="M17 8L12 3L7 8" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                             <path d="M12 3V15" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
-                        <span>Изменить фото</span>
+                        <span>{t('profile:changePhoto')}</span>
                     </div>}
                 </div>
                 {!readOnly && <input
@@ -196,9 +199,9 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                                                 className={styles.specialty_select}
                                                 autoFocus
                                             >
-                                                <option value="">Не указан</option>
-                                                <option value="male">Мужской</option>
-                                                <option value="female">Женский</option>
+                                                <option value="">{t('profile:genderNotSpecified')}</option>
+                                                <option value="male">{t('profile:genderMale')}</option>
+                                                <option value="female">{t('profile:genderFemale')}</option>
                                             </select>
                                         ) : (
                                             <>
@@ -211,7 +214,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                                                 </div>
                                                 {age !== null && (
                                                     <div className={styles.age_tag}>
-                                                        <span>{age} лет</span>
+                                                        <span>{age} {t('profile:ageLabel')}</span>
                                                     </div>
                                                 )}
                                                 {email && (
@@ -259,7 +262,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                                             onChange={(e) => onTempValueChange(e.target.value)}
                                             className={styles.specialty_select}
                                         >
-                                            <option value="">Добавить специальность</option>
+                                            <option value="">{t('profile:addSpecialty')}</option>
                                             {occupations
                                                 .filter(occupation => !currentSelectedSpecialties.includes(occupation.title))
                                                 .map(occupation => (
@@ -277,7 +280,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                                             onClick={handleAddSpecialty}
                                             disabled={!tempValue.trim()}
                                         >
-                                            Добавить
+                                            {t('profile:addBtn')}
                                         </button>
                                     </div>
 
@@ -287,13 +290,13 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                                             onClick={onSpecialtySave}
                                             disabled={isLoading || currentSelectedSpecialties.length === 0}
                                         >
-                                            {isLoading ? 'Сохранение...' : 'Сохранить'}
+                                            {isLoading ? t('profile:savingBtn') : t('profile:saveBtn')}
                                         </button>
                                         <button
                                             className={styles.cancel_occupations_btn}
                                             onClick={onEditCancel}
                                         >
-                                            Отмена
+                                            {t('profile:cancelBtn')}
                                         </button>
                                     </div>
                                 </div>
@@ -338,7 +341,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                                 </clipPath>
                             </defs>
                         </svg>
-                        {rating.toFixed(1)} рейтинга
+                        {rating.toFixed(1)} {t('profile:ratingLabel')}
                     </span>
                     <span className={styles.reviews}>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -356,7 +359,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                                 </clipPath>
                             </defs>
                         </svg>
-                        {reviewsCount} отзыва
+                        {reviewsCount} {t('profile:reviewsLabel')}
                     </span>
                 </div>
             </div>

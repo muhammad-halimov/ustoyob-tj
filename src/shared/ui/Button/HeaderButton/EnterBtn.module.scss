@@ -33,3 +33,14 @@
     }
   }
 }
+
+:global(html[data-theme="dark"]) {
+  .btn {
+    color: var(--color-text-white);
+    border-color: var(--color-border-btn);
+
+    &:hover {
+      background: var(--color-filters-btn-hover);
+    }
+  }
+}

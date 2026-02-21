@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { getAuthToken, getUserRole, getUserData } from '../../../utils/auth.ts';
 import { getStorageItem } from '../../../utils/storageHelper.ts';
 import { useLanguageChange } from '../../../hooks/useLanguageChange.ts';
+import { PageLoader } from '../../../widgets/PageLoader';
 import { ROUTES } from '../../../app/routers/routes';
 import styles from './Category.module.scss';
 import { TicketCard } from '../../../shared/ui/TicketCard/TicketCard.tsx';
@@ -131,7 +132,7 @@ function Category() {
     const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'price-asc' | 'price-desc' | 'reviews-asc' | 'reviews-desc' | 'rating-asc' | 'rating-desc'>('newest');
     const [secondarySortBy, setSecondarySortBy] = useState<'none' | 'newest' | 'oldest' | 'price-asc' | 'price-desc' | 'reviews-asc' | 'reviews-desc' | 'rating-asc' | 'rating-desc'>('none');
     const [timeFilter, setTimeFilter] = useState<'all' | 'today' | 'yesterday' | 'week' | 'month'>('all');
-    const { t, i18n } = useTranslation(['components', 'category']);
+    const { t, i18n } = useTranslation(['components', 'category', 'ticket']);
     const locale = i18n.language;
     
     useLanguageChange(() => {
@@ -432,34 +433,14 @@ function Category() {
                 return;
             }
 
-            // Формируем базовый endpoint с учетом фильтров "Только услуги" и "Только объявления"
-            let endpoint = '';
-            
-            if (userRole === 'client') {
-                // Для клиентов: применяем фильтры (аналогично неавторизованным)
-                if (showOnlyServices) {
-                    endpoint = `/api/tickets?locale=${locale}&active=true&service=true&exists[author]=false&exists[master]=true&category=${id}${selectedSubcategory ? `&subcategory=${selectedSubcategory}` : ''}${currentUserId ? `&master.id[ne]=${currentUserId}` : ''}`;
-                } else if (showOnlyAnnouncements) {
-                    endpoint = `/api/tickets?locale=${locale}&active=true&service=false&exists[author]=true&exists[master]=false&category=${id}${selectedSubcategory ? `&subcategory=${selectedSubcategory}` : ''}${currentUserId ? `&author.id[ne]=${currentUserId}` : ''}`;
-                } else {
-                    // Все объявления (без фильтра service)
-                    endpoint = `/api/tickets?locale=${locale}&active=true&category=${id}${selectedSubcategory ? `&subcategory=${selectedSubcategory}` : ''}${currentUserId ? `&author.id[ne]=${currentUserId}&master.id[ne]=${currentUserId}` : ''}`;
-                }
-            } else if (userRole === 'master') {
-                endpoint = `/api/tickets?locale=${locale}&active=true&service=false&exists[author]=true&exists[master]=false&category=${id}${selectedSubcategory ? `&subcategory=${selectedSubcategory}` : ''}${currentUserId ? `&author.id[ne]=${currentUserId}` : ''}`;
-            } else {
-                // Для неавторизованных: применяем фильтры
-                if (showOnlyServices) {
-                    // Только услуги от мастеров (service=true)
-                    endpoint = `/api/tickets?locale=${locale}&active=true&service=true&category=${id}${selectedSubcategory ? `&subcategory=${selectedSubcategory}` : ''}`;
-                } else if (showOnlyAnnouncements) {
-                    // Только объявления от клиентов (service=false)
-                    endpoint = `/api/tickets?locale=${locale}&active=true&service=false&category=${id}${selectedSubcategory ? `&subcategory=${selectedSubcategory}` : ''}`;
-                } else {
-                    // Все объявления
-                    endpoint = `/api/tickets?locale=${locale}&active=true&category=${id}${selectedSubcategory ? `&subcategory=${selectedSubcategory}` : ''}`;
-                }
+            // Формируем endpoint с учётом фильтров ServiceTypeFilter
+            let serviceParam = '';
+            if (showOnlyServices) {
+                serviceParam = '&service=true';
+            } else if (showOnlyAnnouncements) {
+                serviceParam = '&service=false';
             }
+            const endpoint = `/api/tickets?locale=${locale}&active=true&category=${id}${serviceParam}${selectedSubcategory ? `&subcategory=${selectedSubcategory}` : ''}${currentUserId ? `&author.id[ne]=${currentUserId}&master.id[ne]=${currentUserId}` : ''}`;
 
             console.log('✅ Category - Selected endpoint:', `${API_BASE_URL}${endpoint}`);
 
@@ -492,10 +473,10 @@ function Category() {
 
                 return {
                     id: ticket.id,
-                    title: ticket.title || 'Без названия',
+                    title: ticket.title || t('ticket:noTitle'),
                     price: ticket.budget || 0,
                     unit: ticket.unit?.title || 'TJS',
-                    description: ticket.description || 'Описание отсутствует',
+                    description: ticket.description || t('ticket:noDescription'),
                     address: shortAddress, // Краткий адрес для основного отображения
                     fullAddress: fullAddress, // Полный адрес
                     date: ticket.createdAt,
@@ -611,22 +592,18 @@ function Category() {
 
     const handleServiceToggle = () => {
         if (!showOnlyServices) {
-            // Включаем "Только услуги" и выключаем "Только объявления"
             setShowOnlyServices(true);
             setShowOnlyAnnouncements(false);
         } else {
-            // Выключаем "Только услуги"
             setShowOnlyServices(false);
         }
     };
 
     const handleAnnouncementsToggle = () => {
         if (!showOnlyAnnouncements) {
-            // Включаем "Только объявления" и выключаем "Только услуги"
             setShowOnlyAnnouncements(true);
             setShowOnlyServices(false);
         } else {
-            // Выключаем "Только объявления"
             setShowOnlyAnnouncements(false);
         }
     };
@@ -682,16 +659,16 @@ function Category() {
     };
 
     const getPageTitle = () => {
-        if (!categoryName) return 'По категории';
+        if (!categoryName) return t('category:byCategory');
 
         let roleText: string;
 
         if (userRole === 'client') {
-            roleText = ' - Услуги мастеров';
+            roleText = ' - ' + t('category:masterServices');
         } else if (userRole === 'master') {
-            roleText = ' - Заказы клиентов';
+            roleText = ' - ' + t('category:clientOrders');
         } else {
-            roleText = ' - Все объявления';
+            roleText = ' - ' + t('category:allAds');
         }
 
         return `${truncateText(categoryName, 30)}${roleText}`;
@@ -702,16 +679,16 @@ function Category() {
         return (
             <div className={styles.container}>
                 <div className={styles.header}>
-                    <h1>Ошибка</h1>
+                    <h1>{t('category:errorTitle')}</h1>
                     <button className={styles.closeButton} onClick={handleClose}>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M18 6L6 18" stroke="#101010" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            <path d="M6 6L18 18" stroke="#101010" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
                     </button>
                 </div>
                 <div className={styles.noResults}>
-                    <p>Категория не выбрана</p>
+                    <p>{t('category:notSelected')}</p>
                 </div>
             </div>
         );
@@ -723,8 +700,8 @@ function Category() {
                 <h1>{getPageTitle()}</h1>
                 <button className={styles.closeButton} onClick={handleClose}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M18 6L6 18" stroke="#101010" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M6 6L18 18" stroke="#101010" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                 </button>
             </div>
@@ -778,6 +755,7 @@ function Category() {
                                 <img
                                     src="/default_all.png"
                                     alt={t('category:allSubcategories', 'Все')}
+                                    className={styles.img_fallback}
                                     onError={(e) => {
                                         // Fallback изображение для кнопки "Все"
                                         e.currentTarget.src = '/default_all.png';
@@ -805,10 +783,15 @@ function Category() {
                                 <img
                                     src={formatOccupationImageUrl(occupation.image)}
                                     alt={occupation.title}
+                                    className={!occupation.image ? styles.img_fallback : undefined}
                                     onError={(e) => {
                                         // Fallback изображение для профессий с первой буквой
                                         const firstLetter = occupation.title.charAt(0).toUpperCase();
-                                        e.currentTarget.src = `https://ui-avatars.com/api/?name=${firstLetter}&background=e0e0e0&color=666&size=64&font-size=0.5`;
+                                        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                                        const bg = isDark ? '3A54DA' : 'e0e0e0';
+                                        const fg = isDark ? 'ffffff' : '555555';
+                                        e.currentTarget.src = `https://ui-avatars.com/api/?name=${firstLetter}&background=${bg}&color=${fg}&size=64&font-size=0.5`;
+                                        e.currentTarget.classList.add(styles.img_fallback);
                                     }}
                                     loading="lazy"
                                 />
@@ -843,17 +826,15 @@ function Category() {
                 </div>
             )}
 
-            {/* Переключатель "Только услуги" - показываем для неавторизованных и клиентов */}
-            {(userRole === null || userRole === 'client') && (
-                <div className={styles.service_filter_wrapper}>
-                    <ServiceTypeFilter
-                        showOnlyServices={showOnlyServices}
-                        showOnlyAnnouncements={showOnlyAnnouncements}
-                        onServiceToggle={handleServiceToggle}
-                        onAnnouncementsToggle={handleAnnouncementsToggle}
-                    />
-                </div>
-            )}
+            {/* Переключатель типа сервиса */}
+            <div className={styles.service_filter_wrapper}>
+                <ServiceTypeFilter
+                    showOnlyServices={showOnlyServices}
+                    showOnlyAnnouncements={showOnlyAnnouncements}
+                    onServiceToggle={handleServiceToggle}
+                    onAnnouncementsToggle={handleAnnouncementsToggle}
+                />
+            </div>
 
             {/* Блок сортировки и фильтрации */}
             <div className={styles.sorting_filter_wrapper}>
@@ -869,20 +850,20 @@ function Category() {
 
             <div className={styles.searchResults}>
                 {isLoading ? (
-                    <div className={styles.loading}><p>Загрузка...</p></div>
+                    <PageLoader text={t('category:loading')} fullPage={false} />
                 ) : tickets.length === 0 ? (
                     <div className={styles.noResults}>
                         <p>
                             {categoryName
-                                ? `Нет объявлений в категории "${categoryName}"`
-                                : 'Нет объявлений в выбранной категории'
+                                ? t('category:noAdsInCategory', { name: categoryName })
+                                : t('category:noAdsInSelected')
                             }
                         </p>
                         <button
                             className={styles.refreshButton}
                             onClick={() => fetchTicketsByCategory()}
                         >
-                            Обновить
+                            {t('category:refresh')}
                         </button>
                     </div>
                 ) : (

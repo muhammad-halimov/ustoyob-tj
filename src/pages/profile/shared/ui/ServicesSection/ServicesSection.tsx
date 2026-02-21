@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../../../app/routers/routes';
 import { Service } from '../../../../../entities';
@@ -21,6 +22,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
     API_BASE_URL = import.meta.env.VITE_API_BASE_URL,
 }) => {
     const navigate = useNavigate();
+    const { t } = useTranslation(['profile']);
 
     // Фильтруем только активные услуги
     const activeServices = services.filter(service => service.active !== false);
@@ -74,10 +76,10 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
 
     return (
         <div className={styles.section_item}>
-            <h3>{userRole === 'client' ? 'Объявления' : 'Услуги'} ({activeServices.length})</h3>
+            <h3>{userRole === 'client' ? t('profile:servicesTitleClient') : t('profile:servicesTitle')} ({activeServices.length})</h3>
             <div className={styles.section_content}>
                 {servicesLoading ? (
-                    <div className={styles.loading}>Загрузка услуг...</div>
+                    <div className={styles.loading}>{t('profile:loadingServices')}</div>
                 ) : activeServices.length > 0 ? (
                     <>
                         {activeServices.map((service, index) => (
@@ -89,23 +91,33 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                                 <div className={styles.service_image}>
                                     <img 
                                         src={getServiceImage(service)} 
-                                        alt={typeof service.title === 'string' ? service.title : 'Услуга'}
+                                        alt={typeof service.title === 'string' ? service.title : t('profile:serviceDefault')}
                                         onError={handleImageError}
                                     />
                                 </div>
                                 <div className={styles.service_content}>
                                     <div className={styles.service_header}>
-                                        <h4 className={styles.service_title}>{truncateText(typeof service.title === 'string' ? service.title : (typeof service.title === 'object' && service.title && 'title' in service.title ? String((service.title as any).title) : 'Услуга'), 20)}</h4>
+                                        <h4 className={styles.service_title}>{truncateText(typeof service.title === 'string' ? service.title : (typeof service.title === 'object' && service.title && 'title' in service.title ? String((service.title as any).title) : t('profile:serviceDefault')), 17)}</h4>
                                         <div className={styles.service_price}>
                                             {typeof service.budget === 'number' ? service.budget : 0} TJS / {typeof service.unit === 'string' ? service.unit : (typeof service.unit === 'object' && service.unit && 'title' in service.unit ? String((service.unit as any).title) : 'шт')}
                                         </div>
                                     </div>
-                                    {service.description && (
-                                        <p className={styles.service_description}>{typeof service.description === 'string' ? service.description : (typeof service.description === 'object' && service.description && 'text' in service.description ? String((service.description as any).text) : '')}</p>
-                                    )}
+                                    {service.description && (() => {
+                                        const desc = typeof service.description === 'string'
+                                            ? service.description
+                                            : (typeof service.description === 'object' && service.description && 'text' in service.description
+                                                ? String((service.description as any).text)
+                                                : '');
+                                        return (
+                                            <>
+                                                <p className={styles.service_description_desktop}>{truncateText(desc, 150)}</p>
+                                                <p className={styles.service_description_mobile}>{truncateText(desc, 25)}</p>
+                                            </>
+                                        );
+                                    })()}
                                     {service.createdAt && (
                                         <div className={styles.service_date}>
-                                            Добавлено: {formatDate(service.createdAt)}
+                                            {t('profile:addedAt')} {formatDate(service.createdAt)}
                                         </div>
                                     )}
                                 </div>
@@ -120,8 +132,8 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                 ) : (
                     <div className={styles.empty_state}>
                         <span>{readOnly 
-                            ? (userRole === 'client' ? 'Объявления пока не добавлены' : 'Услуги пока не добавлены')
-                            : (userRole === 'client' ? 'Добавьте свои объявления' : 'Добавьте свои услуги')
+                            ? (userRole === 'client' ? t('profile:noServicesClient') : t('profile:noServicesMaster'))
+                            : (userRole === 'client' ? t('profile:addServicesClient') : t('profile:addServicesMaster'))
                         }</span>
                     </div>
                 )}

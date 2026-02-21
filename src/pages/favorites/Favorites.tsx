@@ -4,13 +4,14 @@ import styles from './Favorite.module.scss';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../app/routers/routes';
 import { createChatWithAuthor } from "../../utils/chatUtils";
-import { cleanText } from '../../utils/cleanText';
+import { textHelper } from '../../utils/textHelper.ts';
 import { useTranslation } from 'react-i18next';
 import { useLanguageChange } from '../../hooks/useLanguageChange';
 import { TicketCard } from '../../shared/ui/TicketCard/TicketCard.tsx';
 import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 import { ServiceTypeFilter } from '../../widgets/Sorting/ServiceTypeFilter/ServiceTypeFilter';
 import { SortingFilter } from '../../widgets/Sorting/SortingFilter/SortingFilter';
+import { PageLoader } from '../../widgets/PageLoader';
 
 interface FavoriteTicket {
     id: number;
@@ -1255,7 +1256,7 @@ function Favorites() {
     };
 
     if (isLoading) {
-        return <div className={styles.loading}>Загрузка избранного...</div>;
+        return <PageLoader text={t('components:favorites.loading', 'Загрузка избранного...')} />;
     }
 
     const showTabs = userRole === 'client';
@@ -1408,7 +1409,7 @@ function Favorites() {
                     <TicketCard
                         key={`${ticket.id}-${ticket.type}-${index}`}
                         title={ticket.title}
-                        description={cleanText(ticket.description)}
+                        description={textHelper(ticket.description)}
                         price={ticket.price}
                         unit={ticket.unit}
                         address={ticket.address}

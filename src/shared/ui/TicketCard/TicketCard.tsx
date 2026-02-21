@@ -5,6 +5,9 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useFavorites } from '../useFavorites';
 import { ROUTES } from '../../../app/routers/routes';
+import { truncateText } from '../../../utils/textHelper';
+// Re-export for backward compatibility (other files import truncateText from TicketCard)
+export { truncateText };
 
 interface AnnouncementCardProps {
   title: string;
@@ -39,12 +42,8 @@ interface AnnouncementCardProps {
   onActiveToggle?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
-export const truncateText = (text: string, maxLength: number = 110): string => {
-  if (text.length > maxLength) {
-    return text.slice(0, maxLength) + '...';
-  }
-  return text;
-};
+// truncateText moved to src/utils/textHelper.ts
+// Re-exported above for backward compatibility
 
 // Функция для получения правильного падежа в русском языке
 const getRussianPlural = (number: number, forms: [string, string, string]): string => {

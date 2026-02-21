@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ROUTES } from '../../app/routers/routes';
+import { useTheme } from '../../contexts';
+import { useTranslation } from 'react-i18next';
 import {
     setAuthToken,
     setAuthTokenExpiry,
@@ -47,6 +49,9 @@ const OAuthCallbackPage = () => {
     const [error, setError] = useState<string>('');
     const [loading, setLoading] = useState(true);
     const [provider, setProvider] = useState<OAuthProvider | null>(null);
+    const { theme } = useTheme();
+    const isDark = theme === 'dark';
+    const { t } = useTranslation('common');
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -56,7 +61,7 @@ const OAuthCallbackPage = () => {
         setProvider(detectedProvider);
 
         if (!detectedProvider) {
-            setError('Неизвестный провайдер авторизации');
+            setError(t('oauth.unknownProvider'));
             setLoading(false);
             setTimeout(() => navigate(ROUTES.HOME), 3000);
             return;
@@ -88,14 +93,14 @@ const OAuthCallbackPage = () => {
             // Обработка ошибок от провайдера
             if (errorParam) {
                 const errorMsg = errorDescription || errorParam;
-                setError(`Ошибка ${detectedProvider}: ${decodeURIComponent(errorMsg)}`);
+                setError(`${t('oauth.errorTitle')} (${detectedProvider}): ${decodeURIComponent(errorMsg)}`);
                 setLoading(false);
                 setTimeout(() => navigate(ROUTES.HOME), 3000);
                 return;
             }
 
             if (!code || !state) {
-                setError('Не удалось получить данные авторизации');
+                setError(t('oauth.noAuthData'));
                 setLoading(false);
                 setTimeout(() => navigate(ROUTES.HOME), 3000);
                 return;
@@ -225,21 +230,21 @@ const OAuthCallbackPage = () => {
                 minHeight: '100vh',
                 flexDirection: 'column',
                 padding: '20px',
-                backgroundColor: '#f5f5f5'
+                backgroundColor: isDark ? '#1A1A1A' : '#f5f5f5'
             }}>
                 <div style={{
                     width: '60px',
                     height: '60px',
-                    border: '4px solid #e0e0e0',
+                    border: `4px solid ${isDark ? '#404040' : '#e0e0e0'}`,
                     borderTop: '4px solid #4285f4',
                     borderRadius: '50%',
                     animation: 'spin 1s linear infinite',
                     marginBottom: '20px'
                 }}></div>
-                <h2 style={{ marginBottom: '10px', color: '#333' }}>
-                    Авторизация через {provider === 'google' ? 'Google' : provider === 'instagram' ? 'Instagram' : 'Facebook'}...
+                <h2 style={{ marginBottom: '10px', color: isDark ? '#E5E5E5' : '#333' }}>
+                    {t('oauth.processingVia', { provider: provider === 'google' ? 'Google' : provider === 'instagram' ? 'Instagram' : 'Facebook' })}
                 </h2>
-                <p style={{ color: '#666' }}>Пожалуйста, подождите</p>
+                <p style={{ color: isDark ? '#A8A8A8' : '#666' }}>{t('oauth.pleaseWait')}</p>
                 <style>{`
                     @keyframes spin {
                         0% { transform: rotate(0deg); }
@@ -257,14 +262,14 @@ const OAuthCallbackPage = () => {
                 textAlign: 'center',
                 maxWidth: '600px',
                 margin: '50px auto',
-                backgroundColor: '#fff',
+                backgroundColor: isDark ? '#2A2A2A' : '#fff',
                 borderRadius: '12px',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+                boxShadow: isDark ? '0 4px 20px rgba(0,0,0,0.4)' : '0 4px 20px rgba(0,0,0,0.1)'
             }}>
                 <div style={{
                     width: '80px',
                     height: '80px',
-                    backgroundColor: '#ffebee',
+                    backgroundColor: isDark ? '#3D1F1F' : '#ffebee',
                     borderRadius: '50%',
                     display: 'flex',
                     alignItems: 'center',
@@ -275,31 +280,31 @@ const OAuthCallbackPage = () => {
                 }}>
                     ✕
                 </div>
-                <h2 style={{ color: '#d32f2f', marginBottom: '15px' }}>Ошибка авторизации</h2>
+                <h2 style={{ color: '#d32f2f', marginBottom: '15px' }}>{t('oauth.errorTitle')}</h2>
                 <p style={{
                     marginBottom: '25px',
                     fontSize: '16px',
-                    color: '#424242',
+                    color: isDark ? '#C5C5C5' : '#424242',
                     lineHeight: '1.5'
                 }}>
                     {error}
                 </p>
                 <div style={{
                     padding: '15px',
-                    backgroundColor: '#f5f5f5',
+                    backgroundColor: isDark ? '#333' : '#f5f5f5',
                     borderRadius: '8px',
                     marginBottom: '20px'
                 }}>
                     <p style={{
                         margin: 0,
                         fontSize: '14px',
-                        color: '#666',
+                        color: isDark ? '#A8A8A8' : '#666',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         gap: '8px'
                     }}>
-                        <span>Перенаправление на главную страницу...</span>
+                        <span>{t('oauth.redirecting')}</span>
                         <span style={{
                             width: '8px',
                             height: '8px',
@@ -322,7 +327,7 @@ const OAuthCallbackPage = () => {
                         fontWeight: '500'
                     }}
                 >
-                    Вернуться на главную
+                    {t('oauth.backToHome')}
                 </button>
                 <style>{`
                     @keyframes pulse {

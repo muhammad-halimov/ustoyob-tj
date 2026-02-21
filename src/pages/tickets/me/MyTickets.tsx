@@ -1,8 +1,12 @@
 import {useState, useEffect, useCallback} from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../app/routers/routes';
 import { getAuthToken } from '../../../utils/auth.ts';
+import { getStorageItem } from '../../../utils/storageHelper';
+import { useLanguageChange } from '../../../hooks/useLanguageChange';
 import styles from './MyTickets.module.scss';
+import { PageLoader } from '../../../widgets/PageLoader';
 import AuthModal from '../../../features/auth/AuthModal.tsx';
 import { TicketCard } from '../../../shared/ui/TicketCard/TicketCard.tsx';
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
@@ -125,6 +129,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 function MyTickets() {
     const navigate = useNavigate();
+    const { t } = useTranslation(['myTickets']);
     
     const [currentUser, setCurrentUser] = useState<ApiUser | null>(null);
     const [allTickets, setAllTickets] = useState<FormattedTicket[]>([]);
@@ -152,6 +157,10 @@ function MyTickets() {
         };
         initializeMyTickets();
     }, []);
+
+    useLanguageChange(() => {
+        if (currentUser) fetchMyTickets();
+    });
 
     // Загрузка тикетов ТОЛЬКО ПОСЛЕ загрузки пользователя
     useEffect(() => {
@@ -221,7 +230,7 @@ function MyTickets() {
             }
 
             // Получаем все тикеты
-            const url = `${API_BASE_URL}/api/tickets?locale=${localStorage.getItem('i18nextLng') || 'ru'}`;
+            const url = `${API_BASE_URL}/api/tickets?locale=${getStorageItem('i18nextLng') || 'ru'}`;
             console.log('Fetching tickets from:', url);
 
             const response = await fetch(url, {
@@ -249,25 +258,25 @@ function MyTickets() {
                     const isService = ticket.service;
                     const authorData = isService ? ticket.master : ticket.author;
                     const authorName = `${authorData?.name || ''} ${authorData?.surname || ''}`.trim() ||
-                        (isService ? 'Мастер' : 'Клиент');
+                        (isService ? t('myTickets:master') : t('myTickets:client'));
                     
                     return {
                         id: ticket.id,
-                        title: ticket.title || 'Без названия',
+                        title: ticket.title || t('myTickets:noTitle'),
                         price: ticket.budget || 0,
                         unit: ticket.unit?.title || 'N/A',
-                        description: ticket.description || 'Описание отсутствует',
+                        description: ticket.description || t('myTickets:noDescription'),
                         address: getFullAddress(ticket),
-                        date: formatDate(ticket.createdAt),
+                        date: ticket.createdAt,
                         author: authorName,
                         master: `${ticket.master?.name || ''} ${ticket.master?.surname || ''}`.trim() ||
-                            (ticket.service ? 'Мастер' : 'Клиент'),
+                            (ticket.service ? t('myTickets:master') : t('myTickets:client')),
                         authorId: ticket.author?.id || 0,
                         masterId: ticket.master?.id || 0,
                         timeAgo: ticket.createdAt,
                         category: ticket.category?.title || 'другое',
                         subcategory: ticket.subcategory?.title,
-                        status: ticket.active ? 'Активно' : 'Завершено',
+                        status: ticket.active ? t('myTickets:statusActive') : t('myTickets:statusDone'),
                         type: ticket.service ? 'master' : 'client',
                         authorImage: authorData?.image ? formatProfileImageUrl(authorData.image) : undefined,
                         active: ticket.active
@@ -308,7 +317,7 @@ function MyTickets() {
 
     const getFullAddress = (ticketData: Ticket): string => {
         if (!ticketData.addresses || ticketData.addresses.length === 0) {
-            return 'Адрес не указан';
+            return t('myTickets:addrNotSpecified');
         }
 
         const address = ticketData.addresses[0];
@@ -354,22 +363,9 @@ function MyTickets() {
             parts.push(address.title);
         }
 
-        const result = parts.length > 0 ? parts.join(', ') : 'Адрес не указан';
+        const result = parts.length > 0 ? parts.join(', ') : t('myTickets:addrNotSpecified');
         console.log('Formatted address:', result);
         return result;
-    };
-
-    const formatDate = (dateString: string) => {
-        try {
-            if (!dateString) return 'Дата не указана';
-            return new Date(dateString).toLocaleDateString('ru-RU', {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric'
-            });
-        } catch {
-            return 'Дата не указана';
-        }
     };
 
     const handleCardClick = useCallback((ticketId?: number, authorId?: number, masterId?: number) => {
@@ -415,21 +411,21 @@ function MyTickets() {
                 // Обновляем все тикеты со статусом
                 setAllTickets(prev => prev.map(ticket => 
                     ticket.id === ticketId
-                        ? { ...ticket, active: newActiveStatus, status: newActiveStatus ? 'Активно' : 'Завершено' }
+                        ? { ...ticket, active: newActiveStatus, status: newActiveStatus ? t('myTickets:statusActive') : t('myTickets:statusDone') }
                         : ticket
                 ));
 
-                setModalMessage(`Объявление успешно ${newActiveStatus ? 'активировано' : 'деактивировано'}!`);
+                setModalMessage(newActiveStatus ? t('myTickets:activated') : t('myTickets:deactivated'));
                 setShowSuccessModal(true);
                 setTimeout(() => setShowSuccessModal(false), 3000);
             } else {
                 const errorText = await response.text();
                 console.error('Error toggling ticket active status:', errorText);
-                throw new Error(`Не удалось ${newActiveStatus ? 'активировать' : 'деактивировать'} объявление`);
+                throw new Error(newActiveStatus ? t('myTickets:activateOperError') : t('myTickets:deactivateOperError'));
             }
         } catch (error) {
             console.error('Error toggling ticket active status:', error);
-            setModalMessage(`Ошибка при ${currentActive ? 'деактивации' : 'активации'} объявления`);
+            setModalMessage(currentActive ? t('myTickets:deactivateError') : t('myTickets:activateError'));
             setShowErrorModal(true);
             setTimeout(() => setShowErrorModal(false), 3000);
         }
@@ -447,7 +443,7 @@ function MyTickets() {
 
         // Просто переходим на страницу редактирования
         // CreateEdit сам загрузит данные по ID из URL
-        navigate(ROUTES.TICKET_EDIT(ticketId));
+        navigate(ROUTES.TICKET_EDIT_BY_ID(ticketId));
     };
 
     // const getTicketTypeLabel = (type: 'client' | 'master') => {
@@ -456,11 +452,7 @@ function MyTickets() {
 
     // Пока загружается currentUser или тикеты - показать загрузку
     if (isLoading) {
-        return (
-            <div className={styles.container}>
-                <div className={styles.loadingMessage}>Загрузка...</div>
-            </div>
-        );
+        return <PageLoader text={t('myTickets:loading')} />;
     }
 
     // Если нет currentUser после загрузки - показать AuthModal
@@ -477,18 +469,18 @@ function MyTickets() {
     return (
         <div className={styles.container}>
             <div className={styles.header}>
-                <h1>Мои объявления/услуги</h1>
+                <h1>{t('myTickets:myAds')}</h1>
                 <div className={styles.headerActions}>
                     <button className={styles.createButton} onClick={handleCreateNew}>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M12 5v14M5 12h14" stroke="white" strokeWidth="2" strokeLinecap="round"/>
                         </svg>
-                        Создать новое
+                        {t('myTickets:createNew')}
                     </button>
                     <button className={styles.closeButton} onClick={handleClose}>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M18 6L6 18" stroke="#101010" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            <path d="M6 6L18 18" stroke="#101010" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
                     </button>
                 </div>
@@ -500,31 +492,31 @@ function MyTickets() {
                     className={`${styles.tab} ${activeTab === 'active' ? styles.active : ''}`}
                     onClick={() => setActiveTab('active')}
                 >
-                    Активные ({allTickets.filter(t => t.active).length})
+                    {t('myTickets:activeTab', { count: allTickets.filter(ticket => ticket.active).length })}
                 </button>
                 <button
                     className={`${styles.tab} ${activeTab === 'inactive' ? styles.active : ''}`}
                     onClick={() => setActiveTab('inactive')}
                 >
-                    Завершенные ({allTickets.filter(t => !t.active).length})
+                    {t('myTickets:inactiveTab', { count: allTickets.filter(ticket => !ticket.active).length })}
                 </button>
             </div>
 
             {/* Список объявлений */}
             <div className={styles.ticketsList}>
                 {isLoading ? (
-                    <div className={styles.loading}><p>Загрузка ваших объявлений...</p></div>
+                    <div className={styles.loading}><p>{t('myTickets:loadingAds')}</p></div>
                 ) : displayedTickets.length === 0 ? (
                     <div className={styles.noResults}>
                         <p>
                             {activeTab === 'active'
-                                ? 'У вас нет активных объявлений'
-                                : 'У вас нет завершенных объявлений'
+                                ? t('myTickets:noActiveAds')
+                                : t('myTickets:noInactiveAds')
                             }
                         </p>
                         {activeTab === 'active' && (
                             <button className={styles.createEmptyButton} onClick={handleCreateNew}>
-                                Создать первое объявление
+                                {t('myTickets:createFirst')}
                             </button>
                         )}
                     </div>

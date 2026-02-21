@@ -4,8 +4,11 @@ import {getAuthToken, getUserData} from '../../../utils/auth.ts';
 import styles from './Ticket.module.scss';
 import {createChatWithAuthor, initChatModals} from "../../../utils/chatUtils.ts";
 import AuthModal from "../../../features/auth/AuthModal.tsx";
-import {cleanText} from "../../../utils/cleanText.ts";
+import {textHelper} from "../../../utils/textHelper.ts";
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
+import { useTranslation } from 'react-i18next';
+import { useLanguageChange } from '../../../hooks/useLanguageChange.ts';
+import { getStorageItem } from '../../../utils/storageHelper.ts';
 import StatusModal from '../../../shared/ui/Modal/StatusModal';
 import ReviewModal from '../../../shared/ui/Modal/ReviewModal';
 import ComplaintModal from '../../../shared/ui/Modal/ComplaintModal/ComplaintModal';
@@ -14,6 +17,7 @@ import {useFavorites} from '../../../shared/ui/useFavorites';
 import {ROUTES} from '../../../app/routers/routes';
 import {ReviewsSection} from '../../profile/shared/ui/ReviewsSection';
 import type {Review} from '../../../entities';
+import { PageLoader } from '../../../widgets/PageLoader';
 
 // import { fetchUserWithRole } from "../../utils/api.ts";
 
@@ -115,6 +119,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 export function Ticket() {
     const {id} = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { t } = useTranslation(['ticket', 'components']);
     const [order, setOrder] = useState<Order | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -141,7 +146,6 @@ export function Ticket() {
     const [reviews, setReviews] = useState<Review[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(false);
     const [visibleReviewCount, setVisibleReviewCount] = useState(2);
-    const [expandedReviews, setExpandedReviews] = useState<Set<number>>(new Set());
 
     const [reviewCount, setReviewCount] = useState<number>(0);
 
@@ -155,6 +159,7 @@ export function Ticket() {
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
     const [isTogglingActive, setIsTogglingActive] = useState(false);
     const isLoadingRef = useRef<boolean>(false); // Отслеживаем текущие запросы
+    const isServiceRef = useRef<boolean>(false);
 
     // States for chat checking
     const [existingChatId, setExistingChatId] = useState<number | null>(null);
@@ -211,7 +216,14 @@ export function Ticket() {
         };
 
         loadData();
-    }, [id]); // Убираем isLoading из зависимостей
+    }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Перезагружать данные при смене языка
+    useLanguageChange(() => {
+        if (id) {
+            fetchOrder(parseInt(id));
+        }
+    });
 
     useEffect(() => {
         if (order) {
@@ -375,21 +387,22 @@ export function Ticket() {
                 headers['Authorization'] = `Bearer ${token}`;
             }
 
-            const response = await fetch(`${API_BASE_URL}/api/tickets/${ticketId}`, {
+            const currentLocale = getStorageItem('i18nextLng') || 'ru';
+            const response = await fetch(`${API_BASE_URL}/api/tickets/${ticketId}?locale=${currentLocale}`, {
                 method: 'GET',
                 headers: headers,
             });
 
             if (!response.ok) {
                 if (response.status === 404) {
-                    setError('Тикет не найден');
+                    setError(t('ticket:ticketNotFound'));
                     return;
                 } else if (response.status === 403) {
-                    setError('Нет доступа к этому объявлению');
+                    setError(t('ticket:accessDenied'));
                     return;
+                }
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
 
         const responseData = await response.json();
         console.log('Raw API response:', responseData);
@@ -399,7 +412,7 @@ export function Ticket() {
         
         if (Array.isArray(responseData)) {
             if (responseData.length === 0) {
-                setError('Тикет не найден');
+                setError(t('ticket:ticketNotFound'));
                 return;
             }
             ticketData = responseData[0];
@@ -411,16 +424,16 @@ export function Ticket() {
 
         // Проверяем что у нас есть валидные данные тикета
         if (!ticketData || !ticketData.id) {
-            setError('Неверный формат данных тикета');
-            return;
-        }
+                setError(t('ticket:invalidData'));
+                return;
+            }
 
             // Проверяем доступ к неактивным объявлениям
             // Неактивные объявления видны только их владельцам
             if (!ticketData.active && currentUserId) {
                 const isOwner = ticketData.author?.id === currentUserId || ticketData.master?.id === currentUserId;
                 if (!isOwner) {
-                    setError('Это объявление неактивно и недоступно для просмотра');
+                    setError(t('ticket:inactiveAd'));
                     return;
                 }
             }
@@ -437,14 +450,14 @@ export function Ticket() {
             if (ticketData.master) {
                 // Заявка клиента - показываем мастера
                 displayUserId = ticketData.master.id;
-                displayUserName = `${ticketData.master.name || ''} ${ticketData.master.surname || ''}`.trim() || 'Мастер';
+                displayUserName = `${ticketData.master.name || ''} ${ticketData.master.surname || ''}`.trim() || t('components:app.defaultMaster');
                 displayUserImage = ticketData.master.image ? formatProfileImageUrl(ticketData.master.image) : '';
                 userTypeForRating = 'master';
                 userRating = ticketData.master.rating || 0; // Рейтинг мастера из тикета
             } else {
                 // Услуга мастера - показываем автора
                 displayUserId = ticketData.author.id;
-                displayUserName = `${ticketData.author.name || ''} ${ticketData.author.surname || ''}`.trim() || 'Клиент';
+                displayUserName = `${ticketData.author.name || ''} ${ticketData.author.surname || ''}`.trim() || t('components:app.defaultClient');
                 displayUserImage = ticketData.author.image ? formatProfileImageUrl(ticketData.author.image) : '';
                 userTypeForRating = 'client';
                 userRating = ticketData.author.rating || 0; // Рейтинг автора из тикета
@@ -489,20 +502,20 @@ export function Ticket() {
 
             const orderData: Order = {
                 id: ticketData.id,
-                title: ticketData.title ? cleanText(ticketData.title) : 'Без названия',
+                title: ticketData.title ? textHelper(ticketData.title) : t('ticket:noTitle'),
                 price: ticketData.budget || 0,
                 unit: ticketData.unit?.title || 'tjs',
-                description: ticketData.description ? cleanText(ticketData.description) : 'Описание отсутствует',
+                description: ticketData.description ? textHelper(ticketData.description) : t('ticket:noDescription'),
                 address: fullAddress,
                 date: formatDate(ticketData.createdAt),
                 author: displayUserName,
                 authorId: displayUserId,
                 timeAgo: getTimeAgo(ticketData.createdAt),
-                category: ticketData.category?.title ? cleanText(ticketData.category.title) : 'другое',
-                subcategory: ticketData.subcategory?.title ? cleanText(ticketData.subcategory.title) : undefined,
-                additionalComments: ticketData.notice ? cleanText(ticketData.notice) : undefined,
+                category: ticketData.category?.title ? textHelper(ticketData.category.title) : t('components:app.service'),
+                subcategory: ticketData.subcategory?.title ? textHelper(ticketData.subcategory.title) : undefined,
+                additionalComments: ticketData.notice ? textHelper(ticketData.notice) : undefined,
                 photos: photos.length > 0 ? photos : undefined,
-                notice: ticketData.notice ? cleanText(ticketData.notice) : undefined,
+                notice: ticketData.notice ? textHelper(ticketData.notice) : undefined,
                 rating: userRating,
                 authorImage: displayUserImage || undefined,
                 active: ticketData.active,
@@ -512,11 +525,12 @@ export function Ticket() {
             console.log('Final order data:', orderData);
             setOrder(orderData);
             setIsTicketActive(ticketData.active);
+            isServiceRef.current = ticketData.service === true;
 
         } catch (error) {
             const fetchTime = Date.now();
             console.error(`[${fetchTime}] fetchOrder ERROR for ticket:`, error);
-            setError('Не удалось загрузить данные тикета');
+            setError(t('ticket:loadError'));
         } finally {
             const fetchTime = Date.now();
             console.log(`[${fetchTime}] fetchOrder COMPLETED, setting isLoading to false`);
@@ -526,29 +540,39 @@ export function Ticket() {
 
     const formatDate = (dateString: string) => {
         try {
-            if (!dateString) return 'Дата не указана';
+            if (!dateString) return t('ticket:dateNotSpecified');
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) return dateString;
+            const months = t('components:time.months', { returnObjects: true }) as string[];
+            if (Array.isArray(months) && months.length === 12) {
+                return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+            }
             return new Date(dateString).toLocaleDateString('ru-RU', {
                 day: 'numeric',
                 month: 'long',
                 year: 'numeric'
             });
         } catch {
-            return 'Дата не указана';
+            return t('ticket:dateNotSpecified');
         }
     };
 
     const getTimeAgo = (dateString: string) => {
         try {
-            if (!dateString) return 'недавно';
+            if (!dateString) return t('ticket:recently');
             const date = new Date(dateString);
             const now = new Date();
             const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-            if (diffInSeconds < 60) return 'только что';
-            if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} ${getRussianWord(Math.floor(diffInSeconds / 60), ['минуту', 'минуты', 'минут'])} назад`;
-            if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} ${getRussianWord(Math.floor(diffInSeconds / 3600), ['час', 'часа', 'часов'])} назад`;
-            return `${Math.floor(diffInSeconds / 86400)} ${getRussianWord(Math.floor(diffInSeconds / 86400), ['день', 'дня', 'дней'])} назад`;
+            if (diffInSeconds < 60) return t('ticket:justNow');
+            const minuteWords = t('components:time.minuteWords', { returnObjects: true }) as string[];
+            const hourWords = t('components:time.hourWords', { returnObjects: true }) as string[];
+            const dayWords = t('components:time.dayWords', { returnObjects: true }) as string[];
+            const ago = t('components:time.ago');
+            if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} ${getRussianWord(Math.floor(diffInSeconds / 60), minuteWords as [string,string,string])} ${ago}`;
+            if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} ${getRussianWord(Math.floor(diffInSeconds / 3600), hourWords as [string,string,string])} ${ago}`;
+            return `${Math.floor(diffInSeconds / 86400)} ${getRussianWord(Math.floor(diffInSeconds / 86400), dayWords as [string,string,string])} ${ago}`;
         } catch {
-            return 'недавно';
+            return t('ticket:recently');
         }
     };
 
@@ -589,13 +613,13 @@ export function Ticket() {
                 setIsTicketActive(newActiveStatus);
                 setOrder(prev => prev ? { ...prev, active: newActiveStatus } : null);
 
-                setModalMessage(`Объявление успешно ${newActiveStatus ? 'активировано' : 'деактивировано'}!`);
+                setModalMessage(newActiveStatus ? t('ticket:activatedSuccess') : t('ticket:deactivatedSuccess'));
                 setShowSuccessModal(true);
                 setTimeout(() => setShowSuccessModal(false), 3000);
             } else {
                 const errorText = await response.text();
                 console.error('Error toggling active status:', errorText);
-                throw new Error(`Не удалось ${newActiveStatus ? 'активировать' : 'деактивировать'} объявление`);
+                throw new Error(newActiveStatus ? t('ticket:activateError') : t('ticket:deactivateError'));
             }
         } catch (error) {
             console.error('Error toggling active status:', error);
@@ -756,54 +780,6 @@ export function Ticket() {
         }
     };
     
-    // Получаем полную информацию о пользователе для отзывов
-    const getUserInfo = async (userId: number): Promise<{
-        id: number;
-        email: string;
-        name: string;
-        surname: string;
-        rating: number;
-        image: string;
-        imageExternalUrl?: string;
-    } | null> => {
-        console.log('Getting user info for ID:', userId);
-        
-        if (!userId) {
-            console.warn('getUserInfo called with invalid userId:', userId);
-            return null;
-        }
-        
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
-                headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            if (response.ok) {
-                const userData = await response.json();
-                console.log('User data received:', userData);
-                
-                return {
-                    id: userData.id || userId,
-                    email: userData.email || '',
-                    name: userData.name || '',
-                    surname: userData.surname || '',
-                    rating: userData.rating || 0,
-                    image: userData.image || '',
-                    imageExternalUrl: userData.imageExternalUrl || ''
-                };
-            } else {
-                console.error(`Failed to fetch user ${userId}:`, response.status);
-                return null;
-            }
-        } catch (error) {
-            console.error('Error fetching user info:', error);
-            return null;
-        }
-    };
-
     // Проверяем существующие чаты пользователя
     const checkExistingChats = async () => {
         const token = getAuthToken();
@@ -849,9 +825,10 @@ export function Ticket() {
     };
 
     const getReviewWord = (count: number) => {
-        if (count === 1) return 'отзыв';
-        if (count >= 2 && count <= 4) return 'отзыва';
-        return 'отзывов';
+        const reviewWords = t('components:time.reviewsOne') ? 
+            [t('components:time.reviewsOne'), t('components:time.reviewsFew'), t('components:time.reviewsMany')] :
+            ['отзыв', 'отзыва', 'отзывов'];
+        return getRussianWord(count, reviewWords as [string, string, string]);
     };
 
     // ===== Функции для работы с отзывами =====
@@ -864,8 +841,8 @@ export function Ticket() {
         try {
             const token = getAuthToken();
             
-            // Определяем тип тикета: service=true (услуга мастера) или service=false (заявка клиента)
-            const isService = order.id ? await checkIfService(order.id) : false;
+            // Тип тикета уже известен из fetchOrder — не делаем повторный запрос
+            const isService = isServiceRef.current;
             
             // Формируем правильный эндпоинт
             const serviceParam = isService ? 'true' : 'false';
@@ -905,58 +882,61 @@ export function Ticket() {
                 console.log('Review ticket:', reviewsData[0].ticket);
             }
             
-            // Трансформируем отзывы - получаем полные данные пользователей
-            const transformedReviews = await Promise.all(
-                reviewsData.map(async (review: any) => {
-                    const masterId = review.master?.id;
-                    const clientId = review.client?.id;
-                    
-                    console.log(`Processing review ${review.id}: master=${masterId}, client=${clientId}`);
-                    
-                    // Получаем полные данные мастера и клиента
-                    const [masterData, clientData] = await Promise.all([
-                        masterId ? getUserInfo(masterId) : Promise.resolve(null),
-                        clientId ? getUserInfo(clientId) : Promise.resolve(null)
-                    ]);
-                    
-                    console.log('Master data:', masterData);
-                    console.log('Client data:', clientData);
-                    
-                    const serviceTitle = String(review.ticket?.title || review.services?.title || 'Услуга');
-                    
-                    return {
-                        id: review.id,
-                        rating: review.rating || 0,
-                        description: review.description || '',
-                        forReviewer: review.forClient || false,
-                        services: {
-                            id: review.ticket?.id || review.services?.id || 0,
-                            title: serviceTitle
-                        },
-                        ticket: review.ticket,
-                        images: review.images || [],
-                        user: masterData || {
-                            id: masterId || 0,
-                            email: '',
-                            name: 'Мастер',
-                            surname: '',
-                            rating: 0,
-                            image: ''
-                        },
-                        reviewer: clientData || {
-                            id: clientId || 0,
-                            email: '',
-                            name: 'Клиент',
-                            surname: '',
-                            rating: 0,
-                            image: ''
-                        },
-                        date: review.createdAt 
-                            ? new Date(review.createdAt).toLocaleDateString('ru-RU')
-                            : ''
-                    };
-                })
-            );
+            // Используем embedded данные из ответа API — без дополнительных запросов
+            const buildImageUrl = (image?: string, externalUrl?: string): string => {
+                if (image) {
+                    if (image.startsWith('http')) return image;
+                    if (image.startsWith('/')) return `${API_BASE_URL}${image}`;
+                    return `${API_BASE_URL}/images/profile_photos/${image}`;
+                }
+                if (externalUrl) return externalUrl;
+                return '';
+            };
+
+            const transformedReviews = reviewsData.map((review: any) => {
+                const masterRaw = review.master;
+                const clientRaw = review.client;
+
+                const masterData = masterRaw ? {
+                    id: masterRaw.id || 0,
+                    email: '',
+                    name: masterRaw.name || '',
+                    surname: masterRaw.surname || '',
+                    rating: masterRaw.rating || 0,
+                    image: buildImageUrl(masterRaw.image, masterRaw.imageExternalUrl),
+                    imageExternalUrl: masterRaw.imageExternalUrl || '',
+                } : null;
+
+                const clientData = clientRaw ? {
+                    id: clientRaw.id || 0,
+                    email: '',
+                    name: clientRaw.name || '',
+                    surname: clientRaw.surname || '',
+                    rating: clientRaw.rating || 0,
+                    image: buildImageUrl(clientRaw.image, clientRaw.imageExternalUrl),
+                    imageExternalUrl: clientRaw.imageExternalUrl || '',
+                } : null;
+
+                const serviceTitle = String(review.ticket?.title || review.services?.title || 'Услуга');
+
+                return {
+                    id: review.id,
+                    rating: review.rating || 0,
+                    description: review.description || '',
+                    forReviewer: review.forClient || false,
+                    services: {
+                        id: review.ticket?.id || review.services?.id || 0,
+                        title: serviceTitle
+                    },
+                    ticket: review.ticket,
+                    images: review.images || [],
+                    user: masterData || { id: 0, email: '', name: t('components:app.defaultMaster'), surname: '', rating: 0, image: '' },
+                    reviewer: clientData || { id: 0, email: '', name: t('components:app.defaultClient'), surname: '', rating: 0, image: '' },
+                    date: review.createdAt
+                        ? new Date(review.createdAt).toLocaleDateString('ru-RU')
+                        : ''
+                };
+            });
             
             console.log('Transformed reviews:', transformedReviews);
             setReviews(transformedReviews);
@@ -969,68 +949,8 @@ export function Ticket() {
         }
     };
     
-    // Проверяем тип тикета (service или заявка)
-    const checkIfService = async (ticketId: number): Promise<boolean> => {
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/tickets/${ticketId}`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
-            
-            if (!response.ok) {
-                return false;
-            }
-            
-            const data = await response.json();
-            const ticketData = Array.isArray(data) ? data[0] : data;
-            
-            return ticketData.service === true;
-        } catch (error) {
-            console.error('Error checking ticket type:', error);
-            return false;
-        }
-    };
-    
-    // Функция для переключения развернутого состояния отзыва
-    const toggleReviewExpanded = (reviewId: number) => {
-        setExpandedReviews(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(reviewId)) {
-                newSet.delete(reviewId);
-            } else {
-                newSet.add(reviewId);
-            }
-            return newSet;
-        });
-    };
-    
-    // Функция для отображения текста отзыва
-    const renderReviewText = (review: Review) => {
-        const MAX_LENGTH = 200;
-        const text = review.description.replace(/<[^>]*>/g, '');
-        const isExpanded = expandedReviews.has(review.id);
-        
-        if (text.length <= MAX_LENGTH) {
-            return <p className={styles.review_text}>{text}</p>;
-        }
+    // Функция для переключения развернутого состояния отзыва — перенесено в ReadMore
 
-        return (
-            <div className={styles.review_text_container}>
-                <p className={styles.review_text}>
-                    {isExpanded ? text : `${text.slice(0, MAX_LENGTH)}...`}
-                </p>
-                <button 
-                    className={styles.show_more_btn}
-                    onClick={() => toggleReviewExpanded(review.id)}
-                >
-                    {isExpanded ? 'Скрыть' : 'Показать полностью'}
-                </button>
-            </div>
-        );
-    };
-    
     const getReviewerAvatarUrl = (review: Review) => {
         // Приоритет 1: image (локальное изображение)
         if (review.reviewer?.image) {
@@ -1061,12 +981,12 @@ export function Ticket() {
     
     const getMasterName = (review: Review) => {
         const master = review.user;
-        return master ? `${master.name || ''} ${master.surname || ''}`.trim() || 'Мастер' : 'Мастер';
+        return master ? `${master.name || ''} ${master.surname || ''}`.trim() || t('components:app.defaultMaster') : t('components:app.defaultMaster');
     };
     
     const getClientName = (review: Review) => {
         const reviewer = review.reviewer;
-        return reviewer ? `${reviewer.name || ''} ${reviewer.surname || ''}`.trim() || 'Клиент' : 'Клиент';
+        return reviewer ? `${reviewer.name || ''} ${reviewer.surname || ''}`.trim() || t('components:app.defaultClient') : t('components:app.defaultClient');
     };
     
     const handleShowMoreReviews = () => {
@@ -1086,17 +1006,17 @@ export function Ticket() {
         return totalIndex + imageIndex;
     };
 
-    if (isLoading) return <div className={styles.loading}>Загрузка...</div>;
+    if (isLoading) return <PageLoader text={t('ticket:loading')} />;
     if (error) return (
         <div className={styles.error}>
             <p>{error}</p>
-            <button onClick={() => navigate(-1)}>Назад</button>
+            <button onClick={() => navigate(-1)}>{t('ticket:back')}</button>
         </div>
     );
     if (!order) return (
         <div className={styles.error}>
-            <p>Заказ не найден</p>
-            <button onClick={() => navigate(-1)}>Назад</button>
+            <p>{t('ticket:notFound')}</p>
+            <button onClick={() => navigate(-1)}>{t('ticket:back')}</button>
         </div>
     );
 
@@ -1117,7 +1037,7 @@ export function Ticket() {
                                 <span className={styles.slider}></span>
                             </label>
                             <span className={styles.toggle_label}>
-                                {isTicketActive ? 'Активно' : 'Неактивно'}
+                                {isTicketActive ? t('ticket:active') : t('ticket:inactive')}
                             </span>
                         </div>
                     )}
@@ -1136,8 +1056,8 @@ export function Ticket() {
                 </div>
 
                 <section className={styles.section}>
-                    <h2 className={styles.section_about}>Описание</h2>
-                    <p className={styles.description}>{order.description ? cleanText(order.description) : 'Описание отсутствует'}</p>
+                    <h2 className={styles.section_about}>{t('ticket:description')}</h2>
+                    <p className={styles.description}>{order.description ? textHelper(order.description) : t('ticket:noDescription')}</p>
                 </section>
 
                 <section className={styles.section}>
@@ -1153,21 +1073,21 @@ export function Ticket() {
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                             <path d="M3 8h18M21 6v14H3V6h18zM16 2v4M8 2v4" stroke="#3A54DA" strokeWidth="2"/>
                         </svg>
-                        Опубликовано {order.date} ({order.timeAgo})
+                        {t('ticket:publishedOn')} {order.date} ({order.timeAgo})
                     </div>
                 </section>
 
                 <section className={styles.section}>
-                    <h2 className={styles.section_more}>Дополнительные комментарии</h2>
+                    <h2 className={styles.section_more}>{t('ticket:additionalComments')}</h2>
                     <div className={styles.commentsContent}>
                         <p>{order.additionalComments
-                            ? cleanText(order.additionalComments)
-                            : 'Комментарии от заказчика (при наличии)'}</p>
+                            ? textHelper(order.additionalComments)
+                            : t('ticket:commentsPlaceholder')}</p>
                     </div>
                 </section>
 
                 <section className={styles.section}>
-                    <h2 className={styles.section_more}>Приложенные фото</h2>
+                    <h2 className={styles.section_more}>{t('ticket:attachedPhotos')}</h2>
                     <div className={styles.photosContent}>
                         {order.photos && order.photos.length > 0 ? (
                             <div className={styles.photos}>
@@ -1175,7 +1095,7 @@ export function Ticket() {
                                     <img
                                         key={index}
                                         src={photo}
-                                        alt={`Фото ${index + 1}`}
+                                        alt={`${t('ticket:photoAlt')} ${index + 1}`}
                                         className={styles.photo}
                                         onClick={() => photoGallery.openGallery(index)}
                                         style={{cursor: 'pointer'}}
@@ -1186,7 +1106,7 @@ export function Ticket() {
                                 ))}
                             </div>
                         ) : (
-                            <p>к данному заказу (при наличии)</p>
+                            <p>{t('ticket:noPhotosCaption')}</p>
                         )}
                     </div>
                 </section>
@@ -1238,7 +1158,7 @@ export function Ticket() {
                                     </clipPath>
                                 </defs>
                             </svg>
-                            <p>{rating} (рейтинг)</p>
+                            <p>{rating.toFixed(1)} ({t('ticket:rating')})</p>
                         </div>
                         <div className={styles.rate_item}>
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -1278,7 +1198,7 @@ export function Ticket() {
                                         </clipPath>
                                     </defs>
                                 </svg>
-                                <p>Диплом об образовании</p>
+                                <p>{t('ticket:diplomaEducation')}</p>
                             </div>
                         )}
                     </div>
@@ -1289,7 +1209,7 @@ export function Ticket() {
                     <div
                         className={`${styles.favoriteButton} ${favorites.isLikeLoading ? styles.loading : ''}`}
                         onClick={favorites.handleLikeClick}
-                        title={favorites.isLiked ? "Удалить из избранного" : "Добавить в избранное"}
+                        title={favorites.isLiked ? t('components:buttons.removeFavorite') : t('components:buttons.addFavorite')}
                     >
                         <svg width="64" height="44" viewBox="0 0 64 44" fill="none"
                              xmlns="http://www.w3.org/2000/svg">
@@ -1323,7 +1243,7 @@ export function Ticket() {
                     <div
                         className={styles.complaintButton}
                         onClick={() => setShowComplaintModal(true)}
-                        title="Пожаловаться"
+                        title={t('ticket:complaintTitle')}
                     >
                         <svg width="64" height="44" viewBox="0 0 64 44" fill="none"
                              xmlns="http://www.w3.org/2000/svg">
@@ -1360,7 +1280,7 @@ export function Ticket() {
                                 handleLeaveReview();
                             }
                         }}
-                        title="Оставить отзыв"
+                        title={t('ticket:leaveReview')}
                     >
                         <svg width="64" height="44" viewBox="0 0 64 44" fill="none"
                              xmlns="http://www.w3.org/2000/svg">
@@ -1400,10 +1320,10 @@ export function Ticket() {
                         onClick={() => order?.authorId && handleRespondClick(order.authorId)}
                         disabled={existingChatId !== null || !isTicketActive || isCheckingChats}
                     >
-                        {isCheckingChats ? 'Проверка...' :
-                         existingChatId ? 'Готово ✅' :
-                         !isTicketActive ? 'Неактивно' :
-                         'Откликнуться'}
+                        {isCheckingChats ? t('ticket:checking') :
+                         existingChatId ? t('ticket:done') :
+                         !isTicketActive ? t('ticket:inactive') :
+                         t('ticket:respond')}
                     </button>
                 </section>
                 )}
@@ -1419,7 +1339,7 @@ export function Ticket() {
                     userRole={order.hasEducation ? 'master' : 'client'}
                     onShowMore={handleShowMoreReviews}
                     onShowLess={handleShowLessReviews}
-                    renderReviewText={renderReviewText}
+                    maxLength={200}
                     getReviewerAvatarUrl={getReviewerAvatarUrl}
                     getClientName={getClientName}
                     getMasterName={getMasterName}

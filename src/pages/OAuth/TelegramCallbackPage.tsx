@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../app/routers/routes';
+import { useTheme } from '../../contexts';
+import { useTranslation } from 'react-i18next';
 import {
     setAuthToken,
     setAuthTokenExpiry,
@@ -39,6 +41,9 @@ const TelegramCallbackPage = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string>('');
+    const { theme } = useTheme();
+    const isDark = theme === 'dark';
+    const { t } = useTranslation('common');
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -66,7 +71,7 @@ const TelegramCallbackPage = () => {
 
                 // Проверяем что все необходимые параметры есть
                 if (!id || !firstName || !hash || !authDate) {
-                    setError('Недостаточно данных для авторизации');
+                    setError(t('oauth.insufficientData'));
                     setLoading(false);
                     setTimeout(() => navigate(ROUTES.HOME), 3000);
                     return;
@@ -76,7 +81,7 @@ const TelegramCallbackPage = () => {
                 const currentTime = Math.floor(Date.now() / 1000);
                 const authTime = parseInt(authDate, 10);
                 if (currentTime - authTime > 600) {
-                    setError('Запрос устарел. Пожалуйста, повторите попытку');
+                    setError(t('oauth.expiredRequest'));
                     setLoading(false);
                     setTimeout(() => navigate(ROUTES.HOME), 3000);
                     return;
@@ -218,21 +223,21 @@ const TelegramCallbackPage = () => {
                 minHeight: '100vh',
                 flexDirection: 'column',
                 padding: '20px',
-                backgroundColor: '#f5f5f5'
+                backgroundColor: isDark ? '#1A1A1A' : '#f5f5f5'
             }}>
                 <div style={{
                     width: '60px',
                     height: '60px',
-                    border: '4px solid #e0e0e0',
+                    border: `4px solid ${isDark ? '#404040' : '#e0e0e0'}`,
                     borderTop: '4px solid #0088cc',
                     borderRadius: '50%',
                     animation: 'spin 1s linear infinite',
                     marginBottom: '20px'
                 }}></div>
-                <h2 style={{ marginBottom: '10px', color: '#333' }}>
-                    Авторизация через Telegram...
+                <h2 style={{ marginBottom: '10px', color: isDark ? '#E5E5E5' : '#333' }}>
+                    {t('oauth.processingTelegram')}
                 </h2>
-                <p style={{ color: '#666' }}>Пожалуйста, подождите</p>
+                <p style={{ color: isDark ? '#A8A8A8' : '#666' }}>{t('oauth.pleaseWait')}</p>
                 <style>{`
                     @keyframes spin {
                         0% { transform: rotate(0deg); }
@@ -250,14 +255,14 @@ const TelegramCallbackPage = () => {
                 textAlign: 'center',
                 maxWidth: '600px',
                 margin: '50px auto',
-                backgroundColor: '#fff',
+                backgroundColor: isDark ? '#2A2A2A' : '#fff',
                 borderRadius: '12px',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+                boxShadow: isDark ? '0 4px 20px rgba(0,0,0,0.4)' : '0 4px 20px rgba(0,0,0,0.1)'
             }}>
                 <div style={{
                     width: '80px',
                     height: '80px',
-                    backgroundColor: '#ffebee',
+                    backgroundColor: isDark ? '#3D1F1F' : '#ffebee',
                     borderRadius: '50%',
                     display: 'flex',
                     alignItems: 'center',
@@ -268,11 +273,11 @@ const TelegramCallbackPage = () => {
                 }}>
                     ✕
                 </div>
-                <h2 style={{ color: '#d32f2f', marginBottom: '15px' }}>Ошибка авторизации</h2>
+                <h2 style={{ color: '#d32f2f', marginBottom: '15px' }}>{t('oauth.errorTitle')}</h2>
                 <p style={{
                     marginBottom: '25px',
                     fontSize: '16px',
-                    color: '#424242',
+                    color: isDark ? '#C5C5C5' : '#424242',
                     lineHeight: '1.5'
                 }}>
                     {error}
@@ -290,7 +295,7 @@ const TelegramCallbackPage = () => {
                         fontWeight: '500'
                     }}
                 >
-                    Вернуться на главную
+                    {t('oauth.backToHome')}
                 </button>
             </div>
         );

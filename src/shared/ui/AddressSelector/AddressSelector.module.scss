@@ -346,4 +346,65 @@
     border-color: var(--color-stroke);
     color: var(--color-text-primary);
   }
+
+  .province_card_selected,
+  .city_card_selected,
+  .district_card_selected {
+    background: var(--color-actual-blue) !important;
+    border-color: var(--color-actual-blue) !important;
+    color: #fff !important;
+  }
+
+  .addressTitle {
+    color: var(--color-text-primary);
+  }
+
+  .addressSelector {
+    background: var(--color-background-primary);
+    color: var(--color-text-primary);
+  }
+
+  .loading,
+  .no_data {
+    color: var(--color-text-secondary);
+  }
+
+  .province_section,
+  .combined_section,
+  .suburbs_section,
+  .nested_selection_section,
+  .villages_section {
+    border-bottom-color: var(--color-stroke);
+
+    h3, h4 {
+      color: var(--color-text-primary);
+    }
+  }
+
+  .section_header {
+    h3, h4 {
+      color: var(--color-text-primary);
+    }
+  }
+
+  .subtitle {
+    color: var(--color-text-secondary);
+  }
+
+  .district_name,
+  .city_name {
+    color: var(--color-text-primary);
+  }
+
+  .city_districts_count,
+  .district_info,
+  .settlement_info {
+    color: var(--color-text-secondary);
+  }
+
+  .selected_summary {
+    background: var(--color-background-all);
+    border-color: var(--color-stroke);
+    color: var(--color-text-primary);
+  }
 }

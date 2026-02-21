@@ -4,7 +4,7 @@ import FilterPanel, { FilterState } from "../filters/FilterPanel.tsx";
 import { getAuthToken, getUserRole } from "../../../utils/auth.ts";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from '../../../app/routers/routes.ts';
-import {cleanText} from "../../../utils/cleanText.ts";
+import {textHelper} from "../../../utils/textHelper.ts";
 import { useTranslation } from 'react-i18next';
 import { useLanguageChange } from "../../../hooks/useLanguageChange.ts";
 import { TicketCard } from "../../../shared/ui/TicketCard/TicketCard.tsx";
@@ -627,14 +627,10 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             params.append('active', 'true');
             params.append('locale', localStorage.getItem('i18nextLng') || 'ru');
 
-            // Применяем фильтры типа сервиса (переопределяют userRole если установлены)
+            // Фильтр типа сервиса управляется только через ServiceTypeFilter
             if (showOnlyServices) {
                 params.append('service', 'true');
             } else if (showOnlyAnnouncements) {
-                params.append('service', 'false');
-            } else if (userRole === 'client') {
-                params.append('service', 'true');
-            } else if (userRole === 'master') {
                 params.append('service', 'false');
             }
 
@@ -1132,8 +1128,9 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             return (
                 <TicketCard
                     key={result.id}
+                    ticketId={result.id}
                     title={result.title}
-                    description={cleanText(result.description)}
+                    description={textHelper(result.description)}
                     price={result.price}
                     unit={result.unit}
                     address={result.address}
@@ -1151,7 +1148,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 />
             );
         });
-    }, [isLoading, searchResults, userRole, handleCardClick, cleanText, t]);
+    }, [isLoading, searchResults, userRole, handleCardClick, textHelper, t]);
 
     return (
         <div className={`${styles.container} ${showFilters ? styles.containerExpanded : ''}`}>
@@ -1243,21 +1240,19 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
                     {showResults && (
                         <>
-                            {/* Фильтр типа сервиса - показываем для неавторизованных и клиентов */}
-                            {(userRole === null || userRole === 'client') && (
-                                <ServiceTypeFilter
-                                    showOnlyServices={showOnlyServices}
-                                    showOnlyAnnouncements={showOnlyAnnouncements}
-                                    onServiceToggle={() => {
-                                        setShowOnlyServices(!showOnlyServices);
-                                        if (!showOnlyServices) setShowOnlyAnnouncements(false);
-                                    }}
-                                    onAnnouncementsToggle={() => {
-                                        setShowOnlyAnnouncements(!showOnlyAnnouncements);
-                                        if (!showOnlyAnnouncements) setShowOnlyServices(false);
-                                    }}
-                                />
-                            )}
+                            {/* Фильтр типа сервиса */}
+                            <ServiceTypeFilter
+                                showOnlyServices={showOnlyServices}
+                                showOnlyAnnouncements={showOnlyAnnouncements}
+                                onServiceToggle={() => {
+                                    setShowOnlyServices(!showOnlyServices);
+                                    if (!showOnlyServices) setShowOnlyAnnouncements(false);
+                                }}
+                                onAnnouncementsToggle={() => {
+                                    setShowOnlyAnnouncements(!showOnlyAnnouncements);
+                                    if (!showOnlyAnnouncements) setShowOnlyServices(false);
+                                }}
+                            />
 
                             {/* Сортировка и фильтрация по времени */}
                             <SortingFilter

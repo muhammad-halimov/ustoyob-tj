@@ -7,6 +7,10 @@ import AddressSelector, { AddressValue, buildAddressData } from '../../../shared
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 import StatusModal from '../../../shared/ui/Modal/StatusModal';
 import { PhotoGallery, usePhotoGallery } from '../../../shared/ui/PhotoGallery';
+import { useTranslation } from 'react-i18next';
+import { useLanguageChange } from '../../../hooks/useLanguageChange.ts';
+import { getStorageItem } from '../../../utils/storageHelper.ts';
+import { PageLoader } from '../../../widgets/PageLoader';
 
 interface ServiceData {
     id?: number;
@@ -57,9 +61,17 @@ interface Occupation {
 const CreateEdit = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
-    const isEditMode = !!id; // Если есть ID в URL - режим редактирования
+    const isEditMode = !!id;
+    const { t } = useTranslation(['createEdit', 'components']);
     
     console.log('CreateEdit component mounted/updated', { id, isEditMode });
+    
+    // Перезагружать данные формы при смене языка
+    useLanguageChange(() => {
+        fetchCategories();
+        fetchOccupations();
+        fetchUnits();
+    });
     
     const [serviceData, setServiceData] = useState<ServiceData>({
         title: '',
@@ -177,7 +189,8 @@ const CreateEdit = () => {
     const fetchCategories = async () => {
         try {
             if (!token) return;
-            const response = await fetch(`${API_BASE_URL}/api/categories`, {
+            const locale = getStorageItem('i18nextLng') || 'ru';
+            const response = await fetch(`${API_BASE_URL}/api/categories?locale=${locale}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                 }
@@ -211,7 +224,8 @@ const CreateEdit = () => {
     const fetchOccupations = async () => {
         try {
             if (!token) return;
-            const response = await fetch(`${API_BASE_URL}/api/occupations`, {
+            const locale = getStorageItem('i18nextLng') || 'ru';
+            const response = await fetch(`${API_BASE_URL}/api/occupations?locale=${locale}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                 }
@@ -296,7 +310,7 @@ const CreateEdit = () => {
             }
         } catch (error) {
             console.error('Error fetching ticket:', error);
-            alert('Ошибка при загрузке данных тикета');
+            alert(t('createEdit:ticketLoadError'));
             navigate(ROUTES.TICKET_ME);
         } finally {
             setIsLoading(false);
@@ -316,7 +330,7 @@ const CreateEdit = () => {
     };
 
     const removeExistingImage = (imageId: number) => {
-        if (!confirm('Вы уверены, что хотите удалить это фото?')) return;
+        if (!confirm(t('createEdit:photoDeleteConfirm'))) return;
 
         // Просто обновляем локальное состояние
         // Изменения будут отправлены при сохранении формы
@@ -328,33 +342,33 @@ const CreateEdit = () => {
 
         // Валидация
         if (!serviceData.title.trim() || !serviceData.description.trim() || !serviceData.budget) {
-            alert('Пожалуйста, заполните все обязательные поля');
+            alert(t('createEdit:fillRequired'));
             return;
         }
         
         if (!selectedCategory) {
-            alert('Пожалуйста, выберите категорию');
+            alert(t('createEdit:selectCategoryRequired'));
             return;
         }
 
         if (filteredOccupations.length > 0 && !selectedSubcategory) {
-            alert('Пожалуйста, выберите подкатегорию');
+            alert(t('createEdit:selectSubcategoryRequired'));
             return;
         }
 
         if (!addressValue.provinceId) {
-            alert('Пожалуйста, выберите область');
+            alert(t('createEdit:selectRegionRequired'));
             return;
         }
 
         if (!addressValue.cityId && addressValue.districtIds.length === 0) {
-            alert('Пожалуйста, выберите город или район');
+            alert(t('createEdit:selectCityRequired'));
             return;
         }
 
         const budgetValue = Number(serviceData.budget);
         if (isNaN(budgetValue) || budgetValue <= 0) {
-            alert('Пожалуйста, укажите корректную сумму бюджета');
+            alert(t('createEdit:invalidBudget'));
             return;
         }
 
@@ -362,14 +376,14 @@ const CreateEdit = () => {
             setIsSubmitting(true);
 
             if (!token) {
-                alert('Необходима авторизация');
+                alert(t('createEdit:authRequired'));
                 return;
             }
 
             // Создаем данные адреса
             const addressData = buildAddressData(addressValue);
             if (!addressData) {
-                alert('Ошибка в данных адреса');
+                alert(t('createEdit:addressError'));
                 return;
             }
 
@@ -383,14 +397,14 @@ const CreateEdit = () => {
                 });
 
                 if (!userResponse.ok) {
-                    throw new Error('Не удалось получить информацию о пользователе');
+                    throw new Error(t('createEdit:genericError'));
                 }
 
                 const userData = await userResponse.json();
                 const role = getUserRole();
 
                 if (!role) {
-                    alert('Не удалось определить роль пользователя');
+                    alert(t('createEdit:genericError'));
                     return;
                 }
 
@@ -421,7 +435,7 @@ const CreateEdit = () => {
 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    throw new Error(errorText || 'Ошибка при создании объявления');
+                    throw new Error(errorText || t('createEdit:genericError'));
                 }
 
                 const ticketDataResponse = await response.json();
@@ -454,7 +468,7 @@ const CreateEdit = () => {
             } else {
                 // Режим редактирования
                 if (!serviceData?.id) {
-                    alert('ID услуги не найден');
+                    alert(t('createEdit:genericError'));
                     return;
                 }
 
@@ -482,7 +496,7 @@ const CreateEdit = () => {
 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    throw new Error(errorText || 'Ошибка при обновлении услуги');
+                    throw new Error(errorText || t('createEdit:genericError'));
                 }
 
                 // Загружаем новые фото, если есть
@@ -534,7 +548,7 @@ const CreateEdit = () => {
             }
         } catch (error) {
             console.error('Error:', error);
-            alert(error instanceof Error ? error.message : 'Произошла ошибка');
+            alert(error instanceof Error ? error.message : t('createEdit:genericError'));
         } finally {
             setIsSubmitting(false);
         }
@@ -550,26 +564,26 @@ const CreateEdit = () => {
     }
 
     if (isLoading) {
-        return <div className={styles.loading}>Загрузка...</div>;
+        return <PageLoader text={t('createEdit:loading')} />;
     }
 
     return (
         <div className={styles.container}>
             <div className={styles.header}>
-                <h1>{isEditMode ? 'Редактирование услуги' : 'Создание объявления'}</h1>
+                <h1>{isEditMode ? t('createEdit:editTitle') : t('createEdit:createTitle')}</h1>
             </div>
 
             <form onSubmit={handleSubmit} className={styles.form}>
                 {/* Название услуги */}
                 <div className={styles.section}>
-                    <h2>Название услуги</h2>
+                    <h2>{t('createEdit:serviceNameLabel')}</h2>
                     <div className={styles.serviceSection}>
                         <input
                             type="text"
                             name="title"
                             value={serviceData.title}
                             onChange={(e) => setServiceData({...serviceData, title: e.target.value})}
-                            placeholder="Введите название услуги"
+                            placeholder={t('createEdit:serviceNamePlaceholder')}
                             className={styles.titleInput}
                             required
                         />
@@ -578,7 +592,7 @@ const CreateEdit = () => {
 
                 {/* Категория */}
                 <div className={styles.section}>
-                    <h2>Категория</h2>
+                    <h2>{t('createEdit:categoryLabel')}</h2>
                     <div className={styles.categorySection}>
                         <select
                             value={selectedCategory || ''}
@@ -586,7 +600,7 @@ const CreateEdit = () => {
                             className={styles.categorySelect}
                             required
                         >
-                            <option value="">Выберите категорию</option>
+                            <option value="">{t('createEdit:selectCategory')}</option>
                             {categories.map(category => (
                                 <option key={category.id} value={category.id}>
                                     {category.title}
@@ -599,7 +613,7 @@ const CreateEdit = () => {
                 {/* Подкатегория (occupation) */}
                 {filteredOccupations.length > 0 && (
                     <div className={styles.section}>
-                        <h2>Подкатегория</h2>
+                        <h2>{t('createEdit:subcategoryLabel')}</h2>
                         <div className={styles.categorySection}>
                             <select
                                 value={selectedSubcategory || ''}
@@ -607,7 +621,7 @@ const CreateEdit = () => {
                                 className={styles.categorySelect}
                                 required
                             >
-                                <option value="">Выберите подкатегорию</option>
+                                <option value="">{t('createEdit:selectSubcategory')}</option>
                                 {filteredOccupations.map(occupation => (
                                     <option key={occupation.id} value={occupation.id}>
                                         {occupation.title}
@@ -630,7 +644,7 @@ const CreateEdit = () => {
 
                 {/* Бюджет */}
                 <div className={styles.section}>
-                    <h2>Бюджет</h2>
+                    <h2>{t('createEdit:budgetLabel')}</h2>
                     <div className={styles.budgetSection}>
                         <div className={styles.budgetRow}>
                             <div className={styles.budgetField}>
@@ -651,7 +665,7 @@ const CreateEdit = () => {
                                     value={selectedUnit || ''}
                                     onChange={(e) => setSelectedUnit(Number(e.target.value))}
                                 >
-                                    <option value="">ед.изм.</option>
+                                    <option value="">{t('createEdit:unitPlaceholder')}</option>
                                     {units.map(unit => (
                                         <option key={unit.id} value={unit.id}>
                                             {unit.title}
@@ -676,7 +690,7 @@ const CreateEdit = () => {
                                         <div key={img.id} className={styles.existingPhotoItem}>
                                             <img
                                                 src={getImageUrl(img.image)}
-                                                alt={`Фото ${index + 1}`}
+                                                alt={`${t('createEdit:photoAlt')} ${index + 1}`}
                                                 className={styles.existingPhoto}
                                                 onClick={() => photoGallery.openGallery(index)}
                                                 style={{ cursor: 'pointer' }}
@@ -696,7 +710,7 @@ const CreateEdit = () => {
 
                         {/* Загрузка новых фото */}
                         <div className={styles.newPhotoSection}>
-                            <h4>{isEditMode ? 'Добавить новые фото' : 'Приложите фото'}</h4>
+                            <h4>{isEditMode ? t('createEdit:addNewPhotos') : t('createEdit:attachPhotos')}</h4>
                             <div className={styles.photoUpload}>
                                 <input
                                     type="file"
@@ -716,7 +730,7 @@ const CreateEdit = () => {
                                             <div key={index} className={styles.newPhotoItem}>
                                                 <img
                                                     src={URL.createObjectURL(image)}
-                                                    alt={`Новое фото ${index + 1}`}
+                                                    alt={`${t('createEdit:newPhotoAlt')} ${index + 1}`}
                                                 />
                                                 <button
                                                     type="button"
@@ -736,19 +750,19 @@ const CreateEdit = () => {
 
                 {/* Описание услуги */}
                 <div className={styles.section}>
-                    <h2>{isEditMode ? 'Описание услуги' : 'Есть пожелания?'}</h2>
+                    <h2>{isEditMode ? t('createEdit:descriptionEditLabel') : t('createEdit:descriptionCreateLabel')}</h2>
                     <div className={styles.descriptionSection}>
                         <div className={styles.descriptionLabel}>
                             {isEditMode 
-                                ? 'Подробно опишите вашу услугу, условия работы, опыт и квалификацию.'
-                                : 'Укажите важные детали, которые нужно знать заказчику.'
+                                ? t('createEdit:descriptionEditHint')
+                                : t('createEdit:descriptionCreateHint')
                             }
                         </div>
                         <textarea
                             name="description"
                             value={serviceData.description}
                             onChange={(e) => setServiceData({...serviceData, description: e.target.value})}
-                            placeholder={isEditMode ? 'Подробное описание услуги...' : 'Опишите детали вашей услуги...'}
+                            placeholder={isEditMode ? t('createEdit:descriptionEditPlaceholder') : t('createEdit:descriptionCreatePlaceholder')}
                             rows={isEditMode ? 6 : 4}
                             className={styles.descriptionTextarea}
                             required
@@ -758,16 +772,16 @@ const CreateEdit = () => {
 
                 {/* Дополнительные заметки */}
                 <div className={styles.section}>
-                    <h2>Дополнительные заметки</h2>
+                    <h2>{t('createEdit:notesLabel')}</h2>
                     <div className={styles.descriptionSection}>
                         <div className={styles.descriptionLabel}>
-                            Любая дополнительная информация (опционально)
+                            {t('createEdit:notesHint')}
                         </div>
                         <textarea
                             name="notice"
                             value={serviceData.notice}
                             onChange={(e) => setServiceData({...serviceData, notice: e.target.value})}
-                            placeholder="Дополнительная информация..."
+                            placeholder={t('createEdit:notesPlaceholder')}
                             rows={isEditMode ? 3 : 2}
                             className={styles.descriptionTextarea}
                         />
@@ -783,7 +797,7 @@ const CreateEdit = () => {
                             onClick={() => navigate(ROUTES.PROFILE)}
                             disabled={isSubmitting}
                         >
-                            Отмена
+                            {t('createEdit:cancel')}
                         </button>
                     )}
                     <button
@@ -792,8 +806,8 @@ const CreateEdit = () => {
                         disabled={isSubmitting}
                     >
                         {isSubmitting 
-                            ? (isEditMode ? 'Сохранение...' : 'Публикация...')
-                            : (isEditMode ? 'Сохранить изменения' : 'Разместить объявление')
+                            ? (isEditMode ? t('createEdit:saving') : t('createEdit:publishing'))
+                            : (isEditMode ? t('createEdit:saveChanges') : t('createEdit:placeAd'))
                         }
                     </button>
                 </div>
@@ -803,7 +817,7 @@ const CreateEdit = () => {
                 type="success"
                 isOpen={showSuccessModal}
                 onClose={handleSuccessClose}
-                message={isEditMode ? 'Услуга успешно обновлена!' : 'Предложение успешно опубликовано!'}
+                message={isEditMode ? t('createEdit:successEdit') : t('createEdit:successCreate')}
             />
 
             {/* PhotoGallery для просмотра существующих фото */}

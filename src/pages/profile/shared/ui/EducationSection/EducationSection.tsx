@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import styles from './EducationSection.module.scss';
 
 interface Education {
@@ -53,9 +54,10 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
     onDeleteEducation,
     setEducationForm,
 }) => {
+    const { t } = useTranslation(['profile']);
     return (
         <div className={styles.section_item}>
-            <h3>Образование и опыт</h3>
+            <h3>{t('profile:educationAndExp')}</h3>
             <div className={styles.section_content}>
                 {education.length > 0 ? (
                     <>
@@ -64,17 +66,17 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
                         {editingEducation === edu.id ? (
                             <div className={styles.education_form}>
                                 <div className={styles.form_group}>
-                                    <label>Учебное заведение *</label>
+                                    <label>{t('profile:institution')} *</label>
                                     <input
                                         type="text"
-                                        placeholder="Учебное заведение"
+                                        placeholder={t('profile:institutionPlaceholder')}
                                         value={educationForm.institution}
                                         onChange={(e) => onEducationFormChange('institution', e.target.value)}
                                     />
                                 </div>
 
                                 <div className={styles.form_group}>
-                                    <label>Специальность</label>
+                                    <label>{t('profile:specialty')}</label>
                                     <select
                                         className={styles.specialty_select}
                                         value={educationForm.selectedSpecialty || ''}
@@ -86,9 +88,9 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
                                             }));
                                         }}
                                     >
-                                        <option value="">Выберите специальность</option>
+                                        <option value="">{t('profile:selectSpecialty')}</option>
                                         {occupationsLoading && (
-                                            <option disabled>Загружается...</option>
+                                            <option disabled>{t('profile:loadingSpecialties')}</option>
                                         )}
                                         {occupations.map(occupation => (
                                             <option key={occupation.id} value={occupation.id}>
@@ -100,10 +102,10 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
 
                                 <div className={styles.year_group}>
                                     <div className={styles.form_group}>
-                                        <label>Год начала *</label>
+                                        <label>{t('profile:startYear')} *</label>
                                         <input
                                             type="number"
-                                            placeholder="Год начала"
+                                            placeholder={t('profile:startYear')}
                                             value={educationForm.startYear}
                                             onChange={(e) => onEducationFormChange('startYear', e.target.value)}
                                             min="1900"
@@ -112,10 +114,10 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
                                     </div>
 
                                     <div className={styles.form_group}>
-                                        <label>Год окончания</label>
+                                        <label>{t('profile:endYear')}</label>
                                         <input
                                             type="number"
-                                            placeholder="Год окончания"
+                                            placeholder={t('profile:endYear')}
                                             value={educationForm.endYear}
                                             onChange={(e) => onEducationFormChange('endYear', e.target.value)}
                                             min={parseInt(educationForm.startYear) || 1900}
@@ -132,7 +134,7 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
                                             checked={educationForm.currentlyStudying}
                                             onChange={(e) => onEducationFormChange('currentlyStudying', e.target.checked)}
                                         />
-                                        Учусь сейчас
+                                        {t('profile:studyingNow')}
                                     </label>
                                 </div>
 
@@ -142,13 +144,13 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
                                         onClick={onEditEducationSave}
                                         disabled={!educationForm.institution || !educationForm.startYear}
                                     >
-                                        Сохранить
+                                        {t('profile:saveBtn')}
                                     </button>
                                     <button
                                         className={styles.cancel_button}
                                         onClick={onEditEducationCancel}
                                     >
-                                        Отмена
+                                        {t('profile:cancelBtn')}
                                     </button>
                                 </div>
                             </div>
@@ -162,11 +164,11 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
                                         <strong>{edu.institution}</strong>
                                     </div>
                                     <div className={styles.education_years}>
-                                        <span>{edu.startYear} - {edu.currentlyStudying ? 'По настоящее время' : edu.endYear}</span>
+                                        <span>{edu.startYear} - {edu.currentlyStudying ? t('profile:currentlyStudying') : edu.endYear}</span>
                                     </div>
                                     {edu.specialty && (
                                         <div className={styles.education_details}>
-                                            <span>Специальность: {typeof edu.specialty === 'string' ? edu.specialty : ''}</span>
+                                            <span>{t('profile:specialtyPrefix')} {typeof edu.specialty === 'string' ? edu.specialty : ''}</span>
                                         </div>
                                     )}
                                 </div>
@@ -174,7 +176,7 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
                                     <button
                                         className={styles.edit_icon}
                                         onClick={() => onEditEducationStart(edu)}
-                                        title="Редактировать"
+                                        title={t('profile:editBtn')}
                                     >
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                                             <path d="M7.2302 20.59L2.4502 21.59L3.4502 16.81L17.8902 2.29001C18.1407 2.03889 18.4385 1.83982 18.7663 1.70424C19.0941 1.56865 19.4455 1.49925 19.8002 1.50001C20.5163 1.50001 21.203 1.78447 21.7094 2.29082C22.2157 2.79717 22.5002 3.48392 22.5002 4.20001C22.501 4.55474 22.4315 4.90611 22.296 5.23391C22.1604 5.56171 21.9613 5.85945 21.7102 6.11001L7.2302 20.59Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
@@ -183,7 +185,7 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
                                     <button
                                         className={styles.delete_icon}
                                         onClick={() => onDeleteEducation(edu.id)}
-                                        title="Удалить"
+                                        title={t('profile:deleteBtn')}
                                     >
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                                             <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" fill="#ff4444"/>
@@ -198,7 +200,7 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
                 ) : (
                     !editingEducation && (
                         <div className={styles.empty_state}>
-                            <span>{readOnly ? 'Пока нет информации об образовании' : 'Добавьте информацию об образовании'}</span>
+                            <span>{readOnly ? t('profile:noEducation') : t('profile:addEducationInfo')}</span>
                         </div>
                     )
                 )}
@@ -209,7 +211,7 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
                         <button
                             className={styles.add_button}
                             onClick={onAddEducation}
-                            title="Добавить образование"
+                            title={t('profile:addEducation')}
                         >
                             +
                         </button>
@@ -217,17 +219,17 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
                 ) : editingEducation && editingEducation.startsWith('new-') ? (
                     <div className={styles.education_form}>
                         <div className={styles.form_group}>
-                            <label>Учебное заведение *</label>
+                            <label>{t('profile:institution')} *</label>
                             <input
                                 type="text"
-                                placeholder="Учебное заведение"
+                                placeholder={t('profile:institutionPlaceholder')}
                                 value={educationForm.institution}
                                 onChange={(e) => onEducationFormChange('institution', e.target.value)}
                             />
                         </div>
 
                         <div className={styles.form_group}>
-                            <label>Специальность</label>
+                            <label>{t('profile:specialty')}</label>
                             <select
                                 value={educationForm.selectedSpecialty || ''}
                                 onChange={(e) => {
@@ -238,9 +240,9 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
                                     }));
                                 }}
                             >
-                                <option value="">Выберите специальность</option>
+                                <option value="">{t('profile:selectSpecialty')}</option>
                                 {occupationsLoading && (
-                                    <option disabled>Загружается...</option>
+                                    <option disabled>{t('profile:loadingSpecialties')}</option>
                                 )}
                                 {occupations.map(occupation => (
                                     <option key={occupation.id} value={occupation.id}>
@@ -252,10 +254,10 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
 
                         <div className={styles.year_group}>
                             <div className={styles.form_group}>
-                                <label>Год начала *</label>
+                                <label>{t('profile:startYear')} *</label>
                                 <input
                                     type="number"
-                                    placeholder="Год начала"
+                                    placeholder={t('profile:startYear')}
                                     value={educationForm.startYear}
                                     onChange={(e) => onEducationFormChange('startYear', e.target.value)}
                                     min="1900"
@@ -264,10 +266,10 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
                             </div>
 
                             <div className={styles.form_group}>
-                                <label>Год окончания</label>
+                                <label>{t('profile:endYear')}</label>
                                 <input
                                     type="number"
-                                    placeholder="Год окончания"
+                                    placeholder={t('profile:endYear')}
                                     value={educationForm.endYear}
                                     onChange={(e) => onEducationFormChange('endYear', e.target.value)}
                                     min={parseInt(educationForm.startYear) || 1900}
@@ -284,7 +286,7 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
                                     checked={educationForm.currentlyStudying}
                                     onChange={(e) => onEducationFormChange('currentlyStudying', e.target.checked)}
                                 />
-                                Учусь сейчас
+                                {t('profile:studyingNow')}
                             </label>
                         </div>
 
@@ -294,13 +296,13 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
                                 onClick={onEditEducationSave}
                                 disabled={!educationForm.institution || !educationForm.startYear}
                             >
-                                Сохранить
+                                {t('profile:saveBtn')}
                             </button>
                             <button
                                 className={styles.cancel_button}
                                 onClick={onEditEducationCancel}
                             >
-                                Отмена
+                                {t('profile:cancelBtn')}
                             </button>
                         </div>
                     </div>

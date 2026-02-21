@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getAuthToken, handleUnauthorized } from '../../../utils/auth';
+import { getStorageItem } from '../../../utils/storageHelper';
 import { AddressValue, AddressData } from '../../../entities';
 import styles from './AddressSelector.module.scss';
 
@@ -55,6 +57,7 @@ interface AddressSelectorProps {
 }
 
 const AddressSelector = ({ value, onChange, multipleSuburbs = true }: AddressSelectorProps) => {
+    const { t } = useTranslation(['address']);
     const [provinces, setProvinces] = useState<Province[]>([]);
     const [cities, setCities] = useState<City[]>([]);
     const [districts, setDistricts] = useState<District[]>([]);
@@ -69,48 +72,51 @@ const AddressSelector = ({ value, onChange, multipleSuburbs = true }: AddressSel
     const selectedVillageId = value?.villageId ?? null;
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+    const locale = getStorageItem('i18nextLng') || 'ru';
+
+    const fetchLocationData = async () => {
+        try {
+            setIsLocationLoading(true);
+            const token = getAuthToken();
+            if (!token) return;
+            const lang = getStorageItem('i18nextLng') || 'ru';
+
+            const makeRequest = async () => {
+                const currentToken = getAuthToken();
+                return Promise.all([
+                    fetch(`${API_BASE_URL}/api/provinces?locale=${lang}`, { headers: { 'Authorization': `Bearer ${currentToken}` } }),
+                    fetch(`${API_BASE_URL}/api/cities?locale=${lang}`, { headers: { 'Authorization': `Bearer ${currentToken}` } }),
+                    fetch(`${API_BASE_URL}/api/districts?locale=${lang}`, { headers: { 'Authorization': `Bearer ${currentToken}` } })
+                ]);
+            };
+
+            let [provincesRes, citiesRes, districtsRes] = await makeRequest();
+
+            // Проверяем на 401 и пробуем обновить токен
+            if (provincesRes.status === 401 || citiesRes.status === 401 || districtsRes.status === 401) {
+                const refreshed = await handleUnauthorized();
+                if (refreshed) {
+                    // Повторяем запросы с новым токеном
+                    [provincesRes, citiesRes, districtsRes] = await makeRequest();
+                } else {
+                    return;
+                }
+            }
+
+            if (provincesRes.ok) setProvinces(await provincesRes.json());
+            if (citiesRes.ok) setCities(await citiesRes.json());
+            if (districtsRes.ok) setDistricts(await districtsRes.json());
+        } catch (err) {
+            console.error('Error fetching location data:', err);
+        } finally {
+            setIsLocationLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchLocationData = async () => {
-            try {
-                setIsLocationLoading(true);
-                const token = getAuthToken();
-                if (!token) return;
-
-                const makeRequest = async () => {
-                    const currentToken = getAuthToken();
-                    return Promise.all([
-                        fetch(`${API_BASE_URL}/api/provinces`, { headers: { 'Authorization': `Bearer ${currentToken}` } }),
-                        fetch(`${API_BASE_URL}/api/cities`, { headers: { 'Authorization': `Bearer ${currentToken}` } }),
-                        fetch(`${API_BASE_URL}/api/districts`, { headers: { 'Authorization': `Bearer ${currentToken}` } })
-                    ]);
-                };
-
-                let [provincesRes, citiesRes, districtsRes] = await makeRequest();
-
-                // Проверяем на 401 и пробуем обновить токен
-                if (provincesRes.status === 401 || citiesRes.status === 401 || districtsRes.status === 401) {
-                    const refreshed = await handleUnauthorized();
-                    if (refreshed) {
-                        // Повторяем запросы с новым токеном
-                        [provincesRes, citiesRes, districtsRes] = await makeRequest();
-                    } else {
-                        return;
-                    }
-                }
-
-                if (provincesRes.ok) setProvinces(await provincesRes.json());
-                if (citiesRes.ok) setCities(await citiesRes.json());
-                if (districtsRes.ok) setDistricts(await districtsRes.json());
-            } catch (err) {
-                console.error('Error fetching location data:', err);
-            } finally {
-                setIsLocationLoading(false);
-            }
-        };
-
         fetchLocationData();
-    }, [API_BASE_URL]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [API_BASE_URL, locale]);
 
     // Фильтрованные данные
     const citiesInSelectedProvince = selectedProvinceId
@@ -233,13 +239,13 @@ const AddressSelector = ({ value, onChange, multipleSuburbs = true }: AddressSel
 
     return (
         <div className={styles.addressSelector}>
-            <h2 className={styles.addressTitle}>Адрес</h2>
+            <h2 className={styles.addressTitle}>{t('address:title')}</h2>
             {/* Области */}
             <div className={styles.province_section}>
                 <div className={styles.province_list}>
-                    <h4>Области</h4>
+                    <h4>{t('address:provinces')}</h4>
                     {isLocationLoading ? (
-                        <div className={styles.loading}>Загрузка областей...</div>
+                        <div className={styles.loading}>{t('address:loadingProvinces')}</div>
                     ) : provinces.length > 0 ? (
                         <div className={styles.province_grid}>
                             {provinces.map(province => (
@@ -256,7 +262,7 @@ const AddressSelector = ({ value, onChange, multipleSuburbs = true }: AddressSel
                             ))}
                         </div>
                     ) : (
-                        <div className={styles.no_data}>Области не найдены</div>
+                        <div className={styles.no_data}>{t('address:noProvinces')}</div>
                     )}
                 </div>
             </div>
@@ -269,7 +275,7 @@ const AddressSelector = ({ value, onChange, multipleSuburbs = true }: AddressSel
                         {/* Города */}
                         {citiesInSelectedProvince.length > 0 && (
                             <div className={styles.cities_container}>
-                                <h4>Города</h4>
+                                <h4>{t('address:cities')}</h4>
                                 <div className={styles.city_grid}>
                                     {citiesInSelectedProvince.map((city) => (
                                         <button
@@ -283,7 +289,7 @@ const AddressSelector = ({ value, onChange, multipleSuburbs = true }: AddressSel
                                             <div className={styles.city_name}>{city.title}</div>
                                             {city.suburbs && city.suburbs.length > 0 && (
                                                 <div className={styles.city_districts_count}>
-                                                    {city.suburbs.length} кварталов
+                                                    {t('address:quartersCount', { count: city.suburbs.length })}
                                                 </div>
                                             )}
                                         </button>
@@ -295,7 +301,7 @@ const AddressSelector = ({ value, onChange, multipleSuburbs = true }: AddressSel
                         {/* Районы (districts) */}
                         {districtsInSelectedProvince.length > 0 && (
                             <div className={styles.districts_container}>
-                                <h4>Районы</h4>
+                                <h4>{t('address:districts')}</h4>
                                 <div className={styles.district_grid}>
                                     {districtsInSelectedProvince.map((district) => (
                                         <button
@@ -309,10 +315,10 @@ const AddressSelector = ({ value, onChange, multipleSuburbs = true }: AddressSel
                                             <div className={styles.district_name}>{district.title}</div>
                                             <div className={styles.district_info}>
                                                 {district.settlements && district.settlements.length > 0 && (
-                                                    <span>Поселков: {district.settlements.length}</span>
+                                                    <span>{t('address:settlementsCount', { count: district.settlements.length })}</span>
                                                 )}
                                                 {district.communities && district.communities.length > 0 && (
-                                                    <span>ПГТ: {district.communities.length}</span>
+                                                    <span>{t('address:communitiesCount', { count: district.communities.length })}</span>
                                                 )}
                                             </div>
                                         </button>
@@ -328,8 +334,8 @@ const AddressSelector = ({ value, onChange, multipleSuburbs = true }: AddressSel
             {selectedCity && suburbsInSelectedCity.length > 0 && (
                 <div className={styles.suburbs_section}>
                     <div className={styles.section_header}>
-                        <h4>Кварталы</h4>
-                        <p className={styles.subtitle}>Выберите кварталы, в которых вы работаете</p>
+                        <h4>{t('address:suburbs')}</h4>
+                        <p className={styles.subtitle}>{t('address:suburbsSubtitle')}</p>
                     </div>
                     <div className={styles.district_grid}>
                         {suburbsInSelectedCity.map((suburb) => (
@@ -351,14 +357,14 @@ const AddressSelector = ({ value, onChange, multipleSuburbs = true }: AddressSel
             {/* ПГТ и поселения */}
             {selectedDistrict && (
                 <div className={styles.nested_selection_section}>
-                    <h4>Поселки/ПГТ</h4>
-                    <p className={styles.subtitle}>Выберите ПГТ или поселок</p>
+                    <h4>{t('address:settlementAreas')}</h4>
+                    <p className={styles.subtitle}>{t('address:settlementSubtitle')}</p>
 
                     <div className={styles.nested_type_selector}>
                         {/* ПГТ (communities) */}
                         {communitiesInSelectedDistrict.length > 0 && (
                             <div className={styles.communities_container}>
-                                <h4>ПГТ (Поселки городского типа)</h4>
+                                <h4>{t('address:communities')}</h4>
                                 <div className={styles.district_grid}>
                                     {communitiesInSelectedDistrict.map((community) => (
                                         <button
@@ -379,7 +385,7 @@ const AddressSelector = ({ value, onChange, multipleSuburbs = true }: AddressSel
                         {/* Поселения (settlements) */}
                         {settlementsInSelectedDistrict.length > 0 && (
                             <div className={styles.settlements_container}>
-                                <h4>Поселки</h4>
+                                <h4>{t('address:settlements')}</h4>
                                 <div className={styles.district_grid}>
                                     {settlementsInSelectedDistrict.map((settlement) => (
                                         <button
@@ -393,7 +399,7 @@ const AddressSelector = ({ value, onChange, multipleSuburbs = true }: AddressSel
                                             <div className={styles.district_name}>{settlement.title}</div>
                                             {settlement.village && settlement.village.length > 0 && (
                                                 <div className={styles.settlement_info}>
-                                                    {settlement.village.length} сёл
+                                                    {t('address:villagesCount', { count: settlement.village.length })}
                                                 </div>
                                             )}
                                         </button>
@@ -406,7 +412,7 @@ const AddressSelector = ({ value, onChange, multipleSuburbs = true }: AddressSel
                     {/* Села */}
                     {selectedSettlement && villagesInSelectedSettlement.length > 0 && (
                         <div className={styles.villages_section}>
-                            <h4>Села в поселке {selectedSettlement.title}</h4>
+                            <h4>{t('address:villagesIn')} {selectedSettlement.title}</h4>
                             <div className={styles.district_grid}>
                                 {villagesInSelectedSettlement.map((village) => (
                                     <button

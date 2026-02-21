@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import AddressSelector from '../../../../../shared/ui/AddressSelector/AddressSelector';
 import { AddressValue } from '../../../../../entities';
 import styles from './WorkAreasSection.module.scss';
@@ -40,17 +41,18 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
     onDeleteAddress,
     onCanWorkRemotelyToggle,
 }) => {
+    const { t } = useTranslation(['profile']);
     return (
         <div className={styles.section_item}>
-            <h3>{userRole === 'client' ? 'География объявлений' : 'География услуг'}</h3>
+            <h3>{userRole === 'client' ? t('profile:workAreasTitleClient') : t('profile:workAreasTitle')}</h3>
 
             {/* Переключатель удаленной работы - только для мастеров */}
             {userRole === 'master' && (
                 <div className={styles.remote_work}>
                     <div className={styles.switch_container}>
                         <div className={styles.switch_label}>
-                            <span className={styles.label_main}>Могу работать удаленно</span>
-                            <span className={styles.label_sub}>Предложи заказы с дистанционной работой</span>
+                            <span className={styles.label_main}>{t('profile:remoteWork')}</span>
+                            <span className={styles.label_sub}>{t('profile:remoteWorkSub')}</span>
                         </div>
                         <label className={styles.switch}>
                             <input
@@ -82,13 +84,13 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
                                             className={styles.save_button}
                                             onClick={onEditAddressSave}
                                         >
-                                            Сохранить
+                                            {t('profile:saveBtn')}
                                         </button>
                                         <button
                                             className={styles.cancel_button}
                                             onClick={onEditAddressCancel}
                                         >
-                                            Отмена
+                                            {t('profile:cancelBtn')}
                                         </button>
                                     </div>
                                 </div>
@@ -106,7 +108,7 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
                                         <button
                                             className={styles.edit_icon}
                                             onClick={() => onEditAddressStart(address)}
-                                            title="Редактировать"
+                                            title={t('profile:editBtn')}
                                         >
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                                                 <path d="M7.2302 20.59L2.4502 21.59L3.4502 16.81L17.8902 2.29001C18.1407 2.03889 18.4385 1.83982 18.7663 1.70424C19.0941 1.56865 19.4455 1.49925 19.8002 1.50001C20.5163 1.50001 21.203 1.78447 21.7094 2.29082C22.2157 2.79717 22.5002 3.48392 22.5002 4.20001C22.501 4.55474 22.4315 4.90611 22.296 5.23391C22.1604 5.56171 21.9613 5.85945 21.7102 6.11001L7.2302 20.59Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
@@ -115,7 +117,7 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
                                         <button
                                             className={styles.delete_icon}
                                             onClick={() => onDeleteAddress(address.id)}
-                                            title="Удалить"
+                                            title={t('profile:deleteBtn')}
                                         >
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                                                 <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" fill="#ff4444"/>
@@ -128,7 +130,7 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
                     ))
                 ) : (
                     <div className={styles.empty_state}>
-                        <span>{readOnly ? 'Не указаны географии работ' : 'Добавьте географию работ'}</span>
+                        <span>{readOnly ? t('profile:noWorkAreas') : t('profile:addWorkArea')}</span>
                     </div>
                 )}
 
@@ -138,7 +140,7 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
                         <button
                             className={styles.add_button}
                             onClick={onAddAddress}
-                            title="Добавить адрес"
+                            title={t('profile:addWorkArea')}
                         >
                             +
                         </button>
@@ -159,13 +161,13 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
                                 className={styles.save_button}
                                 onClick={onEditAddressSave}
                             >
-                                Добавить
+                                {t('profile:addBtn')}
                             </button>
                             <button
                                 className={styles.cancel_button}
                                 onClick={onEditAddressCancel}
                             >
-                                Отмена
+                                {t('profile:cancelBtn')}
                             </button>
                         </div>
                     </div>

@@ -10,7 +10,9 @@ interface ComplaintModalProps {
     onSuccess: (message: string) => void;
     onError: (message: string) => void;
     targetUserId: number;
-    ticketId?: number; // Опциональный ID тикета для отправки жалобы прямо с тикета
+    ticketId?: number;
+    chatId?: number; // Опциональный ID чата для жалоб типа chat
+    complaintType?: 'ticket' | 'chat';
 }
 
 interface Ticket {
@@ -27,7 +29,9 @@ const ComplaintModal: React.FC<ComplaintModalProps> = ({
     onSuccess,
     onError,
     targetUserId,
-    ticketId
+    ticketId,
+    chatId,
+    complaintType = 'ticket'
 }) => {
     const { t } = useTranslation('components');
     
@@ -153,14 +157,18 @@ const ComplaintModal: React.FC<ComplaintModalProps> = ({
         try {
             const token = getAuthToken()!;
 
-            const complaintData = {
-                type: 'ticket',
+            const complaintData: Record<string, any> = {
+                type: complaintType,
                 title: title,
                 description: description,
                 reason: reason,
                 respondent: `/api/users/${targetUserId}`,
                 ticket: `/api/tickets/${selectedTicketId}`
             };
+
+            if (chatId) {
+                complaintData.chat = `/api/chats/${chatId}`;
+            }
 
             console.log('Sending complaint data:', complaintData);
 

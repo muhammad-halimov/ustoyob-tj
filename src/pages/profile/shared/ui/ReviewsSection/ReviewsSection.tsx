@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { PhotoGallery, usePhotoGallery } from '../../../../../shared/ui/PhotoGallery';
+import { ReadMore } from '../../../../../widgets/ReadMore';
 import { Review } from '../../../../../entities';
 import styles from './ReviewsSection.module.scss';
 
@@ -16,7 +18,8 @@ interface ReviewsSectionProps {
     userRole?: 'master' | 'client'; // Добавляем тип профиля
     onShowMore: () => void;
     onShowLess: () => void;
-    renderReviewText: (review: Review) => React.ReactElement;
+    /** Max characters before "Читать дальше" button appears. Default: 150 */
+    maxLength?: number;
     getReviewerAvatarUrl: (review: Review) => string;
     getClientName: (review: Review) => string;
     getMasterName: (review: Review) => string;
@@ -34,7 +37,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
     userRole = 'master', // По умолчанию мастер
     onShowMore,
     onShowLess,
-    renderReviewText,
+    maxLength = 150,
     getReviewerAvatarUrl,
     getClientName,
     getMasterName,
@@ -43,6 +46,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
     onServiceClick,
     getReviewImageIndex,
 }) => {
+    const { t } = useTranslation(['profile']);
     // ЛОГИКА ОТЗЫВОВ (зависит от типа профиля):
     // Профиль МАСТЕРА:
     //   - reviewer (верхнее с аватаркой) = КЛИЕНТ (автор отзыва)
@@ -180,10 +184,10 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
     
     return (
         <div className={styles.reviews_section}>
-            <h3>Отзывы ({reviews.length})</h3>
+            <h3>{t('profile:reviewsTitle')} ({reviews.length})</h3>
             <div className={styles.reviews_list}>
                 {reviewsLoading ? (
-                    <div className={styles.loading}>Загрузка отзывов...</div>
+                    <div className={styles.loading}>{t('profile:loadingReviews')}</div>
                 ) : reviews.length > 0 ? (
                     <>
                         <div className={styles.reviews_desktop}>
@@ -201,23 +205,9 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                 data-fallback-external={(userRole === 'master' ? review.reviewer?.imageExternalUrl : review.user?.imageExternalUrl) || ''}
                                                 onError={(e) => {
                                                     const img = e.currentTarget;
-                                                    const currentSrc = img.src;
-                                                    const fallbackImage = img.dataset.fallbackImage;
-                                                    const fallbackExternal = img.dataset.fallbackExternal;
-                                                    
-                                                    if (currentSrc.includes('default_user')) return;
-                                                    
-                                                    if (fallbackImage && currentSrc.includes(fallbackImage) && fallbackExternal) {
-                                                        img.src = fallbackExternal;
-                                                        return;
-                                                    }
-                                                    
-                                                    if (fallbackExternal && currentSrc.includes(fallbackExternal) && fallbackImage) {
+                                                    if (!img.src.includes('default_user')) {
                                                         img.src = "./default_user.png";
-                                                        return;
                                                     }
-                                                    
-                                                    img.src = "./default_user.png";
                                                 }}
                                             />
                                             <div className={styles.reviewer_main_info}>
@@ -237,7 +227,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                         }}
                                                         style={{ cursor: onServiceClick ? 'pointer' : 'default' }}
                                                     >
-                                                        {typeof review.services === 'object' && review.services && review.services.title ? String(review.services.title) : 'Услуга'}
+                                                        {typeof review.services === 'object' && review.services && review.services.title ? String(review.services.title) : t('profile:serviceDefault')}
                                                     </span>
                                                 </div>
                                                 <span 
@@ -248,7 +238,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                     {getWorkerName(review)}
                                                 </span>
                                                 <div className={styles.review_rating_main}>
-                                                    <span>Поставил: </span>
+                                                    <span>{t('profile:ratedLabel')} </span>
                                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                         <g clipPath="url(#clip0_324_2272)">
                                                             <g clipPath="url(#clip1_324_2272)">
@@ -277,7 +267,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                         </div>
                                     </div>
 
-                                    {review.description && renderReviewText(review)}
+                                    {review.description && <ReadMore text={review.description} maxLength={maxLength} textClassName={styles.review_text} buttonClassName={styles.review_more} />}
 
                                     {review.images && review.images.length > 0 && (
                                         <div className={styles.review_images}>
@@ -291,7 +281,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                 >
                                                     <img
                                                         src={`${API_BASE_URL}/images/review_photos/${image.image}`}
-                                                        alt={`Фото отзыва ${imageIndex + 1}`}
+                                                        alt={`${t('profile:reviewPhotoAlt')} ${imageIndex + 1}`}
                                                         onLoad={() => {
                                                             console.log('Review image loaded:', `${API_BASE_URL}/images/review_photos/${image.image}`);
                                                         }}
@@ -346,23 +336,9 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                             data-fallback-external={(userRole === 'master' ? review.reviewer?.imageExternalUrl : review.user?.imageExternalUrl) || ''}
                                                             onError={(e) => {
                                                                 const img = e.currentTarget;
-                                                                const currentSrc = img.src;
-                                                                const fallbackImage = img.dataset.fallbackImage;
-                                                                const fallbackExternal = img.dataset.fallbackExternal;
-                                                                
-                                                                if (currentSrc.includes('default_user')) return;
-                                                                
-                                                                if (fallbackImage && currentSrc.includes(fallbackImage) && fallbackExternal) {
-                                                                    img.src = fallbackExternal;
-                                                                    return;
-                                                                }
-                                                                
-                                                                if (fallbackExternal && currentSrc.includes(fallbackExternal) && fallbackImage) {
+                                                                if (!img.src.includes('default_user')) {
                                                                     img.src = "./default_user.png";
-                                                                    return;
                                                                 }
-                                                                
-                                                                img.src = "./default_user.png";
                                                             }}
                                                         />
                                                         <div className={styles.reviewer_main_info}>
@@ -382,7 +358,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                                     }}
                                                                     style={{ cursor: onServiceClick ? 'pointer' : 'default' }}
                                                                 >
-                                                                    {typeof review.services === 'object' && review.services && review.services.title ? String(review.services.title) : 'Услуга'}
+                                                                    {typeof review.services === 'object' && review.services && review.services.title ? String(review.services.title) : t('profile:serviceDefault')}
                                                                 </span>
                                                             </div>
                                                             <span 
@@ -393,7 +369,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                                 {getWorkerName(review)}
                                                             </span>
                                                             <div className={styles.review_rating_main}>
-                                                                <span>Поставил: </span>
+                                                                <span>{t('profile:ratedLabel')} </span>
                                                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                                     <g clipPath="url(#clip0_324_2272)">
                                                                         <g clipPath="url(#clip1_324_2272)">
@@ -422,7 +398,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                     </div>
                                                 </div>
 
-                                                {review.description && renderReviewText(review)}
+                                                {review.description && <ReadMore text={review.description} maxLength={maxLength} textClassName={styles.review_text} buttonClassName={styles.review_more} />}
 
                                                 {review.images && review.images.length > 0 && (
                                                     <div className={styles.review_images}>
@@ -436,7 +412,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                             >
                                                                 <img
                                                                     src={`${API_BASE_URL}/images/review_photos/${image.image}`}
-                                                                    alt={`Фото отзыва ${imageIndex + 1}`}
+                                                                    alt={`${t('profile:reviewPhotoAlt')} ${imageIndex + 1}`}
                                                                     onLoad={() => {
                                                                         console.log('Review image loaded (mobile):', `${API_BASE_URL}/images/review_photos/${image.image}`);
                                                                     }}
@@ -484,23 +460,9 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                         data-fallback-external={(userRole === 'master' ? review.reviewer?.imageExternalUrl : review.user?.imageExternalUrl) || ''}
                                                         onError={(e) => {
                                                             const img = e.currentTarget;
-                                                            const currentSrc = img.src;
-                                                            const fallbackImage = img.dataset.fallbackImage;
-                                                            const fallbackExternal = img.dataset.fallbackExternal;
-                                                            
-                                                            if (currentSrc.includes('default_user')) return;
-                                                            
-                                                            if (fallbackImage && currentSrc.includes(fallbackImage) && fallbackExternal) {
-                                                                img.src = fallbackExternal;
-                                                                return;
-                                                            }
-                                                            
-                                                            if (fallbackExternal && currentSrc.includes(fallbackExternal) && fallbackImage) {
+                                                            if (!img.src.includes('default_user')) {
                                                                 img.src = "./default_user.png";
-                                                                return;
                                                             }
-                                                            
-                                                            img.src = "./default_user.png";
                                                         }}
                                                     />
                                                     <div className={styles.reviewer_main_info}>
@@ -520,7 +482,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                                 }}
                                                                 style={{ cursor: onServiceClick ? 'pointer' : 'default' }}
                                                             >
-                                                                {typeof review.services === 'object' && review.services && review.services.title ? String(review.services.title) : 'Услуга'}
+                                                                {typeof review.services === 'object' && review.services && review.services.title ? String(review.services.title) : t('profile:serviceDefault')}
                                                             </span>
                                                         </div>
                                                         <span 
@@ -531,7 +493,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                             {getWorkerName(review)}
                                                         </span>
                                                         <div className={styles.review_rating_main}>
-                                                            <span>Поставил: </span>
+                                                            <span>{t('profile:ratedLabel')} </span>
                                                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                                 <g clipPath="url(#clip0_324_2272)">
                                                                     <g clipPath="url(#clip1_324_2272)">
@@ -560,7 +522,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                 </div>
                                             </div>
 
-                                            {review.description && renderReviewText(review)}
+                                            {review.description && <ReadMore text={review.description} maxLength={maxLength} textClassName={styles.review_text} buttonClassName={styles.review_more} />}
 
                                             {review.images && review.images.length > 0 && (
                                                 <div className={styles.review_images}>
@@ -574,7 +536,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                         >
                                                             <img
                                                                 src={`${API_BASE_URL}/images/review_photos/${image.image}`}
-                                                                alt={`Фото отзыва ${imageIndex + 1}`}
+                                                                alt={`${t('profile:reviewPhotoAlt')} ${imageIndex + 1}`}
                                                                 onLoad={() => {
                                                                     console.log('Review image loaded (list):', `${API_BASE_URL}/images/review_photos/${image.image}`);
                                                                 }}
@@ -610,7 +572,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                     </>
                 ) : (
                     <div className={styles.no_reviews}>
-                        Пока нет отзывов
+                        {t('profile:noReviews')}
                     </div>
                 )}
             </div>
@@ -622,7 +584,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                         className={styles.show_all_reviews_btn}
                         onClick={onShowMore}
                     >
-                        Показать все отзывы
+                        {t('profile:showAllReviews')}
                     </button>
                 )}
                 {visibleCount > 2 && visibleCount >= reviews.length && (
@@ -630,12 +592,12 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                         className={styles.show_all_reviews_btn}
                         onClick={onShowLess}
                     >
-                        Скрыть отзывы
+                        {t('profile:hideReviews')}
                     </button>
                 )}
                 {reviews.length >= 2 && visibleCount <= 2 && (
                     <div className={styles.swipe_hint}>
-                        Листайте вправо
+                        {t('profile:swipeHint')}
                     </div>
                 )}
             </div>

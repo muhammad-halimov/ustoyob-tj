@@ -3,9 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { getAuthToken } from "../../utils/auth";
 import { ROUTES } from '../../app/routers/routes';
 import AuthModal from '../../features/auth/AuthModal';
+import ComplaintModal from '../../shared/ui/Modal/ComplaintModal/ComplaintModal';
+import { PageLoader } from '../../widgets/PageLoader';
 import styles from "./Chat.module.scss";
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { IoSend, IoAttach, IoClose, IoImages, IoArchiveOutline, IoArchiveSharp } from "react-icons/io5";
+import { IoSend, IoAttach, IoClose, IoImages, IoArchiveOutline, IoArchiveSharp, IoWarningOutline } from "react-icons/io5";
 import { PhotoGallery, usePhotoGallery } from '../../shared/ui/PhotoGallery';
 import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 
@@ -98,6 +100,8 @@ function Chat() {
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [isUploading, setIsUploading] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [isPhotoSidebarOpen, setIsPhotoSidebarOpen] = useState(false);
+    const [showComplaintModal, setShowComplaintModal] = useState(false);
     // const [isArchiveMode, setIsArchiveMode] = useState(false);
 
     // Состояния для миниатюр и модального окна фото
@@ -129,12 +133,13 @@ function Chat() {
     }, []);
 
     // Загрузка чатов после получения текущего пользователя
+    // activeTab не нужен здесь — фильтрация уже в filteredChats
     useEffect(() => {
         if (currentUser) {
             console.log('User loaded, fetching chats...');
             fetchChats();
         }
-    }, [currentUser, activeTab]);
+    }, [currentUser]);
 
     // Обработка выбранного чата
     useEffect(() => {
@@ -263,10 +268,9 @@ function Chat() {
                 }
 
                 if (currentUser) {
-                    // ТОЛЬКО текстовые сообщения - изображения не добавляем в чат
-                    const allChatItems: Message[] = (chatData.messages || []).map(msg => {
+                    // Текстовые сообщения
+                    const textItems: Message[] = (chatData.messages || []).map(msg => {
                         const createdAt = msg.createdAt ? new Date(msg.createdAt) : new Date();
-
                         return {
                             id: msg.id,
                             sender: msg.author.id === currentUser.id ? "me" : "other",
@@ -278,26 +282,39 @@ function Chat() {
                         };
                     });
 
-                    // Оставляем только локальные временные сообщения (они будут удалены после загрузки)
+                    // Изображения — встраиваем в поток сообщений
+                    const imageItems: Message[] = (chatData.images || []).map(img => {
+                        const createdAt = img.createdAt ? new Date(img.createdAt) : new Date();
+                        return {
+                            // Смещение чтобы избежать коллизии с ID текстовых сообщений
+                            id: 1_000_000 + img.id,
+                            sender: img.author.id === currentUser.id ? "me" : "other",
+                            name: `${img.author.name} ${img.author.surname}`,
+                            text: '',
+                            type: 'image' as const,
+                            imageUrl: getImageUrl(img.image),
+                            status: 'uploaded' as const,
+                            time: createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                            createdAt: createdAt.toISOString()
+                        };
+                    });
+
+                    const serverItems = [...textItems, ...imageItems].sort((a, b) =>
+                        new Date(a.createdAt!).getTime() - new Date(b.createdAt!).getTime()
+                    );
+
                     setMessages(prev => {
-                        // Фильтруем только локальные сообщения
+                        // Сохраняем только локальные pending/uploading сообщения
                         const localMessages = prev.filter(msg => msg.isLocal &&
                             (msg.status === 'pending' || msg.status === 'uploading'));
 
-                        // Объединяем с серверными текстовыми сообщениями
-                        const combinedMessages = [...localMessages, ...allChatItems];
-
-                        // Сортируем все сообщения по времени
-                        combinedMessages.sort((a, b) => {
-                            const timeA = a.createdAt ? new Date(a.createdAt).getTime() :
-                                (a.isLocal ? a.id : 0);
-                            const timeB = b.createdAt ? new Date(b.createdAt).getTime() :
-                                (b.isLocal ? b.id : 0);
-
+                        const combined = [...localMessages, ...serverItems];
+                        combined.sort((a, b) => {
+                            const timeA = a.createdAt ? new Date(a.createdAt).getTime() : (a.isLocal ? a.id : 0);
+                            const timeB = b.createdAt ? new Date(b.createdAt).getTime() : (b.isLocal ? b.id : 0);
                             return timeA - timeB;
                         });
-
-                        return combinedMessages;
+                        return combined;
                     });
                 }
             } else {
@@ -583,53 +600,6 @@ function Chat() {
             sendMessage();
         }
     }, [sendMessage]);
-
-    // Инициализация пользователя и чатов
-    useEffect(() => {
-        const initializeChat = async () => {
-            console.log('Initializing chat...');
-            await getCurrentUser();
-        };
-        initializeChat();
-    }, []);
-
-    // Загрузка чатов после получения текущего пользователя
-    useEffect(() => {
-        if (currentUser) {
-            console.log('User loaded, fetching chats...');
-            fetchChats();
-        }
-    }, [currentUser, activeTab]);
-
-    // Обработка выбранного чата с оптимизацией
-    useEffect(() => {
-        if (selectedChat) {
-            console.log('Starting polling for chat:', selectedChat);
-            startPolling(selectedChat);
-            if (window.innerWidth <= 480) {
-                setIsMobileChatActive(true);
-            }
-        } else {
-            setMessages([]);
-            setChatImages([]);
-            stopPolling();
-        }
-        return () => stopPolling();
-    }, [selectedChat]);
-
-    // Обработка chatId из URL
-    useEffect(() => {
-        if (chatIdFromUrl) {
-            const chatId = parseInt(chatIdFromUrl);
-            console.log('Chat ID from URL:', chatId);
-            setSelectedChat(chatId);
-        }
-    }, [chatIdFromUrl]);
-
-    // Прокрутка к последнему сообщению
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages, scrollToBottom]);
 
     // Обработка клавиатуры на мобильных устройствах
     useEffect(() => {
@@ -951,7 +921,7 @@ function Chat() {
 
     // Пока загружается - показать загрузку
     if (isLoading) {
-        return <div className={styles.chat}>{t('chat.loadingChats')}</div>;
+        return <PageLoader text={t('chat.loadingChats')} />;
     }
 
     // Если нет currentUser после загрузки - показать AuthModal
@@ -1134,13 +1104,23 @@ function Chat() {
                                 )}
                                 {chatImages.length > 0 && (
                                     <button
-                                        className={styles.photosButton}
-                                        onClick={() => photoGallery.openGallery(0)}
+                                        className={`${styles.photosButton} ${isPhotoSidebarOpen ? styles.photosButtonActive : ''}`}
+                                        onClick={() => setIsPhotoSidebarOpen(prev => !prev)}
                                         aria-label={t('chat.viewAllPhotos')}
-                                        title={t('chat.viewAllPhotos')}
+                                        title={isPhotoSidebarOpen ? 'Скрыть фото' : 'Показать фото'}
                                     >
                                         <IoImages />
                                         <span className={styles.photosCount}>{chatImages.length}</span>
+                                    </button>
+                                )}
+                                {currentInterlocutor && (
+                                    <button
+                                        className={styles.complaintButton}
+                                        onClick={() => setShowComplaintModal(true)}
+                                        title="Пожаловаться"
+                                        aria-label="Пожаловаться"
+                                    >
+                                        <IoWarningOutline />
                                     </button>
                                 )}
 
@@ -1160,7 +1140,7 @@ function Chat() {
                                         {messages.map(msg => {
                                             // Показываем только текстовые сообщения и временные сообщения с ошибками
                                             if (msg.type === 'image') {
-                                                // Временно показываем только загружающиеся изображения
+                                                // Загружающиеся (локальные)
                                                 if (msg.status === 'pending' || msg.status === 'uploading') {
                                                     return (
                                                         <div
@@ -1193,7 +1173,33 @@ function Chat() {
                                                         </div>
                                                     );
                                                 }
-                                                // Не показываем загруженные изображения в чате
+                                                // Загруженные — показываем инлайн
+                                                if (msg.imageUrl) {
+                                                    return (
+                                                        <div
+                                                            key={msg.id}
+                                                            className={`${styles.message} ${msg.sender === "me" ? styles.myMessage : styles.theirMessage}`}
+                                                        >
+                                                            {msg.sender === "other" && (
+                                                                <div className={styles.messageName}>{msg.name}</div>
+                                                            )}
+                                                            <div className={styles.messageContent}>
+                                                                <img
+                                                                    src={msg.imageUrl}
+                                                                    alt=""
+                                                                    className={styles.messageImage}
+                                                                    onClick={() => {
+                                                                        const idx = chatImages.findIndex(ci => ci.imageUrl === msg.imageUrl);
+                                                                        photoGallery.openGallery(idx >= 0 ? idx : 0);
+                                                                    }}
+                                                                    style={{ cursor: 'pointer' }}
+                                                                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                                                />
+                                                                <div className={styles.messageTime}>{msg.time}</div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                }
                                                 return null;
                                             }
 
@@ -1219,10 +1225,20 @@ function Chat() {
 
                             {/* Боковая панель с миниатюрами фото */}
                             {chatImages.length > 0 && (
-                                <div className={styles.photoSidebar}>
+                                <div className={`${styles.photoSidebar} ${!isPhotoSidebarOpen ? styles.photoSidebarCollapsed : ''} ${isPhotoSidebarOpen ? styles.photoSidebarMobileOpen : ''}`}>
                                     <div className={styles.photoSidebarHeader}>
                                         <IoImages />
-                                        <span>{t('chat.photos')} ({chatImages.length})</span>
+                                        <span style={{ flex: 1 }}>{t('chat.photos')} ({chatImages.length})</span>
+                                        <button
+                                            className={styles.photoSidebarGalleryBtn}
+                                            onClick={() => photoGallery.openGallery(0)}
+                                            title="Открыть галерею"
+                                        >⤢</button>
+                                        <button
+                                            className={styles.photoSidebarCloseBtn}
+                                            onClick={() => setIsPhotoSidebarOpen(false)}
+                                            title="Закрыть"
+                                        >✕</button>
                                     </div>
                                     <div className={styles.photoThumbnails}>
                                         {chatImages.map((image, index) => (
@@ -1335,6 +1351,18 @@ function Chat() {
                 onSelectImage={photoGallery.selectImage}
                 fallbackImage="../fonTest5.png"
             />
+            {showComplaintModal && currentInterlocutor && (
+                <ComplaintModal
+                    isOpen={showComplaintModal}
+                    onClose={() => setShowComplaintModal(false)}
+                    onSuccess={(msg) => { setShowComplaintModal(false); setError(msg); setTimeout(() => setError(null), 3000); }}
+                    onError={(msg) => { setError(msg); setTimeout(() => setError(null), 3000); }}
+                    targetUserId={currentInterlocutor.id}
+                    ticketId={currentChat?.ticket?.id}
+                    chatId={selectedChat ?? undefined}
+                    complaintType="chat"
+                />
+            )}
             <CookieConsentBanner/>
         </div>
     );

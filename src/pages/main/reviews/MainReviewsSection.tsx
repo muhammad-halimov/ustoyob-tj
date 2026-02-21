@@ -5,6 +5,8 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
 import styles from './MainReviewsSection.module.scss';
 import { PhotoGallery, usePhotoGallery } from '../../../shared/ui/PhotoGallery';
+import { ReadMore } from '../../../widgets/ReadMore';
+import { PageLoader } from '../../../widgets/PageLoader';
 
 interface MainReviewsSectionProps {
     className?: string;
@@ -222,7 +224,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
             <div className={`${styles.main_reviews} ${className || ''}`}>
                 <div className={styles.container}>
                     <h3>Отзывы</h3>
-                    <div className={styles.loading}>Загрузка отзывов...</div>
+                    <PageLoader text="Загрузка отзывов..." fullPage={false} />
                 </div>
             </div>
         );
@@ -331,9 +333,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                             <div className={styles.reviews_about}>
                                 {review.description && (
                                     <div className={styles.reviews_about_title}>
-                                        {review.description.length > 150 
-                                            ? `${review.description.slice(0, 150)}...` 
-                                            : review.description}
+                                        <ReadMore text={review.description} maxLength={150} />
                                     </div>
                                 )}
                                 
@@ -457,9 +457,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                     <div className={styles.reviews_about}>
                                         {review.description && (
                                             <div className={styles.reviews_about_title}>
-                                                {review.description.length > 100 
-                                                    ? `${review.description.slice(0, 100)}...` 
-                                                    : review.description}
+                                                <ReadMore text={review.description} maxLength={100} />
                                             </div>
                                         )}
                                         

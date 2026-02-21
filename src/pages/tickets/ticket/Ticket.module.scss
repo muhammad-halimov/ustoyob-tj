@@ -154,16 +154,23 @@
 
 .photos {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 15px;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
   margin-top: 15px;
 }
 
 .photo {
   width: 100%;
-  height: 150px;
+  aspect-ratio: 1 / 1;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    transform: scale(1.03);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
+  }
 }
 
 .authorSection {
@@ -1040,5 +1047,42 @@
 
   .toggle_label {
     color: var(--color-text-black);
+  }
+
+  .category {
+    color: var(--color-text-secondary);
+    border-color: var(--color-stroke);
+  }
+
+  .subcategory {
+    color: var(--color-text-secondary);
+    border-color: var(--color-stroke);
+  }
+
+  .categorySeparator {
+    color: var(--color-text-secondary);
+  }
+
+  .priceSection .price {
+    color: var(--color-text-primary);
+  }
+
+  .authorSection {
+    background: var(--color-background-primary);
+    border-color: var(--color-stroke);
+
+    .authorInfo {
+      h3 {
+        color: var(--color-text-primary);
+      }
+
+      p {
+        color: var(--color-text-secondary);
+      }
+    }
+  }
+
+  .rate {
+    color: var(--color-text-primary);
   }
 }

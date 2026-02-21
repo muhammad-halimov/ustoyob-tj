@@ -1,12 +1,16 @@
 import {type ChangeEvent, useCallback, useEffect, useRef, useState} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
-import {getAuthToken, handleUnauthorized} from '../../utils/auth.ts';
+import {getAuthToken, getUserData, handleUnauthorized} from '../../utils/auth.ts';
 import { ROUTES } from '../../app/routers/routes';
 import styles from './Profile.module.scss';
+import { useTranslation } from 'react-i18next';
+import { useLanguageChange } from '../../hooks/useLanguageChange.ts';
+import { getStorageItem } from '../../utils/storageHelper.ts';
 
 
 import {usePhotoGallery} from '../../shared/ui/PhotoGallery';
 import {AddressValue, buildAddressData} from '../../shared/ui/AddressSelector';
+import { PageLoader } from '../../widgets/PageLoader';
 import {getOccupations} from '../../utils/dataCache.ts';
 
 // Импорты из entities
@@ -186,6 +190,7 @@ interface LocalPhone {
 function Profile() {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>(); // Получаем id из URL
+    const { t } = useTranslation(['profile', 'components']);
     
     // Определяем, это публичный профиль или приватный
     const isPublicProfile = !!id;
@@ -217,7 +222,6 @@ function Profile() {
     const [reviewsLoading, setReviewsLoading] = useState(false);
     const [servicesLoading, setServicesLoading] = useState(false);
     const [visibleCount, setVisibleCount] = useState(2);
-    const [expandedReviews, setExpandedReviews] = useState<Set<number>>(new Set());
     const [showAllWorkExamples, setShowAllWorkExamples] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     const [showReviewModal, setShowReviewModal] = useState(false);
@@ -259,6 +263,12 @@ function Profile() {
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
     
+    // Перезагружать данные при смене языка
+    useLanguageChange(() => {
+        fetchUserData(); // fetchServices и fetchUserGallery вызываются внутри fetchUserData
+        fetchReviews();
+    });
+
     // Как в MyTickets - загрузка текущего пользователя для приватного профиля
     const getCurrentUser = useCallback(async () => {
         if (readOnly) {
@@ -313,6 +323,8 @@ function Profile() {
         
         return () => window.removeEventListener('resize', handleResize);
     }, []);
+
+
     
     // PhotoGallery hook для примеров работ
     const galleryImages = profileData?.workExamples.map(work => work.image) || [];
@@ -335,44 +347,6 @@ function Profile() {
             totalIndex += reviews[i].images?.length || 0;
         }
         return totalIndex + imageIndex;
-    };
-
-    // Функция для переключения развернутого состояния отзыва
-    const toggleReviewExpanded = (reviewId: number) => {
-        setExpandedReviews(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(reviewId)) {
-                newSet.delete(reviewId);
-            } else {
-                newSet.add(reviewId);
-            }
-            return newSet;
-        });
-    };
-
-    // Функция для отображения текста отзыва
-    const renderReviewText = (review: Review) => {
-        const MAX_LENGTH = 200;
-        const text = review.description.replace(/<[^>]*>/g, '');
-        const isExpanded = expandedReviews.has(review.id);
-        
-        if (text.length <= MAX_LENGTH) {
-            return <div className={styles.review_text}>{text}</div>;
-        }
-
-        return (
-            <div>
-                <div className={styles.review_text}>
-                    {isExpanded ? text : `${text.substring(0, MAX_LENGTH)}...`}
-                </div>
-                <button 
-                    className={styles.review_more}
-                    onClick={() => toggleReviewExpanded(review.id)}
-                >
-                    {isExpanded ? 'Скрыть' : 'Показать подробнее'}
-                </button>
-            </div>
-        );
     };
 
     // Функция загрузки доступных социальных сетей
@@ -530,6 +504,17 @@ function Profile() {
 
     useEffect(() => {
         const initializeProfile = async () => {
+            // Если авторизованный пользователь зашёл на свой публичный профиль — редиректим в ЛК
+            // Проверяем это ПЕРВЫМ, до любых других запросов
+            // Используем данные из localStorage — без лишнего API-запроса
+            if (id) {
+                const cachedUser = getUserData();
+                if (cachedUser && cachedUser.id && cachedUser.id.toString() === id) {
+                    navigate(ROUTES.PROFILE, { replace: true });
+                    return;
+                }
+            }
+
             console.log('Initializing Profile...');
             const authenticated = await getCurrentUser();
             
@@ -555,13 +540,15 @@ function Profile() {
 
     useEffect(() => {
         if (profileData?.id) {
-            console.log('Profile loaded, fetching gallery, reviews, services, and occupations');
-            fetchUserGallery();
+            console.log('Profile loaded, fetching reviews, services, and occupations');
+            if (userRole === 'master') {
+                fetchUserGallery();
+            }
             fetchReviews();
             fetchServices();
             fetchOccupationsList(); // Загружаем специальности сразу при загрузке профиля
         }
-    }, [profileData?.id]);
+    }, [profileData?.id, userRole]);
 
     useEffect(() => {
         console.log('editingField useEffect triggered:', editingField);
@@ -695,7 +682,7 @@ function Profile() {
     };
 
     const handleResetSocialNetworks = async () => {
-        if (!confirm('Вы уверены, что хотите удалить все социальные сети?')) {
+        if (!confirm(t('profile:deleteAllNetworksConfirm'))) {
             return;
         }
 
@@ -823,13 +810,13 @@ function Profile() {
 
         // Проверяем, что выбрана область
         if (!addressForm.provinceId) {
-            alert('Пожалуйста, выберите область');
+            alert(t('profile:selectProvince'));
             return;
         }
 
         // Проверяем, что выбран город или район
         if (!addressForm.cityId && addressForm.districtIds.length === 0) {
-            alert('Пожалуйста, выберите город или район');
+            alert(t('profile:selectCity'));
             return;
         }
 
@@ -859,7 +846,7 @@ function Profile() {
             // Преобразуем AddressValue в формат API
             const addressData = buildAddressData(addressForm);
             if (!addressData) {
-                alert('Не удалось сформировать данные адреса');
+                alert(t('profile:addrError'));
                 return;
             }
 
@@ -953,19 +940,19 @@ function Profile() {
             } else {
                 const errorText = await updateResponse.text();
                 console.error('Error updating address:', errorText);
-                alert('Ошибка при сохранении адреса');
+                alert(t('profile:addrSaveError'));
             }
 
         } catch (error) {
             console.error('Error saving address:', error);
-            alert('Ошибка при сохранении адреса');
+            alert(t('profile:addrSaveError'));
         }
     };
 
     const handleDeleteAddress = async (addressId: string) => {
         if (!profileData?.id) return;
 
-        if (!confirm('Вы уверены, что хотите удалить этот адрес?')) {
+        if (!confirm(t('profile:deleteAddrConfirm'))) {
             return;
         }
 
@@ -1020,12 +1007,12 @@ function Profile() {
             } else {
                 const errorText = await updateResponse.text();
                 console.error('Error deleting address:', errorText);
-                alert('Ошибка при удалении адреса');
+                alert(t('profile:addrDeleteError'));
             }
 
         } catch (error) {
             console.error('Error deleting address:', error);
-            alert('Ошибка при удалении адреса');
+            alert(t('profile:addrDeleteError'));
         }
     };
 
@@ -1150,7 +1137,7 @@ function Profile() {
     const handleDeletePhone = async (phoneId: string) => {
         if (!profileData?.id) return;
 
-        if (!confirm('Вы уверены, что хотите удалить этот телефон?')) {
+        if (!confirm(t('profile:deletePhoneConfirm'))) {
             return;
         }
 
@@ -1307,16 +1294,23 @@ function Profile() {
             }
 
             // Определяем endpoint: /api/users/me для приватного или /api/users/:id для публичного
-            const endpoint = userId ? `${API_BASE_URL}/api/users/${userId}` : `${API_BASE_URL}/api/users/me`;
+            const currentLocale = getStorageItem('i18nextLng') || 'ru';
+            const endpoint = userId
+                ? `${API_BASE_URL}/api/users/${userId}?locale=${currentLocale}`
+                : `${API_BASE_URL}/api/users/me?locale=${currentLocale}`;
 
-            const response = await fetch(endpoint, {
-                method: 'GET',
-                headers: {
-                    ...(token && { 'Authorization': `Bearer ${token}` }),
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-            });
+            // Загружаем данные пользователя + географию + профессии параллельно
+            const localeHeaders = { ...(token && { 'Authorization': `Bearer ${token}` }) };
+            const [response, provincesRes, citiesRes, districtsRes, localizedOccupations] = await Promise.all([
+                fetch(endpoint, {
+                    method: 'GET',
+                    headers: { ...localeHeaders, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                }),
+                fetch(`${API_BASE_URL}/api/provinces?locale=${currentLocale}`, { headers: localeHeaders }),
+                fetch(`${API_BASE_URL}/api/cities?locale=${currentLocale}`, { headers: localeHeaders }),
+                fetch(`${API_BASE_URL}/api/districts?locale=${currentLocale}`, { headers: localeHeaders }),
+                getOccupations(currentLocale),
+            ]);
 
             if (response.status === 401 && !readOnly) {
                 console.log('Token is invalid or expired');
@@ -1334,8 +1328,56 @@ function Profile() {
 
             const userData: UserApiData = await response.json();
             console.log('User data received:', userData);
-            console.log('User addresses:', userData.addresses);
-            
+
+            // Строим lookup maps из переведённых географических данных
+            const [pRaw, cRaw, dRaw] = await Promise.all([
+                provincesRes.ok ? provincesRes.json() : Promise.resolve([]),
+                citiesRes.ok ? citiesRes.json() : Promise.resolve([]),
+                districtsRes.ok ? districtsRes.json() : Promise.resolve([]),
+            ]);
+            const toArr = (d: any) => Array.isArray(d) ? d : (d?.['hydra:member'] || []);
+            const provincesArr2: any[] = toArr(pRaw);
+            const citiesArr: any[] = toArr(cRaw);
+            const districtsArr: any[] = toArr(dRaw);
+
+            const provinceMap = new Map<number, string>(provincesArr2.map((p: any) => [p.id, p.title]));
+            const cityMap     = new Map<number, string>(citiesArr.map((c: any) => [c.id, c.title]));
+            const districtMap = new Map<number, string>(districtsArr.map((d: any) => [d.id, d.title]));
+            const suburbMap   = new Map<number, string>();
+            const settlementMap = new Map<number, string>();
+            const communityMap  = new Map<number, string>();
+            const villageMap    = new Map<number, string>();
+            citiesArr.forEach((city: any) => {
+                (city.suburbs || []).forEach((s: any) => suburbMap.set(s.id, s.title));
+            });
+            districtsArr.forEach((dist: any) => {
+                (dist.settlements || []).forEach((s: any) => {
+                    settlementMap.set(s.id, s.title);
+                    (s.village || s.villages || []).forEach((v: any) => villageMap.set(v.id, v.title));
+                });
+                (dist.communities || []).forEach((c: any) => communityMap.set(c.id, c.title));
+            });
+
+            const addrId = (part: any): number | null => part ? (typeof part === 'object' ? part.id : null) : null;
+            const resolveAddr = (part: any, map: Map<number, string>): string => {
+                const id = addrId(part);
+                if (id && map.has(id)) return map.get(id)!;
+                if (typeof part === 'object' && part?.title) return String(part.title);
+                return '';
+            };
+            const buildAddressText = (addr: UserAddressApiData): string => {
+                const parts = [
+                    resolveAddr(addr.province, provinceMap),
+                    resolveAddr(addr.city, cityMap),
+                    resolveAddr(addr.district, districtMap),
+                    resolveAddr(addr.suburb, suburbMap),
+                    resolveAddr(addr.settlement, settlementMap),
+                    resolveAddr(addr.community, communityMap),
+                    resolveAddr(addr.village, villageMap),
+                ].filter(Boolean);
+                return parts.join(', ');
+            };
+
             // Определяем роль пользователя
             const roles = Array.isArray(userData.roles) ? userData.roles : [];
             const role = roles.includes('ROLE_MASTER') ? 'master' : 'client';
@@ -1343,49 +1385,37 @@ function Profile() {
             console.log('User role:', role);
 
             const avatarUrl = await getAvatarUrl(userData);
-            let workArea = '';
 
             // Получаем все адреса пользователя
             const userAddresses = userData.addresses as UserAddressApiData[] | undefined;
 
+            // Строим displayText для каждого адреса через lookup maps (переведённые названия)
+            const loadedAddresses: LocalAddress[] = [];
+            let workArea = '';
             if (userAddresses && Array.isArray(userAddresses)) {
-                console.log('Processing addresses for work area...');
-                console.log('Total addresses found:', userAddresses.length);
-
                 const addressStrings: string[] = [];
-
-                for (let i = 0; i < userAddresses.length; i++) {
-                    const address = userAddresses[i];
-                    console.log(`Processing address ${i + 1}:`, address);
-
-                    try {
-                        const addressText = await getFullAddressText(address);
-                        if (addressText && addressText.trim()) {
-                            console.log(`Address ${i + 1} text: "${addressText}"`);
-                            addressStrings.push(addressText);
-                        } else {
-                            console.log(`Address ${i + 1} returned empty text`);
-                        }
-                    } catch (error) {
-                        console.error(`Error processing address ${i + 1}:`, error);
+                userAddresses.forEach((addr, i) => {
+                    const addressText = buildAddressText(addr);
+                    if (addressText) {
+                        addressStrings.push(addressText);
+                        const addressValue: AddressValue = {
+                            provinceId: addrId(addr.province),
+                            cityId: addrId(addr.city),
+                            suburbIds: addr.suburb ? [addrId(addr.suburb)].filter((id): id is number => id !== null) : [],
+                            districtIds: addr.district ? [addrId(addr.district)].filter((id): id is number => id !== null) : [],
+                            settlementId: addrId(addr.settlement),
+                            communityId: addrId(addr.community),
+                            villageId: addrId(addr.village),
+                        };
+                        loadedAddresses.push({
+                            id: addr.id?.toString() || `addr-${i}`,
+                            displayText: addressText,
+                            addressValue,
+                        });
                     }
-                }
-
-                console.log('All address strings:', addressStrings);
-
-                if (addressStrings.length > 0) {
-                    // Убираем дубликаты и объединяем через запятую
-                    const uniqueAddresses = [...new Set(addressStrings)];
-                    workArea = uniqueAddresses.join(', ');
-                    console.log('Final work area:', workArea);
-                } else {
-                    console.log('No valid addresses found');
-                }
-            } else {
-                console.log('No addresses found in user data');
+                });
+                workArea = [...new Set(addressStrings)].join(', ');
             }
-
-            console.log('Final work area:', workArea);
 
             // Создаем пустой массив социальных сетей - показываем только те, что есть в API
             const loadedSocialNetworks: LocalSocialNetwork[] = [];
@@ -1414,33 +1444,6 @@ function Profile() {
             // Обновляем состояние социальных сетей
             setSocialNetworks(loadedSocialNetworks);
 
-            // Преобразуем адреса в нужный формат
-            const loadedAddresses: LocalAddress[] = [];
-            if (userAddresses && Array.isArray(userAddresses)) {
-                for (let i = 0; i < userAddresses.length; i++) {
-                    const addr = userAddresses[i];
-                    const addressText = await getFullAddressText(addr);
-                    
-                    if (addressText) {
-                        const addressValue: AddressValue = {
-                            provinceId: addr.province ? (typeof addr.province === 'object' ? (addr.province.id || null) : null) : null,
-                            cityId: addr.city ? (typeof addr.city === 'object' ? (addr.city.id || null) : null) : null,
-                            suburbIds: addr.suburb ? [(typeof addr.suburb === 'object' ? (addr.suburb.id || null) : null)].filter((id): id is number => id !== null) : [],
-                            districtIds: addr.district ? [(typeof addr.district === 'object' ? (addr.district.id || null) : null)].filter((id): id is number => id !== null) : [],
-                            settlementId: addr.settlement ? (typeof addr.settlement === 'object' ? (addr.settlement.id || null) : null) : null,
-                            communityId: addr.community ? (typeof addr.community === 'object' ? (addr.community.id || null) : null) : null,
-                            villageId: addr.village ? (typeof addr.village === 'object' ? (addr.village.id || null) : null) : null
-                        };
-
-                        loadedAddresses.push({
-                            id: addr.id?.toString() || `addr-${i}`,
-                            displayText: addressText,
-                            addressValue
-                        });
-                    }
-                }
-            }
-
             // Преобразуем телефоны из phone1 и phone2
             const loadedPhones: LocalPhone[] = [];
             if (userData.phone1 && typeof userData.phone1 === 'string') {
@@ -1458,24 +1461,43 @@ function Profile() {
                 });
             }
 
+            // localizedOccupations уже получены выше через Promise.all
+            setOccupations(localizedOccupations);
+
+            // Хелпер: по occupation (объект или IRI) вернуть переведённое название из localized списка
+            const resolveOccupationTitle = (occ: any): string => {
+                if (!occ) return '';
+                // Всегда ищем по ID в переведённом списке
+                const id = typeof occ === 'object' ? occ.id
+                         : typeof occ === 'string' ? parseInt(occ.split('/').pop() || '0')
+                         : null;
+                if (id) {
+                    const found = localizedOccupations.find(o => o.id === id);
+                    if (found) return found.title;
+                }
+                // Fallback на встроенный title
+                if (typeof occ === 'object' && occ.title) return String(occ.title);
+                return '';
+            };
+
             const transformedData: ProfileData = {
                 id: userData.id.toString(),
                 fullName: [userData.surname, userData.name, userData.patronymic]
                     .filter(Boolean)
-                    .join(' ') || 'Фамилия Имя Отчество',
+                    .join(' ') || t('profile:defaultFullName'),
                 email: userData.email || undefined,
                 gender: (userData as any).gender || (userData as any).sex || undefined,
                 dateOfBirth: userData.dateOfBirth || undefined,
                 specialty: Array.isArray(userData.occupation) 
-                    ? userData.occupation.map((occ) => typeof occ === 'object' && occ.title ? String(occ.title) : '').filter(Boolean).join(', ') || 'Специальность'
-                    : 'Специальность',
+                    ? userData.occupation.map(resolveOccupationTitle).filter(Boolean).join(', ') || t('profile:defaultSpecialty')
+                    : t('profile:defaultSpecialty'),
                 specialties: Array.isArray(userData.occupation) 
-                    ? userData.occupation.map((occ) => typeof occ === 'object' && occ.title ? String(occ.title) : '').filter(Boolean) 
+                    ? userData.occupation.map(resolveOccupationTitle).filter(Boolean) 
                     : [],
                 rating: userData.rating || 0,
                 reviews: 0,
                 avatar: avatarUrl,
-                education: transformEducation(userData.education || []),
+                education: transformEducation(userData.education || [], localizedOccupations),
                 workExamples: [],
                 workArea: workArea,
                 addresses: loadedAddresses,
@@ -1487,16 +1509,22 @@ function Profile() {
 
             setProfileData(transformedData);
 
+            // Подгружаем услуги и галерею после обновления профиля (нужны переведённые данные)
+            fetchServices();
+            if (role === 'master') {
+                fetchUserGallery();
+            }
+
         } catch (error) {
             console.error('Error fetching user data:', error);
             // При ошибке устанавливаем пустой массив социальных сетей
             setSocialNetworks([]);
             setProfileData({
                 id: '',
-                fullName: 'Фамилия Имя Отчество',
+                fullName: t('profile:defaultFullName'),
                 email: undefined,
                 gender: undefined,
-                specialty: 'Специальность',
+                specialty: t('profile:defaultSpecialty'),
                 specialties: [],
                 rating: 0,
                 reviews: 0,
@@ -1580,51 +1608,6 @@ function Profile() {
         }
 
         return addressParts.join(', ');
-    };
-
-    const updateUserRating = async (rating: number) => {
-        // Only update rating for the authenticated user's own profile
-        if (readOnly || !profileData?.id) return;
-
-        try {
-            const token = getAuthToken();
-            if (!token) {
-                console.log('No token available for updating rating');
-                return;
-            }
-
-            console.log(`Updating user rating to: ${rating}`);
-            // Use /api/users/me for own profile so we never PATCH a wrong ID
-            const response = await fetch(`${API_BASE_URL}/api/users/me`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/merge-patch+json',
-                },
-                body: JSON.stringify({
-                    rating: rating
-                }),
-            });
-
-            if (response.status === 401) {
-                const refreshed = await handleUnauthorized();
-                if (refreshed) {
-                    updateUserRating(rating);
-                }
-                return;
-            }
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Rating update failed:', errorText);
-                throw new Error(`Failed to update rating: ${response.status}`);
-            }
-
-            console.log('User rating updated successfully');
-
-        } catch (error) {
-            console.error('Error updating user rating:', error);
-        }
     };
 
     const fetchReviews = async () => {
@@ -1816,10 +1799,7 @@ function Profile() {
                     rating: newRating
                 } : null);
 
-                // Only PATCH if rating actually changed to avoid a write on every page load
-                if (userReviews.length > 0 && newRating !== profileData.rating) {
-                    await updateUserRating(newRating);
-                }
+
 
             } else {
                 console.log(`No reviews data found for this ${userRole}`);
@@ -1860,8 +1840,8 @@ function Profile() {
 
             console.log(`Fetching services for ${userRole} ID:`, profileData.id);
             const endpoint = userRole === 'client' 
-                ? `/api/tickets?service=false&active=true&exists[master]=false&exists[author]=true&author=${profileData.id}`
-                : `/api/tickets?service=true&active=true&exists[author]=false&exists[master]=true&master=${profileData.id}`;
+                ? `/api/tickets?locale=${getStorageItem('i18nextLng') || 'ru'}&service=false&active=true&exists[master]=false&exists[author]=true&author=${profileData.id}`
+                : `/api/tickets?locale=${getStorageItem('i18nextLng') || 'ru'}&service=true&active=true&exists[author]=false&exists[master]=true&master=${profileData.id}`;
             console.log(`Trying endpoint: ${endpoint}`);
 
             const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -1934,7 +1914,7 @@ function Profile() {
 
                 return {
                     id: service.id,
-                    title: service.title || 'Услуга',
+                    title: service.title || t('components:app.service'),
                     description: service.description || '',
                     budget: service.budget || 0,
                     price: service.budget || 0, // deprecated, используется budget
@@ -2107,7 +2087,7 @@ function Profile() {
 
         if (!profileData?.id) return;
 
-        if (!confirm('Вы уверены, что хотите удалить это фото из портфолио?')) {
+        if (!confirm(t('profile:deleteWorkPhotoConfirm'))) {
             return;
         }
 
@@ -2203,7 +2183,7 @@ function Profile() {
     const handleDeleteAllWorkExamples = async () => {
         if (!profileData?.id) return;
 
-        if (!confirm('Вы уверены, что хотите удалить все фото из портфолио?')) {
+        if (!confirm(t('profile:deleteAllWorkPhotosConfirm'))) {
             return;
         }
 
@@ -2267,30 +2247,6 @@ function Profile() {
         } finally {
             setIsGalleryOperating(false);
         }
-    };
-
-    const testGalleryAPI = async (token: string) => {
-        try {
-            console.log('Testing Gallery API...');
-            const response = await fetch(`${API_BASE_URL}/api/galleries/me`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                console.log('Gallery /me response:', data);
-                return data;
-            } else {
-                console.error('Failed to get galleries:', response.status);
-            }
-        } catch (error) {
-            console.error('Error testing API:', error);
-        }
-        return null;
     };
 
     const createUserGallery = async (token: string): Promise<number | null> => {
@@ -2368,10 +2324,51 @@ function Profile() {
     const fetchUserGallery = async () => {
         try {
             console.log('Fetching user gallery...');
+
+            if (userId) {
+                // Публичный профиль — грузим галерею по ID пользователя, без токена
+                const response = await fetch(`${API_BASE_URL}/api/galleries?user=${userId}`, {
+                    headers: { 'Accept': 'application/json' },
+                });
+
+                if (!response.ok) {
+                    setProfileData(prev => prev ? { ...prev, workExamples: [] } : null);
+                    return;
+                }
+
+                const data = await response.json();
+                let galleryArray: GalleryApiData[] = [];
+                if (Array.isArray(data)) {
+                    galleryArray = data;
+                } else if (data?.['hydra:member']) {
+                    galleryArray = data['hydra:member'];
+                } else if (data?.id) {
+                    galleryArray = [data];
+                }
+
+                const gallery = galleryArray[0] ?? null;
+                if (gallery?.images && gallery.images.length > 0) {
+                    const workExamplesLocal = await Promise.all(
+                        gallery.images.map(async (image: GalleryImageApiData) => {
+                            const imageUrl = getImageUrl(image.image);
+                            const exists = await checkImageExists(imageUrl).catch(() => false);
+                            return {
+                                id: image.id?.toString() || Date.now().toString(),
+                                image: exists ? imageUrl : '../fonTest6.png',
+                                title: 'Пример работы'
+                            };
+                        })
+                    );
+                    setProfileData(prev => prev ? { ...prev, workExamples: workExamplesLocal } : null);
+                } else {
+                    setProfileData(prev => prev ? { ...prev, workExamples: [] } : null);
+                }
+                return;
+            }
+
+            // Приватный профиль — грузим свою галерею
             const token = getAuthToken();
             if (!token) return;
-
-            await testGalleryAPI(token);
             const gallery = await getUserGallery(token);
 
             if (gallery) {
@@ -2483,7 +2480,8 @@ function Profile() {
         return null;
     };
 
-    const transformEducation = (education: EducationApiData[]): Education[] => {
+    const transformEducation = (education: EducationApiData[], occupationsList?: { id: number; title: string }[]): Education[] => {
+        const resolvedOccupations = occupationsList && occupationsList.length > 0 ? occupationsList : occupations;
         return education.map(edu => {
             let specialty = '';
             
@@ -2492,7 +2490,7 @@ function Profile() {
                 if (typeof edu.occupation === 'string') {
                     // occupation как IRI строка "/api/occupations/4"
                     const occupationId = parseInt(edu.occupation.split('/').pop() || '0');
-                    const foundOccupation = occupations.find(occ => occ.id === occupationId);
+                    const foundOccupation = resolvedOccupations.find(occ => occ.id === occupationId);
                     specialty = foundOccupation?.title || '';
                 } else if (Array.isArray(edu.occupation)) {
                     // occupation как массив объектов
@@ -2631,7 +2629,7 @@ function Profile() {
 
         } catch (error) {
             console.error('Error updating user data:', error);
-            alert('Ошибка при обновлении данных');
+            alert(t('profile:updateError'));
         }
     };
 
@@ -2832,7 +2830,7 @@ function Profile() {
     };
 
     const handleDeleteEducation = async (educationId: string) => {
-        if (!confirm('Вы уверены, что хотите удалить это образование?')) {
+        if (!confirm(t('profile:educationDeleteConfirm'))) {
             return;
         }
 
@@ -3022,7 +3020,7 @@ function Profile() {
 
     const handleEditEducationSave = async () => {
         if (!editingEducation || !educationForm.institution || !educationForm.startYear) {
-            alert('Пожалуйста, заполните обязательные поля');
+            alert(t('profile:fillRequiredFields'));
             return;
         }
 
@@ -3065,12 +3063,12 @@ function Profile() {
         if (!file || !profileData?.id) return;
 
         if (!file.type.startsWith("image/")) {
-            alert("Пожалуйста, выберите изображение");
+            alert(t('profile:notImageFile'));
             return;
         }
 
         if (file.size > 2 * 1024 * 1024) {
-            alert("Размер файла не должен превышать 2MB");
+            alert(t('profile:fileTooLarge'));
             return;
         }
 
@@ -3111,13 +3109,13 @@ function Profile() {
                 console.error(`Ошибка при загрузке (${response.status}):`, responseText);
 
                 if (response.status === 400) {
-                    alert("Неверные данные для загрузки фото");
+                    alert(t('profile:badRequest'));
                 } else if (response.status === 403) {
-                    alert("Нет прав для изменения фото профиля");
+                    alert(t('profile:forbidden'));
                 } else if (response.status === 422) {
-                    alert("Ошибка валидации данных");
+                    alert(t('profile:validationError'));
                 } else {
-                    alert(`Ошибка при загрузке фото (${response.status})`);
+                    alert(`${t('profile:uploadError')} (${response.status})`);
                 }
                 return;
             }
@@ -3136,11 +3134,11 @@ function Profile() {
 
             console.log("Фото успешно загружено:", result);
             await fetchUserData();
-            alert("Фото профиля успешно обновлено!");
+            alert(t('profile:photoUpdated'));
 
         } catch (error) {
             console.error("Ошибка при загрузке фото:", error);
-            alert("Ошибка при загрузке фото профиля");
+            alert(t('profile:photoUploadError'));
         } finally {
             setIsLoading(false);
             if (fileInputRef.current) fileInputRef.current.value = "";
@@ -3227,14 +3225,14 @@ function Profile() {
 
     const getMasterName = (review: Review) => {
         if (!review.user.name && !review.user.surname) {
-            return 'Мастер';
+            return t('components:app.defaultMaster');
         }
         return `${review.user.name || ''} ${review.user.surname || ''}`.trim();
     };
 
     const getClientName = (review: Review) => {
         if (!review.reviewer.name && !review.reviewer.surname) {
-            return 'Клиент';
+            return t('components:app.defaultClient');
         }
         return `${review.reviewer.name || ''} ${review.reviewer.surname || ''}`.trim();
     };
@@ -3328,7 +3326,7 @@ function Profile() {
     };
 
     if (isLoading) {
-        return <div className={styles.profileSet}>Загрузка...</div>;
+        return <PageLoader text={t('profile:loading')} />;
     }
 
     // Если это приватный профиль и нет currentUser - показать AuthModal
@@ -3343,7 +3341,7 @@ function Profile() {
     }
 
     if (!profileData) {
-        return <div className={styles.profileSet}>Ошибка загрузки данных</div>;
+        return <div className={styles.profileSet}>{t('profile:loadError')}</div>;
     }
 
     return (
@@ -3514,7 +3512,6 @@ function Profile() {
                     userRole={userRole || 'master'}
                     onShowMore={handleShowMore}
                     onShowLess={handleShowLess}
-                    renderReviewText={renderReviewText}
                     getReviewerAvatarUrl={getReviewerAvatarUrl}
                     getClientName={getClientName}
                     getMasterName={getMasterName}
@@ -3534,7 +3531,7 @@ function Profile() {
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
                             <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
                         </svg>
-                        Оставить отзыв
+                        {t('profile:leaveReview')}
                     </button>
                     <button 
                         className={styles.complaint_button}
@@ -3543,7 +3540,7 @@ function Profile() {
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
                             <path d="M12 2L2 20H22L12 2ZM12 17C11.45 17 11 16.55 11 16C11 15.45 11.45 15 12 15C12.55 15 13 15.45 13 16C13 16.55 12.55 17 12 17ZM13 13H11V8H13V13Z"/>
                         </svg>
-                        Пожаловаться
+                        {t('profile:complaint')}
                     </button>
                 </div>
             )}

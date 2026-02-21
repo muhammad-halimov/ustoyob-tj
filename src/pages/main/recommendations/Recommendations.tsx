@@ -6,6 +6,7 @@ import { TicketCard } from '../../../shared/ui/TicketCard/TicketCard.tsx';
 import styles from './Recommendations.module.scss';
 import { useTranslation } from 'react-i18next';
 import { ROUTES } from '../../../app/routers/routes.ts';
+import { PageLoader } from '../../../widgets/PageLoader';
 
 interface Announcement {
     id: number;
@@ -84,11 +85,7 @@ function Recommendations() {
             console.log('Recommendations - Current user ID:', currentUserId);
             console.log('Recommendations - Token exists:', !!token);
             
-            const endpoint = userRole === 'master'
-                ? `/api/tickets?locale=${locale}&active=true&service=false&exists[master]=false&exists[author]=true${currentUserId ? `&author.id[ne]=${currentUserId}` : ''}`
-                : userRole === 'client'
-                ? `/api/tickets?locale=${locale}&active=true&service=true&exists[master]=true&exists[author]=false${currentUserId ? `&master.id[ne]=${currentUserId}` : ''}`
-                : `/api/tickets?locale=${locale}&active=true&service=true`;
+            const endpoint = `/api/tickets?locale=${locale}&active=true${currentUserId ? `&author.id[ne]=${currentUserId}&master.id[ne]=${currentUserId}` : ''}`;
             
             console.log('Recommendations - Endpoint:', `${API_BASE_URL}${endpoint}`);
             console.log('============================================');
@@ -243,7 +240,7 @@ function Recommendations() {
             <div className={styles.recommendation__wrap}>
                 <h3 className={styles.recommendation__title}>{t('pages.recommendations.title')}</h3>
                 {isLoading ? (
-                    <p className={styles.recommendation__loading}>Загрузка...</p>
+                    <PageLoader text={t('pages.recommendations.loading', 'Загрузка...')} fullPage={false} />
                 ) : announcements.length > 0 ? (
                     <div className={styles.recommendation__list}>
                         {announcements.map((announcement) => (

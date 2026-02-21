@@ -941,4 +941,99 @@
   .villages_section {
     border-bottom-color: var(--color-stroke);
   }
+
+  .district_card {
+    background-color: var(--color-background-all);
+    border-color: var(--color-stroke);
+    color: var(--color-text-primary);
+
+    &:hover {
+      background-color: var(--color-background-secondary);
+    }
+  }
+
+  .district_section {
+    border-bottom-color: var(--color-stroke);
+    h3 {
+      color: var(--color-text-primary);
+    }
+  }
+
+  .addressInput {
+    background-color: var(--color-background-all);
+    border-color: var(--color-stroke);
+    color: var(--color-text-primary);
+
+    &::placeholder {
+      color: var(--color-text-secondary);
+    }
+  }
+
+  .budgetSection h3,
+  .budgetSection h2 {
+    color: var(--color-text-primary);
+  }
+
+  .budgetInput,
+  .unitSelect {
+    background-color: var(--color-background-all);
+    border-color: var(--color-stroke);
+    color: var(--color-text-primary);
+
+    option {
+      background-color: var(--color-background-all);
+    }
+  }
+
+  .descriptionSection h2 {
+    color: var(--color-text-primary);
+  }
+
+  .descriptionTextarea {
+    background-color: var(--color-background-all);
+    border-color: var(--color-stroke);
+    color: var(--color-text-primary);
+
+    &::placeholder {
+      color: var(--color-text-secondary);
+    }
+  }
+
+  .photoSection h2,
+  .photoSection h4 {
+    color: var(--color-text-primary);
+  }
+
+  .uploadLabel {
+    background-color: var(--color-background-all);
+    border-color: var(--color-stroke);
+    color: var(--color-text-primary);
+  }
+
+  .existingPhoto {
+    border-color: var(--color-stroke);
+  }
+
+  .cancelButton {
+    background: var(--color-background-all);
+    color: var(--color-text-secondary);
+    border-color: var(--color-stroke);
+
+    &:hover {
+      background: var(--color-background-secondary);
+    }
+  }
+
+  .modalContent {
+    background: var(--color-background-primary);
+    color: var(--color-text-primary);
+
+    h2 {
+      color: var(--color-text-primary);
+    }
+
+    p {
+      color: var(--color-text-secondary);
+    }
+  }
 }

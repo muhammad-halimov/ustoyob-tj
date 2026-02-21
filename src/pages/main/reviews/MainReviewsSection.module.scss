@@ -44,6 +44,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 27px;
+  align-items: flex-start;
 
   @media (max-width: 480px) {
     display: none;
@@ -192,10 +193,6 @@
         margin-bottom: 15px;
         word-wrap: break-word;
         overflow-wrap: break-word;
-        display: -webkit-box;
-        -webkit-line-clamp: 4;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
       }
 
       .review_images {
@@ -427,6 +424,72 @@
   .main_reviews {
     h3 {
       color: var(--color-text-primary);
+    }
+  }
+
+  .reviews_wrap .reviews_item {
+    .reviews_naming_title {
+      .clickable_name {
+        color: var(--color-text-primary);
+      }
+
+      .reviews_naming_raiting span {
+        color: var(--color-text-primary);
+      }
+
+      .review_date {
+        color: var(--color-text-secondary);
+      }
+    }
+
+    .review_date {
+      color: var(--color-text-secondary);
+    }
+
+    .reviews_about {
+      .reviews_about_title {
+        color: var(--color-text-primary);
+      }
+
+      .review_date_bottom {
+        color: var(--color-text-secondary);
+        background: var(--color-background-secondary) !important;
+        box-shadow: none;
+      }
+    }
+  }
+
+  .reviews_slider .reviews_item {
+    background-color: var(--color-background-primary);
+
+    .reviews_naming_title {
+      .clickable_name {
+        color: var(--color-text-primary);
+      }
+
+      .reviews_naming_raiting span {
+        color: var(--color-text-primary);
+      }
+
+      .review_date {
+        color: var(--color-text-secondary);
+      }
+    }
+
+    .review_date {
+      color: var(--color-text-secondary);
+    }
+
+    .reviews_about {
+      .reviews_about_title {
+        color: var(--color-text-primary);
+      }
+
+      .review_date_bottom {
+        color: var(--color-text-secondary);
+        background: var(--color-background-secondary) !important;
+        box-shadow: none;
+      }
     }
   }
 }

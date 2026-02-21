@@ -9,6 +9,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { ROUTES } from '../../../app/routers/routes';
 import { getUserRole } from "../../../utils/auth.ts";
 import { useTranslation } from "react-i18next";
+import AuthModal from "../../../features/auth/AuthModal.tsx";
 
 import "swiper/css";
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
@@ -162,15 +163,11 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
 
     const handleAdBtnClick = (workerType: "client" | "master") => {
         if (workerType === "master" && userRole === "master") {
-            navigate(ROUTES.PROFILE_CREATE);
+            navigate(ROUTES.TICKET_CREATE);
         } else if (workerType === "client" && userRole === "client") {
             navigate(ROUTES.TICKET_CREATE);
         } else if (!userRole) {
-            if (onOpenAuthModal) {
-                onOpenAuthModal();
-            } else {
-                setModalMessage("Пожалуйста, авторизуйтесь.");
-            }
+            setShowAuthModal(true);
         } else {
             setModalMessage(`Вы должны быть ${workerType === "master" ? "мастером" : "заказчиком"} для этой операции.`);
         }
@@ -192,6 +189,7 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
                                     </div>
                                     <AdBtn
                                         alwaysVisible
+                                        text={work.id === 1 ? t('pages.main.postTicket') : t('pages.main.postService')}
                                         onClick={() =>
                                             handleAdBtnClick(work.id === 1 ? "client" : "master")
                                         }
@@ -266,12 +264,10 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
                 </div>
             )}
 
-            {/* Этот блок можно убрать, если он не нужен */}
-            {showAuthModal && (
-                <div style={{ display: 'none' }}>
-                    {/* Триггер для модалки */}
-                </div>
-            )}
+            <AuthModal
+                isOpen={showAuthModal}
+                onClose={() => setShowAuthModal(false)}
+            />
             <CookieConsentBanner/>
         </div>
     );

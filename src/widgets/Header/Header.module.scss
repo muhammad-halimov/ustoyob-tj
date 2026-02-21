@@ -519,4 +519,67 @@
   .modalContent {
     background: var(--color-background-primary);
   }
+
+  .bottomHeader_item {
+    color: var(--color-text-primary);
+
+    p {
+      color: var(--color-text-primary);
+    }
+
+    .navLink {
+      color: var(--color-text-primary);
+
+      svg rect {
+        fill: transparent;
+      }
+    }
+
+    &.active {
+      color: var(--color-primary);
+
+      .navLink {
+        color: var(--color-primary);
+      }
+    }
+  }
+
+  .mobile_header {
+    background-color: var(--color-background-primary);
+    border-top-color: var(--color-stroke);
+  }
+
+  .locate {
+    color: var(--color-text-primary);
+  }
+
+  .cityList {
+    background: var(--color-background-primary);
+    border-color: var(--color-stroke);
+  }
+
+  .cityItem {
+    color: var(--color-text-primary);
+    border-bottom-color: var(--color-stroke);
+
+    &:hover {
+      background: var(--color-background-all);
+    }
+  }
+
+  .modalHeader {
+    border-bottom-color: var(--color-stroke);
+
+    h2 {
+      color: var(--color-text-primary);
+    }
+  }
+
+  .modalBody {
+    color: var(--color-text-primary);
+  }
+
+  .rightPart_lang__box {
+    color: var(--color-text-primary);
+  }
 }

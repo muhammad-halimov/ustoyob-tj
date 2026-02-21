@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import styles from './SocialNetworksSection.module.scss';
 
 interface SocialNetwork {
@@ -69,14 +70,15 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
     renderSocialIcon,
     getAvailableNetworks,
 }) => {
+    const { t } = useTranslation(['profile']);
     return (
         <div className={styles.section_item}>
-            <h3>Социальные сети</h3>
+            <h3>{t('profile:socialNetworksTitle')}</h3>
             <div className={styles.section_content}>
                 <div className={styles.social_networks}>
                     {socialNetworks.length === 0 && (
                         <div className={styles.empty_social_networks}>
-                            <span>{readOnly ? 'Социальные сети не указаны' : 'Добавьте социальные сети'}</span>
+                            <span>{readOnly ? t('profile:noSocialNetworks') : t('profile:addSocialNetworks')}</span>
                         </div>
                     )}
 
@@ -94,7 +96,7 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
                                         <input
                                             type="text"
                                             value={socialNetworkEditValue}
-                                            placeholder={SOCIAL_NETWORK_CONFIG[network.network]?.placeholder || 'Введите контактные данные'}
+                                            placeholder={SOCIAL_NETWORK_CONFIG[network.network]?.placeholder || t('profile:enterContact')}
                                             onChange={(e) => {
                                                 setSocialNetworkEditValue(e.target.value);
                                                 setSocialNetworkValidationError('');
@@ -110,12 +112,12 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
                                                     const config = SOCIAL_NETWORK_CONFIG[network.network];
                                                     
                                                     if (!trimmedValue) {
-                                                        setSocialNetworkValidationError('Поле не может быть пустым');
+                                                        setSocialNetworkValidationError(t('profile:fieldEmpty'));
                                                         return;
                                                     }
 
                                                     if (config && !config.validate(trimmedValue)) {
-                                                        setSocialNetworkValidationError(`Неверный формат для ${config.label}`);
+                                                        setSocialNetworkValidationError(t('profile:invalidFormat', { label: config.label }));
                                                         return;
                                                     }
 
@@ -133,14 +135,14 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
                                                             setSocialNetworkEditValue('');
                                                             setSocialNetworkValidationError('');
                                                         } else {
-                                                            setSocialNetworkValidationError('Ошибка при сохранении');
+                                                            setSocialNetworkValidationError(t('profile:saveError'));
                                                         }
                                                     } catch (error) {
                                                         console.error('Error saving social network:', error);
-                                                        setSocialNetworkValidationError('Ошибка при сохранении');
+                                                        setSocialNetworkValidationError(t('profile:saveError'));
                                                     }
                                                 }}
-                                                title="Сохранить"
+                                                title={t('profile:saveBtn')}
                                                 disabled={!socialNetworkEditValue.trim()}
                                             >
                                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
@@ -170,7 +172,7 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
                                                 </a>
                                             ) : (
                                                 <span className={styles.handle_placeholder}>
-                                                    Не указано
+                                                    {t('profile:notSpecified')}
                                                 </span>
                                             )}
                                         </div>
@@ -179,7 +181,7 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
                                                 <button
                                                     className={styles.copy_icon}
                                                     onClick={() => onCopySocialNetwork(network.handle)}
-                                                    title="Копировать"
+                                                    title={t('profile:copyBtn')}
                                                 >
                                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                                                         <path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z" fill="#3A54DA"/>
@@ -193,7 +195,7 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
                                                     setSocialNetworkEditValue(network.handle || '');
                                                     setSocialNetworkValidationError('');
                                                 }}
-                                                title="Редактировать"
+                                                title={t('profile:editBtn')}
                                             >
                                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                                                     <path d="M7.2302 20.59L2.4502 21.59L3.4502 16.81L17.8902 2.29001C18.1407 2.03889 18.4385 1.83982 18.7663 1.70424C19.0941 1.56865 19.4455 1.49925 19.8002 1.50001C20.5163 1.50001 21.203 1.78447 21.7094 2.29082C22.2157 2.79717 22.5002 3.48392 22.5002 4.20001C22.501 4.55474 22.4315 4.90611 22.296 5.23391C22.1604 5.56171 21.9613 5.85945 21.7102 6.11001L7.2302 20.59Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
@@ -202,11 +204,12 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
                                             <button
                                                 className={styles.delete_icon}
                                                 onClick={() => {
-                                                    if (confirm(`Удалить ${SOCIAL_NETWORK_CONFIG[network.network]?.label || network.network}?`)) {
+                                                    const label = SOCIAL_NETWORK_CONFIG[network.network]?.label || network.network;
+                                                    if (confirm(t('profile:deleteNetworkConfirm', { name: label }))) {
                                                         onRemoveSocialNetwork(network.id);
                                                     }
                                                 }}
-                                                title={`Удалить ${SOCIAL_NETWORK_CONFIG[network.network]?.label || network.network}`}
+                                                title={t('profile:deleteNetworkTitle', { name: SOCIAL_NETWORK_CONFIG[network.network]?.label || network.network })}
                                             >
                                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                                                     <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" fill="#ff4444"/>
@@ -226,9 +229,9 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
                                 <button
                                     onClick={onResetSocialNetworks}
                                     className={styles.reset_social_btn}
-                                    title="Удалить все социальные сети"
+                                    title={t('profile:deleteAllNetworksTitle')}
                                 >
-                                    Удалить все
+                                    {t('profile:deleteAllPhotos')}
                                 </button>
                             )}
                             {getAvailableNetworks().length > 0 && (
@@ -246,14 +249,14 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
                     {/* Интерфейс добавления новой социальной сети */}
                     {showAddSocialNetwork && (
                         <div className={styles.add_social_network_form}>
-                            <h4>Добавить социальную сеть</h4>
+                            <h4>{t('profile:addNewNetwork')}</h4>
                             <div className={styles.social_network_select}>
-                                <label>Выберите социальную сеть:</label>
+                                <label>{t('profile:selectNetwork')}</label>
                                 <select
                                     value={selectedNewNetwork}
                                     onChange={(e) => setSelectedNewNetwork(e.target.value)}
                                 >
-                                    <option value="">-- Выберите --</option>
+                                    <option value="">{t('profile:selectPlaceholder')}</option>
                                     {getAvailableNetworks().map((availableNetwork: AvailableSocialNetwork) => {
                                         const config = SOCIAL_NETWORK_CONFIG[availableNetwork.network] || { label: availableNetwork.network, icon: '🌐' };
                                         return (
@@ -270,7 +273,7 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
                                     disabled={!selectedNewNetwork}
                                     className={styles.confirm_add_btn}
                                 >
-                                    Добавить
+                                    {t('profile:addBtn')}
                                 </button>
                                 <button
                                     onClick={() => {
@@ -279,7 +282,7 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
                                     }}
                                     className={styles.cancel_add_btn}
                                 >
-                                    Отмена
+                                    {t('profile:cancelBtn')}
                                 </button>
                             </div>
                         </div>

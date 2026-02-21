@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { ROUTES } from '../../../app/routers/routes.ts';
 import { useTranslation } from 'react-i18next';
 import { useLanguageChange } from '../../../hooks/useLanguageChange.ts';
+import { PageLoader } from '../../../widgets/PageLoader';
 
 interface CategoryItem {
     id: number;
@@ -77,7 +78,7 @@ export default function Category() {
 
     const handleCategoryClick = (categoryId: number) => {
         console.log('Category clicked:', categoryId);
-        navigate(ROUTES.CATEGORY_TICKETS(categoryId));
+        navigate(ROUTES.CATEGORY_TICKETS_BY_ID(categoryId));
     };
 
     const handleViewAll = () => {
@@ -112,9 +113,7 @@ export default function Category() {
         return (
             <div className={styles.category}>
                 <h3>{t('category:title', 'Категории')}</h3>
-                <div className={styles.loadingContainer}>
-                    <p>{t('category:loading', 'Загрузка категорий...')}</p>
-                </div>
+                <PageLoader text={t('category:loading', 'Загрузка категорий...')} fullPage={false} />
             </div>
         );
     }

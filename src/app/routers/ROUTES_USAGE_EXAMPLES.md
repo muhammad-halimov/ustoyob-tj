@@ -6,6 +6,7 @@ import { ROUTES } from '../../app/routers/routes';
 ```
 
 ## Использование в navigate()
+
 ```tsx
 // Простые пути
 navigate(ROUTES.HOME);
@@ -16,10 +17,10 @@ navigate(ROUTES.CREATE_TICKET);
 // Пути с параметрами  
 navigate(ROUTES.PROFILE_BY_ID(123));
 navigate(ROUTES.TICKET_BY_ID(456));
-navigate(ROUTES.CATEGORY_TICKETS(789));
+navigate(ROUTES.CATEGORY_TICKETS_BY_ID(789));
 
 // С дополнительными параметрами
-navigate(ROUTES.PROFILE_BY_ID(userId), { replace: true });
+navigate(ROUTES.PROFILE_BY_ID(userId), {replace: true});
 ```
 
 ## Использование в Link
@@ -38,13 +39,14 @@ import { ROUTES } from '../../app/routers/routes';
 ```
 
 ## Динамическая генерация URL
+
 ```tsx
 const ticketId = 42;
 const profileUrl = ROUTES.PROFILE_BY_ID(ticketId);
 // Результат: "/profile/42"
 
 const categoryId = 'electronics';
-const categoryUrl = ROUTES.CATEGORY_TICKETS(categoryId);  
+const categoryUrl = ROUTES.CATEGORY_TICKETS_BY_ID(categoryId);
 // Результат: "/ticket/category/electronics"
 ```
 
