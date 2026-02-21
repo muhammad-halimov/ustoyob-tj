@@ -619,7 +619,6 @@ const CreateEdit = () => {
                                 value={selectedSubcategory || ''}
                                 onChange={(e) => setSelectedSubcategory(Number(e.target.value))}
                                 className={styles.categorySelect}
-                                required
                             >
                                 <option value="">{t('createEdit:selectSubcategory')}</option>
                                 {filteredOccupations.map(occupation => (
