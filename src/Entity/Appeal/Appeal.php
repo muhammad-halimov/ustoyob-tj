@@ -59,6 +59,13 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         new Post(
             uriTemplate: '/appeals',
             controller: PostAppealConntroller::class,
+            normalizationContext: [
+                'groups' => [
+                    'appeal:read',
+                    'appeal:ticket:read',
+                    'appeal:chat:read'
+                ]
+            ],
             input: AppealInput::class,
         ),
         new Post(
@@ -96,7 +103,7 @@ class Appeal
 {
     public function __toString(): string
     {
-        return $this->complaintReason ?? "Жалоба #$this->id";
+        return $this->complaintReason ?? "Appeal #$this->id";
     }
 
     public function __construct()

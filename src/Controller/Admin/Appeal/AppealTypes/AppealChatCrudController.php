@@ -82,6 +82,10 @@ class AppealChatCrudController extends AbstractCrudController
             ->setRequired(true)
             ->setColumns(12);
 
+        yield AssociationField::new('ticket', 'Объявление/Услуга')
+            ->setRequired(true)
+            ->setColumns(12);
+
         yield ChoiceField::new('reason', 'Причина жалобы')
             ->setChoices(AppealChat::COMPLAINTS)
             ->setRequired(true)

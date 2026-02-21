@@ -6,6 +6,7 @@ use ApiPlatform\Metadata\ApiProperty;
 use App\Entity\Appeal\Appeal;
 use App\Entity\Appeal\AppealImage;
 use App\Entity\Chat\Chat;
+use App\Entity\Ticket\Ticket;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
@@ -70,6 +71,12 @@ class AppealChat
         'appeal:chat:read',
     ])]
     private ?Chat $chat = null;
+
+    #[ORM\ManyToOne(inversedBy: 'appealChats')]
+    #[Groups([
+        'appeal:chat:read',
+    ])]
+    private ?Ticket $ticket = null;
 
     #[ORM\ManyToOne(inversedBy: 'appealChats')]
     #[Groups([
@@ -215,6 +222,18 @@ class AppealChat
     public function setAppeal(?Appeal $appeal): static
     {
         $this->appeal = $appeal;
+
+        return $this;
+    }
+
+    public function getTicket(): ?Ticket
+    {
+        return $this->ticket;
+    }
+
+    public function setTicket(?Ticket $ticket): static
+    {
+        $this->ticket = $ticket;
 
         return $this;
     }

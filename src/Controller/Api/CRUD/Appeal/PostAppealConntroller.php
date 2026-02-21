@@ -44,8 +44,9 @@ class PostAppealConntroller extends AbstractController
         $descriptionParam = $data['description'] ?? null;
         $reasonParam      = $data['reason'] ?? null;
         $respondentParam  = $data['respondent'] ?? null;
+        $ticketParam      = $data['ticket'] ?? null;
 
-        if (!$titleParam || !$descriptionParam || !$reasonParam || !$typeParam)
+        if (!$titleParam || !$descriptionParam || !$reasonParam || !$typeParam || !$ticketParam)
             return $this->json(['message' => 'Missing required fields'], 400);
 
         if (!in_array($reasonParam, array_values($allComplaints)))
@@ -54,8 +55,18 @@ class PostAppealConntroller extends AbstractController
         /** @var User $respondent */
         $respondent = $this->extractIriService->extract($respondentParam, User::class, 'users');
 
+        /** @var Ticket $ticket */
+        $ticket = $this->extractIriService->extract($ticketParam, Ticket::class, 'tickets');
+
         if (!$respondent)
             return $this->json(['message' => 'Respondent not found'], 404);
+
+        if (!$ticket)
+            return $this->json(['message' => 'Ticket not found'], 404);
+
+        // correct match: respondent must be either author OR master
+        if ($ticket->getAuthor() !== $respondent && $ticket->getMaster() !== $respondent)
+            return $this->json(['message' => "Respondent's ticket doesn't match"], 400);
 
         if (
             !$this->chatRepository->findChatBetweenUsers($bearerUser, $respondent) &&
@@ -63,33 +74,9 @@ class PostAppealConntroller extends AbstractController
         )
             return $this->json(['message' => 'No interactions between users'], 422);
 
-        $message = [
-            'type'        => $typeParam,
-            'title'       => $titleParam,
-            'description' => $descriptionParam,
-            'reason'      => $reasonParam,
-            'respondent'  => "/api/users/{$respondent->getId()}",
-            'author'      => "/api/users/{$bearerUser->getId()}",
-        ];
-
         $appeal = new Appeal();
 
         if ($typeParam === 'ticket') {
-            $ticketParam = $data['ticket'] ?? null;
-
-            if (!$ticketParam)
-                return $this->json(['message' => 'Missing ticket'], 400);
-
-            /** @var Ticket $ticket */
-            $ticket = $this->extractIriService->extract($ticketParam, Ticket::class, 'tickets');
-
-            if (!$ticket)
-                return $this->json(['message' => 'Ticket not found'], 404);
-
-            // correct match: respondent must be either author OR master
-            if ($ticket->getAuthor() !== $respondent && $ticket->getMaster() !== $respondent)
-                return $this->json(['message' => "Respondent's ticket doesn't match"], 400);
-
             $appeal
                 ->setType($typeParam)
                 ->addAppealTicket((new AppealTicket())
@@ -100,10 +87,6 @@ class PostAppealConntroller extends AbstractController
                     ->setAuthor($bearerUser)
                     ->setTicket($ticket)
                 );
-
-            $message += [
-                'ticket' => "/api/tickets/{$ticket->getId()}"
-            ];
         } elseif ($typeParam === 'chat') {
             $chatParam = $data['chat'] ?? null;
 
@@ -131,17 +114,18 @@ class PostAppealConntroller extends AbstractController
                     ->setRespondent($respondent)
                     ->setAuthor($bearerUser)
                     ->setChat($chat)
+                    ->setTicket($ticket)
                 );
-
-            $message += [
-                'chat' => "/api/chats/{$chat->getId()}"
-            ];
         } else return $this->json(['message' => "Wrong type"], 400);
 
         // save
         $this->entityManager->persist($appeal);
         $this->entityManager->flush();
 
-        return $this->json(['id' => $appeal->getId()] + $message, 201);
+        return $this->json($appeal, 201, context: ['groups' => [
+            'appeal:read',
+            'appeal:ticket:read',
+            'appeal:chat:read'
+        ]]);
     }
 }
