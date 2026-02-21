@@ -10,7 +10,10 @@ use Symfony\Component\Serializer\Attribute\Groups;
 trait CreatedAtTrait
 {
     #[ORM\Column(type: 'datetime', nullable: false)]
-    #[Groups(['legals:read'])]
+    #[Groups([
+        'legals:read',
+        'chats:read',
+    ])]
     protected DateTime $createdAt;
 
     public function getCreatedAt(): DateTime
