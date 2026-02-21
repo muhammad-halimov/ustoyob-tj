@@ -116,10 +116,10 @@ class PostAppealConntroller extends AbstractController
             if (!$chat)
                 return $this->json(['message' => 'Chat not found'], 404);
 
-            if ($chat->getAuthor() !== $bearerUser || $chat->getReplyAuthor() !== $bearerUser)
+            if ($chat->getAuthor() !== $bearerUser && $chat->getReplyAuthor() !== $bearerUser)
                 return $this->json(['message' => "Ownership doesn't match"], 403);
 
-            if ($chat->getReplyAuthor() !== $respondent || $chat->getAuthor() !== $respondent)
+            if ($chat->getReplyAuthor() !== $respondent && $chat->getAuthor() !== $respondent)
                 return $this->json(['message' => "Respondent's chat doesn't match"], 400);
 
             $appeal
