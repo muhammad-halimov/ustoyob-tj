@@ -64,10 +64,6 @@ class PostAppealConntroller extends AbstractController
         if (!$ticket)
             return $this->json(['message' => 'Ticket not found'], 404);
 
-        // correct match: respondent must be either author OR master
-        if ($ticket->getAuthor() !== $respondent && $ticket->getMaster() !== $respondent)
-            return $this->json(['message' => "Respondent's ticket doesn't match"], 400);
-
         if (
             !$this->chatRepository->findChatBetweenUsers($bearerUser, $respondent) &&
             !$this->chatRepository->findChatBetweenUsers($respondent, $bearerUser)
@@ -77,6 +73,10 @@ class PostAppealConntroller extends AbstractController
         $appeal = new Appeal();
 
         if ($typeParam === 'ticket') {
+            // respondent должен быть автором или мастером тикета
+            if ($ticket->getAuthor() !== $respondent && $ticket->getMaster() !== $respondent)
+                return $this->json(['message' => "Respondent's ticket doesn't match"], 400);
+
             $appeal
                 ->setType($typeParam)
                 ->addAppealTicket((new AppealTicket())
@@ -99,9 +99,11 @@ class PostAppealConntroller extends AbstractController
             if (!$chat)
                 return $this->json(['message' => 'Chat not found'], 404);
 
+            // текущий юзер должен быть участником чата
             if ($chat->getAuthor() !== $bearerUser && $chat->getReplyAuthor() !== $bearerUser)
                 return $this->json(['message' => "Ownership doesn't match"], 403);
 
+            // respondent должен быть вторым участником чата
             if ($chat->getReplyAuthor() !== $respondent && $chat->getAuthor() !== $respondent)
                 return $this->json(['message' => "Respondent's chat doesn't match"], 400);
 
@@ -118,7 +120,7 @@ class PostAppealConntroller extends AbstractController
                 );
         } else return $this->json(['message' => "Wrong type"], 400);
 
-        // save
+        // сохраняем
         $this->entityManager->persist($appeal);
         $this->entityManager->flush();
 
