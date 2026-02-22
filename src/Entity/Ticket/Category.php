@@ -99,7 +99,7 @@ class Category
         'favorites:read',
         'occupations:read'
     ])]
-    private ?int $order = null;
+    private ?int $priority = null;
 
     #[ORM\Column(length: 64, nullable: true)]
     #[Groups([
@@ -158,14 +158,14 @@ class Category
         return $this->id;
     }
 
-    public function getOrder(): ?int
+    public function getPriority(): ?int
     {
-        return $this->order;
+        return $this->priority;
     }
 
-    public function setOrder(?int $order): Category
+    public function setPriority(?int $priority): Category
     {
-        $this->order = $order;
+        $this->priority = $priority;
 
         return $this;
     }

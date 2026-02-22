@@ -94,7 +94,7 @@ class Occupation
 
         'user:public:read',
     ])]
-    private ?int $order = null;
+    private ?int $priority = null;
 
     #[ORM\Column(length: 64, nullable: true)]
     #[Groups([
@@ -183,14 +183,14 @@ class Occupation
         return $this->id;
     }
 
-    public function getOrder(): ?int
+    public function getPriority(): ?int
     {
-        return $this->order;
+        return $this->priority;
     }
 
-    public function setOrder(?int $order): Occupation
+    public function setPriority(?int $priority): Occupation
     {
-        $this->order = $order;
+        $this->priority = $priority;
 
         return $this;
     }

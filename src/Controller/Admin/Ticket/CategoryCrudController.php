@@ -81,7 +81,7 @@ class CategoryCrudController extends AbstractCrudController
             ->onlyOnForms()
             ->setColumns(12);
 
-        yield IntegerField::new('order', 'Порядок')
+        yield IntegerField::new('priority', 'Порядок')
             ->setColumns(2)
             ->setRequired(false);
 
