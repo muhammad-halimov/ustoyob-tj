@@ -31,9 +31,15 @@
     font-weight: 600;
     white-space: nowrap;
     transition: opacity 0.2s;
+    user-select: none;
 
     &:hover {
       opacity: 0.85;
+    }
+
+    &:active {
+      opacity: 0.7;
+      transform: scale(0.97);
     }
   }
 }

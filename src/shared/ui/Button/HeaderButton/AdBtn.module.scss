@@ -18,8 +18,13 @@
   padding: 10px 20px;
   border-radius: 10px;
   cursor: pointer;
+  user-select: none;
   &:hover {
     background: map.get(vars.$colors, actual-blue)
+  }
+  &:active {
+    background: map.get(vars.$colors, actual-blue);
+    transform: scale(0.97);
   }
 }
 

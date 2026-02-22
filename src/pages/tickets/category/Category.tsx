@@ -18,6 +18,7 @@ interface Occupation {
     id: number;
     title: string;
     image?: string;
+    priority?: number;
     categories: { id: number; title: string }[];
 }
 
@@ -264,6 +265,7 @@ function Category() {
                 id: number; 
                 title: string;
                 image?: string;
+                priority?: number;
                 categories?: { id: number; title: string }[] 
             }) => 
                 occ.categories?.some(cat => cat.id.toString() === id) || false
@@ -271,8 +273,16 @@ function Category() {
                 id: occ.id,
                 title: occ.title,
                 image: occ.image,
+                priority: occ.priority,
                 categories: occ.categories || []
             }));
+
+            // Сортируем по priority (по возрастанию), элементы без priority — в конец
+            formatted.sort((a, b) => {
+                const pa = a.priority ?? Infinity;
+                const pb = b.priority ?? Infinity;
+                return pa - pb;
+            });
 
             setOccupations(formatted);
         } catch (error) {

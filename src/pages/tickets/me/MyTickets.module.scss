@@ -41,9 +41,15 @@
   font-weight: 500;
   cursor: pointer;
   transition: background-color 0.2s;
+  user-select: none;
 
   &:hover {
     background: var(--color-primary-hover);
+  }
+
+  &:active {
+    background: var(--color-primary-hover);
+    transform: scale(0.97);
   }
 }
 
@@ -57,9 +63,17 @@
   align-items: center;
   color: var(--color-text-primary);
   transition: background-color 0.2s;
+  min-width: 40px;
+  min-height: 40px;
+  user-select: none;
 
   &:hover {
     background-color: var(--color-hover-with-border-btn);
+  }
+
+  &:active {
+    background-color: var(--color-hover-with-border-btn);
+    transform: scale(0.9);
   }
 }
 
@@ -78,6 +92,7 @@
     cursor: pointer;
     border-bottom: 2px solid transparent;
     transition: all 0.2s;
+    user-select: none;
 
     &.active {
       color: var(--color-border-btn);
@@ -88,6 +103,10 @@
     &:hover:not(.active) {
       color: var(--color-text-primary);
       background: var(--color-background-gray-light);
+    }
+
+    &:active {
+      opacity: 0.8;
     }
   }
 }

@@ -18,9 +18,16 @@
   padding: 4px 0 0 0;
   font-weight: 500;
   transition: color 0.2s ease;
+  user-select: none;
+  min-height: 32px;
 
   &:hover {
     color: #2a3daa;
+  }
+
+  &:active {
+    color: #2a3daa;
+    transform: scale(0.97);
   }
 }
 

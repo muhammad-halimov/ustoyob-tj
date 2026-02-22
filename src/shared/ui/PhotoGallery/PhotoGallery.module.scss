@@ -35,6 +35,12 @@
   color: var(--color-text-inverse);
   z-index: 20001;
   padding: 8px;
+  min-width: 40px;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
 
   svg {
     width: 24px;
@@ -43,6 +49,11 @@
 
   &:hover {
     opacity: 0.8;
+  }
+
+  &:active {
+    opacity: 0.8;
+    transform: scale(0.9);
   }
 }
 
@@ -68,6 +79,8 @@
   cursor: pointer;
   color: var(--color-text-inverse);
   transition: background 0.2s ease;
+  user-select: none;
+  flex-shrink: 0;
 
   svg {
     width: 24px;
@@ -76,6 +89,11 @@
 
   &:hover {
     background: rgba(255, 255, 255, 0.2);
+  }
+
+  &:active {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(0.9);
   }
 
   &:disabled {
@@ -128,9 +146,15 @@
   opacity: 0.6;
   transition: opacity 0.2s ease, border 0.2s ease;
   border: 2px solid transparent;
+  user-select: none;
 
   &:hover {
     opacity: 0.8;
+  }
+
+  &:active {
+    opacity: 1;
+    transform: scale(0.93);
   }
 
   &.active {

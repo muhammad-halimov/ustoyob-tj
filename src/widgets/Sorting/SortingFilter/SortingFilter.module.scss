@@ -32,9 +32,15 @@
     background-color: #fff;
     cursor: pointer;
     transition: border-color 0.2s ease;
+    user-select: none;
 
     &:hover {
       border-color: #3A54DA;
+    }
+
+    &:active {
+      border-color: #3A54DA;
+      background-color: #f0f4ff;
     }
 
     &:focus {

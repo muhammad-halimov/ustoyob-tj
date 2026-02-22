@@ -17,8 +17,13 @@
   padding: 10px 20px;
   border-radius: 10px;
   cursor: pointer;
+  user-select: none;
   &:hover {
     background: var(--color-filters-btn-hover);
+  }
+  &:active {
+    background: var(--color-filters-btn-hover);
+    transform: scale(0.97);
   }
 }
 

@@ -7,6 +7,36 @@
   padding: 0;
 }
 
+// ─── Global mobile touch optimisation ────────────────────────────────────────
+// Set on every element so divs/spans with cursor:pointer also get no tap flash.
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+// Eliminates the 300 ms tap-delay and disables double-tap-zoom on interactive
+// elements (keeps scroll working on scrollable containers via 'auto').
+a,
+button,
+input,
+select,
+textarea,
+label,
+[role="button"],
+[role="tab"],
+[role="option"],
+[tabindex] {
+  touch-action: manipulation;
+}
+
+// Generic tap/press feedback for button-like elements that lack their own :active.
+// Components that define their own :active override this automatically.
+button:active:not(:disabled),
+[role="button"]:active,
+[role="tab"]:active {
+  opacity: 0.75;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Глобальные стили для body и html с поддержкой темизации
 html {
   // Инициализация темы по умолчанию

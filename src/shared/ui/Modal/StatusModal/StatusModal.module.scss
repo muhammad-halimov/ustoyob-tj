@@ -54,9 +54,15 @@
     transition: background-color 0.2s;
     margin-top: 20px;
     width: 100%;
+    user-select: none;
 
     &:hover {
       background: #2a44ca;
+    }
+
+    &:active {
+      background: #2a44ca;
+      transform: scale(0.98);
     }
   }
 

@@ -87,10 +87,17 @@
   padding: 0 4px;
   font-size: inherit;
   display: inline;
+  user-select: none;
 
   &:hover {
     color: var(--color-primary-text-white);
     text-decoration: none;
+  }
+
+  &:active {
+    color: var(--color-primary-text-white);
+    text-decoration: none;
+    opacity: 0.8;
   }
 }
 
@@ -118,6 +125,7 @@
   cursor: pointer;
   transition: all 0.3s ease;
   border: none;
+  user-select: none;
   min-width: 120px;
 
   @media (max-width: 480px) {
@@ -136,6 +144,11 @@
     background: rgba(255, 255, 255, 0.2);
     border-color: rgba(255, 255, 255, 0.5);
   }
+
+  &:active {
+    background: rgba(255, 255, 255, 0.25);
+    transform: scale(0.97);
+  }
 }
 
 .acceptButton {
@@ -150,7 +163,8 @@
   }
 
   &:active {
-    transform: translateY(0);
+    transform: scale(0.97);
+    box-shadow: none;
   }
 }
 

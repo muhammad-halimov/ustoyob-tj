@@ -44,6 +44,12 @@
   cursor: pointer;
   transition: 0.2s;
   font-size: 20px;
+  user-select: none;
+
+  &:active {
+    opacity: 0.8;
+    transform: scale(0.97);
+  }
 }
 
 /* Левая кнопка */
@@ -77,10 +83,17 @@
   margin-bottom: 16px;
   transition: all 0.2s ease;
   background: var(--color-background-primary);
+  touch-action: manipulation;
+  user-select: none;
 
   &:hover {
     border-color: var(--color-primary);
     box-shadow: 0 2px 8px var(--color-shadow-accent);
+  }
+
+  &:active {
+    border-color: var(--color-primary);
+    opacity: 0.9;
   }
 }
 

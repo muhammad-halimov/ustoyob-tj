@@ -17,6 +17,7 @@ interface Occupation {
     title: string;
     description?: string;
     image?: string;
+    priority?: number;
     categories?: { id: number; title: string }[];
     [key: string]: any; // Индексная сигнатура для совместимости
 }

@@ -153,8 +153,8 @@
   position: absolute;
   top: -6px;
   right: -6px;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   background: #ff4444;
   color: white;
   border: none;
@@ -166,9 +166,15 @@
   justify-content: center;
   line-height: 1;
   padding: 0;
+  user-select: none;
 
   &:hover {
     background: #ff3333;
+  }
+
+  &:active {
+    background: #ff3333;
+    transform: scale(0.9);
   }
 
   &:disabled {
@@ -202,9 +208,15 @@
   transition: all 0.2s;
   background: #F2F2F5;
   border: 1px solid #e0e0e0;
+  user-select: none;
 
   &:hover {
     background: #e6e6e8;
+  }
+
+  &:active {
+    background: #e6e6e8;
+    transform: scale(0.93);
   }
 }
 
@@ -228,6 +240,9 @@
   cursor: pointer;
   padding: 0;
   line-height: 1;
+  min-width: 36px;
+  min-height: 36px;
+  user-select: none;
 
   &.active {
     color: #FFC107;
@@ -235,6 +250,11 @@
 
   &:hover:not(:disabled) {
     color: #ffc107;
+  }
+
+  &:active:not(:disabled) {
+    color: #ffc107;
+    transform: scale(1.15);
   }
 
   &:disabled {
@@ -260,10 +280,16 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    min-height: 44px;
+    user-select: none;
 
     &:disabled {
       opacity: 0.6;
       cursor: not-allowed;
+    }
+
+    &:active:not(:disabled) {
+      transform: scale(0.97);
     }
   }
 }
@@ -280,6 +306,11 @@
   &:hover:not(:disabled) {
     background: #e0e0e0;
   }
+
+  &:active:not(:disabled) {
+    background: #e0e0e0;
+    transform: scale(0.97);
+  }
 }
 
 .submitButton {
@@ -292,6 +323,11 @@
 
   &:hover:not(:disabled) {
     background: #2a44ca;
+  }
+
+  &:active:not(:disabled) {
+    background: #2a44ca;
+    transform: scale(0.97);
   }
 }
 

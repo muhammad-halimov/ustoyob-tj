@@ -19,6 +19,7 @@
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
+    user-select: none;
     
     &:hover {
       transform: scale(1.05);

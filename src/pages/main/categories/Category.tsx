@@ -12,6 +12,7 @@ interface CategoryItem {
     title: string;
     description?: string;
     image?: string;
+    priority?: number;
 }
 
 export default function Category() {
@@ -44,8 +45,16 @@ export default function Category() {
                 id: item.id || 0,
                 title: item.title || 'Без названия',
                 description: item.description || '',
-                image: item.image || ''
+                image: item.image || '',
+                priority: item.priority ?? undefined
             })) : [];
+
+            // Сортируем по priority (по возрастанию), элементы без priority — в конец
+            formattedData.sort((a, b) => {
+                const pa = a.priority ?? Infinity;
+                const pb = b.priority ?? Infinity;
+                return pa - pb;
+            });
 
             setCategories(formattedData);
         } catch (error) {

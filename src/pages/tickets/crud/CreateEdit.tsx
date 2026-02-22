@@ -55,6 +55,7 @@ interface Occupation {
     title: string;
     description?: string;
     image?: string;
+    priority?: number;
     categories?: Array<{ id: number; title: string; image?: string }>;
 }
 
@@ -153,6 +154,7 @@ const CreateEdit = () => {
             const filtered = occupations.filter(occ => 
                 occ.categories?.some(cat => cat.id === selectedCategory)
             );
+            filtered.sort((a, b) => (a.priority ?? Infinity) - (b.priority ?? Infinity));
             setFilteredOccupations(filtered);
             
             // Сбрасываем выбранную подкатегорию если она не подходит к новой категории
@@ -232,7 +234,8 @@ const CreateEdit = () => {
             });
             if (response.ok) {
                 const data = await response.json();
-                setOccupations(data);
+                const sorted = Array.isArray(data) ? data.sort((a: Occupation, b: Occupation) => (a.priority ?? Infinity) - (b.priority ?? Infinity)) : data;
+                setOccupations(sorted);
             }
         } catch (error) {
             console.error('Error fetching occupations:', error);
