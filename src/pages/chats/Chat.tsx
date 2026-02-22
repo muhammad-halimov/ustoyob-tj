@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { useTranslation } from 'react-i18next';
 import { getAuthToken } from "../../utils/auth";
 import { ROUTES } from '../../app/routers/routes';
+import { smartNameTranslator } from '../../utils/textHelper';
 import AuthModal from '../../features/auth/AuthModal';
 import ComplaintModal from '../../shared/ui/Modal/ComplaintModal/ComplaintModal';
 import { PageLoader } from '../../widgets/PageLoader';
@@ -87,7 +88,7 @@ interface ChatImageThumbnail {
 }
 
 function Chat() {
-    const { t } = useTranslation('components');
+    const { t, i18n } = useTranslation('components');
     const [activeTab, setActiveTab] = useState<"active" | "archive">("active");
     const [selectedChat, setSelectedChat] = useState<number | null>(null);
     const [chats, setChats] = useState<ApiChat[]>([]);
@@ -122,6 +123,18 @@ function Chat() {
     // Хук для галереи фотографий
     const galleryImages = useMemo(() => chatImages.map(img => img.imageUrl), [chatImages]);
     const photoGallery = usePhotoGallery({ images: galleryImages });
+    
+    // Вспомогательная функция для транслитерации полного имени (с автоопределением)
+    const getTranslatedFullName = useCallback((user: ApiUser): string => {
+        const firstName = user.name || '';
+        const lastName = user.surname || '';
+        const currentLang = i18n.language as 'ru' | 'tj' | 'eng';
+        
+        const translatedFirstName = smartNameTranslator(firstName, currentLang);
+        const translatedLastName = smartNameTranslator(lastName, currentLang);
+        
+        return `${translatedFirstName} ${translatedLastName}`.trim();
+    }, [i18n.language]);
 
     // Инициализация пользователя и чатов
     useEffect(() => {
@@ -274,7 +287,7 @@ function Chat() {
                         return {
                             id: msg.id,
                             sender: msg.author.id === currentUser.id ? "me" : "other",
-                            name: `${msg.author.name} ${msg.author.surname}`,
+                            name: getTranslatedFullName(msg.author),
                             text: msg.text,
                             type: 'text' as const,
                             time: createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -289,7 +302,7 @@ function Chat() {
                             // Смещение чтобы избежать коллизии с ID текстовых сообщений
                             id: 1_000_000 + img.id,
                             sender: img.author.id === currentUser.id ? "me" : "other",
-                            name: `${img.author.name} ${img.author.surname}`,
+                            name: getTranslatedFullName(img.author),
                             text: '',
                             type: 'image' as const,
                             imageUrl: getImageUrl(img.image),
@@ -466,7 +479,7 @@ function Chat() {
                 const tempMessage: Message = {
                     id: tempMessageId,
                     sender: "me" as const,
-                    name: `${currentUser.name} ${currentUser.surname}`,
+                    name: getTranslatedFullName(currentUser),
                     text: '',
                     type: 'image' as const,
                     file: file,
@@ -549,7 +562,7 @@ function Chat() {
             const tempMessage: Message = {
                 id: tempMessageId,
                 sender: "me" as const,
-                name: `${currentUser.name} ${currentUser.surname}`,
+                name: getTranslatedFullName(currentUser),
                 text: newMessage,
                 type: 'text' as const,
                 time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -645,11 +658,13 @@ function Chat() {
             if (!interlocutor) return false;
 
             const searchLower = searchQuery.toLowerCase();
-            const fullName = `${interlocutor.name} ${interlocutor.surname}`.toLowerCase();
+            const fullName = getTranslatedFullName(interlocutor).toLowerCase();
+            const originalFullName = `${interlocutor.name} ${interlocutor.surname}`.toLowerCase();
             const email = interlocutor.email?.toLowerCase() || '';
             const phone = interlocutor.phone1?.toLowerCase() || '';
 
             return fullName.includes(searchLower) ||
+                originalFullName.includes(searchLower) ||
                 email.includes(searchLower) ||
                 phone.includes(searchLower);
         });
@@ -1007,7 +1022,7 @@ function Chat() {
                                             <img
                                                 src={`${API_BASE_URL}${interlocutor.image.startsWith('/') ? interlocutor.image : '/images/profile_photos/' + interlocutor.image}`}
                                                 className={styles.avatarImage}
-                                                alt={`${interlocutor.name} ${interlocutor.surname}`}
+                                                alt={getTranslatedFullName(interlocutor)}
                                             />
                                         ) : (
                                             `${interlocutor.name?.charAt(0) || ''}${interlocutor.surname?.charAt(0) || ''}`
@@ -1018,7 +1033,7 @@ function Chat() {
                                     </div>
                                     <div className={styles.chatInfo}>
                                         <div className={styles.name}>
-                                            {interlocutor.name} {interlocutor.surname}
+                                            {getTranslatedFullName(interlocutor)}
                                             {chat.isArchived && <span className={styles.archiveBadge}> ({t('chat.archive').toLowerCase()})</span>}
                                         </div>
                                         <div className={styles.specialty}>
@@ -1058,7 +1073,7 @@ function Chat() {
                                             <img
                                                 src={`${API_BASE_URL}${currentInterlocutor.image.startsWith('/') ? currentInterlocutor.image : '/images/profile_photos/' + currentInterlocutor.image}`}
                                                 className={styles.avatarImage}
-                                                alt={`${currentInterlocutor.name} ${currentInterlocutor.surname}`}
+                                                alt={getTranslatedFullName(currentInterlocutor)}
                                             />
                                         ) : (
                                             <>
@@ -1074,7 +1089,7 @@ function Chat() {
                                 <div className={styles.headerInfo}>
                                     <div className={styles.name}>
                                         <Link to={ROUTES.PROFILE_BY_ID(currentInterlocutor.id)} style={{ textDecoration: 'none', color: 'inherit' }}>
-                                            {currentInterlocutor.name} {currentInterlocutor.surname}
+                                            {getTranslatedFullName(currentInterlocutor)}
                                         </Link>
                                         {currentChat?.isArchived && <span className={styles.archiveBadge}> ({t('chat.archive').toLowerCase()})</span>}
                                     </div>

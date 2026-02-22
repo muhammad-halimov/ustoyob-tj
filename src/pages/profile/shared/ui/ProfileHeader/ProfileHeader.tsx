@@ -1,6 +1,7 @@
 import React, { ChangeEvent, RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { UserRole, Occupation } from '../../../../../entities';
+import { smartNameTranslator } from '../../../../../utils/textHelper';
 import styles from './ProfileHeader.module.scss';
 
 interface ProfileHeaderProps {
@@ -66,7 +67,10 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     onAddSpecialty,
     onRemoveSpecialty,
 }) => {
-    const { t } = useTranslation(['profile']);
+    const { t, i18n } = useTranslation(['profile']);
+
+    // Транслитерация имени пользователя
+    const translatedFullName = smartNameTranslator(fullName, i18n.language as 'ru' | 'tj' | 'eng');
 
     const getGenderDisplay = (value: string | undefined): string => {
         if (!value) return t('profile:notSpecified');
@@ -179,7 +183,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                             <div className={styles.name_with_icon}>
                                 <div>
                                     <div className={styles.name_container}>
-                                        <span className={styles.name}>{fullName}</span>
+                                        <span className={styles.name}>{translatedFullName}</span>
                                         {!readOnly && <button
                                             className={styles.edit_icon}
                                             onClick={() => onEditStart('fullName')}

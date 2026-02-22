@@ -159,7 +159,7 @@
 
 .recommendation {
   padding: 0 20px;
-  max-width: 1284px;
+  max-width: 1150px; // Оптимизировано для 60% ширины на больших экранах
   margin: 40px auto;
   
   &_wrap {

@@ -12,6 +12,7 @@ import {usePhotoGallery} from '../../shared/ui/PhotoGallery';
 import {AddressValue, buildAddressData} from '../../shared/ui/AddressSelector';
 import { PageLoader } from '../../widgets/PageLoader';
 import {getOccupations} from '../../utils/dataCache.ts';
+import { smartNameTranslator } from '../../utils/textHelper.ts';
 
 // Импорты из entities
 import {
@@ -190,7 +191,7 @@ interface LocalPhone {
 function Profile() {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>(); // Получаем id из URL
-    const { t } = useTranslation(['profile', 'components']);
+    const { t, i18n } = useTranslation(['profile', 'components']);
     
     // Определяем, это публичный профиль или приватный
     const isPublicProfile = !!id;
@@ -1768,8 +1769,11 @@ function Profile() {
                             reviewer: reviewer,
                             vacation: String(serviceTitle), // Ensure string
                             worker: clientData ?
-                                `${clientData.name || 'Клиент'} ${clientData.surname || ''}`.trim() :
-                                'Клиент',
+                                smartNameTranslator(
+                                    `${clientData.name || 'Клиент'} ${clientData.surname || ''}`.trim(),
+                                    i18n.language as 'ru' | 'tj' | 'eng'
+                                ) :
+                                smartNameTranslator('Клиент', i18n.language as 'ru' | 'tj' | 'eng'),
                             date: review.createdAt ?
                                 new Date(review.createdAt).toLocaleDateString('ru-RU') :
                                 getFormattedDate()
@@ -3227,14 +3231,16 @@ function Profile() {
         if (!review.user.name && !review.user.surname) {
             return t('components:app.defaultMaster');
         }
-        return `${review.user.name || ''} ${review.user.surname || ''}`.trim();
+        const fullName = `${review.user.name || ''} ${review.user.surname || ''}`.trim();
+        return smartNameTranslator(fullName, i18n.language as 'ru' | 'tj' | 'eng');
     };
 
     const getClientName = (review: Review) => {
         if (!review.reviewer.name && !review.reviewer.surname) {
             return t('components:app.defaultClient');
         }
-        return `${review.reviewer.name || ''} ${review.reviewer.surname || ''}`.trim();
+        const fullName = `${review.reviewer.name || ''} ${review.reviewer.surname || ''}`.trim();
+        return smartNameTranslator(fullName, i18n.language as 'ru' | 'tj' | 'eng');
     };
 
     const handleClientProfileClick = (clientId: number) => {
