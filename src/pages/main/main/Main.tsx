@@ -12,6 +12,9 @@ import { useTranslation } from "react-i18next";
 import AuthModal from "../../../features/auth/AuthModal.tsx";
 
 import "swiper/css";
+import "swiper/css/pagination";
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Pagination } from 'swiper/modules';
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 
 interface SearchResult {
@@ -179,7 +182,8 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
             <Category />
             {!showResults && (
                 <>
-                    <div className={styles.performers}>
+                    {/* Desktop: horizontal layout */}
+                    <div className={styles.performersDesktop}>
                         {worker.map(work => (
                             <div className={styles.performers_orders} key={work.id}>
                                 <div className={styles.performers_orders_welcome}>
@@ -198,6 +202,38 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
                                 <img src={work.img} alt="fonTest1" />
                             </div>
                         ))}
+                    </div>
+
+                    {/* Mobile: slider */}
+                    <div className={styles.performersMobile}>
+                        <Swiper
+                            spaceBetween={16}
+                            slidesPerView={1.1}
+                            pagination={{ clickable: true }}
+                            modules={[Pagination]}
+                            className={styles.performersSwiper}
+                        >
+                            {worker.map(work => (
+                                <SwiperSlide key={work.id}>
+                                    <div className={styles.performers_orders}>
+                                        <div className={styles.performers_orders_welcome}>
+                                            <div className={styles.performers_orders_about}>
+                                                <h2 className={styles.performers_orders_title}>{work.name}</h2>
+                                                {work.title}
+                                            </div>
+                                            <AdBtn
+                                                alwaysVisible
+                                                text={work.id === 1 ? t('pages.main.postTicket') : t('pages.main.postService')}
+                                                onClick={() =>
+                                                    handleAdBtnClick(work.id === 1 ? "client" : "master")
+                                                }
+                                            />
+                                        </div>
+                                        <img src={work.img} alt="fonTest1" />
+                                    </div>
+                                </SwiperSlide>
+                            ))}
+                        </Swiper>
                     </div>
 
                     <div className={styles.searchMasters}>

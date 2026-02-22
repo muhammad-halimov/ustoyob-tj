@@ -59,7 +59,7 @@
     }
   }
 
-  .performers {
+  .performersDesktop {
     max-width: 1150px; // Оптимизировано для 60% ширины на больших экранах
     margin: 35px auto;
     width: 100%;
@@ -67,49 +67,60 @@
     flex-wrap: wrap;
     justify-content: space-between;
     gap: 20px;
+  }
 
-    .performers_orders,
-    .performers_masters {
-      flex: 1 1 45%;
-      min-width: 600px;
-      padding: 25px 26px;
-      background-color: map.get(vars.$colors, primary-text-white);
-      border-radius: 20px;
+  .performersMobile {
+    display: none; // Hidden on desktop
+    max-width: 1150px;
+    margin: 35px auto;
+    width: 100%;
+  }
+
+  // Общие стили для карточек performers
+  .performers_orders,
+  .performers_masters {
+    flex: 1 1 calc(50% - 10px);
+    min-width: 300px;
+    min-height: 360px;
+    padding: 25px 26px;
+    background-color: map.get(vars.$colors, primary-text-white);
+    border-radius: 20px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    overflow: hidden;
+    box-sizing: border-box;
+
+    .performers_orders_welcome {
       display: flex;
-      flex-direction: row;
-      align-items: center;
-      height: auto;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 100%;
+      flex: 1;
+      min-width: 0; // Позволяет flex-элементу сжиматься
 
-      .performers_orders_welcome {
+      .performers_orders_title {
+        font-size: 30px;
+        margin-bottom: 20px;
+      }
+
+      .performers_orders_about {
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        height: 100%;
-        flex: 1;
-
-        .performers_orders_title {
-          font-size: 30px;
-          margin-bottom: 20px;
-        }
-
-        .performers_orders_about {
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          max-width: 452px;
-          width: 100%;
-          font-size: 20px;
-        }
+        width: 100%;
+        font-size: 20px;
       }
     }
 
     img {
-      max-width: 255px;
-      width: 100%;
+      width: 255px;
       height: 305px;
       border-radius: 20px;
       object-fit: cover;
       margin-left: 15px;
+      flex-shrink: 0;
+      display: block;
     }
   }
 
@@ -193,36 +204,64 @@
   display: none;
 }
 
-@media screen and (max-width: 480px){
-  .performers {
-    padding: 20px;
-    margin-top: 40px !important;
-    margin-bottom: 40px !important;
+/* Desktop: показываем горизонтальный layout */
+@media screen and (min-width: 769px) {
+  .performersDesktop {
+    display: flex !important;
   }
+
+  .performersMobile {
+    display: none !important;
+  }
+}
+
+/* Mobile/Tablet: показываем слайдер */
+@media screen and (max-width: 768px){
+  .performersDesktop {
+    display: none !important; // Hide desktop version on mobile
+  }
+
+  .performersMobile {
+    display: block !important; // Show mobile slider
+    padding: 0 20px;
+    margin: 40px auto;
+    padding-bottom: 50px; // Space for pagination outside cards
+  }
+
+  .performersSwiper {
+    padding-bottom: 0;
+  }
+
   .performers_orders {
     flex-direction: column-reverse !important;
-    min-width: 334px !important;
+    min-width: 280px !important;
+    max-width: 100% !important;
     width: 100% !important;
+    min-height: 400px !important;
+    height: 100% !important;
     padding: 20px !important;
+    overflow: hidden !important;
+    display: flex !important;
 
     img {
       width: 100% !important;
       margin-left: unset !important;
-      max-width: 310px !important;
-      max-height: 175px !important;
-      margin-bottom: 10px;
+      max-width: 100% !important;
+      height: 200px !important;
+      margin-bottom: 15px;
     }
 
     .performers_orders_title {
-      font-size: 20px !important;
+      font-size: 22px !important;
       font-weight: 500;
-      margin-bottom: 10px !important;
+      margin-bottom: 12px !important;
     }
 
     .performers_orders_about {
       font-size: 16px !important;
       font-weight: 300;
       margin-bottom: 20px !important;
+      line-height: 1.4;
     }
   }
   .desktopGrid {
@@ -251,8 +290,8 @@
 :global(html[data-theme="dark"]) {
   .main {
     .searchResults .resultCard,
-    .performers .performers_orders,
-    .performers .performers_masters,
+    .performers_orders,
+    .performers_masters,
     .searchMasters .searchMasters_item {
       background: var(--color-background-primary);
     }
@@ -260,6 +299,42 @@
 
   .modalContent {
     background: var(--color-background-primary);
+  }
+}
+
+// Swiper pagination styles
+.performersSwiper {
+  :global {
+    .swiper-wrapper {
+      align-items: stretch; // Растягиваем все слайды на одну высоту
+    }
+
+    .swiper-slide {
+      height: auto; // Позволяем слайдам растягиваться
+      display: flex; // Используем flex для выравнивания
+      
+      > div {
+        width: 100%;
+        display: flex;
+      }
+    }
+
+    .swiper-pagination {
+      bottom: -35px !important; // Вынести pagination за пределы карточек
+      position: absolute;
+    }
+
+    .swiper-pagination-bullet {
+      background: #3A54DA;
+      opacity: 0.3;
+      width: 8px;
+      height: 8px;
+    }
+
+    .swiper-pagination-bullet-active {
+      opacity: 1;
+      background: #3A54DA;
+    }
   }
 }
 
