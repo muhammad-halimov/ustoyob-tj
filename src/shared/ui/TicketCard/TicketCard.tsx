@@ -1,6 +1,8 @@
 import styles from './TicketCard.module.scss';
 import { useTranslation } from 'react-i18next';
 import { useLanguageChange } from '../../../hooks/useLanguageChange';
+import { useTranslatedName } from '../../../hooks/useTranslatedName';
+import { useTranslatedText } from '../../../hooks/useTranslatedText';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useFavorites } from '../useFavorites';
@@ -173,6 +175,13 @@ export function TicketCard({
   const { t, i18n } = useTranslation('components');
   const [, forceUpdate] = useState({});
   
+  // Транслитерация имени автора (автоопределение языка)
+  const translatedAuthor = useTranslatedName(author);
+  
+  // Перевод заголовка и описания тикета
+  const translatedTitle = useTranslatedText(title, 'ru');
+  const translatedDescription = useTranslatedText(description, 'ru');
+  
   // Автоматически включаем управляемое состояние, если передан ticketId и не задано явно useManagedFavorites
   const shouldUseManagedFavorites = useManagedFavorites !== undefined ? useManagedFavorites : !!ticketId;
   
@@ -306,11 +315,11 @@ export function TicketCard({
         </div>
       </div>
       <div className={`${styles.card_header} ${displayTicketType ? styles.with_ticket_type : ''}`}>
-        <h3>{truncateText(title, 27)}</h3>
+        <h3>{truncateText(translatedTitle, 27)}</h3>
         <span className={styles.card_price}>{price.toLocaleString('ru-RU')} TJS, {unit}</span>
       </div>
 
-      <p className={styles.card_description}>{truncateText(description)}</p>
+      <p className={styles.card_description}>{truncateText(translatedDescription)}</p>
 
       <div className={styles.card_details}>
         <span className={styles.card_address}>
@@ -354,7 +363,7 @@ export function TicketCard({
                   </clipPath>
                 </defs>
               </svg>
-              {author}
+              {translatedAuthor}
             </Link>
           ) : (
             <span className={styles.card_author}>
@@ -374,7 +383,7 @@ export function TicketCard({
                   </clipPath>
                 </defs>
               </svg>
-              {author}
+              {translatedAuthor}
             </span>
           )}
           {(userRating !== undefined) && (

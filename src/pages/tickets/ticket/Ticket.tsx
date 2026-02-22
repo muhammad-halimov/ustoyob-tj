@@ -4,7 +4,7 @@ import {getAuthToken, getUserData} from '../../../utils/auth.ts';
 import styles from './Ticket.module.scss';
 import {createChatWithAuthor, initChatModals} from "../../../utils/chatUtils.ts";
 import AuthModal from "../../../features/auth/AuthModal.tsx";
-import {textHelper} from "../../../utils/textHelper.ts";
+import {textHelper, smartNameTranslator} from "../../../utils/textHelper.ts";
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 import { useTranslation } from 'react-i18next';
 import { useLanguageChange } from '../../../hooks/useLanguageChange.ts';
@@ -119,7 +119,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 export function Ticket() {
     const {id} = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { t } = useTranslation(['ticket', 'components']);
+    const { t, i18n } = useTranslation(['ticket', 'components']);
     const [order, setOrder] = useState<Order | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -462,6 +462,10 @@ export function Ticket() {
                 userTypeForRating = 'client';
                 userRating = ticketData.author.rating || 0; // Рейтинг автора из тикета
             }
+
+            // Переводим имя пользователя
+            const currentLang = i18n.language as 'ru' | 'tj' | 'eng';
+            displayUserName = smartNameTranslator(displayUserName, currentLang);
 
             console.log('Display user info:', {
                 displayUserId,
@@ -981,12 +985,34 @@ export function Ticket() {
     
     const getMasterName = (review: Review) => {
         const master = review.user;
-        return master ? `${master.name || ''} ${master.surname || ''}`.trim() || t('components:app.defaultMaster') : t('components:app.defaultMaster');
+        if (!master) return t('components:app.defaultMaster');
+        
+        const firstName = master.name || '';
+        const lastName = master.surname || '';
+        
+        if (!firstName && !lastName) return t('components:app.defaultMaster');
+        
+        const currentLang = i18n.language as 'ru' | 'tj' | 'eng';
+        const translatedFirstName = smartNameTranslator(firstName, currentLang);
+        const translatedLastName = smartNameTranslator(lastName, currentLang);
+        
+        return `${translatedFirstName} ${translatedLastName}`.trim() || t('components:app.defaultMaster');
     };
     
     const getClientName = (review: Review) => {
         const reviewer = review.reviewer;
-        return reviewer ? `${reviewer.name || ''} ${reviewer.surname || ''}`.trim() || t('components:app.defaultClient') : t('components:app.defaultClient');
+        if (!reviewer) return t('components:app.defaultClient');
+        
+        const firstName = reviewer.name || '';
+        const lastName = reviewer.surname || '';
+        
+        if (!firstName && !lastName) return t('components:app.defaultClient');
+        
+        const currentLang = i18n.language as 'ru' | 'tj' | 'eng';
+        const translatedFirstName = smartNameTranslator(firstName, currentLang);
+        const translatedLastName = smartNameTranslator(lastName, currentLang);
+        
+        return `${translatedFirstName} ${translatedLastName}`.trim() || t('components:app.defaultClient');
     };
     
     const handleShowMoreReviews = () => {

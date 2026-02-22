@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ROUTES } from '../../../app/routers/routes.ts';
+import { smartNameTranslator } from '../../../utils/textHelper';
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
 import styles from './MainReviewsSection.module.scss';
@@ -17,6 +19,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
     const [loading, setLoading] = useState(true);
     const [visibleCount, setVisibleCount] = useState(6);
     const navigate = useNavigate();
+    const { i18n } = useTranslation();
     
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -153,7 +156,15 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
         if (!client.name && !client.surname) {
             return client.login || 'Клиент';
         }
-        return `${client.name || ''} ${client.surname || ''}`.trim();
+        
+        const currentLang = i18n.language as 'ru' | 'tj' | 'eng';
+        const firstName = client.name || '';
+        const lastName = client.surname || '';
+        
+        const translatedFirstName = smartNameTranslator(firstName, currentLang);
+        const translatedLastName = smartNameTranslator(lastName, currentLang);
+        
+        return `${translatedFirstName} ${translatedLastName}`.trim();
     };
 
     // Функция для получения имени мастера
@@ -164,7 +175,15 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
         if (!master.name && !master.surname) {
             return master.login || 'Мастер';
         }
-        return `${master.name || ''} ${master.surname || ''}`.trim();
+        
+        const currentLang = i18n.language as 'ru' | 'tj' | 'eng';
+        const firstName = master.name || '';
+        const lastName = master.surname || '';
+        
+        const translatedFirstName = smartNameTranslator(firstName, currentLang);
+        const translatedLastName = smartNameTranslator(lastName, currentLang);
+        
+        return `${translatedFirstName} ${translatedLastName}`.trim();
     };
 
     // Функция для форматирования даты

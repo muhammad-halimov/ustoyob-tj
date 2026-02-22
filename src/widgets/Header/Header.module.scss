@@ -10,7 +10,7 @@
     box-shadow: 0 4px 10px var(--color-shadow-light);
   }
   .headerWrap {
-    max-width: 1250px;
+    max-width: 1150px; // Оптимизировано для 60% ширины на больших экранах
     display: flex;
     justify-content: space-between;
     padding: 20px 0;
@@ -85,7 +85,7 @@
     width: 100%;
     display: block;
     .bottomHeader_wrap {
-      max-width: 1250px;
+      max-width: 1150px; // Оптимизировано для 60% ширины на больших экранах
       display: flex;
       justify-content: space-between;
       padding: 20px 0;

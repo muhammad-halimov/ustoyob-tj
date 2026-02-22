@@ -223,7 +223,7 @@
 .stars {
   display: flex;
   gap: 8px;
-  padding: 20px;
+  padding: 10px 120px;
   border-radius: 10px;
   background-color: #F2F2F5;
   max-width: 200px;
@@ -340,10 +340,6 @@
 
   .modalHeader h2 {
     font-size: 18px;
-  }
-
-  .stars {
-    padding: 15px;
   }
 
   .star {
