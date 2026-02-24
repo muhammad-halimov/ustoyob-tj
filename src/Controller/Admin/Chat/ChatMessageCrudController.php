@@ -8,6 +8,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
@@ -67,6 +68,12 @@ class ChatMessageCrudController extends AbstractCrudController
         yield AssociationField::new('replyTo', 'Ответ на сообщение')
             ->setRequired(false)
             ->setColumns(12);
+
+        yield CollectionField::new('chatImages', 'Галерея изображений')
+            ->useEntryCrudForm(ChatImageCrudController::class)
+            ->hideOnIndex()
+            ->setColumns(12)
+            ->setRequired(false);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
             ->hideOnForm();

@@ -31,16 +31,18 @@ class ChatImage
     #[ORM\Column]
     #[Groups([
         'chats:read',
+        'chatMessages:read',
     ])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'chatImages')]
-    private ?Chat $chats = null;
+    private ?ChatMessage $chatMessage = null;
 
     #[ORM\ManyToOne(inversedBy: 'chatImages')]
     #[ORM\JoinColumn(name: 'author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'chats:read',
+        'chatMessages:read',
     ])]
     private ?User $author = null;
 
@@ -51,6 +53,7 @@ class ChatImage
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
         'chats:read',
+        'chatMessages:read',
     ])]
     private ?string $image = null;
 
@@ -86,14 +89,14 @@ class ChatImage
         return $this;
     }
 
-    public function getChats(): ?Chat
+    public function getChatMessage(): ?ChatMessage
     {
-        return $this->chats;
+        return $this->chatMessage;
     }
 
-    public function setChats(?Chat $chats): static
+    public function setChatMessage(?ChatMessage $chatMessage): static
     {
-        $this->chats = $chats;
+        $this->chatMessage = $chatMessage;
 
         return $this;
     }

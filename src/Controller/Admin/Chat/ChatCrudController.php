@@ -12,7 +12,6 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
-
 class ChatCrudController extends AbstractCrudController
 {
     public static function getEntityFqcn(): string
@@ -69,12 +68,6 @@ class ChatCrudController extends AbstractCrudController
 
         yield AssociationField::new('ticket', 'Услуга/Объявление')
             ->setColumns(4);
-
-        yield CollectionField::new('chatImages', 'Галерея изображений')
-            ->useEntryCrudForm(ChatImageCrudController::class)
-            ->hideOnIndex()
-            ->setColumns(12)
-            ->setRequired(false);
 
         yield CollectionField::new('messages', 'Сообщения')
             ->useEntryCrudForm(ChatMessageCrudController::class)

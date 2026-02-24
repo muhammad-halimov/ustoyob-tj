@@ -5,11 +5,15 @@ namespace App\Entity\Chat;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use App\Dto\Image\ImageInput;
 use App\Controller\Api\CRUD\Chat\Message\DeleteChatMessageController;
 use App\Controller\Api\CRUD\Chat\Message\PatchChatMessageController;
 use App\Controller\Api\CRUD\Chat\Message\PostChatMessageController;
+use App\Controller\Api\CRUD\Chat\Message\PostChatMessagePhotoController;
+use App\Controller\Api\Filter\Chat\ChatMessageFilterController;
 use App\Entity\User;
 use App\Repository\Chat\ChatMessageRepository;
 use DateTime;
@@ -19,6 +23,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
+use Symfony\Component\Serializer\Attribute\SerializedName;
 use Vich\UploaderBundle\Mapping\Attribute as Vich;
 
 #[ORM\HasLifecycleCallbacks]
@@ -26,6 +31,15 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
 #[Vich\Uploadable]
 #[ApiResource(
     operations: [
+        new Get(
+            uriTemplate: '/chat-messages/{id}',
+            requirements: ['id' => '\d+'],
+            controller: ChatMessageFilterController::class,
+            normalizationContext: [
+                'groups' => ['chatMessages:read'],
+                'skip_null_values' => false,
+            ],
+        ),
         new Post(
             uriTemplate: '/chat-messages',
             controller: PostChatMessageController::class,
@@ -33,6 +47,13 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
                 'groups' => ['chatMessages:read'],
                 'skip_null_values' => false,
             ],
+        ),
+        new Post(
+            uriTemplate: '/chat-messages/{id}/upload-photo',
+            inputFormats: ['multipart' => ['multipart/form-data']],
+            requirements: ['id' => '\d+'],
+            controller: PostChatMessagePhotoController::class,
+            input: ImageInput::class,
         ),
         new Patch(
             uriTemplate: '/chat-messages/{id}',
@@ -55,12 +76,13 @@ class ChatMessage
 {
     public function __toString(): string
     {
-        return "ChatID #{$this->chat->getId()}; MessageID #{$this->id}; Text: {$this->text}" ?? "Message #$this->id";
+        return "MessageID #{$this->id}; ChatID #{$this->chat->getId()}; Text: {$this->text}" ?? "Message #$this->id";
     }
 
     public function __construct()
     {
         $this->chatMessages = new ArrayCollection();
+        $this->chatImages = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -109,6 +131,18 @@ class ChatMessage
     #[ORM\OneToMany(targetEntity: self::class, mappedBy: 'replyTo')]
     #[Ignore]
     private Collection $chatMessages;
+
+    /**
+     * @var Collection<int, ChatImage>
+     */
+    #[ORM\OneToMany(targetEntity: ChatImage::class, mappedBy: 'chatMessage', cascade: ['all'])]
+    #[Groups([
+        'chats:read',
+        'chatMessages:read',
+    ])]
+    #[SerializedName('images')]
+    #[ApiProperty(writable: false)]
+    private Collection $chatImages;
 
     #[ORM\Column(type: 'datetime', nullable: false)]
     #[Groups([
@@ -224,6 +258,35 @@ class ChatMessage
             // set the owning side to null (unless already changed)
             if ($chatMessage->getReplyTo() === $this) {
                 $chatMessage->setReplyTo(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, ChatImage>
+     */
+    public function getChatImages(): Collection
+    {
+        return $this->chatImages;
+    }
+
+    public function addChatImage(ChatImage $chatImage): static
+    {
+        if (!$this->chatImages->contains($chatImage)) {
+            $this->chatImages->add($chatImage);
+            $chatImage->setChatMessage($this);
+        }
+
+        return $this;
+    }
+
+    public function removeChatImage(ChatImage $chatImage): static
+    {
+        if ($this->chatImages->removeElement($chatImage)) {
+            if ($chatImage->getChatMessage() === $this) {
+                $chatImage->setChatMessage(null);
             }
         }
 

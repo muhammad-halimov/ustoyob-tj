@@ -12,12 +12,10 @@ use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\Chat\Chat\DeleteChatController;
 use App\Controller\Api\CRUD\Chat\Chat\PatchChatController;
 use App\Controller\Api\CRUD\Chat\Chat\PostChatController;
-use App\Controller\Api\CRUD\Chat\Chat\PostChatPhotoController;
 use App\Controller\Api\Filter\Chat\ChatFilterController;
 use App\Controller\Api\Filter\Chat\PersonalChatFilterController;
 use App\Dto\Chat\ChatPatchInput;
 use App\Dto\Chat\ChatPostInput;
-use App\Dto\Image\ImageInput;
 use App\Entity\Appeal\AppealTypes\AppealChat;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
@@ -28,7 +26,6 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
-use Symfony\Component\Serializer\Attribute\SerializedName;
 
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Entity(repositoryClass: ChatRepository::class)]
@@ -42,13 +39,6 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         new GetCollection(
             uriTemplate: '/chats/me',
             controller: PersonalChatFilterController::class,
-        ),
-        new Post(
-            uriTemplate: '/chats/{id}/upload-photo',
-            inputFormats: ['multipart' => ['multipart/form-data']],
-            requirements: ['id' => '\d+'],
-            controller: PostChatPhotoController::class,
-            input: ImageInput::class,
         ),
         new Post(
             uriTemplate: '/chats',
@@ -133,17 +123,6 @@ class Chat
     #[ApiProperty(writable: false)]
     private Collection $messages;
 
-    /**
-     * @var Collection<int, ChatImage>
-     */
-    #[ORM\OneToMany(targetEntity: ChatImage::class, mappedBy: 'chats', cascade: ['all'])]
-    #[Groups([
-        'chats:read',
-    ])]
-    #[SerializedName('images')]
-    #[ApiProperty(writable: false)]
-    private Collection $chatImages;
-
     #[ORM\Column(type: 'datetime', nullable: false)]
     #[Groups([
         'chats:read',
@@ -166,7 +145,6 @@ class Chat
     public function __construct()
     {
         $this->messages = new ArrayCollection();
-        $this->chatImages = new ArrayCollection();
         $this->appealChats = new ArrayCollection();
     }
 
@@ -223,36 +201,6 @@ class Chat
             // set the owning side to null (unless already changed)
             if ($message->getChat() === $this) {
                 $message->setChat(null);
-            }
-        }
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, ChatImage>
-     */
-    public function getChatImages(): Collection
-    {
-        return $this->chatImages;
-    }
-
-    public function addChatImage(ChatImage $chatImage): static
-    {
-        if (!$this->chatImages->contains($chatImage)) {
-            $this->chatImages->add($chatImage);
-            $chatImage->setChats($this);
-        }
-
-        return $this;
-    }
-
-    public function removeChatImage(ChatImage $chatImage): static
-    {
-        if ($this->chatImages->removeElement($chatImage)) {
-            // set the owning side to null (unless already changed)
-            if ($chatImage->getChats() === $this) {
-                $chatImage->setChats(null);
             }
         }
 
