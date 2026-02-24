@@ -65,9 +65,9 @@ class PatchChatMessageController extends AbstractController
 
         $this->entityManager->flush();
 
-        return $this->json([
-            'chat' => ['id' => $chat->getId()],
-            'message' => ['id' => $chatMessage->getId()],
+        return $this->json($chatMessage, context: [
+            'groups' => ['chatMessages:read'],
+            'skip_null_values' => false,
         ]);
     }
 }

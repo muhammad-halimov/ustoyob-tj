@@ -30,18 +30,27 @@ class PostChatMessageController extends AbstractController
         $this->accessService->check($bearerUser);
 
         $data = json_decode($request->getContent(), true);
+
         $chatParam = $data['chat'];
-        $text = $data['text'];
+        $textParam = $data['text'];
+        $replyToParam = $data['replyTo'] ?? null;
 
-        if(!$chatParam) return $this->json(['message' => "Wrong chat format"], 400);
-
-        if(!$text) return $this->json(['message' => "Empty message text"], 400);
+        if(!$chatParam || !$textParam)
+            return $this->json(['message' => "Required fields missing"], 400);
 
         // Извлекаем ID из строки "/api/chats/1" или просто "1"
         /** @var Chat $chat */
         $chat = $this->extractIriService->extract($chatParam, Chat::class, 'chats');
 
+        /** @var ChatMessage|null $replyTo */
+        $replyTo = $replyToParam
+            ? $this->extractIriService->extract($replyToParam, ChatMessage::class, 'chat-messages')
+            : null;
+
         if(!$chat) return $this->json(['message' => "Chat not found"], 404);
+
+        if ($replyTo && $replyTo->getChat() !== $chat)
+            return $this->json(['message' => "Ownership doesn't match"], 403);
 
         if ($chat->getAuthor() !== $bearerUser && $chat->getReplyAuthor() !== $bearerUser)
             return $this->json(['message' => "Ownership doesn't match"], 403);
@@ -50,8 +59,9 @@ class PostChatMessageController extends AbstractController
         $this->accessService->checkBlackList($chat->getAuthor(), $chat->getReplyAuthor());
 
         $chatMessage = (new ChatMessage())
-            ->setText($text)
+            ->setText($textParam)
             ->setChat($chat)
+            ->setReplyTo($replyTo)
             ->setAuthor($bearerUser);
 
         $chat->addMessage($chatMessage);
@@ -59,9 +69,9 @@ class PostChatMessageController extends AbstractController
         $this->entityManager->persist($chatMessage);
         $this->entityManager->flush();
 
-        return $this->json([
-            'chat' => ['id' => $chat->getId()],
-            'message' => ['id' => $chatMessage->getId()],
+        return $this->json($chatMessage, context: [
+            'groups' => ['chatMessages:read'],
+            'skip_null_values' => false,
         ]);
     }
 }

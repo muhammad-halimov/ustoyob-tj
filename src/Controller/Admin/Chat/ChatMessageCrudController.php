@@ -64,6 +64,10 @@ class ChatMessageCrudController extends AbstractCrudController
             ->setRequired(true)
             ->setColumns(12);
 
+        yield AssociationField::new('replyTo', 'Ответ на сообщение')
+            ->setRequired(false)
+            ->setColumns(12);
+
         yield DateTimeField::new('updatedAt', 'Обновлено')
             ->hideOnForm();
 
