@@ -8,7 +8,7 @@ import ComplaintModal from '../../shared/ui/Modal/ComplaintModal/ComplaintModal'
 import { PageLoader } from '../../widgets/PageLoader';
 import styles from "./Chat.module.scss";
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { IoSend, IoAttach, IoClose, IoImages, IoArchiveOutline, IoArchiveSharp, IoWarningOutline } from "react-icons/io5";
+import { IoSend, IoAttach, IoClose, IoImages, IoArchiveOutline, IoArchiveSharp, IoWarningOutline, IoPencilSharp, IoTrashSharp, IoArrowUndoSharp } from "react-icons/io5";
 import { PhotoGallery, usePhotoGallery } from '../../shared/ui/PhotoGallery';
 import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 
@@ -25,6 +25,9 @@ interface Message {
     progress?: number;
     isLocal?: boolean;
     createdAt?: string;
+    replyTo?: { id: number; text: string; name: string };
+    edited?: boolean;
+    images?: { id: number; url: string; name: string }[]; // вложенные фото сообщения
 }
 
 interface ApiUser {
@@ -44,9 +47,11 @@ interface ApiUser {
 interface ApiMessage {
     id: number;
     text: string;
-    image: string;
     author: ApiUser;
     createdAt?: string;
+    updatedAt?: string;
+    replyTo?: { id: number; text: string; author: ApiUser } | null;
+    images?: UploadedImage[];
 }
 
 interface ApiTicket {
@@ -61,7 +66,7 @@ interface ApiChat {
     author: ApiUser;
     replyAuthor: ApiUser;
     messages: ApiMessage[];
-    images: UploadedImage[];
+    images?: UploadedImage[]; // все фото чата (плоский список от бэкенда)
     ticket?: ApiTicket;
     createdAt?: string;
     updatedAt?: string;
@@ -108,13 +113,24 @@ function Chat() {
     // Состояния для миниатюр и модального окна фото
     const [chatImages, setChatImages] = useState<ChatImageThumbnail[]>([]);
 
+    // Состояния для ответа и редактирования
+    const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
+    const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+    const [editingImages, setEditingImages] = useState<{ id: number; url: string; name: string }[]>([]);
+    const [editingNewFiles, setEditingNewFiles] = useState<File[]>([]);
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const editFileInputRef = useRef<HTMLInputElement>(null);
+    const eventSourceRef = useRef<EventSource | null>(null);
+    const currentUserRef = useRef<ApiUser | null>(null);
+    const tokenRefreshRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const startSSERef = useRef<((chatId: number) => Promise<void>) | null>(null);
+    const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
     const messageInputRef = useRef<HTMLInputElement>(null);
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-    const POLLING_INTERVAL = 3000; // Уменьшаем интервал для более реактивного обновления
+    const MERCURE_HUB_URL = import.meta.env.VITE_MERCURE_HUB_URL;
 
     const [searchParams] = useSearchParams();
     const chatIdFromUrl = searchParams.get('chatId');
@@ -135,6 +151,9 @@ function Chat() {
         
         return `${translatedFirstName} ${translatedLastName}`.trim();
     }, [i18n.language]);
+
+    // Синхронизируем ref чтобы SSE-обработчик всегда имел свежий currentUser
+    useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
 
     // Инициализация пользователя и чатов
     useEffect(() => {
@@ -157,17 +176,17 @@ function Chat() {
     // Обработка выбранного чата
     useEffect(() => {
         if (selectedChat) {
-            console.log('Starting polling for chat:', selectedChat);
-            startPolling(selectedChat);
+            console.log('Starting SSE for chat:', selectedChat);
+            startSSE(selectedChat);
             if (window.innerWidth <= 480) {
                 setIsMobileChatActive(true);
             }
         } else {
             setMessages([]);
             setChatImages([]);
-            stopPolling();
+            stopSSE();
         }
-        return () => stopPolling();
+        return () => stopSSE();
     }, [selectedChat]);
 
     // Обработка chatId из URL
@@ -252,38 +271,16 @@ function Chat() {
                         ...newChats[chatIndex],
                         ...chatDataWithArchive,
                         messages: chatData.messages || [],
-                        images: chatData.images || [],
                     };
                     return newChats;
                 });
 
-                // Обновляем список изображений для миниатюр
-                if (chatData.images && chatData.images.length > 0) {
-                    const imagesThumbnails: ChatImageThumbnail[] = chatData.images.map((imageObj: UploadedImage) => {
-                        const imageUrl = getImageUrl(imageObj.image);
-
-                        return {
-                            id: imageObj.id,
-                            imageUrl: imageUrl,
-                            author: imageObj.author,
-                            createdAt: imageObj.createdAt || new Date().toISOString()
-                        };
-                    });
-
-                    // Сортируем по дате (сначала новые)
-                    imagesThumbnails.sort((a, b) =>
-                        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-                    );
-
-                    setChatImages(imagesThumbnails);
-                } else {
-                    setChatImages([]);
-                }
-
                 if (currentUser) {
-                    // Текстовые сообщения
-                    const textItems: Message[] = (chatData.messages || []).map(msg => {
+                    // Каждое ApiMessage → один Message с вложенными изображениями
+                    const serverItems: Message[] = (chatData.messages || []).map(msg => {
                         const createdAt = msg.createdAt ? new Date(msg.createdAt) : new Date();
+                        const updatedAt = msg.updatedAt ? new Date(msg.updatedAt) : null;
+                        const isEdited = !!(updatedAt && msg.createdAt && updatedAt.getTime() - new Date(msg.createdAt).getTime() > 1000);
                         return {
                             id: msg.id,
                             sender: msg.author.id === currentUser.id ? "me" : "other",
@@ -291,30 +288,32 @@ function Chat() {
                             text: msg.text,
                             type: 'text' as const,
                             time: createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                            createdAt: createdAt.toISOString()
+                            createdAt: createdAt.toISOString(),
+                            edited: isEdited,
+                            replyTo: msg.replyTo ? {
+                                id: msg.replyTo.id,
+                                text: msg.replyTo.text,
+                                name: getTranslatedFullName(msg.replyTo.author)
+                            } : undefined,
+                            images: (msg.images || []).map(img => ({
+                                id: img.id,
+                                url: getImageUrl(img.image),
+                                name: img.image
+                            }))
                         };
                     });
 
-                    // Изображения — встраиваем в поток сообщений
-                    const imageItems: Message[] = (chatData.images || []).map(img => {
-                        const createdAt = img.createdAt ? new Date(img.createdAt) : new Date();
-                        return {
-                            // Смещение чтобы избежать коллизии с ID текстовых сообщений
-                            id: 1_000_000 + img.id,
-                            sender: img.author.id === currentUser.id ? "me" : "other",
-                            name: getTranslatedFullName(img.author),
-                            text: '',
-                            type: 'image' as const,
-                            imageUrl: getImageUrl(img.image),
-                            status: 'uploaded' as const,
-                            time: createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                            createdAt: createdAt.toISOString()
-                        };
-                    });
-
-                    const serverItems = [...textItems, ...imageItems].sort((a, b) =>
-                        new Date(a.createdAt!).getTime() - new Date(b.createdAt!).getTime()
+                    // Миниатюры для боковой панели — берём из плоского списка chatData.images
+                    const allThumbnails: ChatImageThumbnail[] = (chatData.images || []).map(img => ({
+                        id: img.id,
+                        imageUrl: getImageUrl(img.image),
+                        author: img.author,
+                        createdAt: img.createdAt || new Date().toISOString()
+                    }));
+                    allThumbnails.sort((a, b) =>
+                        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
                     );
+                    setChatImages(allThumbnails);
 
                     setMessages(prev => {
                         // Сохраняем только локальные pending/uploading сообщения
@@ -338,19 +337,19 @@ function Chat() {
         }
     }, [API_BASE_URL, currentUser, getImageUrl]);
 
-    const uploadImageToChat = useCallback(async (chatId: number, file: File): Promise<string | null> => {
+    const uploadImageToMessage = useCallback(async (messageId: number, file: File): Promise<boolean> => {
         const token = getAuthToken();
         if (!token) {
             console.error('No token for uploading image');
-            return null;
+            return false;
         }
 
         const formData = new FormData();
         formData.append('imageFile', file);
 
         try {
-            console.log('Uploading image to chat:', chatId, 'File:', file.name);
-            const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}/upload-photo`, {
+            console.log('Uploading image to message:', messageId, 'File:', file.name);
+            const response = await fetch(`${API_BASE_URL}/api/chat-messages/${messageId}/upload-photo`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -359,53 +358,190 @@ function Chat() {
             });
 
             if (response.ok) {
-                const data = await response.json();
-                console.log('Image upload response:', data);
-
-                // Проверяем разные форматы ответа
-                if (data.image) {
-                    return data.image; // Формат 1: { image: "path/to/image.jpg" }
-                } else if (data.images && Array.isArray(data.images) && data.images.length > 0) {
-                    // Формат 2: { images: [{ image: "path/to/image.jpg" }] }
-                    return data.images[0].image;
-                } else if (data.id && data.image) {
-                    // Формат 3: { id: 1, image: "path/to/image.jpg", ... }
-                    return data.image;
-                } else if (data.message && data.count > 0) {
-                    // Формат 4: { message: 'Photos uploaded successfully', count: 1 }
-                    console.log('Success message received, fetching updated chat data...');
-                    await fetchChatMessages(chatId);
-                    return null;
-                }
-
-                console.error('Unexpected response format:', data);
-                return null;
+                console.log('Image uploaded to message:', messageId);
+                return true;
             } else {
                 const errorText = await response.text();
                 console.error('Error uploading image:', response.status, errorText);
-                return null;
+                return false;
             }
         } catch (error) {
             console.error('Error uploading image:', error);
-            return null;
+            return false;
         }
-    }, [API_BASE_URL, fetchChatMessages]);
+    }, [API_BASE_URL]);
 
-    const startPolling = useCallback((chatId: number) => {
-        stopPolling();
-        fetchChatMessages(chatId);
-
-        pollingIntervalRef.current = setInterval(() => {
-            fetchChatMessages(chatId);
-        }, POLLING_INTERVAL);
-    }, [POLLING_INTERVAL, fetchChatMessages]);
-
-    const stopPolling = useCallback(() => {
-        if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
+    const stopSSE = useCallback(() => {
+        if (tokenRefreshRef.current) {
+            clearTimeout(tokenRefreshRef.current);
+            tokenRefreshRef.current = null;
+        }
+        if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+            reconnectTimeoutRef.current = null;
+        }
+        if (eventSourceRef.current) {
+            eventSourceRef.current.close();
+            eventSourceRef.current = null;
+            console.log('SSE connection closed');
         }
     }, []);
+
+    const startSSE = useCallback(async (chatId: number) => {
+        stopSSE();
+
+        // 1. Начальная загрузка сообщений
+        await fetchChatMessages(chatId);
+
+        // 2. Получаем Mercure JWT
+        const token = getAuthToken();
+        if (!token) return;
+
+        try {
+            const subResp = await fetch(`${API_BASE_URL}/api/chats/${chatId}/subscribe`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!subResp.ok) {
+                console.error('Failed to get Mercure token:', subResp.status);
+                return;
+            }
+            const { token: mercureToken, topic } = await subResp.json() as { token: string; topic: string };
+
+            // 3. Открываем SSE-соединение
+            const hubUrl = new URL(MERCURE_HUB_URL);
+            hubUrl.searchParams.append('topic', topic);
+            hubUrl.searchParams.append('authorization', mercureToken);
+
+            const es = new EventSource(hubUrl.toString());
+            eventSourceRef.current = es;
+            console.log('SSE connected to topic:', topic);
+
+            es.onmessage = (event) => {
+                try {
+                    const payload = JSON.parse(event.data) as {
+                        type: 'created' | 'updated' | 'deleted';
+                        data: ApiMessage | { id: number; chatId: number };
+                    };
+                    const { type, data } = payload;
+                    const user = currentUserRef.current;
+
+                    if (type === 'deleted') {
+                        const del = data as { id: number; chatId: number };
+                        setMessages(prev => prev.filter(m => m.id !== del.id));
+                        // Обновляем миниатюры через рефреш чата
+                        fetchChatMessages(chatId);
+                        return;
+                    }
+
+                    if (!user) return;
+
+                    const apiMsg = data as ApiMessage;
+                    const createdAt = apiMsg.createdAt ? new Date(apiMsg.createdAt) : new Date();
+                    const updatedAt = apiMsg.updatedAt ? new Date(apiMsg.updatedAt) : null;
+                    const isEdited = !!(updatedAt && apiMsg.createdAt &&
+                        updatedAt.getTime() - new Date(apiMsg.createdAt).getTime() > 1000);
+
+                    const msg: Message = {
+                        id: apiMsg.id,
+                        sender: apiMsg.author.id === user.id ? 'me' : 'other',
+                        name: getTranslatedFullName(apiMsg.author),
+                        text: apiMsg.text,
+                        type: 'text' as const,
+                        time: createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                        createdAt: createdAt.toISOString(),
+                        edited: isEdited,
+                        replyTo: apiMsg.replyTo ? {
+                            id: apiMsg.replyTo.id,
+                            text: apiMsg.replyTo.text,
+                            name: getTranslatedFullName(apiMsg.replyTo.author)
+                        } : undefined,
+                        images: (apiMsg.images || []).map(img => ({
+                            id: img.id,
+                            url: getImageUrl(img.image),
+                            name: img.image
+                        }))
+                    };
+
+                    if (type === 'created') {
+                        setMessages(prev => {
+                            // Удаляем локальный pending-дубликат только если сообщение от меня
+                            const isMyMsg = msg.sender === 'me';
+                            const filtered = isMyMsg
+                                ? prev.filter(m => !(m.isLocal && m.text === msg.text))
+                                : prev;
+                            if (filtered.some(m => m.id === msg.id)) return filtered;
+                            return [...filtered, msg].sort(
+                                (a, b) => new Date(a.createdAt!).getTime() - new Date(b.createdAt!).getTime()
+                            );
+                        });
+                        // Обновляем миниатюры если есть фото
+                        if (apiMsg.images && apiMsg.images.length > 0) {
+                            const newThumbs: ChatImageThumbnail[] = apiMsg.images.map(img => ({
+                                id: img.id,
+                                imageUrl: getImageUrl(img.image),
+                                author: img.author,
+                                createdAt: img.createdAt || new Date().toISOString()
+                            }));
+                            setChatImages(prev => {
+                                const merged = [
+                                    ...prev.filter(t => !newThumbs.some(n => n.id === t.id)),
+                                    ...newThumbs
+                                ];
+                                return merged.sort(
+                                    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                                );
+                            });
+                        }
+                    } else if (type === 'updated') {
+                        setMessages(prev => prev.map(m => m.id === msg.id ? msg : m));
+                        // Обновляем миниатюры
+                        const updThumbs: ChatImageThumbnail[] = (apiMsg.images || []).map(img => ({
+                            id: img.id,
+                            imageUrl: getImageUrl(img.image),
+                            author: img.author,
+                            createdAt: img.createdAt || new Date().toISOString()
+                        }));
+                        setChatImages(prev => {
+                            const merged = [
+                                ...prev.filter(t => !updThumbs.some(n => n.id === t.id)),
+                                ...updThumbs
+                            ];
+                            return merged.sort(
+                                (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                            );
+                        });
+                    }
+                } catch (err) {
+                    console.error('SSE parse error:', err);
+                }
+            };
+
+            es.onerror = (err) => {
+                console.error('SSE error, reconnecting in 3s:', err);
+                es.close();
+                eventSourceRef.current = null;
+                // Автопереподключение через 3 секунды
+                if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+                reconnectTimeoutRef.current = setTimeout(() => {
+                    console.log('Reconnecting SSE for chat:', chatId);
+                    startSSERef.current?.(chatId);
+                }, 3000);
+            };
+
+            // Обновляем токен за 5 минут до его истечения (55 минут)
+            if (tokenRefreshRef.current) clearTimeout(tokenRefreshRef.current);
+            tokenRefreshRef.current = setTimeout(() => {
+                console.log('Refreshing Mercure token for chat:', chatId);
+                startSSERef.current?.(chatId);
+            }, 55 * 60 * 1000);
+
+        } catch (err) {
+            console.error('Error setting up SSE:', err);
+        }
+    }, [stopSSE, fetchChatMessages, API_BASE_URL, MERCURE_HUB_URL, getTranslatedFullName, getImageUrl]);
+
+    // Синхронизируем ref чтобы setTimeout всегда вызывал актуальную версию startSSE
+    useEffect(() => { startSSERef.current = startSSE; }, [startSSE]);
 
     const getInterlocutorFromChat = useCallback((chat: ApiChat | undefined): ApiUser | null => {
         if (!chat || !currentUser) return null;
@@ -425,7 +561,7 @@ function Chat() {
         }
     }, [currentUser]);
 
-    const sendMessageToServer = useCallback(async (chatId: number, messageText: string): Promise<boolean> => {
+    const sendMessageToServer = useCallback(async (chatId: number, messageText: string, replyToId?: number): Promise<number | false> => {
         try {
             const token = getAuthToken();
             if (!token) return false;
@@ -438,13 +574,15 @@ function Chat() {
                 },
                 body: JSON.stringify({
                     text: messageText,
-                    chat: `/api/chats/${chatId}`
+                    chat: `/api/chats/${chatId}`,
+                    ...(replyToId ? { replyTo: `/api/chat-messages/${replyToId}` } : {})
                 })
             });
 
             if (response.ok) {
+                const data = await response.json();
                 console.log(t('chat.messageSuccess'));
-                return true;
+                return typeof data.id === 'number' ? data.id : false;
             } else {
                 console.error(t('chat.messageError'), response.status);
                 return false;
@@ -455,138 +593,149 @@ function Chat() {
         }
     }, [API_BASE_URL, t]);
 
-    const uploadAllFiles = useCallback(async () => {
-        if (!selectedChat || selectedFiles.length === 0 || !currentUser) {
-            console.log('Cannot upload files');
-            return;
-        }
-
-        setIsUploading(true);
-        setError(null);
-
-        // Показываем уведомление о начале загрузки
-        setError(t('chat.filesUploading', { count: selectedFiles.length }));
-
+    const deleteMessage = useCallback(async (messageId: number) => {
         try {
-            const uploadedImages: ChatImageThumbnail[] = [];
-
-            for (let i = 0; i < selectedFiles.length; i++) {
-                const file = selectedFiles[i];
-                const fileName = file.name;
-
-                // Создаем временное сообщение с файлом
-                const tempMessageId = Date.now() + i;
-                const tempMessage: Message = {
-                    id: tempMessageId,
-                    sender: "me" as const,
-                    name: getTranslatedFullName(currentUser),
-                    text: '',
-                    type: 'image' as const,
-                    file: file,
-                    status: 'pending' as const,
-                    progress: 10,
-                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    isLocal: true,
-                    createdAt: new Date().toISOString()
-                };
-
-                // Добавляем временное сообщение
-                setMessages(prev => [...prev, tempMessage]);
-
-                // Загружаем файл
-                const imagePath = await uploadImageToChat(selectedChat, file);
-
-                if (imagePath) {
-                    const fullImageUrl = getImageUrl(imagePath);
-
-                    // УДАЛЯЕМ временное сообщение из чата
-                    setMessages(prev => prev.filter(msg => msg.id !== tempMessageId));
-
-                    // Добавляем фото в список миниатюр
-                    const newImage: ChatImageThumbnail = {
-                        id: Date.now() + i,
-                        imageUrl: fullImageUrl,
-                        author: currentUser,
-                        createdAt: new Date().toISOString()
-                    };
-
-                    uploadedImages.push(newImage);
-                } else {
-                    // Если imagePath равен null, но загрузка была успешной (формат 4)
-                    // Просто удаляем временное сообщение
-                    setMessages(prev => prev.filter(msg => msg.id !== tempMessageId));
-                    console.log(`File ${fileName} uploaded successfully (format 4)`);
-                }
+            const token = getAuthToken();
+            if (!token) return;
+            const response = await fetch(`${API_BASE_URL}/api/chat-messages/${messageId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok || response.status === 204) {
+                setMessages(prev => prev.filter(msg => msg.id !== messageId));
+            } else {
+                console.error('Delete failed:', response.status);
             }
-
-            // Если есть загруженные изображения, добавляем их в миниатюры
-            if (uploadedImages.length > 0) {
-                setChatImages(prev => [...uploadedImages, ...prev]);
-            }
-
-            // Очищаем выбранные файлы
-            setSelectedFiles([]);
-
-            // Обновляем данные чата после загрузки всех файлов
-            if (selectedChat) {
-                await fetchChatMessages(selectedChat);
-            }
-
-            setError(t('chat.filesUploadedSuccess', { count: selectedFiles.length }));
-
-        } catch (error) {
-            console.error('Error uploading files:', error);
-            setError(t('chat.uploadError'));
-        } finally {
-            setIsUploading(false);
-            // Через 3 секунды очищаем сообщение об ошибке/успехе
-            setTimeout(() => setError(null), 3000);
+        } catch (err) {
+            console.error('Error deleting message:', err);
         }
-    }, [selectedChat, selectedFiles, currentUser, t, getImageUrl, uploadImageToChat, fetchChatMessages]);
+    }, [API_BASE_URL]);
+
+    const editMessageOnServer = useCallback(async (
+        messageId: number,
+        newText: string,
+        keepImages: { id: number; url: string; name: string }[],
+        newFiles: File[]
+    ): Promise<boolean> => {
+        try {
+            const token = getAuthToken();
+            if (!token || !selectedChat) return false;
+            const response = await fetch(`${API_BASE_URL}/api/chat-messages/${messageId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/merge-patch+json'
+                },
+                body: JSON.stringify({
+                    text: newText,
+                    chat: `/api/chats/${selectedChat}`,
+                    images: keepImages.map(img => ({ image: img.name }))
+                })
+            });
+            if (response.ok) {
+                for (const file of newFiles) {
+                    await uploadImageToMessage(messageId, file);
+                }
+                return true;
+            }
+            return false;
+        } catch (err) {
+            console.error('Error editing message:', err);
+            return false;
+        }
+    }, [API_BASE_URL, selectedChat, uploadImageToMessage]);
+
+    const handleEditFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = event.target.files;
+        if (files && files.length > 0) {
+            const validFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+            setEditingNewFiles(prev => [...prev, ...validFiles]);
+        }
+        if (event.target) event.target.value = '';
+    }, []);
+
+    // Загрузка файлов к конкретному сообщению
+    const uploadFilesToMessage = useCallback(async (messageId: number, files: File[]): Promise<void> => {
+        for (const file of files) {
+            await uploadImageToMessage(messageId, file);
+        }
+    }, [uploadImageToMessage]);
 
     const sendMessage = useCallback(async () => {
-        if ((!newMessage.trim() && selectedFiles.length === 0) || !selectedChat || !currentUser) {
+        const isEditMode = !!editingMessage;
+        const hasContent = isEditMode
+            ? (newMessage.trim().length > 0 || editingImages.length > 0 || editingNewFiles.length > 0)
+            : (newMessage.trim().length > 0 || selectedFiles.length > 0);
+        if (!hasContent || !selectedChat || !currentUser) {
             console.log('Cannot send message');
             return;
         }
 
-        // Если есть файлы, сначала загружаем их
-        if (selectedFiles.length > 0) {
-            await uploadAllFiles();
+        // Режим редактирования
+        if (editingMessage) {
+            setIsUploading(true);
+            try {
+                const success = await editMessageOnServer(editingMessage.id, newMessage, editingImages, editingNewFiles);
+                if (success) {
+                    // SSE updated-событие обновит сообщение, нам нужно только сбросить UI
+                    setEditingMessage(null);
+                    setEditingImages([]);
+                    setEditingNewFiles([]);
+                    setNewMessage("");
+                }
+            } finally {
+                setIsUploading(false);
+            }
+            return;
         }
 
-        // Если есть текстовое сообщение, отправляем его
-        if (newMessage.trim()) {
-            const tempMessageId = Date.now();
-            const now = new Date();
-            const tempMessage: Message = {
-                id: tempMessageId,
-                sender: "me" as const,
-                name: getTranslatedFullName(currentUser),
-                text: newMessage,
-                type: 'text' as const,
-                time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                isLocal: true,
-                createdAt: now.toISOString()
-            };
+        const text = newMessage.trim();
+        const capturedReplyId = replyToMessage?.id;
+        const filesToUpload = [...selectedFiles];
 
-            // Добавляем временное сообщение
-            setMessages(prev => [...prev, tempMessage]);
+        // Добавляем временное сообщение в UI
+        const tempMessageId = Date.now();
+        const now = new Date();
+        const tempMessage: Message = {
+            id: tempMessageId,
+            sender: "me" as const,
+            name: getTranslatedFullName(currentUser),
+            text: text || '',
+            type: 'text' as const,
+            time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            isLocal: true,
+            createdAt: now.toISOString(),
+            replyTo: replyToMessage ? { id: replyToMessage.id, text: replyToMessage.text, name: replyToMessage.name } : undefined
+        };
 
-            setNewMessage("");
+        setMessages(prev => [...prev, tempMessage]);
+        setNewMessage("");
+        setReplyToMessage(null);
+        setSelectedFiles([]);
 
-            // Отправляем на сервер
-            const success = await sendMessageToServer(selectedChat, newMessage);
+        // Отправляем сообщение на сервер (даже если текст пустой — для файлов нужен ID)
+        const messageId = await sendMessageToServer(selectedChat, text, capturedReplyId);
 
-            if (!success) {
-                setMessages(prev => prev.map(msg =>
-                    msg.id === tempMessageId
-                        ? { ...msg, status: 'error' as const }
-                        : msg
-                ));
+        if (messageId === false) {
+            setMessages(prev => prev.map(msg =>
+                msg.id === tempMessageId ? { ...msg, status: 'error' as const } : msg
+            ));
+            return;
+        }
+
+        // Если есть файлы — загружаем к только что созданному сообщению
+        if (filesToUpload.length > 0) {
+            setIsUploading(true);
+            try {
+                await uploadFilesToMessage(messageId, filesToUpload);
+                // После загрузки файлов освежаем чат чтобы синхронизировать thumbnail-панель
+                await fetchChatMessages(selectedChat);
+            } finally {
+                setIsUploading(false);
             }
         }
-    }, [newMessage, selectedFiles, selectedChat, currentUser, uploadAllFiles, sendMessageToServer, setNewMessage]);
+        // SSE created-событие доставит итоговое сообщение (текст без файлов)
+    }, [newMessage, selectedFiles, selectedChat, currentUser, sendMessageToServer, editingMessage, editMessageOnServer, editingImages, editingNewFiles, replyToMessage, getTranslatedFullName, uploadFilesToMessage, fetchChatMessages]);
 
 
 
@@ -899,8 +1048,9 @@ function Chat() {
             return msg.text.length > 30 ? msg.text.substring(0, 30) + '...' : msg.text;
         }
 
-        if (chat.images && chat.images.length > 0) {
-            // Не показываем "Фото" в последнем сообщении, если есть только изображения
+        // Проверяем есть ли фото в любом из сообщений
+        const hasImages = chat.messages?.some(m => m.images && m.images.length > 0);
+        if (hasImages) {
             const lastTextMsg = chat.messages?.find(m => m.text && m.text.trim());
             if (lastTextMsg) {
                 return lastTextMsg.text.length > 30 ? lastTextMsg.text.substring(0, 30) + '...' : lastTextMsg.text;
@@ -957,6 +1107,14 @@ function Chat() {
                 ref={fileInputRef}
                 style={{ display: 'none' }}
                 onChange={handleFileSelect}
+                multiple
+                accept="image/*"
+            />
+            <input
+                type="file"
+                ref={editFileInputRef}
+                style={{ display: 'none' }}
+                onChange={handleEditFileSelect}
                 multiple
                 accept="image/*"
             />
@@ -1153,82 +1311,96 @@ function Chat() {
                                 ) : (
                                     <div className={styles.messagesContainer}>
                                         {messages.map(msg => {
-                                            // Показываем только текстовые сообщения и временные сообщения с ошибками
-                                            if (msg.type === 'image') {
-                                                // Загружающиеся (локальные)
-                                                if (msg.status === 'pending' || msg.status === 'uploading') {
-                                                    return (
-                                                        <div
-                                                            key={msg.id}
-                                                            className={`${styles.message} ${msg.sender === "me" ? styles.myMessage : styles.theirMessage}`}
-                                                        >
-                                                            <div className={styles.messageContent}>
-                                                                <div className={styles.uploadingImage}>
-                                                                    {msg.file && msg.file.type.startsWith('image/') && (
-                                                                        <img
-                                                                            src={URL.createObjectURL(msg.file)}
-                                                                            alt={t('chat.uploading', { progress: msg.progress || 0 })}
-                                                                            className={styles.uploadingImagePreview}
+                                            // Временные локальные ожидающие загрузки файлов
+                                            if (msg.type === 'image' && (msg.status === 'pending' || msg.status === 'uploading')) {
+                                                return (
+                                                    <div
+                                                        key={msg.id}
+                                                        className={`${styles.message} ${msg.sender === "me" ? styles.myMessage : styles.theirMessage}`}
+                                                    >
+                                                        <div className={styles.messageContent}>
+                                                            <div className={styles.uploadingImage}>
+                                                                {msg.file && msg.file.type.startsWith('image/') && (
+                                                                    <img
+                                                                        src={URL.createObjectURL(msg.file)}
+                                                                        alt={t('chat.uploading', { progress: msg.progress || 0 })}
+                                                                        className={styles.uploadingImagePreview}
+                                                                    />
+                                                                )}
+                                                                <div className={styles.uploadingOverlay}>
+                                                                    <div className={styles.uploadingProgress}>
+                                                                        <div
+                                                                            className={styles.uploadingProgressBar}
+                                                                            style={{ width: `${msg.progress || 0}%` }}
                                                                         />
-                                                                    )}
-                                                                    <div className={styles.uploadingOverlay}>
-                                                                        <div className={styles.uploadingProgress}>
-                                                                            <div
-                                                                                className={styles.uploadingProgressBar}
-                                                                                style={{ width: `${msg.progress || 0}%` }}
-                                                                            />
-                                                                        </div>
-                                                                        <div className={styles.uploadingText}>
-                                                                            {msg.status === 'pending' ? t('chat.waiting') : t('chat.uploading', { progress: msg.progress || 0 })}
-                                                                        </div>
+                                                                    </div>
+                                                                    <div className={styles.uploadingText}>
+                                                                        {msg.status === 'pending' ? t('chat.waiting') : t('chat.uploading', { progress: msg.progress || 0 })}
                                                                     </div>
                                                                 </div>
-                                                                <div className={styles.messageTime}>{msg.time}</div>
                                                             </div>
+                                                            <div className={styles.messageTime}>{msg.time}</div>
                                                         </div>
-                                                    );
-                                                }
-                                                // Загруженные — показываем инлайн
-                                                if (msg.imageUrl) {
-                                                    return (
-                                                        <div
-                                                            key={msg.id}
-                                                            className={`${styles.message} ${msg.sender === "me" ? styles.myMessage : styles.theirMessage}`}
-                                                        >
-                                                            {msg.sender === "other" && (
-                                                                <div className={styles.messageName}>{msg.name}</div>
-                                                            )}
-                                                            <div className={styles.messageContent}>
-                                                                <img
-                                                                    src={msg.imageUrl}
-                                                                    alt=""
-                                                                    className={styles.messageImage}
-                                                                    onClick={() => {
-                                                                        const idx = chatImages.findIndex(ci => ci.imageUrl === msg.imageUrl);
-                                                                        photoGallery.openGallery(idx >= 0 ? idx : 0);
-                                                                    }}
-                                                                    style={{ cursor: 'pointer' }}
-                                                                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                                                                />
-                                                                <div className={styles.messageTime}>{msg.time}</div>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                }
-                                                return null;
+                                                    </div>
+                                                );
                                             }
 
                                             return (
                                                 <div
                                                     key={msg.id}
-                                                    className={`${styles.message} ${msg.sender === "me" ? styles.myMessage : styles.theirMessage}`}
+                                                    className={`${styles.messageWrapper} ${msg.sender === "me" ? styles.myWrapper : ''}`}
                                                 >
-                                                    {msg.sender === "other" && (
-                                                        <div className={styles.messageName}>{msg.name}</div>
-                                                    )}
-                                                    <div className={styles.messageContent}>
-                                                        <div className={styles.messageText}>{msg.text}</div>
-                                                        <div className={styles.messageTime}>{msg.time}</div>
+                                                    <div className={styles.messageActions}>
+                                                        <button className={styles.actionBtn} onClick={() => { setReplyToMessage(msg); messageInputRef.current?.focus(); }} title="Ответить">
+                                                            <IoArrowUndoSharp />
+                                                        </button>
+                                                        {msg.sender === "me" && !msg.isLocal && (
+                                                            <>
+                                                                <button className={styles.actionBtn} onClick={() => { setEditingMessage(msg); setNewMessage(msg.text); setEditingImages(msg.images || []); setEditingNewFiles([]); messageInputRef.current?.focus(); }} title="Редактировать">
+                                                                    <IoPencilSharp />
+                                                                </button>
+                                                                <button className={`${styles.actionBtn} ${styles.deleteMsgBtn}`} onClick={() => deleteMessage(msg.id)} title="Удалить">
+                                                                    <IoTrashSharp />
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                    <div className={`${styles.message} ${msg.sender === "me" ? styles.myMessage : styles.theirMessage}`}>
+                                                        {msg.sender === "other" && (
+                                                            <div className={styles.messageName}>{msg.name}</div>
+                                                        )}
+                                                        {msg.replyTo && (
+                                                            <div className={styles.replyQuote}>
+                                                                <div className={styles.replyQuoteName}>{msg.replyTo.name}</div>
+                                                                <div className={styles.replyQuoteText}>
+                                                                    {msg.replyTo.text.length > 80 ? msg.replyTo.text.substring(0, 80) + '…' : msg.replyTo.text}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        {msg.images && msg.images.length > 0 && (
+                                                            <div className={`${styles.messageImagesGrid} ${msg.images.length === 1 ? styles.messageImages1 : msg.images.length === 2 ? styles.messageImages2 : styles.messageImages3}`}>
+                                                                {msg.images.map((img) => (
+                                                                    <img
+                                                                        key={img.id}
+                                                                        src={img.url}
+                                                                        alt=""
+                                                                        className={styles.messageGridImage}
+                                                                        onClick={() => {
+                                                                            const galleryIdx = chatImages.findIndex(ci => ci.imageUrl === img.url);
+                                                                            photoGallery.openGallery(galleryIdx >= 0 ? galleryIdx : 0);
+                                                                        }}
+                                                                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                                                                    />
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                        <div className={styles.messageContent}>
+                                                            {msg.text && <div className={styles.messageText}>{msg.text}</div>}
+                                                            <div className={styles.messageTime}>
+                                                                {msg.time}
+                                                                {msg.edited && <span className={styles.editedBadge}> • изм.</span>}
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             );
@@ -1280,6 +1452,78 @@ function Chat() {
                             )}
                         </div>
 
+                        {(replyToMessage || editingMessage) && !currentChat?.isArchived && (
+                            <div className={styles.replyBar}>
+                                <div className={styles.replyBarContent}>
+                                    {replyToMessage ? (
+                                        <>
+                                            <IoArrowUndoSharp className={styles.replyBarIcon} />
+                                            <div className={styles.replyBarText}>
+                                                <span className={styles.replyBarName}>{replyToMessage.name}</span>
+                                                <span className={styles.replyBarMessage}>
+                                                    {replyToMessage.text.length > 60 ? replyToMessage.text.substring(0, 60) + '…' : replyToMessage.text}
+                                                </span>
+                                            </div>
+                                        </>
+                                    ) : editingMessage && (
+                                        <>
+                                            <IoPencilSharp className={styles.replyBarIcon} />
+                                            <div className={styles.editBarBody}>
+                                                <div className={styles.replyBarText}>
+                                                    <span className={styles.replyBarName}>{t('chat.editing')}</span>
+                                                    <span className={styles.replyBarMessage}>
+                                                        {editingMessage.text.length > 40 ? editingMessage.text.substring(0, 40) + '…' : editingMessage.text || (Λ => Λ > 0 ? `🖼️ ${editingImages.length + editingNewFiles.length}` : '')(editingImages.length + editingNewFiles.length)}
+                                                    </span>
+                                                </div>
+                                                {(editingImages.length > 0 || editingNewFiles.length > 0) && (
+                                                    <div className={styles.editingPhotos}>
+                                                        {editingImages.map(img => (
+                                                            <div key={img.id} className={styles.editingPhotoItem}>
+                                                                <img src={img.url} alt="" className={styles.editingPhotoThumb} />
+                                                                <button
+                                                                    className={styles.editingPhotoRemove}
+                                                                    onClick={() => setEditingImages(prev => prev.filter(i => i.id !== img.id))}
+                                                                    title="Удалить фото"
+                                                                ><IoClose /></button>
+                                                            </div>
+                                                        ))}
+                                                        {editingNewFiles.map((file, idx) => (
+                                                            <div key={idx} className={styles.editingPhotoItem}>
+                                                                <img src={URL.createObjectURL(file)} alt="" className={styles.editingPhotoThumb} />
+                                                                <button
+                                                                    className={styles.editingPhotoRemove}
+                                                                    onClick={() => setEditingNewFiles(prev => prev.filter((_, i) => i !== idx))}
+                                                                    title="Убрать"
+                                                                ><IoClose /></button>
+                                                            </div>
+                                                        ))}
+                                                        <button
+                                                            className={styles.editingPhotoAdd}
+                                                            onClick={() => editFileInputRef.current?.click()}
+                                                            title="Добавить фото"
+                                                        ><IoAttach /></button>
+                                                    </div>
+                                                )}
+                                                {editingImages.length === 0 && editingNewFiles.length === 0 && (
+                                                    <button
+                                                        className={styles.editingPhotoAddInline}
+                                                        onClick={() => editFileInputRef.current?.click()}
+                                                        title="Добавить фото"
+                                                    ><IoAttach /> фото</button>
+                                                )}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                                <button
+                                    className={styles.replyBarClose}
+                                    onClick={() => { setReplyToMessage(null); setEditingMessage(null); setEditingImages([]); setEditingNewFiles([]); setNewMessage(""); }}
+                                    aria-label="Отменить"
+                                >
+                                    <IoClose />
+                                </button>
+                            </div>
+                        )}
                         <div className={styles.chatInput}>
                             <button
                                 className={styles.attachButton}
@@ -1313,7 +1557,9 @@ function Chat() {
                             <button
                                 className={styles.sendButton}
                                 onClick={sendMessage}
-                                disabled={(!newMessage.trim() && selectedFiles.length === 0) || isUploading || currentChat?.isArchived}
+                                disabled={(editingMessage
+                                    ? (!newMessage.trim() && editingImages.length === 0 && editingNewFiles.length === 0)
+                                    : (!newMessage.trim() && selectedFiles.length === 0)) || isUploading || currentChat?.isArchived}
                                 aria-label={t('chat.sendMessage')}
                             >
                                 <IoSend />

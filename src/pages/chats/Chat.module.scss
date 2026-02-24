@@ -492,6 +492,276 @@
     }
   }
 
+  /* === MESSAGE WRAPPER с кнопками действий === */
+  .messageWrapper {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 6px;
+
+    &.myWrapper {
+      flex-direction: row-reverse;
+    }
+
+    .messageActions {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      flex-shrink: 0;
+    }
+
+    &:hover .messageActions {
+      opacity: 1;
+    }
+
+    @media (max-width: 480px) {
+      .messageActions {
+        opacity: 1;
+        flex-direction: row;
+      }
+    }
+  }
+
+  .actionBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    border-radius: 50%;
+    cursor: pointer;
+    color: #888;
+    transition: background 0.15s, color 0.15s;
+    padding: 0;
+    touch-action: manipulation;
+
+    &:hover {
+      background: #e8edff;
+      color: #3A54DA;
+    }
+
+    &:active {
+      transform: scale(0.9);
+    }
+
+    @media (max-width: 480px) {
+      width: 24px;
+      height: 24px;
+      font-size: 12px;
+    }
+  }
+
+  .deleteMsgBtn {
+    &:hover {
+      background: #ffe8e8;
+      color: #e53935;
+    }
+  }
+
+  /* === REPLY QUOTE внутри сообщения === */
+  .replyQuote {
+    border-left: 3px solid #3A54DA;
+    padding: 5px 10px;
+    margin-bottom: 6px;
+    border-radius: 4px;
+    background: rgba(58, 84, 218, 0.08);
+    max-width: 100%;
+    overflow: hidden;
+
+    .replyQuoteName {
+      font-size: 12px;
+      font-weight: 600;
+      color: #3A54DA;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .replyQuoteText {
+      font-size: 12px;
+      color: #666;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  /* === EDITED BADGE === */
+  .editedBadge {
+    font-size: 10px;
+    opacity: 0.65;
+    font-style: italic;
+  }
+
+  /* === REPLY / EDIT BAR над инпутом === */
+  .replyBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    background: #f0f3ff;
+    border-top: 1px solid #d6dcf5;
+    border-radius: 12px 12px 0 0;
+    gap: 8px;
+
+    .replyBarContent {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .replyBarIcon {
+      flex-shrink: 0;
+      color: #3A54DA;
+      font-size: 16px;
+    }
+
+    .replyBarText {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+
+      .replyBarName {
+        font-size: 12px;
+        font-weight: 600;
+        color: #3A54DA;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .replyBarMessage {
+        font-size: 12px;
+        color: #666;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+
+    .replyBarClose {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border: none;
+      background: transparent;
+      border-radius: 50%;
+      cursor: pointer;
+      color: #888;
+      padding: 0;
+      touch-action: manipulation;
+
+      &:hover {
+        background: #e0e4f5;
+        color: #333;
+      }
+
+      &:active {
+        transform: scale(0.9);
+      }
+    }
+
+    // Контент режима редактирования
+    .editBarBody {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .editingPhotos {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+
+      &::-webkit-scrollbar { height: 3px; }
+      &::-webkit-scrollbar-thumb { background: #c0c8e8; border-radius: 3px; }
+    }
+
+    .editingPhotoItem {
+      position: relative;
+      flex-shrink: 0;
+      width: 44px;
+      height: 44px;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .editingPhotoThumb {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .editingPhotoRemove {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(0, 0, 0, 0.55);
+      color: #fff;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+
+      &:hover { background: rgba(220, 50, 50, 0.85); }
+    }
+
+    .editingPhotoAdd {
+      flex-shrink: 0;
+      width: 44px;
+      height: 44px;
+      border-radius: 6px;
+      border: 1.5px dashed #99a8e8;
+      background: transparent;
+      color: #3A54DA;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      touch-action: manipulation;
+
+      &:hover { background: #e8edff; }
+    }
+
+    .editingPhotoAddInline {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: #3A54DA;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 2px 0;
+      touch-action: manipulation;
+
+      &:hover { text-decoration: underline; }
+    }
+  }
+
   .date {
     align-self: center;
     background: #e8edff;
@@ -968,7 +1238,6 @@
   }
 }
 
-// Стили для сообщений с изображениями
 .messageImage {
   display: block;
   max-width: 260px;
@@ -980,6 +1249,58 @@
   @media (max-width: 480px) {
     max-width: 180px;
     max-height: 200px;
+  }
+}
+
+// Сетка фотографий внутри сообщения
+.messageImagesGrid {
+  display: grid;
+  gap: 3px;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 4px;
+  width: fit-content;
+  max-width: 260px;
+
+  @media (max-width: 480px) {
+    max-width: 200px;
+  }
+}
+
+.messageImages1 {
+  grid-template-columns: 1fr;
+}
+
+.messageImages2 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.messageImages3 {
+  grid-template-columns: 1fr 1fr;
+  grid-auto-rows: auto;
+}
+
+.messageGridImage {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  cursor: pointer;
+  display: block;
+  transition: opacity 0.15s;
+
+  &:hover {
+    opacity: 0.9;
+  }
+
+  .messageImages1 & {
+    aspect-ratio: auto;
+    max-height: 280px;
+    object-fit: contain;
+    background: rgba(0, 0, 0, 0.04);
+
+    @media (max-width: 480px) {
+      max-height: 200px;
+    }
   }
 }
 
@@ -1979,5 +2300,61 @@
     background: var(--color-background-secondary);
     border-bottom-color: var(--color-stroke);
     color: var(--color-actual-blue);
+  }
+
+  .actionBtn {
+    color: var(--color-text-secondary);
+
+    &:hover {
+      background: var(--color-background-secondary);
+      color: var(--color-actual-blue);
+    }
+  }
+
+  .replyQuote {
+    background: rgba(58, 84, 218, 0.1);
+
+    .replyQuoteName {
+      color: var(--color-actual-blue);
+    }
+
+    .replyQuoteText {
+      color: var(--color-text-secondary);
+    }
+  }
+
+  .replyBar {
+    background: var(--color-background-secondary);
+    border-top-color: var(--color-border-light);
+
+    .replyBarClose {
+      color: var(--color-text-secondary);
+
+      &:hover {
+        background: var(--color-background-all);
+        color: var(--color-text-primary);
+      }
+    }
+
+    .replyBarName { color: var(--color-actual-blue); }
+    .replyBarMessage { color: var(--color-text-secondary); }
+
+    .editingPhotoAdd {
+      border-color: var(--color-stroke);
+      color: var(--color-actual-blue);
+      &:hover { background: var(--color-background-all); }
+    }
+
+    .editingPhotoAddInline {
+      color: var(--color-actual-blue);
+    }
+  }
+
+  .messageImagesGrid {
+    .messageGridImage {
+      .messageImages1 & {
+        background: var(--color-background-secondary);
+      }
+    }
   }
 }
