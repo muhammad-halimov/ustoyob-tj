@@ -26,6 +26,7 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
+use Symfony\Component\Serializer\Attribute\SerializedName;
 
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Entity(repositoryClass: ChatRepository::class)]
@@ -205,6 +206,31 @@ class Chat
         }
 
         return $this;
+    }
+
+    /**
+     * Returns all ChatImage objects from all messages, sorted newest first.
+     *
+     * @return ChatImage[]
+     */
+    #[Groups([
+        'chats:read',
+    ])]
+    #[SerializedName('images')]
+    #[ApiProperty(writable: false)]
+    public function getImages(): array
+    {
+        $images = [];
+
+        foreach ($this->messages as $message) {
+            foreach ($message->getChatImages() as $image) {
+                $images[] = $image;
+            }
+        }
+
+        usort($images, fn(ChatImage $a, ChatImage $b) => $b->getCreatedAt() <=> $a->getCreatedAt());
+
+        return $images;
     }
 
     public function getCreatedAt(): DateTime
