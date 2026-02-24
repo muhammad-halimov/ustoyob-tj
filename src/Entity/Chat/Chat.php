@@ -10,6 +10,7 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\Chat\Chat\DeleteChatController;
+use App\Controller\Api\CRUD\Chat\Chat\GetChatSubscribeTokenController;
 use App\Controller\Api\CRUD\Chat\Chat\PatchChatController;
 use App\Controller\Api\CRUD\Chat\Chat\PostChatController;
 use App\Controller\Api\Filter\Chat\ChatFilterController;
@@ -36,6 +37,13 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             uriTemplate: '/chats/{id}',
             requirements: ['id' => '\d+'],
             controller: ChatFilterController::class,
+        ),
+        // [MERCURE] Эндпоинт для получения подписного JWT-токена.
+        // Фронтенд вызывает его перед открытием SSE-соединения.
+        new Get(
+            uriTemplate: '/chats/{id}/subscribe',
+            requirements: ['id' => '\d+'],
+            controller: GetChatSubscribeTokenController::class,
         ),
         new GetCollection(
             uriTemplate: '/chats/me',
@@ -307,5 +315,20 @@ class Chat
     {
         $this->active = $active;
         return $this;
+    }
+
+    /**
+     * [MERCURE] Возвращает имя топика этого чата.
+     *
+     * Это виртуальное поле — в БД не хранится, вычисляется на лету.
+     * Попадает в JSON-ответ как "mercureTopic": "chat:42".
+     * Фронтенд читает его из ответа GET /api/chats/{id} и сразу знает,
+     * на какой топик подписываться — без хардкода на клиенте.
+     */
+    #[Groups(['chats:read', 'chatMessages:read'])]
+    #[SerializedName('mercureTopic')]
+    public function getMercureTopic(): string
+    {
+        return "chat:{$this->id}";
     }
 }

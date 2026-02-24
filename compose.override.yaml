@@ -16,3 +16,11 @@ services:
       MP_SMTP_AUTH_ACCEPT_ANY: 1
       MP_SMTP_AUTH_ALLOW_INSECURE: 1
 ###< symfony/mailer ###
+
+###> symfony/mercure-bundle ###
+  mercure:
+    ports:
+      # Порт доступен только с localhost — Nginx проксирует снаружи.
+      # Локально: http://localhost:9090/.well-known/mercure
+      - "127.0.0.1:9090:80"
+###< symfony/mercure-bundle ###
