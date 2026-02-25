@@ -122,4 +122,21 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
             ->getQuery()
             ->getOneOrNullResult();
     }
+
+    /**
+     * Возвращает пользователей, помеченных как online,
+     * у которых lastSeen раньше указанного порога.
+     * Используется командой app:mark-users-offline.
+     *
+     * @return User[]
+     */
+    public function findOnlineUsersLastSeenBefore(\DateTimeImmutable $threshold): array
+    {
+        return $this->createQueryBuilder('u')
+            ->where('u.isOnline = true')
+            ->andWhere('u.lastSeen < :threshold')
+            ->setParameter('threshold', $threshold)
+            ->getQuery()
+            ->getResult();
+    }
 }

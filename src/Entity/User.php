@@ -51,6 +51,7 @@ use App\Repository\UserRepository;
 use App\State\Localization\Geography\UserGeographyLocalizationProvider;
 use App\Validator\Constraints as AppAssert;
 use DateTime;
+use DateTimeImmutable;
 use Deprecated;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -487,6 +488,28 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     ])]
     #[ApiProperty(writable: false)]
     private bool $approved = false;
+
+    #[ORM\Column(type: 'boolean', nullable: false, options: ['default' => false])]
+    #[Groups([
+        'masters:read',
+        'clients:read',
+        'chats:read',
+        'chatMessages:read',
+        'user:public:read',
+    ])]
+    #[ApiProperty(writable: false)]
+    private bool $isOnline = false;
+
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    #[Groups([
+        'masters:read',
+        'clients:read',
+        'chats:read',
+        'chatMessages:read',
+        'user:public:read',
+    ])]
+    #[ApiProperty(writable: false)]
+    private ?DateTimeImmutable $lastSeen = null;
 
     /**
      * @var list<string> The user roles
@@ -1690,6 +1713,28 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setApproved(bool $approved): static
     {
         $this->approved = $approved;
+        return $this;
+    }
+
+    public function isOnline(): bool
+    {
+        return $this->isOnline;
+    }
+
+    public function setIsOnline(bool $isOnline): static
+    {
+        $this->isOnline = $isOnline;
+        return $this;
+    }
+
+    public function getLastSeen(): ?DateTimeImmutable
+    {
+        return $this->lastSeen;
+    }
+
+    public function setLastSeen(?DateTimeImmutable $lastSeen): static
+    {
+        $this->lastSeen = $lastSeen;
         return $this;
     }
 
