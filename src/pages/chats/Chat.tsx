@@ -127,6 +127,8 @@ function Chat() {
     const tokenRefreshRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const startSSERef = useRef<((chatId: number) => Promise<void>) | null>(null);
     const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const heartbeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const chatsRef = useRef<ApiChat[]>([]);
     const searchInputRef = useRef<HTMLInputElement>(null);
     const messageInputRef = useRef<HTMLInputElement>(null);
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -410,6 +412,14 @@ function Chat() {
             // 3. Открываем SSE-соединение
             const hubUrl = new URL(MERCURE_HUB_URL);
             hubUrl.searchParams.append('topic', topic);
+            // Add interlocutor presence topic
+            const chatForPresence = chatsRef.current.find(c => c.id === chatId);
+            if (chatForPresence && currentUserRef.current) {
+                const interlocutor = chatForPresence.author.id === currentUserRef.current.id
+                    ? chatForPresence.replyAuthor
+                    : chatForPresence.author;
+                hubUrl.searchParams.append('topic', `user-status:${interlocutor.id}`);
+            }
             hubUrl.searchParams.append('authorization', mercureToken);
 
             const es = new EventSource(hubUrl.toString());
@@ -419,20 +429,20 @@ function Chat() {
             es.onmessage = (event) => {
                 try {
                     const payload = JSON.parse(event.data) as {
-                        type: 'created' | 'updated' | 'deleted' | 'presence';
-                        data: ApiMessage | { id: number; chatId: number } | { userId: number; isOnline: boolean; lastSeen?: string };
+                        type: 'created' | 'updated' | 'deleted' | 'online' | 'offline';
+                        data: ApiMessage | { id: number; chatId: number } | { id: number; isOnline: boolean; lastSeen: string | null };
                     };
                     const { type, data } = payload;
                     const user = currentUserRef.current;
 
-                    if (type === 'presence') {
-                        const p = data as { userId: number; isOnline: boolean; lastSeen?: string };
+                    if (type === 'online' || type === 'offline') {
+                        const p = data as { id: number; isOnline: boolean; lastSeen: string | null };
                         setChats(prev => prev.map(chat => ({
                             ...chat,
-                            author: chat.author.id === p.userId
+                            author: chat.author.id === p.id
                                 ? { ...chat.author, isOnline: p.isOnline, ...(p.lastSeen ? { lastSeen: p.lastSeen } : {}) }
                                 : chat.author,
-                            replyAuthor: chat.replyAuthor.id === p.userId
+                            replyAuthor: chat.replyAuthor.id === p.id
                                 ? { ...chat.replyAuthor, isOnline: p.isOnline, ...(p.lastSeen ? { lastSeen: p.lastSeen } : {}) }
                                 : chat.replyAuthor,
                         })));
@@ -556,6 +566,52 @@ function Chat() {
 
     // Синхронизируем ref чтобы setTimeout всегда вызывал актуальную версию startSSE
     useEffect(() => { startSSERef.current = startSSE; }, [startSSE]);
+
+    // Синхронизируем chatsRef чтобы startSSE мог получить актуальный список чатов
+    useEffect(() => { chatsRef.current = chats; }, [chats]);
+
+    // ===== PRESENCE (ОНЛАЙН/ОФЛАЙН) =====
+    // Ping-based presence: POST /api/users/ping every 30s, POST /api/users/offline on leave
+    useEffect(() => {
+        if (!currentUser) return;
+        const token = getAuthToken();
+        if (!token) return;
+
+        const pingUrl = `${API_BASE_URL}/api/users/ping`;
+        const offlineUrl = `${API_BASE_URL}/api/users/offline`;
+
+        const doPing = () => {
+            const t = getAuthToken();
+            if (t) fetch(pingUrl, { method: 'POST', headers: { 'Authorization': `Bearer ${t}` } }).catch(() => {});
+        };
+
+        const markOffline = () => {
+            const t = getAuthToken();
+            if (t) fetch(offlineUrl, { method: 'POST', headers: { 'Authorization': `Bearer ${t}` }, keepalive: true }).catch(() => {});
+        };
+
+        // Initial ping
+        doPing();
+
+        // Heartbeat every 30s
+        heartbeatIntervalRef.current = setInterval(doPing, 30_000);
+
+        const handleVisibility = () => {
+            if (document.visibilityState === 'hidden') markOffline();
+            else doPing();
+        };
+
+        window.addEventListener('beforeunload', markOffline);
+        document.addEventListener('visibilitychange', handleVisibility);
+
+        return () => {
+            if (heartbeatIntervalRef.current) { clearInterval(heartbeatIntervalRef.current); heartbeatIntervalRef.current = null; }
+            window.removeEventListener('beforeunload', markOffline);
+            document.removeEventListener('visibilitychange', handleVisibility);
+            markOffline();
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentUser?.id]);
 
     const getInterlocutorFromChat = useCallback((chat: ApiChat | undefined): ApiUser | null => {
         if (!chat || !currentUser) return null;
