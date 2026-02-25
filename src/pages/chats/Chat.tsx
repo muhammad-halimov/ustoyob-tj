@@ -1350,21 +1350,6 @@ function Chat() {
                                                     key={msg.id}
                                                     className={`${styles.messageWrapper} ${msg.sender === "me" ? styles.myWrapper : ''}`}
                                                 >
-                                                    <div className={styles.messageActions}>
-                                                        <button className={styles.actionBtn} onClick={() => { setReplyToMessage(msg); messageInputRef.current?.focus(); }} title="Ответить">
-                                                            <IoArrowUndoSharp />
-                                                        </button>
-                                                        {msg.sender === "me" && !msg.isLocal && (
-                                                            <>
-                                                                <button className={styles.actionBtn} onClick={() => { setEditingMessage(msg); setNewMessage(msg.text); setEditingImages(msg.images || []); setEditingNewFiles([]); messageInputRef.current?.focus(); }} title="Редактировать">
-                                                                    <IoPencilSharp />
-                                                                </button>
-                                                                <button className={`${styles.actionBtn} ${styles.deleteMsgBtn}`} onClick={() => deleteMessage(msg.id)} title="Удалить">
-                                                                    <IoTrashSharp />
-                                                                </button>
-                                                            </>
-                                                        )}
-                                                    </div>
                                                     <div className={`${styles.message} ${msg.sender === "me" ? styles.myMessage : styles.theirMessage}`}>
                                                         {msg.sender === "other" && (
                                                             <div className={styles.messageName}>{msg.name}</div>
@@ -1401,6 +1386,21 @@ function Chat() {
                                                                 {msg.edited && <span className={styles.editedBadge}> • изм.</span>}
                                                             </div>
                                                         </div>
+                                                    </div>
+                                                    <div className={styles.messageActions}>
+                                                        <button className={styles.actionBtn} onClick={() => { setReplyToMessage(msg); messageInputRef.current?.focus(); }} title="Ответить">
+                                                            <IoArrowUndoSharp />
+                                                        </button>
+                                                        {msg.sender === "me" && !msg.isLocal && (
+                                                            <>
+                                                                <button className={styles.actionBtn} onClick={() => { setEditingMessage(msg); setNewMessage(msg.text); setEditingImages(msg.images || []); setEditingNewFiles([]); messageInputRef.current?.focus(); }} title="Редактировать">
+                                                                    <IoPencilSharp />
+                                                                </button>
+                                                                <button className={`${styles.actionBtn} ${styles.deleteMsgBtn}`} onClick={() => deleteMessage(msg.id)} title="Удалить">
+                                                                    <IoTrashSharp />
+                                                                </button>
+                                                            </>
+                                                        )}
                                                     </div>
                                                 </div>
                                             );

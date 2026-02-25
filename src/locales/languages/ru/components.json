@@ -114,6 +114,7 @@
     "filesSelected": "Выбрано файлов",
     "clearFiles": "Очистить",
     "noMessages": "Начните чат",
+    "editing": "Редактирование",
     "archivedChatNote": "Этот чат находится в архиве. Новые сообщения не отправляются.",
     "uploadingFiles": "Загрузка файлов...",
     "filesUploading": "Начинается загрузка {{count}} файлов...",

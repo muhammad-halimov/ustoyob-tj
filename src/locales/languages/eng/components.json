@@ -114,6 +114,7 @@
     "filesSelected": "Files selected",
     "clearFiles": "Clear",
     "noMessages": "Start chat",
+    "editing": "Editing",
     "archivedChatNote": "This chat is archived. New messages are not sent.",
     "uploadingFiles": "Uploading files...",
     "filesUploading": "Starting upload of {{count}} files...",

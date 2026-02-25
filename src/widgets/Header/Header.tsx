@@ -169,108 +169,14 @@ function Header({ onOpenAuthModal }: HeaderProps) {
         return () => media.removeEventListener("change", handler);
     }, []);
 
-    useEffect(() => {
-        const checkForRoleSelection = async () => {
-            const token = getAuthToken();
-            if (token) {
-                const needsRole = await checkIfNeedsRoleSelection(token);
-                console.log('Needs role selection:', needsRole);
-                if (needsRole && onOpenAuthModal) {
-                    console.log('Opening modal for role selection');
-                    onOpenAuthModal();
-                }
-            }
-        };
+    // Единый запрос /api/users/me — используется и для баннера, и для проверки роли
+    const fetchAndHandleUserData = async (opts: { checkRole?: boolean } = {}) => {
+        const token = getAuthToken();
+        if (!token) {
+            setShowConfirmationBanner(false);
+            return;
+        }
 
-        checkForRoleSelection();
-
-        const handleAuthChange = () => {
-            setTimeout(() => {
-                checkForRoleSelection();
-            }, 1000);
-        };
-
-        window.addEventListener('login', handleAuthChange);
-
-        return () => {
-            window.removeEventListener('login', handleAuthChange);
-        };
-    }, [onOpenAuthModal]);
-
-
-    useEffect(() => {
-        const checkAccountConfirmation = async () => {
-            const token = getAuthToken();
-            console.log('Token from localStorage:', token);
-
-            if (!token) {
-                console.log('No token found, hiding banner');
-                setShowConfirmationBanner(false);
-                return;
-            }
-
-            try {
-                console.log('Fetching fresh user data from server with token:', token.substring(0, 20) + '...');
-
-                const response = await fetch(`${API_BASE_URL}/api/users/me`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token.trim()}`,
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json',
-                    },
-                    credentials: 'include',
-                });
-
-                console.log('Response status:', response.status);
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('Server error:', errorText);
-
-                    if (response.status === 401) {
-                        console.error('Unauthorized: Token is invalid or expired');
-                        const refreshed = await handleUnauthorized();
-                        if (refreshed) {
-                            // Повторяем запрос с новым токеном
-                            checkAccountConfirmation();
-                        } else {
-                            setShowConfirmationBanner(false);
-                        }
-                        return;
-                    }
-
-                    console.log('Cannot fetch user data, hiding banner for safety');
-                    setShowConfirmationBanner(false);
-                    return;
-                }
-
-                const userData: UserData = await response.json();
-                localStorage.setItem('userData', JSON.stringify(userData));
-                setShowConfirmationBanner(userData.approved === false);
-            } catch (error) {
-                console.error('Error checking account confirmation:', error);
-                setShowConfirmationBanner(false);
-            }
-        };
-
-        checkAccountConfirmation();
-        const interval = setInterval(checkAccountConfirmation, 60000);
-        return () => clearInterval(interval);
-    }, [location.pathname]);
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            const token = getAuthToken();
-            if (token) {
-                checkIfNeedsRoleSelection(token);
-            }
-        }, 30000);
-        return () => clearInterval(interval);
-    }, [location.pathname]);
-
-    // Функция для проверки необходимости выбора роли
-    const checkIfNeedsRoleSelection = async (token: string): Promise<boolean> => {
         try {
             const response = await fetch(`${API_BASE_URL}/api/users/me`, {
                 method: 'GET',
@@ -280,29 +186,49 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                 },
             });
 
-            if (response.ok) {
-                const userData: UserData = await response.json();
-                localStorage.setItem('userData', JSON.stringify(userData));
+            if (!response.ok) {
+                if (response.status === 401) {
+                    const refreshed = await handleUnauthorized();
+                    if (refreshed) fetchAndHandleUserData(opts);
+                    else setShowConfirmationBanner(false);
+                } else {
+                    setShowConfirmationBanner(false);
+                }
+                return;
+            }
 
+            const userData: UserData = await response.json();
+            localStorage.setItem('userData', JSON.stringify(userData));
+
+            // Баннер подтверждения аккаунта
+            setShowConfirmationBanner(userData.approved === false);
+
+            // Проверка роли (только при явном запросе — монтирование / login)
+            if (opts.checkRole) {
                 const isGoogleAuth = !!userData.oauthType?.googleId;
                 const hasRole = userData.roles && userData.roles.length > 0;
-
-                console.log('Role check for user:', {
-                    id: userData.id,
-                    isGoogleAuth,
-                    hasRole,
-                    roles: userData.roles,
-                    oauthType: userData.oauthType
-                });
-
-                return isGoogleAuth && !hasRole;
+                if (isGoogleAuth && !hasRole && onOpenAuthModal) {
+                    onOpenAuthModal();
+                }
             }
-            return false;
         } catch (error) {
-            console.error('Error checking user role:', error);
-            return false;
+            console.error('Error fetching user data:', error);
+            setShowConfirmationBanner(false);
         }
     };
+
+    // Запускаем при монтировании и при событии login — с проверкой роли
+    useEffect(() => {
+        fetchAndHandleUserData({ checkRole: true });
+
+        const handleAuthChange = () => {
+            setTimeout(() => fetchAndHandleUserData({ checkRole: true }), 1000);
+        };
+        window.addEventListener('login', handleAuthChange);
+        return () => window.removeEventListener('login', handleAuthChange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [onOpenAuthModal]);
+
 
 
     const handleResendConfirmationFromHeader = async () => {

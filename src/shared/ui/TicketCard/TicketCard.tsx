@@ -14,7 +14,7 @@ export { truncateText };
 interface AnnouncementCardProps {
   title: string;
   description: string;
-  price: number;
+  price: number | null;
   unit: string;
   address: string;
   date: string; // Может быть как отформатированная дата, так и ISO строка
@@ -316,7 +316,7 @@ export function TicketCard({
       </div>
       <div className={`${styles.card_header} ${displayTicketType ? styles.with_ticket_type : ''}`}>
         <h3>{truncateText(translatedTitle, 27)}</h3>
-        <span className={styles.card_price}>{price.toLocaleString('ru-RU')} TJS, {unit}</span>
+        <span className={styles.card_price}>{price != null ? price.toLocaleString('ru-RU') : '—'} TJS, {unit}</span>
       </div>
 
       <p className={styles.card_description}>{truncateText(translatedDescription)}</p>
