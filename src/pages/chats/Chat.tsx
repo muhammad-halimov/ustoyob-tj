@@ -419,11 +419,25 @@ function Chat() {
             es.onmessage = (event) => {
                 try {
                     const payload = JSON.parse(event.data) as {
-                        type: 'created' | 'updated' | 'deleted';
-                        data: ApiMessage | { id: number; chatId: number };
+                        type: 'created' | 'updated' | 'deleted' | 'presence';
+                        data: ApiMessage | { id: number; chatId: number } | { userId: number; isOnline: boolean; lastSeen?: string };
                     };
                     const { type, data } = payload;
                     const user = currentUserRef.current;
+
+                    if (type === 'presence') {
+                        const p = data as { userId: number; isOnline: boolean; lastSeen?: string };
+                        setChats(prev => prev.map(chat => ({
+                            ...chat,
+                            author: chat.author.id === p.userId
+                                ? { ...chat.author, isOnline: p.isOnline, ...(p.lastSeen ? { lastSeen: p.lastSeen } : {}) }
+                                : chat.author,
+                            replyAuthor: chat.replyAuthor.id === p.userId
+                                ? { ...chat.replyAuthor, isOnline: p.isOnline, ...(p.lastSeen ? { lastSeen: p.lastSeen } : {}) }
+                                : chat.replyAuthor,
+                        })));
+                        return;
+                    }
 
                     if (type === 'deleted') {
                         const del = data as { id: number; chatId: number };
