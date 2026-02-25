@@ -49,13 +49,10 @@ class PatchChatMessageController extends AbstractController
         if($chatParam !== null && !$chat)
             return $this->json(['message' => "Chat not found"], 404);
 
-        // Use the existing chat from the message if not provided
-        $chat = $chat ?? $chatMessage->getChat();
-
         if(!$chat)
             return $this->json(['message' => "Chat not found"], 404);
 
-        if(!$text && $imagesParam === null)
+        if (!$text && empty($imagesParam))
             return $this->json(['message' => "Nothing to update"], 400);
 
         if ($chat->getAuthor() !== $bearerUser && $chat->getReplyAuthor() !== $bearerUser)
