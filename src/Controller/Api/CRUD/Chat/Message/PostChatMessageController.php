@@ -31,11 +31,11 @@ class PostChatMessageController extends AbstractController
 
         $data = json_decode($request->getContent(), true);
 
-        $chatParam = $data['chat'];
-        $textParam = $data['text'];
+        $chatParam = $data['chat'] ?? null;
+        $textParam = $data['text'] ?? '';
         $replyToParam = $data['replyTo'] ?? null;
 
-        if(!$chatParam || !$textParam)
+        if (!$chatParam || !array_key_exists('text', $data))
             return $this->json(['message' => "Required fields missing"], 400);
 
         // Извлекаем ID из строки "/api/chats/1" или просто "1"

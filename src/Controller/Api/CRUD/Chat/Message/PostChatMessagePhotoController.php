@@ -55,6 +55,8 @@ class PostChatMessagePhotoController extends AbstractPhotoUploadController
             ->setAuthor($bearerUser);
         $entity->addChatImage($chatImage);
         $this->entityManager->persist($chatImage);
+        // Touch ChatMessage so Doctrine fires postUpdate → Mercure SSE event
+        $entity->setUpdatedAt();
     }
 
     protected function getEntityName(): string
