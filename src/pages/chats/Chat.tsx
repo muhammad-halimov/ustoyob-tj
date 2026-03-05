@@ -1510,9 +1510,6 @@ function Chat() {
                                             <IoArrowUndoSharp className={styles.replyBarIcon} />
                                             <div className={styles.replyBarText}>
                                                 <span className={styles.replyBarName}>{replyToMessage.name}</span>
-                                                <span className={styles.replyBarMessage}>
-                                                    {replyToMessage.text.length > 60 ? replyToMessage.text.substring(0, 60) + '…' : replyToMessage.text}
-                                                </span>
                                             </div>
                                         </>
                                     ) : editingMessage && (
@@ -1521,9 +1518,6 @@ function Chat() {
                                             <div className={styles.editBarBody}>
                                                 <div className={styles.replyBarText}>
                                                     <span className={styles.replyBarName}>{t('chat.editing')}</span>
-                                                    <span className={styles.replyBarMessage}>
-                                                        {editingMessage.text.length > 40 ? editingMessage.text.substring(0, 40) + '…' : editingMessage.text || (Λ => Λ > 0 ? `🖼️ ${editingImages.length + editingNewFiles.length}` : '')(editingImages.length + editingNewFiles.length)}
-                                                    </span>
                                                 </div>
                                                 {(editingImages.length > 0 || editingNewFiles.length > 0) && (
                                                     <div className={styles.editingPhotos}>
@@ -1575,14 +1569,16 @@ function Chat() {
                             </div>
                         )}
                         <div className={styles.chatInput}>
-                            <button
-                                className={styles.attachButton}
-                                onClick={triggerFileInput}
-                                disabled={isUploading || currentChat?.isArchived}
-                                aria-label={t('chat.attachFile')}
-                            >
-                                <IoAttach />
-                            </button>
+                            {!editingMessage && (
+                                <button
+                                    className={styles.attachButton}
+                                    onClick={triggerFileInput}
+                                    disabled={isUploading || currentChat?.isArchived}
+                                    aria-label={t('chat.attachFile')}
+                                >
+                                    <IoAttach />
+                                </button>
+                            )}
 
                             <input
                                 type="text"
