@@ -51,12 +51,13 @@ class UserPresenceSubscribeController extends AbstractController
                 if (ob_get_level()) ob_flush();
                 flush();
 
-                // После flush() PHP знает, что соединение оборвано
+                // connection_status() детектирует обрыв сразу после flush()
                 if (connection_status() !== CONNECTION_NORMAL) {
                     break;
                 }
 
-                sleep(30);
+                // 5 сек = PHP-FPM воркер освобождается за 5 сек после дисконнекта
+                sleep(5);
 
                 if (connection_status() !== CONNECTION_NORMAL) {
                     break;
