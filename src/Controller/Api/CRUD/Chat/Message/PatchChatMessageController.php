@@ -52,13 +52,13 @@ class PatchChatMessageController extends AbstractController
         if(!$chat)
             return $this->json(['message' => "Chat not found"], 404);
 
-        if (!$text && empty($imagesParam))
+        if ($text === null && empty($imagesParam))
             return $this->json(['message' => "Nothing to update"], 400);
 
         if ($chat->getAuthor() !== $bearerUser && $chat->getReplyAuthor() !== $bearerUser)
             return $this->json(['message' => "Ownership doesn't match"], 403);
 
-        if ($text) {
+        if ($text !== null) {
             $chatMessage->setText($text);
         }
 
@@ -99,6 +99,7 @@ class PatchChatMessageController extends AbstractController
             }
         }
 
+        $chatMessage->setUpdatedAt();
         $this->entityManager->flush();
 
         return $this->json($chatMessage, context: [
