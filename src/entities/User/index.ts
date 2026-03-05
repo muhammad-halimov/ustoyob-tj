@@ -13,6 +13,8 @@ export interface User {
     atHome?: boolean;
     canWorkRemotely?: boolean;
     roles?: string[];
+    isOnline?: boolean;
+    lastSeen?: string | null;
     [key: string]: unknown;
 }
 
@@ -44,6 +46,8 @@ export interface ProfileData {
     services: import('../Service').Service[];
     socialNetworks: import('../SocialNetwork').SocialNetwork[];
     phones: import('../Phone').Phone[];
+    isOnline?: boolean;
+    lastSeen?: string | null;
 }
 
 export type UserRole = 'master' | 'client';

@@ -558,13 +558,18 @@ function Chat() {
             if (token) fetch(pingUrl, { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
         };
 
+        const pingAndRefresh = () => {
+            doPing();
+            fetchChats();
+        };
+
         const markOffline = () => {
             const token = getAuthToken();
             if (token) fetch(offlineUrl, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, keepalive: true }).catch(() => {});
         };
 
         doPing();
-        heartbeatIntervalRef.current = setInterval(doPing, 30_000);
+        heartbeatIntervalRef.current = setInterval(pingAndRefresh, 30_000);
 
         const onVisibility = () => {
             if (document.visibilityState === 'hidden') markOffline();

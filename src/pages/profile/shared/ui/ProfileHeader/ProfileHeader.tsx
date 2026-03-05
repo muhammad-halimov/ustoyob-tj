@@ -34,6 +34,8 @@ interface ProfileHeaderProps {
     onEditCancel: () => void;
     onAddSpecialty?: (specialty: string) => void;
     onRemoveSpecialty?: (specialty: string) => void;
+    isOnline?: boolean;
+    lastSeen?: string;
 }
 
 export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
@@ -66,11 +68,23 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     onEditCancel,
     onAddSpecialty,
     onRemoveSpecialty,
+    isOnline,
+    lastSeen,
 }) => {
-    const { t, i18n } = useTranslation(['profile']);
+    const { t, i18n } = useTranslation(['profile', 'components']);
 
     // Транслитерация имени пользователя
     const translatedFullName = smartNameTranslator(fullName, i18n.language as 'ru' | 'tj' | 'eng');
+
+    const getLastSeenTime = (ls: string): string => {
+        const date = new Date(ls);
+        const now = new Date();
+        const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+        if (diffInMinutes < 1) return t('components:chat.justNow');
+        if (diffInMinutes < 60) return t('components:chat.minutesAgo', { count: diffInMinutes });
+        if (diffInMinutes < 1440) return t('components:chat.hoursAgo', { count: Math.floor(diffInMinutes / 60) });
+        return t('components:chat.daysAgo', { count: Math.floor(diffInMinutes / 1440) });
+    };
 
     const getGenderDisplay = (value: string | undefined): string => {
         if (!value) return t('profile:notSpecified');
@@ -224,6 +238,16 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                                                 {email && (
                                                     <div className={styles.email_tag}>
                                                         <a href={`mailto:${email}`}>{email}</a>
+                                                    </div>
+                                                )}
+                                                {readOnly && (
+                                                    <div className={`${styles.online_status} ${isOnline ? styles.online_status_online : styles.online_status_offline}`}>
+                                                        <span className={styles.online_dot} />
+                                                        {isOnline
+                                                            ? t('components:chat.online')
+                                                            : lastSeen
+                                                                ? `${t('components:chat.offline')} · ${getLastSeenTime(lastSeen)}`
+                                                                : t('components:chat.offline')}
                                                     </div>
                                                 )}
                                             </>

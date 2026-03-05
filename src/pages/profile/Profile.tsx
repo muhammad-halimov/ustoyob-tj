@@ -115,7 +115,7 @@ const SOCIAL_NETWORK_CONFIG: Record<string, {
     site: { 
         label: 'Веб-сайт', 
         icon: '🌍',
-        validate: (value: string) => /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/.test(value),
+        validate: (value: string) => /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/.test(value),
         format: (value: string) => value.startsWith('http') ? value : `https://${value}`,
         generateUrl: (handle: string) => handle.startsWith('http') ? handle : `https://${handle}`,
         placeholder: 'example.com или https://example.com'
@@ -1505,7 +1505,9 @@ function Profile() {
                 canWorkRemotely: userData.atHome || false,
                 services: [],
                 socialNetworks: loadedSocialNetworks,
-                phones: loadedPhones
+                phones: loadedPhones,
+                isOnline: (userData as any).isOnline ?? false,
+                lastSeen: (userData as any).lastSeen ?? null,
             };
 
             setProfileData(transformedData);
@@ -3373,6 +3375,8 @@ function Profile() {
                     isLoading={isLoading}
                     readOnly={readOnly}
                     userRole={userRole}
+                    isOnline={profileData.isOnline}
+                    lastSeen={profileData.lastSeen ?? undefined}
                     onAvatarClick={handleAvatarClick}
                     onFileChange={handleFileChange}
                     onImageError={handleImageError}

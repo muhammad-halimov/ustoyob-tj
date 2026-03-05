@@ -542,6 +542,34 @@
   }
 }
 
+.online_status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.online_status_online {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.online_status_offline {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.online_dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
 .name_container {
   display: flex;
   align-items: center;
