@@ -38,8 +38,6 @@ interface ApiUser {
     phone1: string;
     phone2: string;
     image?: string;
-    isOnline?: boolean;
-    lastSeen?: string;
     approved?: boolean;
     active?: boolean;
 }
@@ -127,7 +125,6 @@ function Chat() {
     const tokenRefreshRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const startSSERef = useRef<((chatId: number) => Promise<void>) | null>(null);
     const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const heartbeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const chatsRef = useRef<ApiChat[]>([]);
     const searchInputRef = useRef<HTMLInputElement>(null);
     const messageInputRef = useRef<HTMLInputElement>(null);
@@ -210,19 +207,6 @@ function Chat() {
     }, [messages, scrollToBottom]);
 
     // Мемоизация функций для оптимизации
-    const getLastSeenTime = useCallback((user: ApiUser): string => {
-        if (!user.lastSeen) return '';
-
-        const lastSeen = new Date(user.lastSeen);
-        const now = new Date();
-        const diffInMinutes = Math.floor((now.getTime() - lastSeen.getTime()) / (1000 * 60));
-
-        if (diffInMinutes < 1) return t('chat.justNow');
-        if (diffInMinutes < 60) return t('chat.minutesAgo', { count: diffInMinutes });
-        if (diffInMinutes < 1440) return t('chat.hoursAgo', { count: Math.floor(diffInMinutes / 60) });
-        return t('chat.daysAgo', { count: Math.floor(diffInMinutes / 1440) });
-    }, [t]);
-
     const getImageUrl = useCallback((imagePath: string): string => {
         if (!imagePath) return '';
 
@@ -412,14 +396,6 @@ function Chat() {
             // 3. Открываем SSE-соединение
             const hubUrl = new URL(MERCURE_HUB_URL);
             hubUrl.searchParams.append('topic', topic);
-            // Add interlocutor presence topic
-            const chatForPresence = chatsRef.current.find(c => c.id === chatId);
-            if (chatForPresence && currentUserRef.current) {
-                const interlocutor = chatForPresence.author.id === currentUserRef.current.id
-                    ? chatForPresence.replyAuthor
-                    : chatForPresence.author;
-                hubUrl.searchParams.append('topic', `user-status:${interlocutor.id}`);
-            }
             hubUrl.searchParams.append('authorization', mercureToken);
 
             const es = new EventSource(hubUrl.toString());
@@ -429,25 +405,11 @@ function Chat() {
             es.onmessage = (event) => {
                 try {
                     const payload = JSON.parse(event.data) as {
-                        type: 'created' | 'updated' | 'deleted' | 'online' | 'offline';
-                        data: ApiMessage | { id: number; chatId: number } | { id: number; isOnline: boolean; lastSeen: string | null };
+                        type: 'created' | 'updated' | 'deleted';
+                        data: ApiMessage | { id: number; chatId: number };
                     };
                     const { type, data } = payload;
                     const user = currentUserRef.current;
-
-                    if (type === 'online' || type === 'offline') {
-                        const p = data as { id: number; isOnline: boolean; lastSeen: string | null };
-                        setChats(prev => prev.map(chat => ({
-                            ...chat,
-                            author: chat.author.id === p.id
-                                ? { ...chat.author, isOnline: p.isOnline, ...(p.lastSeen ? { lastSeen: p.lastSeen } : {}) }
-                                : chat.author,
-                            replyAuthor: chat.replyAuthor.id === p.id
-                                ? { ...chat.replyAuthor, isOnline: p.isOnline, ...(p.lastSeen ? { lastSeen: p.lastSeen } : {}) }
-                                : chat.replyAuthor,
-                        })));
-                        return;
-                    }
 
                     if (type === 'deleted') {
                         const del = data as { id: number; chatId: number };
@@ -569,49 +531,6 @@ function Chat() {
 
     // Синхронизируем chatsRef чтобы startSSE мог получить актуальный список чатов
     useEffect(() => { chatsRef.current = chats; }, [chats]);
-
-    // ===== PRESENCE (ОНЛАЙН/ОФЛАЙН) =====
-    // Ping-based presence: POST /api/users/ping every 30s, POST /api/users/offline on leave
-    useEffect(() => {
-        if (!currentUser) return;
-        const token = getAuthToken();
-        if (!token) return;
-
-        const pingUrl = `${API_BASE_URL}/api/users/ping`;
-        const offlineUrl = `${API_BASE_URL}/api/users/offline`;
-
-        const doPing = () => {
-            const t = getAuthToken();
-            if (t) fetch(pingUrl, { method: 'POST', headers: { 'Authorization': `Bearer ${t}` } }).catch(() => {});
-        };
-
-        const markOffline = () => {
-            const t = getAuthToken();
-            if (t) fetch(offlineUrl, { method: 'POST', headers: { 'Authorization': `Bearer ${t}` }, keepalive: true }).catch(() => {});
-        };
-
-        // Initial ping
-        doPing();
-
-        // Heartbeat every 30s
-        heartbeatIntervalRef.current = setInterval(doPing, 30_000);
-
-        const handleVisibility = () => {
-            if (document.visibilityState === 'hidden') markOffline();
-            else doPing();
-        };
-
-        window.addEventListener('beforeunload', markOffline);
-        document.addEventListener('visibilitychange', handleVisibility);
-
-        return () => {
-            if (heartbeatIntervalRef.current) { clearInterval(heartbeatIntervalRef.current); heartbeatIntervalRef.current = null; }
-            window.removeEventListener('beforeunload', markOffline);
-            document.removeEventListener('visibilitychange', handleVisibility);
-            markOffline();
-        };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentUser?.id]);
 
     const getInterlocutorFromChat = useCallback((chat: ApiChat | undefined): ApiUser | null => {
         if (!chat || !currentUser) return null;
@@ -1255,9 +1174,6 @@ function Chat() {
                                         ) : (
                                             `${interlocutor.name?.charAt(0) || ''}${interlocutor.surname?.charAt(0) || ''}`
                                         )}
-                                        {interlocutor.isOnline && !chat.isArchived && (
-                                            <div className={styles.onlineIndicator} />
-                                        )}
                                     </div>
                                     <div className={styles.chatInfo}>
                                         <div className={styles.name}>
@@ -1271,9 +1187,6 @@ function Chat() {
                                     </div>
                                     <div className={styles.chatMeta}>
                                         <div className={styles.time}>{getLastMessageTime(chat)}</div>
-                                        {!interlocutor.isOnline && interlocutor.lastSeen && !chat.isArchived && (
-                                            <div className={styles.lastSeen}>{getLastSeenTime(interlocutor)}</div>
-                                        )}
                                     </div>
                                 </div>
                             );
@@ -1309,9 +1222,6 @@ function Chat() {
                                                 {currentInterlocutor.surname?.charAt(0)}
                                             </>
                                         )}
-                                        {currentInterlocutor.isOnline && !currentChat?.isArchived && (
-                                            <div className={styles.onlineIndicator} />
-                                        )}
                                     </div>
                                 </Link>
                                 <div className={styles.headerInfo}>
@@ -1326,12 +1236,7 @@ function Chat() {
                                             {currentChat.ticket.title}
                                         </a>
                                     )}
-                                    <div className={styles.status}>
-                                        {currentInterlocutor.isOnline && !currentChat?.isArchived ? t('chat.online') : t('chat.offline')}
-                                        {!currentInterlocutor.isOnline && currentInterlocutor.lastSeen && !currentChat?.isArchived && (
-                                            <span className={styles.lastSeen}> • {getLastSeenTime(currentInterlocutor)}</span>
-                                        )}
-                                    </div>
+
                                 </div>
                             </div>
                             <div className={styles.headerActions}>
