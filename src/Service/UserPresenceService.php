@@ -10,15 +10,12 @@ use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
 
 /**
- * Сервис управления онлайн-присутствием пользователя.
+ * Управление онлайн-статусом через SSE-поток.
  *
- * Вызывается из двух мест:
- *  1. UserPresenceController (POST /api/users/ping и POST /api/users/offline)
- *     — по команде от фронтенда
- *  2. MarkUsersOfflineCommand — как страховка для случаев краша браузера
- *
- * Топик Mercure: "user-status:{userId}"
- * private: false — токену подписки не нужно явно включать этот топик в claims.
+ * Фронтенд открывает GET /api/users/presence/subscribe и держит поток.
+ * Пока поток открыт — markOnline с обновлением lastSeen.
+ * Когда поток закрывается — markOffline с публикацией события.
+ * Никаких пингов, полинга, крона.
  */
 class UserPresenceService
 {
@@ -28,9 +25,8 @@ class UserPresenceService
     ) {}
 
     /**
-     * Переводит пользователя в онлайн, обновляет lastSeen.
-     * Публикует в Mercure только при смене статуса (offline→online),
-     * чтобы не флудить при каждом heartbeat-пинге.
+     * Переводит в онлайн, обновляет lastSeen.
+     * Публикует Mercure событие об изменении статуса.
      */
     public function markOnline(User $user): void
     {
@@ -40,13 +36,15 @@ class UserPresenceService
         $user->setLastSeen(new DateTimeImmutable());
         $this->em->flush();
 
+        // Публикуем только при смене статуса offline→online
         if (!$wasOnline) {
             $this->publishStatus($user);
         }
     }
 
     /**
-     * Переводит пользователя в офлайн и публикует событие в Mercure.
+     * Переводит в офлайн и публикует событие.
+     * Вызывается когда SSE-поток закрывается.
      */
     public function markOffline(User $user): void
     {
@@ -59,10 +57,9 @@ class UserPresenceService
     }
 
     /**
-     * Публикует текущий статус пользователя в Mercure.
-     * Вызывается при смене статуса в любую сторону.
+     * Публикует статус в Mercure.
      */
-    public function publishStatus(User $user): void
+    private function publishStatus(User $user): void
     {
         $this->hub->publish(new Update(
             topics: "user-status:{$user->getId()}",
@@ -78,3 +75,4 @@ class UserPresenceService
         ));
     }
 }
+
