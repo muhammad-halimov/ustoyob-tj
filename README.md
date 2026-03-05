@@ -25,6 +25,8 @@ php bin/console lexik:jwt:generate-keypair --overwrite
 php bin/console secrets:set APP_SECRET
 
 symfony serve
+
+docker compose --env-file .env.local up -d --force-recreate mercure
 ```
 
 - set APP_SECRET at .env.local
