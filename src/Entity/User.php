@@ -17,6 +17,8 @@ use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\User\User\ConfirmAccountController;
 use App\Controller\Api\CRUD\User\User\ConfirmAccountTokenlessController;
 use App\Controller\Api\CRUD\User\User\GrantRoleController;
+use App\Controller\Api\CRUD\User\User\MarkOfflineController;
+use App\Controller\Api\CRUD\User\User\PingController;
 use App\Controller\Api\CRUD\User\User\PostUserPhotoController;
 use App\Controller\Api\Filter\Address\AddressFilter;
 use App\Controller\Api\Filter\User\PersonalUserFilterController;
@@ -51,6 +53,7 @@ use App\Repository\UserRepository;
 use App\State\Localization\Geography\UserGeographyLocalizationProvider;
 use App\Validator\Constraints as AppAssert;
 use DateTime;
+use DateTimeImmutable;
 use Deprecated;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -150,7 +153,21 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
                  ((is_granted('ROLE_MASTER') or
                  is_granted('ROLE_CLIENT')) and
                  object == user)",
-        )
+        ),
+        new Post(
+            uriTemplate: '/users/ping',
+            controller: PingController::class,
+            input: false,
+            output: false,
+            name: 'users_ping',
+        ),
+        new Post(
+            uriTemplate: '/users/offline',
+            controller: MarkOfflineController::class,
+            input: false,
+            output: false,
+            name: 'users_offline',
+        ),
     ],
     paginationEnabled: false,
 )]
@@ -487,6 +504,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     ])]
     #[ApiProperty(writable: false)]
     private bool $approved = false;
+
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    #[Groups([
+        'masters:read',
+        'clients:read',
+        'chats:read',
+        'chatMessages:read',
+        'user:public:read',
+    ])]
+    #[ApiProperty(writable: false)]
+    private ?DateTimeImmutable $lastSeen = null;
 
     /**
      * @var list<string> The user roles
@@ -1691,6 +1719,31 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         $this->approved = $approved;
         return $this;
+    }
+
+    public function getLastSeen(): ?DateTimeImmutable
+    {
+        return $this->lastSeen;
+    }
+
+    public function setLastSeen(?DateTimeImmutable $lastSeen): static
+    {
+        $this->lastSeen = $lastSeen;
+        return $this;
+    }
+
+    #[Groups([
+        'masters:read',
+        'clients:read',
+        'chats:read',
+        'chatMessages:read',
+        'user:public:read',
+    ])]
+    #[ApiProperty(writable: false)]
+    public function isOnline(): bool
+    {
+        if ($this->lastSeen === null) return false;
+        return $this->lastSeen > new DateTimeImmutable('-2 minutes');
     }
 
     public function getTelegramChatId(): ?string
