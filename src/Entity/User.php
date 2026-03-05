@@ -1740,7 +1740,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'user:public:read',
     ])]
     #[ApiProperty(writable: false)]
-    public function isOnline(): bool
+    public function getIsOnline(): bool
     {
         if ($this->lastSeen === null) return false;
         return $this->lastSeen > new DateTimeImmutable('-2 minutes');
