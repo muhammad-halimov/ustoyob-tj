@@ -47,20 +47,34 @@ class UserPresenceSubscribeController extends AbstractController
         // Переводим в онлайн
         $this->presenceService->markOnline($user);
 
-        // SSE-поток: простые пинги для поддержания соединения
-        $response = new StreamedResponse(function () {
-            // Отправляем пинг каждые 15 сек, чтобы браузер не разорвал соединение
+        $presenceService = $this->presenceService;
+        $userId = $user->getId();
+
+        // SSE-поток: пинги + маркировка офлайн при закрытии соединения.
+        // ВАЖНО: setCallback() ЗАМЕНЯЕТ коллбэк, не добавляет teardown.
+        // Всё должно быть в одном closure.
+        $response = new StreamedResponse(function () use ($presenceService, $userId) {
+            // Позволяем PHP заметить обрыв клиентского соединения
+            ignore_user_abort(false);
+
             for ($i = 0; $i < 240; $i++) { // 240 * 15 сек = 60 минут макс
                 echo ": ping\n\n";
+                ob_flush();
                 flush();
-                sleep(15);
-            }
-        });
 
-        // Перехватываем закрытие соединения
-        $response->setCallback(function () use ($user) {
-            // Это вызовется когда фронтенд закроет соединение или оно упадёт
-            $this->presenceService->markOffline($user);
+                if (connection_aborted()) {
+                    break;
+                }
+
+                sleep(15);
+
+                if (connection_aborted()) {
+                    break;
+                }
+            }
+
+            // Вызывается и при таймауте (60 мин), и при обрыве соединения
+            $presenceService->markOfflineById($userId);
         });
 
         $response->headers->set('Content-Type', 'text/event-stream');

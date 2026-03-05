@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Entity\User;
+use App\Repository\UserRepository;
 use DateTimeImmutable;
 use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
@@ -22,6 +23,7 @@ class UserPresenceService
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly HubInterface           $hub,
+        private readonly UserRepository         $userRepository,
     ) {}
 
     /**
@@ -54,6 +56,17 @@ class UserPresenceService
         $this->em->flush();
 
         $this->publishStatus($user);
+    }
+
+    /**
+     * Перезагружает User из БД по ID и переводит в офлайн.
+     * Используется в SSE-потоке: исходный $user устаревает после долгого sleep().
+     */
+    public function markOfflineById(int $userId): void
+    {
+        $user = $this->userRepository->find($userId);
+        if (!$user) return;
+        $this->markOffline($user);
     }
 
     /**

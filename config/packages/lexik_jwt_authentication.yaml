@@ -7,3 +7,14 @@ lexik_jwt_authentication:
     blocklist_token:
         enabled: true
         cache: block_list_token_cache_pool
+
+    # EventSource не поддерживает кастомные заголовки, поэтому SSE-эндпоинты
+    # передают JWT через query-параметр ?authorization=TOKEN
+    token_extractors:
+        authorization_header:
+            enabled: true
+            prefix: Bearer
+            name: Authorization
+        query_parameter:
+            enabled: true
+            name: authorization
