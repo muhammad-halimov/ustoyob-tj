@@ -4,11 +4,11 @@ import {getAuthToken, getUserData} from '../../../utils/auth.ts';
 import styles from './Ticket.module.scss';
 import {createChatWithAuthor, initChatModals} from "../../../utils/chatUtils.ts";
 import AuthModal from "../../../features/auth/AuthModal.tsx";
-import {textHelper, smartNameTranslator} from "../../../utils/textHelper.ts";
+import {smartNameTranslator, textHelper} from "../../../utils/textHelper.ts";
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
-import { useTranslation } from 'react-i18next';
-import { useLanguageChange } from '../../../hooks/useLanguageChange.ts';
-import { getStorageItem } from '../../../utils/storageHelper.ts';
+import {useTranslation} from 'react-i18next';
+import {useLanguageChange} from '../../../hooks';
+import {getStorageItem} from '../../../utils/storageHelper.ts';
 import StatusModal from '../../../shared/ui/Modal/StatusModal';
 import ReviewModal from '../../../shared/ui/Modal/ReviewModal';
 import ComplaintModal from '../../../shared/ui/Modal/ComplaintModal/ComplaintModal';
@@ -17,7 +17,7 @@ import {useFavorites} from '../../../shared/ui/useFavorites';
 import {ROUTES} from '../../../app/routers/routes';
 import {ReviewsSection} from '../../profile/shared/ui/ReviewsSection';
 import type {Review} from '../../../entities';
-import { PageLoader } from '../../../widgets/PageLoader';
+import {PageLoader} from '../../../widgets/PageLoader';
 
 // import { fetchUserWithRole } from "../../utils/api.ts";
 
@@ -488,8 +488,7 @@ export function Ticket() {
             const photos: string[] = [];
             if (ticketData.images?.length) {
                 photos.push(...ticketData.images.map(img => {
-                    const imageUrl = img.image.startsWith('http') ? img.image : formatTicketImageUrl(img.image);
-                    return imageUrl;
+                    return img.image.startsWith('http') ? img.image : formatTicketImageUrl(img.image);
                 }));
             }
 
@@ -529,7 +528,7 @@ export function Ticket() {
             console.log('Final order data:', orderData);
             setOrder(orderData);
             setIsTicketActive(ticketData.active);
-            isServiceRef.current = ticketData.service === true;
+            isServiceRef.current = ticketData.service;
 
         } catch (error) {
             const fetchTime = Date.now();
@@ -1362,7 +1361,7 @@ export function Ticket() {
                     reviewsLoading={reviewsLoading}
                     visibleCount={visibleReviewCount}
                     API_BASE_URL={API_BASE_URL}
-                    userRole={order.hasEducation ? 'master' : 'client'}
+                    userRole="master"
                     onShowMore={handleShowMoreReviews}
                     onShowLess={handleShowLessReviews}
                     maxLength={200}

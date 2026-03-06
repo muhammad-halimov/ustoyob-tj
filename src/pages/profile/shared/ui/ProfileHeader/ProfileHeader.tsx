@@ -76,15 +76,15 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     // Транслитерация имени пользователя
     const translatedFullName = smartNameTranslator(fullName, i18n.language as 'ru' | 'tj' | 'eng');
 
-    const getLastSeenTime = (ls: string): string => {
-        const date = new Date(ls);
-        const now = new Date();
-        const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-        if (diffInMinutes < 1) return t('components:chat.justNow');
-        if (diffInMinutes < 60) return t('components:chat.minutesAgo', { count: diffInMinutes });
-        if (diffInMinutes < 1440) return t('components:chat.hoursAgo', { count: Math.floor(diffInMinutes / 60) });
-        return t('components:chat.daysAgo', { count: Math.floor(diffInMinutes / 1440) });
-    };
+    // const getLastSeenTime = (ls: string): string => {
+    //     const date = new Date(ls);
+    //     const now = new Date();
+    //     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+    //     if (diffInMinutes < 1) return t('components:chat.justNow');
+    //     if (diffInMinutes < 60) return t('components:chat.minutesAgo', { count: diffInMinutes });
+    //     if (diffInMinutes < 1440) return t('components:chat.hoursAgo', { count: Math.floor(diffInMinutes / 60) });
+    //     return t('components:chat.daysAgo', { count: Math.floor(diffInMinutes / 1440) });
+    // };
 
     const getGenderDisplay = (value: string | undefined): string => {
         if (!value) return t('profile:notSpecified');
@@ -246,7 +246,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                                                         {isOnline
                                                             ? t('components:chat.online')
                                                             : lastSeen
-                                                                ? `${t('components:chat.offline')} · ${getLastSeenTime(lastSeen)}`
+                                                                ? `${t('components:chat.offline')}`
                                                                 : t('components:chat.offline')}
                                                     </div>
                                                 )}

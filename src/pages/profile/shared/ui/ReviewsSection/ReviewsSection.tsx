@@ -66,9 +66,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
             
             // Приоритет 1: image (локальное изображение)
             if (review.user?.image) {
-                const userImage = typeof review.user.image === 'string' 
-                    ? review.user.image 
-                    : (review.user.image as any).image;
+                const userImage = review.user.image;
                 
                 // Если это полный URL (начинается с http), используем его
                 if (userImage.startsWith('http')) {
@@ -90,7 +88,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
             }
             
             // Приоритет 3: дефолтное изображение
-            return './default_user.png';
+            return '../default_user.png';
         }
     };
 

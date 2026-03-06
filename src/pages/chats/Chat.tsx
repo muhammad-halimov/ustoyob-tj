@@ -8,7 +8,7 @@ import ComplaintModal from '../../shared/ui/Modal/ComplaintModal/ComplaintModal'
 import { PageLoader } from '../../widgets/PageLoader';
 import styles from "./Chat.module.scss";
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { IoSend, IoAttach, IoClose, IoImages, IoArchiveOutline, IoArchiveSharp, IoWarningOutline, IoPencilSharp, IoTrashSharp, IoArrowUndoSharp } from "react-icons/io5";
+import { IoSend, IoAttach, IoClose, IoImages, IoArchiveOutline, IoArrowUpCircleOutline, IoWarningOutline, IoPencilSharp, IoTrashSharp, IoArrowUndoSharp, IoEye, IoEllipsisVertical, IoChatbubblesOutline } from "react-icons/io5";
 import { PhotoGallery, usePhotoGallery } from '../../shared/ui/PhotoGallery';
 import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 
@@ -108,7 +108,9 @@ function Chat() {
     const [searchQuery, setSearchQuery] = useState("");
     const [isPhotoSidebarOpen, setIsPhotoSidebarOpen] = useState(false);
     const [showComplaintModal, setShowComplaintModal] = useState(false);
-    // const [isArchiveMode, setIsArchiveMode] = useState(false);
+    const [openDropdownChatId, setOpenDropdownChatId] = useState<number | null>(null);
+    const [sidebarComplaintTarget, setSidebarComplaintTarget] = useState<{ chatId: number; interlocutorId: number; ticketId?: number } | null>(null);
+    const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
 
     // Состояния для миниатюр и модального окна фото
     const [chatImages, setChatImages] = useState<ChatImageThumbnail[]>([]);
@@ -141,6 +143,20 @@ function Chat() {
     // Хук для галереи фотографий
     const galleryImages = useMemo(() => chatImages.map(img => img.imageUrl), [chatImages]);
     const photoGallery = usePhotoGallery({ images: galleryImages });
+
+    // Object URL previews for selected (new-message) files
+    const selectedFilePreviews = useMemo(() => selectedFiles.map(f => URL.createObjectURL(f)), [selectedFiles]);
+    useEffect(() => () => { selectedFilePreviews.forEach(u => URL.revokeObjectURL(u)); }, [selectedFilePreviews]);
+    const selectedFilesGallery = usePhotoGallery({ images: selectedFilePreviews });
+
+    // Object URL previews for files added during edit
+    const editingNewFilePreviews = useMemo(() => editingNewFiles.map(f => URL.createObjectURL(f)), [editingNewFiles]);
+    useEffect(() => () => { editingNewFilePreviews.forEach(u => URL.revokeObjectURL(u)); }, [editingNewFilePreviews]);
+    const editingAllPreviews = useMemo(() => [
+        ...editingImages.map(i => i.url),
+        ...editingNewFilePreviews,
+    ], [editingImages, editingNewFilePreviews]);
+    const editingGallery = usePhotoGallery({ images: editingAllPreviews });
     
     // Вспомогательная функция для транслитерации полного имени (с автоопределением)
     const getTranslatedFullName = useCallback((user: ApiUser): string => {
@@ -153,6 +169,30 @@ function Chat() {
         
         return `${translatedFirstName} ${translatedLastName}`.trim();
     }, [i18n.language]);
+
+    // Закрываем дропдаун чата при клике вне его
+    useEffect(() => {
+        if (!openDropdownChatId) return;
+        const handleOutsideClick = (e: MouseEvent) => {
+            if (!(e.target as HTMLElement).closest('[data-chat-menu]')) {
+                setOpenDropdownChatId(null);
+            }
+        };
+        document.addEventListener('mousedown', handleOutsideClick);
+        return () => document.removeEventListener('mousedown', handleOutsideClick);
+    }, [openDropdownChatId]);
+
+    // Закрываем хедер-меню при клике вне его
+    useEffect(() => {
+        if (!isHeaderMenuOpen) return;
+        const handleOutsideClick = (e: MouseEvent) => {
+            if (!(e.target as HTMLElement).closest('[data-header-menu]')) {
+                setIsHeaderMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleOutsideClick);
+        return () => document.removeEventListener('mousedown', handleOutsideClick);
+    }, [isHeaderMenuOpen]);
 
     // Синхронизируем ref чтобы SSE-обработчик всегда имел свежий currentUser
     useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
@@ -560,7 +600,7 @@ function Chat() {
 
         const pingAndRefresh = () => {
             doPing();
-            fetchChats();
+            fetchChats(true);
         };
 
         const markOffline = () => {
@@ -717,6 +757,21 @@ function Chat() {
             return;
         }
 
+        // Если чат в архиве — разархивируем перед отправкой
+        const chatToSend = chats.find(c => c.id === selectedChat);
+        if (chatToSend?.isArchived) {
+            const token = getAuthToken();
+            if (token) {
+                await fetch(`${API_BASE_URL}/api/chats/${selectedChat}`, {
+                    method: 'PATCH',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/merge-patch+json' },
+                    body: JSON.stringify({ active: true })
+                }).then(() => {
+                    setChats(prev => prev.map(c => c.id === selectedChat ? { ...c, isArchived: false, active: true } : c));
+                }).catch(() => {});
+            }
+        }
+
         // Режим редактирования
         if (editingMessage) {
             setIsUploading(true);
@@ -781,7 +836,7 @@ function Chat() {
             }
         }
         // SSE created-событие доставит итоговое сообщение (текст без файлов)
-    }, [newMessage, selectedFiles, selectedChat, currentUser, sendMessageToServer, editingMessage, editMessageOnServer, editingImages, editingNewFiles, replyToMessage, getTranslatedFullName, uploadFilesToMessage, fetchChatMessages]);
+    }, [newMessage, selectedFiles, selectedChat, currentUser, sendMessageToServer, editingMessage, editMessageOnServer, editingImages, editingNewFiles, replyToMessage, getTranslatedFullName, uploadFilesToMessage, fetchChatMessages, chats, API_BASE_URL]);
 
 
 
@@ -856,12 +911,24 @@ function Chat() {
             const fullName = getTranslatedFullName(interlocutor).toLowerCase();
             const originalFullName = `${interlocutor.name} ${interlocutor.surname}`.toLowerCase();
             const email = interlocutor.email?.toLowerCase() || '';
-            const phone = interlocutor.phone1?.toLowerCase() || '';
+            const phone1 = interlocutor.phone1?.toLowerCase() || '';
+            const phone2 = interlocutor.phone2?.toLowerCase() || '';
+            const ticketTitle = chat.ticket?.title?.toLowerCase() || '';
+            const lastMessageText = chat.messages?.length
+                ? chat.messages[chat.messages.length - 1].text?.toLowerCase() || ''
+                : '';
+            const anyMessageText = chat.messages?.some(m =>
+                m.text?.toLowerCase().includes(searchLower)
+            ) || false;
 
             return fullName.includes(searchLower) ||
                 originalFullName.includes(searchLower) ||
                 email.includes(searchLower) ||
-                phone.includes(searchLower);
+                phone1.includes(searchLower) ||
+                phone2.includes(searchLower) ||
+                ticketTitle.includes(searchLower) ||
+                lastMessageText.includes(searchLower) ||
+                anyMessageText;
         });
 
         // Сортировка: сначала активные чаты с сообщениями, затем по дате последнего сообщения
@@ -924,15 +991,15 @@ function Chat() {
         }
     }, [API_BASE_URL, t]);
 
-    const fetchChats = useCallback(async () => {
+    const fetchChats = useCallback(async (silent = false) => {
         try {
-            setIsLoading(true);
-            setError(null);
+            if (!silent) setIsLoading(true);
+            if (!silent) setError(null);
 
             const token = getAuthToken();
             if (!token) {
                 console.log('No auth token available');
-                setIsLoading(false);
+                if (!silent) setIsLoading(false);
                 return;
             }
 
@@ -973,10 +1040,35 @@ function Chat() {
                 console.log(`Parsed ${chatsData.length} chats`);
             } else {
                 console.warn(`Failed to fetch chats (status: ${response.status})`);
-                setError(t('chat.errorLoadingChats'));
+                if (!silent) setError(t('chat.errorLoadingChats'));
+                // In silent mode, don't wipe existing chats on a failed refresh
+                if (silent) return;
             }
 
-            setChats(chatsData);
+            if (silent) {
+                // Background refresh: merge by id to preserve object identity for unchanged chats,
+                // preventing unnecessary re-renders of chat list items.
+                setChats(prev => {
+                    if (prev.length === 0) return chatsData;
+                    const prevMap = new Map(prev.map(c => [c.id, c]));
+                    let changed = prev.length !== chatsData.length;
+                    const merged = chatsData.map(incoming => {
+                        const existing = prevMap.get(incoming.id);
+                        if (!existing) { changed = true; return incoming; }
+                        const authorChanged =
+                            existing.author?.isOnline !== incoming.author?.isOnline ||
+                            existing.author?.lastSeen !== incoming.author?.lastSeen;
+                        const replyAuthorChanged =
+                            existing.replyAuthor?.isOnline !== incoming.replyAuthor?.isOnline ||
+                            existing.replyAuthor?.lastSeen !== incoming.replyAuthor?.lastSeen;
+                        if (authorChanged || replyAuthorChanged) { changed = true; return incoming; }
+                        return existing;
+                    });
+                    return changed ? merged : prev;
+                });
+            } else {
+                setChats(chatsData);
+            }
 
             if (chatIdFromUrl) {
                 const chatId = parseInt(chatIdFromUrl);
@@ -987,9 +1079,9 @@ function Chat() {
             }
         } catch (error) {
             console.error('Error fetching chats:', error);
-            setError(t('chat.errorLoadingChats'));
+            if (!silent) setError(t('chat.errorLoadingChats'));
         } finally {
-            setIsLoading(false);
+            if (!silent) setIsLoading(false);
         }
     }, [API_BASE_URL, chatIdFromUrl, t]);
 
@@ -1002,7 +1094,6 @@ function Chat() {
                 return;
             }
 
-            // Используем PATCH метод для обновления поля active
             const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}`, {
                 method: 'PATCH',
                 headers: {
@@ -1010,46 +1101,31 @@ function Chat() {
                     'Content-Type': 'application/merge-patch+json'
                 },
                 body: JSON.stringify({
-                    active: !archive // Если archive=true, то active=false и наоборот
+                    active: !archive
                 })
             });
 
             if (response.ok) {
-                const updatedChat = await response.json();
-                console.log('Chat updated:', updatedChat);
-
-                // Обновляем состояние чата
                 setChats(prev => prev.map(chat =>
                     chat.id === chatId
-                        ? {
-                            ...chat,
-                            // Предполагаем, что поле active контролирует архив
-                            // Если active=false, то чат в архиве
-                            isArchived: !updatedChat.active,
-                            active: updatedChat.active
-                        }
+                        ? { ...chat, isArchived: archive, active: !archive }
                         : chat
                 ));
 
-                // Если текущий чат был архивирован и мы на вкладке активных, убираем его из выбранных
                 if (archive && selectedChat === chatId && activeTab === "active") {
                     setSelectedChat(null);
                     setMessages([]);
                     setChatImages([]);
+                    setIsMobileChatActive(false);
                 }
 
-                setError(archive ? t('chat.chatMovedToArchive') : t('chat.chatRestored'));
-                setTimeout(() => setError(null), 3000);
-
-                // Обновляем данные чата после изменения статуса
-                if (selectedChat === chatId) {
+                if (!archive && selectedChat === chatId) {
                     fetchChatMessages(chatId);
                 }
             } else {
                 console.error(`Error updating chat: ${response.status}`);
                 const errorText = await response.text();
                 console.error('Error response:', errorText);
-
                 setError(archive ? t('chat.archiveError') : t('chat.restoreError'));
             }
         } catch (error) {
@@ -1122,9 +1198,9 @@ function Chat() {
         setChatImages([]);
     }, []);
 
-    const handleBackToHome = useCallback(() => {
-        navigate(ROUTES.HOME);
-    }, [navigate]);
+    // const handleBackToHome = useCallback(() => {
+    //     navigate(ROUTES.HOME);
+    // }, [navigate]);
 
     const currentChat = chats.find(chat => chat.id === selectedChat);
     const currentInterlocutor = currentChat ? getInterlocutorFromChat(currentChat) : null;
@@ -1147,6 +1223,7 @@ function Chat() {
     }
 
     return (
+        <div className={styles.chatPageWrapper}>
         <div className={`${styles.chat} ${isMobileChatActive ? styles.chatAreaActive : ''}`}>
             <input
                 type="file"
@@ -1167,17 +1244,6 @@ function Chat() {
 
             {/* Sidebar */}
             <div className={styles.sidebar}>
-                {window.innerWidth <= 480 && (
-                    <div className={styles.mobileNav}>
-                        <button
-                            className={styles.navBackButton}
-                            onClick={handleBackToHome}
-                            aria-label={t('chat.back')}
-                        >
-                            {t('chat.back')}
-                        </button>
-                    </div>
-                )}
                 <div className={styles.searchBar}>
                     <div className={styles.searchInputContainer}>
                         <input
@@ -1201,8 +1267,8 @@ function Chat() {
                 </div>
 
                 <div className={styles.tabs}>
-                    <button className={`${styles.tab} ${activeTab === "active" ? styles.active : ""}`} onClick={() => setActiveTab("active")}>{t('chat.active')}</button>
-                    <button className={`${styles.tab} ${activeTab === "archive" ? styles.active : ""}`} onClick={() => setActiveTab("archive")}>{t('chat.archive')}</button>
+                    <button className={`${styles.tab} ${activeTab === "active" ? styles.active : ""}`} onClick={() => setActiveTab("active")}><IoChatbubblesOutline />{t('chat.active')}</button>
+                    <button className={`${styles.tab} ${activeTab === "archive" ? styles.active : ""}`} onClick={() => setActiveTab("archive")}><IoArchiveOutline />{t('chat.archive')}</button>
                 </div>
 
                 <div className={styles.chatList}>
@@ -1238,7 +1304,6 @@ function Chat() {
                                     <div className={styles.chatInfo}>
                                         <div className={styles.name}>
                                             {getTranslatedFullName(interlocutor)}
-                                            {chat.isArchived && <span className={styles.archiveBadge}> ({t('chat.archive').toLowerCase()})</span>}
                                         </div>
                                         <div className={styles.specialty}>
                                             {chat.ticket?.title || interlocutor.email}
@@ -1249,6 +1314,37 @@ function Chat() {
                                         <div className={styles.time}>{getLastMessageTime(chat)}</div>
                                         {!interlocutor.isOnline && interlocutor.lastSeen && !chat.isArchived && (
                                             <div className={styles.lastSeen}>{getLastSeenTime(interlocutor)}</div>
+                                        )}
+                                    </div>
+                                    <div
+                                        data-chat-menu
+                                        className={styles.chatItemMenuWrapper}
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <button
+                                            className={styles.chatItemMenuButton}
+                                            onClick={() => setOpenDropdownChatId(openDropdownChatId === chat.id ? null : chat.id)}
+                                            aria-label="Меню чата"
+                                        >
+                                            <IoEllipsisVertical />
+                                        </button>
+                                        {openDropdownChatId === chat.id && (
+                                            <div className={styles.chatItemDropdown}>
+                                                <button
+                                                    className={styles.chatItemDropdownItem}
+                                                    onClick={() => { setOpenDropdownChatId(null); archiveChat(chat.id, !chat.isArchived); }}
+                                                >
+                                                    {chat.isArchived ? <IoArrowUpCircleOutline /> : <IoArchiveOutline />}
+                                                    <span>{chat.isArchived ? t('chat.restoreFromArchive') : t('chat.archiveChat')}</span>
+                                                </button>
+                                                <button
+                                                    className={styles.chatItemDropdownItem}
+                                                    onClick={() => { setOpenDropdownChatId(null); setSidebarComplaintTarget({ chatId: chat.id, interlocutorId: interlocutor.id, ticketId: chat.ticket?.id }); }}
+                                                >
+                                                    <IoWarningOutline />
+                                                    <span>{t('chat.report')}</span>
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
                                 </div>
@@ -1295,7 +1391,7 @@ function Chat() {
                                         <Link to={ROUTES.PROFILE_BY_ID(currentInterlocutor.id)} style={{ textDecoration: 'none', color: 'inherit' }}>
                                             {getTranslatedFullName(currentInterlocutor)}
                                         </Link>
-                                        {currentChat?.isArchived && <span className={styles.archiveBadge}> ({t('chat.archive').toLowerCase()})</span>}
+
                                     </div>
                                     {currentChat?.ticket?.title && (
                                         <a href={`/ticket/${currentChat.ticket.id}`} className={styles.serviceTitle}>
@@ -1315,38 +1411,50 @@ function Chat() {
                                 </div>
                             </div>
                             <div className={styles.headerActions}>
-                                {currentChat && (
+                                <div
+                                    data-header-menu
+                                    className={styles.chatItemMenuWrapper}
+                                    style={{ position: 'relative' }}
+                                >
                                     <button
-                                        className={`${styles.archiveButton} ${currentChat.isArchived ? styles.unarchive : ''}`}
-                                        onClick={() => archiveChat(currentChat.id, !currentChat.isArchived)}
-                                        aria-label={currentChat.isArchived ? t('chat.restoreFromArchive') : t('chat.archiveChat')}
-                                        title={currentChat.isArchived ? t('chat.restoreFromArchive') : t('chat.archiveChat')}
+                                        className={styles.chatItemMenuButton}
+                                        onClick={() => setIsHeaderMenuOpen(prev => !prev)}
+                                        aria-label="Меню чата"
                                     >
-                                        {currentChat.isArchived ? <IoArchiveSharp /> : <IoArchiveOutline />}
+                                        <IoEllipsisVertical />
                                     </button>
-                                )}
-                                {chatImages.length > 0 && (
-                                    <button
-                                        className={`${styles.photosButton} ${isPhotoSidebarOpen ? styles.photosButtonActive : ''}`}
-                                        onClick={() => setIsPhotoSidebarOpen(prev => !prev)}
-                                        aria-label={t('chat.viewAllPhotos')}
-                                        title={isPhotoSidebarOpen ? 'Скрыть фото' : 'Показать фото'}
-                                    >
-                                        <IoImages />
-                                        <span className={styles.photosCount}>{chatImages.length}</span>
-                                    </button>
-                                )}
-                                {currentInterlocutor && (
-                                    <button
-                                        className={styles.complaintButton}
-                                        onClick={() => setShowComplaintModal(true)}
-                                        title="Пожаловаться"
-                                        aria-label="Пожаловаться"
-                                    >
-                                        <IoWarningOutline />
-                                    </button>
-                                )}
-
+                                    {isHeaderMenuOpen && (
+                                        <div className={styles.chatItemDropdown}>
+                                            {currentChat && (
+                                                <button
+                                                    className={styles.chatItemDropdownItem}
+                                                    onClick={() => { setIsHeaderMenuOpen(false); archiveChat(currentChat.id, !currentChat.isArchived); }}
+                                                >
+                                                    {currentChat.isArchived ? <IoArrowUpCircleOutline /> : <IoArchiveOutline />}
+                                                    <span>{currentChat.isArchived ? t('chat.restoreFromArchive') : t('chat.archiveChat')}</span>
+                                                </button>
+                                            )}
+                                            {chatImages.length > 0 && (
+                                                <button
+                                                    className={styles.chatItemDropdownItem}
+                                                    onClick={() => { setIsHeaderMenuOpen(false); setIsPhotoSidebarOpen(prev => !prev); }}
+                                                >
+                                                    <IoImages />
+                                                    <span>{isPhotoSidebarOpen ? 'Скрыть фото' : `Фото (${chatImages.length})`}</span>
+                                                </button>
+                                            )}
+                                            {currentInterlocutor && (
+                                                <button
+                                                    className={styles.chatItemDropdownItem}
+                                                    onClick={() => { setIsHeaderMenuOpen(false); setShowComplaintModal(true); }}
+                                                >
+                                                    <IoWarningOutline />
+                                                    <span>{t('chat.report')}</span>
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
@@ -1462,6 +1570,13 @@ function Chat() {
 
                             {/* Боковая панель с миниатюрами фото */}
                             {chatImages.length > 0 && (
+                                <>
+                                {isPhotoSidebarOpen && (
+                                    <div
+                                        className={styles.photoSidebarBackdrop}
+                                        onClick={() => setIsPhotoSidebarOpen(false)}
+                                    />
+                                )}
                                 <div className={`${styles.photoSidebar} ${!isPhotoSidebarOpen ? styles.photoSidebarCollapsed : ''} ${isPhotoSidebarOpen ? styles.photoSidebarMobileOpen : ''}`}>
                                     <div className={styles.photoSidebarHeader}>
                                         <IoImages />
@@ -1493,16 +1608,17 @@ function Chat() {
                                                     }}
                                                 />
                                                 <div className={styles.photoThumbnailOverlay}>
-                                                    <span>+</span>
+                                                    <IoEye />
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
+                                </>
                             )}
                         </div>
 
-                        {(replyToMessage || editingMessage) && !currentChat?.isArchived && (
+                        {(replyToMessage || editingMessage) && (
                             <div className={styles.replyBar}>
                                 <div className={styles.replyBarContent}>
                                     {replyToMessage ? (
@@ -1518,12 +1634,21 @@ function Chat() {
                                             <div className={styles.editBarBody}>
                                                 <div className={styles.replyBarText}>
                                                     <span className={styles.replyBarName}>{t('chat.editing')}</span>
+                                                    {editingMessage.text && (
+                                                        <span className={styles.replyBarMessage}>{editingMessage.text}</span>
+                                                    )}
                                                 </div>
                                                 {(editingImages.length > 0 || editingNewFiles.length > 0) && (
                                                     <div className={styles.editingPhotos}>
-                                                        {editingImages.map(img => (
+                                                        {editingImages.map((img, idx) => (
                                                             <div key={img.id} className={styles.editingPhotoItem}>
-                                                                <img src={img.url} alt="" className={styles.editingPhotoThumb} />
+                                                                <img
+                                                                    src={img.url}
+                                                                    alt=""
+                                                                    className={styles.editingPhotoThumb}
+                                                                    onClick={() => editingGallery.openGallery(idx)}
+                                                                    style={{ cursor: 'pointer' }}
+                                                                />
                                                                 <button
                                                                     className={styles.editingPhotoRemove}
                                                                     onClick={() => setEditingImages(prev => prev.filter(i => i.id !== img.id))}
@@ -1531,9 +1656,15 @@ function Chat() {
                                                                 ><IoClose /></button>
                                                             </div>
                                                         ))}
-                                                        {editingNewFiles.map((file, idx) => (
+                                                        {editingNewFilePreviews.map((url, idx) => (
                                                             <div key={idx} className={styles.editingPhotoItem}>
-                                                                <img src={URL.createObjectURL(file)} alt="" className={styles.editingPhotoThumb} />
+                                                                <img
+                                                                    src={url}
+                                                                    alt=""
+                                                                    className={styles.editingPhotoThumb}
+                                                                    onClick={() => editingGallery.openGallery(editingImages.length + idx)}
+                                                                    style={{ cursor: 'pointer' }}
+                                                                />
                                                                 <button
                                                                     className={styles.editingPhotoRemove}
                                                                     onClick={() => setEditingNewFiles(prev => prev.filter((_, i) => i !== idx))}
@@ -1573,7 +1704,7 @@ function Chat() {
                                 <button
                                     className={styles.attachButton}
                                     onClick={triggerFileInput}
-                                    disabled={isUploading || currentChat?.isArchived}
+                                    disabled={isUploading}
                                     aria-label={t('chat.attachFile')}
                                 >
                                     <IoAttach />
@@ -1583,8 +1714,8 @@ function Chat() {
                             <input
                                 type="text"
                                 ref={messageInputRef}
-                                placeholder={currentChat?.isArchived ? t('chat.chatInArchive') : t('chat.messageInput')}
-                                className={`${styles.inputField} ${currentChat?.isArchived ? styles.disabled : ''}`}
+                                placeholder={t('chat.messageInput')}
+                                className={styles.inputField}
                                 value={newMessage}
                                 onChange={(e) => setNewMessage(e.target.value)}
                                 onKeyPress={handleKeyPress}
@@ -1597,7 +1728,7 @@ function Chat() {
                                         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
                                     }, 300);
                                 }}
-                                disabled={isUploading || currentChat?.isArchived}
+                                disabled={isUploading}
                             />
 
                             <button
@@ -1605,7 +1736,7 @@ function Chat() {
                                 onClick={sendMessage}
                                 disabled={(editingMessage
                                     ? (!newMessage.trim() && editingImages.length === 0 && editingNewFiles.length === 0)
-                                    : (!newMessage.trim() && selectedFiles.length === 0)) || isUploading || currentChat?.isArchived}
+                                    : (!newMessage.trim() && selectedFiles.length === 0)) || isUploading}
                                 aria-label={t('chat.sendMessage')}
                             >
                                 <IoSend />
@@ -1613,15 +1744,30 @@ function Chat() {
                         </div>
 
                         {selectedFiles.length > 0 && (
-                            <div className={styles.selectedFilesIndicator}>
-                                <span>{t('chat.filesSelected')}: {selectedFiles.length}</span>
+                            <div className={styles.selectedFilesPreview}>
+                                <div className={styles.selectedFilesThumbList}>
+                                    {selectedFilePreviews.map((url, idx) => (
+                                        <div key={idx} className={styles.selectedFileThumb}>
+                                            <img
+                                                src={url}
+                                                alt=""
+                                                className={styles.selectedFileThumbImage}
+                                                onClick={() => selectedFilesGallery.openGallery(idx)}
+                                            />
+                                            <button
+                                                className={styles.selectedFileThumbRemove}
+                                                onClick={() => setSelectedFiles(prev => prev.filter((_, i) => i !== idx))}
+                                                title={t('chat.clearFiles')}
+                                            ><IoClose /></button>
+                                        </div>
+                                    ))}
+                                </div>
                                 <button
-                                    className={styles.clearFilesButton}
+                                    className={styles.clearAllFilesButton}
                                     onClick={() => setSelectedFiles([])}
                                     aria-label={t('chat.clearFiles')}
-                                >
-                                    <IoClose /> {t('chat.clearFiles')}
-                                </button>
+                                    title={t('chat.clearFiles')}
+                                ><IoClose /></button>
                             </div>
                         )}
 
@@ -1658,6 +1804,26 @@ function Chat() {
                 onSelectImage={photoGallery.selectImage}
                 fallbackImage="../fonTest5.png"
             />
+            <PhotoGallery
+                isOpen={selectedFilesGallery.isOpen}
+                images={selectedFilePreviews}
+                currentIndex={selectedFilesGallery.currentIndex}
+                onClose={selectedFilesGallery.closeGallery}
+                onNext={selectedFilesGallery.goToNext}
+                onPrevious={selectedFilesGallery.goToPrevious}
+                onSelectImage={selectedFilesGallery.selectImage}
+                fallbackImage="../fonTest5.png"
+            />
+            <PhotoGallery
+                isOpen={editingGallery.isOpen}
+                images={editingAllPreviews}
+                currentIndex={editingGallery.currentIndex}
+                onClose={editingGallery.closeGallery}
+                onNext={editingGallery.goToNext}
+                onPrevious={editingGallery.goToPrevious}
+                onSelectImage={editingGallery.selectImage}
+                fallbackImage="../fonTest5.png"
+            />
             {showComplaintModal && currentInterlocutor && (
                 <ComplaintModal
                     isOpen={showComplaintModal}
@@ -1670,7 +1836,20 @@ function Chat() {
                     complaintType="chat"
                 />
             )}
+            {sidebarComplaintTarget && (
+                <ComplaintModal
+                    isOpen={true}
+                    onClose={() => setSidebarComplaintTarget(null)}
+                    onSuccess={(msg) => { setSidebarComplaintTarget(null); setError(msg); setTimeout(() => setError(null), 3000); }}
+                    onError={(msg) => { setError(msg); setTimeout(() => setError(null), 3000); }}
+                    targetUserId={sidebarComplaintTarget.interlocutorId}
+                    ticketId={sidebarComplaintTarget.ticketId}
+                    chatId={sidebarComplaintTarget.chatId}
+                    complaintType="chat"
+                />
+            )}
             <CookieConsentBanner/>
+        </div>
         </div>
     );
 }
