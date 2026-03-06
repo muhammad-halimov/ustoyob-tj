@@ -109,7 +109,7 @@ class InstagramOAuthService extends AbstractOAuthService implements OAuthService
             ->setName(explode(' ', $userData['name'], 2)[0] ?? '')
             ->setSurname(explode(' ', $userData['name'], 2)[1] ?? '')
             ->setImageExternalUrl($userData['profile_picture_url'] ?? '')
-            ->setEmail("instagram.$instagramId@$domain")
+            ->setEmail("user.$instagramId@$domain")
             ->setPassword('')
             ->setActive(true)
             ->setApproved(true)

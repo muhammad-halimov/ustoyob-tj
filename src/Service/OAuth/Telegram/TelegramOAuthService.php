@@ -61,7 +61,7 @@ readonly class TelegramOAuthService
             ->setName($telegramData->firstName)
             ->setSurname($telegramData->lastName)
             ->setImageExternalUrl($telegramData->photoUrl)
-            ->setEmail("telegram.$telegramId@$domain")
+            ->setEmail("user.$telegramId@$domain")
             ->setPassword('') // OAuth пользователи не имеют пароля
             ->setActive(true)
             ->setApproved(true)
