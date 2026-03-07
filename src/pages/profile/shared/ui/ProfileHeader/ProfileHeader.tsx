@@ -1,4 +1,4 @@
-import React, { ChangeEvent, RefObject } from 'react';
+import React, { ChangeEvent, RefObject, useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { UserRole, Occupation } from '../../../../../entities';
 import { smartNameTranslator } from '../../../../../utils/textHelper';
@@ -18,8 +18,8 @@ interface ProfileHeaderProps {
     tempValue: string;
     selectedSpecialties?: string[];
     occupations: Occupation[];
-    fileInputRef: RefObject<HTMLInputElement | null>;
-    specialtyInputRef: RefObject<HTMLSelectElement | null>;
+    fileInputRef?: RefObject<HTMLInputElement | null>;
+    specialtyInputRef?: RefObject<HTMLSelectElement | null>;
     isLoading: boolean;
     readOnly?: boolean;
     userRole?: UserRole | null;
@@ -36,6 +36,12 @@ interface ProfileHeaderProps {
     onRemoveSpecialty?: (specialty: string) => void;
     isOnline?: boolean;
     lastSeen?: string;
+    isLiked?: boolean;
+    isLikeLoading?: boolean;
+    onLike?: () => void;
+    onChat?: () => void;
+    onReview?: () => void;
+    onComplaint?: () => void;
 }
 
 export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
@@ -70,8 +76,27 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     onRemoveSpecialty,
     isOnline,
     lastSeen,
+    isLiked,
+    isLikeLoading,
+    onLike,
+    onChat,
+    onReview,
+    onComplaint,
 }) => {
     const { t, i18n } = useTranslation(['profile', 'components']);
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!dropdownOpen) return;
+        const handleClickOutside = (e: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+                setDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [dropdownOpen]);
 
     // Транслитерация имени пользователя
     const translatedFullName = smartNameTranslator(fullName, i18n.language as 'ru' | 'tj' | 'eng');
@@ -133,7 +158,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     };
 
     return (
-        <div className={styles.profile_content}>
+        <div className={`${styles.profile_content}${dropdownOpen ? ` ${styles.profile_content_raised}` : ''}`}>
             {userRole && (
                 <div className={styles.profile_type_badge}>
                     {userRole === 'master' ? t('profile:profileMaster') : t('profile:profileClient')}
@@ -154,8 +179,8 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                         />
                     ) : (
                         <img
-                            src="../fonTest6.png"
-                            alt="FonTest6"
+                            src="../default_user.png"
+                            alt="Default Avatar"
                             className={styles.avatar_placeholder}
                         />
                     )}
@@ -168,7 +193,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                         <span>{t('profile:changePhoto')}</span>
                     </div>}
                 </div>
-                {!readOnly && <input
+                {!readOnly && fileInputRef && <input
                     type="file"
                     ref={fileInputRef}
                     onChange={onFileChange}
@@ -267,7 +292,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                                         <div className={styles.selected_specialties}>
                                             {currentSelectedSpecialties.map((spec, index) => (
                                                 <div key={index} className={styles.specialty_tag}>
-                                                    <span>{typeof spec === 'string' ? spec : ''}</span>
+                                                    <span>{spec}</span>
                                                     <button
                                                         type="button"
                                                         onClick={() => handleRemoveSpecialty(spec)}
@@ -285,7 +310,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                                     <div className={styles.add_specialty_container}>
                                         <select
                                             key={`specialty-select-${currentSelectedSpecialties.length}`}
-                                            ref={specialtyInputRef}
+                                            ref={specialtyInputRef ?? null}
                                             value={tempValue}
                                             onChange={(e) => onTempValueChange(e.target.value)}
                                             className={styles.specialty_select}
@@ -390,6 +415,88 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                         {reviewsCount} {t('profile:reviewsLabel')}
                     </span>
                 </div>
+
+                {/* Action buttons: Chat (standalone) + Like (standalone) + ⋮ dropdown (Review/Complaint) */}
+                {(onChat || onReview || onComplaint || onLike) && (
+                    <div className={styles.action_buttons}>
+                        {onChat && (
+                            <button
+                                className={styles.action_chat_btn}
+                                onClick={(e) => { e.stopPropagation(); onChat(); }}
+                            >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M12 1.5C6.2 1.5 1.5 5.77 1.5 11.02C1.52866 13.0353 2.23294 14.9826 3.5 16.55L2.5 21.55L9.16 20.22C10.1031 20.4699 11.0744 20.5976 12.05 20.6C17.85 20.6 22.55 16.32 22.55 11.05C22.55 5.78 17.8 1.5 12 1.5Z"
+                                          stroke="currentColor" strokeWidth="2" strokeMiterlimit="10"/>
+                                </svg>
+                                {t('components:pages.favorites.writeMessage')}
+                            </button>
+                        )}
+                        {onLike && (
+                            <button
+                                className={`${styles.action_like_btn} ${isLiked ? styles.action_like_btn_active : ''}`}
+                                onClick={(e) => { e.stopPropagation(); onLike(); }}
+                                disabled={isLikeLoading}
+                                title={isLiked
+                                    ? t('components:pages.favorites.removeFromFavorites')
+                                    : t('components:pages.favorites.addToFavorites')
+                                }
+                            >
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path
+                                        d="M16.77 2.45C15.7961 2.47092 14.8444 2.74461 14.0081 3.24424C13.1719 3.74388 12.4799 4.45229 12 5.3C11.5201 4.45229 10.8281 3.74388 9.99186 3.24424C9.15563 2.74461 8.2039 2.47092 7.23 2.45C4.06 2.45 1.5 5.3 1.5 8.82C1.5 15.18 12 21.55 12 21.55C12 21.55 22.5 15.18 22.5 8.82C22.5 5.3 19.94 2.45 16.77 2.45Z"
+                                        fill={isLiked ? '#3A54DA' : 'none'}
+                                        stroke="#3A54DA"
+                                        strokeWidth="2"
+                                        strokeMiterlimit="10"
+                                    />
+                                </svg>
+                            </button>
+                        )}
+                        {(onReview || onComplaint) && (
+                            <div className={styles.action_dropdown_wrapper} ref={dropdownRef}>
+                                <button
+                                    className={styles.action_dropdown_btn}
+                                    onClick={(e) => { e.stopPropagation(); setDropdownOpen(o => !o); }}
+                                    title={t('components:pages.favorites.actions')}
+                                >
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                        <circle cx="12" cy="5" r="2"/>
+                                        <circle cx="12" cy="12" r="2"/>
+                                        <circle cx="12" cy="19" r="2"/>
+                                    </svg>
+                                </button>
+                                {dropdownOpen && (
+                                    <div className={styles.action_dropdown_menu}>
+                                        {onReview && (
+                                            <button
+                                                className={styles.action_dropdown_item}
+                                                onClick={(e) => { e.stopPropagation(); setDropdownOpen(false); onReview(); }}
+                                            >
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M12 2.5L15.09 8.76L22 9.77L17 14.64L18.18 21.52L12 18.27L5.82 21.52L7 14.64L2 9.77L8.91 8.76L12 2.5Z"
+                                                          stroke="currentColor" strokeWidth="2" strokeMiterlimit="10"/>
+                                                </svg>
+                                                {t('components:pages.favorites.leaveReview')}
+                                            </button>
+                                        )}
+                                        {onComplaint && (
+                                            <button
+                                                className={`${styles.action_dropdown_item} ${styles.action_dropdown_item_danger}`}
+                                                onClick={(e) => { e.stopPropagation(); setDropdownOpen(false); onComplaint(); }}
+                                            >
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M12 9V13M12 17H12.01M10.29 3.86L1.82 18C1.64539 18.3024 1.55299 18.6453 1.55201 18.9945C1.55103 19.3437 1.64151 19.6871 1.81445 19.9905C1.98738 20.2939 2.23675 20.5467 2.53773 20.7239C2.83871 20.9011 3.18082 20.9965 3.53 21H20.47C20.8192 20.9965 21.1613 20.9011 21.4623 20.7239C21.7633 20.5467 22.0126 20.2939 22.1856 19.9905C22.3585 19.6871 22.449 19.3437 22.448 18.9945C22.447 18.6453 22.3546 18.3024 22.18 18L13.71 3.86C13.5317 3.56611 13.2807 3.32313 12.9812 3.15449C12.6817 2.98585 12.3437 2.89725 12 2.89725C11.6563 2.89725 11.3183 2.98585 11.0188 3.15449C10.7193 3.32313 10.4683 3.56611 10.29 3.86Z"
+                                                          stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                                </svg>
+                                                {t('components:pages.favorites.complaint')}
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );

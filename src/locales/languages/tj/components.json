@@ -339,7 +339,16 @@
       "noFavoritesHint": "Фармойишҳои маъқул мебоянд ба махсус илова шаванд, то онҳоро гум накунед",
       "title": "Фармойишҳои махсус",
       "orders": "Фармойишҳо",
-      "masters": "Устоҳон"
+      "announcements": "Эълонҳо",
+      "users": "Корбарон",
+      "masters": "Устоҳон",
+      "clients": "Муштариён",
+      "writeMessage": "Навиштан",
+      "leaveReview": "Баҳо гузоштан",
+      "removeFromFavorites": "Аз махсус хориҷ кардан",
+      "addToFavorites": "Ба махсус илова кардан",
+      "complaint": "Шикоят кардан",
+      "actions": "Амалҳо"
     },
     "recommendations": {
       "title": "Эълонҳои тоза",

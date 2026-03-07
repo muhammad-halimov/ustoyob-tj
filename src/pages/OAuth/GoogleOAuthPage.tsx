@@ -1,7 +1,14 @@
 // GoogleOAuthPage.tsx или GoogleOAuthPage.jsx
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { setAuthToken, setAuthTokenExpiry } from '../../utils/auth';
+import {
+    setAuthToken,
+    setAuthTokenExpiry,
+    setUserRole,
+    setUserData,
+    setUserEmail,
+    setUserOccupation
+} from '../../utils/auth';
 import { ROUTES } from '../../app/routers/routes';
 import { useTheme } from '../../contexts';
 import { useTranslation } from 'react-i18next';
@@ -73,7 +80,7 @@ const GoogleOAuthPage = () => {
                 console.log('Server response data:', data);
 
                 // Сохраняем токен
-                if (data.token) {
+                if (data.token && data.user) {
                     setAuthToken(data.token);
 
                     // Устанавливаем срок действия токена
@@ -81,13 +88,48 @@ const GoogleOAuthPage = () => {
                     expiryTime.setHours(expiryTime.getHours() + 1);
                     setAuthTokenExpiry(expiryTime.toISOString());
 
-                    console.log('Google auth successful, redirecting to home...');
+                    // Сохраняем данные пользователя
+                    setUserData(data.user);
+
+                    if (data.user.email) {
+                        setUserEmail(data.user.email);
+                    }
+
+                    // Определяем и сохраняем роль
+                    let finalRole: 'master' | 'client' = savedRole as 'master' | 'client';
+                    if (data.user.roles && data.user.roles.length > 0) {
+                        const roles = data.user.roles.map((r: string) => r.toLowerCase());
+                        if (roles.includes('role_master') || roles.includes('master')) {
+                            finalRole = 'master';
+                        } else if (roles.includes('role_client') || roles.includes('client')) {
+                            finalRole = 'client';
+                        }
+                    }
+                    setUserRole(finalRole);
+
+                    // Сохраняем occupation если есть
+                    if (data.user.occupation) {
+                        setUserOccupation(data.user.occupation);
+                    }
+
+                    console.log('Google auth successful, role:', finalRole, ', redirecting to home...');
 
                     // Очищаем временные данные
                     sessionStorage.removeItem('pendingGoogleRole');
                     sessionStorage.removeItem('pendingGoogleSpecialty');
 
+                    // Имитируем событие логина
+                    window.dispatchEvent(new Event('login'));
+
                     // Редирект на главную
+                    navigate(ROUTES.HOME);
+                } else if (data.token) {
+                    // Fallback: только токен без данных пользователя
+                    setAuthToken(data.token);
+                    setUserRole(savedRole as 'master' | 'client');
+                    sessionStorage.removeItem('pendingGoogleRole');
+                    sessionStorage.removeItem('pendingGoogleSpecialty');
+                    window.dispatchEvent(new Event('login'));
                     navigate(ROUTES.HOME);
                 } else {
                     throw new Error(t('oauth.tokenNotReceived'));
@@ -101,7 +143,7 @@ const GoogleOAuthPage = () => {
         };
 
         processCallback();
-    }, [searchParams, navigate]);
+    }, [searchParams, navigate, t, API_BASE_URL]);
 
     if (error) {
         return (

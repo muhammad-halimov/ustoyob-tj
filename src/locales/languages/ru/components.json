@@ -339,7 +339,16 @@
       "noFavoritesHint": "Добавляйте понравившиеся заказы в избранное, чтобы не потерять",
       "title": "Избранные заказы",
       "orders": "Заказы",
-      "masters": "Мастера"
+      "announcements": "Объявления",
+      "users": "Пользователи",
+      "masters": "Мастера",
+      "clients": "Клиенты",
+      "writeMessage": "Написать",
+      "leaveReview": "Оставить отзыв",
+      "removeFromFavorites": "Удалить из избранного",
+      "addToFavorites": "Добавить в избранное",
+      "complaint": "Пожаловаться",
+      "actions": "Действия"
     },
     "recommendations": {
       "title": "Свежие объявления",

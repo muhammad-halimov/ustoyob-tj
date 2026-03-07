@@ -7,7 +7,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import {getAuthToken, handleUnauthorized} from "../../utils/auth";
 import { useTranslation } from 'react-i18next';
 import { changeLanguage, Language } from '../../locales/i18n.ts';
-import { useLanguageChange } from '../../hooks/useLanguageChange';
+import { useLanguageChange } from '../../hooks';
 import { ThemeToggle } from '../ThemeToggle';
 import { getCities } from '../../utils/dataCache.ts';
 
@@ -753,25 +753,34 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                     <ul className={styles.bottomHeader_navList}>
                         <li className={`${styles.bottomHeader_item} ${isActivePage == "orders" ? styles.active : ""}`}>
                             <Link to={ROUTES.HOME} className={styles.navLink}>
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M12 3.41L10.09 1.5H1.50003V20.59C1.4987 20.8412 1.5472 21.0902 1.64272 21.3225C1.73823 21.5548 1.87887 21.7659 2.0565 21.9435C2.23412 22.1212 2.44521 22.2618 2.67754 22.3573C2.90987 22.4528 3.15883 22.5013 3.41003 22.5H20.59C20.8412 22.5013 21.0902 22.4528 21.3225 22.3573C21.5548 22.2618 21.7659 22.1212 21.9436 21.9435C22.1212 21.7659 22.2618 21.5548 22.3573 21.3225C22.4529 21.0902 22.5014 20.8412 22.5 20.59V3.41H12Z" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10"/>
+                                    <path d="M1.5 7.22998H22.5" stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
+                                </svg>
                                 <p>{t('header:orders')}</p>
                             </Link>
                         </li>
                         <li className={`${styles.bottomHeader_item} ${isActivePage === "favorites" ? styles.active : ""}`}>
                             <Link to={ROUTES.FAVORITES} className={styles.navLink} onClick={handleFavoritesClick}>
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M16.77 2.4502C15.7961 2.47111 14.8444 2.74481 14.0081 3.24444C13.1719 3.74408 12.4799 4.45249 12 5.3002C11.5201 4.45249 10.8281 3.74408 9.99186 3.24444C9.15563 2.74481 8.2039 2.47111 7.23 2.4502C4.06 2.4502 1.5 5.3002 1.5 8.8202C1.5 15.1802 12 21.5502 12 21.5502C12 21.5502 22.5 15.1802 22.5 8.8202C22.5 5.3002 19.94 2.4502 16.77 2.4502Z" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10"/>
+                                </svg>
                                 <p>{t('header:favorites')}</p>
                             </Link>
                         </li>
                         <li className={`${styles.bottomHeader_item} ${isActivePage === "chats" ? styles.active : ""}`}>
                             {isAuthenticated ? (
                                 <Link to={ROUTES.CHATS} className={styles.navLink} onClick={handleChatsClick}>
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M12 1.47998C6.2 1.47998 1.5 5.74998 1.5 11C1.52866 13.0153 2.23294 14.9626 3.5 16.53L2.5 21.53L9.16 20.2C10.1031 20.4499 11.0744 20.5776 12.05 20.58C17.85 20.58 22.55 16.3 22.55 11.03C22.55 5.75998 17.8 1.47998 12 1.47998Z" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10"/>
+                                    </svg>
                                     <p>{t('header:chats')}</p>
                                 </Link>
                             ) : (
-                                <Link
-                                    to={ROUTES.CHATS}
-                                    className={styles.navLink}
-                                    onClick={handleChatsClick}
-                                >
+                                <Link to={ROUTES.CHATS} className={styles.navLink} onClick={handleChatsClick}>
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M12 1.47998C6.2 1.47998 1.5 5.74998 1.5 11C1.52866 13.0153 2.23294 14.9626 3.5 16.53L2.5 21.53L9.16 20.2C10.1031 20.4499 11.0744 20.5776 12.05 20.58C17.85 20.58 22.55 16.3 22.55 11.03C22.55 5.75998 17.8 1.47998 12 1.47998Z" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10"/>
+                                    </svg>
                                     <p>{t('header:chats')}</p>
                                 </Link>
                             )}
@@ -779,14 +788,18 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                         <li className={`${styles.bottomHeader_item} ${isActivePage === "profile" ? styles.active : ""}`}>
                             {isAuthenticated ? (
                                 <Link to={ROUTES.PROFILE} className={styles.navLink} onClick={handleProfileClick}>
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M12 12.98C15.1646 12.98 17.73 10.4146 17.73 7.25002C17.73 4.08543 15.1646 1.52002 12 1.52002C8.83543 1.52002 6.27002 4.08543 6.27002 7.25002C6.27002 10.4146 8.83543 12.98 12 12.98Z" fill="currentColor"/>
+                                        <path d="M1.5 23.48L1.87 21.43C2.3071 19.0625 3.55974 16.9229 5.41031 15.3828C7.26088 13.8428 9.59246 12.9997 12 13C14.4104 13.0006 16.7443 13.8465 18.5952 15.3905C20.4462 16.9345 21.6971 19.0788 22.13 21.45L22.5 23.5" fill="currentColor"/>
+                                    </svg>
                                     <p>{t('header:profile')}</p>
                                 </Link>
                             ) : (
-                                <Link
-                                    to={ROUTES.PROFILE}
-                                    className={styles.navLink}
-                                    onClick={handleProfileClick}
-                                >
+                                <Link to={ROUTES.PROFILE} className={styles.navLink} onClick={handleProfileClick}>
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M12 12.98C15.1646 12.98 17.73 10.4146 17.73 7.25002C17.73 4.08543 15.1646 1.52002 12 1.52002C8.83543 1.52002 6.27002 4.08543 6.27002 7.25002C6.27002 10.4146 8.83543 12.98 12 12.98Z" fill="currentColor"/>
+                                        <path d="M1.5 23.48L1.87 21.43C2.3071 19.0625 3.55974 16.9229 5.41031 15.3828C7.26088 13.8428 9.59246 12.9997 12 13C14.4104 13.0006 16.7443 13.8465 18.5952 15.3905C20.4462 16.9345 21.6971 19.0788 22.13 21.45L22.5 23.5" fill="currentColor"/>
+                                    </svg>
                                     <p>{t('header:profile')}</p>
                                 </Link>
                             )}

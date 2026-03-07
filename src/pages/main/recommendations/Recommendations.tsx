@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getUserRole, getAuthToken, getUserData } from '../../../utils/auth.ts';
-import { useLanguageChange } from '../../../hooks/useLanguageChange.ts';
+import { useLanguageChange } from '../../../hooks';
 import { TicketCard } from '../../../shared/ui/TicketCard/TicketCard.tsx';
 import styles from './Recommendations.module.scss';
 import { useTranslation } from 'react-i18next';
@@ -158,8 +158,9 @@ function Recommendations() {
             fetchRecentAnnouncements();
         } else {
             console.log('⏳ Recommendations - Waiting for userRole to load...');
+            setIsLoading(false);
         }
-    }, [userRole, locale]);
+    }, [userRole, locale, fetchRecentAnnouncements]);
 
     const getFullAddress = (announcement: Announcement): string => {
         if (!announcement.addresses || announcement.addresses.length === 0) {

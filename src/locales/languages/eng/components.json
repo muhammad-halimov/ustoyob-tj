@@ -337,7 +337,16 @@
       "noFavoritesHint": "Add orders you like to favorites so you don't lose them",
       "title": "Favorite orders",
       "orders": "Orders",
-      "masters": "Masters"
+      "announcements": "Announcements",
+      "users": "Users",
+      "masters": "Masters",
+      "clients": "Clients",
+      "writeMessage": "Message",
+      "leaveReview": "Leave a review",
+      "removeFromFavorites": "Remove from favorites",
+      "addToFavorites": "Add to favorites",
+      "complaint": "Report",
+      "actions": "Actions"
     },
     "recommendations": {
       "title": "Fresh announcements",

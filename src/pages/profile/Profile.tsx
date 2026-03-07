@@ -1,18 +1,19 @@
 import {type ChangeEvent, useCallback, useEffect, useRef, useState} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
 import {getAuthToken, getUserData, handleUnauthorized} from '../../utils/auth.ts';
-import { ROUTES } from '../../app/routers/routes';
+import {ROUTES} from '../../app/routers/routes';
 import styles from './Profile.module.scss';
-import { useTranslation } from 'react-i18next';
-import { useLanguageChange } from '../../hooks/useLanguageChange.ts';
-import { getStorageItem } from '../../utils/storageHelper.ts';
+import {useTranslation} from 'react-i18next';
+import {useLanguageChange} from '../../hooks';
+import {getStorageItem} from '../../utils/storageHelper.ts';
+import {createChatWithAuthor} from '../../utils/chatUtils';
 
 
 import {usePhotoGallery} from '../../shared/ui/PhotoGallery';
 import {AddressValue, buildAddressData} from '../../shared/ui/AddressSelector';
-import { PageLoader } from '../../widgets/PageLoader';
+import {PageLoader} from '../../widgets/PageLoader';
 import {getOccupations} from '../../utils/dataCache.ts';
-import { smartNameTranslator } from '../../utils/textHelper.ts';
+import {smartNameTranslator} from '../../utils/textHelper.ts';
 
 // Импорты из entities
 import {
@@ -194,8 +195,7 @@ function Profile() {
     const { t, i18n } = useTranslation(['profile', 'components']);
     
     // Определяем, это публичный профиль или приватный
-    const isPublicProfile = !!id;
-    const readOnly = isPublicProfile; // readOnly = true для публичных профилей
+    const readOnly = !!id; // readOnly = true для публичных профилей
     const userId = id || null; // userId из URL параметра
     
     const [currentUser, setCurrentUser] = useState<{ id: number; email: string; name: string; surname: string } | null>(null);
@@ -245,6 +245,11 @@ function Profile() {
     const [availableSocialNetworks, setAvailableSocialNetworks] = useState<LocalAvailableSocialNetwork[]>([]);
     const [socialNetworkValidationError, setSocialNetworkValidationError] = useState('');
     const [isGalleryOperating, setIsGalleryOperating] = useState(false);
+
+    // Состояния для лайка/избранного на публичном профиле
+    const [isProfileLiked, setIsProfileLiked] = useState(false);
+    const [isProfileLikeLoading, setIsProfileLikeLoading] = useState(false);
+    const [profileFavoriteId, setProfileFavoriteId] = useState<number | null>(null);
     
     // Состояния для адресов
     const [editingAddress, setEditingAddress] = useState<string | null>(null);
@@ -263,6 +268,29 @@ function Profile() {
     const [phoneForm, setPhoneForm] = useState({ number: '', type: 'tj' as 'tj' | 'international' });
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+    // Проверяем начальный статус лайка при загрузке публичного профиля
+    useEffect(() => {
+        if (!readOnly || !profileData?.id) return;
+        const token = getAuthToken();
+        if (!token) return;
+
+        (async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/favorites/me`, {
+                    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                setProfileFavoriteId(data.id ?? null);
+                const allUsers: Array<{ id: number }> = [
+                    ...(data.masters || []),
+                    ...(data.clients || [])
+                ];
+                setIsProfileLiked(allUsers.some((u) => u.id === Number(profileData.id)));
+            } catch { /* silent */ }
+        })();
+    }, [readOnly, profileData?.id]);
     
     // Перезагружать данные при смене языка
     useLanguageChange(() => {
@@ -3333,6 +3361,93 @@ function Profile() {
         setAuthModalAction(null);
     };
 
+    // Написать сообщение (публичный профиль)
+    const handleProfileChat = async () => {
+        const token = getAuthToken();
+        if (!token) {
+            setAuthModalAction(null);
+            setShowAuthModal(true);
+            return;
+        }
+        if (!profileData?.id) return;
+        const chat = await createChatWithAuthor(Number(profileData.id));
+        if (chat) {
+            navigate(`${ROUTES.CHATS}?chatId=${chat.id}`);
+        }
+    };
+
+    // Лайк / снятие лайка (публичный профиль)
+    const handleProfileLike = async () => {
+        const token = getAuthToken();
+        if (!token) {
+            setAuthModalAction(null);
+            setShowAuthModal(true);
+            return;
+        }
+        if (!profileData?.id) return;
+
+        setIsProfileLikeLoading(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/favorites/me`, {
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+            });
+
+            let favId: number | null = profileFavoriteId;
+            let existingMasters: string[] = [];
+            let existingClients: string[] = [];
+            let existingTickets: string[] = [];
+
+            if (res.ok) {
+                const data = await res.json();
+                favId = data.id ?? null;
+                setProfileFavoriteId(favId);
+                existingMasters = (data.masters || []).map((m: { id: number }) => `/api/users/${m.id}`);
+                existingClients = (data.clients || []).map((c: { id: number }) => `/api/users/${c.id}`);
+                existingTickets = (data.tickets || []).map((tk: { id: number }) => `/api/tickets/${tk.id}`);
+            }
+
+            const userIri = `/api/users/${profileData.id}`;
+            // Выбираем массив в зависимости от роли просматриваемого пользователя
+            const isMasterProfile = userRole === 'master';
+            let updatedMasters = [...existingMasters];
+            let updatedClients = [...existingClients];
+
+            if (isProfileLiked) {
+                if (isMasterProfile) updatedMasters = updatedMasters.filter(u => u !== userIri);
+                else updatedClients = updatedClients.filter(u => u !== userIri);
+            } else {
+                if (isMasterProfile && !updatedMasters.includes(userIri)) updatedMasters.push(userIri);
+                else if (!isMasterProfile && !updatedClients.includes(userIri)) updatedClients.push(userIri);
+            }
+
+            const body = { masters: updatedMasters, clients: updatedClients, tickets: existingTickets };
+
+            if (favId) {
+                await fetch(`${API_BASE_URL}/api/favorites/${favId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/merge-patch+json', Authorization: `Bearer ${token}` },
+                    body: JSON.stringify(body)
+                });
+            } else {
+                const createRes = await fetch(`${API_BASE_URL}/api/favorites`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                    body: JSON.stringify(body)
+                });
+                if (createRes.ok) {
+                    const created = await createRes.json();
+                    setProfileFavoriteId(created.id ?? null);
+                }
+            }
+            setIsProfileLiked(prev => !prev);
+            window.dispatchEvent(new Event('favoritesUpdated'));
+        } catch (error) {
+            console.error('Error toggling profile like:', error);
+        } finally {
+            setIsProfileLikeLoading(false);
+        }
+    };
+
     if (isLoading) {
         return <PageLoader text={t('profile:loading')} />;
     }
@@ -3392,6 +3507,13 @@ function Profile() {
                     }}
                     onAddSpecialty={handleAddSpecialty}
                     onRemoveSpecialty={handleRemoveSpecialty}
+                    {...(readOnly && {
+                        onChat: handleProfileChat,
+                        onReview: handleReviewButtonClick,
+                        onLike: handleProfileLike,
+                        isLiked: isProfileLiked,
+                        isLikeLoading: isProfileLikeLoading,
+                    })}
                 />
 
                 {/* Баннер для неавторизованных пользователей */}
