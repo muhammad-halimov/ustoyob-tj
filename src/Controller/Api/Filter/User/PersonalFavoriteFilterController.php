@@ -46,6 +46,14 @@ class PersonalFavoriteFilterController extends AbstractController
                 $this->localizationService->localizeEntity($ticket->getSubcategory(), $locale);
         }
 
+        foreach ($favorite->getMasters() as $master) {
+            foreach ($master->getOccupation() as $occupation) $this->localizationService->localizeEntity($occupation, $locale);
+        }
+
+        foreach ($favorite->getClients() as $client) {
+            foreach ($client->getOccupation() as $occupation) $this->localizationService->localizeEntity($occupation, $locale);
+        }
+
         return empty($favorite)
             ? $this->json(['message' => 'Resource not found'], 404)
             : $this->json($favorite, context: ['groups' => ['favorites:read']]);

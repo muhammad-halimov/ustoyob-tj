@@ -372,8 +372,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'masters:read',
         'clients:read',
         'blackLists:read',
+        'favorites:read',
 
-//        'user:public:read',
+        'user:public:read',
     ])]
     private ?string $gender = null;
 
@@ -1762,7 +1763,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'techSupport:read',
         'blackLists:read',
         'favorites:read',
-        
+
         'user:public:read',
     ])]
     #[ApiProperty(writable: false)]
