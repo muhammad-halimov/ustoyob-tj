@@ -10,12 +10,12 @@ use Doctrine\ORM\QueryBuilder;
 final class AddressFilter extends AbstractFilter
 {
     protected function filterProperty(
-        string $property, $value,
-        QueryBuilder $queryBuilder,
+        string                      $property, $value,
+        QueryBuilder                $queryBuilder,
         QueryNameGeneratorInterface $queryNameGenerator,
-        string $resourceClass,
-        Operation $operation = null,
-        array $context = []
+        string                      $resourceClass,
+        ?Operation                  $operation = null,
+        array                       $context = []
     ): void {
         $geographyFields = [
             'province',
@@ -63,9 +63,17 @@ final class AddressFilter extends AbstractFilter
                 ->andWhere("$geoAlias.id = :$parameterName")
                 ->setParameter($parameterName, (int)$value);
         } else {
-            // Поиск по title или description (case-insensitive partial match)
+            // JOIN с переводами для поиска на всех языках (ru, tj, eng)
+            $translationAlias = $queryNameGenerator->generateJoinAlias('translations');
+            $queryBuilder->leftJoin("$geoAlias.translations", $translationAlias);
+
+            // Поиск по title/description основного поля и по всем переводам
             $queryBuilder
-                ->andWhere("LOWER($geoAlias.title) LIKE LOWER(:$parameterName) OR LOWER($geoAlias.description) LIKE LOWER(:$parameterName)")
+                ->andWhere(
+                    "LOWER($geoAlias.title) LIKE LOWER(:$parameterName) OR " .
+                    "LOWER($geoAlias.description) LIKE LOWER(:$parameterName) OR " .
+                    "LOWER($translationAlias.title) LIKE LOWER(:$parameterName)"
+                )
                 ->setParameter($parameterName, "%$value%");
         }
     }
