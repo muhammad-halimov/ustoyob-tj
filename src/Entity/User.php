@@ -656,6 +656,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\ManyToMany(targetEntity: Occupation::class, mappedBy: 'master')]
     #[Groups([
         'masters:read',
+        'favorites:read',
 
         'user:public:read',
     ])]
@@ -1744,6 +1745,30 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         if ($this->lastSeen === null) return false;
         return $this->lastSeen > new DateTimeImmutable('-2 minutes');
+    }
+
+    #[Groups([
+        'masters:read',
+        'clients:read',
+        'reviews:read',
+        'reviewsClient:read',
+        'galleries:read',
+        'masterTickets:read',
+        'clientTickets:read',
+        'chats:read',
+        'chatMessages:read',
+        'appeal:ticket:read',
+        'favorites:read',
+        'techSupport:read',
+        'blackLists:read',
+        'favorites:read',
+        
+        'user:public:read',
+    ])]
+    #[ApiProperty(writable: false)]
+    public function getReviewsCount(): int
+    {
+        return $this->masterReviews->count();
     }
 
     public function getTelegramChatId(): ?string
