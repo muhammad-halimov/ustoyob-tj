@@ -1,11 +1,12 @@
 {
-    "location": "Ҷойгиршавӣ",
+    "location": "Шаҳр",
     "selectCity": "Шаҳрро интихоб кунед",
     "filters": "Филтрҳо",
     "orders": "Асосӣ",
     "favorites": "Дӯстдоштаҳо",
     "chats": "Чатҳо",
     "profile": "Профил",
+    "addBtn": "Илова",
     "postAd": "Эълон гузоштан",
     "postService": "Кор гузоштан",
     "login": "Даромадан",

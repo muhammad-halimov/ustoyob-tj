@@ -1147,6 +1147,7 @@ function Favorites() {
                             readOnly
                             avatar={formatProfileImageUrl(user.image || '')}
                             fullName={[user.surname, user.name].filter(Boolean).join(' ')}
+                            email={user.email}
                             specialty={user.specialties[0] || ''}
                             specialties={user.specialties}
                             rating={user.rating || 0}

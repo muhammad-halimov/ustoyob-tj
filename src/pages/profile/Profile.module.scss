@@ -4129,7 +4129,6 @@
   white-space: nowrap;
   display: flex;
   align-items: center;
-  flex: 1;
   font-weight: 500;
 
   &:hover {
@@ -4461,6 +4460,39 @@
   margin-top: 32px;
   margin-bottom: 32px;
   flex-wrap: wrap;
+}
+
+.logout_section {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px 0 8px;
+}
+
+.logoutBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1.5px solid var(--color-border-light);
+  background: transparent;
+  color: var(--color-text-secondary);
+  transition: all 0.2s;
+  font-family: inherit;
+
+  &:hover {
+    border-color: #d32f2f;
+    color: #d32f2f;
+    background: #fff5f5;
+  }
+
+  &:active {
+    opacity: 0.8;
+    transform: scale(0.97);
+  }
 }
 
 .review_button,

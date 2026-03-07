@@ -1,6 +1,10 @@
 @use '../../app/styles/variables' as vars;
 @use 'sass:map';
 
+.mobile_super_header {
+  display: none;
+}
+
 .header {
   display: block;
   width: 100%;
@@ -112,11 +116,6 @@
               margin-top: 16.5px;
               font-size: map.get(vars.$font-sizes, 'base');
             }
-            &:hover, &:active {
-              color: map.get(vars.$colors, actual-blue);
-              //stroke: map.get(vars.$colors, actual-blue);
-              fill: map.get(vars.$colors, actual-blue);
-            }
             &:focus {
               outline: none;
             }
@@ -126,6 +125,16 @@
               display: flex;
               flex-direction: column;
               color: map.get(vars.$colors, color-icons);
+              border: none;
+              background: none;
+              padding: 0;
+              font-family: vars.$font-family;
+              cursor: pointer;
+              outline: none;
+              -webkit-tap-highlight-color: transparent;
+              &:focus, &:focus-visible {
+                outline: none;
+              }
             }
           }
         }
@@ -245,11 +254,40 @@
 }
 
 @media (max-width: 480px) {
+  .mobile_super_header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 5px;
+    background: var(--color-background-primary);
+    position: relative;
+    z-index: 1;
+    box-shadow: 0 4px 10px var(--color-shadow-light);
+    a {
+      display: flex;
+      align-items: center;
+      text-decoration: none;
+    }
+    svg {
+      height: 26px;
+      width: auto;
+    }
+  }
+
   .rightPart_buttons {
     display: none !important;
   }
   .bottomHeader_wrap {
     padding: 10px 20px !important;
+  }
+  .bottomHeader_logo {
+    display: none !important;
+  }
+  .logo_mobile_top {
+    display: none !important;
+  }
+  .logo_locate_group {
+    display: flex !important;
   }
 
   .headerWrap {
@@ -259,16 +297,16 @@
   }
   
   .locate {
-    font-size: 14px !important;
+    font-size: 15px !important;
     padding-left: 0 !important;
     
     svg {
-      width: 20px !important;
-      height: 20px !important;
+      width: 24px !important;
+      height: 24px !important;
     }
     
     .locate_title {
-      font-size: 14px !important;
+      font-size: 15px !important;
     }
   }
   
@@ -302,10 +340,7 @@
     display: none !important;
   }
   .bottomHeader_wrap {
-    display: flex !important;
-    .rightPart_buttons_mobile {
-      display: flex;
-    }
+    display: none !important;
   }
   .logo_mobile {
     width: 70px !important;
@@ -315,25 +350,57 @@
   .mobile_header {
     display: block !important;
     height: auto;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: var(--color-background-primary);
     border-top: 1px solid var(--color-border-light);
     ul {
       display: flex;
-      justify-content: space-between;
-      padding: 8px 20px;
+      justify-content: space-around;
+      padding: 8px 12px;
       list-style: none;
       li {
         display: flex;
         flex-direction: column;
         align-items: center;
+        flex: 1;
       }
-      a {
+      a, button {
         text-decoration: none;
         color: var(--color-text-primary);
-        font-size: 12px !important;
+        font-size: 10px !important;
         display: flex;
         flex-direction: column;
         align-items: center;
         gap: 3px;
+        border: none;
+        background: none;
+        padding: 0;
+        font-family: inherit;
+        cursor: pointer;
+        width: 100%;
+        justify-content: center;
+        -webkit-tap-highlight-color: transparent;
+        outline: none;
+        user-select: none;
+        p {
+          margin: 0;
+          font-size: 10px;
+          line-height: 1;
+        }
+        svg {
+          width: 24px;
+          height: 24px;
+          flex-shrink: 0;
+        }
+        &:hover, &:focus, &:focus-visible, &:active {
+          color: var(--color-text-primary) !important;
+          background: none !important;
+          outline: none !important;
+        }
       }
     }
   }
@@ -342,6 +409,18 @@
 
 .rightPart_buttons_mobile {
   display: none;
+}
+
+.logo_locate_group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo_mobile_top {
+  display: none;
+  align-items: center;
+  text-decoration: none;
 }
 
 .mobile_header {

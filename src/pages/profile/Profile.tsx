@@ -1,6 +1,6 @@
 import {type ChangeEvent, useCallback, useEffect, useRef, useState} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
-import {getAuthToken, getUserData, handleUnauthorized} from '../../utils/auth.ts';
+import {getAuthToken, getUserData, handleUnauthorized, logout} from '../../utils/auth.ts';
 import {ROUTES} from '../../app/routers/routes';
 import styles from './Profile.module.scss';
 import {useTranslation} from 'react-i18next';
@@ -356,6 +356,19 @@ function Profile() {
 
     
     // PhotoGallery hook для примеров работ
+    const handleLogout = async () => {
+        const confirmed = confirm(t('header:logoutConfirm', 'Вы уверены, что хотите выйти?'));
+        if (!confirmed) return;
+        try {
+            await logout();
+            window.dispatchEvent(new Event('logout'));
+            window.location.reload();
+        } catch (error) {
+            console.error('Logout error:', error);
+            window.location.reload();
+        }
+    };
+
     const galleryImages = profileData?.workExamples.map(work => work.image) || [];
     const {
         isOpen: isGalleryOpen,
@@ -1752,7 +1765,7 @@ function Profile() {
                         console.log('Client data:', clientData);
 
                         const getFullNameParts = (fullName: string) => {
-                            if (!fullName || typeof fullName !== 'string') {
+                            if (!fullName || false) {
                                 return { firstName: 'Мастер', lastName: '' };
                             }
                             const parts = fullName.trim().split(/\s+/);
@@ -3204,7 +3217,6 @@ function Profile() {
                     }
                 } catch {
                     console.log('Fallback image failed:', source);
-                    continue;
                 }
             }
         }
@@ -3470,6 +3482,16 @@ function Profile() {
     return (
         <div className={styles.profile}>
             <div className={styles.profile_wrap}>
+                {!readOnly && (
+                    <div className={styles.logout_section}>
+                        <button className={styles.logoutBtn} onClick={handleLogout}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                            {t('header:logout')}
+                        </button>
+                    </div>
+                )}
                 {/* ProfileHeader Component */}
                 <ProfileHeader
                     avatar={profileData.avatar}
