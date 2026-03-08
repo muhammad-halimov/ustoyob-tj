@@ -37,6 +37,10 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             uriTemplate: '/chats/{id}',
             requirements: ['id' => '\d+'],
             controller: ChatFilterController::class,
+            normalizationContext: [
+                'groups' => ['chats:read'],
+                'skip_null_values' => false,
+            ],
         ),
         // [MERCURE] Эндпоинт для получения подписного JWT-токена.
         // Фронтенд вызывает его перед открытием SSE-соединения.
@@ -44,20 +48,36 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             uriTemplate: '/chats/{id}/subscribe',
             requirements: ['id' => '\d+'],
             controller: GetChatSubscribeTokenController::class,
+            normalizationContext: [
+                'groups' => ['chats:read'],
+                'skip_null_values' => false,
+            ],
         ),
         new GetCollection(
             uriTemplate: '/chats/me',
             controller: PersonalChatFilterController::class,
+            normalizationContext: [
+                'groups' => ['chats:read'],
+                'skip_null_values' => false,
+            ],
         ),
         new Post(
             uriTemplate: '/chats',
             controller: PostChatController::class,
+            normalizationContext: [
+                'groups' => ['chats:read'],
+                'skip_null_values' => false,
+            ],
             input: ChatPostInput::class,
         ),
         new Patch(
             uriTemplate: '/chats/{id}',
             requirements: ['id' => '\d+'],
             controller: PatchChatController::class,
+            normalizationContext: [
+                'groups' => ['chats:read'],
+                'skip_null_values' => false,
+            ],
             input: ChatPatchInput::class,
         ),
         new Delete(
@@ -65,10 +85,6 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             requirements: ['id' => '\d+'],
             controller: DeleteChatController::class,
         )
-    ],
-    normalizationContext: [
-        'groups' => ['chats:read'],
-        'skip_null_values' => false,
     ],
     paginationEnabled: false,
 )]

@@ -88,7 +88,7 @@ class PostChatController extends AbstractController
 
             $this->entityManager->flush();
 
-            return $this->json(['message' => 'Resource successfully posted. RC/M - RC/M']);
+            return $this->json(['message' => 'Resource successfully posted. RC/M - RC/M'], context: ['groups' => ['chats:read']]);
         }
 
         if ($ticket &&  // Чат клиента с мастером, отклик на услугу мастера
@@ -100,7 +100,7 @@ class PostChatController extends AbstractController
 
             $this->entityManager->flush();
 
-            return $this->json(['message' => 'Resource successfully posted. RC -> RM/T']);
+            return $this->json(['message' => 'Resource successfully posted. RC -> RM/T'], context: ['groups' => ['chats:read']]);
         }
 
         if ($ticket &&  // Чат мастера с клиентом, отклик на объявление клиента
@@ -112,7 +112,7 @@ class PostChatController extends AbstractController
 
             $this->entityManager->flush();
 
-            return $this->json(['message' => 'Resource successfully posted. RM -> RC/T']);
+            return $this->json(['message' => 'Resource successfully posted. RM -> RC/T'], context: ['groups' => ['chats:read']]);
         }
 
         return $this->json(['message' => "Probably ticket's author/master doesn't match to reply author"], 400);
