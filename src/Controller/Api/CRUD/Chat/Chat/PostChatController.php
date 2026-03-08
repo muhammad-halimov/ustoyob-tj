@@ -87,10 +87,9 @@ class PostChatController extends AbstractController
             $this->entityManager->persist($chat->setTicket(null));
             $this->entityManager->flush();
 
-            $data = $this->json($chat, context: ['groups' => ['chats:read']])->getContent();
-            $decoded = json_decode($data, true);
+            $data = json_decode($this->json($chat, context: ['groups' => ['chats:read']])->getContent(), true);
 
-            return $this->json([$decoded, 'message' => 'Resource successfully posted. RC/M - RC/M'], 201);
+            return $this->json(array_merge($data, ['message' => 'Resource successfully posted. RC/M -> RC/M']), 201);
         }
 
         if ($ticket &&  // Чат клиента с мастером, отклик на услугу мастера
@@ -101,10 +100,9 @@ class PostChatController extends AbstractController
             $this->entityManager->persist($chat->setTicket($ticket));
             $this->entityManager->flush();
 
-            $data = $this->json($chat, context: ['groups' => ['chats:read']])->getContent();
-            $decoded = json_decode($data, true);
+            $data = json_decode($this->json($chat, context: ['groups' => ['chats:read']])->getContent(), true);
 
-            return $this->json([$decoded, 'message' => 'Resource successfully posted. RC -> RM/T'], 201);
+            return $this->json(array_merge($data, ['message' => 'Resource successfully posted. RC -> RМ/T']), 201);
         }
 
         if ($ticket &&  // Чат мастера с клиентом, отклик на объявление клиента
@@ -115,10 +113,9 @@ class PostChatController extends AbstractController
             $this->entityManager->persist($chat->setTicket($ticket));
             $this->entityManager->flush();
 
-            $data = $this->json($chat, context: ['groups' => ['chats:read']])->getContent();
-            $decoded = json_decode($data, true);
+            $data = json_decode($this->json($chat, context: ['groups' => ['chats:read']])->getContent(), true);
 
-            return $this->json([$decoded, 'message' => 'Resource successfully posted. RM -> RC/T',], 201);
+            return $this->json(array_merge($data, ['message' => 'Resource successfully posted. RM -> RC/T']), 201);
         }
 
         return $this->json(['message' => "Probably ticket's author/master doesn't match to reply author"], 400);
