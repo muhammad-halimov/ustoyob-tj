@@ -48,6 +48,6 @@ class PersonalTicketFilterController extends AbstractController
 
         return empty($data)
             ? $this->json(['message' => 'Resource not found'], 404)
-            : $this->json($data, context: ['groups' => ['masterTickets:read', 'clientTickets:read']]);
+            : $this->json($data, context: ['groups' => ['masterTickets:read', 'clientTickets:read', 'ticketImages:read']]);
     }
 }
