@@ -1,0 +1,27 @@
+.container {
+  overflow: hidden;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.text {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+/* ── Active scrolling variants ───────────────────────────────────────────── */
+
+.scrolling {
+  animation: marqueeScroll var(--marquee-duration, 8s) linear infinite;
+}
+
+.hoverScrolling {
+  &:hover {
+    animation: marqueeScroll var(--marquee-duration, 8s) linear infinite;
+  }
+}
+
+@keyframes marqueeScroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}

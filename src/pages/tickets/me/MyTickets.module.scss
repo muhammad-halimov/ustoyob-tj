@@ -1,9 +1,9 @@
 .container {
   position: relative;
-  max-width: 1150px; // Оптимизировано для 60% ширины на больших экранах
+  max-width: 1150px;
   margin: 40px auto;
   flex: 1;
-  padding: 20px;
+  padding: 20px 0;
 }
 
 .header {
@@ -386,7 +386,7 @@
 @media (max-width: 768px) {
   .container {
     margin: 20px auto;
-    padding: 16px;
+    padding: 20px;
   }
 
   .header {

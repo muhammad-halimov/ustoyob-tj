@@ -6,13 +6,13 @@ import { useLanguageChange } from '../../../hooks/useLanguageChange.ts';
 import { PageLoader } from '../../../widgets/PageLoader';
 import { ROUTES } from '../../../app/routers/routes';
 import styles from './Category.module.scss';
-import { TicketCard } from '../../../shared/ui/TicketCard/TicketCard.tsx';
+import { Card } from '../../../shared/ui/Ticket/Card/Card.tsx';
 import { ServiceTypeFilter } from '../../../widgets/Sorting/ServiceTypeFilter';
 import { SortingFilter } from '../../../widgets/Sorting/SortingFilter';
 import { useTranslation } from 'react-i18next';
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 import { getOccupations } from '../../../utils/dataCache.ts';
-import { truncateText } from '../../../shared/ui/TicketCard/TicketCard.tsx';
+import { truncateText } from '../../../shared/ui/Ticket/Card/Card.tsx';
 
 interface Occupation {
     id: number;
@@ -46,6 +46,7 @@ interface Ticket {
         name: string;
         surname: string;
         image: string;
+        imageExternalUrl?: string | null;
         rating?: number;
     } | null;
     master: {
@@ -54,6 +55,7 @@ interface Ticket {
         name: string;
         surname: string;
         image: string;
+        imageExternalUrl?: string | null;
         rating?: number;
     } | null;
     images: Array<{
@@ -92,6 +94,7 @@ interface Ticket {
     createdAt: string;
     updatedAt: string;
     reviewsCount?: number;
+    negotiableBudget?: boolean;
 }
 
 interface FormattedTicket {
@@ -113,6 +116,8 @@ interface FormattedTicket {
     authorImage?: string;
     userRating?: number;
     userReviewCount?: number;
+    photos?: string[];
+    negotiableBudget?: boolean;
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -213,6 +218,12 @@ function Category() {
         } else {
             return `${API_BASE_URL}/images/profile_photos/${imagePath}`;
         }
+    };
+
+    const formatTicketImageUrl = (imagePath: string): string => {
+        if (!imagePath) return '';
+        if (imagePath.startsWith('http')) return imagePath;
+        return `${API_BASE_URL}/images/ticket_photos/${imagePath}`;
     };
 
     const formatOccupationImageUrl = (imagePath?: string): string => {
@@ -497,9 +508,11 @@ function Category() {
                     subcategory: ticket.subcategory?.title,
                     status: ticket.active ? 'В работе' : 'Завершен',
                     type: isMasterTicket ? 'master' : 'client',
-                    authorImage: author?.image ? formatProfileImageUrl(author.image) : undefined,
+                    authorImage: author ? (author.image || author.imageExternalUrl ? formatProfileImageUrl(author.image || author.imageExternalUrl!) : undefined) : undefined,
                     userRating: author?.rating || 0,
-                    userReviewCount: ticket.reviewsCount || 0
+                    userReviewCount: ticket.reviewsCount || 0,
+                    photos: ticket.images?.map((img: { id: number; image: string }) => formatTicketImageUrl(img.image)),
+                    negotiableBudget: ticket.negotiableBudget
                 };
             });
 
@@ -878,7 +891,7 @@ function Category() {
                     </div>
                 ) : (
                     tickets.map((ticket) => (
-                        <TicketCard
+                        <Card
                             key={ticket.id}
                             ticketId={ticket.id}
                             title={ticket.title}
@@ -896,6 +909,9 @@ function Category() {
                             userRole={userRole}
                             userRating={ticket.userRating}
                             userReviewCount={ticket.userReviewCount}
+                            photos={ticket.photos}
+                            authorImage={ticket.authorImage}
+                            negotiableBudget={ticket.negotiableBudget}
                             onClick={() => handleCardClick(ticket.id)}
                         />
                     ))

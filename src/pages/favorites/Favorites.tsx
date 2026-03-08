@@ -7,14 +7,14 @@ import { createChatWithAuthor } from "../../utils/chatUtils";
 import { textHelper } from '../../utils/textHelper.ts';
 import { useTranslation } from 'react-i18next';
 import { useLanguageChange } from '../../hooks';
-import { TicketCard } from '../../shared/ui/TicketCard/TicketCard.tsx';
+import { Card } from '../../shared/ui/Ticket/Card/Card.tsx';
 import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 import { ServiceTypeFilter } from '../../widgets/Sorting/ServiceTypeFilter';
 import { SortingFilter } from '../../widgets/Sorting/SortingFilter';
 import { PageLoader } from '../../widgets/PageLoader';
 import { ProfileHeader } from '../profile/shared/ui/ProfileHeader';
-import ReviewModal from '../../shared/ui/Modal/ReviewModal';
-import ComplaintModal from '../../shared/ui/Modal/ComplaintModal';
+import Review from '../../shared/ui/Modal/Review';
+import Complaint from '../../shared/ui/Modal/Complaint';
 
 interface FavoriteTicket {
     id: number;
@@ -36,6 +36,8 @@ interface FavoriteTicket {
     service: boolean;
     userRating?: number;
     userReviewCount?: number;
+    photos?: string[];
+    negotiableBudget?: boolean;
 }
 
 interface FavoriteUser {
@@ -90,6 +92,8 @@ interface Favorite {
         service: boolean;
         createdAt: string;
         reviewsCount?: number;
+        images?: { id: number; image: string }[];
+        negotiableBudget?: boolean;
         category: { title: string };
         subcategory?: { title: string } | null;
         author: {
@@ -98,6 +102,7 @@ interface Favorite {
             name: string;
             surname: string;
             image: string;
+            imageExternalUrl?: string | null;
             rating?: number;
         } | null;
         master: {
@@ -106,6 +111,7 @@ interface Favorite {
             name: string;
             surname: string;
             image: string;
+            imageExternalUrl?: string | null;
             rating?: number;
         } | null;
         addresses?: Array<{
@@ -346,6 +352,12 @@ function Favorites() {
         }
     };
 
+    const formatTicketImageUrl = (imagePath: string): string => {
+        if (!imagePath) return '';
+        if (imagePath.startsWith('http')) return imagePath;
+        return `${API_BASE_URL}/images/ticket_photos/${imagePath}`;
+    };
+
     // Функция для определения реального статуса тикета
     const getTicketStatus = (active: boolean, service: boolean): string => {
         if (!active) {
@@ -484,11 +496,10 @@ function Favorites() {
                             authorName = `${ticket.author.name || ''} ${ticket.author.surname || ''}`.trim() || 'Клиент';
                         }
 
-                        const authorImage = isMasterTicket && ticket.master?.image
-                            ? formatProfileImageUrl(ticket.master.image)
-                            : !isMasterTicket && ticket.author?.image
-                                ? formatProfileImageUrl(ticket.author.image)
-                                : undefined;
+                        const authorImageSrc = isMasterTicket
+                            ? (ticket.master?.image || ticket.master?.imageExternalUrl)
+                            : (ticket.author?.image || ticket.author?.imageExternalUrl);
+                        const authorImage = authorImageSrc ? formatProfileImageUrl(authorImageSrc) : undefined;
 
                         tickets.push({
                             id: ticket.id,
@@ -509,7 +520,9 @@ function Favorites() {
                             service: ticket.service,
                             authorImage: authorImage,
                             userRating: isMasterTicket ? (ticket.master?.rating || 0) : (ticket.author?.rating || 0),
-                            userReviewCount: ticket.reviewsCount || 0
+                            userReviewCount: ticket.reviewsCount || 0,
+                            photos: ticket.images?.map(img => formatTicketImageUrl(img.image)),
+                            negotiableBudget: ticket.negotiableBudget
                         });
                     }
                 }
@@ -549,8 +562,20 @@ function Favorites() {
                 });
 
                 const allUsers = Array.from(userMap.values());
-                console.log('Final favorite tickets:', tickets);
-                setFavoriteTickets(tickets);
+                // Сортируем: сначала тикеты из выбранного города, затем остальные
+                const selectedCity = localStorage.getItem('selectedCity') || '';
+                const sortedTickets = selectedCity
+                    ? [...tickets].sort((a, b) => {
+                        const aRaw = favorite.tickets.find(ft => ft.id === a.id);
+                        const bRaw = favorite.tickets.find(ft => ft.id === b.id);
+                        const aMatch = aRaw?.addresses?.some(addr => addr.city?.title === selectedCity) ?? false;
+                        const bMatch = bRaw?.addresses?.some(addr => addr.city?.title === selectedCity) ?? false;
+                        return aMatch === bMatch ? 0 : aMatch ? -1 : 1;
+                    })
+                    : tickets;
+
+                console.log('Final favorite tickets:', sortedTickets);
+                setFavoriteTickets(sortedTickets);
                 setFavoriteUsers(allUsers);
                 // Fetch full profile data (isOnline, lastSeen, occupations)
                 fetchUserOnlineStatus(allUsers);
@@ -1109,7 +1134,7 @@ function Favorites() {
 
                 {/* Отображение заказов */}
                 {(activeTab === 'orders' || !showTabs) && hasOrders && filteredTickets.map((ticket, index) => (
-                    <TicketCard
+                    <Card
                         key={`${ticket.id}-${ticket.type}-${index}`}
                         title={ticket.title}
                         description={textHelper(ticket.description)}
@@ -1132,6 +1157,9 @@ function Favorites() {
                             handleTicketLikeWrapper(ticket.id);
                         }}
                         isLikeLoading={isLikeLoading === ticket.id}
+                        photos={ticket.photos}
+                        authorImage={ticket.authorImage}
+                        negotiableBudget={ticket.negotiableBudget}
                         onClick={() => handleCardClick(ticket.authorId, ticket.id)}
                     />
                 ))}
@@ -1180,7 +1208,7 @@ function Favorites() {
                 ))}
             </div>
 
-            <ReviewModal
+            <Review
                 isOpen={showReviewModal}
                 onClose={handleCloseModal}
                 onSuccess={() => handleCloseModal()}
@@ -1191,7 +1219,7 @@ function Favorites() {
             />
             <CookieConsentBanner/>
             {showComplaintModal && complaintUserId !== null && (
-                <ComplaintModal
+                <Complaint
                     isOpen={showComplaintModal}
                     onClose={handleCloseComplaintModal}
                     onSuccess={() => handleCloseComplaintModal()}

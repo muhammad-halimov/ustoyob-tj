@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getUserRole, getAuthToken, getUserData } from '../../../utils/auth.ts';
 import { useLanguageChange } from '../../../hooks';
-import { TicketCard } from '../../../shared/ui/TicketCard/TicketCard.tsx';
+import { Card } from '../../../shared/ui/Ticket/Card/Card.tsx';
 import styles from './Recommendations.module.scss';
 import { useTranslation } from 'react-i18next';
 import { ROUTES } from '../../../app/routers/routes.ts';
@@ -46,6 +46,8 @@ interface Announcement {
         surname?: string;
         rating?: number;
         reviewCount?: number;
+        image?: string | null;
+        imageExternalUrl?: string | null;
     };
     master?: {
         id?: number;
@@ -53,11 +55,26 @@ interface Announcement {
         surname?: string;
         rating?: number;
         reviewCount?: number;
+        image?: string | null;
+        imageExternalUrl?: string | null;
     };
     reviewsCount?: number;
+    images?: { id: number; image: string }[];
+    negotiableBudget?: boolean;
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+const formatTicketImageUrl = (imagePath: string): string => {
+    if (imagePath.startsWith('http')) return imagePath;
+    return `${API_BASE_URL}/images/ticket_photos/${imagePath}`;
+};
+
+const formatProfileImageUrl = (imagePath: string): string => {
+    if (!imagePath) return '';
+    if (imagePath.startsWith('http')) return imagePath;
+    return `${API_BASE_URL}/images/profile_photos/${imagePath}`;
+};
 
 function Recommendations() {
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -67,7 +84,7 @@ function Recommendations() {
     const { t, i18n } = useTranslation('components');
     const locale = i18n.language;
 
-    const fetchRecentAnnouncements = async () => {
+    const fetchRecentAnnouncements = useCallback(async () => {
         try {
             const token = getAuthToken();
             const userData = getUserData();
@@ -99,14 +116,20 @@ function Recommendations() {
 
             if (response.ok) {
                 let data: Announcement[] = await response.json();
-                
-                // Сортируем по дате создания (новые первыми)
+
+                // Сортируем: сначала тикеты из выбранного города, затем по дате (новые первыми)
+                const selectedCity = localStorage.getItem('selectedCity') || '';
                 data = data.sort((a, b) => {
-                    const dateA = new Date(a.createdAt).getTime();
-                    const dateB = new Date(b.createdAt).getTime();
-                    return dateB - dateA; // От новых к старым
+                    const aMatchesCity = selectedCity
+                        ? a.addresses?.some(addr => addr.city?.title === selectedCity) ?? false
+                        : false;
+                    const bMatchesCity = selectedCity
+                        ? b.addresses?.some(addr => addr.city?.title === selectedCity) ?? false
+                        : false;
+                    if (aMatchesCity !== bMatchesCity) return aMatchesCity ? -1 : 1;
+                    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
                 });
-                
+
                 setAnnouncements(data.slice(0, 3));
             }
         } catch (error) {
@@ -114,7 +137,7 @@ function Recommendations() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [locale, userRole]);
 
     useLanguageChange(() => {
         // Обновление данных при смене языка происходит через useEffect ниже
@@ -245,7 +268,7 @@ function Recommendations() {
                 ) : announcements.length > 0 ? (
                     <div className={styles.recommendation__list}>
                         {announcements.map((announcement) => (
-                            <TicketCard
+                            <Card
                                 key={announcement.id}
                                 ticketId={announcement.id}
                                 title={announcement.title}
@@ -263,6 +286,13 @@ function Recommendations() {
                                 userRole={userRole}
                                 userRating={getUserRating(announcement)}
                                 userReviewCount={getUserReviewCount(announcement)}
+                                photos={announcement.images?.map(img => formatTicketImageUrl(img.image))}
+                                authorImage={(() => {
+                                    const person = announcement.service ? announcement.master : announcement.author;
+                                    const src = person?.image || person?.imageExternalUrl;
+                                    return src ? formatProfileImageUrl(src) : undefined;
+                                })()}
+                                negotiableBudget={announcement.negotiableBudget}
                                 onClick={() => handleCardClick(announcement.id)}
                             />
                         ))}

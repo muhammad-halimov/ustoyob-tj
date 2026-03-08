@@ -3,10 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ROUTES } from '../../../app/routers/routes.ts';
 import styles from './CreateEdit.module.scss';
 import { getAuthToken, getUserRole } from '../../../utils/auth.ts';
-import AddressSelector, { AddressValue, buildAddressData } from '../../../shared/ui/AddressSelector';
+import Address, { AddressValue, buildAddressData } from '../../../shared/ui/Address/Selector';
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
-import StatusModal from '../../../shared/ui/Modal/StatusModal';
-import { PhotoGallery, usePhotoGallery } from '../../../shared/ui/PhotoGallery';
+import Status from '../../../shared/ui/Modal/Status';
+import { Preview, usePreview } from '../../../shared/ui/Photo/Preview';
 import { useTranslation } from 'react-i18next';
 import { useLanguageChange } from '../../../hooks/useLanguageChange.ts';
 import { getStorageItem } from '../../../utils/storageHelper.ts';
@@ -124,9 +124,9 @@ const CreateEdit = () => {
         }
     };
 
-    // PhotoGallery для просмотра существующих фото
+    // Preview для просмотра существующих фото
     const existingImageUrls = existingImages.map(img => getImageUrl(img.image));
-    const photoGallery = usePhotoGallery({ images: existingImageUrls });
+    const photoGallery = usePreview({ images: existingImageUrls });
 
     useEffect(() => {
         console.log('CreateEdit useEffect triggered', { token: !!token, isEditMode, id });
@@ -636,7 +636,7 @@ const CreateEdit = () => {
 
                 {/* Адрес */}
                 <div className={styles.section}>
-                    <AddressSelector 
+                    <Address
                         value={addressValue}
                         onChange={setAddressValue}
                         required={true}
@@ -815,16 +815,16 @@ const CreateEdit = () => {
                 </div>
             </form>
 
-            <StatusModal
+            <Status
                 type="success"
                 isOpen={showSuccessModal}
                 onClose={handleSuccessClose}
                 message={isEditMode ? t('createEdit:successEdit') : t('createEdit:successCreate')}
             />
 
-            {/* PhotoGallery для просмотра существующих фото */}
+            {/* Preview для просмотра существующих фото */}
             {isEditMode && existingImages.length > 0 && (
-                <PhotoGallery
+                <Preview
                     isOpen={photoGallery.isOpen}
                     images={existingImageUrls}
                     currentIndex={photoGallery.currentIndex}

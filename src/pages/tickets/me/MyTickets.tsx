@@ -8,9 +8,9 @@ import { useLanguageChange } from '../../../hooks/useLanguageChange';
 import styles from './MyTickets.module.scss';
 import { PageLoader } from '../../../widgets/PageLoader';
 import AuthModal from '../../../features/auth/AuthModal.tsx';
-import { TicketCard } from '../../../shared/ui/TicketCard/TicketCard.tsx';
+import { Card } from '../../../shared/ui/Ticket/Card/Card.tsx';
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
-import StatusModal from '../../../shared/ui/Modal/StatusModal';
+import Status from '../../../shared/ui/Modal/Status';
 
 interface ApiUser {
     id: number;
@@ -49,6 +49,7 @@ interface Ticket {
         name: string;
         surname: string;
         image: string;
+        imageExternalUrl?: string | null;
     };
     master: {
         id: number;
@@ -56,6 +57,7 @@ interface Ticket {
         name: string;
         surname: string;
         image: string;
+        imageExternalUrl?: string | null;
     } | null;
     images: Array<{
         id: number;
@@ -102,6 +104,7 @@ interface Ticket {
     }[];
     createdAt: string;
     updatedAt: string;
+    negotiableBudget?: boolean;
 }
 
 interface FormattedTicket {
@@ -123,6 +126,8 @@ interface FormattedTicket {
     type: 'client' | 'master';
     authorImage?: string;
     active: boolean;
+    photos?: string[];
+    negotiableBudget?: boolean;
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -278,16 +283,25 @@ function MyTickets() {
                         subcategory: ticket.subcategory?.title,
                         status: ticket.active ? t('myTickets:statusActive') : t('myTickets:statusDone'),
                         type: ticket.service ? 'master' : 'client',
-                        authorImage: authorData?.image ? formatProfileImageUrl(authorData.image) : undefined,
-                        active: ticket.active
+                        authorImage: (() => {
+                            const src = authorData?.image || (authorData as any)?.imageExternalUrl;
+                            return src ? formatProfileImageUrl(src) : undefined;
+                        })(),
+                        active: ticket.active,
+                        photos: ticket.images?.map(img => formatTicketImageUrl(img.image)),
+                        negotiableBudget: ticket.negotiableBudget
                     };
                 });
 
-                // Сортируем по дате создания (новые первыми)
+                // Сортируем: сначала тикеты из выбранного города, затем по дате (новые первыми)
+                const selectedCity = localStorage.getItem('selectedCity') || '';
                 formattedTickets.sort((a, b) => {
-                    const dateA = new Date(a.timeAgo).getTime();
-                    const dateB = new Date(b.timeAgo).getTime();
-                    return dateB - dateA;
+                    const aCity = myTickets.find(t => t.id === a.id)?.addresses?.[0]?.city?.title || '';
+                    const bCity = myTickets.find(t => t.id === b.id)?.addresses?.[0]?.city?.title || '';
+                    const aMatch = selectedCity ? aCity === selectedCity : false;
+                    const bMatch = selectedCity ? bCity === selectedCity : false;
+                    if (aMatch !== bMatch) return aMatch ? -1 : 1;
+                    return new Date(b.timeAgo).getTime() - new Date(a.timeAgo).getTime();
                 });
 
                 setAllTickets(formattedTickets);
@@ -313,6 +327,12 @@ function MyTickets() {
         } else {
             return `${API_BASE_URL}/images/profile_photos/${imagePath}`;
         }
+    };
+
+    const formatTicketImageUrl = (imagePath: string): string => {
+        if (!imagePath) return '';
+        if (imagePath.startsWith('http')) return imagePath;
+        return `${API_BASE_URL}/images/ticket_photos/${imagePath}`;
     };
 
     const getFullAddress = (ticketData: Ticket): string => {
@@ -522,7 +542,7 @@ function MyTickets() {
                     </div>
                 ) : (
                     displayedTickets.map((ticket) => (
-                        <TicketCard
+                        <Card
                             key={ticket.id}
                             ticketId={ticket.id}
                             title={ticket.title}
@@ -543,19 +563,22 @@ function MyTickets() {
                             showActiveToggle={true}
                             isActive={ticket.active}
                             onActiveToggle={(e) => handleToggleTicketActive(e, ticket.id, ticket.active)}
+                            photos={ticket.photos}
+                            authorImage={ticket.authorImage}
+                            negotiableBudget={ticket.negotiableBudget}
                         />
                     ))
                 )}
             </div>
 
-            <StatusModal
+            <Status
                 type="success"
                 isOpen={showSuccessModal}
                 onClose={handleCloseSuccessModal}
                 message={modalMessage}
             />
 
-            <StatusModal
+            <Status
                 type="error"
                 isOpen={showErrorModal}
                 onClose={handleCloseErrorModal}

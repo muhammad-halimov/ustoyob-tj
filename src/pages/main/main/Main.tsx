@@ -1,6 +1,6 @@
 import styles from "./Main.module.scss";
 import Search from "../../../features/search/search/Search.tsx";
-import { AdBtn } from "../../../shared/ui/Button/HeaderButton/AdBtn.tsx";
+import { AdBtn } from "../../../shared/ui/Button/Header/Add/AdBtn.tsx";
 import Category from "../categories/Category.tsx";
 import { MainReviewsSection } from "../reviews";
 import Recommendations from "../recommendations/Recommendations.tsx";

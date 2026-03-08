@@ -64,6 +64,18 @@ export const initChatModals = (callbacks: ModalCallbacks) => {
     modalCallbacks = callbacks;
 };
 
+// Извлекает числовой id из объекта: сначала проверяет числовое поле id,
+// затем парсит IRI вида "/api/chats/123"
+const extractId = (obj: any): number | undefined => {
+    if (obj?.id) return typeof obj.id === 'number' ? obj.id : parseInt(String(obj.id));
+    const iri = obj?.['@id'];
+    if (iri) {
+        const match = String(iri).match(/\/(\d+)$/);
+        if (match) return parseInt(match[1]);
+    }
+    return undefined;
+};
+
 // Функция для показа модалок с авто-закрытием
 const showModalWithAutoClose = (
     type: 'success' | 'error' | 'info',
@@ -159,9 +171,10 @@ export const createChatWithAuthor = async (replyAuthorId: number, ticketId?: num
         }
 
         if (response.ok) {
-            const chatResponse: ChatData = await response.json();
-            console.log('Chat created successfully:', chatResponse);
-            showModalWithAutoClose('success', 'Чат успешно создан');
+            const rawResponse = await response.json();
+            console.log('Chat created successfully:', rawResponse);
+            rawResponse.id = extractId(rawResponse);
+            const chatResponse: ChatData = rawResponse;
             return chatResponse;
         } else {
             const errorText = await response.text();
@@ -215,8 +228,8 @@ export const checkUserStatus = async (userId: number): Promise<{ approved: boole
         if (response.ok) {
             const userData: UserData = await response.json();
             return {
-                approved: userData.approved || false,
-                active: userData.active || false
+                approved: userData.approved !== false,
+                active: userData.active !== false
             };
         }
         return { approved: false, active: false };
@@ -267,10 +280,16 @@ const findExistingChat = async (replyAuthorId: number): Promise<ChatData | null>
                 }
             }
 
-            // Ищем чат с тем же replyAuthor
+            // Нормализуем id у всех чатов (IRI → number)
+            chatsArray = chatsArray.map(chat => ({
+                ...chat,
+                id: extractId(chat) ?? chat.id,
+            }));
+
+            // Ищем чат с тем же replyAuthor (или author, если текущий пользователь — replyAuthor)
             const existingChat = chatsArray.find(chat => {
-                const chatReplyAuthorId = chat.replyAuthor?.id;
-                return chatReplyAuthorId === replyAuthorId;
+                return extractId(chat.replyAuthor) === replyAuthorId ||
+                       extractId(chat.author) === replyAuthorId;
             });
 
             return existingChat || null;

@@ -4,12 +4,12 @@ import { getAuthToken } from "../../utils/auth";
 import { ROUTES } from '../../app/routers/routes';
 import { smartNameTranslator } from '../../utils/textHelper';
 import AuthModal from '../../features/auth/AuthModal';
-import ComplaintModal from '../../shared/ui/Modal/ComplaintModal/ComplaintModal';
+import Complaint from '../../shared/ui/Modal/Complaint/Complaint.tsx';
 import { PageLoader } from '../../widgets/PageLoader';
 import styles from "./Chat.module.scss";
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { IoSend, IoAttach, IoClose, IoImages, IoArchiveOutline, IoArrowUpCircleOutline, IoWarningOutline, IoPencilSharp, IoTrashSharp, IoArrowUndoSharp, IoEye, IoEllipsisVertical, IoChatbubblesOutline } from "react-icons/io5";
-import { PhotoGallery, usePhotoGallery } from '../../shared/ui/PhotoGallery';
+import { Preview, usePreview } from '../../shared/ui/Photo/Preview';
 import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 
 interface Message {
@@ -142,12 +142,12 @@ function Chat() {
 
     // Хук для галереи фотографий
     const galleryImages = useMemo(() => chatImages.map(img => img.imageUrl), [chatImages]);
-    const photoGallery = usePhotoGallery({ images: galleryImages });
+    const photoGallery = usePreview({ images: galleryImages });
 
     // Object URL previews for selected (new-message) files
     const selectedFilePreviews = useMemo(() => selectedFiles.map(f => URL.createObjectURL(f)), [selectedFiles]);
     useEffect(() => () => { selectedFilePreviews.forEach(u => URL.revokeObjectURL(u)); }, [selectedFilePreviews]);
-    const selectedFilesGallery = usePhotoGallery({ images: selectedFilePreviews });
+    const selectedFilesGallery = usePreview({ images: selectedFilePreviews });
 
     // Object URL previews for files added during edit
     const editingNewFilePreviews = useMemo(() => editingNewFiles.map(f => URL.createObjectURL(f)), [editingNewFiles]);
@@ -156,7 +156,7 @@ function Chat() {
         ...editingImages.map(i => i.url),
         ...editingNewFilePreviews,
     ], [editingImages, editingNewFilePreviews]);
-    const editingGallery = usePhotoGallery({ images: editingAllPreviews });
+    const editingGallery = usePreview({ images: editingAllPreviews });
     
     // Вспомогательная функция для транслитерации полного имени (с автоопределением)
     const getTranslatedFullName = useCallback((user: ApiUser): string => {
@@ -213,6 +213,16 @@ function Chat() {
             console.log('User loaded, fetching chats...');
             fetchChats();
         }
+    }, [currentUser]);
+
+    // Если currentUser загрузился позже, чем был выбран чат из URL-параметра,
+    // fetchChatMessages пропустил обработку сообщений (currentUser был null).
+    // Повторно загружаем сообщения теперь, когда пользователь известен.
+    useEffect(() => {
+        if (currentUser && selectedChat) {
+            fetchChatMessages(selectedChat);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentUser]);
 
     // Обработка выбранного чата
@@ -1067,13 +1077,29 @@ function Chat() {
                     return changed ? merged : prev;
                 });
             } else {
-                setChats(chatsData);
+                // Preserve the URL-specific chat if it's not in the new response (race condition with newly created chats)
+                if (chatIdFromUrl) {
+                    const urlChatId = parseInt(chatIdFromUrl);
+                    setChats(prev => {
+                        if (!chatsData.some(c => c.id === urlChatId)) {
+                            const preserved = prev.find(c => c.id === urlChatId);
+                            return preserved ? [preserved, ...chatsData] : chatsData;
+                        }
+                        return chatsData;
+                    });
+                } else {
+                    setChats(chatsData);
+                }
             }
 
             if (chatIdFromUrl) {
                 const chatId = parseInt(chatIdFromUrl);
                 const chatExists = chatsData.some(chat => chat.id === chatId);
                 if (chatExists) {
+                    setSelectedChat(chatId);
+                } else {
+                    // Chat not in list (just created) — load it individually and add to list
+                    await fetchChatMessages(chatId);
                     setSelectedChat(chatId);
                 }
             }
@@ -1083,7 +1109,7 @@ function Chat() {
         } finally {
             if (!silent) setIsLoading(false);
         }
-    }, [API_BASE_URL, chatIdFromUrl, t]);
+    }, [API_BASE_URL, chatIdFromUrl, t, fetchChatMessages]);
 
     // ===== ФУНКЦИИ ДЛЯ АРХИВАЦИИ ЧАТОВ =====
     const archiveChat = useCallback(async (chatId: number, archive: boolean = true) => {
@@ -1794,7 +1820,7 @@ function Chat() {
             </div>
 
             {/* Модальное окно для просмотра фото */}
-            <PhotoGallery
+            <Preview
                 isOpen={photoGallery.isOpen}
                 images={galleryImages}
                 currentIndex={photoGallery.currentIndex}
@@ -1804,7 +1830,7 @@ function Chat() {
                 onSelectImage={photoGallery.selectImage}
                 fallbackImage="../fonTest5.png"
             />
-            <PhotoGallery
+            <Preview
                 isOpen={selectedFilesGallery.isOpen}
                 images={selectedFilePreviews}
                 currentIndex={selectedFilesGallery.currentIndex}
@@ -1814,7 +1840,7 @@ function Chat() {
                 onSelectImage={selectedFilesGallery.selectImage}
                 fallbackImage="../fonTest5.png"
             />
-            <PhotoGallery
+            <Preview
                 isOpen={editingGallery.isOpen}
                 images={editingAllPreviews}
                 currentIndex={editingGallery.currentIndex}
@@ -1825,7 +1851,7 @@ function Chat() {
                 fallbackImage="../fonTest5.png"
             />
             {showComplaintModal && currentInterlocutor && (
-                <ComplaintModal
+                <Complaint
                     isOpen={showComplaintModal}
                     onClose={() => setShowComplaintModal(false)}
                     onSuccess={(msg) => { setShowComplaintModal(false); setError(msg); setTimeout(() => setError(null), 3000); }}
@@ -1837,7 +1863,7 @@ function Chat() {
                 />
             )}
             {sidebarComplaintTarget && (
-                <ComplaintModal
+                <Complaint
                     isOpen={true}
                     onClose={() => setSidebarComplaintTarget(null)}
                     onSuccess={(msg) => { setSidebarComplaintTarget(null); setError(msg); setTimeout(() => setError(null), 3000); }}

@@ -34,7 +34,8 @@
     "service": "Хидмат",
     "defaultUser": "Истифода бар",
     "defaultMaster": "Намуна",
-    "defaultClient": "Муштарӣ"
+    "defaultClient": "Муштарӣ",
+    "negotiablePrice": "Нарх шартномавӣ"
   },
   "validation": {
     "required": "Ин майдон ҳатмӣ аст",

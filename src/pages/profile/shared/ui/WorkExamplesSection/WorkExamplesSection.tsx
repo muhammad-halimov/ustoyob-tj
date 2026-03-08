@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { PhotoGallery } from '../../../../../shared/ui/PhotoGallery';
+import { Preview } from '../../../../../shared/ui/Photo/Preview';
 import styles from './WorkExamplesSection.module.scss';
 
 interface WorkExample {
@@ -160,8 +160,8 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
                 style={{ display: 'none' }}
             />
 
-            {/* PhotoGallery для примеров работ */}
-            <PhotoGallery
+            {/* Preview для примеров работ */}
+            <Preview
                 isOpen={isGalleryOpen}
                 images={galleryImages}
                 currentIndex={galleryCurrentIndex}

@@ -7,7 +7,7 @@ import { ROUTES } from '../../../app/routers/routes.ts';
 import {textHelper} from "../../../utils/textHelper.ts";
 import { useTranslation } from 'react-i18next';
 import { useLanguageChange } from "../../../hooks/useLanguageChange.ts";
-import { TicketCard } from "../../../shared/ui/TicketCard/TicketCard.tsx";
+import { Card } from "../../../shared/ui/Ticket/Card/Card.tsx";
 import { ServiceTypeFilter } from "../../../widgets/Sorting/ServiceTypeFilter";
 import { SortingFilter } from "../../../widgets/Sorting/SortingFilter";
 import { getCities, getOccupations } from "../../../utils/dataCache.ts";
@@ -55,17 +55,22 @@ interface ApiTicket {
         } | null;
     }[];
     createdAt: string;
+    images?: { id: number; image: string }[];
     master: {
         id: number;
         name?: string;
         surname?: string;
         rating?: number;
+        image?: string | null;
+        imageExternalUrl?: string | null;
     } | null;
     author: {
         id: number;
         name?: string;
         surname?: string;
         rating?: number;
+        image?: string | null;
+        imageExternalUrl?: string | null;
     } | null;
     category: {
         id: number;
@@ -78,6 +83,7 @@ interface ApiTicket {
     reviewsCount: number;
     service: boolean;
     active: boolean;
+    negotiableBudget?: boolean;
 }
 
 interface TypedTicket extends ApiTicket {
@@ -109,9 +115,24 @@ interface SearchResult {
     isInSelectedCity?: boolean;
     userRating?: number;
     userReviewCount?: number;
+    photos?: string[];
+    authorImage?: string;
+    negotiableBudget?: boolean;
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
+function formatTicketImageUrl(filename: string): string {
+    if (!filename) return '';
+    if (filename.startsWith('http')) return filename;
+    return `${API_BASE_URL}/images/ticket_photos/${filename}`;
+}
+
+function formatProfileImageUrl(filename: string): string {
+    if (!filename) return '';
+    if (filename.startsWith('http')) return filename;
+    return `${API_BASE_URL}/images/profile_photos/${filename}`;
+}
 
 interface Category {
     id: number;
@@ -131,8 +152,6 @@ interface City {
     id: number;
     name: string;
 }
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export default function Search({ onSearchResults, onFilterToggle }: SearchProps) {
     const { t } = useTranslation('components');
@@ -662,6 +681,9 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 }
             }
 
+            // Город из хедера учитывается через приоритет сортировки (sortTicketsWithPriority),
+            // а не через серверный фильтр — все тикеты показываются, городские идут первыми.
+
             console.log('Loading tickets with params:', params.toString());
 
             const response = await fetch(`${API_BASE_URL}/api/tickets?${params.toString()}`, {
@@ -816,13 +838,20 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                         date: ticket.createdAt,
                         author: userName,
                         authorId,
-                        timeAgo: ticket.createdAt, // Передаём сырую дату, чтобы TicketCard мог сам вычислить timeAgo
+                        timeAgo: ticket.createdAt, // Передаём сырую дату, чтобы Card мог сам вычислить timeAgo
                         category: ticket.category?.title || 'другое',
                         subcategory: ticket.subcategory?.title,
                         type: ticket.type,
                         isInSelectedCity: priority > 0,
                         userRating: ticket.userRating,
-                        userReviewCount: ticket.reviewsCount || 0  // Для отображения используем reviewsCount из API
+                        userReviewCount: ticket.reviewsCount || 0,  // Для отображения используем reviewsCount из API
+                        photos: ticket.images?.map(img => formatTicketImageUrl(img.image)),
+                        authorImage: (() => {
+                            const person = ticket.type === 'master' ? ticket.master : ticket.author;
+                            const src = person?.image || person?.imageExternalUrl;
+                            return src ? formatProfileImageUrl(src) : undefined;
+                        })(),
+                        negotiableBudget: ticket.negotiableBudget
                     };
                 })
             );
@@ -1126,7 +1155,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             });
             
             return (
-                <TicketCard
+                <Card
                     key={result.id}
                     ticketId={result.id}
                     title={result.title}
@@ -1139,11 +1168,14 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     authorId={result.authorId}
                     category={result.category}
                     subcategory={result.subcategory}
-                    timeAgo={result.timeAgo} // Передаём сырую дату, TicketCard сам отформатирует
+                    timeAgo={result.timeAgo} // Передаём сырую дату, Card сам отформатирует
                     ticketType={result.type}
                     userRole={userRole}
                     userRating={result.userRating}
                     userReviewCount={result.userReviewCount}
+                    photos={result.photos}
+                    authorImage={result.authorImage}
+                    negotiableBudget={result.negotiableBudget}
                     onClick={() => handleCardClick(result.id)}
                 />
             );

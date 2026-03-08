@@ -1,6 +1,7 @@
 import {useNavigate, useParams} from 'react-router-dom';
 import {useEffect, useRef, useState} from 'react';
-import {getAuthToken, getUserData} from '../../../utils/auth.ts';
+import {getAuthToken, getUserData, getUserRole} from '../../../utils/auth.ts';
+import { getAuthorAvatar } from '../../../utils/imageHelper';
 import styles from './Ticket.module.scss';
 import {createChatWithAuthor, initChatModals} from "../../../utils/chatUtils.ts";
 import AuthModal from "../../../features/auth/AuthModal.tsx";
@@ -9,17 +10,19 @@ import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/Co
 import {useTranslation} from 'react-i18next';
 import {useLanguageChange} from '../../../hooks';
 import {getStorageItem} from '../../../utils/storageHelper.ts';
-import StatusModal from '../../../shared/ui/Modal/StatusModal';
-import ReviewModal from '../../../shared/ui/Modal/ReviewModal';
-import ComplaintModal from '../../../shared/ui/Modal/ComplaintModal/ComplaintModal';
-import {PhotoGallery, usePhotoGallery} from '../../../shared/ui/PhotoGallery';
+import Status from '../../../shared/ui/Modal/Status';
+import Review from '../../../shared/ui/Modal/Review';
+import Complaint from '../../../shared/ui/Modal/Complaint/Complaint.tsx';
+import { Carousel } from '../../../shared/ui/Photo/Carousel/Carousel.tsx';
+import { Marquee } from '../../../shared/ui/Text/Marquee';
 import {useFavorites} from '../../../shared/ui/useFavorites';
 import {ROUTES} from '../../../app/routers/routes';
 import {ReviewsSection} from '../../profile/shared/ui/ReviewsSection';
-import type {Review} from '../../../entities';
+import {SocialNetworksSection} from '../../profile/shared/ui/SocialNetworksSection';
+import {SOCIAL_NETWORK_CONFIG, renderSocialIcon} from '../../profile/shared/config/socialNetworkConfig';
+import type {Review as ReviewType} from '../../../entities';
 import {PageLoader} from '../../../widgets/PageLoader';
-
-// import { fetchUserWithRole } from "../../utils/api.ts";
+import {IoEllipsisVertical, IoWarningOutline, IoStar, IoHeart, IoHeartOutline, IoChevronForward, IoCompass} from 'react-icons/io5';
 
 interface ApiTicket {
     id: number;
@@ -72,7 +75,7 @@ interface ApiTicket {
             id: number;
             uniTitle: string;
             beginning: number;
-            ending: number;
+            ending: number;    
             graduated: boolean;
             occupation: {
                 id: number;
@@ -90,6 +93,7 @@ interface ApiTicket {
     active: boolean;
     service: boolean;
     reviewsCount?: number;
+    negotiableBudget?: boolean;
 }
 
 interface Order {
@@ -104,6 +108,7 @@ interface Order {
     authorId: number;
     timeAgo: string;
     category: string;
+    categoryId: number;
     subcategory?: string;
     additionalComments?: string;
     photos?: string[];
@@ -112,6 +117,8 @@ interface Order {
     authorImage?: string;
     active?: boolean;
     hasEducation?: boolean;
+    negotiableBudget?: boolean;
+    isService?: boolean;
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -143,7 +150,7 @@ export function Ticket() {
     const [showComplaintModal, setShowComplaintModal] = useState(false);
 
     // States for reviews
-    const [reviews, setReviews] = useState<Review[]>([]);
+    const [reviews, setReviews] = useState<ReviewType[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(false);
     const [visibleReviewCount, setVisibleReviewCount] = useState(2);
 
@@ -165,10 +172,12 @@ export function Ticket() {
     const [existingChatId, setExistingChatId] = useState<number | null>(null);
     const [isCheckingChats, setIsCheckingChats] = useState(false);
 
-    // Photo gallery
-    const photoGallery = usePhotoGallery({
-        images: order?.photos || [],
-    });
+    // Dropdown for complaint/review
+    const [showActionsDropdown, setShowActionsDropdown] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Social networks of the ticket author
+    const [authorSocialNetworks, setAuthorSocialNetworks] = useState<{ id: string; network: string; handle: string }[]>([]);
 
     useEffect(() => {
         console.log('Ticket useEffect triggered with id:', id);
@@ -225,9 +234,28 @@ export function Ticket() {
         }
     });
 
+    const fetchAuthorSocialNetworks = async (authorId: number) => {
+        try {
+            const userInfo = await getUserInfoWithoutAuth(authorId);
+            if (userInfo?.socialNetworks && Array.isArray(userInfo.socialNetworks)) {
+                const networks = userInfo.socialNetworks
+                    .filter((sn: { network?: string; handle?: string; id?: unknown }) => sn.network)
+                    .map((sn: { network: string; handle?: string; id?: unknown }) => ({
+                        id: sn.id?.toString() || `${sn.network}-${Date.now()}`,
+                        network: sn.network.toLowerCase(),
+                        handle: sn.handle || '',
+                    }));
+                setAuthorSocialNetworks(networks);
+            }
+        } catch {
+            // silently ignore
+        }
+    };
+
     useEffect(() => {
         if (order) {
             favorites.checkFavoriteStatus();
+            fetchAuthorSocialNetworks(order.authorId);
             // Проверяем существующие чаты если пользователь авторизован
             if (currentUserId) {
                 checkExistingChats();
@@ -237,7 +265,17 @@ export function Ticket() {
         }
     }, [order, favorites.checkFavoriteStatus, currentUserId]);
 
-
+    // Close dropdown on outside click
+    useEffect(() => {
+        if (!showActionsDropdown) return;
+        const handleClickOutside = (e: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+                setShowActionsDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showActionsDropdown]);
 
     const handleCloseSuccessModal = () => {
         setShowSuccessModal(false);
@@ -342,18 +380,6 @@ export function Ticket() {
         return result;
     };
 
-    const formatProfileImageUrl = (imagePath: string): string => {
-        if (!imagePath) return '';
-
-        if (imagePath.startsWith('/images/profile_photos/')) {
-            return `${API_BASE_URL}${imagePath}`;
-        } else if (imagePath.startsWith('http')) {
-            return imagePath;
-        } else {
-            return `${API_BASE_URL}/images/profile_photos/${imagePath}`;
-        }
-    };
-
     const formatTicketImageUrl = (imagePath: string): string => {
         if (!imagePath) return '';
 
@@ -451,14 +477,14 @@ export function Ticket() {
                 // Заявка клиента - показываем мастера
                 displayUserId = ticketData.master.id;
                 displayUserName = `${ticketData.master.name || ''} ${ticketData.master.surname || ''}`.trim() || t('components:app.defaultMaster');
-                displayUserImage = ticketData.master.image ? formatProfileImageUrl(ticketData.master.image) : '';
+                displayUserImage = getAuthorAvatar(ticketData.master, '');
                 userTypeForRating = 'master';
                 userRating = ticketData.master.rating || 0; // Рейтинг мастера из тикета
             } else {
                 // Услуга мастера - показываем автора
                 displayUserId = ticketData.author.id;
                 displayUserName = `${ticketData.author.name || ''} ${ticketData.author.surname || ''}`.trim() || t('components:app.defaultClient');
-                displayUserImage = ticketData.author.image ? formatProfileImageUrl(ticketData.author.image) : '';
+                displayUserImage = getAuthorAvatar(ticketData.author, '');
                 userTypeForRating = 'client';
                 userRating = ticketData.author.rating || 0; // Рейтинг автора из тикета
             }
@@ -515,6 +541,7 @@ export function Ticket() {
                 authorId: displayUserId,
                 timeAgo: getTimeAgo(ticketData.createdAt),
                 category: ticketData.category?.title ? textHelper(ticketData.category.title) : t('components:app.service'),
+                categoryId: ticketData.category?.id || 0,
                 subcategory: ticketData.subcategory?.title ? textHelper(ticketData.subcategory.title) : undefined,
                 additionalComments: ticketData.notice ? textHelper(ticketData.notice) : undefined,
                 photos: photos.length > 0 ? photos : undefined,
@@ -523,6 +550,8 @@ export function Ticket() {
                 authorImage: displayUserImage || undefined,
                 active: ticketData.active,
                 hasEducation: hasEducation || false,
+                negotiableBudget: ticketData.negotiableBudget,
+                isService: ticketData.service,
             };
 
             console.log('Final order data:', orderData);
@@ -659,47 +688,20 @@ export function Ticket() {
             return;
         }
 
-        // Если уже есть чат, переходим к нему вместо создания нового
+        // Если уже есть чат, переходим к нему сразу
         if (existingChatId) {
-            setModalMessage('Вы уже откликнулись на это объявление. Переходим к чату...');
-            setShowInfoModal(true);
-            setTimeout(() => {
-                setShowInfoModal(false);
-                navigate(`${ROUTES.CHATS}?chatId=${existingChatId}`);
-            }, 2000);
+            navigate(`${ROUTES.CHATS}?chatId=${existingChatId}`);
             return;
         }
 
         try {
             const chat = await createChatWithAuthor(authorId, order?.id);
 
-            if (chat && chat.id) {
-                console.log('Navigating to chat:', chat.id);
-                setModalMessage('Чат успешно создан!');
-                setShowSuccessModal(true);
-                setTimeout(() => {
-                    setShowSuccessModal(false);
-                    navigate(`${ROUTES.CHATS}?chatId=${chat.id}`);
-                }, 1500);
-                // Обновляем список чатов после создания
-                setExistingChatId(chat.id);
-            } else {
-                console.error('Failed to create chat');
-                setModalMessage('Не удалось создать чат. Попробуйте позже.');
-                setShowErrorModal(true);
-                setTimeout(() => {
-                    setShowErrorModal(false);
-                    navigate(ROUTES.CHATS);
-                }, 3000);
+            if (chat) {
+                navigate(`${ROUTES.CHATS}?chatId=${chat.id}`);
             }
         } catch (error) {
             console.error('Error creating chat:', error);
-            setModalMessage('Ошибка при создании чата. Переходим в общий раздел чатов...');
-            setShowErrorModal(true);
-            setTimeout(() => {
-                setShowErrorModal(false);
-                navigate(ROUTES.CHATS);
-            }, 3000);
         }
     };
 
@@ -808,14 +810,24 @@ export function Ticket() {
                     chatsData = responseData['hydra:member'];
                 }
 
-                // Ищем чат связанный с этим тикетом
-                const existingChat = chatsData.find((chat: any) => 
-                    chat.ticket?.id === order.id
-                );
+                // Helper: extract numeric id from object or IRI string "/api/xxx/123"
+                const extractId = (obj: any): number | undefined => {
+                    if (obj?.id) return typeof obj.id === 'number' ? obj.id : parseInt(String(obj.id));
+                    const iri = obj?.['@id'];
+                    if (iri) { const m = String(iri).match(/\/(\d+)$/); if (m) return parseInt(m[1]); }
+                    return undefined;
+                };
+
+                // Ищем чат связанный с этим тикетом (сравниваем по числовому id)
+                const existingChat = chatsData.find((chat: any) => {
+                    const ticketId = extractId(chat.ticket) ?? chat.ticket?.id;
+                    return ticketId === order.id;
+                });
 
                 if (existingChat) {
-                    console.log('Found existing chat for ticket:', existingChat.id);
-                    setExistingChatId(existingChat.id);
+                    const chatId = extractId(existingChat);
+                    console.log('Found existing chat for ticket:', chatId);
+                    setExistingChatId(chatId ?? null);
                 } else {
                     setExistingChatId(null);
                 }
@@ -952,37 +964,7 @@ export function Ticket() {
         }
     };
     
-    // Функция для переключения развернутого состояния отзыва — перенесено в ReadMore
-
-    const getReviewerAvatarUrl = (review: Review) => {
-        // Приоритет 1: image (локальное изображение)
-        if (review.reviewer?.image) {
-            const reviewerImage = review.reviewer.image;
-            
-            // Если это полный URL (начинается с http), используем его
-            if (reviewerImage.startsWith('http')) {
-                return reviewerImage;
-            }
-            
-            // Если это путь, начинающийся с /, добавляем только API_BASE_URL
-            if (reviewerImage.startsWith('/')) {
-                return `${API_BASE_URL}${reviewerImage}`;
-            }
-            
-            // Иначе это имя файла - строим путь через profile_photos
-            return `${API_BASE_URL}/images/profile_photos/${reviewerImage}`;
-        }
-        
-        // Приоритет 2: imageExternalUrl (внешние ссылки)
-        if (review.reviewer?.imageExternalUrl && review.reviewer.imageExternalUrl.trim()) {
-            return review.reviewer.imageExternalUrl;
-        }
-        
-        // Приоритет 3: дефолтное изображение
-        return '/default_user.png';
-    };
-    
-    const getMasterName = (review: Review) => {
+    const getMasterName = (review: ReviewType) => {
         const master = review.user;
         if (!master) return t('components:app.defaultMaster');
         
@@ -998,7 +980,7 @@ export function Ticket() {
         return `${translatedFirstName} ${translatedLastName}`.trim() || t('components:app.defaultMaster');
     };
     
-    const getClientName = (review: Review) => {
+    const getClientName = (review: ReviewType) => {
         const reviewer = review.reviewer;
         if (!reviewer) return t('components:app.defaultClient');
         
@@ -1047,43 +1029,114 @@ export function Ticket() {
 
     return (
         <div className={styles.container}>
+            <div className={styles.back_section}>
+                <button className={styles.backBtn} onClick={() => navigate(-1)}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    {t('components:app.back')}
+                </button>
+            </div>
             <div className={styles.orderCard}>
+                {/* ── Title row: title + controls side-by-side ── */}
+                <div className={styles.titleControlRow}>
+                    <h1 className={styles.orderTitle}>
+                        <Marquee text={order.title} />
+                    </h1>
+                    <div className={styles.controlsGroup}>
+                        {currentUserId === order.authorId ? (
+                            <div className={styles.service_active_toggle}>
+                                <label className={styles.switch}>
+                                    <input
+                                        type="checkbox"
+                                        checked={isTicketActive}
+                                        onChange={handleToggleActive}
+                                        disabled={isTogglingActive}
+                                    />
+                                    <span className={styles.slider}></span>
+                                </label>
+                                <span className={styles.toggle_label}>
+                                    {isTicketActive ? t('ticket:active') : t('ticket:inactive')}
+                                </span>
+                            </div>
+                        ) : (
+                            <div ref={dropdownRef} className={styles.ticketMenuWrapper}>
+                                <button
+                                    className={styles.ticketMenuButton}
+                                    onClick={() => setShowActionsDropdown(prev => !prev)}
+                                    aria-label="Меню"
+                                >
+                                    <IoEllipsisVertical />
+                                </button>
+                                {showActionsDropdown && (
+                                    <div className={styles.ticketMenuDropdown}>
+                                        <button
+                                            className={styles.ticketMenuDropdownItem}
+                                            onClick={() => {
+                                                setShowActionsDropdown(false);
+                                                const token = getAuthToken();
+                                                if (!token) { setShowAuthModal(true); } else { handleLeaveReview(); }
+                                            }}
+                                        >
+                                            <IoStar />
+                                            <span>{t('ticket:leaveReview')}</span>
+                                        </button>
+                                        <button
+                                            className={`${styles.ticketMenuDropdownItem} ${styles.ticketMenuDropdownItemDanger}`}
+                                            onClick={() => { setShowActionsDropdown(false); setShowComplaintModal(true); }}
+                                        >
+                                            <IoWarningOutline />
+                                            <span>{t('ticket:complaintTitle')}</span>
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* ── Category row ── */}
                 <div className={styles.orderHeader}>
-                    <h1 className={styles.orderTitle}>{order.title}</h1>
-                    {currentUserId === order.authorId && (
-                        <div className={styles.service_active_toggle}>
-                            <label className={styles.switch}>
-                                <input
-                                    type="checkbox"
-                                    checked={isTicketActive}
-                                    onChange={handleToggleActive}
-                                    disabled={isTogglingActive}
-                                />
-                                <span className={styles.slider}></span>
-                            </label>
-                            <span className={styles.toggle_label}>
-                                {isTicketActive ? t('ticket:active') : t('ticket:inactive')}
-                            </span>
-                        </div>
-                    )}
-                </div>
-                <div className={styles.categoryContainer}>
-                    <span className={styles.category}>{order.category}</span>
-                    {order.subcategory && (
-                        <>
-                            <span className={styles.categorySeparator}> / </span>
-                            <span className={styles.subcategory}>{order.subcategory}</span>
-                        </>
-                    )}
-                </div>
-                <div className={styles.priceSection}>
-                    <span className={styles.price}>{order.price} TJS, {order.unit}</span>
+                    <div className={styles.categoryContainer}>
+                        <button
+                            className={styles.categoryBadge}
+                            onClick={() => navigate(ROUTES.CATEGORY_TICKETS_BY_ID(order.categoryId))}
+                        >
+                            <IoCompass className={styles.categoryIcon} />
+                            <Marquee text={order.category} className={styles.categoryBadgeText} alwaysScroll />
+                        </button>
+                        {order.subcategory && (
+                            <>
+                                <IoChevronForward className={styles.categorySeparatorIcon} />
+                                <span className={styles.subcategoryBadge}>
+                                    <Marquee text={order.subcategory} alwaysScroll />
+                                </span>
+                            </>
+                        )}
+                    </div>
                 </div>
 
                 <section className={styles.section}>
-                    <h2 className={styles.section_about}>{t('ticket:description')}</h2>
-                    <p className={styles.description}>{order.description ? textHelper(order.description) : t('ticket:noDescription')}</p>
+                    <div className={styles.descriptionPhotoRow}>
+                        {order.photos && order.photos.length > 0 && (
+                            <Carousel photos={order.photos} className={styles.ticketCarousel} />
+                        )}
+                        <div className={styles.descriptionCol}>
+                            <h2 className={styles.section_about}>{t('ticket:description')}</h2>
+                            <p className={styles.description}>{order.description ? textHelper(order.description) : t('ticket:noDescription')}</p>
+                        </div>
+                    </div>
                 </section>
+
+                {/* ── Price badge: below description/photo, above geography ── */}
+                <span className={styles.priceBadge}>
+                    <Marquee
+                        alwaysScroll
+                        text={order.negotiableBudget
+                            ? t('components:app.negotiablePrice')
+                            : `${order.price} TJS, ${order.unit}`}
+                    />
+                </span>
 
                 <section className={styles.section}>
                     <div className={styles.address}>
@@ -1111,30 +1164,6 @@ export function Ticket() {
                     </div>
                 </section>
 
-                <section className={styles.section}>
-                    <h2 className={styles.section_more}>{t('ticket:attachedPhotos')}</h2>
-                    <div className={styles.photosContent}>
-                        {order.photos && order.photos.length > 0 ? (
-                            <div className={styles.photos}>
-                                {order.photos.map((photo, index) => (
-                                    <img
-                                        key={index}
-                                        src={photo}
-                                        alt={`${t('ticket:photoAlt')} ${index + 1}`}
-                                        className={styles.photo}
-                                        onClick={() => photoGallery.openGallery(index)}
-                                        style={{cursor: 'pointer'}}
-                                        onError={(e) => {
-                                            (e.target as HTMLImageElement).src = '../fonTest1.png';
-                                        }}
-                                    />
-                                ))}
-                            </div>
-                        ) : (
-                            <p>{t('ticket:noPhotosCaption')}</p>
-                        )}
-                    </div>
-                </section>
 
                 <section className={styles.section}>
                     <div className={styles.section_photo}>
@@ -1159,6 +1188,33 @@ export function Ticket() {
                             <p>{order.title}</p>
                         </div>
                     </div>
+                    {authorSocialNetworks.length > 0 && (
+                        <SocialNetworksSection
+                            socialNetworks={authorSocialNetworks}
+                            SOCIAL_NETWORK_CONFIG={SOCIAL_NETWORK_CONFIG}
+                            readOnly={true}
+                            editingSocialNetwork={null}
+                            socialNetworkEditValue={''}
+                            socialNetworkValidationError={''}
+                            showAddSocialNetwork={false}
+                            selectedNewNetwork={''}
+                            availableSocialNetworks={[]}
+                            setEditingSocialNetwork={() => {}}
+                            setSocialNetworkEditValue={() => {}}
+                            setSocialNetworkValidationError={() => {}}
+                            setShowAddSocialNetwork={() => {}}
+                            setSelectedNewNetwork={() => {}}
+                            setSocialNetworks={() => {}}
+                            onUpdateSocialNetworks={async () => false}
+                            onRemoveSocialNetwork={async () => {}}
+                            onAddSocialNetwork={async () => {}}
+                            onResetSocialNetworks={async () => {}}
+                            onCopySocialNetwork={async () => {}}
+                            renderSocialIcon={renderSocialIcon}
+                            getAvailableNetworks={() => []}
+                            className={styles.social_networks_override}
+                        />
+                    )}
                 </section>
 
                 <section className={styles.rate}>
@@ -1231,124 +1287,28 @@ export function Ticket() {
 
                 {currentUserId !== order?.authorId && (
                 <section className={styles.actionButtons}>
-                    <div
-                        className={`${styles.favoriteButton} ${favorites.isLikeLoading ? styles.loading : ''}`}
+                    {!(order?.isService && getUserRole() === 'master') && (
+                        <button
+                            className={`${styles.respondButton} ${
+                                (!isTicketActive || isCheckingChats) ? styles.respondButtonDisabled :
+                                existingChatId ? styles.respondButtonDone :
+                                ''
+                            }`}
+                            onClick={() => order?.authorId && handleRespondClick(order.authorId)}
+                            disabled={!isTicketActive || isCheckingChats}
+                        >
+                            {isCheckingChats ? t('ticket:checking') :
+                             existingChatId ? t('ticket:done') :
+                             !isTicketActive ? t('ticket:inactive') :
+                             t('ticket:respond')}
+                        </button>
+                    )}
+                    <button
+                        className={`${styles.favoriteButton} ${favorites.isLiked ? styles.liked : ''} ${favorites.isLikeLoading ? styles.loading : ''}`}
                         onClick={favorites.handleLikeClick}
                         title={favorites.isLiked ? t('components:buttons.removeFavorite') : t('components:buttons.addFavorite')}
                     >
-                        <svg width="64" height="44" viewBox="0 0 64 44" fill="none"
-                             xmlns="http://www.w3.org/2000/svg">
-                            <rect
-                                x="1"
-                                y="1"
-                                width="62"
-                                height="42"
-                                rx="9"
-                                stroke="#3A54DA"
-                                strokeWidth="2"
-                                fill={favorites.isLiked ? "#3A54DA" : "none"}
-                            />
-                            <g clipPath="url(#clip0_214_6848)">
-                                <path
-                                    d="M36.77 12.4502C35.7961 12.4711 34.8444 12.7448 34.0081 13.2444C33.1719 13.7441 32.4799 14.4525 32 15.3002C31.5201 14.4525 30.8281 13.7441 29.9919 13.2444C29.1556 12.7448 28.2039 12.4711 27.23 12.4502C24.06 12.4502 21.5 15.3002 21.5 18.8202C21.5 25.1802 32 31.5502 32 31.5502C32 31.5502 42.5 25.1802 42.5 18.8202C42.5 15.3002 39.94 12.4502 36.77 12.4502Z"
-                                    stroke={favorites.isLiked ? "white" : "#3A54DA"}
-                                    strokeWidth="2"
-                                    strokeMiterlimit="10"
-                                    fill={favorites.isLiked ? "white" : "none"}
-                                />
-                            </g>
-                            <defs>
-                                <clipPath id="clip0_214_6848">
-                                    <rect width="24" height="24" fill="white" transform="translate(20 10)"/>
-                                </clipPath>
-                            </defs>
-                        </svg>
-                    </div>
-
-                    <div
-                        className={styles.complaintButton}
-                        onClick={() => setShowComplaintModal(true)}
-                        title={t('ticket:complaintTitle')}
-                    >
-                        <svg width="64" height="44" viewBox="0 0 64 44" fill="none"
-                             xmlns="http://www.w3.org/2000/svg">
-                            <rect
-                                x="1"
-                                y="1"
-                                width="62"
-                                height="42"
-                                rx="9"
-                                stroke="#3A54DA"
-                                strokeWidth="2"
-                                fill="none"
-                            />
-                            <g clipPath="url(#clip0_complaint)">
-                                <circle cx="32" cy="22" r="9" stroke="#3A54DA" strokeWidth="2" fill="none"/>
-                                <path d="M32 17V22" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round"/>
-                                <circle cx="32" cy="25.5" r="0.75" fill="#3A54DA"/>
-                            </g>
-                            <defs>
-                                <clipPath id="clip0_complaint">
-                                    <rect width="24" height="24" fill="white" transform="translate(20 10)"/>
-                                </clipPath>
-                            </defs>
-                        </svg>
-                    </div>
-
-                    <div
-                        className={styles.reviewButton}
-                        onClick={() => {
-                            const token = getAuthToken();
-                            if (!token) {
-                                setShowAuthModal(true);
-                            } else {
-                                handleLeaveReview();
-                            }
-                        }}
-                        title={t('ticket:leaveReview')}
-                    >
-                        <svg width="64" height="44" viewBox="0 0 64 44" fill="none"
-                             xmlns="http://www.w3.org/2000/svg">
-                            <rect
-                                x="1"
-                                y="1"
-                                width="62"
-                                height="42"
-                                rx="9"
-                                stroke="#3A54DA"
-                                strokeWidth="2"
-                                fill="none"
-                            />
-                            <g clipPath="url(#clip0_review_star)">
-                                <path
-                                    d="M32 12.49L35.51 18.17L42 19.76L37.68 24.85L38.18 31.51L32 28.98L25.82 31.51L26.32 24.85L22 19.76L28.49 18.17L32 12.49Z"
-                                    stroke="#3A54DA"
-                                    strokeWidth="2"
-                                    strokeLinejoin="round"
-                                    fill="none"
-                                />
-                            </g>
-                            <defs>
-                                <clipPath id="clip0_review_star">
-                                    <rect width="24" height="24" fill="white" transform="translate(20 10)"/>
-                                </clipPath>
-                            </defs>
-                        </svg>
-                    </div>
-
-                    <button 
-                        className={`${styles.respondButton} ${
-                            (existingChatId || !isTicketActive || isCheckingChats) 
-                            ? styles.respondButtonDisabled 
-                            : ''
-                        }`}
-                        onClick={() => order?.authorId && handleRespondClick(order.authorId)}
-                        disabled={existingChatId !== null || !isTicketActive || isCheckingChats}
-                    >
-                        {isCheckingChats ? t('ticket:checking') :
-                         existingChatId ? t('ticket:done') :
-                         !isTicketActive ? t('ticket:inactive') :
-                         t('ticket:respond')}
+                        {favorites.isLiked ? <IoHeart /> : <IoHeartOutline />}
                     </button>
                 </section>
                 )}
@@ -1365,7 +1325,6 @@ export function Ticket() {
                     onShowMore={handleShowMoreReviews}
                     onShowLess={handleShowLessReviews}
                     maxLength={200}
-                    getReviewerAvatarUrl={getReviewerAvatarUrl}
                     getClientName={getClientName}
                     getMasterName={getMasterName}
                     onClientProfileClick={handleProfileClick}
@@ -1375,7 +1334,7 @@ export function Ticket() {
                 />
             )}
 
-            <ReviewModal
+            <Review
                 isOpen={showReviewModal}
                 onClose={handleCloseReviewModal}
                 onSuccess={handleReviewSuccess}
@@ -1393,7 +1352,7 @@ export function Ticket() {
                 />
             )}
 
-            <ComplaintModal
+            <Complaint
                 isOpen={showComplaintModal}
                 onClose={handleCloseComplaintModal}
                 onSuccess={handleComplaintSuccess}
@@ -1402,38 +1361,27 @@ export function Ticket() {
                 ticketId={order?.id}
             />
 
-            <StatusModal
+            <Status
                 type="success"
                 isOpen={showSuccessModal}
                 onClose={handleCloseSuccessModal}
                 message={modalMessage}
             />
 
-            <StatusModal
+            <Status
                 type="error"
                 isOpen={showErrorModal}
                 onClose={handleCloseErrorModal}
                 message={modalMessage}
             />
 
-            <StatusModal
+            <Status
                 type="info"
                 isOpen={showInfoModal}
                 onClose={handleCloseInfoModal}
                 message={modalMessage}
             />
 
-            {order?.photos && order.photos.length > 0 && (
-                <PhotoGallery
-                    isOpen={photoGallery.isOpen}
-                    images={order.photos}
-                    currentIndex={photoGallery.currentIndex}
-                    onClose={photoGallery.closeGallery}
-                    onNext={photoGallery.goToNext}
-                    onPrevious={photoGallery.goToPrevious}
-                    onSelectImage={photoGallery.selectImage}
-                />
-            )}
             <CookieConsentBanner/>
         </div>
     );

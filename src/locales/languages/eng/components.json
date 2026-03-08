@@ -34,7 +34,8 @@
     "service": "Service",
     "defaultUser": "User",
     "defaultMaster": "Master",
-    "defaultClient": "Client"
+    "defaultClient": "Client",
+    "negotiablePrice": "Negotiable price"
   },
   "validation": {
     "required": "This field is required",

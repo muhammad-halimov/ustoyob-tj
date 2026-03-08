@@ -4462,6 +4462,39 @@
   flex-wrap: wrap;
 }
 
+.back_section {
+  display: flex;
+  justify-content: flex-start;
+  padding: 16px 0 8px;
+}
+
+.backBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1.5px solid var(--color-border-light);
+  background: transparent;
+  color: var(--color-text-secondary);
+  transition: all 0.2s;
+  font-family: inherit;
+
+  &:hover {
+    border-color: var(--color-background-btn);
+    color: var(--color-background-btn);
+    background: rgba(58, 84, 218, 0.06);
+  }
+
+  &:active {
+    opacity: 0.8;
+    transform: scale(0.97);
+  }
+}
+
 .logout_section {
   display: flex;
   justify-content: flex-end;

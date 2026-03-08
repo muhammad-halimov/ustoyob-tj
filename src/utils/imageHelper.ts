@@ -59,3 +59,28 @@ export const getGenderDisplay = (gender: string): string => {
     };
     return genderMap[gender] || gender;
 };
+
+/**
+ * Resolves a user's avatar URL from their profile data.
+ * Handles local paths, absolute paths, and external OAuth URLs.
+ * Falls back to `fallback` (default: '/default_user.png') when no image is available.
+ */
+export const getAuthorAvatar = (
+    user: { image?: string | null; imageExternalUrl?: string | null } | null | undefined,
+    fallback = './default_user.png'
+): string => {
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+    if (!user) return fallback;
+
+    // Priority 1: local image
+    if (user.image) {
+        if (user.image.startsWith('http')) return user.image;
+        if (user.image.startsWith('/')) return `${API_BASE_URL}${user.image}`;
+        return `${API_BASE_URL}/images/profile_photos/${user.image}`;
+    }
+
+    // Priority 2: external OAuth URL (Google, VK, etc.)
+    if (user.imageExternalUrl?.trim()) return user.imageExternalUrl.trim();
+
+    return fallback;
+};

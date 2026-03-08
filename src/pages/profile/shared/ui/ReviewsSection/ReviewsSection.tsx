@@ -1,10 +1,11 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { PhotoGallery, usePhotoGallery } from '../../../../../shared/ui/PhotoGallery';
+import { Preview, usePreview } from '../../../../../shared/ui/Photo/Preview';
 import { ReadMore } from '../../../../../widgets/ReadMore';
 import { Review } from '../../../../../entities';
 import styles from './ReviewsSection.module.scss';
+import { getAuthorAvatar } from '../../../../../utils/imageHelper';
 
 // Экспорт для обратной совместимости
 export type { Review } from '../../../../../entities';
@@ -20,7 +21,7 @@ interface ReviewsSectionProps {
     onShowLess: () => void;
     /** Max characters before "Читать дальше" button appears. Default: 150 */
     maxLength?: number;
-    getReviewerAvatarUrl: (review: Review) => string;
+    getReviewerAvatarUrl?: (review: Review) => string;
     getClientName: (review: Review) => string;
     getMasterName: (review: Review) => string;
     onClientProfileClick: (clientId: number) => void;
@@ -38,7 +39,6 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
     onShowMore,
     onShowLess,
     maxLength = 150,
-    getReviewerAvatarUrl,
     getClientName,
     getMasterName,
     onClientProfileClick,
@@ -59,36 +59,10 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
     const getReviewAuthorAvatar = (review: Review) => {
         if (userRole === 'master') {
             // Профиль мастера - показываем клиента
-            return getReviewerAvatarUrl(review);
+            return getAuthorAvatar(review.reviewer);
         } else {
             // Профиль клиента - показываем мастера
-            const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-            
-            // Приоритет 1: image (локальное изображение)
-            if (review.user?.image) {
-                const userImage = review.user.image;
-                
-                // Если это полный URL (начинается с http), используем его
-                if (userImage.startsWith('http')) {
-                    return userImage;
-                }
-                
-                // Если это путь, начинающийся с /, добавляем только API_BASE_URL
-                if (userImage.startsWith('/')) {
-                    return `${API_BASE_URL}${userImage}`;
-                }
-                
-                // Иначе это имя файла - строим путь через profile_photos
-                return `${API_BASE_URL}/images/profile_photos/${userImage}`;
-            }
-            
-            // Приоритет 2: imageExternalUrl (внешние ссылки)
-            if (review.user?.imageExternalUrl && review.user.imageExternalUrl.trim()) {
-                return review.user.imageExternalUrl;
-            }
-            
-            // Приоритет 3: дефолтное изображение
-            return '../default_user.png';
+            return getAuthorAvatar(review.user);
         }
     };
 
@@ -161,8 +135,8 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
         return images;
     }, [reviews.length, API_BASE_URL]);
 
-    // PhotoGallery hook для отзывов
-    const photoGallery = usePhotoGallery({ images: reviewGalleryImages });
+    // Preview hook для отзывов
+    const photoGallery = usePreview({ images: reviewGalleryImages });
     
     // Отладочная информация по отзывам
     React.useEffect(() => {
@@ -600,8 +574,8 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                 )}
             </div>
 
-            {/* PhotoGallery для просмотра фото отзывов */}
-            <PhotoGallery
+            {/* Preview для просмотра фото отзывов */}
+            <Preview
                 isOpen={photoGallery.isOpen}
                 images={reviewGalleryImages}
                 currentIndex={photoGallery.currentIndex}

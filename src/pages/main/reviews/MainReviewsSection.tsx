@@ -6,9 +6,10 @@ import { smartNameTranslator } from '../../../utils/textHelper';
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
 import styles from './MainReviewsSection.module.scss';
-import { PhotoGallery, usePhotoGallery } from '../../../shared/ui/PhotoGallery';
+import { Preview, usePreview } from '../../../shared/ui/Photo/Preview';
 import { ReadMore } from '../../../widgets/ReadMore';
 import { PageLoader } from '../../../widgets/PageLoader';
+import { getAuthorAvatar } from '../../../utils/imageHelper.ts';
 
 interface MainReviewsSectionProps {
     className?: string;
@@ -73,80 +74,6 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
 
         fetchReviews();
     }, [API_BASE_URL]);
-
-    // Функция для получения URL изображения отзыва
-    const getReviewImageUrl = (imagePath: string): string => {
-        if (imagePath.startsWith('http')) {
-            return imagePath;
-        }
-
-        // Если путь начинается с /images/review_photos/, значит это уже полный относительный путь
-        if (imagePath.startsWith('/images/review_photos/')) {
-            return `${API_BASE_URL}${imagePath}`;
-        }
-
-        // Если это только имя файла (например, "photo123.jpg")
-        if (!imagePath.includes('/') && !imagePath.startsWith('/')) {
-            return `${API_BASE_URL}/images/review_photos/${imagePath}`;
-        }
-
-        // Если это относительный путь без начального слэша
-        if (imagePath.includes('/') && !imagePath.startsWith('/')) {
-            return `${API_BASE_URL}/images/review_photos/${imagePath}`;
-        }
-
-        // По умолчанию добавляем API_BASE_URL
-        return `${API_BASE_URL}${imagePath}`;
-    };
-
-    // Собираем все изображения для галереи
-    const galleryImages = useMemo(() => {
-        const images: string[] = [];
-        reviews.forEach(review => {
-            if (review.images && review.images.length > 0) {
-                // @ts-ignore
-                review.images.forEach(image => {
-                    if (image.image) {
-                        images.push(getReviewImageUrl(image.image));
-                    }
-                });
-            }
-        });
-        return images;
-    }, [reviews, API_BASE_URL]);
-
-    const photoGallery = usePhotoGallery({ images: galleryImages });
-
-    // Функция для получения аватара клиента
-    const getReviewerAvatarUrl = (review: any): string => {
-        // Клиент - это тот, кто оставил отзыв
-        const client = review.client;
-        if (!client) return "./default_user.png";
-        
-        // Приоритет 1: image (локальное изображение)
-        if (client.image) {
-            // Если это полный URL (начинается с http), используем его
-            if (client.image.startsWith('http')) {
-                return client.image;
-            }
-            
-            // Если это путь, начинающийся с /, добавляем только API_BASE_URL
-            if (client.image.startsWith('/')) {
-                return `${API_BASE_URL}${client.image}`;
-            }
-            
-            // Иначе это имя файла - строим путь через profile_photos
-            return `${API_BASE_URL}/images/profile_photos/${client.image}`;
-        }
-        
-        // Приоритет 2: imageExternalUrl (внешние ссылки - Google, VK, Facebook и т.д.)
-        if (client.imageExternalUrl && client.imageExternalUrl.trim()) {
-            return client.imageExternalUrl;
-        }
-        
-        // Приоритет 3: дефолтное изображение
-        return "./default_user.png";
-    };
 
     // Функция для получения имени клиента
     const getClientName = (review: any): string => {
@@ -238,6 +165,31 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
         setVisibleCount(6);
     };
 
+    // Функция для получения URL изображения отзыва
+    const getReviewImageUrl = (imagePath: string): string => {
+        if (!imagePath) return './default_user.png';
+        if (imagePath.startsWith('http')) return imagePath;
+        if (imagePath.startsWith('/images/review_photos/')) return `${API_BASE_URL}${imagePath}`;
+        return `${API_BASE_URL}/images/review_photos/${imagePath}`;
+    };
+
+    // Аватар клиента через общую утилиту
+    const getReviewerAvatarUrl = (review: any): string =>
+        getAuthorAvatar(review.client);
+
+    // Собираем все изображения для галереи
+    const galleryImages = useMemo(() => {
+        const images: string[] = [];
+        reviews.forEach(review => {
+            (review.images || []).forEach((image: any) => {
+                if (image.image) images.push(getReviewImageUrl(image.image));
+            });
+        });
+        return images;
+    }, [reviews]);
+
+    const photoGallery = usePreview({ images: galleryImages });
+
     if (loading) {
         return (
             <div className={`${styles.main_reviews} ${className || ''}`}>
@@ -260,10 +212,6 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
         );
     }
 
-    // @ts-ignore
-    // @ts-ignore
-    // @ts-ignore
-    // @ts-ignore
     return (
         <div className={`${styles.main_reviews} ${className || ''}`}>
             <div className={styles.container}>
@@ -279,35 +227,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                     alt={getClientName(review)}
                                     onClick={() => handleClientProfileClick(review.client.id)}
                                     className={styles.reviewer_avatar}
-                                    data-fallback-image={review.client.image || ''}
-                                    data-fallback-external={review.client.imageExternalUrl || ''}
-                                    onError={(e) => {
-                                        const img = e.currentTarget;
-                                        const currentSrc = img.src;
-                                        const fallbackImage = img.dataset.fallbackImage;
-                                        const fallbackExternal = img.dataset.fallbackExternal;
-                                        
-                                        // Если уже показываем дефолт - не делаем ничего
-                                        if (currentSrc.includes('default_user')) {
-                                            return;
-                                        }
-                                        
-                                        // Если текущий src - это image и есть imageExternalUrl
-                                        if (fallbackImage && currentSrc.includes(fallbackImage) && fallbackExternal) {
-                                            img.src = fallbackExternal;
-                                            return;
-                                        }
-                                        
-                                        // Если текущий src - это imageExternalUrl и есть локальный image
-                                        if (fallbackExternal && currentSrc.includes(fallbackExternal) && fallbackImage) {
-                                            // Уже пробовали внешний - он заблокирован, переходим к дефолту
-                                            img.src = "./default_user.png";
-                                            return;
-                                        }
-                                        
-                                        // В остальных случаях - дефолтное изображение
-                                        img.src = "./default_user.png";
-                                    }}
+                                    onError={(e) => { e.currentTarget.src = './default_user.png'; }}
                                 />
                                 <div className={styles.reviews_naming_title}>
                                     <h3 
@@ -317,7 +237,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                         {getClientName(review)}
                                     </h3>
                                     <div className={styles.reviews_naming_raiting}>
-                                        Поставил: 
+                                        Поставил(а): 
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" fill="#FFD700" stroke="#FFD700" strokeWidth="1"/>
                                         </svg>
@@ -404,35 +324,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                             alt={getClientName(review)}
                                             onClick={() => handleClientProfileClick(review.client.id)}
                                             className={styles.reviewer_avatar}
-                                            data-fallback-image={review.client.image || ''}
-                                            data-fallback-external={review.client.imageExternalUrl || ''}
-                                            onError={(e) => {
-                                                const img = e.currentTarget;
-                                                const currentSrc = img.src;
-                                                const fallbackImage = img.dataset.fallbackImage;
-                                                const fallbackExternal = img.dataset.fallbackExternal;
-                                                
-                                                // Если уже показываем дефолт - не делаем ничего
-                                                if (currentSrc.includes('default_user')) {
-                                                    return;
-                                                }
-                                                
-                                                // Если текущий src - это image и есть imageExternalUrl
-                                                if (fallbackImage && currentSrc.includes(fallbackImage) && fallbackExternal) {
-                                                    img.src = fallbackExternal;
-                                                    return;
-                                                }
-                                                
-                                                // Если текущий src - это imageExternalUrl и есть локальный image
-                                                if (fallbackExternal && currentSrc.includes(fallbackExternal) && fallbackImage) {
-                                                    // Уже пробовали внешний - он заблокирован, переходим к дефолту
-                                                    img.src = "./default_user.png";
-                                                    return;
-                                                }
-                                                
-                                                // В остальных случаях - дефолтное изображение
-                                                img.src = "./default_user.png";
-                                            }}
+                                            onError={(e) => { e.currentTarget.src = './default_user.png'; }}
                                         />
                                         <div className={styles.reviews_naming_title}>
                                             <h3 
@@ -442,10 +334,11 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                                 {getClientName(review)}
                                             </h3>
                                             <div className={styles.reviews_naming_raiting}>
+                                                Поставил(а):
                                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                     <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" fill="#FFD700" stroke="#FFD700" strokeWidth="1"/>
                                                 </svg>
-                                                <span>{review.rating}</span>
+                                                <span>{parseFloat(review.rating).toFixed(1)}</span>
                                             </div>
                                             <div className={styles.service_master_info}>
                                                 <span 
@@ -523,8 +416,8 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                 )}
             </div>
 
-            {/* PhotoGallery для просмотра фото */}
-            <PhotoGallery
+            {/* Preview для просмотра фото */}
+            <Preview
                 isOpen={photoGallery.isOpen}
                 images={galleryImages}
                 currentIndex={photoGallery.currentIndex}

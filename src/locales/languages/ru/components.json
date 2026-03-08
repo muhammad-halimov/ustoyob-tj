@@ -34,7 +34,8 @@
     "service": "Услуга",
     "defaultUser": "Пользователь",
     "defaultMaster": "Мастер",
-    "defaultClient": "Клиент"
+    "defaultClient": "Клиент",
+    "negotiablePrice": "Цена договорная"
   },
   "validation": {
     "required": "Это поле обязательно",

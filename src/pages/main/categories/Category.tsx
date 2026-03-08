@@ -1,5 +1,5 @@
 import styles from "./Category.module.scss";
-import { AdBtn } from "../../../shared/ui/Button/HeaderButton/AdBtn.tsx";
+import { AdBtn } from "../../../shared/ui/Button/Header/Add/AdBtn.tsx";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from '../../../app/routers/routes.ts';

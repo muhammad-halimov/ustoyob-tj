@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import AddressSelector from '../../../../../shared/ui/AddressSelector/AddressSelector';
+import Address from '../../../../../shared/ui/Address/Selector/Address.tsx';
 import { AddressValue } from '../../../../../entities';
 import styles from './WorkAreasSection.module.scss';
 
@@ -73,7 +73,7 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
                         <div key={address.id} className={`${styles.list_item} ${index === addresses.length - 1 ? styles.list_item_last : ''}`}>
                             {editingAddress === address.id ? (
                                 <div className={styles.edit_form}>
-                                    <AddressSelector
+                                    <Address
                                         value={addressForm}
                                         onChange={setAddressForm}
                                         required={true}
@@ -150,7 +150,7 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
                 {/* Форма добавления нового адреса */}
                 {editingAddress && editingAddress.startsWith('new-') && (
                     <div className={styles.edit_form}>
-                        <AddressSelector
+                        <Address
                             value={addressForm}
                             onChange={setAddressForm}
                             required={true}

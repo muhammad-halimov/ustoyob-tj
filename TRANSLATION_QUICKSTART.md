@@ -86,7 +86,7 @@ function Description({ text }) {
 
 ## 🎯 Где применено
 
-✅ **TicketCard** - транслитерация имени автора
+✅ **Card** - транслитерация имени автора
 ✅ **Chat** - транслитерация имен собеседников
 ✅ **MainReviewsSection** - транслитерация имен в отзывах
 ✅ **Ticket** - транслитерация имен клиентов и мастеров
@@ -201,7 +201,7 @@ const getTranslatedFullName = useCallback((user: ApiUser): string => {
 }, [i18n.language]);
 ```
 
-### TicketCard.tsx
+### Card.tsx
 ```typescript
 const translatedAuthor = useTranslatedName(author, 'ru');
 ```

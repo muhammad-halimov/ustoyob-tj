@@ -174,7 +174,7 @@ function TicketDescription({ description }) {
 ```typescript
 import { useTranslatedTexts } from '../hooks/useTranslatedText';
 
-function TicketCard({ ticket }) {
+function Card({ ticket }) {
     const { title, description, isTranslating } = useTranslatedTexts(
         {
             title: ticket.title,
@@ -218,7 +218,7 @@ function MyComponent() {
 
 ## 📦 Примеры использования в проекте
 
-### TicketCard
+### Card
 ```typescript
 // Транслитерация имени автора
 const translatedAuthor = useTranslatedName(author, 'ru');

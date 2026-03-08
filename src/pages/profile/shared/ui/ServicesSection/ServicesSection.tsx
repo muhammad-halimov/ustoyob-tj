@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../../../app/routers/routes';
 import { Service } from '../../../../../entities';
 import styles from './ServicesSection.module.scss';
-import { truncateText } from '../../../../../shared/ui/TicketCard/TicketCard.tsx';
+import { truncateText } from '../../../../../shared/ui/Ticket/Card/Card.tsx';
 
 interface ServicesSectionProps {
     services: Service[];

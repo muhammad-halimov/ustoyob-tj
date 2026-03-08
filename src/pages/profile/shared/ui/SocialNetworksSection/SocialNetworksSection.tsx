@@ -45,6 +45,7 @@ interface SocialNetworksSectionProps {
     onCopySocialNetwork: (handle: string) => Promise<void>;
     renderSocialIcon: (networkType: string) => React.ReactElement | null;
     getAvailableNetworks: () => AvailableSocialNetwork[];
+    className?: string;
 }
 
 export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
@@ -69,10 +70,11 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
     onCopySocialNetwork,
     renderSocialIcon,
     getAvailableNetworks,
+    className,
 }) => {
     const { t } = useTranslation(['profile']);
     return (
-        <div className={styles.section_item}>
+        <div className={`${styles.section_item}${className ? ` ${className}` : ''}`}>
             <h3>{t('profile:socialNetworksTitle')}</h3>
             <div className={styles.section_content}>
                 <div className={styles.social_networks}>

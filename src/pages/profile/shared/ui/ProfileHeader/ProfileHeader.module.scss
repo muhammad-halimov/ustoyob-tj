@@ -75,6 +75,8 @@
   font-weight: 600;
   color: #000;
   line-height: 1.2;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .specialty {
@@ -331,6 +333,10 @@
 
   .name_input {
     font-size: 20px;
+  }
+
+  .name_container {
+    justify-content: center;
   }
 }
 
@@ -650,7 +656,6 @@
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.2s;
-  margin-left: auto;
 
   &:hover {
     background: var(--color-background-secondary, #f5f5f5);
