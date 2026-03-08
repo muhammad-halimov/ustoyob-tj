@@ -13,22 +13,23 @@ class TicketInput
     #[Assert\Length(min: 3, max: 255)]
     public string $title;
 
-    #[Assert\NotBlank(message: 'Title is required')]
+    #[Assert\NotBlank(message: 'Description is required')]
     #[Assert\Length(min: 3, max: 255)]
     public string $description;
 
-    #[Assert\NotBlank(message: 'Title is required')]
     #[Assert\Length(min: 3, max: 255)]
     public string $notice;
 
-    #[Assert\NotBlank(message: 'Title is required')]
+    #[Assert\NotBlank(message: 'Status is required')]
     public bool $active;
 
-    #[Assert\NotBlank(message: 'Title is required')]
+    #[Assert\NotBlank(message: 'Ticket type is required')]
     public bool $service;
 
-    #[Assert\NotBlank(message: 'Title is required')]
+    #[Assert\NotBlank(message: 'Price/Budget is required')]
     public int $budget;
+
+    public ?bool $negotiableBudget = null;
 
     #[Assert\NotBlank(message: 'Category is required')]
     public Category $category; // IRI или ID

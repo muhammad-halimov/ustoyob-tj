@@ -59,6 +59,7 @@ class PostTicketController extends AbstractController
         $descriptionParam = $data['description'];
         $noticeParam = $data['notice'] ?? null;
         $budgetParam = $data['budget'] ?? null;
+        $negotiableBudgetParam = $data['negotiableBudget'] ?? null;
         $activeParam = !isset($data['active']) || $data['active'];
         $categoryParam = $data['category'];
         $subcategoryParam = $data['subcategory'] ?? null;
@@ -220,11 +221,17 @@ class PostTicketController extends AbstractController
             ->setTitle($titleParam)
             ->setDescription($descriptionParam)
             ->setNotice($noticeParam)
-            ->setBudget($budgetParam)
             ->setActive($activeParam)
             ->setCategory($category)
             ->setSubcategory($subcategory)
             ->setUnit($unit);
+
+        if ($negotiableBudgetParam)
+            $ticketEntity
+                ->setNegotiableBudget($negotiableBudgetParam)
+                ->setBudget(null);
+        else
+            $ticketEntity->setBudget($budgetParam);
 
         if (in_array("ROLE_CLIENT", $bearerUser->getRoles())) {
             $ticketEntity
