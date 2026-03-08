@@ -85,10 +85,12 @@ class PostChatController extends AbstractController
             (in_array("ROLE_CLIENT", $replyAuthor->getRoles()) || in_array("ROLE_MASTER", $replyAuthor->getRoles()))) {
 
             $this->entityManager->persist($chat->setTicket(null));
-
             $this->entityManager->flush();
 
-            return $this->json(['message' => 'Resource successfully posted. RC/M - RC/M'], context: ['groups' => ['chats:read']]);
+            $data = $this->json($chat, context: ['groups' => ['chats:read']])->getContent();
+            $decoded = json_decode($data, true);
+
+            return $this->json([$decoded, 'message' => 'Resource successfully posted. RC/M - RC/M'], 201);
         }
 
         if ($ticket &&  // Чат клиента с мастером, отклик на услугу мастера
@@ -97,10 +99,12 @@ class PostChatController extends AbstractController
             $ticket->getMaster() === $replyAuthor){
 
             $this->entityManager->persist($chat->setTicket($ticket));
-
             $this->entityManager->flush();
 
-            return $this->json(['message' => 'Resource successfully posted. RC -> RM/T'], context: ['groups' => ['chats:read']]);
+            $data = $this->json($chat, context: ['groups' => ['chats:read']])->getContent();
+            $decoded = json_decode($data, true);
+
+            return $this->json([$decoded, 'message' => 'Resource successfully posted. RC -> RM/T'], 201);
         }
 
         if ($ticket &&  // Чат мастера с клиентом, отклик на объявление клиента
@@ -109,10 +113,12 @@ class PostChatController extends AbstractController
             $ticket->getAuthor() === $replyAuthor) {
 
             $this->entityManager->persist($chat->setTicket($ticket));
-
             $this->entityManager->flush();
 
-            return $this->json(['message' => 'Resource successfully posted. RM -> RC/T'], context: ['groups' => ['chats:read']]);
+            $data = $this->json($chat, context: ['groups' => ['chats:read']])->getContent();
+            $decoded = json_decode($data, true);
+
+            return $this->json([$decoded, 'message' => 'Resource successfully posted. RM -> RC/T',], 201);
         }
 
         return $this->json(['message' => "Probably ticket's author/master doesn't match to reply author"], 400);
