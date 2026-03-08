@@ -7,10 +7,12 @@ import { getStorageItem } from '../../../utils/storageHelper';
 import { useLanguageChange } from '../../../hooks/useLanguageChange';
 import styles from './MyTickets.module.scss';
 import { PageLoader } from '../../../widgets/PageLoader';
+import { EmptyState } from '../../../widgets/EmptyState';
 import AuthModal from '../../../features/auth/AuthModal.tsx';
 import { Card } from '../../../shared/ui/Ticket/Card/Card.tsx';
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 import Status from '../../../shared/ui/Modal/Status';
+import { Back } from '../../../shared/ui/Button/Back/Back.tsx';
 
 interface ApiUser {
     id: number;
@@ -235,7 +237,7 @@ function MyTickets() {
             }
 
             // Получаем все тикеты
-            const url = `${API_BASE_URL}/api/tickets?locale=${getStorageItem('i18nextLng') || 'ru'}`;
+            const url = `${API_BASE_URL}/api/tickets/me?locale=${getStorageItem('i18nextLng') || 'ru'}`;
             console.log('Fetching tickets from:', url);
 
             const response = await fetch(url, {
@@ -262,7 +264,7 @@ function MyTickets() {
                     // Для заказов клиента (service = false) автор - это клиент (author в API)
                     const isService = ticket.service;
                     const authorData = isService ? ticket.master : ticket.author;
-                    const authorName = `${authorData?.name || ''} ${authorData?.surname || ''}`.trim() ||
+                    const authorName = `${authorData?.surname || ''} ${authorData?.name || ''}`.trim() ||
                         (isService ? t('myTickets:master') : t('myTickets:client'));
                     
                     return {
@@ -274,7 +276,7 @@ function MyTickets() {
                         address: getFullAddress(ticket),
                         date: ticket.createdAt,
                         author: authorName,
-                        master: `${ticket.master?.name || ''} ${ticket.master?.surname || ''}`.trim() ||
+                        master: `${ticket.master?.surname || ''} ${ticket.master?.name || ''}`.trim() ||
                             (ticket.service ? t('myTickets:master') : t('myTickets:client')),
                         authorId: ticket.author?.id || 0,
                         masterId: ticket.master?.id || 0,
@@ -332,6 +334,7 @@ function MyTickets() {
     const formatTicketImageUrl = (imagePath: string): string => {
         if (!imagePath) return '';
         if (imagePath.startsWith('http')) return imagePath;
+        if (imagePath.startsWith('/images/ticket_photos/')) return `${API_BASE_URL}${imagePath}`;
         return `${API_BASE_URL}/images/ticket_photos/${imagePath}`;
     };
 
@@ -398,11 +401,6 @@ function MyTickets() {
         // Авторизация проверена в начале компонента
         navigate(ROUTES.TICKET_CREATE);
     };
-
-    const handleClose = () => {
-        navigate(-1);
-    };
-
     const handleToggleTicketActive = async (e: React.ChangeEvent<HTMLInputElement>, ticketId: number, currentActive: boolean) => {
         e.stopPropagation();
 
@@ -488,6 +486,7 @@ function MyTickets() {
 
     return (
         <div className={styles.container}>
+            <Back className={styles.backButtonSpacing} />
             <div className={styles.header}>
                 <h1>{t('myTickets:myAds')}</h1>
                 <div className={styles.headerActions}>
@@ -496,12 +495,6 @@ function MyTickets() {
                             <path d="M12 5v14M5 12h14" stroke="white" strokeWidth="2" strokeLinecap="round"/>
                         </svg>
                         {t('myTickets:createNew')}
-                    </button>
-                    <button className={styles.closeButton} onClick={handleClose}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            <path d="M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
                     </button>
                 </div>
             </div>
@@ -527,19 +520,14 @@ function MyTickets() {
                 {isLoading ? (
                     <div className={styles.loading}><p>{t('myTickets:loadingAds')}</p></div>
                 ) : displayedTickets.length === 0 ? (
-                    <div className={styles.noResults}>
-                        <p>
-                            {activeTab === 'active'
-                                ? t('myTickets:noActiveAds')
-                                : t('myTickets:noInactiveAds')
-                            }
-                        </p>
-                        {activeTab === 'active' && (
-                            <button className={styles.createEmptyButton} onClick={handleCreateNew}>
-                                {t('myTickets:createFirst')}
-                            </button>
-                        )}
-                    </div>
+                    <EmptyState
+                        title={activeTab === 'active'
+                            ? t('myTickets:noActiveAds')
+                            : t('myTickets:noInactiveAds')
+                        }
+                        actionText={activeTab === 'active' ? t('myTickets:createFirst') : undefined}
+                        onAction={activeTab === 'active' ? handleCreateNew : undefined}
+                    />
                 ) : (
                     displayedTickets.map((ticket) => (
                         <Card

@@ -47,6 +47,7 @@ import Complaint from '../../shared/ui/Modal/Complaint';
 import AuthModal from '../../features/auth/AuthModal';
 import AuthBanner from '../../widgets/Banners/AuthBanner/AuthBanner';
 import { getAuthorAvatar } from '../../utils/imageHelper.ts';
+import { Back } from '../../shared/ui/Button/Back/Back.tsx';
 
 // Интерфейс для социальных сетей с API
 interface LocalAvailableSocialNetwork {
@@ -1315,7 +1316,7 @@ function Profile() {
 
             const transformedData: ProfileData = {
                 id: userData.id.toString(),
-                fullName: [userData.name, userData.surname, userData.patronymic]
+                fullName: [userData.surname, userData.name, userData.patronymic]
                     .filter(Boolean)
                     .join(' ') || t('profile:defaultFullName'),
                 email: userData.email || undefined,
@@ -1601,7 +1602,7 @@ function Profile() {
                             vacation: String(serviceTitle), // Ensure string
                             worker: clientData ?
                                 smartNameTranslator(
-                                    `${clientData.name || 'Клиент'} ${clientData.surname || ''}`.trim(),
+                                    `${clientData.surname || ''} ${clientData.name || 'Клиент'}`.trim(),
                                     i18n.language as 'ru' | 'tj' | 'eng'
                                 ) :
                                 smartNameTranslator('Клиент', i18n.language as 'ru' | 'tj' | 'eng'),
@@ -1753,6 +1754,7 @@ function Profile() {
                     description: service.description || '',
                     budget: service.budget || 0,
                     price: service.budget || 0, // deprecated, используется budget
+                    negotiableBudget: service.negotiableBudget ?? false,
                     unit: service.unit || 'сомони',
                     createdAt: service.createdAt,
                     active: service.active !== false,
@@ -2997,7 +2999,7 @@ function Profile() {
         if (!review.user.name && !review.user.surname) {
             return t('components:app.defaultMaster');
         }
-        const fullName = `${review.user.name || ''} ${review.user.surname || ''}`.trim();
+        const fullName = `${review.user.surname || ''} ${review.user.name || ''}`.trim();
         return smartNameTranslator(fullName, i18n.language as 'ru' | 'tj' | 'eng');
     };
 
@@ -3005,7 +3007,7 @@ function Profile() {
         if (!review.reviewer.name && !review.reviewer.surname) {
             return t('components:app.defaultClient');
         }
-        const fullName = `${review.reviewer.name || ''} ${review.reviewer.surname || ''}`.trim();
+        const fullName = `${review.reviewer.surname || ''} ${review.reviewer.name || ''}`.trim();
         return smartNameTranslator(fullName, i18n.language as 'ru' | 'tj' | 'eng');
     };
 
@@ -3206,26 +3208,17 @@ function Profile() {
     return (
         <div className={styles.profile}>
             <div className={styles.profile_wrap}>
-                {readOnly && (
-                    <div className={styles.back_section}>
-                        <button className={styles.backBtn} onClick={() => navigate(-1)}>
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
-                            {t('components:app.back')}
-                        </button>
-                    </div>
-                )}
-                {!readOnly && (
-                    <div className={styles.logout_section}>
+                <div className={styles.top_nav_row}>
+                    <Back />
+                    {!readOnly && (
                         <button className={styles.logoutBtn} onClick={handleLogout}>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                             </svg>
                             {t('header:logout')}
                         </button>
-                    </div>
-                )}
+                    )}
+                </div>
                 {/* ProfileHeader Component */}
                 <ProfileHeader
                     avatar={profileData.avatar}

@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Marquee } from '../../../../../shared/ui/Text/Marquee/Marquee';
 import styles from './SocialNetworksSection.module.scss';
 
 interface SocialNetwork {
@@ -73,6 +74,97 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
     className,
 }) => {
     const { t } = useTranslation(['profile']);
+
+    const dragItemRef = useRef<number | null>(null);
+    const dragOverItemRef = useRef<number | null>(null);
+    const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+    const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+    const editingNetworkRef = useRef<HTMLDivElement>(null);
+    const pendingEditIdRef = useRef<string | null>(null);
+
+    const handleCancelEdit = () => {
+        setEditingSocialNetwork(null);
+        setSocialNetworkEditValue('');
+        setSocialNetworkValidationError('');
+    };
+
+    const handleSaveEdit = async (networkId: string) => {
+        const network = socialNetworks.find(n => n.id === networkId);
+        if (!network) return;
+
+        const trimmedValue = socialNetworkEditValue.trim();
+        const config = SOCIAL_NETWORK_CONFIG[network.network];
+
+        if (!trimmedValue) {
+            setSocialNetworkValidationError(t('profile:fieldEmpty'));
+            return;
+        }
+
+        if (config && !config.validate(trimmedValue)) {
+            setSocialNetworkValidationError(t('profile:invalidFormat', { label: config.label }));
+            return;
+        }
+
+        try {
+            const formattedValue = config?.format(trimmedValue) || trimmedValue;
+            const updatedNetworks = socialNetworks.map(n =>
+                n.id === networkId ? { ...n, handle: formattedValue } : n
+            );
+            setSocialNetworks(updatedNetworks);
+            const success = await onUpdateSocialNetworks(updatedNetworks);
+            if (success) {
+                setEditingSocialNetwork(null);
+                setSocialNetworkEditValue('');
+                setSocialNetworkValidationError('');
+            } else {
+                setSocialNetworkValidationError(t('profile:saveError'));
+            }
+        } catch (error) {
+            console.error('Error saving social network:', error);
+            setSocialNetworkValidationError(t('profile:saveError'));
+        }
+    };
+
+    useEffect(() => {
+        if (!editingSocialNetwork) return;
+        pendingEditIdRef.current = editingSocialNetwork;
+        const handleClickOutside = (e: MouseEvent) => {
+            if (editingNetworkRef.current && !editingNetworkRef.current.contains(e.target as Node)) {
+                const id = pendingEditIdRef.current;
+                if (id) handleSaveEdit(id);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [editingSocialNetwork, socialNetworkEditValue]);
+
+    const handleDragStart = (index: number) => {
+        dragItemRef.current = index;
+        setDraggingIndex(index);
+    };
+
+    const handleDragEnter = (index: number) => {
+        dragOverItemRef.current = index;
+        setDragOverIndex(index);
+    };
+
+    const handleDragEnd = () => {
+        const from = dragItemRef.current;
+        const to = dragOverItemRef.current;
+        if (from !== null && to !== null && from !== to) {
+            const newNetworks = [...socialNetworks];
+            const [dragged] = newNetworks.splice(from, 1);
+            newNetworks.splice(to, 0, dragged);
+            setSocialNetworks(newNetworks);
+            onUpdateSocialNetworks(newNetworks);
+        }
+        dragItemRef.current = null;
+        dragOverItemRef.current = null;
+        setDraggingIndex(null);
+        setDragOverIndex(null);
+    };
+
     return (
         <div className={`${styles.section_item}${className ? ` ${className}` : ''}`}>
             <h3>{t('profile:socialNetworksTitle')}</h3>
@@ -84,8 +176,28 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
                         </div>
                     )}
 
-                    {socialNetworks.map(network => (
-                        <div key={network.id} className={styles.social_network_item}>
+                    {socialNetworks.map((network, index) => (
+                        <div
+                            key={network.id}
+                            className={`${styles.social_network_item}${!readOnly && draggingIndex === index ? ` ${styles.dragging}` : ''}${!readOnly && dragOverIndex === index && draggingIndex !== index ? ` ${styles.drag_over}` : ''}`}
+                            draggable={!readOnly}
+                            onDragStart={() => handleDragStart(index)}
+                            onDragEnter={() => handleDragEnter(index)}
+                            onDragEnd={handleDragEnd}
+                            onDragOver={(e) => e.preventDefault()}
+                        >
+                            {!readOnly && (
+                                <div className={styles.drag_handle} title="Перетащите для изменения порядка">
+                                    <svg width="14" height="20" viewBox="0 0 14 20" fill="none">
+                                        <circle cx="4" cy="3" r="2" fill="currentColor"/>
+                                        <circle cx="10" cy="3" r="2" fill="currentColor"/>
+                                        <circle cx="4" cy="10" r="2" fill="currentColor"/>
+                                        <circle cx="10" cy="10" r="2" fill="currentColor"/>
+                                        <circle cx="4" cy="17" r="2" fill="currentColor"/>
+                                        <circle cx="10" cy="17" r="2" fill="currentColor"/>
+                                    </svg>
+                                </div>
+                            )}
                             <div className={styles.social_network_icon}>
                                 {renderSocialIcon(network.network)}
                             </div>
@@ -94,7 +206,7 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
                                     {SOCIAL_NETWORK_CONFIG[network.network]?.label || network.network}
                                 </span>
                                 {editingSocialNetwork === network.id ? (
-                                    <div className={styles.social_network_edit}>
+                                    <div className={styles.social_network_edit} ref={editingNetworkRef}>
                                         <input
                                             type="text"
                                             value={socialNetworkEditValue}
@@ -109,46 +221,21 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
                                         <div className={styles.social_edit_buttons}>
                                             <button
                                                 className={styles.save_social_btn}
-                                                onClick={async () => {
-                                                    const trimmedValue = socialNetworkEditValue.trim();
-                                                    const config = SOCIAL_NETWORK_CONFIG[network.network];
-                                                    
-                                                    if (!trimmedValue) {
-                                                        setSocialNetworkValidationError(t('profile:fieldEmpty'));
-                                                        return;
-                                                    }
-
-                                                    if (config && !config.validate(trimmedValue)) {
-                                                        setSocialNetworkValidationError(t('profile:invalidFormat', { label: config.label }));
-                                                        return;
-                                                    }
-
-                                                    try {
-                                                        const formattedValue = config?.format(trimmedValue) || trimmedValue;
-                                                        const updatedNetworks = socialNetworks.map(n =>
-                                                            n.id === network.id
-                                                                ? { ...n, handle: formattedValue }
-                                                                : n
-                                                        );
-                                                        setSocialNetworks(updatedNetworks);
-                                                        const success = await onUpdateSocialNetworks(updatedNetworks);
-                                                        if (success) {
-                                                            setEditingSocialNetwork(null);
-                                                            setSocialNetworkEditValue('');
-                                                            setSocialNetworkValidationError('');
-                                                        } else {
-                                                            setSocialNetworkValidationError(t('profile:saveError'));
-                                                        }
-                                                    } catch (error) {
-                                                        console.error('Error saving social network:', error);
-                                                        setSocialNetworkValidationError(t('profile:saveError'));
-                                                    }
-                                                }}
+                                                onClick={() => handleSaveEdit(network.id)}
                                                 title={t('profile:saveBtn')}
                                                 disabled={!socialNetworkEditValue.trim()}
                                             >
                                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
                                                     <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"/>
+                                                </svg>
+                                            </button>
+                                            <button
+                                                className={styles.cancel_social_btn}
+                                                onClick={handleCancelEdit}
+                                                title={t('profile:cancelBtn')}
+                                            >
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                    <path d="M18 6L6 18M6 6l12 12" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
                                                 </svg>
                                             </button>
                                         </div>
@@ -168,9 +255,13 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
                                                     rel="noopener noreferrer"
                                                     className={styles.handle_value_link}
                                                 >
-                                                    {(['telegram', 'instagram'].includes(network.network) && !network.handle.startsWith('@'))
-                                                        ? `@${network.handle}`
-                                                        : network.handle}
+                                                    <Marquee
+                                                        text={(['telegram', 'instagram'].includes(network.network) && !network.handle.startsWith('@'))
+                                                            ? `@${network.handle}`
+                                                            : network.handle}
+                                                        alwaysScroll
+                                                        duration={6}
+                                                    />
                                                 </a>
                                             ) : (
                                                 <span className={styles.handle_placeholder}>

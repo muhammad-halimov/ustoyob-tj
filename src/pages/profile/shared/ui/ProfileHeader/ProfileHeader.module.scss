@@ -75,8 +75,10 @@
   font-weight: 600;
   color: #000;
   line-height: 1.2;
-  word-break: break-word;
-  overflow-wrap: break-word;
+  width: fit-content;
+  max-width: 420px;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .specialty {
@@ -138,6 +140,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 
   &:hover {
     opacity: 1;
@@ -302,6 +305,15 @@
 
   .name_row {
     justify-content: center;
+    width: 100%;
+  }
+
+  .name_with_icon {
+    width: 100%;
+  }
+
+  .name_info {
+    width: 100%;
   }
 
   .specialty_row {
@@ -310,6 +322,7 @@
 
   .name {
     font-size: 20px;
+    max-width: min(260px, calc(100vw - 160px));
   }
 
   .specialty {
@@ -334,10 +347,6 @@
   .name_input {
     font-size: 20px;
   }
-
-  .name_container {
-    justify-content: center;
-  }
 }
 
 @media (max-width: 480px) {
@@ -353,6 +362,7 @@
     padding-top: 35px;
   }
 }
+
 .selected_specialties {
   display: flex;
   flex-wrap: wrap;
@@ -432,7 +442,8 @@
 }
 
 .specialty_badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   background: #E8ECFF;
   color: #3A54DA;
   padding: 6px 14px;
@@ -440,16 +451,16 @@
   font-size: 16px;
   font-weight: 500;
   line-height: 1.4;
-
-  &:not(:last-child)::after {
-    content: none;
-  }
+  max-width: 200px;
+  height: 34px;
+  overflow: hidden;
 }
 
 @media (max-width: 768px) {
   .specialty_badge {
     font-size: 14px;
     padding: 4px 12px;
+    height: 28px;
   }
 
   .specialty_tag {
@@ -499,6 +510,7 @@
   font-size: 14px;
   font-weight: 500;
   transition: background 0.2s ease;
+  max-width: 120px;
 
   span {
     line-height: 1;
@@ -519,6 +531,7 @@
   border-radius: 20px;
   font-size: 14px;
   font-weight: 500;
+  max-width: 100px;
 
   span {
     line-height: 1;
@@ -535,6 +548,7 @@
   border-radius: 20px;
   font-size: 14px;
   font-weight: 500;
+  max-width: 200px;
 
   span {
     line-height: 1;
@@ -543,11 +557,8 @@
   a {
     color: inherit;
     text-decoration: none;
-    display: inline-block;
-    max-width: 220px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    display: block;
+    width: 100%;
   }
 }
 
@@ -582,9 +593,17 @@
 .name_container {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   margin-bottom: 10px;
   gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .name_container {
+    width: fit-content;
+    margin: 0 auto;
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 768px) {

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import Address from '../../../../../shared/ui/Address/Selector/Address.tsx';
+import { EmptyState } from '../../../../../widgets/EmptyState';
 import { AddressValue } from '../../../../../entities';
 import styles from './WorkAreasSection.module.scss';
 
@@ -129,9 +130,7 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
                         </div>
                     ))
                 ) : (
-                    <div className={styles.empty_state}>
-                        <span>{readOnly ? t('profile:noWorkAreas') : t('profile:addWorkArea')}</span>
-                    </div>
+                    <EmptyState title={readOnly ? t('profile:noWorkAreas') : t('profile:addWorkArea')} />
                 )}
 
                 {/* Кнопка добавления нового адреса */}

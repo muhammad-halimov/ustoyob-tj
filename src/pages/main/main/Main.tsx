@@ -172,7 +172,7 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
         } else if (!userRole) {
             setShowAuthModal(true);
         } else {
-            setModalMessage(`Вы должны быть ${workerType === "master" ? "мастером" : "заказчиком"} для этой операции.`);
+            setModalMessage(workerType === "master" ? t('roles.mustBeMaster') : t('roles.mustBeClient'));
         }
     };
 

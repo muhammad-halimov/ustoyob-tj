@@ -11,6 +11,7 @@ export interface Service {
     description?: string;
     budget: number;
     price?: number; // deprecated, используется budget
+    negotiableBudget?: boolean;
     unit: string | { id: number; title: string };
     createdAt?: string;
     active?: boolean;

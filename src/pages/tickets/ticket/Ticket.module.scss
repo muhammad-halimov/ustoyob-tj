@@ -35,6 +35,7 @@
   background: white;
   border-radius: 12px;
   padding: 20px;
+  margin-top: 20px;
 }
 
 // ── Title row: title + controls ─────────────────────────────────────────────
@@ -60,6 +61,33 @@
   align-items: center;
   flex-shrink: 0;
   padding-top: 4px;
+}
+
+.ownerControls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.editButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: background-color 0.2s, transform 0.1s;
+  flex-shrink: 0;
+
+  &:hover {
+    background-color: var(--color-background-gray-light, #f4f4f5);
+  }
+
+  &:active {
+    transform: scale(0.9);
+  }
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -473,6 +501,10 @@
   font-size: 22px;
   cursor: pointer;
   transition: border-color 0.18s, background 0.18s, color 0.18s, transform 0.1s;
+
+  &:only-child {
+    margin: 0 auto;
+  }
 
   &:hover {
     background: #f4f4f5;

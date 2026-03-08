@@ -2,6 +2,7 @@ import React, { ChangeEvent, RefObject, useState, useRef, useEffect } from 'reac
 import { useTranslation } from 'react-i18next';
 import { UserRole, Occupation } from '../../../../../entities';
 import { smartNameTranslator } from '../../../../../utils/textHelper';
+import { Marquee } from '../../../../../shared/ui/Text/Marquee/Marquee';
 import styles from './ProfileHeader.module.scss';
 
 interface ProfileHeaderProps {
@@ -112,10 +113,10 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     // };
 
     const getGenderDisplay = (value: string | undefined): string => {
-        if (!value) return t('profile:notSpecified');
+        if (!value) return 'н/у';
         if (value === 'male' || value === 'gender_male') return t('profile:genderMale');
         if (value === 'female' || value === 'gender_female') return t('profile:genderFemale');
-        return t('profile:notSpecified');
+        return 'н/у';
     };
 
     const calculateAge = (dob: string | undefined): number | null => {
@@ -220,9 +221,11 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                             </div>
                         ) : (
                             <div className={styles.name_with_icon}>
-                                <div>
+                                <div className={styles.name_info}>
                                     <div className={styles.name_container}>
-                                        <span className={styles.name}>{translatedFullName}</span>
+                                        <div className={styles.name}>
+                                            <Marquee text={translatedFullName} alwaysScroll />
+                                        </div>
                                         {!readOnly && <button
                                             className={styles.edit_icon}
                                             onClick={() => onEditStart('fullName')}
@@ -253,16 +256,16 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                                                     onClick={!readOnly ? () => onEditStart('gender') : undefined}
                                                     style={!readOnly ? { cursor: 'pointer' } : undefined}
                                                 >
-                                                    <span>{getGenderDisplay(gender)}</span>
+                                                    <Marquee text={getGenderDisplay(gender)} alwaysScroll />
                                                 </div>
                                                 {age !== null && (
                                                     <div className={styles.age_tag}>
-                                                        <span>{age} {t('profile:ageLabel')}</span>
+                                                        <Marquee text={`${age} ${t('profile:ageLabel')}`} alwaysScroll />
                                                     </div>
                                                 )}
                                                 {email && (
                                                     <div className={styles.email_tag}>
-                                                        <a href={`mailto:${email}`}>{email}</a>
+                                                        <a href={`mailto:${email}`}><Marquee text={email} alwaysScroll /></a>
                                                     </div>
                                                 )}
                                                 {readOnly && (
@@ -358,7 +361,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                                     <div className={styles.specialties_display}>
                                         {displaySpecialties.map((spec, index) => (
                                             <span key={index} className={styles.specialty_badge}>
-                                                {typeof spec === 'string' ? spec : ''}
+                                                <Marquee text={typeof spec === 'string' ? spec : ''} alwaysScroll />
                                             </span>
                                         ))}
                                     </div>

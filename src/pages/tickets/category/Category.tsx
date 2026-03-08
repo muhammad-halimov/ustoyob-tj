@@ -1,9 +1,11 @@
 import {useState, useEffect, useCallback} from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { getAuthToken, getUserRole, getUserData } from '../../../utils/auth.ts';
 import { getStorageItem } from '../../../utils/storageHelper.ts';
+import { Back } from '../../../shared/ui/Button/Back/Back.tsx';
 import { useLanguageChange } from '../../../hooks/useLanguageChange.ts';
 import { PageLoader } from '../../../widgets/PageLoader';
+import { EmptyState } from '../../../widgets/EmptyState';
 import { ROUTES } from '../../../app/routers/routes';
 import styles from './Category.module.scss';
 import { Card } from '../../../shared/ui/Ticket/Card/Card.tsx';
@@ -125,9 +127,24 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 function Category() {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
+    const location = useLocation();
     const [tickets, setTickets] = useState<FormattedTicket[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [categoryName, setCategoryName] = useState<string>('');
+    const [categoryName, setCategoryName] = useState<string>(() => {
+        const fromState = (location.state as any)?.categoryName;
+        if (fromState) return fromState;
+        const cached = sessionStorage.getItem(`cat-name-${id}`);
+        if (cached) return cached;
+        try {
+            const list = JSON.parse(sessionStorage.getItem('categories-list') || '[]');
+            const found = list.find((c: { id: number; title: string }) => String(c.id) === String(id));
+            if (found?.title) {
+                sessionStorage.setItem(`cat-name-${id}`, found.title);
+                return found.title;
+            }
+        } catch {}
+        return '';
+    });
     const [userRole, setUserRole] = useState<'client' | 'master' | null>(null);
     const [occupations, setOccupations] = useState<Occupation[]>([]);
     const [selectedSubcategory, setSelectedSubcategory] = useState<number | null>(null);
@@ -140,7 +157,13 @@ function Category() {
     const [timeFilter, setTimeFilter] = useState<'all' | 'today' | 'yesterday' | 'week' | 'month'>('all');
     const { t, i18n } = useTranslation(['components', 'category', 'ticket']);
     const locale = i18n.language;
-    
+
+    const setAndCacheCategoryName = (name: string) => {
+        if (!name) return;
+        if (id) sessionStorage.setItem(`cat-name-${id}`, name);
+        setCategoryName(name);
+    };
+
     useLanguageChange(() => {
         // При смене языка переполучаем данные для обновления локализованного контента
         if (id) {
@@ -223,6 +246,7 @@ function Category() {
     const formatTicketImageUrl = (imagePath: string): string => {
         if (!imagePath) return '';
         if (imagePath.startsWith('http')) return imagePath;
+        if (imagePath.startsWith('/images/ticket_photos/')) return `${API_BASE_URL}${imagePath}`;
         return `${API_BASE_URL}/images/ticket_photos/${imagePath}`;
     };
 
@@ -258,13 +282,19 @@ function Category() {
 
             if (response.ok) {
                 const categoryData = await response.json();
-                setCategoryName(categoryData.title);
+                // Handle both direct object and Hydra collection / array responses
+                const title =
+                    categoryData?.title ||
+                    (Array.isArray(categoryData) ? categoryData[0]?.title : null) ||
+                    categoryData?.['hydra:member']?.[0]?.title ||
+                    '';
+                if (title) setAndCacheCategoryName(title);
             } else {
-                setCategoryName('Категория');
+                // keep existing name
             }
         } catch (error) {
             console.error('Error fetching category name:', error);
-            setCategoryName('Категория');
+            // keep whatever name we already have
         }
     };
 
@@ -487,7 +517,7 @@ function Category() {
                 const isMasterTicket = ticket.service; // service: true - услуга от мастера
                 const author = isMasterTicket ? ticket.master : ticket.author;
                 const authorId = author?.id || 0;
-                const authorName = author ? `${author.name || ''} ${author.surname || ''}`.trim() : 'Пользователь';
+                const authorName = author ? `${author.surname || ''} ${author.name || ''}`.trim() : 'Пользователь';
 
                 const fullAddress = getFullAddress(ticket);
                 const shortAddress = getShortAddress(ticket);
@@ -584,6 +614,18 @@ function Category() {
             });
 
             setTickets(sortedTickets);
+
+            // Fallback: if fetchCategoryName didn't populate the name yet, grab it from tickets
+            if (ticketsData.length > 0) {
+                const nameFromTicket = (ticketsData[0] as any)?.category?.title;
+                if (nameFromTicket) {
+                    setCategoryName((prev) => {
+                        const next = prev || nameFromTicket;
+                        if (!prev && id) sessionStorage.setItem(`cat-name-${id}`, next);
+                        return next;
+                    });
+                }
+            }
         } catch (error) {
             console.error('Error fetching tickets:', error);
             setTickets([]);
@@ -677,38 +719,19 @@ function Category() {
         navigate(ROUTES.TICKET_BY_ID(ticketId));
     };
 
-    const handleClose = () => {
-        navigate(-1);
-    };
 
     const getPageTitle = () => {
-        if (!categoryName) return t('category:byCategory');
-
-        let roleText: string;
-
-        if (userRole === 'client') {
-            roleText = ' - ' + t('category:masterServices');
-        } else if (userRole === 'master') {
-            roleText = ' - ' + t('category:clientOrders');
-        } else {
-            roleText = ' - ' + t('category:allAds');
-        }
-
-        return `${truncateText(categoryName, 30)}${roleText}`;
+        const name = categoryName ? `${truncateText(categoryName, 30)} - ` : '';
+        return `${name}${t('category:allAds')}`;
     };
 
     // Если категория ID не передан
     if (!id) {
         return (
             <div className={styles.container}>
+                <Back className={styles.backButtonSpacing} />
                 <div className={styles.header}>
                     <h1>{t('category:errorTitle')}</h1>
-                    <button className={styles.closeButton} onClick={handleClose}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            <path d="M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                    </button>
                 </div>
                 <div className={styles.noResults}>
                     <p>{t('category:notSelected')}</p>
@@ -719,14 +742,9 @@ function Category() {
 
     return (
         <div className={styles.container}>
+            <Back className={styles.backButtonSpacing} />
             <div className={styles.header}>
                 <h1>{getPageTitle()}</h1>
-                <button className={styles.closeButton} onClick={handleClose}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                </button>
             </div>
 
             {/* Сетка подкатегорий */}
@@ -875,20 +893,14 @@ function Category() {
                 {isLoading ? (
                     <PageLoader text={t('category:loading')} fullPage={false} />
                 ) : tickets.length === 0 ? (
-                    <div className={styles.noResults}>
-                        <p>
-                            {categoryName
-                                ? t('category:noAdsInCategory', { name: categoryName })
-                                : t('category:noAdsInSelected')
-                            }
-                        </p>
-                        <button
-                            className={styles.refreshButton}
-                            onClick={() => fetchTicketsByCategory()}
-                        >
-                            {t('category:refresh')}
-                        </button>
-                    </div>
+                    <EmptyState
+                        title={categoryName
+                            ? t('category:noAdsInCategory', { name: categoryName })
+                            : t('category:noAdsInSelected')
+                        }
+                        onAction={() => fetchTicketsByCategory()}
+                        actionText={t('category:refresh')}
+                    />
                 ) : (
                     tickets.map((ticket) => (
                         <Card

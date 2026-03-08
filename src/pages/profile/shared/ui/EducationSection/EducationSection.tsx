@@ -1,5 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { EmptyState } from '../../../../../widgets/EmptyState';
+import { Toggle } from '../../../../../shared/ui/Button/Toggle/Toggle';
 import styles from './EducationSection.module.scss';
 
 interface Education {
@@ -128,14 +130,11 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
                                 </div>
 
                                 <div className={styles.checkbox_group}>
-                                    <label className={styles.checkbox_label}>
-                                        <input
-                                            type="checkbox"
-                                            checked={educationForm.currentlyStudying}
-                                            onChange={(e) => onEducationFormChange('currentlyStudying', e.target.checked)}
-                                        />
-                                        {t('profile:studyingNow')}
-                                    </label>
+                                    <Toggle
+                                        checked={educationForm.currentlyStudying}
+                                        onChange={(e) => onEducationFormChange('currentlyStudying', e.target.checked)}
+                                        label={t('profile:studyingNow')}
+                                    />
                                 </div>
 
                                 <div className={styles.form_actions}>
@@ -199,9 +198,7 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
                     </>
                 ) : (
                     !editingEducation && (
-                        <div className={styles.empty_state}>
-                            <span>{readOnly ? t('profile:noEducation') : t('profile:addEducationInfo')}</span>
-                        </div>
+                        <EmptyState title={readOnly ? t('profile:noEducation') : t('profile:addEducationInfo')} />
                     )
                 )}
 
@@ -280,15 +277,12 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
                         </div>
 
                         <div className={styles.checkbox_group}>
-                            <label className={styles.checkbox_label}>
-                                <input
-                                    type="checkbox"
-                                    checked={educationForm.currentlyStudying}
-                                    onChange={(e) => onEducationFormChange('currentlyStudying', e.target.checked)}
-                                />
-                                {t('profile:studyingNow')}
-                            </label>
-                        </div>
+                                    <Toggle
+                                        checked={educationForm.currentlyStudying}
+                                        onChange={(e) => onEducationFormChange('currentlyStudying', e.target.checked)}
+                                        label={t('profile:studyingNow')}
+                                    />
+                                </div>
 
                         <div className={styles.form_actions}>
                             <button

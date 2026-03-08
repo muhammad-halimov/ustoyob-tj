@@ -1,6 +1,10 @@
 @use '../../app/styles/variables' as vars;
 @use 'sass:map';
 
+.backButtonSpacing {
+  margin-bottom: 12px;
+}
+
 .container {
   max-width: 820px;
   margin: 40px auto 20px;

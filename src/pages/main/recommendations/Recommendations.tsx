@@ -7,6 +7,7 @@ import styles from './Recommendations.module.scss';
 import { useTranslation } from 'react-i18next';
 import { ROUTES } from '../../../app/routers/routes.ts';
 import { PageLoader } from '../../../widgets/PageLoader';
+import { EmptyState } from '../../../widgets/EmptyState';
 
 interface Announcement {
     id: number;
@@ -66,7 +67,9 @@ interface Announcement {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const formatTicketImageUrl = (imagePath: string): string => {
+    if (!imagePath) return '';
     if (imagePath.startsWith('http')) return imagePath;
+    if (imagePath.startsWith('/images/ticket_photos/')) return `${API_BASE_URL}${imagePath}`;
     return `${API_BASE_URL}/images/ticket_photos/${imagePath}`;
 };
 
@@ -214,10 +217,10 @@ function Recommendations() {
 
     const getAuthorName = (announcement: Announcement): string => {
         if (announcement.service && announcement.master) {
-            return `${announcement.master.name || ''} ${announcement.master.surname || ''}`.trim() || 'Мастер';
+            return `${announcement.master.surname || ''} ${announcement.master.name || ''}`.trim() || 'Мастер';
         }
         if (!announcement.service && announcement.author) {
-            return `${announcement.author.name || ''} ${announcement.author.surname || ''}`.trim() || 'Клиент';
+            return `${announcement.author.surname || ''} ${announcement.author.name || ''}`.trim() || 'Клиент';
         }
         return 'Автор';
     };
@@ -298,7 +301,7 @@ function Recommendations() {
                         ))}
                     </div>
                 ) : (
-                    <p className={styles.recommendation__empty}>Объявления отсутствуют</p>
+                    <EmptyState />
                 )}
             </div>
         </div>

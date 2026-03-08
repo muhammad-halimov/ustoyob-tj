@@ -67,7 +67,7 @@ export const getGenderDisplay = (gender: string): string => {
  */
 export const getAuthorAvatar = (
     user: { image?: string | null; imageExternalUrl?: string | null } | null | undefined,
-    fallback = './default_user.png'
+    fallback = '../default_user.png'
 ): string => {
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
     if (!user) return fallback;

@@ -91,7 +91,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
         const translatedFirstName = smartNameTranslator(firstName, currentLang);
         const translatedLastName = smartNameTranslator(lastName, currentLang);
         
-        return `${translatedFirstName} ${translatedLastName}`.trim();
+        return `${translatedLastName} ${translatedFirstName}`.trim();
     };
 
     // Функция для получения имени мастера
@@ -110,7 +110,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
         const translatedFirstName = smartNameTranslator(firstName, currentLang);
         const translatedLastName = smartNameTranslator(lastName, currentLang);
         
-        return `${translatedFirstName} ${translatedLastName}`.trim();
+        return `${translatedLastName} ${translatedFirstName}`.trim();
     };
 
     // Функция для форматирования даты

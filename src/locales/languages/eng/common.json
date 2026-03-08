@@ -32,6 +32,10 @@
     "errorLoading": "Error loading data",
     "tryAgain": "Try again"
   },
+  "emptyState": {
+    "title": "Nothing here yet",
+    "refresh": "Refresh"
+  },
   "reviews": {
     "one": "review",
     "few": "reviews",

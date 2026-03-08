@@ -11,6 +11,8 @@ import { useTranslation } from 'react-i18next';
 import { useLanguageChange } from '../../../hooks/useLanguageChange.ts';
 import { getStorageItem } from '../../../utils/storageHelper.ts';
 import { PageLoader } from '../../../widgets/PageLoader';
+import { Back } from '../../../shared/ui/Button/Back/Back.tsx';
+import { Toggle } from '../../../shared/ui/Button/Toggle/Toggle';
 
 interface ServiceData {
     id?: number;
@@ -107,6 +109,9 @@ const CreateEdit = () => {
     const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
     const [selectedSubcategory, setSelectedSubcategory] = useState<number | null>(null);
     const [selectedUnit, setSelectedUnit] = useState<number | null>(null);
+    const [negotiableBudget, setNegotiableBudget] = useState(false);
+    const [dragExistingIdx, setDragExistingIdx] = useState<number | null>(null);
+    const [dragNewIdx, setDragNewIdx] = useState<number | null>(null);
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
     const token = getAuthToken();
@@ -145,6 +150,15 @@ const CreateEdit = () => {
         if (isEditMode && id) {
             console.log('Edit mode detected, fetching ticket data for ID:', id);
             fetchTicketData(Number(id));
+        } else if (!isEditMode) {
+            // Сбрасываем состояние формы при переходе в режим создания
+            setNegotiableBudget(false);
+            setServiceData({ title: '', description: '', notice: '', budget: '' });
+            setSelectedCategory(null);
+            setSelectedSubcategory(null);
+            setSelectedUnit(null);
+            setExistingImages([]);
+            setNewImages([]);
         }
     }, [token, isEditMode, id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -270,7 +284,7 @@ const CreateEdit = () => {
                 title: data.title || '',
                 description: data.description || '',
                 notice: data.notice || '',
-                budget: String(data.budget || 0),
+                budget: data.budget ? String(data.budget) : '',
                 category: data.category,
                 subcategory: data.subcategory,
                 unit: data.unit,
@@ -285,6 +299,9 @@ const CreateEdit = () => {
             setSelectedCategory(data.category?.id || null);
             setSelectedSubcategory(data.subcategory?.id || null);
             setSelectedUnit(data.unit?.id || null);
+            // Считаем договорной только если negotiableBudget=true И нет реального бюджета.
+            // Если budget > 0 — значит цена есть, галочка была записана ошибочно.
+            setNegotiableBudget(!!data.negotiableBudget && !(data.budget > 0));
             setExistingImages(data.images || []);
             
             console.log('State updated - category ID:', data.category?.id);
@@ -344,7 +361,7 @@ const CreateEdit = () => {
         e.preventDefault();
 
         // Валидация
-        if (!serviceData.title.trim() || !serviceData.description.trim() || !serviceData.budget) {
+        if (!serviceData.title.trim() || !serviceData.description.trim() || (!negotiableBudget && !serviceData.budget)) {
             alert(t('createEdit:fillRequired'));
             return;
         }
@@ -369,8 +386,8 @@ const CreateEdit = () => {
             return;
         }
 
-        const budgetValue = Number(serviceData.budget);
-        if (isNaN(budgetValue) || budgetValue <= 0) {
+        const budgetValue = negotiableBudget ? 0 : Number(serviceData.budget);
+        if (!negotiableBudget && (isNaN(budgetValue) || budgetValue <= 0)) {
             alert(t('createEdit:invalidBudget'));
             return;
         }
@@ -416,6 +433,7 @@ const CreateEdit = () => {
                     description: serviceData.description.trim(),
                     notice: serviceData.notice?.trim() || "",
                     budget: budgetValue,
+                    negotiableBudget,
                     active: true,
                     category: `/api/categories/${selectedCategory}`,
                     subcategory: selectedSubcategory ? `/api/occupations/${selectedSubcategory}` : null,
@@ -480,6 +498,7 @@ const CreateEdit = () => {
                     description: serviceData.description,
                     notice: serviceData.notice || "",
                     budget: budgetValue,
+                    negotiableBudget,
                     service: true,
                     category: `/api/categories/${selectedCategory}`,
                     subcategory: selectedSubcategory ? `/api/occupations/${selectedSubcategory}` : null,
@@ -572,6 +591,7 @@ const CreateEdit = () => {
 
     return (
         <div className={styles.container}>
+            <Back className={styles.backButtonSpacing} />
             <div className={styles.header}>
                 <h1>{isEditMode ? t('createEdit:editTitle') : t('createEdit:createTitle')}</h1>
             </div>
@@ -648,7 +668,14 @@ const CreateEdit = () => {
                 <div className={styles.section}>
                     <h2>{t('createEdit:budgetLabel')}</h2>
                     <div className={styles.budgetSection}>
-                        <div className={styles.budgetRow}>
+                        <div className={styles.negotiableCheckbox}>
+                            <Toggle
+                                checked={negotiableBudget}
+                                onChange={(e) => setNegotiableBudget(e.target.checked)}
+                                label={t('createEdit:negotiablePrice')}
+                            />
+                        </div>
+                        <div className={`${styles.budgetRow} ${negotiableBudget ? styles.budgetRowDisabled : ''}`}>
                             <div className={styles.budgetField}>
                                 <input
                                     type="number"
@@ -658,7 +685,8 @@ const CreateEdit = () => {
                                     placeholder="0"
                                     className={styles.budgetInput}
                                     min="1"
-                                    required
+                                    disabled={negotiableBudget}
+                                    required={!negotiableBudget}
                                 />
                             </div>
                             <div className={styles.budgetField}>
@@ -666,6 +694,7 @@ const CreateEdit = () => {
                                     className={styles.unitSelect}
                                     value={selectedUnit || ''}
                                     onChange={(e) => setSelectedUnit(Number(e.target.value))}
+                                    disabled={negotiableBudget}
                                 >
                                     <option value="">{t('createEdit:unitPlaceholder')}</option>
                                     {units.map(unit => (
@@ -689,13 +718,28 @@ const CreateEdit = () => {
                                 <h4>Существующие фото</h4>
                                 <div className={styles.existingPhotoGrid}>
                                     {existingImages.map((img, index) => (
-                                        <div key={img.id} className={styles.existingPhotoItem}>
+                                        <div
+                                            key={img.id}
+                                            className={`${styles.existingPhotoItem} ${dragExistingIdx === index ? styles.photoItemDragging : ''}`}
+                                            draggable
+                                            onDragStart={() => setDragExistingIdx(index)}
+                                            onDragOver={(e) => {
+                                                e.preventDefault();
+                                                if (dragExistingIdx === null || dragExistingIdx === index) return;
+                                                const updated = [...existingImages];
+                                                const [moved] = updated.splice(dragExistingIdx, 1);
+                                                updated.splice(index, 0, moved);
+                                                setExistingImages(updated);
+                                                setDragExistingIdx(index);
+                                            }}
+                                            onDragEnd={() => setDragExistingIdx(null)}
+                                        >
                                             <img
                                                 src={getImageUrl(img.image)}
                                                 alt={`${t('createEdit:photoAlt')} ${index + 1}`}
                                                 className={styles.existingPhoto}
                                                 onClick={() => photoGallery.openGallery(index)}
-                                                style={{ cursor: 'pointer' }}
+                                                style={{ cursor: 'grab' }}
                                             />
                                             <button
                                                 type="button"
@@ -729,10 +773,26 @@ const CreateEdit = () => {
                                 {newImages.length > 0 && (
                                     <div className={styles.newPhotoPreview}>
                                         {newImages.map((image, index) => (
-                                            <div key={index} className={styles.newPhotoItem}>
+                                            <div
+                                                key={index}
+                                                className={`${styles.newPhotoItem} ${dragNewIdx === index ? styles.photoItemDragging : ''}`}
+                                                draggable
+                                                onDragStart={() => setDragNewIdx(index)}
+                                                onDragOver={(e) => {
+                                                    e.preventDefault();
+                                                    if (dragNewIdx === null || dragNewIdx === index) return;
+                                                    const updated = [...newImages];
+                                                    const [moved] = updated.splice(dragNewIdx, 1);
+                                                    updated.splice(index, 0, moved);
+                                                    setNewImages(updated);
+                                                    setDragNewIdx(index);
+                                                }}
+                                                onDragEnd={() => setDragNewIdx(null)}
+                                            >
                                                 <img
                                                     src={URL.createObjectURL(image)}
                                                     alt={`${t('createEdit:newPhotoAlt')} ${index + 1}`}
+                                                    style={{ cursor: 'grab' }}
                                                 />
                                                 <button
                                                     type="button"

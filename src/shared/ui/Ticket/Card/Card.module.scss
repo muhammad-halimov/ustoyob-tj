@@ -32,6 +32,12 @@
     margin-left: auto;
   }
 
+  &_action_buttons {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
   &_ticketType {
     background: var(--color-background-btn);
     color: var(--color-primary-text-white);
@@ -461,6 +467,18 @@
     &_top_actions {
       flex-wrap: wrap;
       gap: 4px;
+      justify-content: space-between;
+    }
+
+    &_active_toggle {
+      order: 1;
+    }
+
+    &_action_buttons {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      order: 2;
     }
 
     &_favorite_button {
@@ -581,7 +599,7 @@
     }
 
     &_top_actions {
-      margin-left: 0;
+      width: 100%;
     }
   }
 }

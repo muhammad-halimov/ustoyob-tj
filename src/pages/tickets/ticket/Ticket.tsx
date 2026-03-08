@@ -15,6 +15,7 @@ import Review from '../../../shared/ui/Modal/Review';
 import Complaint from '../../../shared/ui/Modal/Complaint/Complaint.tsx';
 import { Carousel } from '../../../shared/ui/Photo/Carousel/Carousel.tsx';
 import { Marquee } from '../../../shared/ui/Text/Marquee';
+import { Back } from '../../../shared/ui/Button/Back/Back.tsx';
 import {useFavorites} from '../../../shared/ui/useFavorites';
 import {ROUTES} from '../../../app/routers/routes';
 import {ReviewsSection} from '../../profile/shared/ui/ReviewsSection';
@@ -476,14 +477,14 @@ export function Ticket() {
             if (ticketData.master) {
                 // Заявка клиента - показываем мастера
                 displayUserId = ticketData.master.id;
-                displayUserName = `${ticketData.master.name || ''} ${ticketData.master.surname || ''}`.trim() || t('components:app.defaultMaster');
+                displayUserName = `${ticketData.master.surname || ''} ${ticketData.master.name || ''}`.trim() || t('components:app.defaultMaster');
                 displayUserImage = getAuthorAvatar(ticketData.master, '');
                 userTypeForRating = 'master';
                 userRating = ticketData.master.rating || 0; // Рейтинг мастера из тикета
             } else {
                 // Услуга мастера - показываем автора
                 displayUserId = ticketData.author.id;
-                displayUserName = `${ticketData.author.name || ''} ${ticketData.author.surname || ''}`.trim() || t('components:app.defaultClient');
+                displayUserName = `${ticketData.author.surname || ''} ${ticketData.author.name || ''}`.trim() || t('components:app.defaultClient');
                 displayUserImage = getAuthorAvatar(ticketData.author, '');
                 userTypeForRating = 'client';
                 userRating = ticketData.author.rating || 0; // Рейтинг автора из тикета
@@ -1016,48 +1017,54 @@ export function Ticket() {
     if (isLoading) return <PageLoader text={t('ticket:loading')} />;
     if (error) return (
         <div className={styles.error}>
+            <Back />
             <p>{error}</p>
-            <button onClick={() => navigate(-1)}>{t('ticket:back')}</button>
         </div>
     );
     if (!order) return (
         <div className={styles.error}>
+            <Back />
             <p>{t('ticket:notFound')}</p>
-            <button onClick={() => navigate(-1)}>{t('ticket:back')}</button>
         </div>
     );
 
     return (
         <div className={styles.container}>
-            <div className={styles.back_section}>
-                <button className={styles.backBtn} onClick={() => navigate(-1)}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    {t('components:app.back')}
-                </button>
-            </div>
+            <Back />
             <div className={styles.orderCard}>
                 {/* ── Title row: title + controls side-by-side ── */}
                 <div className={styles.titleControlRow}>
                     <h1 className={styles.orderTitle}>
-                        <Marquee text={order.title} />
+                        <Marquee text={order.title} alwaysScroll />
                     </h1>
                     <div className={styles.controlsGroup}>
                         {currentUserId === order.authorId ? (
-                            <div className={styles.service_active_toggle}>
-                                <label className={styles.switch}>
-                                    <input
-                                        type="checkbox"
-                                        checked={isTicketActive}
-                                        onChange={handleToggleActive}
-                                        disabled={isTogglingActive}
-                                    />
-                                    <span className={styles.slider}></span>
-                                </label>
-                                <span className={styles.toggle_label}>
-                                    {isTicketActive ? t('ticket:active') : t('ticket:inactive')}
-                                </span>
+                            <div className={styles.ownerControls}>
+                                <button
+                                    className={styles.editButton}
+                                    onClick={() => navigate(ROUTES.TICKET_EDIT_BY_ID(order.id))}
+                                    title={t('ticket:edit')}
+                                >
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M7.2302 20.59L2.4502 21.59L3.4502 16.81L17.8902 2.29001C18.1407 2.03889 18.4385 1.83982 18.7663 1.70424C19.0941 1.56865 19.4455 1.49925 19.8002 1.50001C20.5163 1.50001 21.203 1.78447 21.7094 2.29082C22.2157 2.79717 22.5002 3.48392 22.5002 4.20001C22.501 4.55474 22.4315 4.90611 22.296 5.23391C22.1604 5.56171 21.9613 5.85945 21.7102 6.11001L7.2302 20.59Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                        <path d="M0.549805 22.5H23.4498" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                        <path d="M19.6403 8.17986L15.8203 4.35986" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                                    </svg>
+                                </button>
+                                <div className={styles.service_active_toggle}>
+                                    <label className={styles.switch}>
+                                        <input
+                                            type="checkbox"
+                                            checked={isTicketActive}
+                                            onChange={handleToggleActive}
+                                            disabled={isTogglingActive}
+                                        />
+                                        <span className={styles.slider}></span>
+                                    </label>
+                                    <span className={styles.toggle_label}>
+                                        {isTicketActive ? t('ticket:active') : t('ticket:inactive')}
+                                    </span>
+                                </div>
                             </div>
                         ) : (
                             <div ref={dropdownRef} className={styles.ticketMenuWrapper}>
@@ -1100,7 +1107,7 @@ export function Ticket() {
                     <div className={styles.categoryContainer}>
                         <button
                             className={styles.categoryBadge}
-                            onClick={() => navigate(ROUTES.CATEGORY_TICKETS_BY_ID(order.categoryId))}
+                            onClick={() => navigate(ROUTES.CATEGORY_TICKETS_BY_ID(order.categoryId), { state: { categoryName: order.category } })}
                         >
                             <IoCompass className={styles.categoryIcon} />
                             <Marquee text={order.category} className={styles.categoryBadgeText} alwaysScroll />
@@ -1132,7 +1139,7 @@ export function Ticket() {
                 <span className={styles.priceBadge}>
                     <Marquee
                         alwaysScroll
-                        text={order.negotiableBudget
+                        text={(order.negotiableBudget && !order.price)
                             ? t('components:app.negotiablePrice')
                             : `${order.price} TJS, ${order.unit}`}
                     />

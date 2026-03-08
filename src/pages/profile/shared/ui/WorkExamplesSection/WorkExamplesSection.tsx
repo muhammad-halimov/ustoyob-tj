@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Preview } from '../../../../../shared/ui/Photo/Preview';
+import { EmptyState } from '../../../../../widgets/EmptyState';
 import styles from './WorkExamplesSection.module.scss';
 
 interface WorkExample {
@@ -124,9 +125,7 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
                             )}
                         </>
                     ) : (
-                        <div className={styles.empty_state}>
-                            <span>{readOnly ? t('profile:noWorkExamples') : t('profile:addWorkExamples')}</span>
-                        </div>
+                        <EmptyState title={readOnly ? t('profile:noWorkExamples') : t('profile:addWorkExamples')} />
                     )}
                 </div>
 

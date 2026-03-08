@@ -6,11 +6,13 @@ import { smartNameTranslator } from '../../utils/textHelper';
 import AuthModal from '../../features/auth/AuthModal';
 import Complaint from '../../shared/ui/Modal/Complaint/Complaint.tsx';
 import { PageLoader } from '../../widgets/PageLoader';
+import { EmptyState } from '../../widgets/EmptyState';
 import styles from "./Chat.module.scss";
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { IoSend, IoAttach, IoClose, IoImages, IoArchiveOutline, IoArrowUpCircleOutline, IoWarningOutline, IoPencilSharp, IoTrashSharp, IoArrowUndoSharp, IoEye, IoEllipsisVertical, IoChatbubblesOutline } from "react-icons/io5";
 import { Preview, usePreview } from '../../shared/ui/Photo/Preview';
 import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
+import { Back } from '../../shared/ui/Button/Back/Back.tsx';
 
 interface Message {
     id: number;
@@ -919,7 +921,7 @@ function Chat() {
 
             const searchLower = searchQuery.toLowerCase();
             const fullName = getTranslatedFullName(interlocutor).toLowerCase();
-            const originalFullName = `${interlocutor.name} ${interlocutor.surname}`.toLowerCase();
+            const originalFullName = `${interlocutor.surname} ${interlocutor.name}`.toLowerCase();
             const email = interlocutor.email?.toLowerCase() || '';
             const phone1 = interlocutor.phone1?.toLowerCase() || '';
             const phone2 = interlocutor.phone2?.toLowerCase() || '';
@@ -1250,6 +1252,7 @@ function Chat() {
 
     return (
         <div className={styles.chatPageWrapper}>
+        <Back className={styles.backButtonSpacing} />
         <div className={`${styles.chat} ${isMobileChatActive ? styles.chatAreaActive : ''}`}>
             <input
                 type="file"
@@ -1299,13 +1302,11 @@ function Chat() {
 
                 <div className={styles.chatList}>
                     {filteredChats.length === 0 ? (
-                        <div className={styles.noChatsContainer}>
-                            <div className={styles.noChats}>
-                                {searchQuery ? t('chat.noChatsFound') :
-                                    activeTab === "active" ? t('chat.noActiveChats') :
-                                        t('chat.noArchivedChats')}
-                            </div>
-                        </div>
+                        <EmptyState
+                            title={searchQuery ? t('chat.noChatsFound') :
+                                activeTab === "active" ? t('chat.noActiveChats') :
+                                    t('chat.noArchivedChats')}
+                        />
                     ) : (
                         filteredChats.map(chat => {
                             const interlocutor = getInterlocutorFromChat(chat);
@@ -1321,7 +1322,7 @@ function Chat() {
                                                 alt={getTranslatedFullName(interlocutor)}
                                             />
                                         ) : (
-                                            `${interlocutor.name?.charAt(0) || ''}${interlocutor.surname?.charAt(0) || ''}`
+                                            `${interlocutor.surname?.charAt(0) || ''}${interlocutor.name?.charAt(0) || ''}`
                                         )}
                                         {interlocutor.isOnline && !chat.isArchived && (
                                             <div className={styles.onlineIndicator} />

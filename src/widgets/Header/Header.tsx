@@ -87,9 +87,9 @@ function Header({ onOpenAuthModal }: HeaderProps) {
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     const languages = [
-        { code: 'tj' as Language, name: 'ТҶ', fullName: 'Тоҷикӣ' },
-        { code: 'ru' as Language, name: 'РУ', fullName: 'Русский' },
-        { code: 'eng' as Language, name: 'ENG', fullName: 'English' },
+        { code: 'tj' as Language, name: 'ТҶ', fullName: 'Тоҷикӣ', flagUrl: 'https://flagcdn.com/w20/tj.png' },
+        { code: 'eng' as Language, name: 'ENG', fullName: 'English', flagUrl: 'https://flagcdn.com/w20/us.png' },
+        { code: 'ru' as Language, name: 'РУ', fullName: 'Русский', flagUrl: 'https://flagcdn.com/w20/ru.png' },
     ];
 
     const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[1];
@@ -473,7 +473,10 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                         <div className={styles.rightPart_lang}>
                             <div className={styles.rightPart_lang__box} onClick={() => setShowLangDropdown(!showLangDropdown)}>
                                 <div className={styles.language_selector}>
-                                    <span className={styles.current_language}>{currentLanguage.name}</span>
+                                    <span className={styles.current_language}>
+                                        <img src={currentLanguage.flagUrl} alt={currentLanguage.name} className={styles.lang_flag_img} />
+                                        {currentLanguage.name}
+                                    </span>
                                     <svg width="17" height="10" viewBox="0 0 17 10" fill="none" xmlns="http://www.w3.org/2000/svg">
                                         <path d="M0.707031 0.707031L8.35703 8.35703L16.007 0.707031" stroke="black" strokeWidth="2" strokeMiterlimit="10"/>
                                     </svg>
@@ -487,7 +490,10 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                                                 className={`${styles.language_option} ${currentLanguage.code === lang.code ? styles.selected : ''}`}
                                                 onClick={() => handleLanguageChange(lang.code)}
                                             >
-                                                <span className={styles.language_code}>{lang.name}</span>
+                                                <span className={styles.language_left}>
+                                                    <img src={lang.flagUrl} alt={lang.name} className={styles.lang_flag_img} />
+                                                    <span className={styles.language_code}>{lang.name}</span>
+                                                </span>
                                                 <span className={styles.language_name}>{lang.fullName}</span>
                                             </div>
                                         ))}
@@ -535,20 +541,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                             <li className={`${styles.bottomHeader_item} ${isActivePage == "orders" ? styles.active : ""}`}>
                                 <Link to={ROUTES.HOME} className={styles.navLink}>
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <g clipPath="url(#clip0_324_3320)">
-                                            <g clipPath="url(#clip1_324_3320)">
-                                                <path d="M12 3.41L10.09 1.5H1.50003V20.59C1.4987 20.8412 1.5472 21.0902 1.64272 21.3225C1.73823 21.5548 1.87887 21.7659 2.0565 21.9435C2.23412 22.1212 2.44521 22.2618 2.67754 22.3573C2.90987 22.4528 3.15883 22.5013 3.41003 22.5H20.59C20.8412 22.5013 21.0902 22.4528 21.3225 22.3573C21.5548 22.2618 21.7659 22.1212 21.9436 21.9435C22.1212 21.7659 22.2618 21.5548 22.3573 21.3225C22.4529 21.0902 22.5014 20.8412 22.5 20.59V3.41H12Z" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10"/>
-                                                <path d="M1.5 7.22998H22.5" stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
-                                            </g>
-                                        </g>
-                                        <defs>
-                                            <clipPath id="clip0_324_3320">
-                                                <rect width="24" height="24" fill="white"/>
-                                            </clipPath>
-                                            <clipPath id="clip1_324_3320">
-                                                <rect width="24" height="24" fill="white"/>
-                                            </clipPath>
-                                        </defs>
+                                        <path d="M3 9.5L12 3L21 9.5V20C21 20.5523 20.5523 21 20 21H15V16H9V21H4C3.44772 21 3 20.5523 3 20V9.5Z" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                     </svg>
                                     <p>{t('header:orders')}</p>
                                 </Link>
@@ -697,8 +690,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                         <li className={`${styles.bottomHeader_item} ${isActivePage == "orders" ? styles.active : ""}`}>
                             <Link to={ROUTES.HOME} className={styles.navLink}>
                                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M12 3.41L10.09 1.5H1.50003V20.59C1.4987 20.8412 1.5472 21.0902 1.64272 21.3225C1.73823 21.5548 1.87887 21.7659 2.0565 21.9435C2.23412 22.1212 2.44521 22.2618 2.67754 22.3573C2.90987 22.4528 3.15883 22.5013 3.41003 22.5H20.59C20.8412 22.5013 21.0902 22.4528 21.3225 22.3573C21.5548 22.2618 21.7659 22.1212 21.9436 21.9435C22.1212 21.7659 22.2618 21.5548 22.3573 21.3225C22.4529 21.0902 22.5014 20.8412 22.5 20.59V3.41H12Z" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10"/>
-                                    <path d="M1.5 7.22998H22.5" stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
+                                    <path d="M3 9.5L12 3L21 9.5V20C21 20.5523 20.5523 21 20 21H15V16H9V21H4C3.44772 21 3 20.5523 3 20V9.5Z" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                 </svg>
                                 <p>{t('header:orders')}</p>
                             </Link>

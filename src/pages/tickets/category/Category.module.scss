@@ -1,6 +1,10 @@
 @use '../../../app/styles/variables' as vars;
 @use 'sass:map';
 
+.backButtonSpacing {
+  margin-bottom: 12px;
+}
+
 .container {
   position: relative;
   max-width: 1150px; // Оптимизировано для 60% ширины на больших экранах

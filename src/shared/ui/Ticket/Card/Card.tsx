@@ -9,6 +9,7 @@ import { useFavorites } from '../../useFavorites.ts';
 import { ROUTES } from '../../../../app/routers/routes.ts';
 import { truncateText } from '../../../../utils/textHelper.ts';
 import { Carousel } from '../../Photo/Carousel/Carousel.tsx';
+import { Toggle } from '../../Button/Toggle/Toggle.tsx';
 // Re-export for backward compatibility (other files import truncateText from Card)
 export { truncateText };
 
@@ -273,57 +274,53 @@ export function Card({
               onTouchStart={(e) => e.stopPropagation()}
               onTouchEnd={(e) => e.stopPropagation()}
             >
-              <label className={styles.switch}>
-                <input
-                  type="checkbox"
-                  checked={isActive}
-                  onChange={onActiveToggle}
-                />
-                <span className={styles.slider}></span>
-              </label>
-              <span className={styles.toggle_label}>
-                {isActive ? 'Активно' : 'Неактивно'}
-              </span>
+              <Toggle
+                checked={isActive}
+                onChange={onActiveToggle!}
+                label={isActive ? 'Активно' : 'Неактивно'}
+              />
             </div>
           )}
-          {showEditButton && (
+          <div className={styles.card_action_buttons}>
+            {showEditButton && (
+              <button
+                className={styles.card_edit_button}
+                onClick={onEditClick}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); if (onEditClick) onEditClick(e as unknown as React.MouseEvent); }}
+                title="Редактировать"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M7.2302 20.59L2.4502 21.59L3.4502 16.81L17.8902 2.29001C18.1407 2.03889 18.4385 1.83982 18.7663 1.70424C19.0941 1.56865 19.4455 1.49925 19.8002 1.50001C20.5163 1.50001 21.203 1.78447 21.7094 2.29082C22.2157 2.79717 22.5002 3.48392 22.5002 4.20001C22.501 4.55474 22.4315 4.90611 22.296 5.23391C22.1604 5.56171 21.9613 5.85945 21.7102 6.11001L7.2302 20.59Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                  <path d="M0.549805 22.5H23.4498" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                  <path d="M19.6403 8.17986L15.8203 4.35986" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                </svg>
+              </button>
+            )}
             <button
-              className={styles.card_edit_button}
-              onClick={onEditClick}
+              className={styles.card_favorite_button}
+              onClick={onFavoriteClick}
               onTouchStart={(e) => e.stopPropagation()}
-              onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); if (onEditClick) onEditClick(e as unknown as React.MouseEvent); }}
-              title="Редактировать"
+              onTouchEnd={onFavoriteClick}
+              disabled={isLikeLoading}
+              title={isFavorite ? t('removeFavorite') : t('addFavorite')}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M7.2302 20.59L2.4502 21.59L3.4502 16.81L17.8902 2.29001C18.1407 2.03889 18.4385 1.83982 18.7663 1.70424C19.0941 1.56865 19.4455 1.49925 19.8002 1.50001C20.5163 1.50001 21.203 1.78447 21.7094 2.29082C22.2157 2.79717 22.5002 3.48392 22.5002 4.20001C22.501 4.55474 22.4315 4.90611 22.296 5.23391C22.1604 5.56171 21.9613 5.85945 21.7102 6.11001L7.2302 20.59Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                <path d="M0.549805 22.5H23.4498" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                <path d="M19.6403 8.17986L15.8203 4.35986" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path
+                  d="M16.77 2.45C15.7961 2.47092 14.8444 2.74461 14.0081 3.24424C13.1719 3.74388 12.4799 4.45229 12 5.3C11.5201 4.45229 10.8281 3.74388 9.99186 3.24424C9.15563 2.74461 8.2039 2.47092 7.23 2.45C4.06 2.45 1.5 5.3 1.5 8.82C1.5 15.18 12 21.55 12 21.55C12 21.55 22.5 15.18 22.5 8.82C22.5 5.3 19.94 2.45 16.77 2.45Z"
+                  fill={isFavorite ? "#3A54DA" : "none"}
+                  stroke="#3A54DA"
+                  strokeWidth="2"
+                  strokeMiterlimit="10"
+                />
               </svg>
             </button>
-          )}
-          <button
-            className={styles.card_favorite_button}
-            onClick={onFavoriteClick}
-            onTouchStart={(e) => e.stopPropagation()}
-            onTouchEnd={onFavoriteClick}
-            disabled={isLikeLoading}
-            title={isFavorite ? t('removeFavorite') : t('addFavorite')}
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path
-                d="M16.77 2.45C15.7961 2.47092 14.8444 2.74461 14.0081 3.24424C13.1719 3.74388 12.4799 4.45229 12 5.3C11.5201 4.45229 10.8281 3.74388 9.99186 3.24424C9.15563 2.74461 8.2039 2.47092 7.23 2.45C4.06 2.45 1.5 5.3 1.5 8.82C1.5 15.18 12 21.55 12 21.55C12 21.55 22.5 15.18 22.5 8.82C22.5 5.3 19.94 2.45 16.77 2.45Z"
-                fill={isFavorite ? "#3A54DA" : "none"}
-                stroke="#3A54DA"
-                strokeWidth="2"
-                strokeMiterlimit="10"
-              />
-            </svg>
-          </button>
+          </div>
         </div>
       </div>
       <div className={`${styles.card_header} ${displayTicketType ? styles.with_ticket_type : ''}`}>
         <h3>{truncateText(translatedTitle, 27)}</h3>
-        <span className={styles.card_price}>{negotiableBudget ? t('app.negotiablePrice') : `${price != null ? price.toLocaleString('ru-RU') : '—'} TJS, ${unit}`}</span>
+        <span className={styles.card_price}>{(negotiableBudget && !price) ? t('app.negotiablePrice') : `${price != null ? price.toLocaleString('ru-RU') : '—'} TJS, ${unit}`}</span>
       </div>
 
       {photos && photos.length > 0 ? (

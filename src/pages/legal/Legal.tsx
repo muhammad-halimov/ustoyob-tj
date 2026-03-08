@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getAuthToken } from '../../utils/auth';
 import { ROUTES } from '../../app/routers/routes';
+import { Back } from '../../shared/ui/Button/Back/Back.tsx';
 import styles from './Legal.module.scss';
 
 interface LegalDocument {
@@ -97,29 +98,8 @@ function Legal() {
     if (isLoading) {
         return (
             <div className={styles.container}>
+                <Back className={styles.backButtonSpacing} />
                 <div className={styles.header}>
-                    <div className={styles.navigation}>
-                        <button 
-                            className={`${styles.navButton} ${activeType === 'terms_of_use' ? styles.active : ''}`}
-                            onClick={() => handleTypeChange('terms_of_use')}
-                        >
-                            {t('footer.termsOfUse', 'Условия использования')}
-                        </button>
-                        <button 
-                            className={`${styles.navButton} ${activeType === 'privacy_policy' ? styles.active : ''}`}
-                            onClick={() => handleTypeChange('privacy_policy')}
-                        >
-                            {t('footer.privacyPolicy', 'Политика конфиденциальности')}
-                        </button>
-                        <button 
-                            className={`${styles.navButton} ${activeType === 'public_offer' ? styles.active : ''}`}
-                            onClick={() => handleTypeChange('public_offer')}
-                        >
-                            {t('footer.publicOffer', 'Публичная оферта')}
-                        </button>
-                    </div>
-                </div>
-                <div className={styles.loading}>
                     <p>{t('app.loading', 'Загрузка...')}</p>
                 </div>
             </div>
@@ -129,6 +109,7 @@ function Legal() {
     if (error || !document) {
         return (
             <div className={styles.container}>
+                <Back className={styles.backButtonSpacing} />
                 <div className={styles.header}>
                     <div className={styles.navigation}>
                         <button 
@@ -164,6 +145,7 @@ function Legal() {
 
     return (
         <div className={styles.container}>
+            <Back className={styles.backButtonSpacing} />
             <div className={styles.header}>
                 <div className={styles.navigation}>
                     <button 

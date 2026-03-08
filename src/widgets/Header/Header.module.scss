@@ -582,6 +582,15 @@
     .current_language {
       font-weight: 500;
       color: var(--color-text-primary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+
+      .lang_flag_img {
+        width: 18px;
+        height: auto;
+        border-radius: 2px;
+      }
     }
   }
 
@@ -617,6 +626,19 @@
       &.selected {
         background-color: var(--color-background-accent-light);
         color: var(--color-primary);
+      }
+
+      .language_left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .lang_flag_img {
+        width: 20px;
+        height: auto;
+        border-radius: 2px;
+        flex-shrink: 0;
       }
 
       .language_code {

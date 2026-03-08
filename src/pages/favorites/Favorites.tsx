@@ -12,9 +12,11 @@ import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/Cooki
 import { ServiceTypeFilter } from '../../widgets/Sorting/ServiceTypeFilter';
 import { SortingFilter } from '../../widgets/Sorting/SortingFilter';
 import { PageLoader } from '../../widgets/PageLoader';
+import { EmptyState } from '../../widgets/EmptyState';
 import { ProfileHeader } from '../profile/shared/ui/ProfileHeader';
 import Review from '../../shared/ui/Modal/Review';
 import Complaint from '../../shared/ui/Modal/Complaint';
+import { Back } from '../../shared/ui/Button/Back/Back.tsx';
 
 interface FavoriteTicket {
     id: number;
@@ -355,6 +357,7 @@ function Favorites() {
     const formatTicketImageUrl = (imagePath: string): string => {
         if (!imagePath) return '';
         if (imagePath.startsWith('http')) return imagePath;
+        if (imagePath.startsWith('/images/ticket_photos/')) return `${API_BASE_URL}${imagePath}`;
         return `${API_BASE_URL}/images/ticket_photos/${imagePath}`;
     };
 
@@ -400,9 +403,9 @@ function Favorites() {
 
             let authorName = 'Неизвестный';
             if (isMasterTicket && ticket.master) {
-                authorName = `${ticket.master.name || ''} ${ticket.master.surname || ''}`.trim() || 'Мастер';
+                authorName = `${ticket.master.surname || ''} ${ticket.master.name || ''}`.trim() || 'Мастер';
             } else if (ticket.author) {
-                authorName = `${ticket.author.name || ''} ${ticket.author.surname || ''}`.trim() || 'Клиент';
+                authorName = `${ticket.author.surname || ''} ${ticket.author.name || ''}`.trim() || 'Клиент';
             }
 
             return {
@@ -491,9 +494,9 @@ function Favorites() {
 
                         let authorName = 'Неизвестный';
                         if (isMasterTicket && ticket.master) {
-                            authorName = `${ticket.master.name || ''} ${ticket.master.surname || ''}`.trim() || 'Мастер';
+                            authorName = `${ticket.master.surname || ''} ${ticket.master.name || ''}`.trim() || 'Мастер';
                         } else if (ticket.author) {
-                            authorName = `${ticket.author.name || ''} ${ticket.author.surname || ''}`.trim() || 'Клиент';
+                            authorName = `${ticket.author.surname || ''} ${ticket.author.name || ''}`.trim() || 'Клиент';
                         }
 
                         const authorImageSrc = isMasterTicket
@@ -1063,10 +1066,10 @@ function Favorites() {
         return (
             <div className={styles.recommendation}>
                 <div className={styles.recommendation_wrap}>
-                    <div className={styles.emptyState}>
-                        <p>{t('messages.authRequired')}</p>
-                        <p>{t('pages.favorites.noFavoritesHint')}</p>
-                    </div>
+                    <EmptyState
+                        title={t('messages.authRequired')}
+                        subtitle={t('pages.favorites.noFavoritesHint')}
+                    />
                 </div>
             </div>
         );
@@ -1076,10 +1079,10 @@ function Favorites() {
         return (
             <div className={styles.recommendation}>
                 <div className={styles.recommendation_wrap}>
-                    <div className={styles.emptyState}>
-                        <p>{t('pages.favorites.noFavorites')}</p>
-                        <p>{t('pages.favorites.noFavoritesHint')}</p>
-                    </div>
+                    <EmptyState
+                        title={t('pages.favorites.noFavorites')}
+                        subtitle={t('pages.favorites.noFavoritesHint')}
+                    />
                 </div>
             </div>
         );
@@ -1087,6 +1090,7 @@ function Favorites() {
 
     return (
         <div className={styles.recommendation}>
+            <Back className={styles.backButtonSpacing} />
             {/* Переключатель вкладок: Объявления / Пользователи */}
             {showTabs && (
                 <div className={styles.tabs}>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+import { EmptyState } from '../../../../../widgets/EmptyState';
 import { ROUTES } from '../../../../../app/routers/routes';
 import { Service } from '../../../../../entities';
 import styles from './ServicesSection.module.scss';
@@ -22,7 +23,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
     API_BASE_URL = import.meta.env.VITE_API_BASE_URL,
 }) => {
     const navigate = useNavigate();
-    const { t } = useTranslation(['profile']);
+    const { t } = useTranslation(['profile', 'components']);
 
     // Фильтруем только активные услуги
     const activeServices = services.filter(service => service.active !== false);
@@ -99,7 +100,10 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                                     <div className={styles.service_header}>
                                         <h4 className={styles.service_title}>{truncateText(typeof service.title === 'string' ? service.title : (typeof service.title === 'object' && service.title && 'title' in service.title ? String((service.title as any).title) : t('profile:serviceDefault')), 17)}</h4>
                                         <div className={styles.service_price}>
-                                            {typeof service.budget === 'number' ? service.budget : 0} TJS / {typeof service.unit === 'string' ? service.unit : (typeof service.unit === 'object' && service.unit && 'title' in service.unit ? String((service.unit as any).title) : 'шт')}
+                                            {service.negotiableBudget
+                                                ? t('components:app.negotiablePrice')
+                                                : `${typeof service.budget === 'number' ? service.budget : 0} TJS / ${typeof service.unit === 'string' ? service.unit : (typeof service.unit === 'object' && service.unit && 'title' in service.unit ? String((service.unit as any).title) : 'шт')}`
+                                            }
                                         </div>
                                     </div>
                                     {service.description && (() => {
@@ -130,12 +134,10 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                         ))}
                     </>
                 ) : (
-                    <div className={styles.empty_state}>
-                        <span>{readOnly 
-                            ? (userRole === 'client' ? t('profile:noServicesClient') : t('profile:noServicesMaster'))
-                            : (userRole === 'client' ? t('profile:addServicesClient') : t('profile:addServicesMaster'))
-                        }</span>
-                    </div>
+                    <EmptyState title={readOnly
+                        ? (userRole === 'client' ? t('profile:noServicesClient') : t('profile:noServicesMaster'))
+                        : (userRole === 'client' ? t('profile:addServicesClient') : t('profile:addServicesMaster'))
+                    } />
                 )}
             </div>
         </div>

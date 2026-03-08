@@ -1,3 +1,7 @@
+.backButtonSpacing {
+  margin-bottom: 12px;
+}
+
 .container {
   max-width: 1150px; // Оптимизировано для 60% ширины на больших экранах
   margin: 40px auto;
@@ -407,6 +411,15 @@
   margin-top: 20px;
 }
 
+.negotiableCheckbox {
+  margin-bottom: 14px;
+}
+
+.budgetRowDisabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
 .budgetRow {
   display: flex;
   gap: 16px;
@@ -494,6 +507,12 @@
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid #e0e0e0;
+  cursor: grab;
+}
+
+.photoItemDragging {
+  opacity: 0.35;
+  border: 2px dashed #3A54DA;
 }
 
 .existingPhoto {
@@ -799,8 +818,8 @@
   .existingPhotoItem,
   .newPhotoItem,
   .uploadLabel {
-    width: 100px;
-    height: 100px;
+    width: 95px;
+    height: 95px;
   }
 }
 

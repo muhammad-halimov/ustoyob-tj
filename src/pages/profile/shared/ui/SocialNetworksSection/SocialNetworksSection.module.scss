@@ -27,7 +27,7 @@
 .social_networks {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
   width: 100%;
 }
 
@@ -42,43 +42,77 @@
 .social_network_item {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 20px;
-  border-radius: 16px;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
   background: #ffffff;
   border: 1px solid #e0e6ff;
   position: relative;
   overflow: hidden;
+  transition: opacity 0.2s, border-color 0.2s, background 0.2s;
 
   &:hover {
     background: #f8f9ff;
     border-color: #d0d9ff;
   }
+
+  &.dragging {
+    opacity: 0.35;
+    border-style: dashed;
+    border-color: #3A54DA;
+  }
+
+  &.drag_over {
+    border-color: #3A54DA;
+    background: #f0f3ff;
+    box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.15);
+  }
+}
+
+.drag_handle {
+  cursor: grab;
+  padding: 4px 6px;
+  color: #ccc;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  border-radius: 6px;
+  transition: color 0.2s, background 0.2s;
+
+  &:active {
+    cursor: grabbing;
+  }
+
+  &:hover {
+    color: #3A54DA;
+    background: #f0f3ff;
+  }
 }
 
 .social_network_icon {
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: #ffffff;
-  border-radius: 14px;
+  border-radius: 12px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
 
   svg {
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
   }
 
   img {
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
     object-fit: contain;
   }
 
   span {
-    font-size: 24px;
+    font-size: 20px;
   }
 }
 
@@ -91,7 +125,7 @@
 }
 
 .social_network_name {
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 600;
   color: #1a1a1a;
   margin: 0;
@@ -105,13 +139,13 @@
 }
 
 .social_network_handle {
-  font-size: 15px;
+  font-size: 14px;
   color: #3A54DA;
-  padding: 12px 16px;
-  border-radius: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
   background: #f8f9ff;
   border: 1px solid #e0e6ff;
-  min-height: 44px;
+  min-height: 38px;
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -186,14 +220,16 @@
 .social_network_edit {
   display: flex;
   align-items: center;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
   width: 100%;
   margin-top: 4px;
 }
 
 .social_input {
   flex: 1;
-  padding: 12px 16px;
+  min-width: 0;
+  padding: 10px 12px;
   border: 2px solid #e0e6ff;
   border-radius: 10px;
   font-size: 15px;
@@ -224,8 +260,8 @@
   color: white;
   border: none;
   border-radius: 8px;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -242,8 +278,26 @@
   }
 
   svg {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
+  }
+}
+
+.cancel_social_btn {
+  background: #ff3b30;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+
+  &:hover {
+    background: #e5362b;
   }
 }
 
@@ -405,8 +459,8 @@
   }
 
   .social_network_icon {
-    width: 48px;
-    height: 48px;
+    width: 64px;
+    height: 60px;
 
     svg {
       width: 24px;
@@ -424,6 +478,103 @@
   }
 }
 
+@media (max-width: 480px) {
+  .social_network_item {
+    padding: 12px 10px;
+    gap: 8px;
+  }
+
+  .social_network_icon {
+    width: 56px;
+    height: 60px;
+
+    svg {
+      width: 22px;
+      height: 22px;
+    }
+  }
+
+  .social_network_name {
+    font-size: 15px;
+  }
+
+  .social_network_handle {
+    font-size: 13px;
+    padding: 8px 10px;
+    min-height: 38px;
+  }
+
+  .social_network_edit {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .social_edit_buttons {
+    align-self: flex-end;
+  }
+
+  .social_input {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 400px) {
+  .social_network_item {
+    padding: 10px 8px;
+    gap: 6px;
+  }
+
+  .drag_handle {
+    padding: 2px 3px;
+  }
+
+  .social_network_icon {
+    width: 56px;
+    height: 60px;
+    flex-shrink: 0;
+
+    svg {
+      width: 20px;
+      height: 20px;
+    }
+  }
+
+  .social_network_handle {
+    font-size: 13px;
+    padding: 7px 8px;
+    min-height: 36px;
+  }
+
+  .social_network_name {
+    font-size: 14px;
+  }
+
+  .list_item_actions {
+    gap: 4px;
+  }
+
+  .copy_icon, .edit_icon, .delete_icon {
+    padding: 2px;
+  }
+
+  .social_network_edit {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .social_edit_buttons {
+    align-self: flex-end;
+  }
+
+  .social_input {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+}
+
 :global(html[data-theme="dark"]) {
   .section_item {
     background-color: var(--color-background-primary);
@@ -438,6 +589,21 @@
     border-color: var(--color-stroke);
 
     &:hover {
+      background: var(--color-background-all);
+    }
+
+    &.drag_over {
+      border-color: var(--color-primary);
+      background: var(--color-background-all);
+      box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.2);
+    }
+  }
+
+  .drag_handle {
+    color: var(--color-text-secondary);
+
+    &:hover {
+      color: var(--color-primary);
       background: var(--color-background-all);
     }
   }

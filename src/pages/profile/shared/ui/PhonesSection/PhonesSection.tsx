@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { EmptyState } from '../../../../../widgets/EmptyState';
 import styles from './PhonesSection.module.scss';
 
 interface Phone {
@@ -141,9 +142,7 @@ export const PhonesSection: React.FC<PhonesSectionProps> = ({
                     </>
                 ) : (
                     !editingPhone && (
-                        <div className={styles.empty_state}>
-                            <span>{readOnly ? t('profile:noPhones') : t('profile:addPhone')}</span>
-                        </div>
+                        <EmptyState title={readOnly ? t('profile:noPhones') : t('profile:addPhone')} />
                     )
                 )}
 

@@ -125,6 +125,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 function formatTicketImageUrl(filename: string): string {
     if (!filename) return '';
     if (filename.startsWith('http')) return filename;
+    if (filename.startsWith('/images/ticket_photos/')) return `${API_BASE_URL}${filename}`;
     return `${API_BASE_URL}/images/ticket_photos/${filename}`;
 }
 
@@ -541,7 +542,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
         if (ticketType === 'client' && ticket.author) {
             if (ticket.author.name && ticket.author.surname) {
-                return `${ticket.author.name} ${ticket.author.surname}`.trim();
+                return `${ticket.author.surname} ${ticket.author.name}`.trim();
             } else if (ticket.author.name) {
                 return ticket.author.name;
             } else if (ticket.author.surname) {
@@ -549,7 +550,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             }
         } else if (ticketType === 'master' && ticket.master) {
             if (ticket.master.name && ticket.master.surname) {
-                return `${ticket.master.name} ${ticket.master.surname}`.trim();
+                return `${ticket.master.surname} ${ticket.master.name}`.trim();
             } else if (ticket.master.name) {
                 return ticket.master.name;
             } else if (ticket.master.surname) {

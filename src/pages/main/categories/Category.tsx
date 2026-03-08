@@ -57,6 +57,8 @@ export default function Category() {
             });
 
             setCategories(formattedData);
+            // Cache for category tickets page title
+            try { sessionStorage.setItem('categories-list', JSON.stringify(formattedData)); } catch {}
         } catch (error) {
             console.error("Ошибка при загрузке категорий:", error);
             setCategories([]); // Устанавливаем пустой массив при ошибке
@@ -85,9 +87,9 @@ export default function Category() {
         return () => window.removeEventListener("resize", checkMobile);
     }, []);
 
-    const handleCategoryClick = (categoryId: number) => {
+    const handleCategoryClick = (categoryId: number, categoryTitle: string) => {
         console.log('Category clicked:', categoryId);
-        navigate(ROUTES.CATEGORY_TICKETS_BY_ID(categoryId));
+        navigate(ROUTES.CATEGORY_TICKETS_BY_ID(categoryId), { state: { categoryName: categoryTitle } });
     };
 
     const handleViewAll = () => {
@@ -229,13 +231,13 @@ export default function Category() {
                         <div
                             key={item.id}
                             className={styles.category_item_step}
-                            onClick={() => handleCategoryClick(item.id)}
+                            onClick={() => handleCategoryClick(item.id, item.title)}
                             style={{ cursor: 'pointer' }}
                             role="button"
                             tabIndex={0}
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter' || e.key === ' ') {
-                                    handleCategoryClick(item.id);
+                                    handleCategoryClick(item.id, item.title);
                                 }
                             }}
                         >

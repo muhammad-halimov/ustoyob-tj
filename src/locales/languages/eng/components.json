@@ -174,7 +174,9 @@
     "customers": "Customers",
     "customersDesc": "Here clients find verified specialists for repair, construction and other services",
     "masters": "Masters",
-    "mastersDesc": "Here masters get real orders and new opportunities to earn."
+    "mastersDesc": "Here masters get real orders and new opportunities to earn.",
+    "mustBeMaster": "You must be a master for this operation.",
+    "mustBeClient": "You must be a customer for this operation."
   },
   "messages": {
     "authRequired": "Please log in.",
