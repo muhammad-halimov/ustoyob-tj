@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom';
 import { useFavorites } from '../../useFavorites.ts';
 import { ROUTES } from '../../../../app/routers/routes.ts';
 import { truncateText } from '../../../../utils/textHelper.ts';
+import { Marquee } from '../../Text/Marquee/Marquee.tsx';
 import { Carousel } from '../../Photo/Carousel/Carousel.tsx';
 import { Toggle } from '../../Button/Toggle/Toggle.tsx';
 // Re-export for backward compatibility (other files import truncateText from Card)
@@ -319,7 +320,7 @@ export function Card({
         </div>
       </div>
       <div className={`${styles.card_header} ${displayTicketType ? styles.with_ticket_type : ''}`}>
-        <h3>{truncateText(translatedTitle, 27)}</h3>
+        <div className={styles.card_title}><Marquee text={translatedTitle} alwaysScroll/></div>
         <span className={styles.card_price}>{(negotiableBudget && !price) ? t('app.negotiablePrice') : `${price != null ? price.toLocaleString('ru-RU') : '—'} TJS, ${unit}`}</span>
       </div>
 

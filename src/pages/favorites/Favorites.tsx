@@ -1065,7 +1065,7 @@ function Favorites() {
     if (!token && hasNoFavorites) {
         return (
             <div className={styles.recommendation}>
-                <div className={styles.recommendation_wrap}>
+                <div className={styles.recommendation_empty}>
                     <EmptyState
                         title={t('messages.authRequired')}
                         subtitle={t('pages.favorites.noFavoritesHint')}
@@ -1078,7 +1078,7 @@ function Favorites() {
     if (hasNoFavorites) {
         return (
             <div className={styles.recommendation}>
-                <div className={styles.recommendation_wrap}>
+                <div className={styles.recommendation_empty}>
                     <EmptyState
                         title={t('pages.favorites.noFavorites')}
                         subtitle={t('pages.favorites.noFavoritesHint')}
@@ -1133,7 +1133,20 @@ function Favorites() {
             <div className={styles.recommendation_wrap}>
                 {/* Сообщение об отсутствии результатов после фильтрации */}
                 {(activeTab === 'orders' || !showTabs) && hasOrders && filteredTickets.length === 0 && (
-                    <p className={styles.noResults}>Ничего не найдено. Попробуйте изменить фильтры.</p>
+                    <EmptyState
+                        title={t('common:emptyState.title')}
+                        subtitle={t('pages.favorites.noFavoritesHint')}
+                    />
+                )}
+
+                {/* Пустая вкладка объявлений (есть пользователи, но нет заказов) */}
+                {(activeTab === 'orders' || !showTabs) && !hasOrders && (
+                    <EmptyState title={t('pages.favorites.noFavorites')} />
+                )}
+
+                {/* Пустая вкладка пользователей */}
+                {activeTab === 'masters' && showTabs && !hasSecondTabItems && (
+                    <EmptyState />
                 )}
 
                 {/* Отображение заказов */}

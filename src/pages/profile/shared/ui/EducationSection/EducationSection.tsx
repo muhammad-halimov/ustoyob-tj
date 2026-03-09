@@ -1,7 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { Marquee } from '../../../../../shared/ui/Text/Marquee/Marquee';
 import { EmptyState } from '../../../../../widgets/EmptyState';
 import { Toggle } from '../../../../../shared/ui/Button/Toggle/Toggle';
+import { useDragReorder, DragHandle } from '../../../../../widgets/DragReorder';
 import styles from './EducationSection.module.scss';
 
 interface Education {
@@ -39,6 +41,7 @@ interface EducationSectionProps {
         endYear: string;
         currentlyStudying: boolean;
     }>>;
+    onReorder?: (education: Education[]) => void;
 }
 
 export const EducationSection: React.FC<EducationSectionProps> = ({
@@ -55,8 +58,10 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
     onEducationFormChange,
     onDeleteEducation,
     setEducationForm,
+    onReorder,
 }) => {
     const { t } = useTranslation(['profile']);
+    const eduDrag = useDragReorder(education, onReorder ?? (() => {}));
     return (
         <div className={styles.section_item}>
             <h3>{t('profile:educationAndExp')}</h3>
@@ -64,7 +69,11 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
                 {education.length > 0 ? (
                     <>
                         {education.map((edu, index) => (
-                            <div key={edu.id} className={`${styles.education_item} ${index === education.length - 1 ? styles.education_item_last : ''}`}>
+                            <div
+                                key={edu.id}
+                                className={`${styles.education_item} ${index === education.length - 1 ? styles.education_item_last : ''} ${!readOnly && onReorder && eduDrag.draggingIndex === index ? styles.dragging : ''} ${!readOnly && onReorder && eduDrag.dragOverIndex === index ? styles.drag_over : ''}`}
+                                {...(!readOnly && onReorder ? eduDrag.getDragProps(index) : {})}
+                            >
                         {editingEducation === edu.id ? (
                             <div className={styles.education_form}>
                                 <div className={styles.form_group}>
@@ -155,19 +164,21 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
                             </div>
                         ) : (
                             <div className={styles.education_main}>
+                                {!readOnly && onReorder && <DragHandle />}
                                 <div className={styles.education_content}>
                                     <div className={styles.education_header}>
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ marginRight: '8px', flexShrink: 0 }}>
                                             <path d="M12 3L1 9L5 11.18V17.18L12 21L19 17.18V11.18L21 10.09V17H23V9L12 3ZM18.82 9L12 12.72L5.18 9L12 5.28L18.82 9ZM17 15.99L12 18.72L7 15.99V12.27L12 15L17 12.27V15.99Z" fill="#3A54DA"/>
                                         </svg>
-                                        <strong>{edu.institution}</strong>
+                                        <Marquee text={edu.institution} alwaysScroll className={styles.education_institution} />
                                     </div>
                                     <div className={styles.education_years}>
                                         <span>{edu.startYear} - {edu.currentlyStudying ? t('profile:currentlyStudying') : edu.endYear}</span>
                                     </div>
                                     {edu.specialty && (
                                         <div className={styles.education_details}>
-                                            <span>{t('profile:specialtyPrefix')} {typeof edu.specialty === 'string' ? edu.specialty : ''}</span>
+                                            <span className={styles.education_details_prefix}>{t('profile:specialtyPrefix')}</span>
+                                            <Marquee text={typeof edu.specialty === 'string' ? edu.specialty : ''} alwaysScroll />
                                         </div>
                                     )}
                                 </div>

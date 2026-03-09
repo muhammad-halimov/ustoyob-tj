@@ -2683,6 +2683,72 @@ function Profile() {
         }
     };
 
+    // ===== Обработчики переупорядочивания =====
+
+    const handleReorderEducation = async (newEducation: Education[]) => {
+        if (!profileData?.id) return;
+        setProfileData(prev => prev ? { ...prev, education: newEducation } : null);
+        const token = getAuthToken();
+        if (!token) return;
+        try {
+            const userResponse = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            if (!userResponse.ok) return;
+            const userData: UserApiData = await userResponse.json();
+            const serverEducation: EducationApiData[] = userData.education || [];
+            const reordered = newEducation
+                .map(localEdu => serverEducation.find((se: EducationApiData) => se.id?.toString() === localEdu.id))
+                .filter(Boolean) as EducationApiData[];
+            const normalized = normalizeEducationArray(reordered);
+            await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
+                method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/merge-patch+json' },
+                body: JSON.stringify({ education: normalized }),
+            });
+        } catch (error) {
+            console.error('Error reordering education:', error);
+        }
+    };
+
+    const handleReorderAddresses = async (newAddresses: LocalAddress[]) => {
+        if (!profileData?.id) return;
+        setProfileData(prev => prev ? { ...prev, addresses: newAddresses } : null);
+        const token = getAuthToken();
+        if (!token) return;
+        try {
+            const userResponse = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            if (!userResponse.ok) return;
+            const userData: UserApiData = await userResponse.json();
+            const serverAddresses: UserAddressApiData[] = userData.addresses || [];
+            const reordered = newAddresses
+                .map(localAddr => serverAddresses.find((sa: UserAddressApiData) => sa.id?.toString() === localAddr.id))
+                .filter(Boolean)
+                .map(addr => convertAddressToIRI(addr as UserAddressApiData));
+            await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
+                method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/merge-patch+json' },
+                body: JSON.stringify({ addresses: reordered }),
+            });
+        } catch (error) {
+            console.error('Error reordering addresses:', error);
+        }
+    };
+
+    const handleReorderPhones = (newPhones: LocalPhone[]) => {
+        setProfileData(prev => prev ? { ...prev, phones: newPhones } : null);
+    };
+
+    const handleReorderWorkExamples = (newWorkExamples: { id: string; image: string; title: string }[]) => {
+        setProfileData(prev => prev ? { ...prev, workExamples: newWorkExamples } : null);
+    };
+
+    const handleReorderServices = (newServices: Service[]) => {
+        setProfileData(prev => prev ? { ...prev, services: newServices } : null);
+    };
+
     const handleEditStart = (field: 'fullName' | 'specialty' | 'gender') => {
         setEditingField(field);
         if (field === 'fullName') {
@@ -3288,6 +3354,7 @@ function Profile() {
                             onDeleteEducation={handleDeleteEducation}
                             onAddEducation={handleAddEducation}
                             setEducationForm={setEducationForm}
+                            onReorder={!readOnly ? handleReorderEducation : undefined}
                         />
                     )}
 
@@ -3304,6 +3371,7 @@ function Profile() {
                         onDeletePhone={handleDeletePhone}
                         onAddPhone={handleAddPhone}
                         onCopyPhone={handleCopyPhone}
+                        onReorder={!readOnly ? handleReorderPhones : undefined}
                     />
 
                     {/* SocialNetworksSection Component */}
@@ -3354,6 +3422,7 @@ function Profile() {
                             setShowAllWorkExamples={setShowAllWorkExamples}
                             getImageUrlWithCacheBust={getImageUrlWithCacheBust}
                             API_BASE_URL={API_BASE_URL}
+                            onReorder={!readOnly ? handleReorderWorkExamples : undefined}
                         />
                     )}
 
@@ -3364,6 +3433,7 @@ function Profile() {
                         readOnly={readOnly}
                         userRole={userRole}
                         API_BASE_URL={API_BASE_URL}
+                        onReorder={!readOnly ? handleReorderServices : undefined}
                     />
 
                     {/* WorkAreasSection Component */}
@@ -3381,6 +3451,7 @@ function Profile() {
                         onEditAddressCancel={handleEditAddressCancel}
                         onDeleteAddress={handleDeleteAddress}
                         onCanWorkRemotelyToggle={handleCanWorkRemotelyToggle}
+                        onReorder={!readOnly ? handleReorderAddresses : undefined}
                     />
                 </div>
 

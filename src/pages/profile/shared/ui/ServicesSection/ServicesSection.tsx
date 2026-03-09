@@ -4,8 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { EmptyState } from '../../../../../widgets/EmptyState';
 import { ROUTES } from '../../../../../app/routers/routes';
 import { Service } from '../../../../../entities';
+import { useDragReorder, DragHandle } from '../../../../../widgets/DragReorder';
 import styles from './ServicesSection.module.scss';
-import { truncateText } from '../../../../../shared/ui/Ticket/Card/Card.tsx';
+import { Marquee } from '../../../../../shared/ui/Text/Marquee/Marquee';
 
 interface ServicesSectionProps {
     services: Service[];
@@ -13,6 +14,7 @@ interface ServicesSectionProps {
     readOnly?: boolean;
     userRole?: 'master' | 'client' | null;
     API_BASE_URL?: string;
+    onReorder?: (services: Service[]) => void;
 }
 
 export const ServicesSection: React.FC<ServicesSectionProps> = ({
@@ -21,12 +23,14 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
     readOnly = false,
     userRole = null,
     API_BASE_URL = import.meta.env.VITE_API_BASE_URL,
+    onReorder,
 }) => {
     const navigate = useNavigate();
     const { t } = useTranslation(['profile', 'components']);
 
     // Фильтруем только активные услуги
     const activeServices = services.filter(service => service.active !== false);
+    const serviceDrag = useDragReorder(activeServices, onReorder ?? (() => {}));
 
     const handleServiceClick = (serviceId: number) => {
         navigate(ROUTES.TICKET_BY_ID(serviceId));
@@ -83,45 +87,68 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                     <div className={styles.loading}>{t('profile:loadingServices')}</div>
                 ) : activeServices.length > 0 ? (
                     <>
-                        {activeServices.map((service, index) => (
+                        {activeServices.map((service, index) => {
+                            const titleText = typeof service.title === 'string'
+                                ? service.title
+                                : (typeof service.title === 'object' && service.title && 'title' in service.title
+                                    ? String((service.title as any).title)
+                                    : t('profile:serviceDefault'));
+                            const unitText = typeof service.unit === 'string'
+                                ? service.unit
+                                : (typeof service.unit === 'object' && service.unit && 'title' in service.unit
+                                    ? String((service.unit as any).title)
+                                    : 'шт');
+                            const priceText = service.negotiableBudget
+                                ? t('components:app.negotiablePrice')
+                                : `${typeof service.budget === 'number' ? service.budget : 0} TJS / ${unitText}`;
+                            const descText = typeof service.description === 'string'
+                                ? service.description
+                                : (typeof service.description === 'object' && service.description && 'text' in service.description
+                                    ? String((service.description as any).text)
+                                    : '');
+                            return (
                             <div
                                 key={service.id}
-                                className={`${styles.service_item} ${index === activeServices.length - 1 ? styles.service_item_last : ''}`}
+                                className={`${styles.service_item} ${index === activeServices.length - 1 ? styles.service_item_last : ''} ${!readOnly && onReorder && serviceDrag.draggingIndex === index ? styles.dragging : ''} ${!readOnly && onReorder && serviceDrag.dragOverIndex === index ? styles.drag_over : ''}`}
                                 onClick={() => handleServiceClick(service.id)}
+                                onDragEnter={!readOnly && onReorder ? () => serviceDrag.handleDragEnter(index) : undefined}
+                                onDragEnd={!readOnly && onReorder ? () => serviceDrag.handleDragEnd() : undefined}
+                                onDragOver={!readOnly && onReorder ? (e) => e.preventDefault() : undefined}
                             >
+                                {!readOnly && onReorder && (
+                                    <div onClick={(e) => e.stopPropagation()}>
+                                        <DragHandle
+                                            draggable
+                                            onDragStart={() => serviceDrag.handleDragStart(index)}
+                                        />
+                                    </div>
+                                )}
                                 <div className={styles.service_image}>
                                     <img 
                                         src={getServiceImage(service)} 
-                                        alt={typeof service.title === 'string' ? service.title : t('profile:serviceDefault')}
+                                        alt={titleText}
                                         onError={handleImageError}
                                     />
                                 </div>
                                 <div className={styles.service_content}>
                                     <div className={styles.service_header}>
-                                        <h4 className={styles.service_title}>{truncateText(typeof service.title === 'string' ? service.title : (typeof service.title === 'object' && service.title && 'title' in service.title ? String((service.title as any).title) : t('profile:serviceDefault')), 17)}</h4>
+                                        <div className={styles.service_title}><Marquee text={titleText} alwaysScroll /></div>
                                         <div className={styles.service_price}>
-                                            {service.negotiableBudget
-                                                ? t('components:app.negotiablePrice')
-                                                : `${typeof service.budget === 'number' ? service.budget : 0} TJS / ${typeof service.unit === 'string' ? service.unit : (typeof service.unit === 'object' && service.unit && 'title' in service.unit ? String((service.unit as any).title) : 'шт')}`
-                                            }
+                                            <Marquee text={priceText} alwaysScroll />
                                         </div>
                                     </div>
-                                    {service.description && (() => {
-                                        const desc = typeof service.description === 'string'
-                                            ? service.description
-                                            : (typeof service.description === 'object' && service.description && 'text' in service.description
-                                                ? String((service.description as any).text)
-                                                : '');
-                                        return (
-                                            <>
-                                                <p className={styles.service_description_desktop}>{truncateText(desc, 150)}</p>
-                                                <p className={styles.service_description_mobile}>{truncateText(desc, 25)}</p>
-                                            </>
-                                        );
-                                    })()}
+                                    {descText && (
+                                        <>
+                                            <p className={styles.service_description_desktop}><Marquee text={descText} alwaysScroll /></p>
+                                            <p className={styles.service_description_mobile}><Marquee text={descText} alwaysScroll /></p>
+                                        </>
+                                    )}
                                     {service.createdAt && (
                                         <div className={styles.service_date}>
-                                            {t('profile:addedAt')} {formatDate(service.createdAt)}
+                                            <Marquee
+                                                text={`${t('profile:addedAt')} ${formatDate(service.createdAt)}`}
+                                                alwaysScroll
+                                            />
                                         </div>
                                     )}
                                 </div>
@@ -131,13 +158,25 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                                     </svg>
                                 </div>
                             </div>
-                        ))}
+                            );
+                        })}
                     </>
                 ) : (
                     <EmptyState title={readOnly
                         ? (userRole === 'client' ? t('profile:noServicesClient') : t('profile:noServicesMaster'))
                         : (userRole === 'client' ? t('profile:addServicesClient') : t('profile:addServicesMaster'))
                     } />
+                )}
+                {!readOnly && (
+                    <div className={styles.add_education_container}>
+                        <button
+                            className={styles.add_button}
+                            onClick={() => navigate(ROUTES.TICKET_CREATE)}
+                            title={t('profile:addService')}
+                        >
+                            +
+                        </button>
+                    </div>
                 )}
             </div>
         </div>

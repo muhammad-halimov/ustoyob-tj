@@ -1,6 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { Marquee } from '../../../../../shared/ui/Text/Marquee/Marquee';
 import { EmptyState } from '../../../../../widgets/EmptyState';
+import { useDragReorder, DragHandle } from '../../../../../widgets/DragReorder';
 import styles from './PhonesSection.module.scss';
 
 interface Phone {
@@ -21,6 +23,7 @@ interface PhonesSectionProps {
     onDeletePhone: (phoneId: string) => Promise<void>;
     onCopyPhone: (phoneNumber: string) => Promise<void>;
     setPhoneForm: React.Dispatch<React.SetStateAction<{ number: string; type: 'tj' | 'international' }>>;
+    onReorder?: (phones: Phone[]) => void;
 }
 
 export const PhonesSection: React.FC<PhonesSectionProps> = ({
@@ -35,8 +38,10 @@ export const PhonesSection: React.FC<PhonesSectionProps> = ({
     onDeletePhone,
     onCopyPhone,
     setPhoneForm,
+    onReorder,
 }) => {
     const { t } = useTranslation(['profile']);
+    const phoneDrag = useDragReorder(phones, onReorder ?? (() => {}));
     return (
         <div className={styles.section_item}>
             <h3>{t('profile:phonesTitle')}</h3>
@@ -44,7 +49,11 @@ export const PhonesSection: React.FC<PhonesSectionProps> = ({
                 {phones && phones.length > 0 ? (
                     <>
                         {phones.map((phone, index) => (
-                    <div key={phone.id} className={`${styles.list_item} ${index === phones.length - 1 ? styles.list_item_last : ''}`}>
+                    <div
+                        key={phone.id}
+                        className={`${styles.list_item} ${index === phones.length - 1 ? styles.list_item_last : ''} ${!readOnly && onReorder && phoneDrag.draggingIndex === index ? styles.dragging : ''} ${!readOnly && onReorder && phoneDrag.dragOverIndex === index ? styles.drag_over : ''}`}
+                        {...(!readOnly && onReorder ? phoneDrag.getDragProps(index) : {})}
+                    >
                         {editingPhone === phone.id ? (
                             <div className={styles.edit_form}>
                                 <div className={styles.form_group}>
@@ -91,18 +100,23 @@ export const PhonesSection: React.FC<PhonesSectionProps> = ({
                             </div>
                         ) : (
                             <>
+                                {!readOnly && onReorder && <DragHandle />}
                                 <div className={styles.list_item_content}>
                                     <div className={styles.address_text}>
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ marginRight: '8px', flexShrink: 0 }}>
                                             <path d="M6.62 10.79C8.06 13.62 10.38 15.94 13.21 17.38L15.41 15.18C15.69 14.9 16.08 14.82 16.43 14.93C17.55 15.3 18.75 15.5 20 15.5C20.55 15.5 21 15.95 21 16.5V20C21 20.55 20.55 21 20 21C10.61 21 3 13.39 3 4C3 3.45 3.45 3 4 3H7.5C8.05 3 8.5 3.45 8.5 4C8.5 5.25 8.7 6.45 9.07 7.57C9.18 7.92 9.1 8.31 8.82 8.59L6.62 10.79Z" fill="#3A54DA"/>
                                         </svg>
-                                        <strong>{phone.type === 'tj' ? '🇹🇯 ' : '🌍 '}</strong>
+                                        <img
+                                            src={`https://flagcdn.com/w20/${phone.type === 'tj' ? 'tj' : 'un'}.png`}
+                                            alt={phone.type === 'tj' ? 'TJ' : 'International'}
+                                            style={{ width: '20px', marginRight: '4px', verticalAlign: 'middle', flexShrink: 0 }}
+                                        />
                                         <a 
                                             href={`tel:${phone.number}`}
                                             className={styles.phone_link}
                                             onClick={(e) => e.stopPropagation()}
                                         >
-                                            {phone.number}
+                                            <Marquee text={phone.number} alwaysScroll threshold={-10} />
                                         </a>
                                     </div>
                                 </div>

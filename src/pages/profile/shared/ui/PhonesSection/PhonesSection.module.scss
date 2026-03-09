@@ -25,21 +25,30 @@
 }
 
 .list_item {
-  padding: 16px 0;
-  border-bottom: 1px solid #e8e8e8;
+  padding: 12px 14px;
+  border: 1px solid var(--color-stroke);
+  border-radius: 12px;
+  margin-bottom: 8px;
   width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-
-  &:first-child {
-    padding-top: 8px;
-  }
+  transition: opacity 0.2s, border-color 0.2s;
 
   &.list_item_last {
-    border-bottom: none !important;
+    margin-bottom: 0;
   }
+}
+
+.dragging {
+  opacity: 0.5;
+  border-style: dashed;
+  border-color: var(--color-actual-blue);
+}
+
+.drag_over {
+  border-color: var(--color-actual-blue);
 }
 
 .list_item_content {
@@ -58,22 +67,25 @@
 }
 
 .address_text {
-  word-break: break-word;
-  overflow-wrap: break-word;
   flex: 1;
   min-width: 0;
   font-size: 16px;
   color: map.get(vars.$colors, text-black);
+  display: flex;
+  align-items: center;
+  overflow: hidden;
 }
 
 .phone_link {
   color: #3A54DA;
   text-decoration: none;
+  display: block;
+  flex: 1;
+  min-width: 0;
   transition: color 0.2s ease;
 
   &:hover {
     color: #2a3daa;
-    text-decoration: underline;
   }
 }
 

@@ -1,8 +1,10 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { Marquee } from '../../../../../shared/ui/Text/Marquee/Marquee';
 import Address from '../../../../../shared/ui/Address/Selector/Address.tsx';
 import { EmptyState } from '../../../../../widgets/EmptyState';
 import { AddressValue } from '../../../../../entities';
+import { useDragReorder, DragHandle } from '../../../../../widgets/DragReorder';
 import styles from './WorkAreasSection.module.scss';
 
 interface Address {
@@ -25,6 +27,7 @@ interface WorkAreasSectionProps {
     onEditAddressCancel: () => void;
     onDeleteAddress: (addressId: string) => Promise<void>;
     onCanWorkRemotelyToggle: () => Promise<void>;
+    onReorder?: (addresses: Address[]) => void;
 }
 
 export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
@@ -41,8 +44,10 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
     onEditAddressCancel,
     onDeleteAddress,
     onCanWorkRemotelyToggle,
+    onReorder,
 }) => {
     const { t } = useTranslation(['profile']);
+    const areaDrag = useDragReorder(addresses, onReorder ?? (() => {}));
     return (
         <div className={styles.section_item}>
             <h3>{userRole === 'client' ? t('profile:workAreasTitleClient') : t('profile:workAreasTitle')}</h3>
@@ -71,7 +76,11 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
             <div className={styles.section_content}>
                 {addresses && addresses.length > 0 ? (
                     addresses.map((address, index) => (
-                        <div key={address.id} className={`${styles.list_item} ${index === addresses.length - 1 ? styles.list_item_last : ''}`}>
+                        <div
+                            key={address.id}
+                            className={`${styles.list_item} ${index === addresses.length - 1 ? styles.list_item_last : ''} ${!readOnly && onReorder && areaDrag.draggingIndex === index ? styles.dragging : ''} ${!readOnly && onReorder && areaDrag.dragOverIndex === index ? styles.drag_over : ''}`}
+                            {...(!readOnly && onReorder ? areaDrag.getDragProps(index) : {})}
+                        >
                             {editingAddress === address.id ? (
                                 <div className={styles.edit_form}>
                                     <Address
@@ -97,13 +106,14 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
                                 </div>
                             ) : (
                                 <>
+                                    {!readOnly && onReorder && <DragHandle />}
                                     <div className={styles.list_item_content}>
-                                        <span className={styles.address_text}>
+                                        <div className={styles.address_text}>
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ marginRight: '8px', flexShrink: 0 }}>
                                                 <path d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2ZM12 11.5C10.62 11.5 9.5 10.38 9.5 9C9.5 7.62 10.62 6.5 12 6.5C13.38 6.5 14.5 7.62 14.5 9C14.5 10.38 13.38 11.5 12 11.5Z" fill="#3A54DA"/>
                                             </svg>
-                                            {address.displayText}
-                                        </span>
+                                            <Marquee text={address.displayText} alwaysScroll />
+                                        </div>
                                     </div>
                                     {!readOnly && <div className={styles.list_item_actions}>
                                         <button

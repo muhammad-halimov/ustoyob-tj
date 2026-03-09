@@ -19,7 +19,7 @@
 }
 
 .section_content {
-  background: #fff;
+  background-color: var(--color-background-primary);
   border-radius: 12px;
   width: 100%;
 }
@@ -45,26 +45,26 @@
   gap: 10px;
   padding: 12px 14px;
   border-radius: 12px;
-  background: #ffffff;
-  border: 1px solid #e0e6ff;
+  background-color: var(--color-background-primary);
+  border: 1px solid var(--color-stroke);
   position: relative;
   overflow: hidden;
   transition: opacity 0.2s, border-color 0.2s, background 0.2s;
 
   &:hover {
-    background: #f8f9ff;
-    border-color: #d0d9ff;
+    background-color: var(--color-background-secondary);
+    border-color: var(--color-actual-blue);
   }
 
   &.dragging {
     opacity: 0.35;
     border-style: dashed;
-    border-color: #3A54DA;
+    border-color: var(--color-actual-blue);
   }
 
   &.drag_over {
-    border-color: #3A54DA;
-    background: #f0f3ff;
+    border-color: var(--color-actual-blue);
+    background-color: var(--color-background-secondary);
     box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.15);
   }
 }
@@ -72,7 +72,7 @@
 .drag_handle {
   cursor: grab;
   padding: 4px 6px;
-  color: #ccc;
+  color: var(--color-icons);
   display: flex;
   align-items: center;
   flex-shrink: 0;
@@ -84,8 +84,8 @@
   }
 
   &:hover {
-    color: #3A54DA;
-    background: #f0f3ff;
+    color: var(--color-actual-blue);
+    background-color: var(--color-background-secondary);
   }
 }
 
@@ -95,7 +95,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #ffffff;
+  background-color: var(--color-background-primary);
   border-radius: 12px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
@@ -140,37 +140,36 @@
 
 .social_network_handle {
   font-size: 14px;
-  color: #3A54DA;
+  color: var(--color-actual-blue);
   padding: 8px 12px;
   border-radius: 8px;
-  background: #f8f9ff;
-  border: 1px solid #e0e6ff;
+  background-color: var(--color-background-secondary);
+  border: 1px solid var(--color-stroke);
   min-height: 38px;
   flex: 1;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
   display: flex;
   align-items: center;
   font-weight: 500;
 
   &:hover {
-    background: #f0f3ff;
-    border-color: #d0d9ff;
+    background-color: var(--color-background-gray-hover);
+    border-color: var(--color-stroke);
   }
 
   &.empty_handle {
-    color: #999;
+    color: var(--color-icons);
     font-style: italic;
-    background: #f9f9f9;
-    border: 1px dashed #ddd;
+    background-color: var(--color-background-secondary);
+    border: 1px dashed var(--color-stroke);
     font-weight: 400;
 
     &:hover {
-      background: #f0f3ff;
-      border-color: #3A54DA;
+      background-color: var(--color-background-secondary);
+      border-color: var(--color-actual-blue);
       border-style: solid;
-      color: #3A54DA;
+      color: var(--color-actual-blue);
     }
   }
 }
@@ -182,8 +181,8 @@
   transition: color 0.2s ease;
   display: block;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
 
   &:hover {
     color: #2a44ca;
@@ -230,21 +229,22 @@
   flex: 1;
   min-width: 0;
   padding: 10px 12px;
-  border: 2px solid #e0e6ff;
+  border: 2px solid var(--color-stroke);
   border-radius: 10px;
   font-size: 15px;
-  background: #ffffff;
+  background-color: var(--color-background-primary);
+  color: var(--color-text-primary);
   transition: all 0.3s ease;
   outline: none;
 
   &:focus {
-    border-color: #3A54DA;
+    border-color: var(--color-actual-blue);
     box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.1);
-    background: #f8f9ff;
+    background-color: var(--color-background-secondary);
   }
 
   &::placeholder {
-    color: #999;
+    color: var(--color-text-placeholder);
     font-style: italic;
   }
 }
@@ -337,7 +337,7 @@
 }
 
 .add_button {
-  background: #3A54DA;
+  background-color: var(--color-actual-blue);
   color: white;
   border: none;
   border-radius: 50%;
@@ -350,20 +350,20 @@
   justify-content: center;
 
   &:hover {
-    background: #2a44ca;
+    background-color: var(--color-primary-hover);
   }
 }
 
 .add_social_network_form {
-  background: #f8f9ff;
-  border: 2px solid #e0e6ff;
+  background-color: var(--color-background-secondary);
+  border: 2px solid var(--color-stroke);
   border-radius: 16px;
   padding: 24px;
   margin-top: 20px;
 
   h4 {
     margin: 0 0 20px 0;
-    color: #1a1a1a;
+    color: var(--color-text-primary);
     font-size: 18px;
     font-weight: 600;
   }
@@ -383,23 +383,23 @@
   select {
     width: 100%;
     padding: 12px 16px;
-    border: 2px solid #e0e6ff;
+    border: 2px solid var(--color-stroke);
     border-radius: 10px;
     font-size: 15px;
-    background: #ffffff;
-    color: #333;
+    background-color: var(--color-background-primary);
+    color: var(--color-text-primary);
     cursor: pointer;
     transition: all 0.3s ease;
     outline: none;
 
     &:focus {
-      border-color: #3A54DA;
+      border-color: var(--color-actual-blue);
       box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.1);
-      background: #f8f9ff;
+      background-color: var(--color-background-secondary);
     }
 
     &:hover {
-      border-color: #d0d9ff;
+      border-color: var(--color-actual-blue);
     }
   }
 }
@@ -411,7 +411,7 @@
 }
 
 .confirm_add_btn {
-  background: #3A54DA;
+  background-color: var(--color-actual-blue);
   color: white;
   border: none;
   border-radius: 10px;
@@ -421,7 +421,7 @@
   cursor: pointer;
 
   &:hover {
-    background: #2a44ca;
+    background-color: var(--color-primary-hover);
   }
 
   &:disabled {
@@ -589,12 +589,13 @@
     border-color: var(--color-stroke);
 
     &:hover {
-      background: var(--color-background-all);
+      background-color: var(--color-background-secondary);
+      border-color: var(--color-actual-blue);
     }
 
     &.drag_over {
-      border-color: var(--color-primary);
-      background: var(--color-background-all);
+      border-color: var(--color-actual-blue);
+      background-color: var(--color-background-secondary);
       box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.2);
     }
   }

@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Preview } from '../../../../../shared/ui/Photo/Preview';
 import { EmptyState } from '../../../../../widgets/EmptyState';
+import { useDragReorder, DragHandle } from '../../../../../widgets/DragReorder';
 import styles from './WorkExamplesSection.module.scss';
 
 interface WorkExample {
@@ -30,6 +31,7 @@ interface WorkExamplesSectionProps {
     setShowAllWorkExamples: (show: boolean) => void;
     getImageUrlWithCacheBust: (url: string) => string;
     API_BASE_URL: string;
+    onReorder?: (workExamples: WorkExample[]) => void;
 }
 
 export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
@@ -52,9 +54,11 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
     setShowAllWorkExamples,
     getImageUrlWithCacheBust,
     API_BASE_URL,
+    onReorder,
 }) => {
     const workExampleInputRef = useRef<HTMLInputElement>(null);
     const { t } = useTranslation(['profile']);
+    const workDrag = useDragReorder(workExamples, onReorder ?? (() => {}));
 
     return (
         <div className={styles.section_item}>
@@ -67,7 +71,20 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
                                 {workExamples
                                     .slice(0, showAllWorkExamples ? undefined : (isMobile ? 6 : 8))
                                     .map((work, index) => (
-                                        <div key={work.id} className={styles.work_example}>
+                                        <div
+                                            key={work.id}
+                                            className={`${styles.work_example} ${!readOnly && onReorder && workDrag.draggingIndex === index ? styles.dragging : ''} ${!readOnly && onReorder && workDrag.dragOverIndex === index ? styles.drag_over : ''}`}
+                                            onDragEnter={!readOnly && onReorder ? () => workDrag.handleDragEnter(index) : undefined}
+                                            onDragEnd={!readOnly && onReorder ? () => workDrag.handleDragEnd() : undefined}
+                                            onDragOver={!readOnly && onReorder ? (e) => e.preventDefault() : undefined}
+                                        >
+                                            {!readOnly && onReorder && (
+                                                <DragHandle
+                                                    className={styles.drag_handle_overlay}
+                                                    draggable
+                                                    onDragStart={() => workDrag.handleDragStart(index)}
+                                                />
+                                            )}
                                             <img
                                                 src={getImageUrlWithCacheBust(work.image)}
                                                 alt={work.title}

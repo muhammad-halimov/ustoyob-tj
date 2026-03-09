@@ -8,21 +8,24 @@ interface MarqueeTextProps {
     duration?: number;
     /** If true the animation plays continuously; if false it plays only on hover. Default: false */
     alwaysScroll?: boolean;
+    /** Pixels of overflow needed to trigger scrolling. Lower = activates sooner. Default: 1 */
+    threshold?: number;
 }
 
 /**
  * Renders text that scrolls horizontally when it overflows its container.
  * Overflow is detected via a ResizeObserver so it reacts to layout changes.
  */
-export function Marquee({ text, className, duration = 8, alwaysScroll = false }: MarqueeTextProps) {
+export function Marquee({ text, className, duration = 8, alwaysScroll = false, threshold = 1 }: MarqueeTextProps) {
     const containerRef = useRef<HTMLDivElement>(null);
+    const measureRef = useRef<HTMLSpanElement>(null);
     const textRef = useRef<HTMLSpanElement>(null);
     const [isOverflowing, setIsOverflowing] = useState(false);
 
     useEffect(() => {
         const check = () => {
-            if (containerRef.current && textRef.current) {
-                setIsOverflowing(textRef.current.scrollWidth > containerRef.current.clientWidth + 1);
+            if (containerRef.current && measureRef.current) {
+                setIsOverflowing(measureRef.current.scrollWidth > containerRef.current.clientWidth + threshold);
             }
         };
 
@@ -30,10 +33,11 @@ export function Marquee({ text, className, duration = 8, alwaysScroll = false }:
 
         const ro = new ResizeObserver(check);
         if (containerRef.current) ro.observe(containerRef.current);
-        if (textRef.current) ro.observe(textRef.current);
+        // measureRef is position:fixed — its size only changes when text/font props change,
+        // which is covered by this effect's dependency array.
 
         return () => ro.disconnect();
-    }, [text]);
+    }, [text, threshold]);
 
     const animationStyle = isOverflowing
         ? { '--marquee-duration': `${duration}s` } as React.CSSProperties
@@ -45,6 +49,8 @@ export function Marquee({ text, className, duration = 8, alwaysScroll = false }:
             className={`${styles.container} ${className ?? ''}`}
             title={text}
         >
+            {/* Hidden single-copy span used only for width measurement */}
+            <span ref={measureRef} className={styles.measure} aria-hidden="true">{text}</span>
             <span
                 ref={textRef}
                 className={`${styles.text} ${isOverflowing ? (alwaysScroll ? styles.scrolling : styles.hoverScrolling) : ''}`}

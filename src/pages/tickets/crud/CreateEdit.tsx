@@ -13,6 +13,7 @@ import { getStorageItem } from '../../../utils/storageHelper.ts';
 import { PageLoader } from '../../../widgets/PageLoader';
 import { Back } from '../../../shared/ui/Button/Back/Back.tsx';
 import { Toggle } from '../../../shared/ui/Button/Toggle/Toggle';
+import { useDragReorder, DragHandle } from '../../../widgets/DragReorder';
 
 interface ServiceData {
     id?: number;
@@ -110,8 +111,8 @@ const CreateEdit = () => {
     const [selectedSubcategory, setSelectedSubcategory] = useState<number | null>(null);
     const [selectedUnit, setSelectedUnit] = useState<number | null>(null);
     const [negotiableBudget, setNegotiableBudget] = useState(false);
-    const [dragExistingIdx, setDragExistingIdx] = useState<number | null>(null);
-    const [dragNewIdx, setDragNewIdx] = useState<number | null>(null);
+    const existingDrag = useDragReorder(existingImages, setExistingImages);
+    const newDrag = useDragReorder(newImages, setNewImages);
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
     const token = getAuthToken();
@@ -720,20 +721,10 @@ const CreateEdit = () => {
                                     {existingImages.map((img, index) => (
                                         <div
                                             key={img.id}
-                                            className={`${styles.existingPhotoItem} ${dragExistingIdx === index ? styles.photoItemDragging : ''}`}
-                                            draggable
-                                            onDragStart={() => setDragExistingIdx(index)}
-                                            onDragOver={(e) => {
-                                                e.preventDefault();
-                                                if (dragExistingIdx === null || dragExistingIdx === index) return;
-                                                const updated = [...existingImages];
-                                                const [moved] = updated.splice(dragExistingIdx, 1);
-                                                updated.splice(index, 0, moved);
-                                                setExistingImages(updated);
-                                                setDragExistingIdx(index);
-                                            }}
-                                            onDragEnd={() => setDragExistingIdx(null)}
+                                            className={`${styles.existingPhotoItem} ${existingDrag.draggingIndex === index ? styles.photoItemDragging : ''}`}
+                                            {...existingDrag.getDragProps(index)}
                                         >
+                                            <DragHandle />
                                             <img
                                                 src={getImageUrl(img.image)}
                                                 alt={`${t('createEdit:photoAlt')} ${index + 1}`}
@@ -775,20 +766,10 @@ const CreateEdit = () => {
                                         {newImages.map((image, index) => (
                                             <div
                                                 key={index}
-                                                className={`${styles.newPhotoItem} ${dragNewIdx === index ? styles.photoItemDragging : ''}`}
-                                                draggable
-                                                onDragStart={() => setDragNewIdx(index)}
-                                                onDragOver={(e) => {
-                                                    e.preventDefault();
-                                                    if (dragNewIdx === null || dragNewIdx === index) return;
-                                                    const updated = [...newImages];
-                                                    const [moved] = updated.splice(dragNewIdx, 1);
-                                                    updated.splice(index, 0, moved);
-                                                    setNewImages(updated);
-                                                    setDragNewIdx(index);
-                                                }}
-                                                onDragEnd={() => setDragNewIdx(null)}
+                                                className={`${styles.newPhotoItem} ${newDrag.draggingIndex === index ? styles.photoItemDragging : ''}`}
+                                                {...newDrag.getDragProps(index)}
                                             >
+                                                <DragHandle />
                                                 <img
                                                     src={URL.createObjectURL(image)}
                                                     alt={`${t('createEdit:newPhotoAlt')} ${index + 1}`}

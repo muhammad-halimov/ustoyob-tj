@@ -23,23 +23,32 @@
 }
 
 .section_content {
-  background: #fff;
+  background-color: var(--color-background-primary);
   border-radius: 12px;
   width: 100%;
 }
 
 .education_item {
-  padding: 16px 0;
-  border-bottom: 1px solid #e8e8e8;
+  padding: 12px 14px;
+  border: 1px solid var(--color-stroke);
+  border-radius: 12px;
+  margin-bottom: 8px;
   width: 100%;
-
-  &:first-child {
-    padding-top: 8px;
-  }
+  transition: opacity 0.2s, border-color 0.2s;
 
   &.education_item_last {
-    border-bottom: none !important;
+    margin-bottom: 0;
   }
+}
+
+.dragging {
+  opacity: 0.5;
+  border-style: dashed;
+  border-color: var(--color-actual-blue);
+}
+
+.drag_over {
+  border-color: var(--color-actual-blue);
 }
 
 .education_main {
@@ -59,11 +68,16 @@
 }
 
 .education_header {
-  strong {
-    font-size: 18px;
-    font-weight: 600;
-    color: #333;
-  }
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 4px;
+}
+
+.education_institution {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
 }
 
 .education_actions {
@@ -81,12 +95,19 @@
 
 .education_details {
   font-size: 14px;
-  color: #555;
+  color: var(--color-text-secondary);
   margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+}
 
-  span {
-    font-weight: 500;
-  }
+.education_details_prefix {
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .edit_icon {

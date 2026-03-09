@@ -1,6 +1,8 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Marquee } from '../../../../../shared/ui/Text/Marquee/Marquee';
+import { EmptyState } from '../../../../../widgets/EmptyState';
+import { useDragReorder, DragHandle } from '../../../../../widgets/DragReorder';
 import styles from './SocialNetworksSection.module.scss';
 
 interface SocialNetwork {
@@ -75,10 +77,14 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
 }) => {
     const { t } = useTranslation(['profile']);
 
-    const dragItemRef = useRef<number | null>(null);
-    const dragOverItemRef = useRef<number | null>(null);
-    const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
-    const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+    const { draggingIndex, dragOverIndex, getDragProps } = useDragReorder(
+        socialNetworks,
+        (reordered) => {
+            setSocialNetworks(reordered);
+            onUpdateSocialNetworks(reordered);
+        }
+    );
+
     const editingNetworkRef = useRef<HTMLDivElement>(null);
     const pendingEditIdRef = useRef<string | null>(null);
 
@@ -139,72 +145,33 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editingSocialNetwork, socialNetworkEditValue]);
 
-    const handleDragStart = (index: number) => {
-        dragItemRef.current = index;
-        setDraggingIndex(index);
-    };
-
-    const handleDragEnter = (index: number) => {
-        dragOverItemRef.current = index;
-        setDragOverIndex(index);
-    };
-
-    const handleDragEnd = () => {
-        const from = dragItemRef.current;
-        const to = dragOverItemRef.current;
-        if (from !== null && to !== null && from !== to) {
-            const newNetworks = [...socialNetworks];
-            const [dragged] = newNetworks.splice(from, 1);
-            newNetworks.splice(to, 0, dragged);
-            setSocialNetworks(newNetworks);
-            onUpdateSocialNetworks(newNetworks);
-        }
-        dragItemRef.current = null;
-        dragOverItemRef.current = null;
-        setDraggingIndex(null);
-        setDragOverIndex(null);
-    };
-
     return (
         <div className={`${styles.section_item}${className ? ` ${className}` : ''}`}>
             <h3>{t('profile:socialNetworksTitle')}</h3>
             <div className={styles.section_content}>
                 <div className={styles.social_networks}>
                     {socialNetworks.length === 0 && (
-                        <div className={styles.empty_social_networks}>
-                            <span>{readOnly ? t('profile:noSocialNetworks') : t('profile:addSocialNetworks')}</span>
-                        </div>
+                        <EmptyState
+                            title={readOnly ? t('profile:noSocialNetworks') : t('profile:addSocialNetworks')}
+                        />
                     )}
 
                     {socialNetworks.map((network, index) => (
                         <div
                             key={network.id}
                             className={`${styles.social_network_item}${!readOnly && draggingIndex === index ? ` ${styles.dragging}` : ''}${!readOnly && dragOverIndex === index && draggingIndex !== index ? ` ${styles.drag_over}` : ''}`}
-                            draggable={!readOnly}
-                            onDragStart={() => handleDragStart(index)}
-                            onDragEnter={() => handleDragEnter(index)}
-                            onDragEnd={handleDragEnd}
-                            onDragOver={(e) => e.preventDefault()}
+                            {...(!readOnly ? getDragProps(index) : {})}
                         >
-                            {!readOnly && (
-                                <div className={styles.drag_handle} title="Перетащите для изменения порядка">
-                                    <svg width="14" height="20" viewBox="0 0 14 20" fill="none">
-                                        <circle cx="4" cy="3" r="2" fill="currentColor"/>
-                                        <circle cx="10" cy="3" r="2" fill="currentColor"/>
-                                        <circle cx="4" cy="10" r="2" fill="currentColor"/>
-                                        <circle cx="10" cy="10" r="2" fill="currentColor"/>
-                                        <circle cx="4" cy="17" r="2" fill="currentColor"/>
-                                        <circle cx="10" cy="17" r="2" fill="currentColor"/>
-                                    </svg>
-                                </div>
-                            )}
+                            {!readOnly && <DragHandle />}
                             <div className={styles.social_network_icon}>
                                 {renderSocialIcon(network.network)}
                             </div>
                             <div className={styles.social_network_info}>
-                                <span className={styles.social_network_name}>
-                                    {SOCIAL_NETWORK_CONFIG[network.network]?.label || network.network}
-                                </span>
+                                <Marquee
+                                    text={SOCIAL_NETWORK_CONFIG[network.network]?.label || network.network}
+                                    className={styles.social_network_name}
+                                    alwaysScroll
+                                />
                                 {editingSocialNetwork === network.id ? (
                                     <div className={styles.social_network_edit} ref={editingNetworkRef}>
                                         <input

@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Preview, usePreview } from '../../../../../shared/ui/Photo/Preview';
 import { ReadMore } from '../../../../../widgets/ReadMore';
+import { EmptyState } from '../../../../../widgets/EmptyState';
+import { Marquee } from '../../../../../shared/ui/Text/Marquee/Marquee';
 import { Review } from '../../../../../entities';
 import styles from './ReviewsSection.module.scss';
 import { getAuthorAvatar } from '../../../../../utils/imageHelper';
@@ -118,6 +120,10 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
     const isWorkerClickable = () => {
         return true;
     };
+    const getServiceTitleText = (review: Review): string =>
+        typeof review.services === 'object' && review.services && review.services.title
+            ? String(review.services.title)
+            : t('profile:serviceDefault');
     // Собираем все изображения из отзывов для галереи
     const reviewGalleryImages = useMemo(() => {
         if (!reviews || reviews.length === 0) return [];
@@ -187,10 +193,10 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                     className={`${styles.reviewer_name} ${styles.reviewer_name_link}`}
                                                     onClick={() => handleAuthorClick(review)}
                                                 >
-                                                    {getReviewAuthorName(review)}
+                                                    <Marquee text={getReviewAuthorName(review)} alwaysScroll/>
                                                 </div>
                                                 <div className={styles.review_service}>
-                                                    <span 
+                                                    <div 
                                                         className={`${styles.service_title} ${onServiceClick ? styles.clickable : ''}`}
                                                         onClick={() => {
                                                             if (onServiceClick && review.ticket && review.ticket.id) {
@@ -199,16 +205,16 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                         }}
                                                         style={{ cursor: onServiceClick ? 'pointer' : 'default' }}
                                                     >
-                                                        {typeof review.services === 'object' && review.services && review.services.title ? String(review.services.title) : t('profile:serviceDefault')}
-                                                    </span>
+                                                        <Marquee text={getServiceTitleText(review)} alwaysScroll />
+                                                    </div>
                                                 </div>
-                                                <span 
+                                                <div 
                                                     className={`${styles.review_worker} ${isWorkerClickable() ? styles.clickable : ''}`}
                                                     onClick={() => handleWorkerClick(review)}
                                                     style={{ cursor: isWorkerClickable() ? 'pointer' : 'default' }}
                                                 >
-                                                    {getWorkerName(review)}
-                                                </span>
+                                                    <Marquee text={getWorkerName(review)} alwaysScroll/>
+                                                </div>
                                                 <div className={styles.review_rating_main}>
                                                     <span>{t('profile:ratedLabel')} </span>
                                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -318,10 +324,10 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                                 className={`${styles.reviewer_name} ${styles.reviewer_name_link}`}
                                                                 onClick={() => handleAuthorClick(review)}
                                                             >
-                                                                {getReviewAuthorName(review)}
+                                                                <Marquee text={getReviewAuthorName(review)} alwaysScroll/>
                                                             </div>
                                                             <div className={styles.review_service}>
-                                                                <span 
+                                                                <div 
                                                                     className={`${styles.service_title} ${onServiceClick ? styles.clickable : ''}`}
                                                                     onClick={() => {
                                                                         if (onServiceClick && review.ticket && review.ticket.id) {
@@ -330,16 +336,16 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                                     }}
                                                                     style={{ cursor: onServiceClick ? 'pointer' : 'default' }}
                                                                 >
-                                                                    {typeof review.services === 'object' && review.services && review.services.title ? String(review.services.title) : t('profile:serviceDefault')}
-                                                                </span>
+                                                                    <Marquee text={getServiceTitleText(review)} alwaysScroll />
+                                                                </div>
                                                             </div>
-                                                            <span 
+                                                            <div 
                                                                 className={`${styles.review_worker} ${isWorkerClickable() ? styles.clickable : ''}`}
                                                                 onClick={() => handleWorkerClick(review)}
                                                                 style={{ cursor: isWorkerClickable() ? 'pointer' : 'default' }}
                                                             >
-                                                                {getWorkerName(review)}
-                                                            </span>
+                                                                <Marquee text={getWorkerName(review)} alwaysScroll/>
+                                                            </div>
                                                             <div className={styles.review_rating_main}>
                                                                 <span>{t('profile:ratedLabel')} </span>
                                                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -442,10 +448,10 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                             className={`${styles.reviewer_name} ${styles.reviewer_name_link}`}
                                                             onClick={() => handleAuthorClick(review)}
                                                         >
-                                                            {getReviewAuthorName(review)}
+                                                            <Marquee text={getReviewAuthorName(review)} alwaysScroll/>
                                                         </div>
                                                         <div className={styles.review_service}>
-                                                            <span 
+                                                            <div 
                                                                 className={`${styles.service_title} ${onServiceClick ? styles.clickable : ''}`}
                                                                 onClick={() => {
                                                                     if (onServiceClick && review.ticket && review.ticket.id) {
@@ -454,16 +460,16 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                                 }}
                                                                 style={{ cursor: onServiceClick ? 'pointer' : 'default' }}
                                                             >
-                                                                {typeof review.services === 'object' && review.services && review.services.title ? String(review.services.title) : t('profile:serviceDefault')}
-                                                            </span>
+                                                                <Marquee text={getServiceTitleText(review)} alwaysScroll />
+                                                            </div>
                                                         </div>
-                                                        <span 
+                                                        <div 
                                                             className={`${styles.review_worker} ${isWorkerClickable() ? styles.clickable : ''}`}
                                                             onClick={() => handleWorkerClick(review)}
                                                             style={{ cursor: isWorkerClickable() ? 'pointer' : 'default' }}
                                                         >
-                                                            {getWorkerName(review)}
-                                                        </span>
+                                                            <Marquee text={getWorkerName(review)} alwaysScroll/>
+                                                        </div>
                                                         <div className={styles.review_rating_main}>
                                                             <span>{t('profile:ratedLabel')} </span>
                                                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -543,9 +549,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                         </div>
                     </>
                 ) : (
-                    <div className={styles.no_reviews}>
-                        {t('profile:noReviews')}
-                    </div>
+                    <EmptyState title={t('profile:noReviews')} />
                 )}
             </div>
 
