@@ -409,6 +409,7 @@
     "enterEmail": "Введите email",
     "enterFirstName": "Введите имя",
     "enterLastName": "Введите фамилию",
+    "dateOfBirth": "Дата рождения",
     "createPassword": "Придумайте пароль (Минимум 8 символов)",
     "confirmPassword": "Повторите пароль",
     "forgotPassword": "Не помню пароль",

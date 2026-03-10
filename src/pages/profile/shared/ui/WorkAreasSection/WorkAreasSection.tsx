@@ -6,6 +6,7 @@ import { EmptyState } from '../../../../../widgets/EmptyState';
 import { AddressValue } from '../../../../../entities';
 import { useDragReorder, DragHandle } from '../../../../../widgets/DragReorder';
 import styles from './WorkAreasSection.module.scss';
+import { EditActions } from '../EditActions/EditActions';
 
 interface Address {
     id: string;
@@ -89,20 +90,7 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
                                         required={true}
                                         multipleSuburbs={true}
                                     />
-                                    <div className={styles.form_actions}>
-                                        <button
-                                            className={styles.save_button}
-                                            onClick={onEditAddressSave}
-                                        >
-                                            {t('profile:saveBtn')}
-                                        </button>
-                                        <button
-                                            className={styles.cancel_button}
-                                            onClick={onEditAddressCancel}
-                                        >
-                                            {t('profile:cancelBtn')}
-                                        </button>
-                                    </div>
+                                    <EditActions onSave={onEditAddressSave} onCancel={onEditAddressCancel} className={styles.edit_actions_geo} />
                                 </div>
                             ) : (
                                 <>
@@ -165,20 +153,7 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
                             required={true}
                             multipleSuburbs={true}
                         />
-                        <div className={styles.form_actions}>
-                            <button
-                                className={styles.save_button}
-                                onClick={onEditAddressSave}
-                            >
-                                {t('profile:addBtn')}
-                            </button>
-                            <button
-                                className={styles.cancel_button}
-                                onClick={onEditAddressCancel}
-                            >
-                                {t('profile:cancelBtn')}
-                            </button>
-                        </div>
+                        <EditActions onSave={onEditAddressSave} onCancel={onEditAddressCancel} className={styles.edit_actions_geo} />
                     </div>
                 )}
             </div>

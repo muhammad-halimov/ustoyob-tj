@@ -4,6 +4,7 @@ import { Marquee } from '../../../../../shared/ui/Text/Marquee/Marquee';
 import { EmptyState } from '../../../../../widgets/EmptyState';
 import { useDragReorder, DragHandle } from '../../../../../widgets/DragReorder';
 import styles from './PhonesSection.module.scss';
+import { EditActions } from '../EditActions/EditActions';
 
 interface Phone {
     id: string;
@@ -83,20 +84,7 @@ export const PhonesSection: React.FC<PhonesSectionProps> = ({
                                         }}
                                     />
                                 </div>
-                                <div className={styles.form_actions}>
-                                    <button
-                                        className={styles.save_button}
-                                        onClick={onEditPhoneSave}
-                                    >
-                                        {t('profile:saveBtn')}
-                                    </button>
-                                    <button
-                                        className={styles.cancel_button}
-                                        onClick={onEditPhoneCancel}
-                                    >
-                                        {t('profile:cancelBtn')}
-                                    </button>
-                                </div>
+                                <EditActions onSave={onEditPhoneSave} onCancel={onEditPhoneCancel} />
                             </div>
                         ) : (
                             <>
@@ -209,20 +197,7 @@ export const PhonesSection: React.FC<PhonesSectionProps> = ({
                                 }}
                             />
                         </div>
-                        <div className={styles.form_actions}>
-                            <button
-                                className={styles.save_button}
-                                onClick={onEditPhoneSave}
-                            >
-                                {t('profile:addBtn')}
-                            </button>
-                            <button
-                                className={styles.cancel_button}
-                                onClick={onEditPhoneCancel}
-                            >
-                                {t('profile:cancelBtn')}
-                            </button>
-                        </div>
+                        <EditActions onSave={onEditPhoneSave} onCancel={onEditPhoneCancel} />
                     </div>
                 ) : null}
             </div>

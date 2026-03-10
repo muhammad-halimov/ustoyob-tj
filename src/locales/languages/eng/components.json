@@ -407,6 +407,7 @@
     "enterEmail": "Enter email",
     "enterFirstName": "Enter first name",
     "enterLastName": "Enter last name",
+    "dateOfBirth": "Date of birth",
     "createPassword": "Create password (Minimum 8 characters)",
     "confirmPassword": "Repeat password",
     "forgotPassword": "Forgot password",

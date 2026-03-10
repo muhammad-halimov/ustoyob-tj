@@ -3,7 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { UserRole, Occupation } from '../../../../../entities';
 import { smartNameTranslator } from '../../../../../utils/textHelper';
 import { Marquee } from '../../../../../shared/ui/Text/Marquee/Marquee';
+import { DateInput } from '../../../../../widgets/DateInput/DateInput';
 import styles from './ProfileHeader.module.scss';
+import { EditActions } from '../EditActions/EditActions';
 
 interface ProfileHeaderProps {
     avatar: string | null;
@@ -15,7 +17,7 @@ interface ProfileHeaderProps {
     specialties?: string[];
     rating: number;
     reviewsCount: number;
-    editingField: 'fullName' | 'specialty' | 'gender' | null;
+    editingField: 'fullName' | 'specialty' | 'gender' | 'dateOfBirth' | null;
     tempValue: string;
     selectedSpecialties?: string[];
     occupations: Occupation[];
@@ -27,10 +29,10 @@ interface ProfileHeaderProps {
     onAvatarClick: () => void;
     onFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
     onImageError: (e: React.SyntheticEvent<HTMLImageElement, Event>) => void;
-    onEditStart: (field: 'fullName' | 'specialty' | 'gender') => void;
+    onEditStart: (field: 'fullName' | 'specialty' | 'gender' | 'dateOfBirth') => void;
     onTempValueChange: (value: string) => void;
-    onInputSave: (field: 'fullName' | 'specialty' | 'gender') => void;
-    onInputKeyPress: (e: React.KeyboardEvent, field: 'fullName' | 'specialty' | 'gender') => void;
+    onInputSave: (field: 'fullName' | 'specialty' | 'gender' | 'dateOfBirth') => void;
+    onInputKeyPress: (e: React.KeyboardEvent, field: 'fullName' | 'specialty' | 'gender' | 'dateOfBirth') => void;
     onSpecialtySave: () => void;
     onEditCancel: () => void;
     onAddSpecialty?: (specialty: string) => void;
@@ -87,6 +89,30 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     const { t, i18n } = useTranslation(['profile', 'components']);
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Split tempValue into surname / firstName for the two-input edit
+    const nameParts = tempValue.trim().split(/\s+/);
+    const [surnameInput, setSurnameInput] = useState(nameParts[0] || '');
+    const [firstNameInput, setFirstNameInput] = useState(nameParts.slice(1).join(' ') || '');
+
+    // Sync local split state whenever tempValue is reset externally (e.g. onEditStart)
+    useEffect(() => {
+        if (editingField === 'fullName') {
+            const parts = tempValue.trim().split(/\s+/);
+            setSurnameInput(parts[0] || '');
+            setFirstNameInput(parts.slice(1).join(' ') || '');
+        }
+    }, [editingField]);
+
+    const handleSurnameChange = (value: string) => {
+        setSurnameInput(value);
+        onTempValueChange(`${value} ${firstNameInput}`.trim());
+    };
+
+    const handleFirstNameChange = (value: string) => {
+        setFirstNameInput(value);
+        onTempValueChange(`${surnameInput} ${value}`.trim());
+    };
 
     useEffect(() => {
         if (!dropdownOpen) return;
@@ -208,16 +234,36 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                     <div className={styles.name_row}>
                         {editingField === 'fullName' ? (
                             <div className={styles.full_name_edit}>
-                                <input
-                                    type="text"
-                                    value={tempValue}
-                                    onChange={(e) => onTempValueChange(e.target.value)}
-                                    onBlur={() => onInputSave('fullName')}
-                                    onKeyDown={(e) => onInputKeyPress(e, 'fullName')}
-                                    className={styles.name_input}
-                                    placeholder="Фамилия Имя Отчество"
-                                    autoFocus
-                                />
+                                <div className={styles.name_edit_container}>
+                                    <div className={styles.name_split_inputs}>
+                                        <label className={styles.name_input_group}>
+                                            <span className={styles.name_input_label}>{t('profile:surnamePlaceholder')}</span>
+                                            <input
+                                                name='surname_input'
+                                                type="text"
+                                                value={surnameInput}
+                                                onChange={(e) => handleSurnameChange(e.target.value)}
+                                                onKeyDown={(e) => onInputKeyPress(e, 'fullName')}
+                                                className={styles.name_input}
+                                                placeholder={t('profile:surnamePlaceholder')}
+                                                autoFocus
+                                            />
+                                        </label>
+                                        <label className={styles.name_input_group}>
+                                            <span className={styles.name_input_label}>{t('profile:firstNamePlaceholder')}</span>
+                                            <input
+                                                name='name_input'
+                                                type="text"
+                                                value={firstNameInput}
+                                                onChange={(e) => handleFirstNameChange(e.target.value)}
+                                                onKeyDown={(e) => onInputKeyPress(e, 'fullName')}
+                                                className={styles.name_input}
+                                                placeholder={t('profile:firstNamePlaceholder')}
+                                            />
+                                        </label>
+                                    </div>
+                                    <EditActions onSave={() => onInputSave('fullName')} onCancel={onEditCancel} />
+                                </div>
                             </div>
                         ) : (
                             <div className={styles.name_with_icon}>
@@ -237,18 +283,30 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                                     </div>
                                     <div className={styles.subinfo}>
                                         {editingField === 'gender' ? (
-                                            <select
-                                                value={tempValue}
-                                                onChange={(e) => onTempValueChange(e.target.value)}
-                                                onBlur={() => onInputSave('gender')}
-                                                onKeyDown={(e) => onInputKeyPress(e, 'gender')}
-                                                className={styles.specialty_select}
-                                                autoFocus
-                                            >
-                                                <option value="">{t('profile:genderNotSpecified')}</option>
-                                                <option value="male">{t('profile:genderMale')}</option>
-                                                <option value="female">{t('profile:genderFemale')}</option>
-                                            </select>
+                                            <div className={styles.gender_edit_container}>
+                                                <select
+                                                    value={tempValue}
+                                                    onChange={(e) => onTempValueChange(e.target.value)}
+                                                    onKeyDown={(e) => onInputKeyPress(e, 'gender')}
+                                                    className={styles.specialty_select}
+                                                    autoFocus
+                                                >
+                                                    <option value="">{t('profile:genderNotSpecified')}</option>
+                                                    <option value="male">{t('profile:genderMale')}</option>
+                                                    <option value="female">{t('profile:genderFemale')}</option>
+                                                </select>
+                                                <EditActions onSave={() => onInputSave('gender')} onCancel={onEditCancel} />
+                                            </div>
+                                        ) : editingField === 'dateOfBirth' ? (
+                                            <div className={styles.dob_edit_container}>
+                                                <DateInput
+                                                    value={tempValue}
+                                                    onChange={onTempValueChange}
+                                                    className={styles.dob_date_input}
+                                                    max={new Date().toISOString().split('T')[0]}
+                                                />
+                                                <EditActions onSave={() => onInputSave('dateOfBirth')} onCancel={onEditCancel} />
+                                            </div>
                                         ) : (
                                             <>
                                                 <div 
@@ -256,11 +314,22 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                                                     onClick={!readOnly ? () => onEditStart('gender') : undefined}
                                                     style={!readOnly ? { cursor: 'pointer' } : undefined}
                                                 >
-                                                    <Marquee text={getGenderDisplay(gender)} alwaysScroll />
+                                                    <Marquee text={`${t('profile:genderPrefix')}: ${getGenderDisplay(gender)}`} alwaysScroll />
                                                 </div>
-                                                {age !== null && (
-                                                    <div className={styles.age_tag}>
-                                                        <Marquee text={`${age} ${t('profile:ageLabel')}`} alwaysScroll />
+                                                {age !== null ? (
+                                                    <div
+                                                        className={styles.age_tag}
+                                                        onClick={!readOnly ? () => onEditStart('dateOfBirth') : undefined}
+                                                        style={!readOnly ? { cursor: 'pointer' } : undefined}
+                                                    >
+                                                        <Marquee text={`${t('profile:agePrefix')}: ${age} ${t('profile:ageLabel')}`} alwaysScroll />
+                                                    </div>
+                                                ) : !readOnly && (
+                                                    <div
+                                                        className={`${styles.age_tag} ${styles.age_tag_add}`}
+                                                        onClick={() => onEditStart('dateOfBirth')}
+                                                    >
+                                                        + {t('profile:dobPrefix')}
                                                     </div>
                                                 )}
                                                 {email && (
@@ -290,71 +359,59 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                         <div className={styles.specialty_row}>
                             {editingField === 'specialty' ? (
                                 <div className={styles.specialty_edit_container}>
-                                    {/* Список выбранных специальностей */}
-                                    {currentSelectedSpecialties.length > 0 && (
-                                        <div className={styles.selected_specialties}>
-                                            {currentSelectedSpecialties.map((spec, index) => (
-                                                <div key={index} className={styles.specialty_tag}>
-                                                    <span>{spec}</span>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleRemoveSpecialty(spec)}
-                                                        className={styles.remove_specialty_btn}
-                                                        aria-label="Удалить специальность"
-                                                    >
-                                                        ×
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-
-                                    {/* Селект для добавления новой специальности */}
-                                    <div className={styles.add_specialty_container}>
-                                        <select
-                                            key={`specialty-select-${currentSelectedSpecialties.length}`}
-                                            ref={specialtyInputRef ?? null}
-                                            value={tempValue}
-                                            onChange={(e) => onTempValueChange(e.target.value)}
-                                            className={styles.specialty_select}
-                                        >
-                                            <option value="">{t('profile:addSpecialty')}</option>
-                                            {occupations
-                                                .filter(occupation => !currentSelectedSpecialties.includes(occupation.title))
-                                                .map(occupation => (
-                                                    <option
-                                                        key={occupation.id}
-                                                        value={occupation.title}
-                                                    >
-                                                        {occupation.title}
-                                                    </option>
+                                    <div className={styles.specialty_edit_form}>
+                                        {/* Список выбранных специальностей */}
+                                        {currentSelectedSpecialties.length > 0 && (
+                                            <div className={styles.selected_specialties}>
+                                                {currentSelectedSpecialties.map((spec, index) => (
+                                                    <div key={index} className={styles.specialty_tag}>
+                                                        <span>{spec}</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRemoveSpecialty(spec)}
+                                                            className={styles.remove_specialty_btn}
+                                                            aria-label="Удалить специальность"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </div>
                                                 ))}
-                                        </select>
-                                        <button
-                                            type="button"
-                                            className={styles.add_specialty_btn}
-                                            onClick={handleAddSpecialty}
-                                            disabled={!tempValue.trim()}
-                                        >
-                                            {t('profile:addBtn')}
-                                        </button>
+                                            </div>
+                                        )}
+
+                                        {/* Селект для добавления новой специальности */}
+                                        <div className={styles.add_specialty_container}>
+                                            <select
+                                                key={`specialty-select-${currentSelectedSpecialties.length}`}
+                                                ref={specialtyInputRef ?? null}
+                                                value={tempValue}
+                                                onChange={(e) => onTempValueChange(e.target.value)}
+                                                className={styles.specialty_select}
+                                            >
+                                                <option value="">{t('profile:addSpecialty')}</option>
+                                                {occupations
+                                                    .filter(occupation => !currentSelectedSpecialties.includes(occupation.title))
+                                                    .map(occupation => (
+                                                        <option
+                                                            key={occupation.id}
+                                                            value={occupation.title}
+                                                        >
+                                                            {occupation.title}
+                                                        </option>
+                                                    ))}
+                                            </select>
+                                            <button
+                                                type="button"
+                                                className={styles.add_specialty_btn}
+                                                onClick={handleAddSpecialty}
+                                                disabled={!tempValue.trim()}
+                                            >
+                                                {t('profile:addBtn')}
+                                            </button>
+                                        </div>
                                     </div>
 
-                                    <div className={styles.specialty_actions}>
-                                        <button
-                                            className={styles.save_occupations_btn}
-                                            onClick={onSpecialtySave}
-                                            disabled={isLoading || currentSelectedSpecialties.length === 0}
-                                        >
-                                            {isLoading ? t('profile:savingBtn') : t('profile:saveBtn')}
-                                        </button>
-                                        <button
-                                            className={styles.cancel_occupations_btn}
-                                            onClick={onEditCancel}
-                                        >
-                                            {t('profile:cancelBtn')}
-                                        </button>
-                                    </div>
+                                    <EditActions onSave={onSpecialtySave} onCancel={onEditCancel} saveDisabled={isLoading || currentSelectedSpecialties.length === 0} />
                                 </div>
                             ) : (
                                 <div className={styles.specialty_with_icon}>

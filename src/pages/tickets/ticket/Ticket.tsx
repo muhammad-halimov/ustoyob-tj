@@ -978,7 +978,7 @@ export function Ticket() {
         const translatedFirstName = smartNameTranslator(firstName, currentLang);
         const translatedLastName = smartNameTranslator(lastName, currentLang);
         
-        return `${translatedFirstName} ${translatedLastName}`.trim() || t('components:app.defaultMaster');
+        return `${translatedLastName} ${translatedFirstName}`.trim() || t('components:app.defaultMaster');
     };
     
     const getClientName = (review: ReviewType) => {
@@ -994,7 +994,7 @@ export function Ticket() {
         const translatedFirstName = smartNameTranslator(firstName, currentLang);
         const translatedLastName = smartNameTranslator(lastName, currentLang);
         
-        return `${translatedFirstName} ${translatedLastName}`.trim() || t('components:app.defaultClient');
+        return `${translatedLastName} ${translatedFirstName}`.trim() || t('components:app.defaultClient');
     };
     
     const handleShowMoreReviews = () => {

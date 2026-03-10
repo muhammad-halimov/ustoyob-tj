@@ -5,17 +5,7 @@
   position: relative;
 }
 
-.measure {
-  position: fixed;
-  top: -9999px;
-  left: -9999px;
-  visibility: hidden;
-  white-space: nowrap;
-  pointer-events: none;
-  font-size: inherit;
-  font-weight: inherit;
-  font-family: inherit;
-}
+/* .measure class removed — measurement now uses a document.body temp element */
 
 .text {
   display: inline-block;
@@ -26,6 +16,8 @@
 
 .scrolling {
   animation: marqueeScroll var(--marquee-duration, 8s) linear infinite;
+  will-change: transform;
+  backface-visibility: hidden;
 }
 
 .hoverScrolling {

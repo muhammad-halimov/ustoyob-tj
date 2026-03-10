@@ -98,9 +98,10 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                                 : (typeof service.unit === 'object' && service.unit && 'title' in service.unit
                                     ? String((service.unit as any).title)
                                     : 'шт');
-                            const priceText = service.negotiableBudget
+                            const budget = typeof service.budget === 'number' ? service.budget : 0;
+                            const priceText = (service.negotiableBudget && !budget)
                                 ? t('components:app.negotiablePrice')
-                                : `${typeof service.budget === 'number' ? service.budget : 0} TJS / ${unitText}`;
+                                : `${budget} TJS / ${unitText}`;
                             const descText = typeof service.description === 'string'
                                 ? service.description
                                 : (typeof service.description === 'object' && service.description && 'text' in service.description

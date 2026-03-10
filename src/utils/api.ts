@@ -149,7 +149,7 @@ export const fetchUserWithRole = async (userId: number): Promise<UserWithRole> =
 export const getUserFullName = (user: ApiUser): string => {
     const name = user.name || '';
     const surname = user.surname || '';
-    const fullName = `${name} ${surname}`.trim();
+    const fullName = `${surname} ${name}`.trim();
     return fullName || user.email || 'Пользователь';
 };
 

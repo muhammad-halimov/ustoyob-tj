@@ -4,6 +4,7 @@ import { Marquee } from '../../../../../shared/ui/Text/Marquee/Marquee';
 import { EmptyState } from '../../../../../widgets/EmptyState';
 import { useDragReorder, DragHandle } from '../../../../../widgets/DragReorder';
 import styles from './SocialNetworksSection.module.scss';
+import { EditActions } from '../EditActions/EditActions';
 
 interface SocialNetwork {
     id: string;
@@ -185,27 +186,7 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
                                             className={styles.social_input}
                                             autoFocus
                                         />
-                                        <div className={styles.social_edit_buttons}>
-                                            <button
-                                                className={styles.save_social_btn}
-                                                onClick={() => handleSaveEdit(network.id)}
-                                                title={t('profile:saveBtn')}
-                                                disabled={!socialNetworkEditValue.trim()}
-                                            >
-                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
-                                                    <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"/>
-                                                </svg>
-                                            </button>
-                                            <button
-                                                className={styles.cancel_social_btn}
-                                                onClick={handleCancelEdit}
-                                                title={t('profile:cancelBtn')}
-                                            >
-                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                                                    <path d="M18 6L6 18M6 6l12 12" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
-                                                </svg>
-                                            </button>
-                                        </div>
+                                        <EditActions onSave={() => handleSaveEdit(network.id)} onCancel={handleCancelEdit} saveDisabled={!socialNetworkEditValue.trim()} />
                                         {socialNetworkValidationError && (
                                             <div className={styles.validation_error}>
                                                 {socialNetworkValidationError}

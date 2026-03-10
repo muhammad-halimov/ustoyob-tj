@@ -272,7 +272,7 @@ export const getUserFullName = (): string | null => {
     const userData = getUserData();
     const name = userData?.name || '';
     const surname = userData?.surname || '';
-    return `${name} ${surname}`.trim() || userData?.email || null;
+    return `${surname} ${name}`.trim() || userData?.email || null;
 };
 
 export const isUserApproved = (): boolean => {

@@ -169,7 +169,7 @@ function Chat() {
         const translatedFirstName = smartNameTranslator(firstName, currentLang);
         const translatedLastName = smartNameTranslator(lastName, currentLang);
         
-        return `${translatedFirstName} ${translatedLastName}`.trim();
+        return `${translatedLastName} ${translatedFirstName}`.trim();
     }, [i18n.language]);
 
     // Закрываем дропдаун чата при клике вне его

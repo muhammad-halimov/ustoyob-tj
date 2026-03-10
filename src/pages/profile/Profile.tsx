@@ -83,7 +83,7 @@ function Profile() {
     const userId = id || null; // userId из URL параметра
     
     const [currentUser, setCurrentUser] = useState<{ id: number; email: string; name: string; surname: string } | null>(null);
-    const [editingField, setEditingField] = useState<'fullName' | 'specialty' | 'gender' | null>(null);
+    const [editingField, setEditingField] = useState<'fullName' | 'specialty' | 'gender' | 'dateOfBirth' | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [userRole, setUserRole] = useState<'master' | 'client' | null>(null);
     const [profileData, setProfileData] = useState<ProfileData | null>(null);
@@ -2386,6 +2386,11 @@ function Profile() {
                 }
             }
 
+            // Обработка даты рождения
+            if (updatedData.dateOfBirth !== undefined) {
+                apiData.dateOfBirth = updatedData.dateOfBirth || null;
+            }
+
             console.log('Sending update data:', apiData);
             const response = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
                 method: 'PATCH',
@@ -2749,7 +2754,7 @@ function Profile() {
         setProfileData(prev => prev ? { ...prev, services: newServices } : null);
     };
 
-    const handleEditStart = (field: 'fullName' | 'specialty' | 'gender') => {
+    const handleEditStart = (field: 'fullName' | 'specialty' | 'gender' | 'dateOfBirth') => {
         setEditingField(field);
         if (field === 'fullName') {
             setTempValue(profileData?.fullName || '');
@@ -2768,6 +2773,8 @@ function Profile() {
             setTempValue('');
         } else if (field === 'gender') {
             setTempValue(profileData?.gender || '');
+        } else if (field === 'dateOfBirth') {
+            setTempValue(profileData?.dateOfBirth || '');
         }
     };
 
@@ -2812,20 +2819,23 @@ function Profile() {
         setSelectedSpecialties([]);
     };
 
-    const handleInputSave = async (field: 'fullName' | 'specialty' | 'gender') => {
+    const handleInputSave = async (field: 'fullName' | 'specialty' | 'gender' | 'dateOfBirth') => {
         if (!profileData) {
             setEditingField(null);
             return;
         }
 
         const trimmedValue = (tempValue || '').trim();
-        if (!trimmedValue && field !== 'gender') {
+        if (!trimmedValue && field !== 'gender' && field !== 'dateOfBirth') {
             setEditingField(null);
             setTempValue('');
             return;
         }
 
-        const currentValue = field === 'fullName' ? profileData.fullName : (field === 'specialty' ? profileData.specialty : profileData.gender || '');
+        const currentValue = field === 'fullName' ? profileData.fullName :
+            field === 'specialty' ? profileData.specialty :
+            field === 'gender' ? (profileData.gender || '') :
+            (profileData.dateOfBirth || '');
         if (trimmedValue !== currentValue) {
             await updateUserData({ [field]: trimmedValue } as Partial<ProfileData>);
         }
@@ -2834,7 +2844,7 @@ function Profile() {
         setTempValue('');
     };
 
-    const handleInputKeyPress = (e: React.KeyboardEvent, field: 'fullName' | 'specialty' | 'gender') => {
+    const handleInputKeyPress = (e: React.KeyboardEvent, field: 'fullName' | 'specialty' | 'gender' | 'dateOfBirth') => {
         if (e.key === 'Enter') {
             handleInputSave(field);
         } else if (e.key === 'Escape') {

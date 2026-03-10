@@ -12,6 +12,7 @@ import {
     setUserOccupation,
 } from '../../utils/auth';
 import { getOccupations } from '../../utils/dataCache.ts';
+import { DateInput } from '../../widgets/DateInput/DateInput';
 
 const AuthModalState = {
     WELCOME: 'welcome',
@@ -1450,13 +1451,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 </div>
 
                 <div className={styles.inputGroup}>
-                    <input
-                        type="date"
+                    <DateInput
                         name="dateOfBirth"
                         value={formData.dateOfBirth}
-                        onChange={handleInputChange}
+                        onChange={(val) => setFormData(prev => ({ ...prev, dateOfBirth: val }))}
                         disabled={isLoading}
-                        max={new Date(new Date().setFullYear(new Date().getFullYear() - 16)).toISOString().split('T')[0]}
                     />
                 </div>
 

@@ -5,6 +5,7 @@ import { EmptyState } from '../../../../../widgets/EmptyState';
 import { Toggle } from '../../../../../shared/ui/Button/Toggle/Toggle';
 import { useDragReorder, DragHandle } from '../../../../../widgets/DragReorder';
 import styles from './EducationSection.module.scss';
+import { EditActions } from '../EditActions/EditActions';
 
 interface Education {
     id: string;
@@ -146,21 +147,7 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
                                     />
                                 </div>
 
-                                <div className={styles.form_actions}>
-                                    <button
-                                        className={styles.save_button}
-                                        onClick={onEditEducationSave}
-                                        disabled={!educationForm.institution || !educationForm.startYear}
-                                    >
-                                        {t('profile:saveBtn')}
-                                    </button>
-                                    <button
-                                        className={styles.cancel_button}
-                                        onClick={onEditEducationCancel}
-                                    >
-                                        {t('profile:cancelBtn')}
-                                    </button>
-                                </div>
+                                <EditActions onSave={onEditEducationSave} onCancel={onEditEducationCancel} saveDisabled={!educationForm.institution || !educationForm.startYear} />
                             </div>
                         ) : (
                             <div className={styles.education_main}>
@@ -295,21 +282,7 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
                                     />
                                 </div>
 
-                        <div className={styles.form_actions}>
-                            <button
-                                className={styles.save_button}
-                                onClick={onEditEducationSave}
-                                disabled={!educationForm.institution || !educationForm.startYear}
-                            >
-                                {t('profile:saveBtn')}
-                            </button>
-                            <button
-                                className={styles.cancel_button}
-                                onClick={onEditEducationCancel}
-                            >
-                                {t('profile:cancelBtn')}
-                            </button>
-                        </div>
+                        <EditActions onSave={onEditEducationSave} onCancel={onEditEducationCancel} saveDisabled={!educationForm.institution || !educationForm.startYear} />
                     </div>
                 ) : null}
             </div>
