@@ -33,8 +33,8 @@
     "addressNotSpecified": "Адрес не указан",
     "service": "Услуга",
     "defaultUser": "Пользователь",
-    "defaultMaster": "Мастер",
-    "defaultClient": "Клиент",
+    "defaultMaster": "Специалист",
+    "defaultClient": "Заказчик",
     "negotiablePrice": "Цена договорная"
   },
   "validation": {
@@ -170,12 +170,12 @@
   "roles": {
     "specialist": "специалист",
     "client": "заказчик",
-    "master": "мастер",
+    "master": "специалист",
     "customers": "Заказчики",
-    "customersDesc": "Здесь клиенты находят проверенных специалистов для ремонта, строительства и других услуг",
-    "masters": "Мастера",
-    "mastersDesc": "Здесь мастера получают реальные заказы и новые возможности для заработка.",
-    "mustBeMaster": "Вы должны быть мастером для этой операции.",
+    "customersDesc": "Здесь заказчики находят проверенных специалистов для ремонта, строительства и других услуг",
+    "masters": "Специалисты",
+    "mastersDesc": "Здесь специалисты получают реальные заказы и новые возможности для заработка.",
+    "mustBeMaster": "Вы должны быть специалистом для этой операции.",
     "mustBeClient": "Вы должны быть заказчиком для этой операции."
   },
   "messages": {
@@ -183,7 +183,7 @@
     "resultsFound": "После создания вашего заказа найдены ",
     "showing": "Показываем ",
     "noDescription": "Описание отсутствует",
-    "noMasterInfo": "Нет информации о мастере",
+    "noMasterInfo": "Нет информации о специалисте",
     "activateSuccess": "Успешно активировано",
     "deactivateSuccess": "Успешно деактивировано",
     "activateError": "Ошибка при активации",
@@ -193,8 +193,8 @@
     "noResults": "По вашему запросу ничего не найдено"
   },
   "ticketTypes": {
-    "serviceFromMaster": "Услуга от мастера",
-    "orderFromClient": "Заказ от клиента"
+    "serviceFromMaster": "Услуга от специалиста",
+    "orderFromClient": "Заказ от заказчика"
   },
   "reviews": {
     "sendReview": "Отправить отзыв",
@@ -203,12 +203,12 @@
     "hideReviews": "Скрыть отзывы",
     "showAll": "Показать все",
     "noReviews": "Пока нет отзывов",
-    "masterLabel": "Мастер:",
-    "clientLabel": "Клиент:",
+    "masterLabel": "Специалист:",
+    "clientLabel": "Заказчик:",
     "serviceLabel": "Услуга:",
     "reviewLabel": "Отзыв:",
-    "reviewForMaster": "Отзыв мастеру",
-    "reviewForClient": "Отзыв клиенту"
+    "reviewForMaster": "Отзыв специалисту",
+    "reviewForClient": "Отзыв заказчику"
   },
   "reviewModal": {
     "title": "Оставьте отзыв о работе",
@@ -344,8 +344,8 @@
       "orders": "Заказы",
       "announcements": "Объявления",
       "users": "Пользователи",
-      "masters": "Мастера",
-      "clients": "Клиенты",
+      "masters": "Специалисты",
+      "clients": "Заказчики",
       "writeMessage": "Написать",
       "leaveReview": "Оставить отзыв",
       "removeFromFavorites": "Удалить из избранного",
@@ -359,9 +359,9 @@
     },
     "reviews": {
       "title": "Отзывы",
-      "writeReview": "Отзыв мастеру",
+      "writeReview": "Отзыв специалисту",
       "reviewer": "Отзыв",
-      "master": "Мастер",
+      "master": "Специалист",
       "service": "Услуга",
       "serviceNotSpecified": "Услуга не указана",
       "rating": "Оценка",
@@ -369,7 +369,7 @@
       "showAllReviews": "Показать все отзывы",
       "hideReviews": "Скрыть отзывы",
       "noReviews": "Пока нет отзывов",
-      "masterLabel": "Мастер:",
+      "masterLabel": "Специалист:",
       "serviceLabel": "Услуга:",
       "reviewLabel": "Отзыв:"
     },
@@ -410,7 +410,7 @@
     "enterFirstName": "Введите имя",
     "enterLastName": "Введите фамилию",
     "dateOfBirth": "Дата рождения",
-    "createPassword": "Придумайте пароль (Минимум 8 символов)",
+    "createPassword": "Придумайте пароль",
     "confirmPassword": "Повторите пароль",
     "forgotPassword": "Не помню пароль",
     "loginWith": "Войти с помощью",
@@ -432,6 +432,7 @@
     "iAmSpecialist": "Я специалист", 
     "iAmClient": "Я заказчик",
     "socialAuthNotice": "При авторизации через социальные сети будет использован выбранный тип аккаунта:",
+    "socialRegisterNotice": "При аутентификации через социальные сети будет использован выбранный тип аккаунта:",
     "specialist": "специалист",
     "client": "заказчик", 
     "noAccount": "Нет аккаунта?",

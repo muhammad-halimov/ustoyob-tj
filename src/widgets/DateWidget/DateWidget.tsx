@@ -1,5 +1,5 @@
 import React from 'react';
-import styles from './DateInput.module.scss';
+import styles from './DateWidget.module.scss';
 
 interface DateInputProps {
     value: string;
@@ -22,7 +22,7 @@ const defaultMax = () =>
         .toISOString()
         .split('T')[0];
 
-export const DateInput: React.FC<DateInputProps> = ({
+export const DateWidget: React.FC<DateInputProps> = ({
     value,
     onChange,
     disabled,

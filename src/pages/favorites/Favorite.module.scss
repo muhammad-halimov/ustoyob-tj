@@ -115,6 +115,12 @@
   }
 }
 
+@media (max-width: 1200px) {
+  .recommendation {
+    padding: 0 20px;
+  }
+}
+
 // Адаптивность для мобильных устройств
 @media (max-width: 768px) {
   .userCard {
@@ -404,7 +410,7 @@
   }
 }
 
-// Стили для карточки мастера (аналогичные SearchServicePage)
+// Стили для карточки специалиста (аналогичные SearchServicePage)
 .masterCard {
   background: #fff;
   border-radius: 10px;
@@ -564,7 +570,7 @@
     }
   }
 
-  // Обновленные стили для кнопки лайка мастера
+  // Обновленные стили для кнопки лайка специалиста
   .container_like {
     position: absolute;
     top: 20px;

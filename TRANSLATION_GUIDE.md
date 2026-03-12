@@ -47,9 +47,8 @@ src/locales/
     ...
   },
   "roles": {
-    "specialist": "специалист",
     "client": "заказчик",
-    "master": "мастер",
+    "master": "специалист",
     ...
   },
   "messages": {
@@ -154,7 +153,7 @@ const { t } = useTranslation();
 ### Сообщения (`messages.*`)
 - `authRequired` - Пожалуйста, авторизуйтесь.
 - `noDescription` - Описание отсутствует
-- `noMasterInfo` - Нет информации о мастере
+- `noMasterInfo` - Нет информации о специалисте
 - `activateSuccess` - Успешно активировано
 - `deactivateSuccess` - Успешно деактивировано
 - `activateError` - Ошибка при активации
@@ -163,11 +162,11 @@ const { t } = useTranslation();
 ### Роли (`roles.*`)
 - `specialist` - специалист
 - `client` - заказчик
-- `master` - мастер
+- `master` - специалист
 - `customers` - Заказчики
 - `customersDesc` - Описание для заказчиков
-- `masters` - Мастера
-- `mastersDesc` - Описание для мастеров
+- `masters` - Специалисты
+- `mastersDesc` - Описание для специалистов
 
 ### Формы (`forms.*`)
 - `gender` - Пол

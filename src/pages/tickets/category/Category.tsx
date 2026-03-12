@@ -3,7 +3,7 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { getAuthToken, getUserRole, getUserData } from '../../../utils/auth.ts';
 import { getStorageItem } from '../../../utils/storageHelper.ts';
 import { Back } from '../../../shared/ui/Button/Back/Back.tsx';
-import { useLanguageChange } from '../../../hooks/useLanguageChange.ts';
+import { useLanguageChange } from '../../../hooks';
 import { PageLoader } from '../../../widgets/PageLoader';
 import { EmptyState } from '../../../widgets/EmptyState';
 import { ROUTES } from '../../../app/routers/routes';
@@ -14,7 +14,7 @@ import { SortingFilter } from '../../../widgets/Sorting/SortingFilter';
 import { useTranslation } from 'react-i18next';
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 import { getOccupations } from '../../../utils/dataCache.ts';
-import { truncateText } from '../../../shared/ui/Ticket/Card/Card.tsx';
+import { truncateText } from '../../../utils/textHelper.ts';
 
 interface Occupation {
     id: number;
@@ -31,7 +31,7 @@ interface Ticket {
     notice: string;
     budget: number;
     active: boolean;
-    service: boolean; // true - услуга от мастера, false - заказ от клиента
+    service: boolean; // true - услуга от специалиста, false - заказ от заказчика
     category: {
         id: number;
         title: string;
@@ -514,7 +514,7 @@ function Category() {
 
             // Форматируем тикеты
             const formattedTickets: FormattedTicket[] = ticketsData.map(ticket => {
-                const isMasterTicket = ticket.service; // service: true - услуга от мастера
+                const isMasterTicket = ticket.service; // service: true - услуга от специалиста, false - заказ от заказчика 
                 const author = isMasterTicket ? ticket.master : ticket.author;
                 const authorId = author?.id || 0;
                 const authorName = author ? `${author.surname || ''} ${author.name || ''}`.trim() : 'Пользователь';
@@ -898,8 +898,7 @@ function Category() {
                             ? t('category:noAdsInCategory', { name: categoryName })
                             : t('category:noAdsInSelected')
                         }
-                        onAction={() => fetchTicketsByCategory()}
-                        actionText={t('category:refresh')}
+                        onRefresh={() => fetchTicketsByCategory()}
                     />
                 ) : (
                     tickets.map((ticket) => (

@@ -49,10 +49,10 @@ normalizeNameFormat('Abuabdulloҳ Rӯdakӣ');
 import { ticketTranslator, ticketTranslatorSync } from './utils/textHelper';
 
 // Асинхронный перевод (с API)
-const text = await ticketTranslator('Требуется мастер', 'ru', 'eng');
+const text = await ticketTranslator('Требуется специалист', 'ru', 'eng');
 
 // Синхронный перевод (только из кэша)
-const cachedText = ticketTranslatorSync('Требуется мастер', 'ru', 'eng');
+const cachedText = ticketTranslatorSync('Требуется специалист', 'ru', 'eng');
 ```
 
 ### 3. React Hooks для автоматического перевода
@@ -89,7 +89,7 @@ function Description({ text }) {
 ✅ **Card** - транслитерация имени автора
 ✅ **Chat** - транслитерация имен собеседников
 ✅ **MainReviewsSection** - транслитерация имен в отзывах
-✅ **Ticket** - транслитерация имен клиентов и мастеров
+✅ **Ticket** - транслитерация имен заказчиков и специалистов
 ✅ **Profile** - готово к интеграции
 
 ## 🔄 Автоматическая реакция на смену языка

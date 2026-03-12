@@ -17,6 +17,7 @@
   "defaultFullName": "Last Name First Name",
   "defaultSpecialty": "Specialty",
   "updateError": "Error updating data",
+  "ageMinError": "You must be at least 18 years old",
   "addrError": "Failed to build address data",
   "addrSaveError": "Error saving address",
   "addrDeleteError": "Error deleting address",

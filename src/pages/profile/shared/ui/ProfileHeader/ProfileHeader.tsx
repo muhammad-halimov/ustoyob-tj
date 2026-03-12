@@ -2,10 +2,11 @@ import React, { ChangeEvent, RefObject, useState, useRef, useEffect } from 'reac
 import { useTranslation } from 'react-i18next';
 import { UserRole, Occupation } from '../../../../../entities';
 import { smartNameTranslator } from '../../../../../utils/textHelper';
-import { Marquee } from '../../../../../shared/ui/Text/Marquee/Marquee';
-import { DateInput } from '../../../../../widgets/DateInput/DateInput';
+import { Marquee } from '../../../../../shared/ui/Text/Marquee';
+import { DateWidget } from '../../../../../widgets/DateWidget/DateWidget.tsx';
 import styles from './ProfileHeader.module.scss';
 import { EditActions } from '../EditActions/EditActions';
+import { Preview, usePreview } from '../../../../../shared/ui/Photo/Preview';
 
 interface ProfileHeaderProps {
     avatar: string | null;
@@ -24,6 +25,7 @@ interface ProfileHeaderProps {
     fileInputRef?: RefObject<HTMLInputElement | null>;
     specialtyInputRef?: RefObject<HTMLSelectElement | null>;
     isLoading: boolean;
+    isAvatarUploading?: boolean;
     readOnly?: boolean;
     userRole?: UserRole | null;
     onAvatarClick: () => void;
@@ -64,6 +66,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     fileInputRef,
     specialtyInputRef,
     isLoading,
+    isAvatarUploading = false,
     readOnly = false,
     userRole,
     onAvatarClick,
@@ -89,6 +92,9 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     const { t, i18n } = useTranslation(['profile', 'components']);
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    const avatarImages = avatar ? [avatar] : [];
+    const avatarPreview = usePreview({ images: avatarImages });
 
     // Split tempValue into surname / firstName for the two-input edit
     const nameParts = tempValue.trim().split(/\s+/);
@@ -185,6 +191,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     };
 
     return (
+        <>
         <div className={`${styles.profile_content}${dropdownOpen ? ` ${styles.profile_content_raised}` : ''}`}>
             {userRole && (
                 <div className={styles.profile_type_badge}>
@@ -194,8 +201,8 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
             <div className={styles.avatar_section}>
                 <div
                     className={styles.avatar_container}
-                    onClick={readOnly ? undefined : onAvatarClick}
-                    style={readOnly ? { cursor: 'default' } : undefined}
+                    onClick={avatar ? () => avatarPreview.openGallery(0) : undefined}
+                    style={{ cursor: avatar ? 'pointer' : 'default' }}
                 >
                     {avatar ? (
                         <img
@@ -211,15 +218,23 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                             className={styles.avatar_placeholder}
                         />
                     )}
-                    {!readOnly && <div className={styles.avatar_overlay}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            <path d="M17 8L12 3L7 8" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            <path d="M12 3V15" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                        <span>{t('profile:changePhoto')}</span>
-                    </div>}
+                    {isAvatarUploading && (
+                        <div className={styles.avatar_upload_overlay}>
+                            <div className={styles.avatar_spinner} />
+                        </div>
+                    )}
                 </div>
+                {!readOnly && (
+                    <button
+                        className={styles.avatar_edit_btn}
+                        onClick={onAvatarClick}
+                        title={t('profile:changePhoto')}
+                    >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <path d="M7.2302 20.59L2.4502 21.59L3.4502 16.81L17.8902 2.29001C18.1407 2.03889 18.4385 1.83982 18.7663 1.70424C19.0941 1.56865 19.4455 1.49925 19.8002 1.50001C20.5163 1.50001 21.203 1.78447 21.7094 2.29082C22.2157 2.79717 22.5002 3.48392 22.5002 4.20001C22.501 4.55474 22.4315 4.90611 22.296 5.23391C22.1604 5.56171 21.9613 5.85945 21.7102 6.11001L7.2302 20.59Z" stroke="white" strokeWidth="2" strokeMiterlimit="10"/>
+                        </svg>
+                    </button>
+                )}
                 {!readOnly && fileInputRef && <input
                     type="file"
                     ref={fileInputRef}
@@ -299,7 +314,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                                             </div>
                                         ) : editingField === 'dateOfBirth' ? (
                                             <div className={styles.dob_edit_container}>
-                                                <DateInput
+                                                <DateWidget
                                                     value={tempValue}
                                                     onChange={onTempValueChange}
                                                     className={styles.dob_date_input}
@@ -559,5 +574,17 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                 )}
             </div>
         </div>
+
+        <Preview
+            isOpen={avatarPreview.isOpen}
+            images={avatarImages}
+            currentIndex={avatarPreview.currentIndex}
+            onClose={avatarPreview.closeGallery}
+            onNext={avatarPreview.goToNext}
+            onPrevious={avatarPreview.goToPrevious}
+            onSelectImage={avatarPreview.selectImage}
+            fallbackImage="../default_user.png"
+        />
+        </>
     );
 };

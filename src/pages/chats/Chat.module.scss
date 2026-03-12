@@ -14,7 +14,7 @@
   max-height: 760px;
   gap: 27px;
 
-  @media (max-width: 480px) {
+  @media (max-width: 960px) {
     gap: 0;
     height: auto;
     max-height: none;
@@ -31,7 +31,7 @@
   border-radius: 20px;
   padding: 40px 20px;
 
-  @media (max-width: 480px) {
+  @media (max-width: 960px) {
     width: 100%;
     border-radius: 16px;
     padding: 20px 15px;
@@ -338,7 +338,7 @@
   border-radius: 20px;
   position: relative;
 
-  @media (max-width: 480px) {
+  @media (max-width: 960px) {
     width: 100%;
     min-height: calc(100dvh - 160px);
     border-radius: 16px;
@@ -990,7 +990,7 @@
 }
 
 /* Для мобильных устройств */
-@media (max-width: 480px) {
+@media (max-width: 960px) {
   .chatAreaActive {
     .sidebar {
       display: none;

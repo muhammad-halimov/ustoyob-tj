@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ROUTES } from '../../app/routers/routes';
+import Status from '../../shared/ui/Modal/Status';
 import { useTheme } from '../../contexts';
 import { useTranslation } from 'react-i18next';
 import {
@@ -223,6 +224,7 @@ const OAuthCallbackPage = () => {
 
     if (loading) {
         return (
+            <>
             <div style={{
                 display: 'flex',
                 justifyContent: 'center',
@@ -252,94 +254,24 @@ const OAuthCallbackPage = () => {
                     }
                 `}</style>
             </div>
+            <Status
+                type="error"
+                isOpen={!!error}
+                onClose={() => navigate(ROUTES.HOME)}
+                message={t('oauth.tryLater')}
+            />
+        </>
         );
     }
 
-    if (error) {
-        return (
-            <div style={{
-                padding: '40px 20px',
-                textAlign: 'center',
-                maxWidth: '600px',
-                margin: '50px auto',
-                backgroundColor: isDark ? '#2A2A2A' : '#fff',
-                borderRadius: '12px',
-                boxShadow: isDark ? '0 4px 20px rgba(0,0,0,0.4)' : '0 4px 20px rgba(0,0,0,0.1)'
-            }}>
-                <div style={{
-                    width: '80px',
-                    height: '80px',
-                    backgroundColor: isDark ? '#3D1F1F' : '#ffebee',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto 20px',
-                    fontSize: '36px',
-                    color: '#d32f2f'
-                }}>
-                    ✕
-                </div>
-                <h2 style={{ color: '#d32f2f', marginBottom: '15px' }}>{t('oauth.errorTitle')}</h2>
-                <p style={{
-                    marginBottom: '25px',
-                    fontSize: '16px',
-                    color: isDark ? '#C5C5C5' : '#424242',
-                    lineHeight: '1.5'
-                }}>
-                    {error}
-                </p>
-                <div style={{
-                    padding: '15px',
-                    backgroundColor: isDark ? '#333' : '#f5f5f5',
-                    borderRadius: '8px',
-                    marginBottom: '20px'
-                }}>
-                    <p style={{
-                        margin: 0,
-                        fontSize: '14px',
-                        color: isDark ? '#A8A8A8' : '#666',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px'
-                    }}>
-                        <span>{t('oauth.redirecting')}</span>
-                        <span style={{
-                            width: '8px',
-                            height: '8px',
-                            backgroundColor: '#4285f4',
-                            borderRadius: '50%',
-                            animation: 'pulse 1.5s infinite'
-                        }}></span>
-                    </p>
-                </div>
-                <button
-                    onClick={() => navigate(ROUTES.HOME)}
-                    style={{
-                        padding: '12px 24px',
-                        backgroundColor: '#4285f4',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontSize: '16px',
-                        fontWeight: '500'
-                    }}
-                >
-                    {t('oauth.backToHome')}
-                </button>
-                <style>{`
-                    @keyframes pulse {
-                        0%, 100% { opacity: 1; }
-                        50% { opacity: 0.3; }
-                    }
-                `}</style>
-            </div>
-        );
-    }
-
-    return null;
+    return (
+        <Status
+            type="error"
+            isOpen={!!error}
+            onClose={() => navigate(ROUTES.HOME)}
+            message={t('oauth.tryLater')}
+        />
+    );
 };
 
 export default OAuthCallbackPage;

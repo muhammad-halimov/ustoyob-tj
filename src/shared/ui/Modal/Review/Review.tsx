@@ -74,8 +74,8 @@ const Review: React.FC<ReviewModalProps> = ({
             const userRole = getUserRole();
 
             // Формируем endpoint по роли ТЕКУЩЕГО пользователя, но используя ID ЦЕЛЕВОГО
-            // Если я клиент - показываем услуги мастера (целевого)
-            // Если я мастер - показываем заказы клиента (целевого)
+            // Если я заказчик - показываем услуги специалиста (целевого)
+            // Если я специалист - показываем заказы заказчика (целевого)
             const endpoint = userRole === 'client'
                 ? `/api/tickets?service=true&active=true&exists[author]=false&exists[master]=true&master=${targetUserId}`
                 : `/api/tickets?service=false&active=true&exists[master]=false&exists[author]=true&author=${targetUserId}`;

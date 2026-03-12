@@ -32,6 +32,7 @@ interface WorkExamplesSectionProps {
     getImageUrlWithCacheBust: (url: string) => string;
     API_BASE_URL: string;
     onReorder?: (workExamples: WorkExample[]) => void;
+    onRefresh?: () => void;
 }
 
 export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
@@ -55,6 +56,7 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
     getImageUrlWithCacheBust,
     API_BASE_URL,
     onReorder,
+    onRefresh,
 }) => {
     const workExampleInputRef = useRef<HTMLInputElement>(null);
     const { t } = useTranslation(['profile']);
@@ -142,7 +144,7 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
                             )}
                         </>
                     ) : (
-                        <EmptyState title={readOnly ? t('profile:noWorkExamples') : t('profile:addWorkExamples')} />
+                        <EmptyState title={readOnly ? t('profile:noWorkExamples') : t('profile:addWorkExamples')} onRefresh={onRefresh} />
                     )}
                 </div>
 

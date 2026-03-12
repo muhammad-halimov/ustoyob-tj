@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { ROUTES } from '../../../app/routers/routes.ts';
 import {textHelper} from "../../../utils/textHelper.ts";
 import { useTranslation } from 'react-i18next';
-import { useLanguageChange } from "../../../hooks/useLanguageChange.ts";
+import { useLanguageChange } from "../../../hooks";
 import { Card } from "../../../shared/ui/Ticket/Card/Card.tsx";
 import { ServiceTypeFilter } from "../../../widgets/Sorting/ServiceTypeFilter";
 import { SortingFilter } from "../../../widgets/Sorting/SortingFilter";
@@ -537,7 +537,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         const userId = ticketType === 'client' ? ticket.author?.id : ticket.master?.id;
 
         if (!userId) {
-            return ticketType === 'client' ? 'Клиент не указан' : 'Мастер не назначен';
+            return ticketType === 'client' ? 'Заказчик не указан' : 'Специалист не назначен';
         }
 
         if (ticketType === 'client' && ticket.author) {
@@ -558,7 +558,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             }
         }
 
-        return ticketType === 'client' ? 'Клиент' : 'Мастер';
+        return ticketType === 'client' ? 'Заказчик' : 'Специалист';
     }, []);
 
     // Функция загрузки категорий
@@ -750,8 +750,8 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
             // Определяем тип тикета
             const typedTickets: TypedTicket[] = ticketsData.map(ticket => {
-                const ticketType = ticket.service === true ? 'master' : 'client';
-                let userRating = 0;
+                const ticketType = ticket.service ? 'master' : 'client';
+                let userRating: number;
                 if (ticketType === 'client') {
                     userRating = ticket.author?.rating || 0;
                 } else {

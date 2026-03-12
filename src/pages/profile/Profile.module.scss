@@ -1323,10 +1323,6 @@
   padding: 16px 0;
   border-bottom: 1px solid #e8e8e8;
 
-  @media (max-width: 1024px) {
-    width: calc((100% - 27px) / 2);
-  }
-
   @media (max-width: 768px) {
     width: 100%;
   }
@@ -2496,6 +2492,28 @@
   color: #666;
   transition: all 0.3s ease;
 
+}
+
+// Tablet adaptation
+@media screen and (max-width: 1200px) {
+  .profile_wrap {
+    padding: 0 20px;
+  }
+}
+
+@media screen and (max-width: 1024px) {
+  .avatar_container {
+    width: 180px;
+    height: 180px;
+  }
+
+  .name {
+    font-size: 28px;
+  }
+
+  .specialty {
+    font-size: 20px;
+  }
 }
 
 @media screen and (max-width: 480px) {

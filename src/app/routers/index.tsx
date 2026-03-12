@@ -25,7 +25,7 @@ const router = createBrowserRouter([
             { path: ROUTE_PATTERNS.FAVORITES, element: <Favorites /> },
             { path: ROUTE_PATTERNS.CHATS, element: <Chat /> },
             
-            // Универсальный Profile: /profile - приватный ЛК, /profile/:id - публичный профиль (мастер/клиент)
+            // Универсальный Profile: /profile - приватный ЛК, /profile/:id - публичный профиль (специалист/закказчик)
             { path: ROUTE_PATTERNS.PROFILE, element: <Profile /> },
             { path: ROUTE_PATTERNS.PROFILE_BY_ID, element: <Profile /> },
 

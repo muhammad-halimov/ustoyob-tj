@@ -403,9 +403,9 @@ function Favorites() {
 
             let authorName = 'Неизвестный';
             if (isMasterTicket && ticket.master) {
-                authorName = `${ticket.master.surname || ''} ${ticket.master.name || ''}`.trim() || 'Мастер';
+                authorName = `${ticket.master.surname || ''} ${ticket.master.name || ''}`.trim() || 'Специалист';
             } else if (ticket.author) {
-                authorName = `${ticket.author.surname || ''} ${ticket.author.name || ''}`.trim() || 'Клиент';
+                authorName = `${ticket.author.surname || ''} ${ticket.author.name || ''}`.trim() || 'Заказчик';
             }
 
             return {
@@ -494,9 +494,9 @@ function Favorites() {
 
                         let authorName = 'Неизвестный';
                         if (isMasterTicket && ticket.master) {
-                            authorName = `${ticket.master.surname || ''} ${ticket.master.name || ''}`.trim() || 'Мастер';
+                            authorName = `${ticket.master.surname || ''} ${ticket.master.name || ''}`.trim() || 'Специалист';
                         } else if (ticket.author) {
-                            authorName = `${ticket.author.surname || ''} ${ticket.author.name || ''}`.trim() || 'Клиент';
+                            authorName = `${ticket.author.surname || ''} ${ticket.author.name || ''}`.trim() || 'Заказчик';
                         }
 
                         const authorImageSrc = isMasterTicket
@@ -530,7 +530,7 @@ function Favorites() {
                     }
                 }
 
-                // Обрабатываем мастеров напрямую из ответа API
+                // Обрабатываем специалистов напрямую из ответа API
                 const mastersFromApi: FavoriteUser[] = (favorite.masters || []).map((m: any) => ({
                     id: m.id,
                     email: m.email || '',
@@ -544,7 +544,7 @@ function Favorites() {
                     gender: m.gender,
                 }));
 
-                // Обрабатываем клиентов напрямую из ответа API
+                // Обрабатываем заказчиков напрямую из ответа API
                 const clientsFromApi: FavoriteUser[] = (favorite.clients || []).map((c: any) => ({
                     id: c.id,
                     email: c.email || '',
@@ -558,7 +558,7 @@ function Favorites() {
                     gender: c.gender,
                 }));
 
-                // Объединяем мастеров и клиентов в один список пользователей (дедупликация по id)
+                // Объединяем специалистов и заказчиков в один список пользователей (дедупликация по id)
                 const userMap = new Map<number, FavoriteUser>();
                 [...mastersFromApi, ...clientsFromApi].forEach(u => {
                     if (!userMap.has(u.id)) userMap.set(u.id, u);
@@ -607,7 +607,7 @@ function Favorites() {
         }
     };
 
-    // handleLikeUser — добавляет/удаляет пользователя из избранного (универсально для мастеров и клиентов)
+    // handleLikeUser — добавляет/удаляет пользователя из избранного (универсально для специалистов и заказчиков)
     const handleLikeUser = async (userId: number) => {
         const token = getAuthToken();
         if (!token || !favoriteId) return;
@@ -947,7 +947,7 @@ function Favorites() {
     const handleMasterChat = async (authorId: number) => {
         const token = getAuthToken();
         if (!token) {
-            alert('Пожалуйста, войдите в систему чтобы написать мастеру');
+            alert('Пожалуйста, войдите в систему чтобы написать специалисту');
             return;
         }
 
@@ -1082,6 +1082,7 @@ function Favorites() {
                     <EmptyState
                         title={t('pages.favorites.noFavorites')}
                         subtitle={t('pages.favorites.noFavoritesHint')}
+                        onRefresh={fetchFavorites}
                     />
                 </div>
             </div>
@@ -1136,17 +1137,18 @@ function Favorites() {
                     <EmptyState
                         title={t('common:emptyState.title')}
                         subtitle={t('pages.favorites.noFavoritesHint')}
+                        onRefresh={fetchFavorites}
                     />
                 )}
 
                 {/* Пустая вкладка объявлений (есть пользователи, но нет заказов) */}
                 {(activeTab === 'orders' || !showTabs) && !hasOrders && (
-                    <EmptyState title={t('pages.favorites.noFavorites')} />
+                    <EmptyState title={t('pages.favorites.noFavorites')} onRefresh={fetchFavorites} />
                 )}
 
                 {/* Пустая вкладка пользователей */}
                 {activeTab === 'masters' && showTabs && !hasSecondTabItems && (
-                    <EmptyState />
+                    <EmptyState onRefresh={fetchFavorites} />
                 )}
 
                 {/* Отображение заказов */}
@@ -1181,7 +1183,7 @@ function Favorites() {
                     />
                 ))}
 
-                {/* Отображение пользователей (мастера + клиенты объединены) */}
+                {/* Отображение пользователей (специалисты + заказчики объединены) */}
                 {activeTab === 'masters' && showTabs && hasSecondTabItems && secondTabItems.map((user) => (
                     <div
                         key={user.id}

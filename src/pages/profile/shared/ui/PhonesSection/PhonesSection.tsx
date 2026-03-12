@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Marquee } from '../../../../../shared/ui/Text/Marquee/Marquee';
+import { Marquee } from '../../../../../shared/ui/Text/Marquee';
 import { EmptyState } from '../../../../../widgets/EmptyState';
 import { useDragReorder, DragHandle } from '../../../../../widgets/DragReorder';
 import styles from './PhonesSection.module.scss';
@@ -25,6 +25,7 @@ interface PhonesSectionProps {
     onCopyPhone: (phoneNumber: string) => Promise<void>;
     setPhoneForm: React.Dispatch<React.SetStateAction<{ number: string; type: 'tj' | 'international' }>>;
     onReorder?: (phones: Phone[]) => void;
+    onRefresh?: () => void;
 }
 
 export const PhonesSection: React.FC<PhonesSectionProps> = ({
@@ -40,6 +41,7 @@ export const PhonesSection: React.FC<PhonesSectionProps> = ({
     onCopyPhone,
     setPhoneForm,
     onReorder,
+    onRefresh,
 }) => {
     const { t } = useTranslation(['profile']);
     const phoneDrag = useDragReorder(phones, onReorder ?? (() => {}));
@@ -144,7 +146,7 @@ export const PhonesSection: React.FC<PhonesSectionProps> = ({
                     </>
                 ) : (
                     !editingPhone && (
-                        <EmptyState title={readOnly ? t('profile:noPhones') : t('profile:addPhone')} />
+                        <EmptyState title={readOnly ? t('profile:noPhones') : t('profile:addPhone')} onRefresh={onRefresh} />
                     )
                 )}
 

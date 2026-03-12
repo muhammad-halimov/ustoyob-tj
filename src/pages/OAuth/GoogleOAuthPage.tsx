@@ -10,6 +10,7 @@ import {
     setUserOccupation
 } from '../../utils/auth';
 import { ROUTES } from '../../app/routers/routes';
+import Status from '../../shared/ui/Modal/Status';
 import { useTheme } from '../../contexts';
 import { useTranslation } from 'react-i18next';
 
@@ -145,36 +146,25 @@ const GoogleOAuthPage = () => {
         processCallback();
     }, [searchParams, navigate, t, API_BASE_URL]);
 
-    if (error) {
-        return (
+    return (
+        <>
             <div style={{
                 padding: '20px',
                 textAlign: 'center',
+                marginTop: '50px',
                 minHeight: '100vh',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
                 backgroundColor: isDark ? '#1A1A1A' : '#f5f5f5'
             }}>
-                <h2 style={{ color: isDark ? '#E5E5E5' : '#d32f2f', marginBottom: '12px' }}>{t('oauth.errorTitle')}</h2>
-                <p style={{ color: isDark ? '#A8A8A8' : '#424242', marginBottom: '8px' }}>{error}</p>
-                <p style={{ color: isDark ? '#A8A8A8' : '#666' }}>{t('oauth.redirecting')}</p>
+                <h2 style={{ color: isDark ? '#E5E5E5' : '#333' }}>{t('oauth.processingGoogle')}</h2>
+                <p style={{ color: isDark ? '#A8A8A8' : '#666' }}>{t('oauth.pleaseWait')}</p>
             </div>
-        );
-    }
-
-    return (
-        <div style={{
-            padding: '20px',
-            textAlign: 'center',
-            marginTop: '50px',
-            minHeight: '100vh',
-            backgroundColor: isDark ? '#1A1A1A' : '#f5f5f5'
-        }}>
-            <h2 style={{ color: isDark ? '#E5E5E5' : '#333' }}>{t('oauth.processingGoogle')}</h2>
-            <p style={{ color: isDark ? '#A8A8A8' : '#666' }}>{t('oauth.pleaseWait')}</p>
-        </div>
+            <Status
+                type="error"
+                isOpen={!!error}
+                onClose={() => navigate(ROUTES.HOME)}
+                message={t('oauth.tryLater')}
+            />
+        </>
     );
 };
 

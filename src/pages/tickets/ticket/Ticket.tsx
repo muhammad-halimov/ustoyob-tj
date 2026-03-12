@@ -13,7 +13,7 @@ import {getStorageItem} from '../../../utils/storageHelper.ts';
 import Status from '../../../shared/ui/Modal/Status';
 import Review from '../../../shared/ui/Modal/Review';
 import Complaint from '../../../shared/ui/Modal/Complaint/Complaint.tsx';
-import { Carousel } from '../../../shared/ui/Photo/Carousel/Carousel.tsx';
+import { Carousel } from '../../../shared/ui/Photo/Carousel';
 import { Marquee } from '../../../shared/ui/Text/Marquee';
 import { Back } from '../../../shared/ui/Button/Back/Back.tsx';
 import {useFavorites} from '../../../shared/ui/useFavorites';
@@ -465,9 +465,9 @@ export function Ticket() {
                 }
             }
 
-            // Определяем кого показывать: мастера или клиента
-            // Если есть master - это заявка клиента, показываем мастера
-            // Если master === null - это услуга мастера, показываем автора (клиента)
+            // Определяем кого показывать: специалиста или заказчика, в зависимости от наличия специалиста в данных тикета
+            // Если есть master - это заявка заказчика, показываем специалиста
+            // Если master === null - это услуга специалиста, показываем автора (заказчика)
             let displayUserId: number;
             let displayUserName: string;
             let displayUserImage: string;
@@ -475,14 +475,14 @@ export function Ticket() {
             let userRating: number; // Рейтинг берем из данных тикета
 
             if (ticketData.master) {
-                // Заявка клиента - показываем мастера
+                // Заявка заказчика - показываем специалиста
                 displayUserId = ticketData.master.id;
                 displayUserName = `${ticketData.master.surname || ''} ${ticketData.master.name || ''}`.trim() || t('components:app.defaultMaster');
                 displayUserImage = getAuthorAvatar(ticketData.master, '');
                 userTypeForRating = 'master';
-                userRating = ticketData.master.rating || 0; // Рейтинг мастера из тикета
+                userRating = ticketData.master.rating || 0; // Рейтинг специалиста из тикета
             } else {
-                // Услуга мастера - показываем автора
+                // Услуга специалиста - показываем автора (заказчика)
                 displayUserId = ticketData.author.id;
                 displayUserName = `${ticketData.author.surname || ''} ${ticketData.author.name || ''}`.trim() || t('components:app.defaultClient');
                 displayUserImage = getAuthorAvatar(ticketData.author, '');
@@ -525,7 +525,7 @@ export function Ticket() {
                 }));
             }
 
-            // Проверяем есть ли образование у пользователя (только для мастеров)
+            // Проверяем есть ли образование у пользователя (только для специалиста)
             const hasEducation = ticketData.master && 
                                 ticketData.master.education && 
                                 ticketData.master.education.length > 0;

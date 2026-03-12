@@ -246,15 +246,10 @@
 
 .avatar_container {
   position: relative;
-  cursor: pointer;
   border-radius: 100%;
   overflow: hidden;
   width: 235px;
   height: 235px;
-
-  &:hover .avatar_overlay {
-    opacity: 1;
-  }
 }
 
 .avatar, .avatar_placeholder {
@@ -286,6 +281,53 @@
   span {
     font-size: 12px;
     text-align: center;
+  }
+}
+
+.avatar_upload_overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 100%;
+  z-index: 2;
+}
+
+.avatar_spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: avatar_spin 0.75s linear infinite;
+}
+
+@keyframes avatar_spin {
+  to { transform: rotate(360deg); }
+}
+
+.avatar_edit_btn {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #3A54DA;
+  color: white;
+  border: 2px solid white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  transition: background 0.2s ease;
+  z-index: 1;
+
+  &:hover {
+    background: #2a44ca;
   }
 }
 
@@ -342,7 +384,7 @@
   flex: 1;
   min-width: 0;
 
-  // Override DateInput styles for compact inline use
+  // Override DateWidget styles for compact inline use
   :global(.input), input {
     padding: 6px 10px !important;
     font-size: 14px !important;

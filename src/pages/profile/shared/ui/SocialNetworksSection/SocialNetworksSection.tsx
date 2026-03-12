@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Marquee } from '../../../../../shared/ui/Text/Marquee/Marquee';
+import { Marquee } from '../../../../../shared/ui/Text/Marquee';
 import { EmptyState } from '../../../../../widgets/EmptyState';
 import { useDragReorder, DragHandle } from '../../../../../widgets/DragReorder';
 import styles from './SocialNetworksSection.module.scss';
@@ -50,6 +50,7 @@ interface SocialNetworksSectionProps {
     renderSocialIcon: (networkType: string) => React.ReactElement | null;
     getAvailableNetworks: () => AvailableSocialNetwork[];
     className?: string;
+    onRefresh?: () => void;
 }
 
 export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
@@ -75,6 +76,7 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
     renderSocialIcon,
     getAvailableNetworks,
     className,
+    onRefresh,
 }) => {
     const { t } = useTranslation(['profile']);
 
@@ -154,6 +156,7 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
                     {socialNetworks.length === 0 && (
                         <EmptyState
                             title={readOnly ? t('profile:noSocialNetworks') : t('profile:addSocialNetworks')}
+                            onRefresh={onRefresh}
                         />
                     )}
 

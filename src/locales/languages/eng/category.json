@@ -20,9 +20,9 @@
   "showLess": "Show less",
   "filters": {
     "onlyServices": "Services only",
-    "onlyServicesDesc": "Show only service offers from masters",
+    "onlyServicesDesc": "Show only service offers from specialists",
     "onlyAnnouncements": "Announcements only",
-    "onlyAnnouncementsDesc": "Show only orders from clients"
+    "onlyAnnouncementsDesc": "Show only orders from customers"
   },
   "sorting": {
     "primarySort": "Primary sorting:",

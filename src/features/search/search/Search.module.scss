@@ -302,6 +302,16 @@
 }
 
 
+@media screen and (max-width: 1200px) {
+  .container {
+    padding: 0 20px;
+  }
+
+  .search_with_filters {
+    flex-direction: column;
+  }
+}
+
 @media screen and (max-width: 480px){
   .container {
     width: 100%;

@@ -1,18 +1,18 @@
 import styles from './Card.module.scss';
 import { useTranslation } from 'react-i18next';
-import { useLanguageChange } from '../../../../hooks/useLanguageChange.ts';
-import { useTranslatedName } from '../../../../hooks/useTranslatedName.ts';
-import { useTranslatedText } from '../../../../hooks/useTranslatedText.ts';
+import { useLanguageChange } from '../../../../hooks';
+import { useTranslatedName } from '../../../../hooks';
+import { useTranslatedText } from '../../../../hooks';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useFavorites } from '../../useFavorites.ts';
 import { ROUTES } from '../../../../app/routers/routes.ts';
 import { truncateText } from '../../../../utils/textHelper.ts';
-import { Marquee } from '../../Text/Marquee/Marquee.tsx';
-import { Carousel } from '../../Photo/Carousel/Carousel.tsx';
+import { Marquee } from '../../Text/Marquee';
+import { Carousel } from '../../Photo/Carousel';
 import { Toggle } from '../../Button/Toggle/Toggle.tsx';
 // Re-export for backward compatibility (other files import truncateText from Card)
-export { truncateText };
+export default truncateText
 
 interface AnnouncementCardProps {
   title: string;
@@ -241,13 +241,13 @@ export function Card({
   // Унифицированная функция для определения типа тикета и его перевода
   const getTicketTypeDisplay = (): string | null => {
     if (typeof ticketType === 'boolean') {
-      // Для boolean (как в Recommendations): true = услуга от мастера, false = заказ от клиента
+      // Для boolean (как в Recommendations): true = услуга от специалиста, false = заказ от заказчика
       return ticketType ? t('ticketTypes.serviceFromMaster') : t('ticketTypes.orderFromClient');
     } else if (typeof ticketType === 'string') {
       // Для строк (как в Category и Favorites)
-      if (ticketType === 'master' || ticketType === 'Услуга от мастера') {
+      if (ticketType === 'master' || ticketType === 'Услуга от специалиста') {
         return t('ticketTypes.serviceFromMaster');
-      } else if (ticketType === 'client' || ticketType === 'Заказ от клиента') {
+      } else if (ticketType === 'client' || ticketType === 'Заказ от заказчика') {
         return t('ticketTypes.orderFromClient');
       }
       // Если уже переведенная строка, возвращаем как есть

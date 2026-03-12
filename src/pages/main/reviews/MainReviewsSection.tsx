@@ -9,6 +9,7 @@ import styles from './MainReviewsSection.module.scss';
 import { Preview, usePreview } from '../../../shared/ui/Photo/Preview';
 import { ReadMore } from '../../../widgets/ReadMore';
 import { PageLoader } from '../../../widgets/PageLoader';
+import { EmptyState } from '../../../widgets/EmptyState';
 import { getAuthorAvatar } from '../../../utils/imageHelper.ts';
 
 interface MainReviewsSectionProps {
@@ -20,68 +21,68 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
     const [loading, setLoading] = useState(true);
     const [visibleCount, setVisibleCount] = useState(6);
     const navigate = useNavigate();
-    const { i18n } = useTranslation();
+    const { t, i18n } = useTranslation(['profile', 'components']);
     
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     // Загружаем отзывы с API
-    useEffect(() => {
-        const fetchReviews = async () => {
-            try {
-                setLoading(true);
-                const url = `${API_BASE_URL}/api/reviews?limit=20`;
-                console.log('Fetching reviews from:', url);
+    const fetchReviews = async () => {
+        try {
+            setLoading(true);
+            const url = `${API_BASE_URL}/api/reviews?limit=20`;
+            console.log('Fetching reviews from:', url);
+            
+            const response = await fetch(url);
+            console.log('Response status:', response.status);
+            console.log('Response ok:', response.ok);
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('Reviews data received:', data);
                 
-                const response = await fetch(url);
-                console.log('Response status:', response.status);
-                console.log('Response ok:', response.ok);
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('Reviews data received:', data);
-                    
-                    // Проверяем разные возможные структуры данных
-                    let reviewsData: any[] = [];
-                    if (data['hydra:member']) {
-                        console.log('Found hydra:member, reviews count:', data['hydra:member'].length);
-                        reviewsData = data['hydra:member'];
-                    } else if (Array.isArray(data)) {
-                        console.log('Found array data, reviews count:', data.length);
-                        reviewsData = data;
-                    } else {
-                        console.log('No reviews found in response');
-                        reviewsData = [];
-                    }
-                    
-                    // Сортируем по дате создания (самые новые сначала)
-                    const sortedReviews = reviewsData.sort((a, b) => {
-                        const dateA = new Date(a.createdAt || 0).getTime();
-                        const dateB = new Date(b.createdAt || 0).getTime();
-                        return dateB - dateA; // Обратная сортировка (новые сначала)
-                    });
-                    
-                    setReviews(sortedReviews);
+                // Проверяем разные возможные структуры данных
+                let reviewsData: any[];
+                if (data['hydra:member']) {
+                    console.log('Found hydra:member, reviews count:', data['hydra:member'].length);
+                    reviewsData = data['hydra:member'];
+                } else if (Array.isArray(data)) {
+                    console.log('Found array data, reviews count:', data.length);
+                    reviewsData = data;
                 } else {
-                    console.error('Response not ok:', response.status, response.statusText);
+                    console.log('No reviews found in response');
+                    reviewsData = [];
                 }
-            } catch (error) {
-                console.error('Error fetching reviews:', error);
-            } finally {
-                setLoading(false);
+                
+                // Сортируем по дате создания (самые новые сначала)
+                const sortedReviews = reviewsData.sort((a, b) => {
+                    const dateA = new Date(a.createdAt || 0).getTime();
+                    const dateB = new Date(b.createdAt || 0).getTime();
+                    return dateB - dateA; // Обратная сортировка (новые сначала)
+                });
+                
+                setReviews(sortedReviews);
+            } else {
+                console.error('Response not ok:', response.status, response.statusText);
             }
-        };
+        } catch (error) {
+            console.error('Error fetching reviews:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
+    useEffect(() => {
         fetchReviews();
     }, [API_BASE_URL]);
 
-    // Функция для получения имени клиента
+    // Функция для получения имени заказчика
     const getClientName = (review: any): string => {
         const client = review.client;
-        if (!client) return 'Клиент';
+        if (!client) return t('components:roles.client');
         
         if (!client.name && !client.surname) {
-            return client.login || 'Клиент';
+            return client.login || t('components:roles.client');
         }
         
         const currentLang = i18n.language as 'ru' | 'tj' | 'eng';
@@ -94,13 +95,13 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
         return `${translatedLastName} ${translatedFirstName}`.trim();
     };
 
-    // Функция для получения имени мастера
+    // Функция для получения имени специалиста
     const getMasterName = (review: any): string => {
         const master = review.master;
-        if (!master) return 'Мастер';
+        if (!master) return t('components:roles.specialist');
         
         if (!master.name && !master.surname) {
-            return master.login || 'Мастер';
+            return master.login || t('components:roles.specialist');
         }
         
         const currentLang = i18n.language as 'ru' | 'tj' | 'eng';
@@ -173,7 +174,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
         return `${API_BASE_URL}/images/review_photos/${imagePath}`;
     };
 
-    // Аватар клиента через общую утилиту
+    // Аватар заказчика через общую утилиту
     const getReviewerAvatarUrl = (review: any): string =>
         getAuthorAvatar(review.client);
 
@@ -194,8 +195,8 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
         return (
             <div className={`${styles.main_reviews} ${className || ''}`}>
                 <div className={styles.container}>
-                    <h3>Отзывы</h3>
-                    <PageLoader text="Загрузка отзывов..." fullPage={false} />
+                    <h3>{t('profile:reviewsTitle')}</h3>
+                    <PageLoader text={t('profile:loadingReviews')} fullPage={false} />
                 </div>
             </div>
         );
@@ -205,8 +206,8 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
         return (
             <div className={`${styles.main_reviews} ${className || ''}`}>
                 <div className={styles.container}>
-                    <h3>Отзывы</h3>
-                    <div className={styles.no_reviews}>Пока нет отзывов</div>
+                    <h3>{t('profile:reviewsTitle')}</h3>
+                    <EmptyState title={t('profile:noReviews')} onRefresh={fetchReviews} />
                 </div>
             </div>
         );
@@ -215,7 +216,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
     return (
         <div className={`${styles.main_reviews} ${className || ''}`}>
             <div className={styles.container}>
-                <h3>Отзывы</h3>
+                <h3>{t('profile:reviewsTitle')}</h3>
                 
                 {/* Desktop карточный вид */}
                 <div className={styles.reviews_wrap}>
@@ -237,7 +238,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                         {getClientName(review)}
                                     </h3>
                                     <div className={styles.reviews_naming_raiting}>
-                                        Поставил(а): 
+                                        {t('profile:ratedLabel')} 
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" fill="#FFD700" stroke="#FFD700" strokeWidth="1"/>
                                         </svg>
@@ -334,7 +335,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                                 {getClientName(review)}
                                             </h3>
                                             <div className={styles.reviews_naming_raiting}>
-                                                Поставил(а):
+                                                {t('profile:ratedLabel')}
                                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                     <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" fill="#FFD700" stroke="#FFD700" strokeWidth="1"/>
                                                 </svg>
@@ -410,7 +411,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                             className={styles.show_all_reviews_btn}
                             onClick={visibleCount === reviews.length ? handleShowLess : handleShowMore}
                         >
-                            {visibleCount === reviews.length ? 'Скрыть отзывы' : 'Показать все отзывы'}
+                            {visibleCount === reviews.length ? t('profile:hideReviews') : t('profile:showAllReviews')}
                         </button>
                     </div>
                 )}

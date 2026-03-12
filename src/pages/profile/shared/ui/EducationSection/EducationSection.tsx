@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Marquee } from '../../../../../shared/ui/Text/Marquee/Marquee';
+import { Marquee } from '../../../../../shared/ui/Text/Marquee';
 import { EmptyState } from '../../../../../widgets/EmptyState';
 import { Toggle } from '../../../../../shared/ui/Button/Toggle/Toggle';
 import { useDragReorder, DragHandle } from '../../../../../widgets/DragReorder';
@@ -43,6 +43,7 @@ interface EducationSectionProps {
         currentlyStudying: boolean;
     }>>;
     onReorder?: (education: Education[]) => void;
+    onRefresh?: () => void;
 }
 
 export const EducationSection: React.FC<EducationSectionProps> = ({
@@ -60,6 +61,7 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
     onDeleteEducation,
     setEducationForm,
     onReorder,
+    onRefresh,
 }) => {
     const { t } = useTranslation(['profile']);
     const eduDrag = useDragReorder(education, onReorder ?? (() => {}));
@@ -196,7 +198,7 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
                     </>
                 ) : (
                     !editingEducation && (
-                        <EmptyState title={readOnly ? t('profile:noEducation') : t('profile:addEducationInfo')} />
+                        <EmptyState title={readOnly ? t('profile:noEducation') : t('profile:addEducationInfo')} onRefresh={onRefresh} />
                     )
                 )}
 

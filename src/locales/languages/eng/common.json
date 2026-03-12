@@ -69,6 +69,7 @@
     "unknownProvider": "Unknown authorization provider",
     "tokenNotReceived": "Token not received",
     "expiredRequest": "Request expired. Please try again",
-    "insufficientData": "Insufficient data for authorization"
+    "insufficientData": "Insufficient data for authorization",
+    "tryLater": "An error occurred, please try again later"
   }
 }

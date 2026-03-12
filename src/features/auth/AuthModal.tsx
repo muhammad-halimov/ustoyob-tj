@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLanguageChange } from '../../hooks/useLanguageChange';
+import { useLanguageChange } from '../../hooks';
 import styles from './AuthModal.module.scss';
 import {
     getUserRole,
@@ -12,7 +12,8 @@ import {
     setUserOccupation,
 } from '../../utils/auth';
 import { getOccupations } from '../../utils/dataCache.ts';
-import { DateInput } from '../../widgets/DateInput/DateInput';
+import { DateWidget } from '../../widgets/DateWidget/DateWidget.tsx';
+import { Marquee } from '../../shared/ui/Text/Marquee';
 
 const AuthModalState = {
     WELCOME: 'welcome',
@@ -408,7 +409,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 role: formData.role // "master" или "client"
             };
 
-            // Если выбрана роль мастера и есть специальность
+            // Если выбрана роль специалиста и есть специальность
             if (formData.role === 'master' && formData.specialty) {
                 requestData.occupation = `${API_BASE_URL}/api/occupations/${formData.specialty}`;
             }
@@ -539,7 +540,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 requestData.photoUrl = authData.photo_url;
             }
 
-            // Если выбрана роль мастера и есть специальность
+            // Если выбрана роль специалиста и есть специальность
             if (savedRole === 'master' && savedSpecialty) {
                 requestData.occupation = `${API_BASE_URL}/api/occupations/${savedSpecialty}`;
             }
@@ -876,10 +877,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
 
         userData.roles = rolesArray;
 
-        // Добавляем occupation для мастера
+        // Добавляем occupation для специальности специалиста, если выбрана
         if (formData.role === 'master' && formData.specialty) {
             userData.occupation = [`${API_BASE_URL}/api/occupations/${formData.specialty}`];
-            console.log('Adding occupation for master:', userData.occupation);
+            console.log('Adding occupation for specialist:', userData.occupation);
         }
 
         console.log('Sending registration data:', userData);
@@ -1185,7 +1186,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         onClick={() => handleRoleChange('master')}
                         disabled={isLoading}
                     >
-                        {t('auth.iAmSpecialist')}
+                        <Marquee text={t('auth.iAmSpecialist')} />
                     </button>
                     <button
                         type="button"
@@ -1193,7 +1194,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         onClick={() => handleRoleChange('client')}
                         disabled={isLoading}
                     >
-                        {t('auth.iAmClient')}
+                        <Marquee text={t('auth.iAmClient')} />
                     </button>
                 </div>
 
@@ -1288,7 +1289,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         onClick={() => handleRoleChange('master')}
                         disabled={isLoading}
                     >
-                        {t('auth.iAmSpecialist')}
+                        <Marquee text={t('auth.iAmSpecialist')} />
                     </button>
                     <button
                         type="button"
@@ -1296,7 +1297,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         onClick={() => handleRoleChange('client')}
                         disabled={isLoading}
                     >
-                        {t('auth.iAmClient')}
+                        <Marquee text={t('auth.iAmClient')} />
                     </button>
                 </div>
 
@@ -1414,14 +1415,14 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         className={formData.role === 'master' ? styles.roleButtonActive : styles.roleButton}
                         onClick={() => handleRoleChange('master')}
                     >
-                        {t('auth.iAmSpecialist')}
+                        <Marquee text={t('auth.iAmSpecialist')} />
                     </button>
                     <button
                         type="button"
                         className={formData.role === 'client' ? styles.roleButtonActive : styles.roleButton}
                         onClick={() => handleRoleChange('client')}
                     >
-                        {t('auth.iAmClient')}
+                        <Marquee text={t('auth.iAmClient')} />
                     </button>
                 </div>
 
@@ -1451,7 +1452,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 </div>
 
                 <div className={styles.inputGroup}>
-                    <DateInput
+                    <DateWidget
                         name="dateOfBirth"
                         value={formData.dateOfBirth}
                         onChange={(val) => setFormData(prev => ({ ...prev, dateOfBirth: val }))}
@@ -1602,6 +1603,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     {/* Widget будет добавлен динамически */}
                 </div>
 
+                <div className={styles.socialNote}>
+                    <p>{t('auth.socialRegisterNotice')} <strong>{formData.role === 'master' ? t('auth.specialist') : t('auth.client')}</strong></p>
+                </div>
+
                 <div className={styles.links}>
                     <button
                         type="button"
@@ -1707,7 +1712,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         onClick={() => completeTelegramAuth('master')}
                         disabled={isLoading}
                     >
-                        {t('auth.iAmSpecialist')}
+                        <Marquee text={t('auth.iAmSpecialist')} />
                     </button>
                     <button
                         type="button"
@@ -1715,7 +1720,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         onClick={() => completeTelegramAuth('client')}
                         disabled={isLoading}
                     >
-                        {t('auth.iAmClient')}
+                        <Marquee text={t('auth.iAmClient')} />
                     </button>
                 </div>
 

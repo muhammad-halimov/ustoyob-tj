@@ -39,6 +39,7 @@
   "selectRegionRequired": "Please select a region",
   "selectCityRequired": "Please select a city or district",
   "invalidBudget": "Please enter a valid budget amount",
+  "selectUnitRequired": "Please select a unit of measurement",
   "authRequired": "Authentication required",
   "addressError": "Error in address data",
   "genericError": "An error occurred",

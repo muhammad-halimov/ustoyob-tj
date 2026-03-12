@@ -129,6 +129,7 @@ function Profile() {
     const [availableSocialNetworks, setAvailableSocialNetworks] = useState<LocalAvailableSocialNetwork[]>([]);
     const [socialNetworkValidationError, setSocialNetworkValidationError] = useState('');
     const [isGalleryOperating, setIsGalleryOperating] = useState(false);
+    const [isAvatarUploading, setIsAvatarUploading] = useState(false);
 
     // Состояния лайка/избранного на публичном профиле
     const [isProfileLiked, setIsProfileLiked] = useState(false);
@@ -1113,9 +1114,9 @@ function Profile() {
         });
     };
 
-    const fetchUserData = async () => {
+    const fetchUserData = async (silent = false) => {
         try {
-            setIsLoading(true);
+            if (!silent) setIsLoading(true);
             const token = getAuthToken();
             
             // Для приватных профилей требуется токен
@@ -1149,7 +1150,7 @@ function Profile() {
                 const refreshed = await handleUnauthorized();
                 if (refreshed) {
                     // Повторяем запрос
-                    fetchUserData();
+                    fetchUserData(silent);
                 }
                 return;
             }
@@ -1343,12 +1344,20 @@ function Profile() {
                 lastSeen: (userData as any).lastSeen ?? null,
             };
 
-            setProfileData(transformedData);
+            setProfileData(prev => ({
+                ...transformedData,
+                // В тихом режиме сохраняем данные секций, которые не перезагружаются
+                services: silent ? (prev?.services ?? []) : [],
+                workExamples: silent ? (prev?.workExamples ?? []) : [],
+            }));
 
             // Подгружаем услуги и галерею после обновления профиля (нужны переведённые данные)
-            fetchServices();
-            if (role === 'master') {
-                fetchUserGallery();
+            // При тихом обновлении (silent) не трогаем другие секции
+            if (!silent) {
+                fetchServices();
+                if (role === 'master') {
+                    fetchUserGallery();
+                }
             }
 
         } catch (error) {
@@ -1375,7 +1384,7 @@ function Profile() {
                 socialNetworks: []
             });
         } finally {
-            setIsLoading(false);
+            if (!silent) setIsLoading(false);
         }
     };
 
@@ -1555,11 +1564,11 @@ function Profile() {
 
                         const getFullNameParts = (fullName: string) => {
                             if (!fullName) {
-                                return { firstName: 'Мастер', lastName: '' };
+                                return { firstName: 'Специалист', lastName: '' };
                             }
                             const parts = fullName.trim().split(/\s+/);
                             return {
-                                firstName: parts[1] || 'Мастер',
+                                firstName: parts[1] || 'Специалист',
                                 lastName: parts[0] || ''
                             };
                         };
@@ -1577,7 +1586,7 @@ function Profile() {
                         const reviewer = clientData || {
                             id: 0,
                             email: '',
-                            name: 'Клиент',
+                            name: 'Заказчик',
                             surname: '',
                             rating: 0,
                             image: ''
@@ -1602,10 +1611,10 @@ function Profile() {
                             vacation: String(serviceTitle), // Ensure string
                             worker: clientData ?
                                 smartNameTranslator(
-                                    `${clientData.surname || ''} ${clientData.name || 'Клиент'}`.trim(),
+                                    `${clientData.surname || ''} ${clientData.name || 'Заказчик'}`.trim(),
                                     i18n.language as 'ru' | 'tj' | 'eng'
                                 ) :
-                                smartNameTranslator('Клиент', i18n.language as 'ru' | 'tj' | 'eng'),
+                                smartNameTranslator('Заказчик', i18n.language as 'ru' | 'tj' | 'eng'),
                             date: review.createdAt ?
                                 new Date(review.createdAt).toLocaleDateString('ru-RU') :
                                 getFormattedDate()
@@ -1619,8 +1628,8 @@ function Profile() {
                 console.log('All transformed reviews:', transformedReviews);
                 setReviews(transformedReviews);
 
-                // Для мастеров фильтруем по user.id (получатели отзывов)
-                // Для клиентов фильтруем по reviewer.id (оставляющие отзывы) 
+                // Для специалистов фильтруем по user.id (получатели отзывов)
+                // Для заказчиков фильтруем по reviewer.id (оставляющие отзывы) 
                 const userReviews = userRole === 'client' 
                     ? transformedReviews.filter(r => r.reviewer.id === parseInt(profileData.id))
                     : transformedReviews.filter(r => r.user.id === parseInt(profileData.id));
@@ -2269,6 +2278,28 @@ function Profile() {
         }
     };
 
+    const fetchUserAvatar = async () => {
+        try {
+            const token = getAuthToken();
+            if (!token) return;
+            const currentLocale = getStorageItem('i18nextLng') || 'ru';
+            const endpoint = userId
+                ? `${API_BASE_URL}/api/users/${userId}?locale=${currentLocale}`
+                : `${API_BASE_URL}/api/users/me?locale=${currentLocale}`;
+            const response = await fetch(endpoint, {
+                headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+            });
+            if (!response.ok) return;
+            const userData = await response.json();
+            const avatarUrl = (userData.image || userData.imageExternalUrl)
+                ? getAuthorAvatar(userData)
+                : null;
+            setProfileData(prev => prev ? { ...prev, avatar: avatarUrl } : null);
+        } catch (error) {
+            console.error('Error fetching user avatar:', error);
+        }
+    };
+
     const getFormattedDate = (): string => {
         const now = new Date();
         const day = now.getDate().toString().padStart(2, '0');
@@ -2433,7 +2464,8 @@ function Profile() {
 
         } catch (error) {
             console.error('Error updating user data:', error);
-            alert(t('profile:updateError'));
+            setModalMessage(t('profile:updateError'));
+            setShowErrorModal(true);
         }
     };
 
@@ -2746,8 +2778,32 @@ function Profile() {
         setProfileData(prev => prev ? { ...prev, phones: newPhones } : null);
     };
 
-    const handleReorderWorkExamples = (newWorkExamples: { id: string; image: string; title: string }[]) => {
+    const handleReorderWorkExamples = async (newWorkExamples: { id: string; image: string; title: string }[]) => {
         setProfileData(prev => prev ? { ...prev, workExamples: newWorkExamples } : null);
+
+        const token = getAuthToken();
+        if (!token) return;
+
+        try {
+            const gallery = await getUserGallery(token);
+            if (!gallery?.id) return;
+
+            const newOrderIds = newWorkExamples.map(w => w.id);
+            const reordered = newOrderIds
+                .map(id => gallery.images?.find(img => img.id?.toString() === id))
+                .filter(Boolean);
+
+            await fetch(`${API_BASE_URL}/api/galleries/${gallery.id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({ images: reordered.map(img => ({ image: img!.image })) }),
+            });
+        } catch (error) {
+            console.error('Error reordering work examples:', error);
+        }
     };
 
     const handleReorderServices = (newServices: Service[]) => {
@@ -2836,6 +2892,22 @@ function Profile() {
             field === 'specialty' ? profileData.specialty :
             field === 'gender' ? (profileData.gender || '') :
             (profileData.dateOfBirth || '');
+
+        if (field === 'dateOfBirth' && trimmedValue) {
+            const birthDate = new Date(trimmedValue);
+            if (!isNaN(birthDate.getTime())) {
+                const today = new Date();
+                let age = today.getFullYear() - birthDate.getFullYear();
+                const m = today.getMonth() - birthDate.getMonth();
+                if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+                if (age < 18) {
+                    setModalMessage(t('profile:ageMinError'));
+                    setShowErrorModal(true);
+                    return;
+                }
+            }
+        }
+
         if (trimmedValue !== currentValue) {
             await updateUserData({ [field]: trimmedValue } as Partial<ProfileData>);
         }
@@ -2947,8 +3019,6 @@ function Profile() {
             return;
         }
 
-        setIsLoading(true);
-
         try {
             const token = getAuthToken();
             if (!token) {
@@ -2956,6 +3026,7 @@ function Profile() {
                 return;
             }
 
+            setIsAvatarUploading(true);
             const formData = new FormData();
             formData.append("imageFile", file);
 
@@ -2984,14 +3055,15 @@ function Profile() {
                 console.error(`Ошибка при загрузке (${response.status}):`, responseText);
 
                 if (response.status === 400) {
-                    alert(t('profile:badRequest'));
+                    setModalMessage(t('profile:badRequest'));
                 } else if (response.status === 403) {
-                    alert(t('profile:forbidden'));
+                    setModalMessage(t('profile:forbidden'));
                 } else if (response.status === 422) {
-                    alert(t('profile:validationError'));
+                    setModalMessage(t('profile:validationError'));
                 } else {
-                    alert(`${t('profile:uploadError')} (${response.status})`);
+                    setModalMessage(`${t('profile:uploadError')} (${response.status})`);
                 }
+                setShowErrorModal(true);
                 return;
             }
 
@@ -3008,14 +3080,19 @@ function Profile() {
             }
 
             console.log("Фото успешно загружено:", result);
-            await fetchUserData();
-            alert(t('profile:photoUpdated'));
+
+            // Получаем актуальный аватар с сервера — реактивный ре-рендер компонента
+            await fetchUserAvatar();
+
+            setModalMessage(t('profile:photoUpdated'));
+            setShowSuccessModal(true);
 
         } catch (error) {
             console.error("Ошибка при загрузке фото:", error);
-            alert(t('profile:photoUploadError'));
+            setModalMessage(t('profile:photoUploadError'));
+            setShowErrorModal(true);
         } finally {
-            setIsLoading(false);
+            setIsAvatarUploading(false);
             if (fileInputRef.current) fileInputRef.current.value = "";
         }
     };
@@ -3313,6 +3390,7 @@ function Profile() {
                     fileInputRef={fileInputRef}
                     specialtyInputRef={specialtyInputRef}
                     isLoading={isLoading}
+                    isAvatarUploading={isAvatarUploading}
                     readOnly={readOnly}
                     userRole={userRole}
                     isOnline={profileData.isOnline}
@@ -3348,7 +3426,7 @@ function Profile() {
 
                 {/* Секция "О себе" */}
                 <div className={styles.about_section}>
-                    {/* EducationSection Component - только для мастеров */}
+                    {/* EducationSection Component - только для специалистов */}
                     {userRole === 'master' && (
                         <EducationSection
                             education={profileData.education}
@@ -3365,6 +3443,7 @@ function Profile() {
                             onAddEducation={handleAddEducation}
                             setEducationForm={setEducationForm}
                             onReorder={!readOnly ? handleReorderEducation : undefined}
+                            onRefresh={() => fetchUserData(true)}
                         />
                     )}
 
@@ -3382,6 +3461,7 @@ function Profile() {
                         onAddPhone={handleAddPhone}
                         onCopyPhone={handleCopyPhone}
                         onReorder={!readOnly ? handleReorderPhones : undefined}
+                        onRefresh={() => fetchUserData(true)}
                     />
 
                     {/* SocialNetworksSection Component */}
@@ -3408,9 +3488,10 @@ function Profile() {
                         onCopySocialNetwork={handleCopySocialNetwork}
                         renderSocialIcon={renderSocialIcon}
                         getAvailableNetworks={getAvailableNetworks}
+                        onRefresh={() => fetchUserData(true)}
                     />
 
-                    {/* WorkExamplesSection Component - только для мастеров */}
+                    {/* WorkExamplesSection Component - только для специалистов */}
                     {userRole === 'master' && (
                         <WorkExamplesSection
                             workExamples={profileData.workExamples}
@@ -3433,6 +3514,7 @@ function Profile() {
                             getImageUrlWithCacheBust={getImageUrlWithCacheBust}
                             API_BASE_URL={API_BASE_URL}
                             onReorder={!readOnly ? handleReorderWorkExamples : undefined}
+                            onRefresh={fetchUserGallery}
                         />
                     )}
 
@@ -3444,6 +3526,7 @@ function Profile() {
                         userRole={userRole}
                         API_BASE_URL={API_BASE_URL}
                         onReorder={!readOnly ? handleReorderServices : undefined}
+                        onRefresh={fetchServices}
                     />
 
                     {/* WorkAreasSection Component */}
@@ -3462,6 +3545,7 @@ function Profile() {
                         onDeleteAddress={handleDeleteAddress}
                         onCanWorkRemotelyToggle={handleCanWorkRemotelyToggle}
                         onReorder={!readOnly ? handleReorderAddresses : undefined}
+                        onRefresh={() => fetchUserData(true)}
                     />
                 </div>
 
@@ -3480,6 +3564,7 @@ function Profile() {
                     onMasterProfileClick={handleMasterProfileClick}
                     onServiceClick={handleServiceClick}
                     getReviewImageIndex={getReviewImageIndex}
+                    onRefresh={fetchReviews}
                 />
             </div>
 

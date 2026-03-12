@@ -6,7 +6,7 @@ import { ROUTES } from '../../../../../app/routers/routes';
 import { Service } from '../../../../../entities';
 import { useDragReorder, DragHandle } from '../../../../../widgets/DragReorder';
 import styles from './ServicesSection.module.scss';
-import { Marquee } from '../../../../../shared/ui/Text/Marquee/Marquee';
+import { Marquee } from '../../../../../shared/ui/Text/Marquee';
 
 interface ServicesSectionProps {
     services: Service[];
@@ -15,6 +15,7 @@ interface ServicesSectionProps {
     userRole?: 'master' | 'client' | null;
     API_BASE_URL?: string;
     onReorder?: (services: Service[]) => void;
+    onRefresh?: () => void;
 }
 
 export const ServicesSection: React.FC<ServicesSectionProps> = ({
@@ -24,6 +25,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
     userRole = null,
     API_BASE_URL = import.meta.env.VITE_API_BASE_URL,
     onReorder,
+    onRefresh,
 }) => {
     const navigate = useNavigate();
     const { t } = useTranslation(['profile', 'components']);
@@ -166,7 +168,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                     <EmptyState title={readOnly
                         ? (userRole === 'client' ? t('profile:noServicesClient') : t('profile:noServicesMaster'))
                         : (userRole === 'client' ? t('profile:addServicesClient') : t('profile:addServicesMaster'))
-                    } />
+                    } onRefresh={readOnly ? onRefresh : undefined} />
                 )}
                 {!readOnly && (
                     <div className={styles.add_education_container}>

@@ -245,7 +245,7 @@ export const useFavorites = ({ itemId, itemType, onSuccess, onError }: UseFavori
             // Добавляем новый элемент к существующим
             const updateData = {
                 masters: itemType === 'master' ? [...currentFavorites.masters, itemIri] : currentFavorites.masters,
-                clients: currentFavorites.clients, // Сохраняем существующих клиентов
+                clients: currentFavorites.clients, // Сохраняем существующих заказчиков без изменений
                 tickets: itemType === 'ticket' ? [...currentFavorites.tickets, itemIri] : currentFavorites.tickets
             };
 

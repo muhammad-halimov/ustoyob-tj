@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../app/routers/routes';
 import { getAuthToken } from '../../../utils/auth.ts';
 import { getStorageItem } from '../../../utils/storageHelper';
-import { useLanguageChange } from '../../../hooks/useLanguageChange';
+import { useLanguageChange } from '../../../hooks';
 import styles from './MyTickets.module.scss';
 import { PageLoader } from '../../../widgets/PageLoader';
 import { EmptyState } from '../../../widgets/EmptyState';
@@ -260,8 +260,8 @@ function MyTickets() {
                 console.log('My tickets:', myTickets);
 
                 const formattedTickets: FormattedTicket[] = myTickets.map(ticket => {
-                    // Для услуг мастера (service = true) автор - это мастер (user в API)
-                    // Для заказов клиента (service = false) автор - это клиент (author в API)
+                    // Для услуг специалиста (service = true) автор - это специалист (user в API)
+                    // Для заказов заказчика (service = false) автор - это заказчик (author в API)
                     const isService = ticket.service;
                     const authorData = isService ? ticket.master : ticket.author;
                     const authorName = `${authorData?.surname || ''} ${authorData?.name || ''}`.trim() ||
@@ -465,7 +465,7 @@ function MyTickets() {
     };
 
     // const getTicketTypeLabel = (type: 'client' | 'master') => {
-    //     return type === 'master' ? 'Услуга мастера' : 'Заказ клиента';
+    //     return type === 'master' ? 'Услуга специалиста' : 'Заказ от заказчика';
     // };
 
     // Пока загружается currentUser или тикеты - показать загрузку
@@ -527,6 +527,7 @@ function MyTickets() {
                         }
                         actionText={activeTab === 'active' ? t('myTickets:createFirst') : undefined}
                         onAction={activeTab === 'active' ? handleCreateNew : undefined}
+                        onRefresh={fetchMyTickets}
                     />
                 ) : (
                     displayedTickets.map((ticket) => (

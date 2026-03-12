@@ -20,9 +20,9 @@
   "showLess": "Камтар кардан",
   "filters": {
     "onlyServices": "Фақат хизматҳо",
-    "onlyServicesDesc": "Намоиш додани фақат пешниҳодҳои хизматҳо аз устоҳо",
+    "onlyServicesDesc": "Намоиш додани фақат пешниҳодҳои хизматҳо аз мутахассисон",
     "onlyAnnouncements": "Фақат эълонҳо",
-    "onlyAnnouncementsDesc": "Намоиш додани фақат фармоишҳо аз мизоҷон"
+    "onlyAnnouncementsDesc": "Намоиш додани фақат фармоишҳо аз муштариён"
   },
   "sorting": {
     "primarySort": "Тартиби асосӣ:",

@@ -3,7 +3,6 @@
 
 .recommendation {
   @include vars.Container;
-
   margin-bottom: 30px !important;
 
   &__wrap {
@@ -32,10 +31,15 @@
   }
 }
 
+@media (max-width: 1200px) {
+  .recommendation {
+    padding: 0 20px;
+  }
+}
+
 // Адаптивность
 @media (max-width: 768px) {
   .recommendation {
-    padding: 0 20px;
     margin-top: 40px !important;
 
     &__title {

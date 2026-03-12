@@ -8,7 +8,7 @@ import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/Co
 import Status from '../../../shared/ui/Modal/Status';
 import { Preview, usePreview } from '../../../shared/ui/Photo/Preview';
 import { useTranslation } from 'react-i18next';
-import { useLanguageChange } from '../../../hooks/useLanguageChange.ts';
+import { useLanguageChange } from '../../../hooks';
 import { getStorageItem } from '../../../utils/storageHelper.ts';
 import { PageLoader } from '../../../widgets/PageLoader';
 import { Back } from '../../../shared/ui/Button/Back/Back.tsx';
@@ -85,6 +85,7 @@ const CreateEdit = () => {
     });
     const [isLoading, setIsLoading] = useState(isEditMode);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [pendingSubcategoryId, setPendingSubcategoryId] = useState<number | null>(null);
     const [existingImages, setExistingImages] = useState<Array<{ id: number; image: string }>>([]);
     const [newImages, setNewImages] = useState<File[]>([]);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -171,16 +172,23 @@ const CreateEdit = () => {
             );
             filtered.sort((a, b) => (a.priority ?? Infinity) - (b.priority ?? Infinity));
             setFilteredOccupations(filtered);
-            
-            // Сбрасываем выбранную подкатегорию если она не подходит к новой категории
-            if (selectedSubcategory && !filtered.find(occ => occ.id === selectedSubcategory)) {
+
+            // Применяем отложенную подкатегорию (при редактировании occupations грузились позже)
+            if (pendingSubcategoryId !== null) {
+                if (filtered.find(occ => occ.id === pendingSubcategoryId)) {
+                    setSelectedSubcategory(pendingSubcategoryId);
+                }
+                setPendingSubcategoryId(null);
+            } else if (selectedSubcategory && !filtered.find(occ => occ.id === selectedSubcategory)) {
                 setSelectedSubcategory(null);
             }
         } else {
             setFilteredOccupations([]);
-            setSelectedSubcategory(null);
+            if (pendingSubcategoryId === null) {
+                setSelectedSubcategory(null);
+            }
         }
-    }, [selectedCategory, occupations, selectedSubcategory]);
+    }, [selectedCategory, occupations]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Отладка: логирование изменений serviceData
     useEffect(() => {
@@ -298,7 +306,8 @@ const CreateEdit = () => {
             
             setServiceData(formattedData);
             setSelectedCategory(data.category?.id || null);
-            setSelectedSubcategory(data.subcategory?.id || null);
+            // Subcategory stored as pending — will be applied once occupations + category filter is ready
+            setPendingSubcategoryId(data.subcategory?.id || null);
             setSelectedUnit(data.unit?.id || null);
             // Считаем договорной только если negotiableBudget=true И нет реального бюджета.
             // Если budget > 0 — значит цена есть, галочка была записана ошибочно.
@@ -351,10 +360,6 @@ const CreateEdit = () => {
     };
 
     const removeExistingImage = (imageId: number) => {
-        if (!confirm(t('createEdit:photoDeleteConfirm'))) return;
-
-        // Просто обновляем локальное состояние
-        // Изменения будут отправлены при сохранении формы
         setExistingImages(prev => prev.filter(img => img.id !== imageId));
     };
 
@@ -367,16 +372,6 @@ const CreateEdit = () => {
             return;
         }
         
-        if (!selectedCategory) {
-            alert(t('createEdit:selectCategoryRequired'));
-            return;
-        }
-
-        if (filteredOccupations.length > 0 && !selectedSubcategory) {
-            alert(t('createEdit:selectSubcategoryRequired'));
-            return;
-        }
-
         if (!addressValue.provinceId) {
             alert(t('createEdit:selectRegionRequired'));
             return;
@@ -387,7 +382,7 @@ const CreateEdit = () => {
             return;
         }
 
-        const budgetValue = negotiableBudget ? 0 : Number(serviceData.budget);
+        const budgetValue = negotiableBudget ? 0 : parseInt(serviceData.budget, 10);
         if (!negotiableBudget && (isNaN(budgetValue) || budgetValue <= 0)) {
             alert(t('createEdit:invalidBudget'));
             return;
@@ -505,7 +500,7 @@ const CreateEdit = () => {
                     subcategory: selectedSubcategory ? `/api/occupations/${selectedSubcategory}` : null,
                     unit: selectedUnit ? `/api/units/${selectedUnit}` : null,
                     address: addressData,
-                    images: existingImages.map(img => ({ image: img.image }))
+                    images: existingImages.map(img => ({ id: img.id, image: img.image }))
                 };
 
                 const response = await fetch(`${API_BASE_URL}/api/tickets/${serviceData.id}`, {
@@ -585,7 +580,13 @@ const CreateEdit = () => {
                 <h1>{isEditMode ? t('createEdit:editTitle') : t('createEdit:createTitle')}</h1>
             </div>
 
-            <form onSubmit={handleSubmit} className={styles.form}>
+            <div className={styles.formWrapper}>
+            {isSubmitting && (
+                <div className={styles.formOverlay}>
+                    <div className={styles.overlaySpinner} />
+                </div>
+            )}
+            <form onSubmit={handleSubmit} className={styles.form} style={isSubmitting ? { visibility: 'hidden' } : undefined}>
                 {/* Название услуги */}
                 <div className={styles.section}>
                     <h2>{t('createEdit:serviceNameLabel')}</h2>
@@ -610,7 +611,6 @@ const CreateEdit = () => {
                             value={selectedCategory || ''}
                             onChange={(e) => setSelectedCategory(Number(e.target.value))}
                             className={styles.categorySelect}
-                            required
                         >
                             <option value="">{t('createEdit:selectCategory')}</option>
                             {categories.map(category => (
@@ -664,8 +664,8 @@ const CreateEdit = () => {
                                 label={t('createEdit:negotiablePrice')}
                             />
                         </div>
-                        <div className={`${styles.budgetRow} ${negotiableBudget ? styles.budgetRowDisabled : ''}`}>
-                            <div className={styles.budgetField}>
+                        <div className={styles.budgetRow}>
+                            <div className={`${styles.budgetField} ${negotiableBudget ? styles.budgetFieldDisabled : ''}`}>
                                 <input
                                     type="number"
                                     name="budget"
@@ -678,7 +678,7 @@ const CreateEdit = () => {
                                     required={!negotiableBudget}
                                 />
                             </div>
-                            <div className={styles.budgetField}>
+                            <div className={`${styles.budgetField} ${negotiableBudget ? styles.budgetFieldDisabled : ''}`}>
                                 <select
                                     className={styles.unitSelect}
                                     value={selectedUnit || ''}
@@ -699,82 +699,79 @@ const CreateEdit = () => {
 
                 {/* Фотографии */}
                 <div className={styles.section}>
-                    <h2>Фотографии</h2>
-                    <div className={styles.photoSection}>
+                    <h2>{t('createEdit:attachPhotos')}</h2>
+                    <div className={styles.photoGrid}>
                         {/* Существующие фото - только в режиме редактирования */}
-                        {isEditMode && existingImages.length > 0 && (
-                            <div className={styles.existingPhotos}>
-                                <h4>Существующие фото</h4>
-                                <div className={styles.existingPhotoGrid}>
-                                    {existingImages.map((img, index) => (
-                                        <div
-                                            key={img.id}
-                                            className={`${styles.existingPhotoItem} ${existingDrag.draggingIndex === index ? styles.photoItemDragging : ''}`}
-                                            {...existingDrag.getDragProps(index)}
-                                        >
-                                            <DragHandle />
-                                            <img
-                                                src={getImageUrl(img.image)}
-                                                alt={`${t('createEdit:photoAlt')} ${index + 1}`}
-                                                className={styles.existingPhoto}
-                                                onClick={() => photoGallery.openGallery(index)}
-                                                style={{ cursor: 'grab' }}
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => removeExistingImage(img.id)}
-                                                className={styles.removePhotoButton}
-                                            >
-                                                ×
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Загрузка новых фото */}
-                        <div className={styles.newPhotoSection}>
-                            <h4>{isEditMode ? t('createEdit:addNewPhotos') : t('createEdit:attachPhotos')}</h4>
-                            <div className={styles.photoUpload}>
-                                <input
-                                    type="file"
-                                    multiple
-                                    accept="image/*"
-                                    onChange={handleImageUpload}
-                                    className={styles.fileInput}
-                                    id="photo-upload"
+                        {isEditMode && existingImages.map((img, index) => (
+                            <div
+                                key={img.id}
+                                className={`${styles.photoItem} ${existingDrag.draggingIndex === index ? styles.photoItemDragging : ''} ${existingDrag.dragOverIndex === index ? styles.photoItemDragOver : ''}`}
+                                onDragEnter={() => existingDrag.handleDragEnter(index)}
+                                onDragOver={(e) => e.preventDefault()}
+                            >
+                                <DragHandle
+                                    className={styles.dragHandleOverlay}
+                                    draggable
+                                    onDragStart={() => existingDrag.handleDragStart(index)}
+                                    onDragEnd={() => existingDrag.handleDragEnd()}
                                 />
-                                <label htmlFor="photo-upload" className={styles.uploadLabel}>
-                                    <span className={styles.plusIcon}>+</span>
-                                </label>
-
-                                {newImages.length > 0 && (
-                                    <div className={styles.newPhotoPreview}>
-                                        {newImages.map((image, index) => (
-                                            <div
-                                                key={index}
-                                                className={`${styles.newPhotoItem} ${newDrag.draggingIndex === index ? styles.photoItemDragging : ''}`}
-                                                {...newDrag.getDragProps(index)}
-                                            >
-                                                <DragHandle />
-                                                <img
-                                                    src={URL.createObjectURL(image)}
-                                                    alt={`${t('createEdit:newPhotoAlt')} ${index + 1}`}
-                                                    style={{ cursor: 'grab' }}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeNewImage(index)}
-                                                    className={styles.removePhotoButton}
-                                                >
-                                                    ×
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                                <img
+                                    src={getImageUrl(img.image)}
+                                    alt={`${t('createEdit:photoAlt')} ${index + 1}`}
+                                    onClick={() => photoGallery.openGallery(index)}
+                                    style={{ cursor: 'pointer' }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => removeExistingImage(img.id)}
+                                    className={styles.removePhotoButton}
+                                >
+                                    ×
+                                </button>
                             </div>
+                        ))}
+
+                        {/* Новые фото */}
+                        {newImages.map((image, index) => (
+                            <div
+                                key={`new-${index}`}
+                                className={`${styles.photoItem} ${newDrag.draggingIndex === index ? styles.photoItemDragging : ''} ${newDrag.dragOverIndex === index ? styles.photoItemDragOver : ''}`}
+                                onDragEnter={() => newDrag.handleDragEnter(index)}
+                                onDragOver={(e) => e.preventDefault()}
+                            >
+                                <DragHandle
+                                    className={styles.dragHandleOverlay}
+                                    draggable
+                                    onDragStart={() => newDrag.handleDragStart(index)}
+                                    onDragEnd={() => newDrag.handleDragEnd()}
+                                />
+                                <img
+                                    src={URL.createObjectURL(image)}
+                                    alt={`${t('createEdit:newPhotoAlt')} ${index + 1}`}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => removeNewImage(index)}
+                                    className={styles.removePhotoButton}
+                                >
+                                    ×
+                                </button>
+                            </div>
+                        ))}
+
+                        {/* Кнопка добавления */}
+                        <div className={styles.photoAddBtn}>
+                            <input
+                                type="file"
+                                multiple
+                                accept="image/*"
+                                onChange={handleImageUpload}
+                                className={styles.fileInput}
+                                id="photo-upload"
+                            />
+                            <label htmlFor="photo-upload" className={styles.uploadLabel}>
+                                <span className={styles.plusIcon}>+</span>
+                            </label>
                         </div>
                     </div>
                 </div>
@@ -825,7 +822,7 @@ const CreateEdit = () => {
                         <button
                             type="button"
                             className={styles.cancelButton}
-                            onClick={() => navigate(ROUTES.PROFILE)}
+                            onClick={() => navigate(ROUTES.MY_TICKETS)}
                             disabled={isSubmitting}
                         >
                             {t('createEdit:cancel')}
@@ -843,6 +840,7 @@ const CreateEdit = () => {
                     </button>
                 </div>
             </form>
+            </div>
 
             <Status
                 type="success"

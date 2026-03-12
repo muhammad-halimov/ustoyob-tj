@@ -449,6 +449,37 @@
   }
 }
 
+// Tablet adaptation (481px – 1024px)
+@media (max-width: 1024px) {
+  .card {
+    &_header .card_title {
+      font-size: 26px;
+    }
+
+    &_description {
+      font-size: 20px;
+    }
+
+    &_details {
+      span {
+        font-size: 20px;
+      }
+    }
+
+    &_author {
+      font-size: 20px;
+    }
+
+    &_timeAgo {
+      font-size: 20px;
+    }
+
+    &_price {
+      font-size: 18px;
+    }
+  }
+}
+
 // Адаптивность
 @media (max-width: 768px) {
   .card {

@@ -10,8 +10,8 @@
   "viewAll": "Посмотреть все",
   "showLess": "Свернуть",
   "byCategory": "По категории",
-  "masterServices": "Услуги мастеров",
-  "clientOrders": "Заказы клиентов",
+  "masterServices": "Услуги специалистов",
+  "clientOrders": "Заказы от заказчиков",
   "allAds": "Все объявления",
   "notSelected": "Категория не выбрана",
   "errorTitle": "Ошибка",
@@ -20,9 +20,9 @@
   "refresh": "Обновить",
   "filters": {
     "onlyServices": "Только услуги",
-    "onlyServicesDesc": "Показать только предложения услуг от мастеров",
+    "onlyServicesDesc": "Показать только предложения услуг от специалистов",
     "onlyAnnouncements": "Только объявления",
-    "onlyAnnouncementsDesc": "Показать только заказы от клиентов"
+    "onlyAnnouncementsDesc": "Показать только заказы от заказчиков"
   },
   "sorting": {
     "primarySort": "Основная сортировка:",

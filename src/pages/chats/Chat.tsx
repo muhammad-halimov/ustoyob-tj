@@ -232,7 +232,7 @@ function Chat() {
         if (selectedChat) {
             console.log('Starting SSE for chat:', selectedChat);
             startSSE(selectedChat);
-            if (window.innerWidth <= 480) {
+            if (window.innerWidth <= 960) {
                 setIsMobileChatActive(true);
             }
         } else {
@@ -882,7 +882,7 @@ function Chat() {
 
         const handleResize = () => {
             // Когда открывается клавиатура, прокручиваем к последнему сообщению
-            if (window.innerWidth <= 480 && selectedChat) {
+            if (window.innerWidth <= 960 && selectedChat) {
                 // Небольшая задержка чтобы DOM успел обновиться
                 setTimeout(() => {
                     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -1214,7 +1214,7 @@ function Chat() {
     const handleChatSelect = useCallback((chatId: number) => {
         console.log('Selecting chat:', chatId);
         setSelectedChat(chatId);
-        if (window.innerWidth <= 480) {
+        if (window.innerWidth <= 960) {
             setIsMobileChatActive(true);
         }
     }, []);
@@ -1306,6 +1306,7 @@ function Chat() {
                             title={searchQuery ? t('chat.noChatsFound') :
                                 activeTab === "active" ? t('chat.noActiveChats') :
                                     t('chat.noArchivedChats')}
+                            onRefresh={() => fetchChats()}
                         />
                     ) : (
                         filteredChats.map(chat => {

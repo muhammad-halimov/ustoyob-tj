@@ -84,7 +84,7 @@ import { ticketTranslator } from '../utils/textHelper';
 
 // Перевод текста
 const translatedText = await ticketTranslator(
-    'Требуется мастер для ремонта',
+    'Требуется специалист для ремонта',
     'ru',
     'eng'
 );
@@ -97,7 +97,7 @@ import { ticketTranslatorSync } from '../utils/textHelper';
 
 // Получить перевод из кэша (если есть)
 const cachedTranslation = ticketTranslatorSync(
-    'Требуется мастер для ремонта',
+    'Требуется специалист для ремонта',
     'ru',
     'eng'
 );
@@ -241,13 +241,13 @@ const getTranslatedFullName = useCallback((user: ApiUser): string => {
 
 ### MainReviewsSection & Ticket
 ```typescript
-// Функция для получения имени клиента с транслитерацией
+// Функция для получения имени заказчика с транслитерацией
 const getClientName = (review: any): string => {
     const client = review.client;
-    if (!client) return 'Клиент';
+    if (!client) return 'Заказчик';
     
     if (!client.name && !client.surname) {
-        return client.login || 'Клиент';
+        return client.login || 'Заказчик';
     }
     
     const currentLang = i18n.language as 'ru' | 'tj' | 'eng';

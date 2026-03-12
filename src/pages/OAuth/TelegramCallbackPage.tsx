@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../app/routers/routes';
+import Status from '../../shared/ui/Modal/Status';
 import { useTheme } from '../../contexts';
 import { useTranslation } from 'react-i18next';
 import {
@@ -99,7 +100,7 @@ const TelegramCallbackPage = () => {
                 };
 
                 // Примечание: хэш должен быть валидирован на сервере!
-                // Клиент не должен хранить BOT_TOKEN для валидации хэша
+                // Заказчик не должен хранить BOT_TOKEN для валидации хэша
 
                 // Получаем сохраненную роль из sessionStorage
                 const savedRole = sessionStorage.getItem('pendingTelegramRole') || 'client';
@@ -216,6 +217,7 @@ const TelegramCallbackPage = () => {
 
     if (loading) {
         return (
+            <>
             <div style={{
                 display: 'flex',
                 justifyContent: 'center',
@@ -245,63 +247,24 @@ const TelegramCallbackPage = () => {
                     }
                 `}</style>
             </div>
+            <Status
+                type="error"
+                isOpen={!!error}
+                onClose={() => navigate(ROUTES.HOME)}
+                message={t('oauth.tryLater')}
+            />
+        </>
         );
     }
 
-    if (error) {
-        return (
-            <div style={{
-                padding: '40px 20px',
-                textAlign: 'center',
-                maxWidth: '600px',
-                margin: '50px auto',
-                backgroundColor: isDark ? '#2A2A2A' : '#fff',
-                borderRadius: '12px',
-                boxShadow: isDark ? '0 4px 20px rgba(0,0,0,0.4)' : '0 4px 20px rgba(0,0,0,0.1)'
-            }}>
-                <div style={{
-                    width: '80px',
-                    height: '80px',
-                    backgroundColor: isDark ? '#3D1F1F' : '#ffebee',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto 20px',
-                    fontSize: '36px',
-                    color: '#d32f2f'
-                }}>
-                    ✕
-                </div>
-                <h2 style={{ color: '#d32f2f', marginBottom: '15px' }}>{t('oauth.errorTitle')}</h2>
-                <p style={{
-                    marginBottom: '25px',
-                    fontSize: '16px',
-                    color: isDark ? '#C5C5C5' : '#424242',
-                    lineHeight: '1.5'
-                }}>
-                    {error}
-                </p>
-                <button
-                    onClick={() => navigate(ROUTES.HOME)}
-                    style={{
-                        padding: '12px 24px',
-                        backgroundColor: '#0088cc',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontSize: '16px',
-                        fontWeight: '500'
-                    }}
-                >
-                    {t('oauth.backToHome')}
-                </button>
-            </div>
-        );
-    }
-
-    return null;
+    return (
+        <Status
+            type="error"
+            isOpen={!!error}
+            onClose={() => navigate(ROUTES.HOME)}
+            message={t('oauth.tryLater')}
+        />
+    );
 };
 
 export default TelegramCallbackPage;

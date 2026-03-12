@@ -217,10 +217,10 @@ function Recommendations() {
 
     const getAuthorName = (announcement: Announcement): string => {
         if (announcement.service && announcement.master) {
-            return `${announcement.master.surname || ''} ${announcement.master.name || ''}`.trim() || 'Мастер';
+            return `${announcement.master.surname || ''} ${announcement.master.name || ''}`.trim() || 'Специалист';
         }
         if (!announcement.service && announcement.author) {
-            return `${announcement.author.surname || ''} ${announcement.author.name || ''}`.trim() || 'Клиент';
+            return `${announcement.author.surname || ''} ${announcement.author.name || ''}`.trim() || 'Заказчик';
         }
         return 'Автор';
     };

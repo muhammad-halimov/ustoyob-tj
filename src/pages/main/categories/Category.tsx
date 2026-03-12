@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from '../../../app/routers/routes.ts';
 import { useTranslation } from 'react-i18next';
-import { useLanguageChange } from '../../../hooks/useLanguageChange.ts';
+import { useLanguageChange } from '../../../hooks';
 import { PageLoader } from '../../../widgets/PageLoader';
+import { EmptyState } from '../../../widgets/EmptyState';
 
 interface CategoryItem {
     id: number;
@@ -58,7 +59,7 @@ export default function Category() {
 
             setCategories(formattedData);
             // Cache for category tickets page title
-            try { sessionStorage.setItem('categories-list', JSON.stringify(formattedData)); } catch {}
+            try { sessionStorage.setItem('categories-list', JSON.stringify(formattedData)); } catch { /* empty */ }
         } catch (error) {
             console.error("Ошибка при загрузке категорий:", error);
             setCategories([]); // Устанавливаем пустой массив при ошибке
@@ -111,10 +112,10 @@ export default function Category() {
         if (!searchQuery.trim()) {
             return categories;
         }
-        
+
         const searchLower = searchQuery.toLowerCase().trim();
-        return categories.filter(category => 
-            category.title.toLowerCase().includes(searchLower) || 
+        return categories.filter(category =>
+            category.title.toLowerCase().includes(searchLower) ||
             (category.description && category.description.toLowerCase().includes(searchLower))
         );
     };
@@ -134,9 +135,7 @@ export default function Category() {
         return (
             <div className={styles.category}>
                 <h3>{t('category:title', 'Категории')}</h3>
-                <div className={styles.noCategories}>
-                    <p>{t('category:noCategories', 'Нет доступных категорий')}</p>
-                </div>
+                <EmptyState title={t('category:noCategories', 'Нет доступных категорий')} />
             </div>
         );
     }
@@ -144,12 +143,12 @@ export default function Category() {
     // Определяем какие категории показывать
     const getVisibleCategories = () => {
         const filteredCategories = getFilteredCategories();
-        
+
         // Если есть поиск, показываем все результаты
         if (searchQuery.trim()) {
             return filteredCategories;
         }
-        
+
         if (showAll) {
             return filteredCategories;
         }
@@ -197,7 +196,7 @@ export default function Category() {
     return (
         <div className={styles.category}>
             <h3>{t('category:title', 'Категории')}</h3>
-            
+
             {/* Поле поиска */}
             <div className={styles.category_search}>
                 <div className={styles.search_input_wrapper}>
@@ -212,7 +211,7 @@ export default function Category() {
                         onChange={(e) => handleSearch(e.target.value)}
                     />
                     {searchQuery && (
-                        <button 
+                        <button
                             className={styles.clear_search}
                             onClick={() => handleSearch('')}
                             aria-label="Очистить поиск"
@@ -264,7 +263,12 @@ export default function Category() {
             {shouldShowViewAll && (
                 <div className={styles.category_btn_center}>
                     <AdBtn
-                        text={t('category:viewAll', 'Посмотреть все')} // Передаем переведенный текст
+                        text={t('category:viewAll', 'Посмотреть все')}
+                        icon={
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                        }
                         alwaysVisible={true}
                         onClick={handleViewAll}
                     />
@@ -275,7 +279,12 @@ export default function Category() {
             {shouldShowShowLess && (
                 <div className={styles.category_btn_center}>
                     <AdBtn
-                        text={t('category:showLess', 'Свернуть')} // Передаем переведенный текст
+                        text={t('category:showLess', 'Свернуть')}
+                        icon={
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                <path d="M18 15l-6-6-6 6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                        }
                         alwaysVisible={true}
                         onClick={handleShowLess}
                     />

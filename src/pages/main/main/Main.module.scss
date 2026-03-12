@@ -87,7 +87,7 @@
     border-radius: 20px;
     display: flex;
     flex-direction: row;
-    align-items: center;
+    align-items: stretch;
     overflow: hidden;
     box-sizing: border-box;
 
@@ -115,7 +115,6 @@
 
     img {
       width: 255px;
-      height: 305px;
       border-radius: 20px;
       object-fit: cover;
       margin-left: 15px;
@@ -199,13 +198,42 @@
   gap: 27px;
 }
 
+/* Tablet padding starts at 1200px */
+@media screen and (max-width: 1200px) {
+  .performers_orders {
+    .performers_orders_welcome {
+      min-width: 100%;
+    }
+  }
+
+  .searchResults {
+    padding: 0 20px;
+  }
+
+  .performersDesktop {
+    padding: 0 20px;
+  }
+
+  .searchMasters {
+    padding: 0 20px;
+  }
+}
+
+/* Tablet: 1024px and below */
+@media screen and (max-width: 1024px) {
+  .desktopGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+}
+
 /* мобильный слайдер скрыт на ПК */
 .mobileSlider {
   display: none;
 }
 
 /* Desktop: показываем горизонтальный layout */
-@media screen and (min-width: 769px) {
+@media screen and (min-width: 1201px) {
   .performersDesktop {
     display: flex !important;
   }
@@ -216,7 +244,7 @@
 }
 
 /* Mobile/Tablet: показываем слайдер */
-@media screen and (max-width: 768px){
+@media screen and (max-width: 1200px){
   .performersDesktop {
     display: none !important; // Hide desktop version on mobile
   }

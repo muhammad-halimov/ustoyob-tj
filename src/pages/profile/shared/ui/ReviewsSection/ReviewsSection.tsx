@@ -4,7 +4,7 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 import { Preview, usePreview } from '../../../../../shared/ui/Photo/Preview';
 import { ReadMore } from '../../../../../widgets/ReadMore';
 import { EmptyState } from '../../../../../widgets/EmptyState';
-import { Marquee } from '../../../../../shared/ui/Text/Marquee/Marquee';
+import { Marquee } from '../../../../../shared/ui/Text/Marquee';
 import { Review } from '../../../../../entities';
 import styles from './ReviewsSection.module.scss';
 import { getAuthorAvatar } from '../../../../../utils/imageHelper';
@@ -30,6 +30,7 @@ interface ReviewsSectionProps {
     onMasterProfileClick?: (masterId: number) => void;
     onServiceClick?: (ticketId: number) => void;
     getReviewImageIndex: (reviewIndex: number, imageIndex: number) => number;
+    onRefresh?: () => void;
 }
 
 export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
@@ -37,7 +38,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
     reviewsLoading,
     visibleCount,
     API_BASE_URL,
-    userRole = 'master', // По умолчанию мастер
+    userRole = 'master', // По умолчанию специалист
     onShowMore,
     onShowLess,
     maxLength = 150,
@@ -47,45 +48,46 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
     onMasterProfileClick,
     onServiceClick,
     getReviewImageIndex,
+    onRefresh,
 }) => {
     const { t } = useTranslation(['profile']);
     // ЛОГИКА ОТЗЫВОВ (зависит от типа профиля):
-    // Профиль МАСТЕРА:
-    //   - reviewer (верхнее с аватаркой) = КЛИЕНТ (автор отзыва)
-    //   - worker (нижнее) = МАСТЕР (исполнитель работы)
-    // Профиль КЛИЕНТА:
-    //   - reviewer (верхнее с аватаркой) = МАСТЕР (о ком отзыв)
-    //   - worker (нижнее) = КЛИЕНТ (кто написал отзыв)
+    // Профиль СПЕЦИАЛИСТА:
+    //   - reviewer (верхнее с аватаркой) = ЗАКАЗЧИК (автор отзыва)
+    //   - worker (нижнее) = СПЕЦИАЛИСТ (исполнитель работы)
+    // Профиль ЗАКАЗЧИКА:
+    //   - reviewer (верхнее с аватаркой) = СПЕЦИАЛИСТ (о ком отзыв)
+    //   - worker (нижнее) = ЗАКАЗЧИК (кто написал отзыв)
     
     // Аватарка и имя автора отзыва (верхнее)
     const getReviewAuthorAvatar = (review: Review) => {
         if (userRole === 'master') {
-            // Профиль мастера - показываем клиента
+            // Профиль специалиста - показываем заказчика
             return getAuthorAvatar(review.reviewer);
         } else {
-            // Профиль клиента - показываем мастера
+            // Профиль заказчика - показываем специалиста
             return getAuthorAvatar(review.user);
         }
     };
 
     const getReviewAuthorName = (review: Review) => {
         if (userRole === 'master') {
-            // Профиль мастера - показываем клиента
+            // Профиль специалиста - показываем заказчика
             return getClientName(review);
         } else {
-            // Профиль клиента - показываем мастера
+            // Профиль заказчика - показываем специалиста
             return getMasterName(review);
         }
     };
 
     const handleAuthorClick = (review: Review) => {
         if (userRole === 'master') {
-            // Кликаем на клиента
+            // Кликаем на заказчика
             if (review.reviewer?.id) {
                 onClientProfileClick(review.reviewer.id);
             }
         } else {
-            // Кликаем на мастера
+            // Кликаем на специалиста
             if (onMasterProfileClick && review.user?.id) {
                 onMasterProfileClick(review.user.id);
             }
@@ -95,22 +97,22 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
     // Worker (нижнее)
     const getWorkerName = (review: Review) => {
         if (userRole === 'master') {
-            // Профиль мастера - показываем мастера (исполнитель)
+            // Профиль специалиста - показываем специалиста (исполнитель)
             return getMasterName(review);
         } else {
-            // Профиль клиента - показываем клиента (автор отзыва)
+            // Профиль заказчика - показываем заказчика (автор отзыва)
             return getClientName(review);
         }
     };
 
     const handleWorkerClick = (review: Review) => {
         if (userRole === 'master') {
-            // Кликаем на мастера
+            // Кликаем на специалиста
             if (onMasterProfileClick && review.user?.id) {
                 onMasterProfileClick(review.user.id);
             }
         } else {
-            // Кликаем на клиента
+            // Кликаем на заказчика
             if (review.reviewer?.id) {
                 onClientProfileClick(review.reviewer.id);
             }
@@ -549,7 +551,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                         </div>
                     </>
                 ) : (
-                    <EmptyState title={t('profile:noReviews')} />
+                    <EmptyState title={t('profile:noReviews')} onRefresh={onRefresh} />
                 )}
             </div>
 

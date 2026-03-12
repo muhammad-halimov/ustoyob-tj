@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './Preview.module.scss';
 
@@ -59,6 +59,29 @@ export const Preview: React.FC<PhotoGalleryProps> = ({
         };
     }, [isOpen]);
 
+    // Touch tracking для миниатюр — не открывать при скролле
+    const thumbTouchStart = useRef<{ x: number; y: number } | null>(null);
+    const thumbScrolled = useRef(false);
+
+    const handleThumbTouchStart = (e: React.TouchEvent) => {
+        thumbTouchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        thumbScrolled.current = false;
+    };
+
+    const handleThumbTouchMove = (e: React.TouchEvent) => {
+        if (!thumbTouchStart.current) return;
+        const dx = Math.abs(e.touches[0].clientX - thumbTouchStart.current.x);
+        const dy = Math.abs(e.touches[0].clientY - thumbTouchStart.current.y);
+        if (dx > 6 || dy > 6) thumbScrolled.current = true;
+    };
+
+    const handleThumbTouchEnd = (e: React.TouchEvent, index: number) => {
+        if (thumbScrolled.current) return;
+        e.preventDefault(); // suppress the synthetic click the browser fires after touchend
+        e.stopPropagation();
+        onSelectImage(index);
+    };
+
     if (!isOpen || images.length === 0) {
         return null;
     }
@@ -69,10 +92,10 @@ export const Preview: React.FC<PhotoGalleryProps> = ({
 
     const modalContent = (
         <div className={styles.photo_modal_overlay} onClick={onClose}>
-            <div className={styles.photo_modal_content} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.photo_modal_content}>
                 <button
                     className={styles.photo_modal_close}
-                    onClick={onClose}
+                    onClick={(e) => { e.stopPropagation(); onClose(); }}
                     aria-label="Закрыть"
                 >
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -85,7 +108,7 @@ export const Preview: React.FC<PhotoGalleryProps> = ({
                     {images.length > 1 && (
                         <button
                             className={styles.photo_modal_nav}
-                            onClick={onPrevious}
+                            onClick={(e) => { e.stopPropagation(); onPrevious(); }}
                             aria-label="Предыдущее фото"
                         >
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -99,6 +122,7 @@ export const Preview: React.FC<PhotoGalleryProps> = ({
                             src={images[currentIndex]}
                             alt={`Фото ${currentIndex + 1}`}
                             className={styles.photo_modal_image}
+                            onClick={(e) => e.stopPropagation()}
                             onError={handleImageError}
                         />
                     </div>
@@ -106,7 +130,7 @@ export const Preview: React.FC<PhotoGalleryProps> = ({
                     {images.length > 1 && (
                         <button
                             className={styles.photo_modal_nav}
-                            onClick={onNext}
+                            onClick={(e) => { e.stopPropagation(); onNext(); }}
                             aria-label="Следующее фото"
                         >
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -129,7 +153,10 @@ export const Preview: React.FC<PhotoGalleryProps> = ({
                                     src={image}
                                     alt={`Миниатюра ${index + 1}`}
                                     className={`${styles.photo_modal_thumbnail} ${index === currentIndex ? styles.active : ''}`}
-                                    onClick={() => onSelectImage(index)}
+                                    onTouchStart={handleThumbTouchStart}
+                                    onTouchMove={handleThumbTouchMove}
+                                    onTouchEnd={(e) => handleThumbTouchEnd(e, index)}
+                                    onClick={(e) => { e.stopPropagation(); onSelectImage(index); }}
                                     onError={handleImageError}
                                 />
                             ))}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Marquee } from '../../../../../shared/ui/Text/Marquee/Marquee';
+import { Marquee } from '../../../../../shared/ui/Text/Marquee';
 import Address from '../../../../../shared/ui/Address/Selector/Address.tsx';
 import { EmptyState } from '../../../../../widgets/EmptyState';
 import { AddressValue } from '../../../../../entities';
@@ -29,6 +29,7 @@ interface WorkAreasSectionProps {
     onDeleteAddress: (addressId: string) => Promise<void>;
     onCanWorkRemotelyToggle: () => Promise<void>;
     onReorder?: (addresses: Address[]) => void;
+    onRefresh?: () => void;
 }
 
 export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
@@ -46,6 +47,7 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
     onDeleteAddress,
     onCanWorkRemotelyToggle,
     onReorder,
+    onRefresh,
 }) => {
     const { t } = useTranslation(['profile']);
     const areaDrag = useDragReorder(addresses, onReorder ?? (() => {}));
@@ -53,7 +55,7 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
         <div className={styles.section_item}>
             <h3>{userRole === 'client' ? t('profile:workAreasTitleClient') : t('profile:workAreasTitle')}</h3>
 
-            {/* Переключатель удаленной работы - только для мастеров */}
+            {/* Переключатель удаленной работы - только для специалистов */}
             {userRole === 'master' && (
                 <div className={styles.remote_work}>
                     <div className={styles.switch_container}>
@@ -128,7 +130,7 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
                         </div>
                     ))
                 ) : (
-                    <EmptyState title={readOnly ? t('profile:noWorkAreas') : t('profile:addWorkArea')} />
+                    <EmptyState title={readOnly ? t('profile:noWorkAreas') : t('profile:addWorkArea')} onRefresh={onRefresh} />
                 )}
 
                 {/* Кнопка добавления нового адреса */}
