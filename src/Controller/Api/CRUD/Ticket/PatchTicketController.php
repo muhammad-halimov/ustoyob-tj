@@ -196,22 +196,31 @@ class PatchTicketController extends AbstractController
         }
 
         if (is_array($imagesParam)) {
-            // Очищаем старые изображения (toArray() чтобы не мутировать коллекцию во время итерации)
+            $incomingNames = array_filter(array_column($imagesParam, 'image'));
+
+            // Удаляем только те записи, которых нет в новом списке (Vich удалит их файлы)
             foreach ($ticketEntity->getUserTicketImages()->toArray() as $oldImage) {
-                $ticketEntity->removeUserTicketImage($oldImage);
-                $this->entityManager->remove($oldImage);
+                if (!in_array($oldImage->getImage(), $incomingNames, true)) {
+                    $ticketEntity->removeUserTicketImage($oldImage);
+                    $this->entityManager->remove($oldImage);
+                }
             }
 
-            // Добавляем новые
+            // Добавляем только те, которых ещё нет в коллекции
+            $existingNames = $ticketEntity->getUserTicketImages()
+                ->map(fn(TicketImage $img) => $img->getImage())
+                ->toArray();
+
             foreach ($imagesParam as $imageData) {
-                if (!isset($imageData['image']) || !$imageData['image']) {
+                if (empty($imageData['image'])) {
                     return $this->json(['message' => 'Image filename is required'], 400);
                 }
-
-                $ticketImage = new TicketImage();
-                $ticketImage->setImage($imageData['image']);
-                $ticketEntity->addUserTicketImage($ticketImage);
-                $this->entityManager->persist($ticketImage);
+                if (!in_array($imageData['image'], $existingNames, true)) {
+                    $ticketImage = new TicketImage();
+                    $ticketImage->setImage($imageData['image']);
+                    $ticketEntity->addUserTicketImage($ticketImage);
+                    $this->entityManager->persist($ticketImage);
+                }
             }
         }
 
