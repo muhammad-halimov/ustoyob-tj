@@ -71,13 +71,19 @@ class PatchTicketController extends AbstractController
 
         // Извлечение Category и Unit
         /** @var Category $category */
-        $category = $categoryParam ? $this->extractIriService->extract($categoryParam, Category::class, 'categories') : $ticketEntity->getCategory();
+        $category = $categoryParam
+            ? $this->extractIriService->extract($categoryParam, Category::class, 'categories')
+            : $ticketEntity->getCategory();
 
         /** @var Unit $unit */
-        $unit = $unitParam ? $this->extractIriService->extract($unitParam, Unit::class, 'units') : $ticketEntity->getUnit();
+        $unit = $unitParam
+            ? $this->extractIriService->extract($unitParam, Unit::class, 'units')
+            : $ticketEntity->getUnit();
 
         /** @var Occupation $subcategory */
-        $subcategory = $subcategoryParam ? $this->extractIriService->extract($subcategoryParam, Occupation::class, 'occupations') : null;
+        $subcategory = $subcategoryParam
+            ? $this->extractIriService->extract($subcategoryParam, Occupation::class, 'occupations')
+            : null;
 
         if ($subcategory && $subcategory !== $category->getOccupation()) {
             return $this->json(['message' => "Subcategory doesn't belong to this category"], 404);
@@ -236,9 +242,12 @@ class PatchTicketController extends AbstractController
         if ($negotiableBudgetParam)
             $ticketEntity
                 ->setNegotiableBudget($negotiableBudgetParam)
-                ->setBudget(null);
+                ->setBudget(null)
+                ->setUnit(null);
         else
-            $ticketEntity->setBudget($budgetParam);
+            $ticketEntity
+                ->setBudget($budgetParam)
+                ->setUnit($unit);
 
         $this->entityManager->flush();
 

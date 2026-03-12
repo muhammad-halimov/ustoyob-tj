@@ -51,7 +51,7 @@ class PostTicketController extends AbstractController
         }
 
         // Проверка обязательных полей
-        if (!isset($data['title'], $data['description'], $data['category'], $data['unit'])) {
+        if (!isset($data['title'], $data['description'], $data['category'])) {
             return $this->json(['message' => 'Missing required fields'], 400);
         }
 
@@ -63,7 +63,7 @@ class PostTicketController extends AbstractController
         $activeParam = !isset($data['active']) || $data['active'];
         $categoryParam = $data['category'];
         $subcategoryParam = $data['subcategory'] ?? null;
-        $unitParam = $data['unit'];
+        $unitParam = $data['unit'] ?? null;
         $addressParam = $data['address'] ?? [];
 
         // Если address передан как объект, преобразуем в массив
@@ -84,7 +84,9 @@ class PostTicketController extends AbstractController
             : null;
 
         /** @var Unit $unit */
-        $unit = $this->extractIriService->extract($unitParam, Unit::class, 'units');
+        $unit = $unitParam
+            ? $this->extractIriService->extract($unitParam, Unit::class, 'units')
+            : null;
 
         if ($subcategory && $subcategory !== $category->getOccupation()) {
             return $this->json(['message' => "Subcategory doesn't belong to this category"], 404);
@@ -229,9 +231,12 @@ class PostTicketController extends AbstractController
         if ($negotiableBudgetParam)
             $ticketEntity
                 ->setNegotiableBudget($negotiableBudgetParam)
-                ->setBudget(null);
+                ->setBudget(null)
+                ->setUnit(null);
         else
-            $ticketEntity->setBudget($budgetParam);
+            $ticketEntity
+                ->setBudget($budgetParam)
+                ->setUnit($unit);
 
         if (in_array("ROLE_CLIENT", $bearerUser->getRoles())) {
             $ticketEntity
