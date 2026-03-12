@@ -236,7 +236,7 @@ class PatchTicketController extends AbstractController
             ->setNotice($noticeParam)
             ->setActive($activeParam)
             ->setCategory($category)
-            ->setSubcategory($subcategory ?? $ticketEntity->getSubcategory())
+            ->setSubcategory($subcategory ?? null)
             ->setUnit($unit);
 
         if ($negotiableBudgetParam)
