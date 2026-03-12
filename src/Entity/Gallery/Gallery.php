@@ -91,6 +91,7 @@ class Gallery
      * @var Collection<int, GalleryImage>
      */
     #[ORM\OneToMany(targetEntity: GalleryImage::class, mappedBy: 'gallery', cascade: ['all'])]
+    #[ORM\OrderBy(['position' => 'ASC'])]
     #[Groups([
         'galleries:read',
     ])]

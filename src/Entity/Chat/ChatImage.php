@@ -2,38 +2,25 @@
 
 namespace App\Entity\Chat;
 
-use App\Entity\Traits\CreatedAtTrait;
-use App\Entity\Traits\UpdatedAtTrait;
+use App\Entity\Image\AbstractImage;
 use App\Entity\User;
 use App\Repository\Chat\ChatImageRepository;
 use DateTime;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\Serializer\Attribute\Groups;
-
 use Symfony\Component\Validator\Constraints as Assert;
 use Vich\UploaderBundle\Mapping\Annotation as Vich;
-use Symfony\Component\HttpFoundation\File\File;
 
 #[ORM\HasLifecycleCallbacks]
 #[Vich\Uploadable]
 #[ORM\Entity(repositoryClass: ChatImageRepository::class)]
-class ChatImage
+class ChatImage extends AbstractImage
 {
-    use UpdatedAtTrait, CreatedAtTrait;
-
     public function __toString(): string
     {
         return $this->image ?? "Chat image #$this->id";
     }
-
-    #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
-    #[Groups([
-        'chats:read',
-        'chatMessages:read',
-    ])]
-    private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'chatImages')]
     private ?ChatMessage $chatMessage = null;
@@ -50,28 +37,22 @@ class ChatImage
     #[Assert\Image(mimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])]
     private ?File $imageFile = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
         'chats:read',
         'chatMessages:read',
     ])]
-    private ?string $image = null;
-
     public function getId(): ?int
     {
         return $this->id;
     }
 
+    #[Groups([
+        'chats:read',
+        'chatMessages:read',
+    ])]
     public function getImage(): ?string
     {
         return $this->image;
-    }
-
-    public function setImage(?string $image): static
-    {
-        $this->image = $image;
-
-        return $this;
     }
 
     public function getImageFile(): ?File
@@ -79,7 +60,7 @@ class ChatImage
         return $this->imageFile;
     }
 
-    public function setImageFile(?File $imageFile): self
+    public function setImageFile(?File $imageFile): static
     {
         $this->imageFile = $imageFile;
         if (null !== $imageFile) {

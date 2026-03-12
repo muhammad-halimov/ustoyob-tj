@@ -43,20 +43,34 @@ class PatchGalleryController extends AbstractController
 
         $images = $data['images'];
 
-        foreach ($galleryEntity->getUserServiceGalleryItems() as $image)
-            $galleryEntity->removeUserServiceGalleryItem($image);
+        $incomingNames = array_filter(array_column($images, 'image'));
 
-        if (!empty($images)) {
+        foreach ($galleryEntity->getUserServiceGalleryItems()->toArray() as $existingImage) {
+            if (!in_array($existingImage->getImage(), $incomingNames)) {
+                $galleryEntity->removeUserServiceGalleryItem($existingImage);
+                $this->entityManager->remove($existingImage);
+            }
+        }
 
-            foreach ($images as $imageData) {
-                // Access the 'image' key from each object in the array
-                $imagePath = $imageData['image'] ?? null;
+        $existingByName = [];
+        foreach ($galleryEntity->getUserServiceGalleryItems() as $existingImage) {
+            if ($existingImage->getImage()) {
+                $existingByName[$existingImage->getImage()] = $existingImage;
+            }
+        }
 
-                if ($imagePath) {
-                    $galleryImage = new GalleryImage()->setImage($imagePath);
-                    $galleryEntity->addUserServiceGalleryItem($galleryImage);
-                    $this->entityManager->persist($galleryImage);
-                }
+        foreach ($images as $position => $imageData) {
+            $imagePath = $imageData['image'] ?? null;
+            if (!$imagePath) continue;
+
+            if (isset($existingByName[$imagePath])) {
+                $existingByName[$imagePath]->setPosition($position);
+            } else {
+                $galleryImage = (new GalleryImage())
+                    ->setImage($imagePath)
+                    ->setPosition($position);
+                $galleryEntity->addUserServiceGalleryItem($galleryImage);
+                $this->entityManager->persist($galleryImage);
             }
         }
 

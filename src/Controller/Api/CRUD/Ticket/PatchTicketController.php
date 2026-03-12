@@ -212,18 +212,25 @@ class PatchTicketController extends AbstractController
                 }
             }
 
-            // Добавляем только те, которых ещё нет в коллекции
-            $existingNames = $ticketEntity->getUserTicketImages()
-                ->map(fn(TicketImage $img) => $img->getImage())
-                ->toArray();
+            // Строим карту существующих записей по имени файла
+            $existingByName = [];
+            foreach ($ticketEntity->getUserTicketImages()->toArray() as $img) {
+                $existingByName[$img->getImage()] = $img;
+            }
 
-            foreach ($imagesParam as $imageData) {
+            // Обновляем позиции и добавляем новые
+            foreach ($imagesParam as $position => $imageData) {
                 if (empty($imageData['image'])) {
                     return $this->json(['message' => 'Image filename is required'], 400);
                 }
-                if (!in_array($imageData['image'], $existingNames, true)) {
+                if (isset($existingByName[$imageData['image']])) {
+                    // Обновляем позицию существующего изображения
+                    $existingByName[$imageData['image']]->setPosition($position);
+                } else {
+                    // Добавляем новое изображение
                     $ticketImage = new TicketImage();
                     $ticketImage->setImage($imageData['image']);
+                    $ticketImage->setPosition($position);
                     $ticketEntity->addUserTicketImage($ticketImage);
                     $this->entityManager->persist($ticketImage);
                 }

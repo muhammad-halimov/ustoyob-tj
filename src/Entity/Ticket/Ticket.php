@@ -261,6 +261,7 @@ class Ticket
      * @var Collection<int, TicketImage>
      */
     #[ORM\OneToMany(targetEntity: TicketImage::class, mappedBy: 'userTicket', cascade: ['all'])]
+    #[ORM\OrderBy(['position' => 'ASC'])]
     #[Groups([
         'ticketImages:read',
 

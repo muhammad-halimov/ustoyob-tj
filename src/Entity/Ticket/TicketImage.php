@@ -3,8 +3,7 @@
 namespace App\Entity\Ticket;
 
 use ApiPlatform\Metadata\ApiProperty;
-use App\Entity\Traits\CreatedAtTrait;
-use App\Entity\Traits\UpdatedAtTrait;
+use App\Entity\Image\AbstractImage;
 use App\Repository\TicketImageRepository;
 use DateTime;
 use Doctrine\ORM\Mapping as ORM;
@@ -17,39 +16,24 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
 #[ORM\Entity(repositoryClass: TicketImageRepository::class)]
 #[ORM\HasLifecycleCallbacks]
 #[Vich\Uploadable]
-class TicketImage
+class TicketImage extends AbstractImage
 {
-    use UpdatedAtTrait, CreatedAtTrait;
-
     public function __toString(): string
     {
         return $this->image ?? "Ticket Image #$this->id";
     }
-
-    #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
-    #[Groups([
-        'ticketImages:read',
-
-        'reviews:read',
-        'favorites:read',
-        'appeal:ticket:read',
-        'appeal:chat:read',
-        'blackLists:read',
-        'chats:read',
-    ])]
-    private ?int $id = null;
 
     #[Vich\UploadableField(mapping: 'ticket_photos', fileNameProperty: 'image')]
     #[Assert\Image(mimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])]
     #[ApiProperty(writable: false)]
     private ?File $imageFile = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
+    #[ORM\ManyToOne(inversedBy: 'userTicketImages')]
+    #[Ignore]
+    private ?Ticket $userTicket = null;
+
     #[Groups([
         'ticketImages:read',
-
         'reviews:read',
         'favorites:read',
         'appeal:ticket:read',
@@ -57,27 +41,23 @@ class TicketImage
         'blackLists:read',
         'chats:read',
     ])]
-    private ?string $image = null;
-
-    #[ORM\ManyToOne(inversedBy: 'userTicketImages')]
-    #[Ignore]
-    private ?Ticket $userTicket = null;
-
     public function getId(): ?int
     {
         return $this->id;
     }
 
+    #[Groups([
+        'ticketImages:read',
+        'reviews:read',
+        'favorites:read',
+        'appeal:ticket:read',
+        'appeal:chat:read',
+        'blackLists:read',
+        'chats:read',
+    ])]
     public function getImage(): ?string
     {
         return $this->image;
-    }
-
-    public function setImage(?string $image): static
-    {
-        $this->image = $image;
-
-        return $this;
     }
 
     public function getImageFile(): ?File
@@ -85,7 +65,7 @@ class TicketImage
         return $this->imageFile;
     }
 
-    public function setImageFile(?File $imageFile): self
+    public function setImageFile(?File $imageFile): static
     {
         $this->imageFile = $imageFile;
         if (null !== $imageFile) {
