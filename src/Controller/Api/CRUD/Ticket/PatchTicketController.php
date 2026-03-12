@@ -196,8 +196,8 @@ class PatchTicketController extends AbstractController
         }
 
         if (is_array($imagesParam)) {
-            // Очищаем старые изображения
-            foreach ($ticketEntity->getUserTicketImages() as $oldImage) {
+            // Очищаем старые изображения (toArray() чтобы не мутировать коллекцию во время итерации)
+            foreach ($ticketEntity->getUserTicketImages()->toArray() as $oldImage) {
                 $ticketEntity->removeUserTicketImage($oldImage);
                 $this->entityManager->remove($oldImage);
             }
