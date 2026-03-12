@@ -548,21 +548,9 @@ const CreateEdit = () => {
 
                     // Обновляем массив images в тикете
                     if (uploadedImages.length > 0) {
-                        const allImages = [...existingImages, ...uploadedImages];
-                        
-                        await fetch(`${API_BASE_URL}/api/tickets/${serviceData.id}`, {
-                            method: 'PATCH',
-                            headers: {
-                                'Authorization': `Bearer ${token}`,
-                                'Content-Type': 'application/merge-patch+json',
-                            },
-                            body: JSON.stringify({
-                                images: allImages.map(img => ({ image: img.image }))
-                            }),
-                        });
-
-                        // Обновляем локальное состояние
-                        setExistingImages(allImages);
+                        // upload-photo уже создал TicketImage записи в БД и файлы на диске.
+                        // Второй PATCH не нужен — он удалял бы только что загруженные файлы через Vich.
+                        setExistingImages(prev => [...prev, ...uploadedImages]);
                         setNewImages([]);
                     }
                 }
