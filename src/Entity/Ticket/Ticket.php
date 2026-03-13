@@ -213,6 +213,13 @@ class Ticket
     ])]
     private ?bool $active = null;
 
+    #[ORM\Column(options: ['default' => 0])]
+    #[Groups([
+        'masterTickets:read',
+        'clientTickets:read',
+    ])]
+    private int $position = 0;
+
     #[ORM\ManyToOne(inversedBy: 'userTickets')]
     #[ORM\JoinColumn(name: 'category_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
@@ -493,6 +500,17 @@ class Ticket
     public function setActive(?bool $active): Ticket
     {
         $this->active = $active;
+        return $this;
+    }
+
+    public function getPosition(): int
+    {
+        return $this->position;
+    }
+
+    public function setPosition(int $position): static
+    {
+        $this->position = $position;
         return $this;
     }
 

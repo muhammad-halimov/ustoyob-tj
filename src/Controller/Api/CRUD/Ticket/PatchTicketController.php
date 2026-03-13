@@ -63,6 +63,7 @@ class PatchTicketController extends AbstractController
         $budgetParam = $data['budget'] ?? $ticketEntity->getBudget();
         $negotiableBudgetParam = $data['negotiableBudget'] ?? $ticketEntity->getNegotiableBudget();
         $activeParam = isset($data['active']) ? (bool)$data['active'] : $ticketEntity->getActive();
+        $positionParam = $data['position'] ?? null;
         $categoryParam = $data['category'] ?? null;
         $subcategoryParam = $data['subcategory'] ?? null;
         $unitParam = $data['unit'] ?? null;
@@ -255,6 +256,10 @@ class PatchTicketController extends AbstractController
             $ticketEntity
                 ->setBudget($budgetParam)
                 ->setUnit($unit);
+
+        if ($positionParam !== null) {
+            $ticketEntity->setPosition((int)$positionParam);
+        }
 
         $this->entityManager->flush();
 
