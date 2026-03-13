@@ -8,6 +8,7 @@ use App\Entity\Appeal\AppealTypes\AppealTicket;
 use App\Entity\Chat\Chat;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
+use App\Repository\Chat\ChatRepository;
 use App\Service\Extra\AccessService;
 use App\Service\Extra\ExtractIriService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -23,6 +24,7 @@ class PostAppealConntroller extends AbstractController
         private readonly Security               $security,
         private readonly AccessService          $accessService,
         private readonly ExtractIriService      $extractIriService,
+        private readonly ChatRepository         $chatRepository,
     ) {}
 
     public function __invoke(Request $request): JsonResponse
@@ -80,6 +82,12 @@ class PostAppealConntroller extends AbstractController
                     ->setTicket($ticket)
                 );
         } elseif ($typeParam === 'chat') {
+            if (
+                !$this->chatRepository->findChatBetweenUsers($bearerUser, $respondent) &&
+                !$this->chatRepository->findChatBetweenUsers($respondent, $bearerUser)
+            )
+                return $this->json(['message' => 'No interactions between users'], 422);
+
             $chatParam = $data['chat'] ?? null;
 
             if (!$chatParam)
