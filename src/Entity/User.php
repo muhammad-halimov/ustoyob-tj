@@ -917,8 +917,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         // Нормализуем при сохранении
         if ($phone1) {
             $cleaned = preg_replace('/[^\d+]/', '', $phone1);
-            // Добавляем +992 если нет
-            if (!str_starts_with($cleaned, '+992')) {
+            // Добавляем +992 только если нет кода страны (нет +)
+            if (!str_starts_with($cleaned, '+')) {
                 $cleaned = '+992' . $cleaned;
             }
             $this->phone1 = $cleaned;
