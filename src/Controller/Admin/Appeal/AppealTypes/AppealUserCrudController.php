@@ -2,8 +2,7 @@
 
 namespace App\Controller\Admin\Appeal\AppealTypes;
 
-use App\Entity\Appeal\AppealReason;
-use App\Entity\Appeal\AppealTypes\AppealTicket;
+use App\Entity\Appeal\AppealTypes\AppealUser;
 use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
@@ -12,30 +11,28 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\FormField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
 
-class AppealTicketCrudController extends AbstractCrudController
+class AppealUserCrudController extends AbstractCrudController
 {
     public static function getEntityFqcn(): string
     {
-        return AppealTicket::class;
+        return AppealUser::class;
     }
 
     public function configureCrud(Crud $crud): Crud
     {
         return parent::configureCrud($crud)
             ->setEntityPermission('ROLE_ADMIN')
-            ->setEntityLabelInPlural('Жалоба на объявление/услугу')
-            ->setEntityLabelInSingular('жалобу на объявление/услугу')
-            ->setPageTitle(Crud::PAGE_NEW, 'Добавление жалобы на объявление/услугу')
-            ->setPageTitle(Crud::PAGE_EDIT, 'Изменение жалобы на объявление/услугу')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о жалобе на объявление/услугу");
+            ->setEntityLabelInPlural('Жалобы на пользователей')
+            ->setEntityLabelInSingular('жалобу на пользователя')
+            ->setPageTitle(Crud::PAGE_NEW, 'Добавление жалобы на пользователя')
+            ->setPageTitle(Crud::PAGE_EDIT, 'Изменение жалобы на пользователя')
+            ->setPageTitle(Crud::PAGE_DETAIL, 'Информация о жалобе на пользователя');
     }
-
 
     public function configureActions(Actions $actions): Actions
     {
@@ -51,16 +48,15 @@ class AppealTicketCrudController extends AbstractCrudController
 
         return parent::configureActions($actions)
             ->setPermissions([
-                Action::NEW => 'ROLE_ADMIN',
+                Action::NEW    => 'ROLE_ADMIN',
                 Action::DELETE => 'ROLE_ADMIN',
-                Action::EDIT => 'ROLE_ADMIN',
+                Action::EDIT   => 'ROLE_ADMIN',
             ]);
     }
 
     public function configureFilters(Filters $filters): Filters
     {
         return $filters
-            ->add(EntityFilter::new('ticket', 'Объявление / Услуга'))
             ->add(EntityFilter::new('author', 'Истец'))
             ->add(EntityFilter::new('respondent', 'Ответчик'))
             ->add(EntityFilter::new('reason', 'Причина жалобы'));
@@ -77,28 +73,24 @@ class AppealTicketCrudController extends AbstractCrudController
 
         yield AssociationField::new('reason', 'Причина жалобы')
             ->setQueryBuilder(function (QueryBuilder $qb) {
-                return $qb->where("entity.applicableTo IN ('ticket', 'both')");
+                return $qb->where("entity.applicableTo IN ('both')");
             })
             ->setRequired(false)
             ->setColumns(6);
 
-        yield AssociationField::new('author', 'Истец')
+        yield AssociationField::new('author', 'Истец (null — анонимно)')
             ->setQueryBuilder(function (QueryBuilder $qb) {
                 return $qb->andWhere("CAST(entity.roles as text) NOT LIKE '%ROLE_ADMIN%'");
             })
-            ->setRequired(true)
-            ->setColumns(4);
+            ->setRequired(false)
+            ->setColumns(6);
 
         yield AssociationField::new('respondent', 'Ответчик')
             ->setQueryBuilder(function (QueryBuilder $qb) {
                 return $qb->andWhere("CAST(entity.roles as text) NOT LIKE '%ROLE_ADMIN%'");
             })
             ->setRequired(true)
-            ->setColumns(4);
-
-        yield AssociationField::new('ticket', 'Объявление / Услуга')
-            ->setRequired(true)
-            ->setColumns(4);
+            ->setColumns(6);
 
         yield TextEditorField::new('description', 'Описание')
             ->setRequired(true)

@@ -2,12 +2,16 @@
 
 namespace App\Dto\Appeal\Appeal;
 
+use App\Entity\Chat\Chat;
+use App\Entity\Review\Review;
+use App\Entity\Ticket\Ticket;
+use App\Entity\User;
 use Symfony\Component\Validator\Constraints as Assert;
 
 class AppealInput
 {
     #[Assert\NotBlank(message: 'Type is required')]
-    #[Assert\Choice(choices: ['ticket', 'chat'], message: 'Type must be either "ticket" or "chat"')]
+    #[Assert\Choice(choices: ['ticket', 'chat', 'review', 'user'], message: 'Type must be one of: ticket, chat, review, user')]
     public string $type;
 
     #[Assert\NotBlank(message: 'Title is required')]
@@ -21,9 +25,11 @@ class AppealInput
     public string $reason;
 
     #[Assert\NotBlank(message: 'Respondent is required')]
-    public string $respondent; // IRI или ID
+    public User $respondent; // IRI или ID
 
-    public ?string $ticket = null; // IRI или ID, обязателен если type=ticket
+    public ?Ticket $ticket = null; // IRI или ID, обязателен если type=ticket
 
-    public ?string $chat = null; // IRI или ID, обязателен если type=chat
+    public ?Chat $chat = null; // IRI или ID, обязателен если type=chat
+
+    public ?Review $review = null; // IRI или ID, обязателен если type=chat
 }

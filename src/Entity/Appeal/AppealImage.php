@@ -3,8 +3,6 @@
 namespace App\Entity\Appeal;
 
 use ApiPlatform\Metadata\ApiProperty;
-use App\Entity\Appeal\AppealTypes\AppealChat;
-use App\Entity\Appeal\AppealTypes\AppealTicket;
 use App\Entity\Image\AbstractImage;
 use App\Repository\Appeal\AppealImageRepository;
 use DateTime;
@@ -29,21 +27,18 @@ class AppealImage extends AbstractImage
     #[Assert\Image(mimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])]
     private ?File $imageFile = null;
 
-    #[ORM\ManyToOne(inversedBy: 'appealChatImages')]
+    #[ORM\ManyToOne(inversedBy: 'images')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'CASCADE')]
     #[Ignore]
-    private ?AppealChat $appealChat = null;
+    private ?Appeal $appeal = null;
 
-    #[ORM\ManyToOne(inversedBy: 'appealTicketImages')]
-    #[Ignore]
-    private ?AppealTicket $appealTicket = null;
-
-    #[Groups(['appeal:ticket:read'])]
+    #[Groups(['appeal:read', 'appeal:chat:read', 'appeal:ticket:read'])]
     public function getId(): ?int
     {
         return $this->id;
     }
 
-    #[Groups(['appeal:ticket:read'])]
+    #[Groups(['appeal:read', 'appeal:chat:read', 'appeal:ticket:read'])]
     #[ApiProperty(writable: false)]
     public function getImage(): ?string
     {
@@ -65,27 +60,14 @@ class AppealImage extends AbstractImage
         return $this;
     }
 
-    public function getAppealChat(): ?AppealChat
+    public function getAppeal(): ?Appeal
     {
-        return $this->appealChat;
+        return $this->appeal;
     }
 
-    public function setAppealChat(?AppealChat $appealChat): static
+    public function setAppeal(?Appeal $appeal): static
     {
-        $this->appealChat = $appealChat;
-
-        return $this;
-    }
-
-    public function getAppealTicket(): ?AppealTicket
-    {
-        return $this->appealTicket;
-    }
-
-    public function setAppealTicket(?AppealTicket $appealTicket): static
-    {
-        $this->appealTicket = $appealTicket;
-
+        $this->appeal = $appeal;
         return $this;
     }
 }

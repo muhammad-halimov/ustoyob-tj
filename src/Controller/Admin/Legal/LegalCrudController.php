@@ -2,6 +2,7 @@
 
 namespace App\Controller\Admin\Legal;
 
+use App\Controller\Admin\Extra\TranslationCrudController;
 use App\Entity\Legal\Legal;
 use App\Repository\Legal\LegalRepository;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
@@ -9,6 +10,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
@@ -62,14 +64,16 @@ class LegalCrudController extends AbstractCrudController
         yield IdField::new('id')
             ->hideOnForm();
 
+        yield CollectionField::new('translations', 'Переводы')
+            ->useEntryCrudForm(TranslationCrudController::class)
+            ->setFormTypeOptions(['by_reference' => false])
+            ->setColumns(6)
+            ->setRequired(true);
+
         yield ChoiceField::new('type', 'Тип регуляции')
             ->setRequired(true)
             ->allowMultipleChoices(false)
             ->setChoices(Legal::TYPES)
-            ->setColumns(6);
-
-        yield TextField::new('title', 'Название')
-            ->setRequired(true)
             ->setColumns(6);
 
         yield TextEditorField::new('description', 'Описание')

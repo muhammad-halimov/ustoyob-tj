@@ -2,7 +2,9 @@
 
 namespace App\Entity\Extra;
 
+use App\Entity\Appeal\AppealReason;
 use App\Entity\Geography\AddressComponent;
+use App\Entity\Legal\Legal;
 use App\Entity\Ticket\Category;
 use App\Entity\Ticket\Unit;
 use App\Entity\Traits\CreatedAtTrait;
@@ -64,6 +66,9 @@ class Translation
     ])]
     private ?string $title = null;
 
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $description = null;
+
     #[ORM\ManyToOne(inversedBy: 'translations')]
     #[ORM\JoinColumn(name: 'address_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Ignore]
@@ -83,6 +88,16 @@ class Translation
     #[ORM\JoinColumn(name: 'unit_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Ignore]
     private ?Unit $unit = null;
+
+    #[ORM\ManyToOne(inversedBy: 'translations')]
+    #[ORM\JoinColumn(name: 'reason_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    #[Ignore]
+    private ?AppealReason $reason = null;
+
+    #[ORM\ManyToOne(inversedBy: 'translations')]
+    #[ORM\JoinColumn(name: 'legal_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    #[Ignore]
+    private ?Legal $legal = null;
 
     public function getId(): ?int
     {
@@ -158,6 +173,40 @@ class Translation
     {
         $this->unit = $unit;
 
+        return $this;
+    }
+
+    public function getDescription(): ?string
+    {
+        return $this->description;
+    }
+
+    public function setDescription(?string $description): static
+    {
+        $this->description = $description;
+        return $this;
+    }
+
+    public function getReason(): ?AppealReason
+    {
+        return $this->reason;
+    }
+
+    public function setReason(?AppealReason $reason): static
+    {
+        $this->reason = $reason;
+
+        return $this;
+    }
+
+    public function getLegal(): ?Legal
+    {
+        return $this->legal;
+    }
+
+    public function setLegal(?Legal $legal): static
+    {
+        $this->legal = $legal;
         return $this;
     }
 }

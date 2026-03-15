@@ -29,8 +29,7 @@ use App\Dto\User\AccountConfirmInput;
 use App\Dto\User\AccountConfirmOutput;
 use App\Dto\User\RoleOutput;
 use App\Dto\User\SocialNetworkOutput;
-use App\Entity\Appeal\AppealTypes\AppealChat;
-use App\Entity\Appeal\AppealTypes\AppealTicket;
+use App\Entity\Appeal\Appeal;
 use App\Entity\Chat\Chat;
 use App\Entity\Chat\ChatImage;
 use App\Entity\Chat\ChatMessage;
@@ -222,10 +221,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->techSupportMessages = new ArrayCollection();
         $this->techSupports = new ArrayCollection();
         $this->techSupportsAsAuthor = new ArrayCollection();
-        $this->appealTickets = new ArrayCollection();
-        $this->appealTicketsAsRespondent = new ArrayCollection();
-        $this->appealChats = new ArrayCollection();
-        $this->appealChatsAsRespondent = new ArrayCollection();
+        $this->appeals = new ArrayCollection();
+        $this->appealsAsRespondent = new ArrayCollection();
         $this->addresses = new ArrayCollection();
         $this->blackLists = new ArrayCollection();
         $this->clientsBlackListedByAuthor = new ArrayCollection();
@@ -706,32 +703,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private Collection $techSupportsAsAuthor;
 
     /**
-     * @var Collection<int, AppealTicket>
+     * @var Collection<int, Appeal>
      */
-    #[ORM\OneToMany(targetEntity: AppealTicket::class, mappedBy: 'author')]
+    #[ORM\OneToMany(targetEntity: Appeal::class, mappedBy: 'author')]
     #[Ignore]
-    private Collection $appealTickets;
+    private Collection $appeals;
 
     /**
-     * @var Collection<int, AppealTicket>
+     * @var Collection<int, Appeal>
      */
-    #[ORM\OneToMany(targetEntity: AppealTicket::class, mappedBy: 'respondent')]
+    #[ORM\OneToMany(targetEntity: Appeal::class, mappedBy: 'respondent')]
     #[Ignore]
-    private Collection $appealTicketsAsRespondent;
-
-    /**
-     * @var Collection<int, AppealChat>
-     */
-    #[ORM\OneToMany(targetEntity: AppealChat::class, mappedBy: 'author')]
-    #[Ignore]
-    private Collection $appealChats;
-
-    /**
-     * @var Collection<int, AppealChat>
-     */
-    #[ORM\OneToMany(targetEntity: AppealChat::class, mappedBy: 'respondent')]
-    #[Ignore]
-    private Collection $appealChatsAsRespondent;
+    private Collection $appealsAsRespondent;
 
     /**
      * @var Collection<int, Address>
@@ -1584,29 +1567,28 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * @return Collection<int, AppealTicket>
+     * @return Collection<int, Appeal>
      */
-    public function getAppealTickets(): Collection
+    public function getAppeals(): Collection
     {
-        return $this->appealTickets;
+        return $this->appeals;
     }
 
-    public function addAppealTicket(AppealTicket $appealTicket): static
+    public function addAppeal(Appeal $appeal): static
     {
-        if (!$this->appealTickets->contains($appealTicket)) {
-            $this->appealTickets->add($appealTicket);
-            $appealTicket->setAuthor($this);
+        if (!$this->appeals->contains($appeal)) {
+            $this->appeals->add($appeal);
+            $appeal->setAuthor($this);
         }
 
         return $this;
     }
 
-    public function removeAppealTicket(AppealTicket $appealTicket): static
+    public function removeAppeal(Appeal $appeal): static
     {
-        if ($this->appealTickets->removeElement($appealTicket)) {
-            // set the owning side to null (unless already changed)
-            if ($appealTicket->getAuthor() === $this) {
-                $appealTicket->setAuthor(null);
+        if ($this->appeals->removeElement($appeal)) {
+            if ($appeal->getAuthor() === $this) {
+                $appeal->setAuthor(null);
             }
         }
 
@@ -1614,87 +1596,28 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * @return Collection<int, AppealTicket>
+     * @return Collection<int, Appeal>
      */
-    public function getAppealTicketsAsRespondent(): Collection
+    public function getAppealsAsRespondent(): Collection
     {
-        return $this->appealTicketsAsRespondent;
+        return $this->appealsAsRespondent;
     }
 
-    public function addAppealTicketAsRespondent(AppealTicket $appealTicket): static
+    public function addAppealAsRespondent(Appeal $appeal): static
     {
-        if (!$this->appealTicketsAsRespondent->contains($appealTicket)) {
-            $this->appealTicketsAsRespondent->add($appealTicket);
-            $appealTicket->setRespondent($this);
+        if (!$this->appealsAsRespondent->contains($appeal)) {
+            $this->appealsAsRespondent->add($appeal);
+            $appeal->setRespondent($this);
         }
 
         return $this;
     }
 
-    public function removeAppealTicketAsRespondent(AppealTicket $appealTicket): static
+    public function removeAppealAsRespondent(Appeal $appeal): static
     {
-        if ($this->appealTicketsAsRespondent->removeElement($appealTicket)) {
-            if ($appealTicket->getRespondent() === $this) {
-                $appealTicket->setRespondent(null);
-            }
-        }
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, AppealChat>
-     */
-    public function getAppealChats(): Collection
-    {
-        return $this->appealChats;
-    }
-
-    public function addAppealChat(AppealChat $appealChat): static
-    {
-        if (!$this->appealChats->contains($appealChat)) {
-            $this->appealChats->add($appealChat);
-            $appealChat->setAuthor($this);
-        }
-
-        return $this;
-    }
-
-    public function removeAppealChat(AppealChat $appealChat): static
-    {
-        if ($this->appealChats->removeElement($appealChat)) {
-            // set the owning side to null (unless already changed)
-            if ($appealChat->getAuthor() === $this) {
-                $appealChat->setAuthor(null);
-            }
-        }
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, AppealChat>
-     */
-    public function getAppealChatsAsRespondent(): Collection
-    {
-        return $this->appealChatsAsRespondent;
-    }
-
-    public function addAppealChatAsRespondent(AppealChat $appealChat): static
-    {
-        if (!$this->appealChatsAsRespondent->contains($appealChat)) {
-            $this->appealChatsAsRespondent->add($appealChat);
-            $appealChat->setRespondent($this);
-        }
-
-        return $this;
-    }
-
-    public function removeAppealChatAsRespondent(AppealChat $appealChat): static
-    {
-        if ($this->appealChatsAsRespondent->removeElement($appealChat)) {
-            if ($appealChat->getRespondent() === $this) {
-                $appealChat->setRespondent(null);
+        if ($this->appealsAsRespondent->removeElement($appeal)) {
+            if ($appeal->getRespondent() === $this) {
+                $appeal->setRespondent(null);
             }
         }
 

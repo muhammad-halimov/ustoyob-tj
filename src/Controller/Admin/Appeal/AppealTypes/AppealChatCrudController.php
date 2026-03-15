@@ -2,19 +2,21 @@
 
 namespace App\Controller\Admin\Appeal\AppealTypes;
 
-use App\Controller\Admin\Appeal\AppealImageCrudController;
+use App\Entity\Appeal\AppealReason;
 use App\Entity\Appeal\AppealTypes\AppealChat;
 use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\FormField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
 
 class AppealChatCrudController extends AbstractCrudController
 {
@@ -55,6 +57,15 @@ class AppealChatCrudController extends AbstractCrudController
             ]);
     }
 
+    public function configureFilters(Filters $filters): Filters
+    {
+        return $filters
+            ->add(EntityFilter::new('chat', 'Чат'))
+            ->add(EntityFilter::new('author', 'Истец'))
+            ->add(EntityFilter::new('respondent', 'Ответчик'))
+            ->add(EntityFilter::new('reason', 'Причина жалобы'));
+    }
+
     public function configureFields(string $pageName): iterable
     {
         yield IdField::new('id')
@@ -62,44 +73,36 @@ class AppealChatCrudController extends AbstractCrudController
 
         yield TextField::new('title', 'Заголовок')
             ->setRequired(true)
-            ->setColumns(12);
+            ->setColumns(6);
 
+        yield AssociationField::new('reason', 'Причина жалобы')
+            ->setQueryBuilder(function (QueryBuilder $qb) {
+                return $qb->where("entity.applicableTo IN ('chat', 'both')");
+            })
+            ->setRequired(false)
+            ->setColumns(6);
+            
         yield AssociationField::new('author', 'Истец')
             ->setQueryBuilder(function (QueryBuilder $qb) {
                 return $qb->andWhere("CAST(entity.roles as text) NOT LIKE '%ROLE_ADMIN%'");
             })
             ->setRequired(true)
-            ->setColumns(12);
+            ->setColumns(4);
 
         yield AssociationField::new('respondent', 'Ответчик')
             ->setQueryBuilder(function (QueryBuilder $qb) {
                 return $qb->andWhere("CAST(entity.roles as text) NOT LIKE '%ROLE_ADMIN%'");
             })
             ->setRequired(true)
-            ->setColumns(12);
+            ->setColumns(4);
 
         yield AssociationField::new('chat', 'Чат')
             ->setRequired(true)
-            ->setColumns(12);
+            ->setColumns(4);
 
-        yield AssociationField::new('ticket', 'Объявление/Услуга')
+        yield TextEditorField::new('description', 'Описание')
             ->setRequired(true)
             ->setColumns(12);
-
-        yield ChoiceField::new('reason', 'Причина жалобы')
-            ->setChoices(AppealChat::COMPLAINTS)
-            ->setRequired(true)
-            ->setColumns(12);
-
-        yield TextField::new('description', 'Описание')
-            ->setRequired(true)
-            ->setColumns(12);
-
-        yield CollectionField::new('appealChatImages', 'Галерея изображений')
-            ->useEntryCrudForm(AppealImageCrudController::class)
-            ->hideOnIndex()
-            ->setColumns(12)
-            ->setRequired(false);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
             ->hideOnForm();

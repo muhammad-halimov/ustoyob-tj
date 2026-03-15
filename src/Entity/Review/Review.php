@@ -8,6 +8,7 @@ use ApiPlatform\Doctrine\Orm\Filter\RangeFilter;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiProperty;
+use App\Entity\Appeal\AppealTypes\AppealReview;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\GetCollection;
@@ -28,6 +29,7 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Serializer\Attribute\Ignore;
 use Symfony\Component\Serializer\Attribute\SerializedName;
 use Symfony\Component\Validator\Constraints as Assert;
 
@@ -95,7 +97,8 @@ class Review
 {
     public function __toString(): string
     {
-        return $this->description[15] ?? "Review #$this->id";
+        $desc = $this->description ? mb_strimwidth(strip_tags($this->description), 0, 50, '…') : null;
+        return $desc ?? "Review #{$this->id}";
     }
 
     public const array TYPES = [
@@ -155,6 +158,13 @@ class Review
     #[ApiProperty(writable: false)]
     private Collection $reviewImages;
 
+    /**
+     * @var Collection<int, AppealReview>
+     */
+    #[ORM\OneToMany(targetEntity: AppealReview::class, mappedBy: 'review')]
+    #[Ignore]
+    private Collection $appealReviews;
+
     #[ORM\ManyToOne(inversedBy: 'masterReviews')]
     #[ORM\JoinColumn(name: 'master_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
@@ -187,7 +197,8 @@ class Review
 
     public function __construct()
     {
-        $this->reviewImages = new ArrayCollection();
+        $this->reviewImages  = new ArrayCollection();
+        $this->appealReviews = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -316,5 +327,32 @@ class Review
     public function setUpdatedAt(): void
     {
         $this->updatedAt = new DateTime();
+    }
+
+    /**
+     * @return Collection<int, AppealReview>
+     */
+    public function getAppealReviews(): Collection
+    {
+        return $this->appealReviews;
+    }
+
+    public function addAppealReview(AppealReview $appealReview): static
+    {
+        if (!$this->appealReviews->contains($appealReview)) {
+            $this->appealReviews->add($appealReview);
+            $appealReview->setReview($this);
+        }
+        return $this;
+    }
+
+    public function removeAppealReview(AppealReview $appealReview): static
+    {
+        if ($this->appealReviews->removeElement($appealReview)) {
+            if ($appealReview->getReview() === $this) {
+                $appealReview->setReview(null);
+            }
+        }
+        return $this;
     }
 }

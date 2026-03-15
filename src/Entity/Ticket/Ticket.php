@@ -20,8 +20,7 @@ use App\Controller\Api\Filter\Ticket\PersonalTicketFilterController;
 use App\Dto\Image\ImageInput;
 use App\Dto\Ticket\TicketInput;
 use App\Dto\Ticket\TicketPatchInput;
-use App\Entity\Appeal\AppealTypes\AppealChat;
-use App\Entity\Appeal\AppealTypes\AppealTicket;
+use App\Entity\Appeal\Appeal;
 use App\Entity\Chat\Chat;
 use App\Entity\Extra\BlackList;
 use App\Entity\Extra\Favorite;
@@ -118,12 +117,11 @@ class Ticket
     {
         $this->userTicketImages = new ArrayCollection();
         $this->reviews = new ArrayCollection();
-        $this->appealTicket = new ArrayCollection();
+        $this->appeals = new ArrayCollection();
         $this->favorites = new ArrayCollection();
         $this->chats = new ArrayCollection();
         $this->addresses = new ArrayCollection();
         $this->ticketsBlackListedByAuthor = new ArrayCollection();
-        $this->appealChats = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -315,11 +313,11 @@ class Ticket
     }
 
     /**
-     * @var Collection<int, AppealTicket>
+     * @var Collection<int, Appeal>
      */
-    #[ORM\OneToMany(targetEntity: AppealTicket::class, mappedBy: 'ticket')]
+    #[ORM\OneToMany(targetEntity: Appeal::class, mappedBy: 'ticket')]
     #[Ignore]
-    private Collection $appealTicket;
+    private Collection $appeals;
 
     /**
      * @var Collection<int, Favorite>
@@ -368,12 +366,6 @@ class Ticket
         'favorites:read',
     ])]
     protected DateTime $updatedAt;
-
-    /**
-     * @var Collection<int, AppealChat>
-     */
-    #[ORM\OneToMany(targetEntity: AppealChat::class, mappedBy: 'ticket')]
-    private Collection $appealChats;
 
     public function getId(): ?int
     {
@@ -580,27 +572,26 @@ class Ticket
     }
 
     /**
-     * @return Collection<int, AppealTicket>
+     * @return Collection<int, Appeal>
      */
-    public function getAppealTicket(): Collection
+    public function getAppeals(): Collection
     {
-        return $this->appealTicket;
+        return $this->appeals;
     }
 
-    public function addAppealTicket(AppealTicket $appeal): static
+    public function addAppeal(Appeal $appeal): static
     {
-        if (!$this->appealTicket->contains($appeal)) {
-            $this->appealTicket->add($appeal);
+        if (!$this->appeals->contains($appeal)) {
+            $this->appeals->add($appeal);
             $appeal->setTicket($this);
         }
 
         return $this;
     }
 
-    public function removeAppealTicket(AppealTicket $appeal): static
+    public function removeAppeal(Appeal $appeal): static
     {
-        if ($this->appealTicket->removeElement($appeal)) {
-            // set the owning side to null (unless already changed)
+        if ($this->appeals->removeElement($appeal)) {
             if ($appeal->getTicket() === $this) {
                 $appeal->setTicket(null);
             }
@@ -752,33 +743,4 @@ class Ticket
         return $this;
     }
 
-    /**
-     * @return Collection<int, AppealChat>
-     */
-    public function getAppealChats(): Collection
-    {
-        return $this->appealChats;
-    }
-
-    public function addAppealChat(AppealChat $appealChat): static
-    {
-        if (!$this->appealChats->contains($appealChat)) {
-            $this->appealChats->add($appealChat);
-            $appealChat->setTicket($this);
-        }
-
-        return $this;
-    }
-
-    public function removeAppealChat(AppealChat $appealChat): static
-    {
-        if ($this->appealChats->removeElement($appealChat)) {
-            // set the owning side to null (unless already changed)
-            if ($appealChat->getTicket() === $this) {
-                $appealChat->setTicket(null);
-            }
-        }
-
-        return $this;
-    }
 }

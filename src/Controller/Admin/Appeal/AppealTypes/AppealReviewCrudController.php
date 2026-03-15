@@ -2,8 +2,7 @@
 
 namespace App\Controller\Admin\Appeal\AppealTypes;
 
-use App\Entity\Appeal\AppealReason;
-use App\Entity\Appeal\AppealTypes\AppealTicket;
+use App\Entity\Appeal\AppealTypes\AppealReview;
 use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
@@ -18,24 +17,23 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
 
-class AppealTicketCrudController extends AbstractCrudController
+class AppealReviewCrudController extends AbstractCrudController
 {
     public static function getEntityFqcn(): string
     {
-        return AppealTicket::class;
+        return AppealReview::class;
     }
 
     public function configureCrud(Crud $crud): Crud
     {
         return parent::configureCrud($crud)
             ->setEntityPermission('ROLE_ADMIN')
-            ->setEntityLabelInPlural('Жалоба на объявление/услугу')
-            ->setEntityLabelInSingular('жалобу на объявление/услугу')
-            ->setPageTitle(Crud::PAGE_NEW, 'Добавление жалобы на объявление/услугу')
-            ->setPageTitle(Crud::PAGE_EDIT, 'Изменение жалобы на объявление/услугу')
-            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о жалобе на объявление/услугу");
+            ->setEntityLabelInPlural('Жалоба на отзыв')
+            ->setEntityLabelInSingular('жалобу на отзыв')
+            ->setPageTitle(Crud::PAGE_NEW, 'Добавление жалобы на отзыв')
+            ->setPageTitle(Crud::PAGE_EDIT, 'Изменение жалобы на отзыв')
+            ->setPageTitle(Crud::PAGE_DETAIL, "Информация о жалобе на отзыв");
     }
-
 
     public function configureActions(Actions $actions): Actions
     {
@@ -60,7 +58,7 @@ class AppealTicketCrudController extends AbstractCrudController
     public function configureFilters(Filters $filters): Filters
     {
         return $filters
-            ->add(EntityFilter::new('ticket', 'Объявление / Услуга'))
+            ->add(EntityFilter::new('review', 'Отзыв'))
             ->add(EntityFilter::new('author', 'Истец'))
             ->add(EntityFilter::new('respondent', 'Ответчик'))
             ->add(EntityFilter::new('reason', 'Причина жалобы'));
@@ -77,26 +75,26 @@ class AppealTicketCrudController extends AbstractCrudController
 
         yield AssociationField::new('reason', 'Причина жалобы')
             ->setQueryBuilder(function (QueryBuilder $qb) {
-                return $qb->where("entity.applicableTo IN ('ticket', 'both')");
+                return $qb->where("entity.applicableTo IN ('review', 'both')");
             })
             ->setRequired(false)
             ->setColumns(6);
 
-        yield AssociationField::new('author', 'Истец')
+        yield AssociationField::new('author', 'Истец (null — анонимно)')
             ->setQueryBuilder(function (QueryBuilder $qb) {
                 return $qb->andWhere("CAST(entity.roles as text) NOT LIKE '%ROLE_ADMIN%'");
             })
-            ->setRequired(true)
+            ->setRequired(false)
             ->setColumns(4);
 
         yield AssociationField::new('respondent', 'Ответчик')
             ->setQueryBuilder(function (QueryBuilder $qb) {
                 return $qb->andWhere("CAST(entity.roles as text) NOT LIKE '%ROLE_ADMIN%'");
             })
-            ->setRequired(true)
+            ->setRequired(false)
             ->setColumns(4);
 
-        yield AssociationField::new('ticket', 'Объявление / Услуга')
+        yield AssociationField::new('review', 'Отзыв')
             ->setRequired(true)
             ->setColumns(4);
 

@@ -2,9 +2,19 @@
 
 namespace App\Controller\Admin;
 
+use App\Controller\Admin\Appeal\AppealReasonCrudController;
+use App\Controller\Admin\Appeal\AppealTypes\AppealChatCrudController;
+use App\Controller\Admin\Appeal\AppealTypes\AppealReviewCrudController;
+use App\Controller\Admin\Appeal\AppealTypes\AppealTicketCrudController;
+use App\Controller\Admin\Appeal\AppealTypes\AppealUserCrudController;
 use App\Controller\Admin\TechSupport\TechSupportCrudController;
 use App\Controller\Admin\User\UserCrudController;
 use App\Entity\Appeal\Appeal;
+use App\Entity\Appeal\AppealReason;
+use App\Entity\Appeal\AppealTypes\AppealChat;
+use App\Entity\Appeal\AppealTypes\AppealReview;
+use App\Entity\Appeal\AppealTypes\AppealTicket;
+use App\Entity\Appeal\AppealTypes\AppealUser;
 use App\Entity\Chat\Chat;
 use App\Entity\Gallery\Gallery;
 use App\Entity\Geography\City\City;
@@ -60,7 +70,14 @@ class DashboardController extends AbstractDashboardController
             yield MenuItem::linkToCrud('Чаты и сообщения', 'fas fa-comments', Chat::class);
             yield MenuItem::linkToCrud('Отзывы', 'fas fa-star', Review::class);
             yield MenuItem::linkToCrud('Тех. поддержка', 'fas fa-headset', TechSupport::class);
-            yield MenuItem::linkToCrud('Жалобы', 'fas fa-triangle-exclamation', Appeal::class);
+            yield MenuItem::subMenu('Жалобы', 'fas fa-triangle-exclamation')->setSubItems([
+                MenuItem::linkToCrud('Все жалобы', 'fas fa-list', Appeal::class),
+                MenuItem::linkToCrud('На чат', 'fas fa-comments', AppealChat::class)->setController(AppealChatCrudController::class),
+                MenuItem::linkToCrud('На объявление/услугу', 'fas fa-ticket', AppealTicket::class)->setController(AppealTicketCrudController::class),
+                MenuItem::linkToCrud('На отзыв', 'fas fa-star', AppealReview::class)->setController(AppealReviewCrudController::class),
+                MenuItem::linkToCrud('На пользователя', 'fas fa-user-xmark', AppealUser::class)->setController(AppealUserCrudController::class),
+                MenuItem::linkToCrud('Причины жалоб', 'fas fa-tags', AppealReason::class),
+            ]);
 
         yield MenuItem::section('Доп. настройки');
             yield MenuItem::subMenu('География', 'fas fa-location-dot')->setSubItems([

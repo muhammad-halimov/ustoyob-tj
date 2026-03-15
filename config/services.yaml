@@ -65,6 +65,22 @@ services:
         tags:
             - { name: 'api_platform.state_provider' }
 
+    App\State\Localization\Title\AppealReasonLocalizationProvider:
+        decorates: 'api_platform.doctrine.orm.state.collection_provider'
+        arguments:
+            # noinspection MissingServiceYaml
+            $decorated: '@.inner'
+        tags:
+            - { name: 'api_platform.state_provider' }
+
+    App\State\Localization\Title\LegalLocalizationProvider:
+        decorates: 'api_platform.doctrine.orm.state.collection_provider'
+        arguments:
+            # noinspection MissingServiceYaml
+            $decorated: '@.inner'
+        tags:
+            - { name: 'api_platform.state_provider' }
+
     App\Serializer\UserContextBuilder:
         decorates: 'api_platform.serializer.context_builder'
         arguments:

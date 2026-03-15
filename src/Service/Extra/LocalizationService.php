@@ -104,6 +104,33 @@ class LocalizationService
         $entity->setTitle($title);
     }
 
+    public function localizeEntityFull(object $entity, string $locale): void
+    {
+        if (!$entity) return;
+
+        if (!method_exists($entity, 'getTranslations')) {
+            return;
+        }
+
+        /** @var Collection $translations */
+        $translations = $entity->getTranslations();
+
+        $translation = $translations->filter(fn($t) => $t->getLocale() === $locale)->first();
+        $fallback    = $translations->first();
+        $resolved    = $translation ?: $fallback;
+
+        if (method_exists($entity, 'setTitle') && $resolved && method_exists($resolved, 'getTitle')) {
+            $entity->setTitle($resolved->getTitle());
+        }
+
+        if (method_exists($entity, 'setDescription') && $resolved && method_exists($resolved, 'getDescription')) {
+            $desc = $resolved->getDescription();
+            if ($desc !== null) {
+                $entity->setDescription($desc);
+            }
+        }
+    }
+
     /**
      * @param object $entity
      * @param string $locale

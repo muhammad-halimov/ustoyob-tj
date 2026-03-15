@@ -2,70 +2,52 @@
 
 namespace App\Entity\Appeal;
 
-use ApiPlatform\Doctrine\Orm\Filter\ExistsFilter;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\Appeal\PostAppealConntroller;
 use App\Controller\Api\CRUD\Appeal\PostAppealPhotoController;
-use App\Controller\Api\Filter\Appeal\AppealReasonFilterController;
 use App\Dto\Appeal\Appeal\AppealInput;
-use App\Dto\Appeal\Appeal\ComplaintReasonOutput;
 use App\Dto\Image\ImageInput;
 use App\Entity\Appeal\AppealTypes\AppealChat;
-use App\Entity\Appeal\AppealTypes\AppealTicket;
+use App\Entity\Appeal\AppealTypes\AppealReview;
+use App\Entity\Chat\Chat;
+use App\Entity\Review\Review;
+use App\Entity\Ticket\Ticket;
+use App\Entity\Traits\CreatedAtTrait;
+use App\Entity\Traits\UpdatedAtTrait;
+use App\Entity\User;
 use App\Repository\User\AppealRepository;
-use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\SerializedName;
 
 #[ORM\Entity(repositoryClass: AppealRepository::class)]
 #[ORM\HasLifecycleCallbacks]
+#[ORM\InheritanceType('JOINED')]
 #[ApiResource(
     operations: [
-        new GetCollection(
-            uriTemplate: '/appeals/reasons',
-            controller: AppealReasonFilterController::class,
-            output: ComplaintReasonOutput::class,
-        ),
         new Get(
             uriTemplate: '/appeals/{id}',
-            normalizationContext: [
-                'groups' => [
-                    'appeal:read',
-                    'appeal:ticket:read',
-                    'appeal:chat:read'
-                ]
-            ],
+            normalizationContext: ['groups' => ['appeal:read', 'appeal:ticket:read', 'appeal:chat:read', 'appeal:review:read', 'appeal:user:read']],
             security: "is_granted('ROLE_ADMIN')",
         ),
         new GetCollection(
             uriTemplate: '/appeals',
-            normalizationContext: [
-                'groups' => [
-                    'appeal:read',
-                    'appeal:ticket:read',
-                    'appeal:chat:read'
-                ]
-            ],
+            normalizationContext: ['groups' => ['appeal:read', 'appeal:ticket:read', 'appeal:chat:read', 'appeal:review:read', 'appeal:user:read']],
             security: "is_granted('ROLE_ADMIN')",
         ),
         new Post(
             uriTemplate: '/appeals',
             controller: PostAppealConntroller::class,
-            normalizationContext: [
-                'groups' => [
-                    'appeal:read',
-                    'appeal:ticket:read',
-                    'appeal:chat:read'
-                ]
-            ],
+            normalizationContext: ['groups' => ['appeal:read', 'appeal:ticket:read', 'appeal:chat:read', 'appeal:review:read', 'appeal:user:read']],
             input: AppealInput::class,
         ),
         new Post(
@@ -78,244 +60,243 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
     ],
     paginationEnabled: false,
 )]
-#[ApiFilter(ExistsFilter::class, properties: ['appealChat', 'appealTicket'])]
 #[ApiFilter(SearchFilter::class, properties: [
-    'type',
-    'appealTicket',
-    'appealTicket.title' => 'partial',
-    'appealTicket.description' => 'partial',
-    'appealTicket.reason',
-    'appealTicket.ticket',
-    'appealTicket.ticket.title',
-    'appealTicket.ticket.service',
-    'appealTicket.author',
-    'appealTicket.respondent',
-
-    'appealChat',
-    'appealChat.title' => 'partial',
-    'appealChat.description' => 'partial',
-    'appealChat.reason',
-    'appealChat.chat',
-    'appealChat.author',
-    'appealChat.respondent',
+    'title' => 'partial',
+    'description' => 'partial',
+    'reason',
+    'author',
+    'respondent',
 ])]
-class Appeal
+abstract class Appeal
 {
-    public function __toString(): string
-    {
-        return $this->complaintReason ?? "Appeal #$this->id";
-    }
-
-    public function __construct()
-    {
-        $this->appealTicket = new ArrayCollection();
-        $this->appealChat = new ArrayCollection();
-    }
+    use CreatedAtTrait, UpdatedAtTrait;
 
     public const array TYPES = [
         'Услуга / Объявление' => 'ticket',
-        'Чат' => 'chat',
+        'Чат'                 => 'chat',
+        'Отзыв'               => 'review',
+        'Пользователь'        => 'user',
     ];
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups([
-        'appeal:read',
-        'appeal:chat:read',
-        'appeal:ticket:read',
-    ])]
+    #[Groups(['appeal:read', 'appeal:chat:read', 'appeal:ticket:read', 'appeal:review:read', 'appeal:user:read'])]
     private ?int $id = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
-    #[Groups([
-        'appeal:read',
-        'appeal:chat:read',
-        'appeal:ticket:read',
-    ])]
+    #[ORM\Column(length: 20, nullable: true)]
+    #[Groups(['appeal:read', 'appeal:chat:read', 'appeal:ticket:read', 'appeal:review:read', 'appeal:user:read'])]
     private ?string $type = null;
 
-    /**
-     * @var Collection<int, AppealTicket>
-     */
-    #[ORM\OneToMany(targetEntity: AppealTicket::class, mappedBy: 'appeal', cascade: ['all'])]
-    #[Groups([
-        'appeal:read',
-        'appeal:ticket:read',
-    ])]
-    #[SerializedName('ticket')]
-    private Collection $appealTicket;
+    #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(['appeal:read', 'appeal:chat:read', 'appeal:ticket:read', 'appeal:review:read', 'appeal:user:read'])]
+    private ?string $title = null;
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups(['appeal:read', 'appeal:chat:read', 'appeal:ticket:read', 'appeal:review:read', 'appeal:user:read'])]
+    private ?string $description = null;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    #[Groups(['appeal:read', 'appeal:chat:read', 'appeal:ticket:read', 'appeal:review:read', 'appeal:user:read'])]
+    private ?AppealReason $reason = null;
+
+    #[ORM\ManyToOne(inversedBy: 'appeals')]
+    #[Groups(['appeal:read', 'appeal:chat:read', 'appeal:ticket:read', 'appeal:review:read', 'appeal:user:read'])]
+    private ?User $author = null;
+
+    #[ORM\ManyToOne(inversedBy: 'appealsAsRespondent')]
+    #[Groups(['appeal:read', 'appeal:chat:read', 'appeal:ticket:read', 'appeal:review:read', 'appeal:user:read'])]
+    private ?User $respondent = null;
+
+    #[ORM\ManyToOne(inversedBy: 'appeals')]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    #[Groups(['appeal:read', 'appeal:chat:read', 'appeal:ticket:read', 'appeal:review:read', 'appeal:user:read'])]
+    private ?Ticket $ticket = null;
 
     /**
-     * @var Collection<int, AppealChat>
+     * @var Collection<int, AppealImage>
      */
-    #[ORM\OneToMany(targetEntity: AppealChat::class, mappedBy: 'appeal', cascade: ['all'])]
-    #[Groups([
-        'appeal:read',
-        'appeal:chat:read',
-    ])]
-    #[SerializedName('chat')]
-    private Collection $appealChat;
+    #[ORM\OneToMany(targetEntity: AppealImage::class, mappedBy: 'appeal', cascade: ['all'])]
+    #[Groups(['appeal:read', 'appeal:chat:read', 'appeal:ticket:read', 'appeal:review:read', 'appeal:user:read'])]
+    #[ApiProperty(writable: false)]
+    #[SerializedName('images')]
+    private Collection $images;
 
-    #[ORM\Column(type: 'datetime', nullable: false)]
-    #[Groups([
-        'appeal:read',
-        'appeal:chat:read',
-        'appeal:ticket:read',
-    ])]
-    protected DateTime $createdAt;
+    public function __construct()
+    {
+        $this->images = new ArrayCollection();
+    }
 
-    #[ORM\Column(type: 'datetime', nullable: false)]
-    #[Groups([
-        'appeal:read',
-        'appeal:chat:read',
-        'appeal:ticket:read',
-    ])]
-    protected DateTime $updatedAt;
+    public function __toString(): string
+    {
+        return $this->title ?? "Appeal #$this->id";
+    }
 
     public function getId(): ?int
     {
         return $this->id;
     }
 
-    public function getCreatedAt(): DateTime
-    {
-        return $this->createdAt;
-    }
-
-    #[ORM\PrePersist]
-    public function setCreatedAt(): void
-    {
-        $this->createdAt = new DateTime();
-    }
-
-    public function getUpdatedAt(): DateTime
-    {
-        return $this->updatedAt;
-    }
-
-    #[ORM\PreUpdate]
-    #[ORM\PrePersist]
-    public function setUpdatedAt(): void
-    {
-        $this->updatedAt = new DateTime();
-    }
-
-    public function getType(): ?string
+    public function getType(): string
     {
         return $this->type;
     }
 
-    public function setType(?string $type): static
+    public function setType(string $type): static
     {
         $this->type = $type;
         return $this;
     }
 
-    /**
-     * @return Collection<int, AppealTicket>
-     */
-    public function getAppealTicket(): Collection
+    public function getTypeLabel(): string
     {
-        return $this->appealTicket;
+        $label = array_search($this->getType(), self::TYPES);
+        return $label !== false ? $label : $this->getType();
     }
 
-    public function addAppealTicket(AppealTicket $appealTicket): static
+    public function getChatAssoc(): ?Chat
     {
-        if (!$this->appealTicket->contains($appealTicket)) {
-            $this->appealTicket->add($appealTicket);
-            $appealTicket->setAppeal($this);
-        }
+        return $this instanceof AppealChat ? $this->getChat() : null;
+    }
 
+    public function setChatAssoc(?Chat $chat): static
+    {
+        if ($this instanceof AppealChat) {
+            $this->setChat($chat);
+        }
         return $this;
     }
 
-    public function removeAppealTicket(AppealTicket $appealTicket): static
+    public function getReviewAssoc(): ?Review
     {
-        if ($this->appealTicket->removeElement($appealTicket)) {
-            // set the owning side to null (unless already changed)
-            if ($appealTicket->getAppeal() === $this) {
-                $appealTicket->setAppeal(null);
+        return $this instanceof AppealReview ? $this->getReview() : null;
+    }
+
+    public function setReviewAssoc(?Review $review): static
+    {
+        if ($this instanceof AppealReview) {
+            $this->setReview($review);
+        }
+        return $this;
+    }
+
+    public function getTitle(): ?string
+    {
+        return $this->title;
+    }
+
+    public function setTitle(?string $title): static
+    {
+        $this->title = $title;
+        return $this;
+    }
+
+    public function getDescription(): ?string
+    {
+        return $this->description;
+    }
+
+    public function setDescription(?string $description): static
+    {
+        $this->description = $description;
+        return $this;
+    }
+
+    public function getReason(): ?AppealReason
+    {
+        return $this->reason;
+    }
+
+    public function setReason(?AppealReason $reason): static
+    {
+        $this->reason = $reason;
+        return $this;
+    }
+
+    public function getAuthor(): ?User
+    {
+        return $this->author;
+    }
+
+    public function setAuthor(?User $author): static
+    {
+        $this->author = $author;
+        return $this;
+    }
+
+    public function getRespondent(): ?User
+    {
+        return $this->respondent;
+    }
+
+    public function setRespondent(?User $respondent): static
+    {
+        $this->respondent = $respondent;
+        return $this;
+    }
+
+    public function getTicket(): ?Ticket
+    {
+        return $this->ticket;
+    }
+
+    public function setTicket(?Ticket $ticket): static
+    {
+        $this->ticket = $ticket;
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, AppealImage>
+     */
+    public function getImages(): Collection
+    {
+        return $this->images;
+    }
+
+    public function addImage(AppealImage $image): static
+    {
+        if (!$this->images->contains($image)) {
+            $this->images->add($image);
+            $image->setAppeal($this);
+        }
+        return $this;
+    }
+
+    public function removeImage(AppealImage $image): static
+    {
+        if ($this->images->removeElement($image)) {
+            if ($image->getAppeal() === $this) {
+                $image->setAppeal(null);
             }
         }
-
         return $this;
     }
 
-    /**
-     * @return Collection<int, AppealChat>
-     */
-    public function getAppealChat(): Collection
+    public function getInfo(): string
     {
-        return $this->appealChat;
-    }
+        $typeCode  = $this instanceof AppealChat ? 'chat' : 'ticket';
+        $typeHuman = array_search($typeCode, self::TYPES) ?: $typeCode;
 
-    public function addAppealChat(AppealChat $appealChat): static
-    {
-        if (!$this->appealChat->contains($appealChat)) {
-            $this->appealChat->add($appealChat);
-            $appealChat->setAppeal($this);
+        $lines = [
+            "Тип жалобы: $typeHuman",
+            "ID жалобы: " . ($this->id ?? 'N/A'),
+            "Заголовок жалобы: " . ($this->title ?? 'N/A'),
+            "Истец: " . ($this->author?->getEmail() ?? 'N/A'),
+            "Ответчик: " . ($this->respondent?->getEmail() ?? 'N/A'),
+            "Причина жалобы: " . ($this->reason?->getTitle() ?? 'N/A'),
+            "Описание: " . ($this->description ?? 'N/A'),
+        ];
+
+        array_splice($lines, 2, 0, ["ID услуги/объявления: " . ($this->ticket?->getId() ?? 'N/A')]);
+
+        if ($this instanceof AppealChat) {
+            array_splice($lines, 2, 0, ["ID чата: " . ($this->getChat()?->getId() ?? 'N/A')]);
+        } elseif ($this instanceof AppealReview) {
+            array_splice($lines, 2, 0, ["ID отзыва: " . ($this->getReview()?->getId() ?? 'N/A')]);
         }
 
-        return $this;
-    }
-
-    public function removeAppealChat(AppealChat $appealChat): static
-    {
-        if ($this->appealChat->removeElement($appealChat)) {
-            // set the owning side to null (unless already changed)
-            if ($appealChat->getAppeal() === $this) {
-                $appealChat->setAppeal(null);
-            }
-        }
-
-        return $this;
-    }
-
-    public function getInfo(): ?string
-    {
-        // Получаем читаемый тип из массива TYPES
-        $typeCode = $this->type;
-        $typeHuman = array_search($typeCode, Appeal::TYPES) ?: $typeCode;
-
-        if (!$this->appealChat->isEmpty()) {
-            $appealChat = $this->appealChat->first();
-
-            // Получаем читаемую причину из массива COMPLAINTS
-            $complaintCode = $appealChat->getReason();
-            $complaintHuman = array_search($complaintCode, AppealChat::COMPLAINTS) ?: $complaintCode;
-
-            return "
-                Тип жалобы: ".($typeHuman ?? 'N/A')."
-                ID жалобы: {$this->getId()}
-                ID чата: ".($appealChat->getChat()?->getId() ?? 'N/A')."
-                Заголовок жалобы: ".($appealChat->getTitle() ?? 'N/A')."
-                Истец: {$appealChat->getAuthor()->getEmail()}
-                Ответчик: {$appealChat->getRespondent()->getEmail()}
-                Причина жалобы: ".($complaintHuman ?? 'N/A')."
-                Описание: ".($appealChat->getDescription() ?? 'N/A')."
-            ";
-        }
-
-        if (!$this->appealTicket->isEmpty()) {
-            $appealTicket = $this->appealTicket->first();
-
-            // Получаем читаемую причину из массива COMPLAINTS
-            $complaintCode = $appealTicket->getReason();
-            $complaintHuman = array_search($complaintCode, AppealTicket::COMPLAINTS) ?: $complaintCode;
-
-            return "
-                Тип жалобы: ".($typeHuman ?? 'N/A')."
-                ID жалобы: {$this->getId()}
-                ID услуги/объявления: ".($appealTicket->getTicket()?->getId() ?? 'N/A')."
-                Заголовок жалобы: ".($appealTicket->getTitle() ?? 'N/A')."
-                Истец: {$appealTicket->getAuthor()->getEmail()}
-                Ответчик: {$appealTicket->getRespondent()->getEmail()}
-                Причина жалобы: ".($complaintHuman ?? 'N/A')."
-                Описание: ".($appealTicket->getDescription() ?? 'N/A')."
-            ";
-        }
-
-        return null;
+        return implode("\n", $lines);
     }
 }

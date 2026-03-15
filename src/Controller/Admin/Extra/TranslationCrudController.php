@@ -7,6 +7,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
 class TranslationCrudController extends AbstractCrudController
@@ -29,6 +30,10 @@ class TranslationCrudController extends AbstractCrudController
         yield TextField::new('title', 'Название')
             ->setColumns(12)
             ->setRequired(true);
+
+        yield TextEditorField::new('description', 'Описание')
+            ->setColumns(12)
+            ->setRequired(false);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
             ->hideOnForm();

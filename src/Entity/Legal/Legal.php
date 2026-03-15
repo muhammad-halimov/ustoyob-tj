@@ -7,12 +7,17 @@ use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
+use App\Entity\Extra\Translation;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Repository\Legal\LegalRepository;
+use App\State\Localization\Title\LegalLocalizationProvider;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Serializer\Attribute\Ignore;
 
 #[ORM\Entity(repositoryClass: LegalRepository::class)]
 #[ORM\HasLifecycleCallbacks]
@@ -20,6 +25,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
     operations: [
         new GetCollection(
             uriTemplate: '/legals',
+            provider: LegalLocalizationProvider::class,
             normalizationContext: [
                 'groups' => ['legals:read'],
                 'skip_null_values' => false,
@@ -27,6 +33,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
         ),
         new Get(
             uriTemplate: '/legals/{id}',
+            provider: LegalLocalizationProvider::class,
             normalizationContext: [
                 'groups' => ['legals:read'],
                 'skip_null_values' => false,
@@ -39,6 +46,11 @@ use Symfony\Component\Serializer\Attribute\Groups;
 class Legal
 {
     use CreatedAtTrait, UpdatedAtTrait;
+
+    public function __toString(): string
+    {
+        return $this->title ?? "Legal #{$this->id}";
+    }
 
     public const array TYPES = [
         'Политики использования' => 'terms_of_use',
@@ -63,6 +75,18 @@ class Legal
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups(['legals:read'])]
     private ?string $description = null;
+
+    /**
+     * @var Collection<int, Translation>
+     */
+    #[ORM\OneToMany(targetEntity: Translation::class, mappedBy: 'legal', cascade: ['persist'])]
+    #[Ignore]
+    private Collection $translations;
+
+    public function __construct()
+    {
+        $this->translations = new ArrayCollection();
+    }
 
     public function getId(): ?int
     {
@@ -102,6 +126,33 @@ class Legal
     {
         $this->description = $description;
 
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Translation>
+     */
+    public function getTranslations(): Collection
+    {
+        return $this->translations;
+    }
+
+    public function addTranslation(Translation $translation): static
+    {
+        if (!$this->translations->contains($translation)) {
+            $this->translations->add($translation);
+            $translation->setLegal($this);
+        }
+        return $this;
+    }
+
+    public function removeTranslation(Translation $translation): static
+    {
+        if ($this->translations->removeElement($translation)) {
+            if ($translation->getLegal() === $this) {
+                $translation->setLegal(null);
+            }
+        }
         return $this;
     }
 }

@@ -2,15 +2,19 @@
 
 namespace App\DataFixture\User;
 
-use App\Entity\Geography\District\District;
+use App\DataFixture\Additional\ReviewFIxture;
+use App\DataFixture\Additional\TicketFixture;
+use App\DataFixture\Geography\DistrictFixture;
+use App\DataFixture\Service\OccupationFixture;
 use App\Entity\Review\Review;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
 use App\Entity\User\Occupation;
 use Doctrine\Bundle\FixturesBundle\Fixture;
+use Doctrine\Common\DataFixtures\DependentFixtureInterface;
 use Doctrine\Persistence\ObjectManager;
 
-class MasterFixture extends Fixture
+class MasterFixture extends Fixture implements DependentFixtureInterface
 {
     public function load(ObjectManager $manager): void
     {
@@ -58,10 +62,10 @@ class MasterFixture extends Fixture
     public function getDependencies(): array
     {
         return [
-            Occupation::class,
-            District::class,
-            Ticket::class,
-            Review::class,
+            OccupationFixture::class,
+            DistrictFixture::class,
+            TicketFixture::class,
+            ReviewFIxture::class,
         ];
     }
 }

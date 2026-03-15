@@ -5,8 +5,6 @@ namespace App\Controller\Api\CRUD\Appeal;
 use App\Controller\Api\CRUD\Image\AbstractPhotoUploadController;
 use App\Entity\Appeal\Appeal;
 use App\Entity\Appeal\AppealImage;
-use App\Entity\Appeal\AppealTypes\AppealChat;
-use App\Entity\Appeal\AppealTypes\AppealTicket;
 use App\Entity\User;
 use App\Repository\User\AppealRepository;
 use App\Service\Extra\AccessService;
@@ -34,18 +32,18 @@ class PostAppealPhotoController extends AbstractPhotoUploadController
 
     protected function checkOwnership(object $entity, User $bearerUser): ?JsonResponse
     {
-        /** @var ?AppealChat $appealChat */
         /** @var Appeal $entity */
-        $appealChat = $entity->getAppealChat()->first();
+        $author     = $entity->getAuthor();
+        $respondent = $entity->getRespondent();
 
-        /** @var ?AppealTicket $appealTicket */
-        /** @var Appeal $entity */
-        $appealTicket = $entity->getAppealTicket()->first();
+        // anonymous appeal: only respondent can upload
+        if ($author === null) {
+            if ($respondent !== $bearerUser)
+                return $this->json(['message' => "Ownership doesn't match"], 403);
+            return null;
+        }
 
-        if ($appealChat && $appealChat->getAuthor() !== $bearerUser && $appealChat->getRespondent() !== $bearerUser)
-            return $this->json(['message' => "Ownership doesn't match"], 403);
-
-        if ($appealTicket && $appealTicket->getAuthor() !== $bearerUser && $appealTicket->getRespondent() !== $bearerUser)
+        if ($author !== $bearerUser && $respondent !== $bearerUser)
             return $this->json(['message' => "Ownership doesn't match"], 403);
 
         return null;
@@ -53,24 +51,10 @@ class PostAppealPhotoController extends AbstractPhotoUploadController
 
     protected function processImageFile(object $entity, UploadedFile $imageFile, User $bearerUser): void
     {
-        /** @var ?AppealChat $appealChat */
         /** @var Appeal $entity */
-        $appealChat = $entity->getAppealChat()->first();
-
-        /** @var ?AppealTicket $appealTicket */
-        /** @var Appeal $entity */
-        $appealTicket = $entity->getAppealTicket()->first();
-
-        /** @var Appeal $entity */
-        if ($appealChat) {
-            $appealImage = (new AppealImage())->setImageFile($imageFile);
-            $appealChat->addAppealChatImage($appealImage);
-            $this->entityManager->persist($appealImage);
-        } elseif ($appealTicket) {
-            $appealImage = (new AppealImage())->setImageFile($imageFile);
-            $appealTicket->addAppealTicketImage($appealImage);
-            $this->entityManager->persist($appealImage);
-        }
+        $appealImage = (new AppealImage())->setImageFile($imageFile);
+        $entity->addImage($appealImage);
+        $this->entityManager->persist($appealImage);
     }
 
     protected function getEntityName(): string

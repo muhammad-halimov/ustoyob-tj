@@ -5,9 +5,10 @@ namespace App\DataFixture\Additional;
 use App\Entity\Review\Review;
 use App\Entity\Ticket\Ticket;
 use Doctrine\Bundle\FixturesBundle\Fixture;
+use Doctrine\Common\DataFixtures\DependentFixtureInterface;
 use Doctrine\Persistence\ObjectManager;
 
-class TicketFixture extends Fixture
+class TicketFixture extends Fixture implements DependentFixtureInterface
 {
     public function load(ObjectManager $manager): void
     {
@@ -54,7 +55,7 @@ class TicketFixture extends Fixture
     public function getDependencies(): array
     {
         return [
-            Review::class,
+            ReviewFIxture::class,
         ];
     }
 }

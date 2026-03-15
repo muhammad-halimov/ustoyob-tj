@@ -2,15 +2,17 @@
 
 namespace App\DataFixture\Service;
 
+use App\DataFixture\Additional\TicketFixture;
 use App\Entity\Extra\Translation;
 use App\Entity\Ticket\Category;
 use App\Entity\Ticket\Ticket;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\DataFixtures\DependentFixtureInterface;
 use Doctrine\Persistence\ObjectManager;
 use ReflectionClass;
 
-class CategoryFixture extends Fixture
+class CategoryFixture extends Fixture implements DependentFixtureInterface
 {
     public function load(ObjectManager $manager): void
     {
@@ -76,7 +78,7 @@ class CategoryFixture extends Fixture
     public function getDependencies(): array
     {
         return [
-            Ticket::class
+           TicketFixture::class
         ];
     }
 }

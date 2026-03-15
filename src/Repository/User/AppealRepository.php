@@ -3,6 +3,7 @@
 namespace App\Repository\User;
 
 use App\Entity\Appeal\Appeal;
+use App\Entity\Appeal\AppealTypes\AppealTicket;
 use App\Entity\Ticket\Ticket;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -19,10 +20,11 @@ class AppealRepository extends ServiceEntityRepository
 
     public function findTicketComplaints(Ticket $ticket): ?array
     {
-        return $this
-            ->createQueryBuilder('a')
-            ->innerJoin('a.appealTicket', 'at')
-            ->andWhere('at.ticket = :ticket')
+        return $this->getEntityManager()
+            ->createQueryBuilder()
+            ->select('a')
+            ->from(AppealTicket::class, 'a')
+            ->andWhere('a.ticket = :ticket')
             ->setParameter('ticket', $ticket)
             ->getQuery()
             ->getResult();
