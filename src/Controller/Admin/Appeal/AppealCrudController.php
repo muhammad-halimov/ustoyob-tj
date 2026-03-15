@@ -5,9 +5,11 @@ namespace App\Controller\Admin\Appeal;
 use App\Controller\Admin\Appeal\AppealTypes\AppealChatCrudController;
 use App\Controller\Admin\Appeal\AppealTypes\AppealReviewCrudController;
 use App\Controller\Admin\Appeal\AppealTypes\AppealTicketCrudController;
+use App\Controller\Admin\Appeal\AppealTypes\AppealUserCrudController;
 use App\Entity\Appeal\Appeal;
 use App\Entity\Appeal\AppealTypes\AppealChat;
 use App\Entity\Appeal\AppealTypes\AppealReview;
+use App\Entity\Appeal\AppealTypes\AppealUser;
 use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
@@ -95,6 +97,7 @@ class AppealCrudController extends AbstractCrudController
         return match (true) {
             $entity instanceof AppealChat   => AppealChatCrudController::class,
             $entity instanceof AppealReview => AppealReviewCrudController::class,
+            $entity instanceof AppealUser => AppealUserCrudController::class,
             default                         => AppealTicketCrudController::class,
         };
     }

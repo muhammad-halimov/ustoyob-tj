@@ -2,7 +2,7 @@
 
 namespace App\Controller\Admin\Appeal\AppealTypes;
 
-use App\Entity\Appeal\AppealReason;
+use App\Controller\Admin\Appeal\AppealImageCrudController;
 use App\Entity\Appeal\AppealTypes\AppealChat;
 use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
@@ -11,8 +11,8 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\FormField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
@@ -81,7 +81,7 @@ class AppealChatCrudController extends AbstractCrudController
             })
             ->setRequired(false)
             ->setColumns(6);
-            
+
         yield AssociationField::new('author', 'Истец')
             ->setQueryBuilder(function (QueryBuilder $qb) {
                 return $qb->andWhere("CAST(entity.roles as text) NOT LIKE '%ROLE_ADMIN%'");
@@ -103,6 +103,12 @@ class AppealChatCrudController extends AbstractCrudController
         yield TextEditorField::new('description', 'Описание')
             ->setRequired(true)
             ->setColumns(12);
+
+        yield CollectionField::new('images', 'Галерея изображений')
+            ->useEntryCrudForm(AppealImageCrudController::class)
+            ->hideOnIndex()
+            ->setColumns(12)
+            ->setRequired(false);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
             ->hideOnForm();

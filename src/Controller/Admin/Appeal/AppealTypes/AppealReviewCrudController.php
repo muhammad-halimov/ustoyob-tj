@@ -2,6 +2,7 @@
 
 namespace App\Controller\Admin\Appeal\AppealTypes;
 
+use App\Controller\Admin\Appeal\AppealImageCrudController;
 use App\Entity\Appeal\AppealTypes\AppealReview;
 use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
@@ -10,6 +11,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\FormField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
@@ -102,6 +104,12 @@ class AppealReviewCrudController extends AbstractCrudController
             ->setRequired(true)
             ->setColumns(12)
             ->hideOnIndex();
+
+        yield CollectionField::new('images', 'Галерея изображений')
+            ->useEntryCrudForm(AppealImageCrudController::class)
+            ->hideOnIndex()
+            ->setColumns(12)
+            ->setRequired(false);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
             ->hideOnForm();
