@@ -23,7 +23,7 @@ export const ROUTES = {
     
     // Юридические документы
     PRIVACY_POLICY: '/legal/privacy-policy',
-    TERMS_OF_USE: '/legal/terms-of-use',
+    TERMS_OF_SERVICE: '/legal/terms-of-service',
     PUBLIC_OFFER: '/legal/public-offer',
     
     // OAuth
@@ -50,7 +50,7 @@ export const ROUTE_PATTERNS = {
     EDIT_TICKET: 'ticket/:id/edit',
     CATEGORY_TICKETS_BY_ID: 'ticket/category/:id',
     PRIVACY_POLICY: 'legal/privacy-policy',
-    TERMS_OF_USE: 'legal/terms-of-use',
+    TERMS_OF_SERVICE: 'legal/terms-of-service',
     PUBLIC_OFFER: 'legal/public-offer',
     
     // OAuth

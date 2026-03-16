@@ -38,7 +38,7 @@ const router = createBrowserRouter([
 
             // Legal pages
             { path: ROUTE_PATTERNS.PRIVACY_POLICY, element: <Legal /> },
-            { path: ROUTE_PATTERNS.TERMS_OF_USE, element: <Legal /> },
+            { path: ROUTE_PATTERNS.TERMS_OF_SERVICE, element: <Legal /> },
             { path: ROUTE_PATTERNS.PUBLIC_OFFER, element: <Legal /> },
         ],
     },

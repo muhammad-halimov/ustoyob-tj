@@ -10,7 +10,7 @@ function Footer() {
         <footer className={styles.footer}>
             <div className={styles.container}>
                 <div className={styles.links}>
-                    <Link to={ROUTES.TERMS_OF_USE} className={styles.link}>
+                    <Link to={ROUTES.TERMS_OF_SERVICE} className={styles.link}>
                         {t('footer.termsOfUse', 'Условия использования')}
                     </Link>
                     <span className={styles.separator}>•</span>

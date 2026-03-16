@@ -15,7 +15,7 @@ interface LegalDocument {
     updatedAt: string;
 }
 
-type DocumentType = 'privacy_policy' | 'terms_of_use' | 'public_offer';
+type DocumentType = 'privacy_policy' | 'terms_of_service' | 'public_offer';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -33,8 +33,8 @@ function Legal() {
         const path = location.pathname;
         if (path.includes('privacy-policy')) {
             setActiveType('privacy_policy');
-        } else if (path.includes('terms-of-use')) {
-            setActiveType('terms_of_use');
+        } else if (path.includes('terms-of-service')) {
+            setActiveType('terms_of_service');
         } else if (path.includes('public-offer')) {
             setActiveType('public_offer');
         }
@@ -86,8 +86,8 @@ function Legal() {
         if (type !== activeType) {
             setActiveType(type);
             let newPath: string = ROUTES.PRIVACY_POLICY;
-            if (type === 'terms_of_use') {
-                newPath = ROUTES.TERMS_OF_USE;
+            if (type === 'terms_of_service') {
+                newPath = ROUTES.TERMS_OF_SERVICE;
             } else if (type === 'public_offer') {
                 newPath = ROUTES.PUBLIC_OFFER;
             }
@@ -113,8 +113,8 @@ function Legal() {
                 <div className={styles.header}>
                     <div className={styles.navigation}>
                         <button 
-                            className={`${styles.navButton} ${activeType === 'terms_of_use' ? styles.active : ''}`}
-                            onClick={() => handleTypeChange('terms_of_use')}
+                            className={`${styles.navButton} ${activeType === 'terms_of_service' ? styles.active : ''}`}
+                            onClick={() => handleTypeChange('terms_of_service')}
                         >
                             {t('footer.termsOfUse', 'Условия использования')}
                         </button>
@@ -149,8 +149,8 @@ function Legal() {
             <div className={styles.header}>
                 <div className={styles.navigation}>
                     <button 
-                        className={`${styles.navButton} ${activeType === 'terms_of_use' ? styles.active : ''}`}
-                        onClick={() => handleTypeChange('terms_of_use')}
+                        className={`${styles.navButton} ${activeType === 'terms_of_service' ? styles.active : ''}`}
+                        onClick={() => handleTypeChange('terms_of_service')}
                     >
                         {t('footer.termsOfUse', 'Условия использования')}
                     </button>
