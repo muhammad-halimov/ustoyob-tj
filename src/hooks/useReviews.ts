@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { makeApiRequest } from '../utils/apiHelper';
-import { getAuthToken, handleUnauthorized } from '../utils/auth.ts';
+import { getAuthToken } from '../utils/auth.ts';
+import { uploadPhotos } from '../utils/imageHelper';
 
 export interface Review {
     id: number;
@@ -33,8 +34,6 @@ export interface Review {
     createdAt?: string;
     type?: string;
 }
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export const useReviews = () => {
     const [reviews, setReviews] = useState<Review[]>([]);
@@ -145,51 +144,11 @@ export const useReviews = () => {
 
     const uploadReviewPhotos = useCallback(async (reviewId: number, photos: File[]) => {
         if (photos.length === 0) return;
-
         setIsLoading(true);
         try {
-            // Для каждого фото создаем отдельный запрос
-            const uploadPromises = photos.map(async (photo) => {
-                const formData = new FormData();
-                formData.append('imageFile', photo);
-
-                console.log(`Uploading photo for review ${reviewId}`);
-
-                const uploadPhoto = async (): Promise<Response> => {
-                    return fetch(`${API_BASE_URL}/api/reviews/${reviewId}/upload-photo`, {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${getAuthToken()}`,
-                        },
-                        body: formData,
-                    });
-                };
-
-                let response = await uploadPhoto();
-
-                // Если 401, пробуем обновить токен и повторить
-                if (response.status === 401) {
-                    const refreshed = await handleUnauthorized();
-                    if (refreshed) {
-                        response = await uploadPhoto();
-                    } else {
-                        throw new Error(`Failed to upload photo: 401 Unauthorized`);
-                    }
-                }
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Failed to upload photo: ${response.status} - ${errorText}`);
-                }
-
-                return await response.json();
-            });
-
-            const results = await Promise.all(uploadPromises);
-            console.log('All photos uploaded:', results);
-            return results;
+            const token = getAuthToken();
+            await uploadPhotos('reviews', reviewId, photos, token);
         } catch (error) {
-            console.error('Error uploading review photos:', error);
             setError(error instanceof Error ? error.message : 'Ошибка загрузки фото');
             throw error;
         } finally {

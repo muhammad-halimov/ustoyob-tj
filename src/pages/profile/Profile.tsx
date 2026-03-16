@@ -1,12 +1,13 @@
 import {type ChangeEvent, useCallback, useEffect, useRef, useState} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
-import {getAuthToken, getUserData, handleUnauthorized, logout} from '../../utils/auth.ts';
+import {getAuthToken, getUserData, getUserRole, handleUnauthorized, logout} from '../../utils/auth.ts';
 import {ROUTES} from '../../app/routers/routes';
 import styles from './Profile.module.scss';
 import {useTranslation} from 'react-i18next';
 import {useLanguageChange} from '../../hooks';
 import {getStorageItem} from '../../utils/storageHelper.ts';
 import {createChatWithAuthor} from '../../utils/chatUtils';
+import { uploadPhotos } from '../../utils/imageHelper';
 
 import {usePreview} from '../../shared/ui/Photo/Preview';
 import {AddressValue, buildAddressData} from '../../shared/ui/Address/Selector';
@@ -111,6 +112,9 @@ function Profile() {
     const [isMobile, setIsMobile] = useState(false);
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [showComplaintModal, setShowComplaintModal] = useState(false);
+    const [complaintReviewId, setComplaintReviewId] = useState<number | null>(null);
+    const [complaintReviewAuthorId, setComplaintReviewAuthorId] = useState<number | null>(null);
+    const [isReviewComplaintOpen, setIsReviewComplaintOpen] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [authModalAction, setAuthModalAction] = useState<'review' | 'complaint' | null>(null);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -919,7 +923,7 @@ function Profile() {
                 updatedPhones = [
                     ...profileData.phones,
                     {
-                        id: phoneForm.type === 'tj' ? 'phone-tj' : 'phone-international',
+                        id: 'phone-' + (profileData.phones.length + 1),
                         number: trimmedNumber,
                         type: phoneForm.type
                     }
@@ -933,9 +937,9 @@ function Profile() {
                 );
             }
 
-            // Преобразуем в формат phone1 и phone2
-            const phone1 = updatedPhones.find(p => p.type === 'tj')?.number || null;
-            const phone2 = updatedPhones.find(p => p.type === 'international')?.number || null;
+            // Преобразуем в формат phone1 и phone2 (по позиции слота)
+            const phone1 = updatedPhones[0]?.number || null;
+            const phone2 = updatedPhones[1]?.number || null;
 
             const response = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
                 method: 'PATCH',
@@ -983,9 +987,9 @@ function Profile() {
 
             const updatedPhones = profileData.phones.filter(p => p.id !== phoneId);
             
-            // Преобразуем в формат phone1 и phone2
-            const phone1 = updatedPhones.find(p => p.type === 'tj')?.number || null;
-            const phone2 = updatedPhones.find(p => p.type === 'international')?.number || null;
+            // Преобразуем в формат phone1 и phone2 (по позиции слота)
+            const phone1 = updatedPhones[0]?.number || null;
+            const phone2 = updatedPhones[1]?.number || null;
 
             const response = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
                 method: 'PATCH',
@@ -1283,16 +1287,16 @@ function Profile() {
             const loadedPhones: LocalPhone[] = [];
             if (userData.phone1 && typeof userData.phone1 === 'string') {
                 loadedPhones.push({
-                    id: 'phone-tj',
+                    id: 'phone-1',
                     number: userData.phone1,
-                    type: 'tj'
+                    type: userData.phone1.startsWith('+992') ? 'tj' : 'international'
                 });
             }
             if (userData.phone2 && typeof userData.phone2 === 'string') {
                 loadedPhones.push({
-                    id: 'phone-international',
+                    id: 'phone-2',
                     number: userData.phone2,
-                    type: 'international'
+                    type: userData.phone2.startsWith('+992') ? 'tj' : 'international'
                 });
             }
 
@@ -1767,9 +1771,10 @@ function Profile() {
                     unit: service.unit || 'сомони',
                     createdAt: service.createdAt,
                     active: service.active !== false,
-                    images: serviceImages
+                    images: serviceImages,
+                    position: service.position ?? 0,
                 };
-            }).reverse(); // Реверс массива
+            }).sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 
             console.log('Transformed services:', transformedServices);
             
@@ -1805,7 +1810,6 @@ function Profile() {
             console.log('Starting batch photo upload...');
             
             // Валидация файлов
-            const formData = new FormData();
             const validFiles: File[] = [];
 
             for (let i = 0; i < files.length; i++) {
@@ -1821,7 +1825,6 @@ function Profile() {
                     continue;
                 }
 
-                formData.append("imageFile[]", file);
                 validFiles.push(file);
             }
 
@@ -1852,23 +1855,7 @@ function Profile() {
             console.log(`Uploading ${validFiles.length} photos to gallery ${galleryId}`);
 
             // Загружаем фото в галерею
-            const response = await fetch(`${API_BASE_URL}/api/galleries/${galleryId}/upload-photo`, {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                },
-                body: formData,
-            });
-
-            const responseText = await response.text();
-            console.log(`Upload response:`, response.status, responseText);
-
-            if (!response.ok) {
-                console.error(`Ошибка при загрузке:`, responseText);
-                alert("Не удалось загрузить фото. Попробуйте еще раз.");
-                setIsGalleryOperating(false);
-                return;
-            }
+            await uploadPhotos('galleries', galleryId, validFiles, token);
 
             // Обновляем галерею
             await fetchUserGallery();
@@ -2774,8 +2761,25 @@ function Profile() {
         }
     };
 
-    const handleReorderPhones = (newPhones: LocalPhone[]) => {
+    const handleReorderPhones = async (newPhones: LocalPhone[]) => {
         setProfileData(prev => prev ? { ...prev, phones: newPhones } : null);
+        const token = getAuthToken();
+        if (!token || !profileData?.id) return;
+        try {
+            await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/merge-patch+json',
+                },
+                body: JSON.stringify({
+                    phone1: newPhones[0]?.number || null,
+                    phone2: newPhones[1]?.number || null,
+                }),
+            });
+        } catch (error) {
+            console.error('Error reordering phones:', error);
+        }
     };
 
     const handleReorderWorkExamples = async (newWorkExamples: { id: string; image: string; title: string }[]) => {
@@ -2806,8 +2810,26 @@ function Profile() {
         }
     };
 
-    const handleReorderServices = (newServices: Service[]) => {
+    const handleReorderServices = async (newServices: Service[]) => {
         setProfileData(prev => prev ? { ...prev, services: newServices } : null);
+        const token = getAuthToken();
+        if (!token) return;
+        try {
+            await Promise.all(
+                newServices.map((service, index) =>
+                    fetch(`${API_BASE_URL}/api/tickets/${service.id}`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({ position: index }),
+                    })
+                )
+            );
+        } catch (error) {
+            console.error('Error reordering services:', error);
+        }
     };
 
     const handleEditStart = (field: 'fullName' | 'specialty' | 'gender' | 'dateOfBirth') => {
@@ -3232,12 +3254,6 @@ function Profile() {
     };
 
     const handleComplaintClick = () => {
-        const token = getAuthToken();
-        if (!token) {
-            setAuthModalAction('complaint');
-            setShowAuthModal(true);
-            return;
-        }
         setShowComplaintModal(true);
     };
 
@@ -3270,11 +3286,7 @@ function Profile() {
     // Лайк / снятие лайка (публичный профиль)
     const handleProfileLike = async () => {
         const token = getAuthToken();
-        if (!token) {
-            setAuthModalAction(null);
-            setShowAuthModal(true);
-            return;
-        }
+        if (!token) return;
         if (!profileData?.id) return;
 
         setIsProfileLikeLoading(true);
@@ -3412,7 +3424,8 @@ function Profile() {
                     onRemoveSpecialty={handleRemoveSpecialty}
                     {...(readOnly && {
                         onChat: handleProfileChat,
-                        onReview: handleReviewButtonClick,
+                        ...(getUserRole() === null || getUserRole() !== userRole ? { onReview: handleReviewButtonClick } : {}),
+                        onComplaint: handleComplaintClick,
                         onLike: handleProfileLike,
                         isLiked: isProfileLiked,
                         isLikeLoading: isProfileLikeLoading,
@@ -3565,20 +3578,27 @@ function Profile() {
                     onServiceClick={handleServiceClick}
                     getReviewImageIndex={getReviewImageIndex}
                     onRefresh={fetchReviews}
+                    onComplaintClick={(reviewId, authorId) => {
+                        setComplaintReviewId(reviewId);
+                        setComplaintReviewAuthorId(authorId);
+                        setIsReviewComplaintOpen(true);
+                    }}
                 />
             </div>
 
             {readOnly && (
                 <div className={styles.profile_actions}>
-                    <button 
-                        className={styles.review_button}
-                        onClick={handleReviewButtonClick}
-                    >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
-                        </svg>
-                        {t('profile:leaveReview')}
-                    </button>
+                    {(getUserRole() === null || getUserRole() !== userRole) && (
+                        <button 
+                            className={styles.review_button}
+                            onClick={handleReviewButtonClick}
+                        >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+                            </svg>
+                            {t('profile:leaveReview')}
+                        </button>
+                    )}
                     <button 
                         className={styles.complaint_button}
                         onClick={handleComplaintClick}
@@ -3608,6 +3628,18 @@ function Profile() {
                 onSuccess={handleComplaintSuccess}
                 onError={handleComplaintError}
                 targetUserId={profileData?.id ? parseInt(profileData.id) : 0}
+                targetUserRole={userRole ?? undefined}
+                showUserComplaintToggle
+            />
+
+            <Complaint
+                isOpen={isReviewComplaintOpen}
+                onClose={() => setIsReviewComplaintOpen(false)}
+                onSuccess={(msg) => { setModalMessage(msg); setShowSuccessModal(true); }}
+                onError={(msg) => { setModalMessage(msg); setShowErrorModal(true); }}
+                targetUserId={complaintReviewAuthorId ?? 0}
+                reviewId={complaintReviewId ?? undefined}
+                complaintType="review"
             />
 
             <AuthModal

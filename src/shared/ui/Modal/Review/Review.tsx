@@ -3,6 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { getAuthToken, getUserRole } from '../../../../utils/auth.ts';
 import AuthModal from '../../../../features/auth/AuthModal.tsx';
 import styles from './Review.module.scss';
+import PhotoPicker from '../../Photo/PhotoPicker';
+import { uploadPhotos } from '../../../../utils/imageHelper';
+import { PageLoader } from '../../../../widgets/PageLoader';
 
 interface ReviewModalProps {
     isOpen: boolean;
@@ -122,17 +125,6 @@ const Review: React.FC<ReviewModalProps> = ({
         setSelectedStars(starCount);
     };
 
-    const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
-            const files = Array.from(e.target.files);
-            setReviewPhotos(prev => [...prev, ...files]);
-        }
-    };
-
-    const removePhoto = (index: number) => {
-        setReviewPhotos(prev => prev.filter((_, i) => i !== index));
-    };
-
     const getCurrentUserId = async (): Promise<number | null> => {
         try {
             const token = getAuthToken();
@@ -157,38 +149,7 @@ const Review: React.FC<ReviewModalProps> = ({
     };
 
     const uploadReviewPhotos = async (reviewId: number, photos: File[], token: string) => {
-        try {
-            console.log(`Uploading ${photos.length} photos for review ${reviewId}`);
-
-            for (const photo of photos) {
-                const formData = new FormData();
-                formData.append('imageFile', photo);
-
-                console.log(`Uploading photo: ${photo.name}`);
-
-                const response = await fetch(`${API_BASE_URL}/api/reviews/${reviewId}/upload-photo`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
-                    body: formData
-                });
-
-                if (response.ok || response.status === 201) {
-                    const uploadResult = await response.json();
-                    console.log('Photo uploaded successfully:', uploadResult);
-                } else {
-                    const errorText = await response.text();
-                    console.error(`Error uploading photo for review ${reviewId}:`, errorText);
-                    throw new Error(`Failed to upload photo: ${response.status}`);
-                }
-            }
-
-            console.log('All photos uploaded successfully');
-        } catch (error) {
-            console.error('Error uploading review photos:', error);
-            throw error;
-        }
+        await uploadPhotos('reviews', reviewId, photos, token);
     };
 
     const fetchReviewCount = async (userId: number): Promise<number> => {
@@ -415,6 +376,7 @@ const Review: React.FC<ReviewModalProps> = ({
     return (
         <div className={styles.modalOverlay} onClick={handleCloseModal}>
             <div className={styles.reviewModal} onClick={(e) => e.stopPropagation()}>
+                {isSubmitting && <PageLoader overlay />}
                 <div className={styles.modalHeader}>
                     <h2>{t('reviewModal.title')}</h2>
                 </div>
@@ -461,39 +423,12 @@ const Review: React.FC<ReviewModalProps> = ({
                     <div className={styles.photoSection}>
                         <label>{t('reviewModal.attachPhoto')}</label>
                         <div className={styles.photoUploadContainer}>
-                            <div className={styles.photoPreviews}>
-                                {reviewPhotos.map((photo, index) => (
-                                    <div key={index} className={styles.photoPreview}>
-                                        <img
-                                            src={URL.createObjectURL(photo)}
-                                            alt={`Preview ${index + 1}`}
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => removePhoto(index)}
-                                            className={styles.removePhoto}
-                                            disabled={isSubmitting}
-                                        >
-                                            ×
-                                        </button>
-                                    </div>
-                                ))}
-
-                                <div className={styles.photoUpload}>
-                                    <input
-                                        type="file"
-                                        id="review-photos"
-                                        multiple
-                                        accept="image/*"
-                                        onChange={handlePhotoUpload}
-                                        className={styles.fileInput}
-                                        disabled={isSubmitting}
-                                    />
-                                    <label htmlFor="review-photos" className={styles.photoUploadButton}>
-                                        +
-                                    </label>
-                                </div>
-                            </div>
+                            <PhotoPicker
+                                photos={reviewPhotos}
+                                onChange={setReviewPhotos}
+                                disabled={isSubmitting}
+                                inputId="review-photos"
+                            />
                         </div>
                     </div>
 

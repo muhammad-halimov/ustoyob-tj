@@ -13,7 +13,8 @@ import { getStorageItem } from '../../../utils/storageHelper.ts';
 import { PageLoader } from '../../../widgets/PageLoader';
 import { Back } from '../../../shared/ui/Button/Back/Back.tsx';
 import { Toggle } from '../../../shared/ui/Button/Toggle/Toggle';
-import { useDragReorder, DragHandle } from '../../../widgets/DragReorder';
+import PhotoGrid from '../../../shared/ui/Photo/PhotoGrid';
+import { uploadPhotos } from '../../../utils/imageHelper';
 
 interface ServiceData {
     id?: number;
@@ -62,6 +63,10 @@ interface Occupation {
     categories?: Array<{ id: number; title: string; image?: string }>;
 }
 
+type PhotoItem =
+    | { type: 'existing'; id: number; image: string }
+    | { type: 'new'; file: File; previewUrl: string };
+
 const CreateEdit = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
@@ -86,8 +91,7 @@ const CreateEdit = () => {
     const [isLoading, setIsLoading] = useState(isEditMode);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [pendingSubcategoryId, setPendingSubcategoryId] = useState<number | null>(null);
-    const [existingImages, setExistingImages] = useState<Array<{ id: number; image: string }>>([]);
-    const [newImages, setNewImages] = useState<File[]>([]);
+    const [photos, setPhotos] = useState<PhotoItem[]>([]);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
 
     // Данные для формы
@@ -112,8 +116,6 @@ const CreateEdit = () => {
     const [selectedSubcategory, setSelectedSubcategory] = useState<number | null>(null);
     const [selectedUnit, setSelectedUnit] = useState<number | null>(null);
     const [negotiableBudget, setNegotiableBudget] = useState(false);
-    const existingDrag = useDragReorder(existingImages, setExistingImages);
-    const newDrag = useDragReorder(newImages, setNewImages);
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
     const token = getAuthToken();
@@ -132,7 +134,9 @@ const CreateEdit = () => {
     };
 
     // Preview для просмотра существующих фото
-    const existingImageUrls = existingImages.map(img => getImageUrl(img.image));
+    const existingImageUrls = photos
+        .filter((p): p is Extract<PhotoItem, { type: 'existing' }> => p.type === 'existing')
+        .map(p => getImageUrl(p.image));
     const photoGallery = usePreview({ images: existingImageUrls });
 
     useEffect(() => {
@@ -159,8 +163,7 @@ const CreateEdit = () => {
             setSelectedCategory(null);
             setSelectedSubcategory(null);
             setSelectedUnit(null);
-            setExistingImages([]);
-            setNewImages([]);
+            setPhotos([]);
         }
     }, [token, isEditMode, id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -312,7 +315,11 @@ const CreateEdit = () => {
             // Считаем договорной только если negotiableBudget=true И нет реального бюджета.
             // Если budget > 0 — значит цена есть, галочка была записана ошибочно.
             setNegotiableBudget(!!data.negotiableBudget && !(data.budget > 0));
-            setExistingImages(data.images || []);
+            setPhotos((data.images || []).map((img: { id: number; image: string }) => ({
+                type: 'existing' as const,
+                id: img.id,
+                image: img.image,
+            })));
             
             console.log('State updated - category ID:', data.category?.id);
             console.log('State updated - subcategory ID:', data.subcategory?.id);
@@ -347,22 +354,6 @@ const CreateEdit = () => {
         }
     };
 
-    // Обработчики изображений
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files) {
-            const newFiles = Array.from(e.target.files);
-            setNewImages(prev => [...prev, ...newFiles]);
-        }
-    };
-
-    const removeNewImage = (index: number) => {
-        setNewImages(prev => prev.filter((_, i) => i !== index));
-    };
-
-    const removeExistingImage = (imageId: number) => {
-        setExistingImages(prev => prev.filter(img => img.id !== imageId));
-    };
-
     const handleSubmit = async (e: React.SubmitEvent) => {
         e.preventDefault();
 
@@ -374,11 +365,6 @@ const CreateEdit = () => {
         
         if (!addressValue.provinceId) {
             alert(t('createEdit:selectRegionRequired'));
-            return;
-        }
-
-        if (!addressValue.cityId && addressValue.districtIds.length === 0) {
-            alert(t('createEdit:selectCityRequired'));
             return;
         }
 
@@ -458,25 +444,15 @@ const CreateEdit = () => {
                 const ticketDataResponse = await response.json();
 
                 // Загрузка изображений
-                if (newImages.length > 0) {
-                    for (const image of newImages) {
-                        const imageFormData = new FormData();
-                        imageFormData.append('imageFile', image);
-
+                const filesToUpload = photos
+                    .filter((p): p is Extract<PhotoItem, { type: 'new' }> => p.type === 'new')
+                    .map(p => p.file);
+                if (filesToUpload.length > 0) {
+                    for (const image of filesToUpload) {
                         try {
-                            const uploadResponse = await fetch(`${API_BASE_URL}/api/tickets/${ticketDataResponse.id}/upload-photo`, {
-                                method: 'POST',
-                                headers: {
-                                    'Authorization': `Bearer ${token}`,
-                                },
-                                body: imageFormData,
-                            });
-                            
-                            if (!uploadResponse.ok) {
-                                console.warn('Failed to upload image:', image.name);
-                            }
+                            await uploadPhotos('tickets', ticketDataResponse.id, [image], token);
                         } catch (imageError) {
-                            console.error('Error uploading image:', imageError);
+                            console.warn('Failed to upload image:', image.name, imageError);
                         }
                     }
                 }
@@ -489,6 +465,49 @@ const CreateEdit = () => {
                     return;
                 }
 
+                // 1. Запоминаем ID существующих фото до загрузки
+                const existingImageIds = new Set(
+                    photos
+                        .filter((p): p is Extract<PhotoItem, { type: 'existing' }> => p.type === 'existing')
+                        .map(p => p.id)
+                );
+
+                // 2. Загружаем новые фото в том порядке, в котором они стоят в photos
+                const newPhotoEntries = photos
+                    .map((p, i) => ({ photo: p, index: i }))
+                    .filter((e): e is { photo: Extract<PhotoItem, { type: 'new' }>; index: number } => e.photo.type === 'new');
+
+                for (const { photo } of newPhotoEntries) {
+                    try {
+                        await uploadPhotos('tickets', serviceData.id!, [photo.file], token);
+                    } catch {
+                        console.warn('Failed to upload image:', photo.file.name);
+                    }
+                }
+
+                // 3. Перечитываем тикет, чтобы получить ID только что загруженных фото
+                const freshTicketResp = await fetch(`${API_BASE_URL}/api/tickets/${serviceData.id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+                const freshTicket = freshTicketResp.ok ? await freshTicketResp.json() : null;
+                const allCurrentImages: ImageData[] = freshTicket?.images || [];
+
+                // Новые = те, которых не было раньше (в порядке вставки = порядок загрузки)
+                const uploadedInOrder = allCurrentImages.filter(img => !existingImageIds.has(img.id));
+                let uploadedIdx = 0;
+
+                // 4. Строим финальный упорядоченный список
+                const finalImages = photos
+                    .map(p => {
+                        if (p.type === 'existing') {
+                            return allCurrentImages.find(img => img.id === p.id) ?? null;
+                        } else {
+                            return uploadedInOrder[uploadedIdx++] ?? null;
+                        }
+                    })
+                    .filter((x): x is ImageData => x !== null);
+
+                // 5. PATCH с полным упорядоченным списком
                 const updateData = {
                     title: serviceData.title,
                     description: serviceData.description,
@@ -500,7 +519,7 @@ const CreateEdit = () => {
                     subcategory: selectedSubcategory ? `/api/occupations/${selectedSubcategory}` : null,
                     unit: selectedUnit ? `/api/units/${selectedUnit}` : null,
                     address: addressData,
-                    images: existingImages.map(img => ({ id: img.id, image: img.image }))
+                    images: finalImages.map(img => ({ id: img.id, image: img.image })),
                 };
 
                 const response = await fetch(`${API_BASE_URL}/api/tickets/${serviceData.id}`, {
@@ -517,38 +536,8 @@ const CreateEdit = () => {
                     throw new Error(errorText || t('createEdit:genericError'));
                 }
 
-                // Загружаем новые фото, если есть
-                if (newImages.length > 0) {
-                    const uploadedImages: ImageData[] = [];
-                    
-                    for (const image of newImages) {
-                        const formData = new FormData();
-                        formData.append('imageFile', image);
-
-                        const uploadResponse = await fetch(`${API_BASE_URL}/api/tickets/${serviceData.id}/upload-photo`, {
-                            method: 'POST',
-                            headers: {
-                                'Authorization': `Bearer ${token}`,
-                            },
-                            body: formData,
-                        });
-
-                        if (uploadResponse.ok) {
-                            const uploadedImage = await uploadResponse.json();
-                            uploadedImages.push(uploadedImage);
-                        } else {
-                            console.warn('Failed to upload image:', image.name);
-                        }
-                    }
-
-                    // Обновляем массив images в тикете
-                    if (uploadedImages.length > 0) {
-                        // upload-photo уже создал TicketImage записи в БД и файлы на диске.
-                        // Второй PATCH не нужен — он удалял бы только что загруженные файлы через Vich.
-                        setExistingImages(prev => [...prev, ...uploadedImages]);
-                        setNewImages([]);
-                    }
-                }
+                // 6. Обновляем локальный стейт
+                setPhotos(finalImages.map(img => ({ type: 'existing' as const, id: img.id, image: img.image })));
 
                 setShowSuccessModal(true);
             }
@@ -581,11 +570,7 @@ const CreateEdit = () => {
             </div>
 
             <div className={styles.formWrapper}>
-            {isSubmitting && (
-                <div className={styles.formOverlay}>
-                    <div className={styles.overlaySpinner} />
-                </div>
-            )}
+            {isSubmitting && <PageLoader overlay />}
             <form onSubmit={handleSubmit} className={styles.form} style={isSubmitting ? { visibility: 'hidden' } : undefined}>
                 {/* Название услуги */}
                 <div className={styles.section}>
@@ -700,80 +685,15 @@ const CreateEdit = () => {
                 {/* Фотографии */}
                 <div className={styles.section}>
                     <h2>{t('createEdit:attachPhotos')}</h2>
-                    <div className={styles.photoGrid}>
-                        {/* Существующие фото - только в режиме редактирования */}
-                        {isEditMode && existingImages.map((img, index) => (
-                            <div
-                                key={img.id}
-                                className={`${styles.photoItem} ${existingDrag.draggingIndex === index ? styles.photoItemDragging : ''} ${existingDrag.dragOverIndex === index ? styles.photoItemDragOver : ''}`}
-                                onDragEnter={() => existingDrag.handleDragEnter(index)}
-                                onDragOver={(e) => e.preventDefault()}
-                            >
-                                <DragHandle
-                                    className={styles.dragHandleOverlay}
-                                    draggable
-                                    onDragStart={() => existingDrag.handleDragStart(index)}
-                                    onDragEnd={() => existingDrag.handleDragEnd()}
-                                />
-                                <img
-                                    src={getImageUrl(img.image)}
-                                    alt={`${t('createEdit:photoAlt')} ${index + 1}`}
-                                    onClick={() => photoGallery.openGallery(index)}
-                                    style={{ cursor: 'pointer' }}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => removeExistingImage(img.id)}
-                                    className={styles.removePhotoButton}
-                                >
-                                    ×
-                                </button>
-                            </div>
-                        ))}
-
-                        {/* Новые фото */}
-                        {newImages.map((image, index) => (
-                            <div
-                                key={`new-${index}`}
-                                className={`${styles.photoItem} ${newDrag.draggingIndex === index ? styles.photoItemDragging : ''} ${newDrag.dragOverIndex === index ? styles.photoItemDragOver : ''}`}
-                                onDragEnter={() => newDrag.handleDragEnter(index)}
-                                onDragOver={(e) => e.preventDefault()}
-                            >
-                                <DragHandle
-                                    className={styles.dragHandleOverlay}
-                                    draggable
-                                    onDragStart={() => newDrag.handleDragStart(index)}
-                                    onDragEnd={() => newDrag.handleDragEnd()}
-                                />
-                                <img
-                                    src={URL.createObjectURL(image)}
-                                    alt={`${t('createEdit:newPhotoAlt')} ${index + 1}`}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => removeNewImage(index)}
-                                    className={styles.removePhotoButton}
-                                >
-                                    ×
-                                </button>
-                            </div>
-                        ))}
-
-                        {/* Кнопка добавления */}
-                        <div className={styles.photoAddBtn}>
-                            <input
-                                type="file"
-                                multiple
-                                accept="image/*"
-                                onChange={handleImageUpload}
-                                className={styles.fileInput}
-                                id="photo-upload"
-                            />
-                            <label htmlFor="photo-upload" className={styles.uploadLabel}>
-                                <span className={styles.plusIcon}>+</span>
-                            </label>
-                        </div>
-                    </div>
+                    <PhotoGrid
+                        photos={photos}
+                        onChange={setPhotos}
+                        getImageUrl={getImageUrl}
+                        onOpenGallery={photoGallery.openGallery}
+                        inputId="photo-upload"
+                        photoAlt={t('createEdit:photoAlt')}
+                        disabled={isSubmitting}
+                    />
                 </div>
 
                 {/* Описание услуги */}
@@ -850,7 +770,7 @@ const CreateEdit = () => {
             />
 
             {/* Preview для просмотра существующих фото */}
-            {isEditMode && existingImages.length > 0 && (
+            {existingImageUrls.length > 0 && (
                 <Preview
                     isOpen={photoGallery.isOpen}
                     images={existingImageUrls}

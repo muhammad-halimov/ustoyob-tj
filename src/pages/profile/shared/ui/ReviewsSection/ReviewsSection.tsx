@@ -8,6 +8,8 @@ import { Marquee } from '../../../../../shared/ui/Text/Marquee';
 import { Review } from '../../../../../entities';
 import styles from './ReviewsSection.module.scss';
 import { getAuthorAvatar } from '../../../../../utils/imageHelper';
+import { ActionsDropdown } from '../../../../../widgets/ActionsDropdown';
+import { IoWarningOutline } from 'react-icons/io5';
 
 // Экспорт для обратной совместимости
 export type { Review } from '../../../../../entities';
@@ -30,6 +32,7 @@ interface ReviewsSectionProps {
     onMasterProfileClick?: (masterId: number) => void;
     onServiceClick?: (ticketId: number) => void;
     getReviewImageIndex: (reviewIndex: number, imageIndex: number) => number;
+    onComplaintClick?: (reviewId: number, authorId: number) => void;
     onRefresh?: () => void;
 }
 
@@ -48,6 +51,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
     onMasterProfileClick,
     onServiceClick,
     getReviewImageIndex,
+    onComplaintClick,
     onRefresh,
 }) => {
     const { t } = useTranslation(['profile']);
@@ -289,6 +293,17 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                             })}
                                         </div>
                                     )}
+                                    {onComplaintClick && (
+                                        <ActionsDropdown
+                                            style={{ position: 'absolute', top: '12px', right: '0', zIndex: 2 }}
+                                            items={[{
+                                                icon: <IoWarningOutline />,
+                                                label: t('profile:complaint'),
+                                                onClick: () => onComplaintClick(review.id, review.reviewer.id),
+                                                danger: true,
+                                            }]}
+                                        />
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -420,6 +435,17 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                         })}
                                                     </div>
                                                 )}
+                                                {onComplaintClick && (
+                                                    <ActionsDropdown
+                                                        style={{ position: 'absolute', top: '12px', right: '0', zIndex: 2 }}
+                                                        items={[{
+                                                            icon: <IoWarningOutline />,
+                                                            label: t('profile:complaint'),
+                                                            onClick: () => onComplaintClick(review.id, review.reviewer.id),
+                                                            danger: true,
+                                                        }]}
+                                                    />
+                                                )}
                                             </div>
                                         </SwiperSlide>
                                     ))}
@@ -543,6 +569,17 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                         );
                                                     })}
                                                 </div>
+                                            )}
+                                            {onComplaintClick && (
+                                                <ActionsDropdown
+                                                    style={{ position: 'absolute', top: '12px', right: '0', zIndex: 2 }}
+                                                    items={[{
+                                                        icon: <IoWarningOutline />,
+                                                        label: t('profile:complaint'),
+                                                        onClick: () => onComplaintClick(review.id, review.reviewer.id),
+                                                        danger: true,
+                                                    }]}
+                                                />
                                             )}
                                         </div>
                                     ))}

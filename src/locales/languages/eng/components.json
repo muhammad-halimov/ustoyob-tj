@@ -209,7 +209,8 @@
     "reviewLabel": "Review:",
     "reviewForMaster": "Review for master",
     "reviewForClient": "Review for client"
-  },  "reviewModal": {
+  },
+  "reviewModal": {
     "title": "Leave a review",
     "selectService": "Select service",
     "selectServicePlaceholder": "-- Select service --",
@@ -238,18 +239,6 @@
     "successMessage": "Review submitted successfully!",
     "errorUnknownRole": "Unknown user role"
   },
-  "complaintReasons": {
-    "offend": "Insults/Profanity",
-    "rude_language": "Rude language",
-    "fraud": "Fraud",
-    "racism_nazism_xenophobia": "Racism/Nazism/Xenophobia",
-    "other": "Other",
-    "lateness": "Lateness/Absence",
-    "bad_quality": "Poor quality",
-    "property_damage": "Property damage",
-    "overpricing": "Overpricing",
-    "unprofessionalism": "Unprofessionalism"
-  },
   "complaintModal": {
     "title": "Submit complaint",
     "selectTicket": "Select order/service",
@@ -276,8 +265,10 @@
     "errorNoAccess": "No access to submit complaint",
     "errorDefault": "Error submitting complaint",
     "errorUnexpected": "An unexpected error occurred while submitting the complaint",
-    "successMessage": "Complaint submitted successfully!"
-  },  "search": {
+    "successMessage": "Complaint submitted successfully!",
+    "userComplaintToggle": "Complaint about user"
+  },
+  "search": {
     "searchPlaceholder": "Search...",
     "find": "Find",
     "searchAnnouncements": "Search announcements",
@@ -448,5 +439,11 @@
     "registerViaFacebook": "Register with Facebook",
     "registerViaInstagram": "Register with Instagram", 
     "registerViaTelegram": "Register with Telegram"
+  },
+  "statusModal": {
+    "successTitle": "Success!",
+    "errorTitle": "Error",
+    "infoTitle": "Information",
+    "button": "OK"
   }
 }

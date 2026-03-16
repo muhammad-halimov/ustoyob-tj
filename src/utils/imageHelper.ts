@@ -1,3 +1,33 @@
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+/**
+ * Uploads one or more files to `/api/{endpoint}/{id}/upload-photo` in a single multipart/form-data POST.
+ * Files are sent as `imageFile[]` — the backend handles both single and multiple files.
+ */
+export const uploadPhotos = async (
+    endpoint: string,
+    id: number | string,
+    files: File[],
+    token?: string | null,
+): Promise<any> => {
+    const formData = new FormData();
+    for (const file of files) {
+        formData.append('imageFile[]', file);
+    }
+    const headers: HeadersInit = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const response = await fetch(`${API_BASE_URL}/api/${endpoint}/${id}/upload-photo`, {
+        method: 'POST',
+        headers,
+        body: formData,
+    });
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Upload failed (${response.status}): ${errorText}`);
+    }
+    return response.json().catch(() => null);
+};
+
 export const checkImageExists = (url: string): Promise<boolean> => {
     return new Promise((resolve) => {
         const img = new Image();

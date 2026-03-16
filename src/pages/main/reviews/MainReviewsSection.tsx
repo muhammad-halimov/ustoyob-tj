@@ -11,6 +11,10 @@ import { ReadMore } from '../../../widgets/ReadMore';
 import { PageLoader } from '../../../widgets/PageLoader';
 import { EmptyState } from '../../../widgets/EmptyState';
 import { getAuthorAvatar } from '../../../utils/imageHelper.ts';
+import { ActionsDropdown } from '../../../widgets/ActionsDropdown';
+import { IoWarningOutline } from 'react-icons/io5';
+import Complaint from '../../../shared/ui/Modal/Complaint/Complaint.tsx';
+import Status from '../../../shared/ui/Modal/Status';
 
 interface MainReviewsSectionProps {
     className?: string;
@@ -20,6 +24,12 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
     const [reviews, setReviews] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [visibleCount, setVisibleCount] = useState(6);
+    const [complaintReviewId, setComplaintReviewId] = useState<number | null>(null);
+    const [complaintAuthorId, setComplaintAuthorId] = useState<number | null>(null);
+    const [isComplaintOpen, setIsComplaintOpen] = useState(false);
+    const [statusOpen, setStatusOpen] = useState(false);
+    const [statusType, setStatusType] = useState<'success' | 'error'>('success');
+    const [statusMessage, setStatusMessage] = useState('');
     const navigate = useNavigate();
     const { t, i18n } = useTranslation(['profile', 'components']);
     
@@ -222,6 +232,15 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                 <div className={styles.reviews_wrap}>
                     {reviews.slice(0, visibleCount).map((review, reviewIndex) => (
                         <div key={review.id} className={styles.reviews_item}>
+                            <ActionsDropdown
+                                style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 2 }}
+                                items={[{
+                                    icon: <IoWarningOutline />,
+                                    label: t('profile:complaint'),
+                                    onClick: () => { setComplaintReviewId(review.id); setComplaintAuthorId(review.client?.id ?? 0); setIsComplaintOpen(true); },
+                                    danger: true,
+                                }]}
+                            />
                             <div className={styles.reviews_naming}>
                                 <img
                                     src={getReviewerAvatarUrl(review)}
@@ -319,6 +338,15 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                         {reviews.slice(0, visibleCount).map((review, reviewIndex) => (
                             <SwiperSlide key={review.id}>
                                 <div className={styles.reviews_item}>
+                                    <ActionsDropdown
+                                        style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 2 }}
+                                        items={[{
+                                            icon: <IoWarningOutline />,
+                                            label: t('profile:complaint'),
+                                            onClick: () => { setComplaintReviewId(review.id); setComplaintAuthorId(review.client?.id ?? 0); setIsComplaintOpen(true); },
+                                            danger: true,
+                                        }]}
+                                    />
                                     <div className={styles.reviews_naming}>
                                         <img
                                             src={getReviewerAvatarUrl(review)}
@@ -427,6 +455,21 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                 onPrevious={photoGallery.goToPrevious}
                 onSelectImage={photoGallery.selectImage}
                 fallbackImage="./default_user.png"
+            />
+            <Complaint
+                isOpen={isComplaintOpen}
+                onClose={() => setIsComplaintOpen(false)}
+                onSuccess={(msg) => { setIsComplaintOpen(false); setStatusType('success'); setStatusMessage(msg); setStatusOpen(true); }}
+                onError={(msg) => { setStatusType('error'); setStatusMessage(msg); setStatusOpen(true); }}
+                targetUserId={complaintAuthorId ?? 0}
+                reviewId={complaintReviewId ?? undefined}
+                complaintType="review"
+            />
+            <Status
+                type={statusType}
+                isOpen={statusOpen}
+                onClose={() => setStatusOpen(false)}
+                message={statusMessage}
             />
         </div>
     );

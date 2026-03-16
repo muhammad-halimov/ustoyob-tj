@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react';
 import { makeApiRequest } from '../utils/apiHelper';
+import { getAuthToken } from '../utils/auth';
+import { uploadPhotos } from '../utils/imageHelper';
 
 export const useComplaints = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -36,18 +38,8 @@ export const useComplaints = () => {
     }, []);
 
     const uploadComplaintPhotos = useCallback(async (appealId: number, photos: File[]) => {
-        const uploadPromises = photos.map(async (photo) => {
-            const formData = new FormData();
-            formData.append('imageFile', photo);
-
-            await makeApiRequest(`/api/appeals/${appealId}/upload-photo`, {
-                method: 'POST',
-                body: formData,
-                requiresAuth: true
-            });
-        });
-
-        await Promise.all(uploadPromises);
+        const token = getAuthToken();
+        await uploadPhotos('appeals', appealId, photos, token);
     }, []);
 
     return {

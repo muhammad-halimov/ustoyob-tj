@@ -239,18 +239,6 @@
     "successMessage": "Таърӯф бомуваффақият ирсол шуд!",
     "errorUnknownRole": "Нақши номаълуми истифодаранда"
   },
-  "complaintReasons": {
-    "offend": "Таҳқир/Дашном",
-    "rude_language": "Луғати дағал",
-    "fraud": "Қаллобӣ",
-    "racism_nazism_xenophobia": "Нажодпарастӣ/Нацизм/Ксенофобия",
-    "other": "Дигар",
-    "lateness": "Дер омадан/Ғоиб будан",
-    "bad_quality": "Сифати бад",
-    "property_damage": "Вайрон кардани мулк",
-    "overpricing": "Баланд кардани нарх",
-    "unprofessionalism": "Ғайрихирфагӣ"
-  },
   "complaintModal": {
     "title": "Шикоят фиристодан",
     "selectTicket": "Фармоиш/хидматро интихоб кунед",
@@ -277,7 +265,8 @@
     "errorNoAccess": "Барои ирсоли шикоят дастрасӣ нест",
     "errorDefault": "Хатогӣ ҳангоми ирсоли шикоят",
     "errorUnexpected": "Хатогии ногаҳонӣ ҳангоми ирсоли шикоят рух дод",
-    "successMessage": "Шикоят бомуваффақият ирсол шуд!"
+    "successMessage": "Шикоят бомуваффақият ирсол шуд!",
+    "userComplaintToggle": "Шикоят дар бораи корбар"
   },
   "search": {
     "searchPlaceholder": "Ҷустуҷӯ...",
@@ -448,5 +437,11 @@
     "registerViaFacebook": "Тавассути Facebook сабт шавед", 
     "registerViaInstagram": "Тавассути Instagram сабт шавед",
     "registerViaTelegram": "Тавассути Telegram сабт шавед"
+  },
+  "statusModal": {
+    "successTitle": "Муваффақият!",
+    "errorTitle": "Хатогӣ",
+    "infoTitle": "Маълумот",
+    "button": "Фаҳмидам"
   }
 }

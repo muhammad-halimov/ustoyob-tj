@@ -23,7 +23,8 @@ import {SocialNetworksSection} from '../../profile/shared/ui/SocialNetworksSecti
 import {SOCIAL_NETWORK_CONFIG, renderSocialIcon} from '../../profile/shared/config/socialNetworkConfig';
 import type {Review as ReviewType} from '../../../entities';
 import {PageLoader} from '../../../widgets/PageLoader';
-import {IoEllipsisVertical, IoWarningOutline, IoStar, IoHeart, IoHeartOutline, IoChevronForward, IoCompass} from 'react-icons/io5';
+import {IoWarningOutline, IoStar, IoHeart, IoHeartOutline, IoChevronForward, IoCompass} from 'react-icons/io5';
+import { ActionsDropdown } from '../../../widgets/ActionsDropdown';
 
 interface ApiTicket {
     id: number;
@@ -120,6 +121,7 @@ interface Order {
     hasEducation?: boolean;
     negotiableBudget?: boolean;
     isService?: boolean;
+    displayedUserRole?: 'master' | 'client';
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -172,10 +174,6 @@ export function Ticket() {
     // States for chat checking
     const [existingChatId, setExistingChatId] = useState<number | null>(null);
     const [isCheckingChats, setIsCheckingChats] = useState(false);
-
-    // Dropdown for complaint/review
-    const [showActionsDropdown, setShowActionsDropdown] = useState(false);
-    const dropdownRef = useRef<HTMLDivElement>(null);
 
     // Social networks of the ticket author
     const [authorSocialNetworks, setAuthorSocialNetworks] = useState<{ id: string; network: string; handle: string }[]>([]);
@@ -265,18 +263,6 @@ export function Ticket() {
             fetchReviews();
         }
     }, [order, favorites.checkFavoriteStatus, currentUserId]);
-
-    // Close dropdown on outside click
-    useEffect(() => {
-        if (!showActionsDropdown) return;
-        const handleClickOutside = (e: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-                setShowActionsDropdown(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [showActionsDropdown]);
 
     const handleCloseSuccessModal = () => {
         setShowSuccessModal(false);
@@ -553,6 +539,7 @@ export function Ticket() {
                 hasEducation: hasEducation || false,
                 negotiableBudget: ticketData.negotiableBudget,
                 isService: ticketData.service,
+                displayedUserRole: userTypeForRating === 'master' ? 'master' : 'client',
             };
 
             console.log('Final order data:', orderData);
@@ -1067,37 +1054,23 @@ export function Ticket() {
                                 </div>
                             </div>
                         ) : (
-                            <div ref={dropdownRef} className={styles.ticketMenuWrapper}>
-                                <button
-                                    className={styles.ticketMenuButton}
-                                    onClick={() => setShowActionsDropdown(prev => !prev)}
-                                    aria-label="Меню"
-                                >
-                                    <IoEllipsisVertical />
-                                </button>
-                                {showActionsDropdown && (
-                                    <div className={styles.ticketMenuDropdown}>
-                                        <button
-                                            className={styles.ticketMenuDropdownItem}
-                                            onClick={() => {
-                                                setShowActionsDropdown(false);
-                                                const token = getAuthToken();
-                                                if (!token) { setShowAuthModal(true); } else { handleLeaveReview(); }
-                                            }}
-                                        >
-                                            <IoStar />
-                                            <span>{t('ticket:leaveReview')}</span>
-                                        </button>
-                                        <button
-                                            className={`${styles.ticketMenuDropdownItem} ${styles.ticketMenuDropdownItemDanger}`}
-                                            onClick={() => { setShowActionsDropdown(false); setShowComplaintModal(true); }}
-                                        >
-                                            <IoWarningOutline />
-                                            <span>{t('ticket:complaintTitle')}</span>
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
+                            <ActionsDropdown
+                                className={styles.ticketMenuWrapper}
+                                items={[
+                                    {
+                                        icon: <IoStar />,
+                                        label: t('ticket:leaveReview'),
+                                        onClick: () => { const token = getAuthToken(); if (!token) { setShowAuthModal(true); } else { handleLeaveReview(); } },
+                                        hidden: !(!getUserRole() || getUserRole() !== order.displayedUserRole),
+                                    },
+                                    {
+                                        icon: <IoWarningOutline />,
+                                        label: t('ticket:complaintTitle'),
+                                        onClick: () => setShowComplaintModal(true),
+                                        danger: true,
+                                    },
+                                ]}
+                            />
                         )}
                     </div>
                 </div>
@@ -1294,7 +1267,7 @@ export function Ticket() {
 
                 {currentUserId !== order?.authorId && (
                 <section className={styles.actionButtons}>
-                    {!(order?.isService && getUserRole() === 'master') && (
+                    {!(order?.isService && getUserRole() === 'master') && !(getUserRole() === 'client' && order?.displayedUserRole === 'client') && (
                         <button
                             className={`${styles.respondButton} ${
                                 (!isTicketActive || isCheckingChats) ? styles.respondButtonDisabled :

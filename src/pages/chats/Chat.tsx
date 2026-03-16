@@ -9,10 +9,12 @@ import { PageLoader } from '../../widgets/PageLoader';
 import { EmptyState } from '../../widgets/EmptyState';
 import styles from "./Chat.module.scss";
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { IoSend, IoAttach, IoClose, IoImages, IoArchiveOutline, IoArrowUpCircleOutline, IoWarningOutline, IoPencilSharp, IoTrashSharp, IoArrowUndoSharp, IoEye, IoEllipsisVertical, IoChatbubblesOutline } from "react-icons/io5";
+import { IoSend, IoAttach, IoClose, IoImages, IoArchiveOutline, IoArrowUpCircleOutline, IoWarningOutline, IoPencilSharp, IoTrashSharp, IoArrowUndoSharp, IoEye, IoChatbubblesOutline } from "react-icons/io5";
 import { Preview, usePreview } from '../../shared/ui/Photo/Preview';
 import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 import { Back } from '../../shared/ui/Button/Back/Back.tsx';
+import { ActionsDropdown } from '../../widgets/ActionsDropdown';
+import { uploadPhotos } from '../../utils/imageHelper';
 
 interface Message {
     id: number;
@@ -110,9 +112,7 @@ function Chat() {
     const [searchQuery, setSearchQuery] = useState("");
     const [isPhotoSidebarOpen, setIsPhotoSidebarOpen] = useState(false);
     const [showComplaintModal, setShowComplaintModal] = useState(false);
-    const [openDropdownChatId, setOpenDropdownChatId] = useState<number | null>(null);
     const [sidebarComplaintTarget, setSidebarComplaintTarget] = useState<{ chatId: number; interlocutorId: number; ticketId?: number } | null>(null);
-    const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
 
     // Состояния для миниатюр и модального окна фото
     const [chatImages, setChatImages] = useState<ChatImageThumbnail[]>([]);
@@ -171,30 +171,6 @@ function Chat() {
         
         return `${translatedLastName} ${translatedFirstName}`.trim();
     }, [i18n.language]);
-
-    // Закрываем дропдаун чата при клике вне его
-    useEffect(() => {
-        if (!openDropdownChatId) return;
-        const handleOutsideClick = (e: MouseEvent) => {
-            if (!(e.target as HTMLElement).closest('[data-chat-menu]')) {
-                setOpenDropdownChatId(null);
-            }
-        };
-        document.addEventListener('mousedown', handleOutsideClick);
-        return () => document.removeEventListener('mousedown', handleOutsideClick);
-    }, [openDropdownChatId]);
-
-    // Закрываем хедер-меню при клике вне его
-    useEffect(() => {
-        if (!isHeaderMenuOpen) return;
-        const handleOutsideClick = (e: MouseEvent) => {
-            if (!(e.target as HTMLElement).closest('[data-header-menu]')) {
-                setIsHeaderMenuOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleOutsideClick);
-        return () => document.removeEventListener('mousedown', handleOutsideClick);
-    }, [isHeaderMenuOpen]);
 
     // Синхронизируем ref чтобы SSE-обработчик всегда имел свежий currentUser
     useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
@@ -395,33 +371,14 @@ function Chat() {
             console.error('No token for uploading image');
             return false;
         }
-
-        const formData = new FormData();
-        formData.append('imageFile', file);
-
         try {
-            console.log('Uploading image to message:', messageId, 'File:', file.name);
-            const response = await fetch(`${API_BASE_URL}/api/chat-messages/${messageId}/upload-photo`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-                body: formData,
-            });
-
-            if (response.ok) {
-                console.log('Image uploaded to message:', messageId);
-                return true;
-            } else {
-                const errorText = await response.text();
-                console.error('Error uploading image:', response.status, errorText);
-                return false;
-            }
+            await uploadPhotos('chat-messages', messageId, [file], token);
+            return true;
         } catch (error) {
             console.error('Error uploading image:', error);
             return false;
         }
-    }, [API_BASE_URL]);
+    }, []);
 
     const stopSSE = useCallback(() => {
         if (tokenRefreshRef.current) {
@@ -1345,35 +1302,24 @@ function Chat() {
                                         )}
                                     </div>
                                     <div
-                                        data-chat-menu
                                         className={styles.chatItemMenuWrapper}
                                         onClick={(e) => e.stopPropagation()}
                                     >
-                                        <button
-                                            className={styles.chatItemMenuButton}
-                                            onClick={() => setOpenDropdownChatId(openDropdownChatId === chat.id ? null : chat.id)}
-                                            aria-label="Меню чата"
-                                        >
-                                            <IoEllipsisVertical />
-                                        </button>
-                                        {openDropdownChatId === chat.id && (
-                                            <div className={styles.chatItemDropdown}>
-                                                <button
-                                                    className={styles.chatItemDropdownItem}
-                                                    onClick={() => { setOpenDropdownChatId(null); archiveChat(chat.id, !chat.isArchived); }}
-                                                >
-                                                    {chat.isArchived ? <IoArrowUpCircleOutline /> : <IoArchiveOutline />}
-                                                    <span>{chat.isArchived ? t('chat.restoreFromArchive') : t('chat.archiveChat')}</span>
-                                                </button>
-                                                <button
-                                                    className={styles.chatItemDropdownItem}
-                                                    onClick={() => { setOpenDropdownChatId(null); setSidebarComplaintTarget({ chatId: chat.id, interlocutorId: interlocutor.id, ticketId: chat.ticket?.id }); }}
-                                                >
-                                                    <IoWarningOutline />
-                                                    <span>{t('chat.report')}</span>
-                                                </button>
-                                            </div>
-                                        )}
+                                        <ActionsDropdown
+                                            items={[
+                                                {
+                                                    icon: chat.isArchived ? <IoArrowUpCircleOutline /> : <IoArchiveOutline />,
+                                                    label: chat.isArchived ? t('chat.restoreFromArchive') : t('chat.archiveChat'),
+                                                    onClick: () => archiveChat(chat.id, !chat.isArchived),
+                                                },
+                                                {
+                                                    icon: <IoWarningOutline />,
+                                                    label: t('chat.report'),
+                                                    onClick: () => setSidebarComplaintTarget({ chatId: chat.id, interlocutorId: interlocutor.id, ticketId: chat.ticket?.id }),
+                                                    danger: true,
+                                                },
+                                            ]}
+                                        />
                                     </div>
                                 </div>
                             );
@@ -1439,50 +1385,29 @@ function Chat() {
                                 </div>
                             </div>
                             <div className={styles.headerActions}>
-                                <div
-                                    data-header-menu
-                                    className={styles.chatItemMenuWrapper}
-                                    style={{ position: 'relative' }}
-                                >
-                                    <button
-                                        className={styles.chatItemMenuButton}
-                                        onClick={() => setIsHeaderMenuOpen(prev => !prev)}
-                                        aria-label="Меню чата"
-                                    >
-                                        <IoEllipsisVertical />
-                                    </button>
-                                    {isHeaderMenuOpen && (
-                                        <div className={styles.chatItemDropdown}>
-                                            {currentChat && (
-                                                <button
-                                                    className={styles.chatItemDropdownItem}
-                                                    onClick={() => { setIsHeaderMenuOpen(false); archiveChat(currentChat.id, !currentChat.isArchived); }}
-                                                >
-                                                    {currentChat.isArchived ? <IoArrowUpCircleOutline /> : <IoArchiveOutline />}
-                                                    <span>{currentChat.isArchived ? t('chat.restoreFromArchive') : t('chat.archiveChat')}</span>
-                                                </button>
-                                            )}
-                                            {chatImages.length > 0 && (
-                                                <button
-                                                    className={styles.chatItemDropdownItem}
-                                                    onClick={() => { setIsHeaderMenuOpen(false); setIsPhotoSidebarOpen(prev => !prev); }}
-                                                >
-                                                    <IoImages />
-                                                    <span>{isPhotoSidebarOpen ? 'Скрыть фото' : `Фото (${chatImages.length})`}</span>
-                                                </button>
-                                            )}
-                                            {currentInterlocutor && (
-                                                <button
-                                                    className={styles.chatItemDropdownItem}
-                                                    onClick={() => { setIsHeaderMenuOpen(false); setShowComplaintModal(true); }}
-                                                >
-                                                    <IoWarningOutline />
-                                                    <span>{t('chat.report')}</span>
-                                                </button>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
+                                <ActionsDropdown
+                                    items={[
+                                        {
+                                            icon: currentChat?.isArchived ? <IoArrowUpCircleOutline /> : <IoArchiveOutline />,
+                                            label: currentChat?.isArchived ? t('chat.restoreFromArchive') : t('chat.archiveChat'),
+                                            onClick: () => currentChat && archiveChat(currentChat.id, !currentChat.isArchived),
+                                            hidden: !currentChat,
+                                        },
+                                        {
+                                            icon: <IoImages />,
+                                            label: isPhotoSidebarOpen ? 'Скрыть фото' : `Фото (${chatImages.length})`,
+                                            onClick: () => setIsPhotoSidebarOpen(prev => !prev),
+                                            hidden: chatImages.length === 0,
+                                        },
+                                        {
+                                            icon: <IoWarningOutline />,
+                                            label: t('chat.report'),
+                                            onClick: () => setShowComplaintModal(true),
+                                            hidden: !currentInterlocutor,
+                                            danger: true,
+                                        },
+                                    ]}
+                                />
                             </div>
                         </div>
 

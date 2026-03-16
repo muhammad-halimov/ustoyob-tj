@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getAuthToken, getUserRole } from '../../../../utils/auth.ts';
-import AuthModal from '../../../../features/auth/AuthModal.tsx';
+import { getStorageItem } from '../../../../utils/storageHelper.ts';
+import Status from '../Status';
+import { Toggle } from '../../Button/Toggle/Toggle';
+import PhotoPicker from '../../Photo/PhotoPicker';
+import { uploadPhotos } from '../../../../utils/imageHelper';
+import { PageLoader } from '../../../../widgets/PageLoader';
 import styles from './Complaint.module.scss';
 
 interface ComplaintModalProps {
@@ -10,15 +15,24 @@ interface ComplaintModalProps {
     onSuccess: (message: string) => void;
     onError: (message: string) => void;
     targetUserId: number;
+    targetUserRole?: 'client' | 'master';
     ticketId?: number;
-    chatId?: number; // Опциональный ID чата для жалоб типа chat
-    complaintType?: 'ticket' | 'chat';
+    chatId?: number;
+    reviewId?: number;
+    complaintType?: 'ticket' | 'chat' | 'review' | 'user';
+    showUserComplaintToggle?: boolean;
 }
 
 interface Ticket {
     id: number;
     title: string;
     description?: string;
+}
+
+interface AppealReason {
+    id: number;
+    code: string;
+    title: string;
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -29,25 +43,15 @@ const Complaint: React.FC<ComplaintModalProps> = ({
     onSuccess,
     onError,
     targetUserId,
+    targetUserRole,
     ticketId,
     chatId,
-    complaintType = 'ticket'
+    reviewId,
+    complaintType = 'ticket',
+    showUserComplaintToggle = false,
 }) => {
     const { t } = useTranslation('components');
-    
-    // Причины жалоб из API
-    const COMPLAINT_REASONS = [
-        { value: 'offend', label: t('complaintReasons.offend') },
-        { value: 'rude_language', label: t('complaintReasons.rude_language') },
-        { value: 'fraud', label: t('complaintReasons.fraud') },
-        { value: 'racism_nazism_xenophobia', label: t('complaintReasons.racism_nazism_xenophobia') },
-        { value: 'other', label: t('complaintReasons.other') },
-        { value: 'lateness', label: t('complaintReasons.lateness') },
-        { value: 'bad_quality', label: t('complaintReasons.bad_quality') },
-        { value: 'property_damage', label: t('complaintReasons.property_damage') },
-        { value: 'overpricing', label: t('complaintReasons.overpricing') },
-        { value: 'unprofessionalism', label: t('complaintReasons.unprofessionalism') }
-    ];
+    const [reasons, setReasons] = useState<AppealReason[]>([]);
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [reason, setReason] = useState('');
@@ -55,26 +59,43 @@ const Complaint: React.FC<ComplaintModalProps> = ({
     const [selectedTicketId, setSelectedTicketId] = useState<number | null>(ticketId || null);
     const [loadingTickets, setLoadingTickets] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isUserComplaint, setIsUserComplaint] = useState(false);
+    const [photos, setPhotos] = useState<File[]>([]);
+    const [statusOpen, setStatusOpen] = useState(false);
+    const [statusType, setStatusType] = useState<'success' | 'error'>('error');
+    const [statusMessage, setStatusMessage] = useState('');
 
-    // Проверяем авторизацию при открытии модалки
+    const showStatus = (type: 'success' | 'error', message: string) => {
+        setStatusType(type);
+        setStatusMessage(message);
+        setStatusOpen(true);
+    };
+
+    const effectiveType = isUserComplaint ? 'user' : complaintType;
+
+    // Загружаем причины жалоб из API
     React.useEffect(() => {
-        if (isOpen) {
-            const token = getAuthToken();
-            setIsAuthenticated(!!token);
-        }
-    }, [isOpen]);
+        if (!isOpen) return;
+        const locale = getStorageItem('i18nextLng') || 'ru';
+        const type = effectiveType === 'chat' ? 'chat' : effectiveType === 'review' ? 'review' : effectiveType === 'user' ? 'overall' : 'ticket';
+        fetch(`${API_BASE_URL}/api/appeal-reasons?locale=${locale}&applicableTo=${type}`)
+            .then(r => r.ok ? r.json() : [])
+            .then((data: any[]) => {
+                setReasons(data.map(r => ({ id: r.id, code: r.code, title: r.title })));
+            })
+            .catch(() => setReasons([]));
+    }, [isOpen, effectiveType]);
 
     // Загружаем тикеты при открытии модалки (только если не передан ticketId)
     React.useEffect(() => {
-        if (isOpen && isAuthenticated && targetUserId && !ticketId) {
+        if (isOpen && targetUserId && !ticketId) {
             fetchTickets();
         }
         // Устанавливаем selectedTicketId если передан ticketId
         if (isOpen && ticketId) {
             setSelectedTicketId(ticketId);
         }
-    }, [isOpen, isAuthenticated, targetUserId, ticketId]);
+    }, [isOpen, targetUserId, ticketId]);
 
     const fetchTickets = async () => {
         try {
@@ -90,10 +111,12 @@ const Complaint: React.FC<ComplaintModalProps> = ({
 
             const userRole = getUserRole();
 
-            // Получаем тикеты целевого пользователя
-            const endpoint = userRole === 'client'
-                ? `/api/tickets?service=true&active=true&exists[author]=false&exists[master]=true&master=${targetUserId}`
-                : `/api/tickets?service=false&active=true&exists[master]=false&exists[author]=true&author=${targetUserId}`;
+            // Endpoint строится по роли ЦЕЛЕВОГО пользователя:
+            // мастер — его сервисные тикеты; клиент — его заявки
+            const resolvedTargetRole = targetUserRole ?? (userRole === 'client' ? 'master' : 'client');
+            const endpoint = resolvedTargetRole === 'master'
+                ? `/api/tickets?service=true&active=true&exists[master]=true&master=${targetUserId}`
+                : `/api/tickets?service=false&active=true&exists[author]=true&author=${targetUserId}`;
 
             console.log('Fetching tickets with endpoint:', endpoint);
 
@@ -133,41 +156,46 @@ const Complaint: React.FC<ComplaintModalProps> = ({
 
     const handleSubmitComplaint = async () => {
         if (!title.trim()) {
-            alert(t('complaintModal.errorTitleRequired'));
+            showStatus('error', t('complaintModal.errorTitleRequired'));
             return;
         }
 
         if (!description.trim()) {
-            alert(t('complaintModal.errorDescriptionRequired'));
+            showStatus('error', t('complaintModal.errorDescriptionRequired'));
             return;
         }
 
         if (!reason) {
-            alert(t('complaintModal.errorReasonRequired'));
+            showStatus('error', t('complaintModal.errorReasonRequired'));
             return;
         }
 
-        if (!selectedTicketId) {
-            alert(t('complaintModal.errorTicketRequired'));
+        if (effectiveType === 'ticket' && !selectedTicketId) {
+            showStatus('error', t('complaintModal.errorTicketRequired'));
             return;
         }
 
         setIsSubmitting(true);
 
         try {
-            const token = getAuthToken()!;
+            const token = getAuthToken();
 
             const complaintData: Record<string, any> = {
-                type: complaintType,
+                type: effectiveType,
                 title: title,
                 description: description,
-                reason: reason,
+                reason: `/api/appeal-reasons/${reason}`,
                 respondent: `/api/users/${targetUserId}`,
-                ticket: `/api/tickets/${selectedTicketId}`
             };
 
+            if (selectedTicketId) {
+                complaintData.ticket = `/api/tickets/${selectedTicketId}`;
+            }
             if (chatId) {
                 complaintData.chat = `/api/chats/${chatId}`;
+            }
+            if (reviewId) {
+                complaintData.review = `/api/reviews/${reviewId}`;
             }
 
             console.log('Sending complaint data:', complaintData);
@@ -175,7 +203,7 @@ const Complaint: React.FC<ComplaintModalProps> = ({
             const response = await fetch(`${API_BASE_URL}/api/appeals`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
+                    ...(token && { 'Authorization': `Bearer ${token}` }),
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
                 },
@@ -188,6 +216,13 @@ const Complaint: React.FC<ComplaintModalProps> = ({
 
                 handleCloseModal();
                 onSuccess(t('complaintModal.successMessage'));
+
+                // Upload photos after successful complaint creation
+                if (photos.length > 0 && complaintResponse.id) {
+                    const token = getAuthToken();
+                    uploadPhotos('appeals', complaintResponse.id, photos, token)
+                        .catch(err => console.warn('Failed to upload complaint photos:', err));
+                }
 
             } else {
                 const errorText = await response.text();
@@ -240,39 +275,38 @@ const Complaint: React.FC<ComplaintModalProps> = ({
         setReason('');
         setSelectedTicketId(null);
         setTickets([]);
-        setIsAuthenticated(false);
+        setPhotos([]);
         onClose();
     };
 
-    const handleAuthSuccess = (token: string) => {
-        console.log('Login successful, token:', token);
-        setIsAuthenticated(true);
-    };
-
-    if (!isOpen) return null;
-
-    // Если пользователь не авторизован - показываем только AuthModal
-    if (!isAuthenticated) {
-        return (
-            <AuthModal
-                isOpen={true}
-                onClose={handleCloseModal}
-                onLoginSuccess={handleAuthSuccess}
-            />
-        );
-    }
-
-    // Если авторизован - показываем форму жалобы
+    // Показываем форму жалобы
     return (
+        <>
+        <Status
+            type={statusType}
+            isOpen={statusOpen}
+            onClose={() => setStatusOpen(false)}
+            message={statusMessage}
+        />
         <div className={styles.modalOverlay} onClick={handleCloseModal}>
             <div className={styles.complaintModal} onClick={(e) => e.stopPropagation()}>
+                {isSubmitting && <PageLoader overlay />}
                 <div className={styles.modalHeader}>
                     <h2>{t('complaintModal.title')}</h2>
                 </div>
 
                 <div className={styles.modalContent}>
-                    {/* Выбор тикета/услуги - показываем только если не передан ticketId */}
-                    {!ticketId && (
+                    {/* Переключатель «Жалоба на пользователя» */}
+                    {showUserComplaintToggle && (
+                        <Toggle
+                            checked={isUserComplaint}
+                            onChange={(e) => setIsUserComplaint(e.target.checked)}
+                            label={t('complaintModal.userComplaintToggle')}
+                        />
+                    )}
+
+                    {/* Выбор тикета/услуги - только для типа ticket и если не передан ticketId */}
+                    {effectiveType === 'ticket' && !ticketId && !isUserComplaint && (
                         <div className={styles.ticketSection}>
                             <label>{t('complaintModal.selectTicket')}</label>
                             {loadingTickets ? (
@@ -307,9 +341,9 @@ const Complaint: React.FC<ComplaintModalProps> = ({
                             disabled={isSubmitting}
                         >
                             <option value="">{t('complaintModal.selectReasonPlaceholder')}</option>
-                            {COMPLAINT_REASONS.map(r => (
-                                <option key={r.value} value={r.value}>
-                                    {r.label}
+                            {reasons.map(r => (
+                                <option key={r.id} value={r.id}>
+                                    {r.title}
                                 </option>
                             ))}
                         </select>
@@ -339,6 +373,16 @@ const Complaint: React.FC<ComplaintModalProps> = ({
                             disabled={isSubmitting}
                         />
                     </div>
+                </div>
+
+                {/* Фотографии */}
+                <div className={styles.photoSection}>
+                    <PhotoPicker
+                        photos={photos}
+                        onChange={setPhotos}
+                        disabled={isSubmitting}
+                        inputId="complaint-photos"
+                    />
                 </div>
 
                 {/* Кнопки модалки */}
@@ -399,6 +443,7 @@ const Complaint: React.FC<ComplaintModalProps> = ({
                 </div>
             </div>
         </div>
+        </>
     );
 };
 

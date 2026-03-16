@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import styles from './Status.module.scss';
 
 interface StatusModalProps {
@@ -16,18 +17,20 @@ const Status: React.FC<StatusModalProps> = ({
     onClose,
     title,
     message,
-    buttonText = 'Понятно'
+    buttonText
 }) => {
+    const { t } = useTranslation('components');
+
     if (!isOpen) return null;
 
     const getDefaultTitle = () => {
         switch (type) {
             case 'success':
-                return 'Успешно!';
+                return t('statusModal.successTitle');
             case 'error':
-                return 'Ошибка';
+                return t('statusModal.errorTitle');
             case 'info':
-                return 'Информация';
+                return t('statusModal.infoTitle');
             default:
                 return '';
         }
@@ -58,7 +61,7 @@ const Status: React.FC<StatusModalProps> = ({
                 )}
                 <p className={styles.message}>{message}</p>
                 <button className={styles.button} onClick={onClose}>
-                    {buttonText}
+                    {buttonText ?? t('statusModal.button')}
                 </button>
             </div>
         </div>

@@ -219,6 +219,12 @@
   }
 }
 
+@media screen and (max-width: 480px) {
+  .modalOverlay {
+    padding: 0 16px;
+  }
+}
+
 /* Tablet: 1024px and below */
 @media screen and (max-width: 1024px) {
   .desktopGrid {
