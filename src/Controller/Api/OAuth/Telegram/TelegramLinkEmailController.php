@@ -31,8 +31,8 @@ class TelegramLinkEmailController extends AbstractController
         $tempToken = (string) ($body['temp_token'] ?? '');
         $email     = trim((string) ($body['email'] ?? ''));
 
-        if ($tempToken === '' || $email === '') {
-            throw new BadRequestHttpException('temp_token and email are required');
+        if ($tempToken === '') {
+            throw new BadRequestHttpException('temp_token is required');
         }
 
         $cacheKey = 'telegram_pending_' . $tempToken;
@@ -46,6 +46,10 @@ class TelegramLinkEmailController extends AbstractController
         $telegramData = json_decode($rawData, true);
         $telegramId   = (string) $telegramData['telegramId'];
         $role         = $telegramData['role'] ?? 'user';
+
+        if ($email === '') {
+            $email = "oauth+telegram_{$telegramId}@internal.local";
+        }
 
         // Prevent linking if this Telegram account is already linked to another account
         if ($this->userRepository->findByOAuthProvider('telegram', $telegramId) !== null) {
