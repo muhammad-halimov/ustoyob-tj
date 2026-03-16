@@ -36,8 +36,6 @@ interface TelegramAuthResponse {
     };
     token?: string;
     message?: string;
-    status?: 'email_required';
-    temp_token?: string;
     error?: string;
 }
 
@@ -95,6 +93,51 @@ const TelegramCallbackPage = () => {
                 // Примечание: хэш должен быть валидирован на сервере!
                 // Заказчик не должен хранить BOT_TOKEN для валидации хэша
 
+                // Режим привязки — отправляем данные напрямую в link endpoint
+                const oauthMode = sessionStorage.getItem('oauthMode');
+                if (oauthMode === 'link') {
+                    const jwtToken = getAuthToken();
+                    sessionStorage.removeItem('oauthMode');
+                    if (!jwtToken) {
+                        navigate(ROUTES.HOME, { replace: true });
+                        return;
+                    }
+                    const linkBody: Record<string, unknown> = {
+                        provider: 'telegram',
+                        id: telegramData.id,
+                        hash: telegramData.hash,
+                        auth_date: telegramData.auth_date,
+                        first_name: telegramData.first_name,
+                    };
+                    if (telegramData.last_name) linkBody.last_name = telegramData.last_name;
+                    if (telegramData.username)  linkBody.username  = telegramData.username;
+                    if (telegramData.photo_url) linkBody.photo_url = telegramData.photo_url;
+                    const linkRes = await fetch(`${API_BASE_URL}/api/profile/oauth/link`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'Authorization': `Bearer ${jwtToken}`,
+                        },
+                        body: JSON.stringify(linkBody),
+                    });
+                    if (!linkRes.ok) {
+                        const errData = await linkRes.json().catch(() => ({}));
+                        throw new Error((errData as { error?: string }).error || `HTTP ${linkRes.status}`);
+                    }
+                    const linkData = await linkRes.json() as { new_token?: string };
+                    if (linkData.new_token) {
+                        setAuthToken(linkData.new_token);
+                        const expiryTime = new Date();
+                        expiryTime.setHours(expiryTime.getHours() + 1);
+                        setAuthTokenExpiry(expiryTime.toISOString());
+                    }
+                    setSuccess(true);
+                    setLoading(false);
+                    setTimeout(() => navigate(ROUTES.PROFILE, { replace: true }), 2000);
+                    return;
+                }
+
                 // Получаем сохраненную роль из sessionStorage
                 const savedRole = sessionStorage.getItem('pendingTelegramRole') || 'client';
                 const savedSpecialty = sessionStorage.getItem('pendingTelegramSpecialty');
@@ -142,37 +185,6 @@ const TelegramCallbackPage = () => {
                 }
 
                 const data: TelegramAuthResponse = JSON.parse(responseText);
-
-                if (data.status === 'email_required' && data.temp_token) {
-                    const oauthMode = sessionStorage.getItem('oauthMode');
-                    if (oauthMode === 'link') {
-                        // Пользователь уже авторизован — привязываем напрямую, без почты
-                        const jwtToken = getAuthToken();
-                        sessionStorage.removeItem('oauthMode');
-                        if (!jwtToken) {
-                            navigate(ROUTES.HOME, { replace: true });
-                            return;
-                        }
-                        const linkRes = await fetch(`${API_BASE_URL}/api/profile/oauth/link`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Accept': 'application/json',
-                                'Authorization': `Bearer ${jwtToken}`,
-                            },
-                            body: JSON.stringify({ provider: 'telegram', temp_token: data.temp_token }),
-                        });
-                        if (linkRes.ok) {
-                            navigate(ROUTES.PROFILE, { replace: true });
-                        } else {
-                            navigate(ROUTES.PROFILE, { replace: true });
-                        }
-                        return;
-                    }
-                    sessionStorage.setItem('telegramTempToken', data.temp_token);
-                    navigate(ROUTES.TELEGRAM_LINK_EMAIL);
-                    return;
-                }
 
                 // Сохраняем токен и данные пользователя
                 if (data.token && data.user) {

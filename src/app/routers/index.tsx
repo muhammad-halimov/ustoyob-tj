@@ -11,7 +11,6 @@ import Category from "../../pages/tickets/category/Category.tsx";
 import OAuthCallbackPage from "../../pages/OAuth/OAuthCallbackPage.tsx";
 import OAuthRedirectPage from "../../pages/OAuth/OAuthRedirectPage.tsx";
 import TelegramCallbackPage from "../../pages/OAuth/TelegramCallbackPage.tsx";
-import TelegramLinkEmailPage from "../../pages/OAuth/TelegramLinkEmailPage.tsx";
 import { Legal } from "../../pages/legal";
 import { ROUTE_PATTERNS } from './routes';
 
@@ -69,10 +68,6 @@ const router = createBrowserRouter([
     {
         path: ROUTE_PATTERNS.AUTH_TELEGRAM_CALLBACK,
         element: <TelegramCallbackPage />,
-    },
-    {
-        path: ROUTE_PATTERNS.TELEGRAM_LINK_EMAIL,
-        element: <TelegramLinkEmailPage />,
     },
 ]);
 

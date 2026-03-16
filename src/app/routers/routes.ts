@@ -34,7 +34,6 @@ export const ROUTES = {
     AUTH_INSTAGRAM: '/auth/instagram',
     AUTH_INSTAGRAM_CALLBACK: '/auth/instagram/callback',
     AUTH_TELEGRAM_CALLBACK: '/auth/telegram/callback',
-    TELEGRAM_LINK_EMAIL: '/auth/telegram/link-email',
 } as const;
 
 // Паттерны для роутов (используются в createBrowserRouter)
@@ -61,5 +60,4 @@ export const ROUTE_PATTERNS = {
     AUTH_INSTAGRAM: '/auth/instagram',
     AUTH_INSTAGRAM_CALLBACK: '/auth/instagram/callback',
     AUTH_TELEGRAM_CALLBACK: '/auth/telegram/callback',
-    TELEGRAM_LINK_EMAIL: 'auth/telegram/link-email',
 } as const;

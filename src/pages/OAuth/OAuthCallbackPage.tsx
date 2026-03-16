@@ -37,8 +37,6 @@ interface OAuthResponse {
     };
     token?: string;
     message?: string;
-    status?: 'email_required';
-    temp_token?: string;
     error?: string;
 }
 
@@ -185,12 +183,6 @@ const OAuthCallbackPage = () => {
                 }
 
                 const data: OAuthResponse = JSON.parse(responseText);
-
-                if (data.status === 'email_required' && data.temp_token) {
-                    sessionStorage.setItem('telegramTempToken', data.temp_token);
-                    navigate(ROUTES.TELEGRAM_LINK_EMAIL);
-                    return;
-                }
 
                 if (data.error === 'email_taken') {
                     setError(t('oauth.emailTaken'));
