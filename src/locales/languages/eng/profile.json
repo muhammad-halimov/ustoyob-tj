@@ -128,6 +128,7 @@
     "linkBtn": "Link",
     "unlinkBtn": "Unlink",
     "lastAuthMethod": "Only sign-in method — cannot unlink",
+    "linkTelegramTitle": "Sign in via Telegram",
     "provider": {
       "google": "Google",
       "facebook": "Facebook",

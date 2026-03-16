@@ -4,6 +4,7 @@ import {getAuthToken, getUserData, getUserRole, handleUnauthorized, logout} from
 import {ROUTES} from '../../app/routers/routes';
 import styles from './Profile.module.scss';
 import {useTranslation} from 'react-i18next';
+import {useTheme} from '../../contexts';
 import {useLanguageChange} from '../../hooks';
 import {getStorageItem} from '../../utils/storageHelper.ts';
 import {createChatWithAuthor} from '../../utils/chatUtils';
@@ -80,6 +81,7 @@ function Profile() {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>(); // Получаем id из URL
     const { t, i18n } = useTranslation(['profile', 'components']);
+    const { theme } = useTheme();
     
     // Определяем, это публичный профиль или приватный
     const readOnly = !!id; // readOnly = true для публичных профилей
@@ -174,12 +176,55 @@ function Profile() {
             headers: { Authorization: `Bearer ${token}` },
         })
             .then(r => r.json())
-            .then(data => setLinkedProviders(data.providers ?? []))
+            .then(data => setLinkedProviders(Array.isArray(data) ? data : (data.providers ?? [])))
             .catch(() => {})
             .finally(() => setLinkedProvidersLoading(false));
     }, [readOnly, API_BASE_URL]);
 
     const handleLinkProvider = (provider: string) => {
+        if (provider === 'telegram') {
+            // Показываем всплывающий виджет Telegram (как в AuthModal)
+            sessionStorage.setItem('oauthMode', 'link');
+
+            const overlay = document.createElement('div');
+            overlay.id = 'telegram-link-modal';
+            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999';
+
+            const isDark = theme === 'dark';
+            const box = document.createElement('div');
+            box.style.cssText = `background:${isDark ? '#2a2a2a' : '#fff'};border-radius:16px;padding:32px 28px;min-width:280px;text-align:center;position:relative;box-shadow:0 8px 40px rgba(0,0,0,.3)`;
+
+            const close = document.createElement('button');
+            close.textContent = '✕';
+            close.style.cssText = `position:absolute;top:12px;right:14px;background:none;border:none;font-size:20px;cursor:pointer;color:${isDark ? '#888' : '#999'}`;
+            close.onclick = () => { sessionStorage.removeItem('oauthMode'); overlay.remove(); };
+
+            const title = document.createElement('p');
+            title.textContent = t('oauth.linkTelegramTitle');
+            title.style.cssText = `margin:0 0 18px;font-weight:600;font-size:15px;color:${isDark ? '#e5e5e5' : '#222'}`;
+
+            const widgetWrap = document.createElement('div');
+            widgetWrap.id = `tg-link-widget-${Date.now()}`;
+
+            const script = document.createElement('script');
+            script.src = 'https://telegram.org/js/telegram-widget.js?22';
+            script.async = true;
+            script.setAttribute('data-telegram-login', import.meta.env.VITE_TELEGRAM_BOT_NAME || 'ustoyobtj_auth_bot');
+            script.setAttribute('data-size', 'large');
+            script.setAttribute('data-userpic', 'false');
+            script.setAttribute('data-radius', '10');
+            script.setAttribute('data-auth-url', `${window.location.origin}/auth/telegram/callback`);
+            script.setAttribute('data-request-access', 'write');
+
+            widgetWrap.appendChild(script);
+            box.appendChild(close);
+            box.appendChild(title);
+            box.appendChild(widgetWrap);
+            overlay.appendChild(box);
+            overlay.onclick = (e) => { if (e.target === overlay) { sessionStorage.removeItem('oauthMode'); overlay.remove(); } };
+            document.body.appendChild(overlay);
+            return;
+        }
         fetch(`${API_BASE_URL}/api/auth/${provider}/url`)
             .then(r => r.json())
             .then(data => {
@@ -198,12 +243,15 @@ function Profile() {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const data = await res.json();
-            if (data.providers) {
-                setLinkedProviders(data.providers);
-            }
             if (data.error === 'last_auth_method') {
                 setModalMessage(t('profile:oauth.lastAuthMethod'));
                 setShowErrorModal(true);
+                return;
+            }
+            if (data.providers) {
+                setLinkedProviders(data.providers);
+            } else if (Array.isArray(data)) {
+                setLinkedProviders(data);
             }
         } catch { /* silent */ }
     };

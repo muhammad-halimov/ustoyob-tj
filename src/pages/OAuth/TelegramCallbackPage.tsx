@@ -10,7 +10,8 @@ import {
     setUserRole,
     setUserData,
     setUserEmail,
-    setUserOccupation
+    setUserOccupation,
+    getAuthToken,
 } from '../../utils/auth';
 
 interface TelegramUserData {
@@ -144,6 +145,31 @@ const TelegramCallbackPage = () => {
                 const data: TelegramAuthResponse = JSON.parse(responseText);
 
                 if (data.status === 'email_required' && data.temp_token) {
+                    const oauthMode = sessionStorage.getItem('oauthMode');
+                    if (oauthMode === 'link') {
+                        // Пользователь уже авторизован — привязываем напрямую, без почты
+                        const jwtToken = getAuthToken();
+                        sessionStorage.removeItem('oauthMode');
+                        if (!jwtToken) {
+                            navigate(ROUTES.HOME, { replace: true });
+                            return;
+                        }
+                        const linkRes = await fetch(`${API_BASE_URL}/api/profile/oauth/link`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'Authorization': `Bearer ${jwtToken}`,
+                            },
+                            body: JSON.stringify({ provider: 'telegram', temp_token: data.temp_token }),
+                        });
+                        if (linkRes.ok) {
+                            navigate(ROUTES.PROFILE, { replace: true });
+                        } else {
+                            navigate(ROUTES.PROFILE, { replace: true });
+                        }
+                        return;
+                    }
                     sessionStorage.setItem('telegramTempToken', data.temp_token);
                     navigate(ROUTES.TELEGRAM_LINK_EMAIL);
                     return;

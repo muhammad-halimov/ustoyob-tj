@@ -10,7 +10,8 @@ import {
     setUserRole,
     setUserData,
     setUserEmail,
-    setUserOccupation
+    setUserOccupation,
+    getAuthToken,
 } from '../../utils/auth';
 
 // Типы для провайдеров
@@ -96,6 +97,41 @@ const OAuthCallbackPage = () => {
             }
 
             try {
+                // Режим привязки провайдера к существующему аккаунту
+                const oauthMode = sessionStorage.getItem('oauthMode');
+                if (oauthMode === 'link') {
+                    const jwtToken = getAuthToken();
+                    if (!jwtToken) {
+                        setError(t('oauth.notAuthenticated') || 'Not authenticated');
+                        setLoading(false);
+                        sessionStorage.removeItem('oauthMode');
+                        return;
+                    }
+                    const linkRes = await fetch(`${API_BASE_URL}/api/profile/oauth/link`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'Authorization': `Bearer ${jwtToken}`,
+                        },
+                        body: JSON.stringify({ provider: detectedProvider, code, state }),
+                    });
+                    const linkData = await linkRes.json();
+                    sessionStorage.removeItem('oauthMode');
+                    if (linkData.error === 'provider_taken') {
+                        setError(t('oauth.providerTaken') || 'This account is already linked to another user');
+                        setLoading(false);
+                        return;
+                    }
+                    if (linkData.error === 'already_linked') {
+                        setError(t('oauth.alreadyLinked') || 'This provider is already linked to your account');
+                        setLoading(false);
+                        return;
+                    }
+                    navigate(ROUTES.PROFILE, { replace: true });
+                    return;
+                }
+
                 // Получаем сохраненную роль из sessionStorage
                 const savedRoleKey = `pending${detectedProvider.charAt(0).toUpperCase() + detectedProvider.slice(1)}Role`;
                 const savedSpecialtyKey = `pending${detectedProvider.charAt(0).toUpperCase() + detectedProvider.slice(1)}Specialty`;

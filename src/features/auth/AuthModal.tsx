@@ -590,6 +590,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         }
 
         // Создаем модальное окно для Telegram widget
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+
         const telegramModalContainer = document.createElement('div');
         telegramModalContainer.style.position = 'fixed';
         telegramModalContainer.style.top = '0';
@@ -603,7 +605,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         telegramModalContainer.style.zIndex = '10000';
 
         const widgetWrapper = document.createElement('div');
-        widgetWrapper.style.backgroundColor = 'white';
+        widgetWrapper.style.backgroundColor = isDark ? '#2a2a2a' : 'white';
         widgetWrapper.style.borderRadius = '10px';
         widgetWrapper.style.padding = '30px';
         widgetWrapper.style.textAlign = 'center';
@@ -620,7 +622,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         closeBtn.style.border = 'none';
         closeBtn.style.fontSize = '24px';
         closeBtn.style.cursor = 'pointer';
-        closeBtn.style.color = '#999';
+        closeBtn.style.color = isDark ? '#888' : '#999';
         closeBtn.onclick = () => {
             telegramModalContainer.remove();
         };
