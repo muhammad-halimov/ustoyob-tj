@@ -25,13 +25,6 @@ class TelegramOAuthCallbackController extends AbstractController
             $input->role
         );
 
-        if (isset($result['status']) && $result['status'] === 'email_required') {
-            return $this->json([
-                'status'     => 'email_required',
-                'temp_token' => $result['temp_token'],
-            ], 202);
-        }
-
         $refreshTokenValue = $this->refreshTokenService->createRefreshToken($result['user']);
 
         $output = new GeneralCallbackOutput();

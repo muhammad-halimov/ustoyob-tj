@@ -17,7 +17,7 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
-use Symfony\Contracts\Cache\CacheInterface;
+
 
 class LinkOAuthProviderController extends AbstractController
 {
@@ -29,7 +29,6 @@ class LinkOAuthProviderController extends AbstractController
         private readonly EntityManagerInterface      $entityManager,
         private readonly UserOAuthProviderRepository $oauthProviderRepository,
         private readonly StateStorage                $stateStorage,
-        private readonly CacheInterface              $cache,
         private readonly GoogleOAuthService          $googleService,
         private readonly FacebookOAuthService        $facebookService,
         private readonly InstagramOAuthService       $instagramService,
@@ -79,29 +78,27 @@ class LinkOAuthProviderController extends AbstractController
             $responseData['new_token'] = $this->jwtManager->create($currentUser);
             $responseData['new_email'] = $currentUser->getEmail();
         }
-        
+
         return $this->json($responseData);
     }
 
     private function resolveProviderId(string $provider, array $body): array
     {
         if ($provider === 'telegram') {
-            $tempToken = (string) ($body['temp_token'] ?? '');
-            if ($tempToken === '') {
-                throw new BadRequestHttpException('temp_token is required for Telegram');
+            $id       = (string) ($body['id'] ?? '');
+            $hash     = (string) ($body['hash'] ?? '');
+            $authDate = (int)    ($body['auth_date'] ?? 0);
+
+            if ($id === '' || $hash === '') {
+                throw new BadRequestHttpException('id and hash are required for Telegram');
+            }
+            if (time() - $authDate > 600) {
+                throw new BadRequestHttpException('Expired Telegram auth data');
             }
 
-            $cacheKey = 'telegram_pending_' . $tempToken;
-            if (!$this->cache->hasItem($cacheKey)) {
-                throw new BadRequestHttpException('Invalid or expired temp_token');
-            }
+            $this->verifyTelegramHash($body, $hash);
 
-            $telegramData = json_decode((string) $this->cache->getItem($cacheKey)->get(), true);
-            $providerId   = (string) $telegramData['telegramId'];
-
-            $this->cache->deleteItem($cacheKey);
-
-            return ['id' => $providerId, 'email' => null];
+            return ['id' => $id, 'email' => null];
         }
 
         // Google / Facebook / Instagram — code + state flow
@@ -140,6 +137,22 @@ class LinkOAuthProviderController extends AbstractController
                 'email' => null,
             ],
         };
+    }
+
+    private function verifyTelegramHash(array $body, string $hash): void
+    {
+        $fields = [];
+        foreach (['id', 'first_name', 'last_name', 'username', 'photo_url', 'auth_date'] as $key) {
+            if (isset($body[$key]) && $body[$key] !== '' && $body[$key] !== null) {
+                $fields[$key] = (string) $body[$key];
+            }
+        }
+        ksort($fields);
+        $dataCheckString = implode("\n", array_map(fn($k, $v) => "$k=$v", array_keys($fields), $fields));
+        $secretKey       = hash('sha256', $_ENV['TELEGRAM_BOT_TOKEN'], true);
+        if (!hash_equals(hash_hmac('sha256', $dataCheckString, $secretKey), $hash)) {
+            throw new BadRequestHttpException('Invalid Telegram signature');
+        }
     }
 
     private function buildProvidersList(User $user): array

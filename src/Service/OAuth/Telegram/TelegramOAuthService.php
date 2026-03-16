@@ -10,8 +10,6 @@ use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
-use Symfony\Contracts\Cache\CacheInterface;
-use Symfony\Contracts\Cache\ItemInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 readonly class TelegramOAuthService
@@ -21,7 +19,6 @@ readonly class TelegramOAuthService
         private EntityManagerInterface   $entityManager,
         private JWTTokenManagerInterface $jwtManager,
         private HttpClientInterface      $httpClient,
-        private CacheInterface           $cache,
     ){}
 
     public function handleCallback(int $id, ?string $username, ?string $firstName, ?string $lastName, ?string $photoUrl, ?string $role): array
@@ -51,21 +48,33 @@ readonly class TelegramOAuthService
             return ['user' => $user, 'token' => $this->jwtManager->create($user)];
         }
 
-        // 2. No existing link — store data temporarily and request an email
-        $tempToken = bin2hex(random_bytes(16));
-        $this->cache->get('telegram_pending_' . $tempToken, function (ItemInterface $item) use ($telegramData, $role, $telegramId): string {
-            $item->expiresAfter(600);
-            return json_encode([
-                'telegramId' => $telegramId,
-                'username'   => $telegramData->username,
-                'firstName'  => $telegramData->firstName,
-                'lastName'   => $telegramData->lastName,
-                'photoUrl'   => $telegramData->photoUrl,
-                'role'       => $role,
-            ]);
-        });
+        // 2. New user — create immediately with a local placeholder email
+        $user = (new User())
+            ->setEmail("oauth+telegram_{$telegramId}@internal.local")
+            ->setName($telegramData->firstName ?? '')
+            ->setSurname($telegramData->lastName ?? '')
+            ->setLogin($telegramData->username ?? null)
+            ->setImageExternalUrl($telegramData->photoUrl ?? '')
+            ->setPassword('')
+            ->setActive(true)
+            ->setApproved(true)
+            ->setGender('gender_neutral')
+            ->setRoles(match($role) {
+                'master' => ['ROLE_MASTER'],
+                'client' => ['ROLE_CLIENT'],
+                default  => ['ROLE_USER'],
+            });
 
-        return ['status' => 'email_required', 'temp_token' => $tempToken];
+        $op = (new UserOAuthProvider())
+            ->setProvider('telegram')
+            ->setProviderId($telegramId)
+            ->setUser($user);
+
+        $this->entityManager->persist($user);
+        $this->entityManager->persist($op);
+        $this->entityManager->flush();
+
+        return ['user' => $user, 'token' => $this->jwtManager->create($user)];
     }
 
     private function updateUserFromTelegramData(User $user, TelegramCallbackInput $telegramData): void
