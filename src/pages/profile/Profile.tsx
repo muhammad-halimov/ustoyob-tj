@@ -3537,43 +3537,16 @@ function Profile() {
 
                 {/* Секция "О себе" */}
                 <div className={styles.about_section}>
-                    {/* EducationSection Component - только для специалистов */}
-                    {userRole === 'master' && (
-                        <EducationSection
-                            education={profileData.education}
-                            editingEducation={editingEducation}
-                            educationForm={educationForm}
-                            occupations={occupations}
-                            occupationsLoading={occupationsLoading}
+                    {/* LinkedAccountsSection Component - только для своего профиля */}
+                    {!readOnly && (
+                        <LinkedAccountsSection
+                            providers={linkedProviders}
+                            loading={linkedProvidersLoading}
                             readOnly={readOnly}
-                            onEditEducationStart={handleEditEducationStart}
-                            onEditEducationSave={handleEditEducationSave}
-                            onEditEducationCancel={handleEditEducationCancel}
-                            onEducationFormChange={handleEducationFormChange}
-                            onDeleteEducation={handleDeleteEducation}
-                            onAddEducation={handleAddEducation}
-                            setEducationForm={setEducationForm}
-                            onReorder={!readOnly ? handleReorderEducation : undefined}
-                            onRefresh={() => fetchUserData(true)}
+                            onLink={handleLinkProvider}
+                            onUnlink={handleUnlinkProvider}
                         />
                     )}
-
-                    {/* PhonesSection Component */}
-                    <PhonesSection
-                        phones={profileData.phones}
-                        editingPhone={editingPhone}
-                        phoneForm={phoneForm}
-                        readOnly={readOnly}
-                        onEditPhoneStart={handleEditPhoneStart}
-                        onEditPhoneSave={handleEditPhoneSave}
-                        onEditPhoneCancel={handleEditPhoneCancel}
-                        setPhoneForm={setPhoneForm}
-                        onDeletePhone={handleDeletePhone}
-                        onAddPhone={handleAddPhone}
-                        onCopyPhone={handleCopyPhone}
-                        onReorder={!readOnly ? handleReorderPhones : undefined}
-                        onRefresh={() => fetchUserData(true)}
-                    />
 
                     {/* SocialNetworksSection Component */}
                     <SocialNetworksSection
@@ -3602,14 +3575,41 @@ function Profile() {
                         onRefresh={() => fetchUserData(true)}
                     />
 
-                    {/* LinkedAccountsSection Component - только для своего профиля */}
-                    {!readOnly && (
-                        <LinkedAccountsSection
-                            providers={linkedProviders}
-                            loading={linkedProvidersLoading}
+                    {/* PhonesSection Component */}
+                    <PhonesSection
+                        phones={profileData.phones}
+                        editingPhone={editingPhone}
+                        phoneForm={phoneForm}
+                        readOnly={readOnly}
+                        onEditPhoneStart={handleEditPhoneStart}
+                        onEditPhoneSave={handleEditPhoneSave}
+                        onEditPhoneCancel={handleEditPhoneCancel}
+                        setPhoneForm={setPhoneForm}
+                        onDeletePhone={handleDeletePhone}
+                        onAddPhone={handleAddPhone}
+                        onCopyPhone={handleCopyPhone}
+                        onReorder={!readOnly ? handleReorderPhones : undefined}
+                        onRefresh={() => fetchUserData(true)}
+                    />
+
+                    {/* EducationSection Component - только для специалистов */}
+                    {userRole === 'master' && (
+                        <EducationSection
+                            education={profileData.education}
+                            editingEducation={editingEducation}
+                            educationForm={educationForm}
+                            occupations={occupations}
+                            occupationsLoading={occupationsLoading}
                             readOnly={readOnly}
-                            onLink={handleLinkProvider}
-                            onUnlink={handleUnlinkProvider}
+                            onEditEducationStart={handleEditEducationStart}
+                            onEditEducationSave={handleEditEducationSave}
+                            onEditEducationCancel={handleEditEducationCancel}
+                            onEducationFormChange={handleEducationFormChange}
+                            onDeleteEducation={handleDeleteEducation}
+                            onAddEducation={handleAddEducation}
+                            setEducationForm={setEducationForm}
+                            onReorder={!readOnly ? handleReorderEducation : undefined}
+                            onRefresh={() => fetchUserData(true)}
                         />
                     )}
 

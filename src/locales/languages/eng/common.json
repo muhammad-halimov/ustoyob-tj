@@ -77,6 +77,7 @@
     "emailPlaceholder": "Your email",
     "linkEmailSubmit": "Continue",
     "linkEmailSkip": "Skip",
-    "invalidToken": "Authorization session is invalid. Please try again."
+    "invalidToken": "Authorization session is invalid. Please try again.",
+    "success": "Authorization successful!"
   }
 }

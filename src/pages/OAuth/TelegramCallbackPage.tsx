@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../app/routers/routes';
 import Status from '../../shared/ui/Modal/Status';
-import { useTheme } from '../../contexts';
+import { PageLoader } from '../../widgets/PageLoader';
 import { useTranslation } from 'react-i18next';
 import {
     setAuthToken,
@@ -46,8 +46,7 @@ const TelegramCallbackPage = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string>('');
-    const { theme } = useTheme();
-    const isDark = theme === 'dark';
+    const [success, setSuccess] = useState(false);
     const { t } = useTranslation('common');
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -212,11 +211,12 @@ const TelegramCallbackPage = () => {
                     sessionStorage.removeItem('pendingTelegramRole');
                     sessionStorage.removeItem('pendingTelegramSpecialty');
 
-                    // Редирект на главную
-                    navigate(ROUTES.HOME);
-
-                    // Имитируем событие логина
-                    window.dispatchEvent(new Event('login'));
+                    setSuccess(true);
+                    setLoading(false);
+                    setTimeout(() => {
+                        navigate(ROUTES.HOME);
+                        window.dispatchEvent(new Event('login'));
+                    }, 2000);
                 } else {
                     throw new Error(t('oauth.tokenNotReceived'));
                 }
@@ -233,44 +233,15 @@ const TelegramCallbackPage = () => {
     }, [searchParams, navigate, API_BASE_URL]);
 
     if (loading) {
+        return <PageLoader text={t('oauth.processingTelegram')} />;
+    }
+
+    if (success) {
         return (
-            <>
-            <div style={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                minHeight: '100vh',
-                flexDirection: 'column',
-                padding: '20px',
-                backgroundColor: isDark ? '#1A1A1A' : '#f5f5f5'
-            }}>
-                <div style={{
-                    width: '60px',
-                    height: '60px',
-                    border: `4px solid ${isDark ? '#404040' : '#e0e0e0'}`,
-                    borderTop: '4px solid #0088cc',
-                    borderRadius: '50%',
-                    animation: 'spin 1s linear infinite',
-                    marginBottom: '20px'
-                }}></div>
-                <h2 style={{ marginBottom: '10px', color: isDark ? '#E5E5E5' : '#333' }}>
-                    {t('oauth.processingTelegram')}
-                </h2>
-                <p style={{ color: isDark ? '#A8A8A8' : '#666' }}>{t('oauth.pleaseWait')}</p>
-                <style>{`
-                    @keyframes spin {
-                        0% { transform: rotate(0deg); }
-                        100% { transform: rotate(360deg); }
-                    }
-                `}</style>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--color-background-all)', gap: '16px' }}>
+                <span style={{ fontSize: '52px', color: 'var(--color-actual-blue)' }}>✓</span>
+                <p style={{ color: 'var(--color-text-secondary)', fontSize: '16px', margin: 0 }}>{t('oauth.success')}</p>
             </div>
-            <Status
-                type="error"
-                isOpen={!!error}
-                onClose={() => navigate(ROUTES.HOME)}
-                message={t('oauth.tryLater')}
-            />
-        </>
         );
     }
 
