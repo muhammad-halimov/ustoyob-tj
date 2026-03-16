@@ -209,7 +209,7 @@ function Profile() {
             const script = document.createElement('script');
             script.src = 'https://telegram.org/js/telegram-widget.js?22';
             script.async = true;
-            script.setAttribute('data-telegram-login', import.meta.env.VITE_TELEGRAM_BOT_NAME || 'ustoyobtj_auth_bot');
+            script.setAttribute('data-telegram-login', import.meta.env.VITE_TELEGRAM_BOT_NAME);
             script.setAttribute('data-size', 'large');
             script.setAttribute('data-userpic', 'false');
             script.setAttribute('data-radius', '10');
