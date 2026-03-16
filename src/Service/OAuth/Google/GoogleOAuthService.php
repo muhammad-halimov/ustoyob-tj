@@ -236,6 +236,10 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
         if (empty($user->getImageExternalUrl()) && isset($userData['picture'])) {
             $user->setImageExternalUrl($userData['picture']);
         }
+        if (($userData['email_verified'] ?? false) && isset($userData['email'])
+            && str_contains($user->getEmail(), '@internal.local')) {
+            $user->setEmail($userData['email']);
+        }
     }
 
     private function setOptionalUserData(User $user, array $googleData): void

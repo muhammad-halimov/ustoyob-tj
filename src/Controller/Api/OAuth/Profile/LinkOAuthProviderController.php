@@ -47,7 +47,7 @@ class LinkOAuthProviderController extends AbstractController
             throw new BadRequestHttpException('Invalid provider. Must be one of: ' . implode(', ', self::VALID_PROVIDERS));
         }
 
-        $providerId = $this->resolveProviderId($provider, $body);
+        ['id' => $providerId, 'email' => $realEmail] = $this->resolveProviderId($provider, $body);
 
         $existing = $this->oauthProviderRepository->findOneByProviderAndId($provider, $providerId);
 
@@ -56,6 +56,10 @@ class LinkOAuthProviderController extends AbstractController
                 return $this->json(['error' => 'provider_taken'], 400);
             }
             return $this->json(['error' => 'already_linked'], 400);
+        }
+
+        if ($realEmail !== null && str_contains($currentUser->getEmail(), '@internal.local')) {
+            $currentUser->setEmail($realEmail);
         }
 
         $op = (new UserOAuthProvider())
@@ -68,7 +72,7 @@ class LinkOAuthProviderController extends AbstractController
         return $this->json(['providers' => $this->buildProvidersList($currentUser)]);
     }
 
-    private function resolveProviderId(string $provider, array $body): string
+    private function resolveProviderId(string $provider, array $body): array
     {
         if ($provider === 'telegram') {
             $tempToken = (string) ($body['temp_token'] ?? '');
@@ -86,7 +90,7 @@ class LinkOAuthProviderController extends AbstractController
 
             $this->cache->deleteItem($cacheKey);
 
-            return $providerId;
+            return ['id' => $providerId, 'email' => null];
         }
 
         // Google / Facebook / Instagram — code + state flow
@@ -112,9 +116,18 @@ class LinkOAuthProviderController extends AbstractController
         $userData = $service->fetchUserData($tokens);
 
         return match($provider) {
-            'google'    => (string) $userData['sub'],
-            'facebook'  => (string) $userData['id'],
-            'instagram' => (string) $userData['id'],
+            'google'    => [
+                'id'    => (string) $userData['sub'],
+                'email' => ($userData['email_verified'] ?? false) ? ($userData['email'] ?? null) : null,
+            ],
+            'facebook'  => [
+                'id'    => (string) $userData['id'],
+                'email' => $userData['email'] ?? null,
+            ],
+            'instagram' => [
+                'id'    => (string) $userData['id'],
+                'email' => null,
+            ],
         };
     }
 

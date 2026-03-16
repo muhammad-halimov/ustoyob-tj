@@ -165,5 +165,8 @@ class FacebookOAuthService extends AbstractOAuthService implements OAuthServiceI
         if (isset($userData['picture']['data']['url']) && empty($user->getImageExternalUrl())) {
             $user->setImageExternalUrl($userData['picture']['data']['url']);
         }
+        if (isset($userData['email']) && str_contains($user->getEmail(), '@internal.local')) {
+            $user->setEmail($userData['email']);
+        }
     }
 }
