@@ -11,6 +11,7 @@ use App\Controller\Api\OAuth\Meta\Facebook\FacebokOAuthUrlController;
 use App\Controller\Api\OAuth\Meta\Facebook\FacebookOAuthCallbackController;
 use App\Controller\Api\OAuth\Meta\Instagram\InstagramOAuthCallbackController;
 use App\Controller\Api\OAuth\Meta\Instagram\InstagramOAuthUrlController;
+use App\Controller\Api\OAuth\Telegram\TelegramLinkEmailController;
 use App\Controller\Api\OAuth\Telegram\TelegramOAuthCallbackController;
 use App\Dto\OAuth\GeneralAuthUrlOutput;
 use App\Dto\OAuth\GeneralCallbackInput;
@@ -114,6 +115,22 @@ use App\Dto\OAuth\TelegramCallbackInput;
             ],
             denormalizationContext: ['groups' => ['telegram:write']],
             input: TelegramCallbackInput::class,
+            output: GeneralCallbackOutput::class,
+            read: false,
+            write: false,
+        ),
+        new Post(
+            uriTemplate: '/auth/telegram/link-email',
+            controller: TelegramLinkEmailController::class,
+            normalizationContext: ['groups' => [
+                'telegram:read',
+                'masters:read',
+                'clients:read',
+                'users:me:read'
+            ],
+                'skip_null_values' => false
+            ],
+            input: false,
             output: GeneralCallbackOutput::class,
             read: false,
             write: false,

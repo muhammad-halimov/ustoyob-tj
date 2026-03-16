@@ -68,57 +68,15 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
             ->getResult();
     }
 
-    public function findByGoogleId(string $authId): User|null
+    public function findByOAuthProvider(string $provider, string $providerId): ?User
     {
         return $this
             ->createQueryBuilder('u')
-            ->join('u.oauthType', 'o')
-            ->where("o.googleId = :authId")
-            ->setParameter('authId', $authId)
-            ->getQuery()
-            ->getOneOrNullResult();
-    }
-
-    public function findByVKId(string $authId): User|null
-    {
-        return $this
-            ->createQueryBuilder('u')
-            ->join('u.oauthType', 'o')
-            ->where("o.vkId = :authId")
-            ->setParameter('authId', $authId)
-            ->getQuery()
-            ->getOneOrNullResult();
-    }
-
-    public function findByTelegramId(string $authId): User|null
-    {
-        return $this
-            ->createQueryBuilder('u')
-            ->join('u.oauthType', 'o')
-            ->where("o.telegramId = :authId")
-            ->setParameter('authId', $authId)
-            ->getQuery()
-            ->getOneOrNullResult();
-    }
-
-    public function findByFacebookId(string $authId): User|null
-    {
-        return $this
-            ->createQueryBuilder('u')
-            ->join('u.oauthType', 'o')
-            ->where("o.facebookId = :authId")
-            ->setParameter('authId', $authId)
-            ->getQuery()
-            ->getOneOrNullResult();
-    }
-
-    public function findByInstagramId(string $authId): User|null
-    {
-        return $this
-            ->createQueryBuilder('u')
-            ->join('u.oauthType', 'o')
-            ->where("o.instagramId = :authId")
-            ->setParameter('authId', $authId)
+            ->join('u.oauthProviders', 'o')
+            ->where('o.provider = :provider')
+            ->andWhere('o.providerId = :providerId')
+            ->setParameter('provider', $provider)
+            ->setParameter('providerId', $providerId)
             ->getQuery()
             ->getOneOrNullResult();
     }

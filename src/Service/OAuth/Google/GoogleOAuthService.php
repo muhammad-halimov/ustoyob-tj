@@ -2,7 +2,7 @@
 
 namespace App\Service\OAuth\Google;
 
-use App\Entity\Extra\OAuthType;
+use App\Entity\UserOAuthProvider;
 use App\Entity\User;
 //use App\Entity\User\Phone;
 use App\Service\OAuth\AbstractOAuthService;
@@ -176,34 +176,30 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
         }
 
         $googleId = $userData['sub'];
-        $email = $userData['email'] ?? '';
+        $email    = $userData['email'] ?? null;
 
-        if ($user = $this->userRepository->findByGoogleId($googleId)) {
+        // 1. Already linked to this Google account
+        if ($user = $this->userRepository->findByOAuthProvider('google', $googleId)) {
             $this->updateUserData($user, $userData);
             $this->entityManager->flush();
             return $user;
         }
 
-        if ($existingUser = $this->userRepository->findOneBy(['email' => $email])) {
-            if ($existingUser->getOauthType() !== null) {
-                throw new BadRequestHttpException('This email is already associated with another Google account.');
-            }
-
-            $oauth = new OAuthType();
-            $oauth->setGoogleId($googleId);
-            $existingUser->setOauthType($oauth);
+        // 2. Existing user with same verified email — link
+        if ($email && ($existingUser = $this->userRepository->findOneBy(['email' => $email]))) {
+            $op = (new UserOAuthProvider())
+                ->setProvider('google')
+                ->setProviderId($googleId)
+                ->setUser($existingUser);
+            $this->entityManager->persist($op);
             $this->updateUserData($existingUser, $userData);
-            $this->entityManager->persist($oauth);
             $this->entityManager->flush();
             return $existingUser;
         }
 
-        $oauth = new OAuthType();
-        $oauth->setGoogleId($googleId);
-
+        // 3. New user
         $user = (new User())
-            ->setOauthType($oauth)
-            ->setEmail($email)
+            ->setEmail($email ?? "oauth+google_{$googleId}@internal.local")
             ->setName($userData['given_name'] ?? '')
             ->setSurname($userData['family_name'] ?? '')
             ->setImageExternalUrl($userData['picture'] ?? '')
@@ -213,38 +209,33 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
             ->setRoles(match($role) {
                 'master' => ['ROLE_MASTER'],
                 'client' => ['ROLE_CLIENT'],
-                default => ['ROLE_USER'],
+                default  => ['ROLE_USER'],
             });
 
         $this->setOptionalUserData($user, $userData);
 
-        $this->entityManager->persist($oauth);
+        $op = (new UserOAuthProvider())
+            ->setProvider('google')
+            ->setProviderId($googleId)
+            ->setUser($user);
+        $this->entityManager->persist($op);
         $this->entityManager->persist($user);
         $this->entityManager->flush();
 
         return $user;
     }
 
-    /**
-     * @param User $user
-     * @param array $userData
-     * @return void
-     */
     public function updateUserData(User $user, array $userData): void
     {
-        $user->setEmail($userData['email'] ?? $user->getEmail());
-
-        if (isset($userData['given_name'])) {
+        if (empty($user->getName()) && isset($userData['given_name'])) {
             $user->setName($userData['given_name']);
         }
-        if (isset($userData['family_name'])) {
+        if (empty($user->getSurname()) && isset($userData['family_name'])) {
             $user->setSurname($userData['family_name']);
         }
-        if (isset($userData['picture'])) {
+        if (empty($user->getImageExternalUrl()) && isset($userData['picture'])) {
             $user->setImageExternalUrl($userData['picture']);
         }
-
-        $this->setOptionalUserData($user, $userData);
     }
 
     private function setOptionalUserData(User $user, array $googleData): void

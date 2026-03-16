@@ -35,7 +35,7 @@ use App\Entity\Chat\ChatImage;
 use App\Entity\Chat\ChatMessage;
 use App\Entity\Extra\BlackList;
 use App\Entity\Extra\Favorite;
-use App\Entity\Extra\OAuthType;
+use App\Entity\UserOAuthProvider;
 use App\Entity\Gallery\Gallery;
 use App\Entity\Geography\Address;
 use App\Entity\Review\Review;
@@ -227,6 +227,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->blackLists = new ArrayCollection();
         $this->clientsBlackListedByAuthor = new ArrayCollection();
         $this->mastersBlackListedByAuthor = new ArrayCollection();
+        $this->oauthProviders = new ArrayCollection();
 //        $this->phones = new ArrayCollection();
     }
 
@@ -749,12 +750,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Ignore]
     private Collection $mastersBlackListedByAuthor;
 
-    #[ORM\OneToOne(targetEntity: OAuthType::class, mappedBy: 'user', cascade: ['persist', 'remove'])]
+    #[ORM\OneToMany(targetEntity: UserOAuthProvider::class, mappedBy: 'user', cascade: ['persist', 'remove'])]
     #[Groups([
         'users:me:read'
     ])]
     #[ApiProperty(writable: false)]
-    private ?OAuthType $oauthType = null;
+    private Collection $oauthProviders;
 
     public function getId(): ?int
     {
@@ -1817,20 +1818,23 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    public function getOauthType(): ?OAuthType
+    public function getOauthProviders(): Collection
     {
-        return $this->oauthType;
+        return $this->oauthProviders;
     }
 
-    public function setOauthType(OAuthType $oauthType): static
+    public function addOauthProvider(UserOAuthProvider $oauthProvider): static
     {
-        $this->oauthType = $oauthType;
-
-        // синхронизация обратной связи
-        if ($oauthType->getUser() !== $this) {
-            $oauthType->setUser($this);
+        if (!$this->oauthProviders->contains($oauthProvider)) {
+            $this->oauthProviders->add($oauthProvider);
+            $oauthProvider->setUser($this);
         }
+        return $this;
+    }
 
+    public function removeOauthProvider(UserOAuthProvider $oauthProvider): static
+    {
+        $this->oauthProviders->removeElement($oauthProvider);
         return $this;
     }
 

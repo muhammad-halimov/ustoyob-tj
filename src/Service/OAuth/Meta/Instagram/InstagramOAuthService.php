@@ -2,7 +2,7 @@
 
 namespace App\Service\OAuth\Meta\Instagram;
 
-use App\Entity\Extra\OAuthType;
+use App\Entity\UserOAuthProvider;
 use App\Entity\User;
 use App\Service\OAuth\AbstractOAuthService;
 use App\Service\OAuth\Interface\OAuthServiceInterface;
@@ -91,37 +91,38 @@ class InstagramOAuthService extends AbstractOAuthService implements OAuthService
     public function findOrCreateUser(array $userData, ?string $role): User
     {
         $instagramId = $userData['id'];
+        $nameParts   = explode(' ', $userData['name'] ?? '', 2);
 
-        if ($user = $this->userRepository->findByInstagramId($instagramId)) {
+        // 1. Already linked to this Instagram account
+        if ($user = $this->userRepository->findByOAuthProvider('instagram', $instagramId)) {
             $this->updateUserData($user, $userData);
             $this->entityManager->flush();
             return $user;
         }
 
-        $domain = preg_replace('/^https?:\/\//', '', $_ENV['FRONTEND_URL']);
-
-        $oauth = new OAuthType();
-        $oauth->setInstagramId($instagramId);
-
+        // 2. New user — Instagram never provides email
         $user = (new User())
-            ->setOauthType($oauth)
-            ->setLogin($userData['username'])
-            ->setName(explode(' ', $userData['name'], 2)[0] ?? '')
-            ->setSurname(explode(' ', $userData['name'], 2)[1] ?? '')
+            ->setEmail("oauth+instagram_{$instagramId}@internal.local")
+            ->setLogin($userData['username'] ?? null)
+            ->setName($nameParts[0] ?? '')
+            ->setSurname($nameParts[1] ?? '')
             ->setImageExternalUrl($userData['profile_picture_url'] ?? '')
-            ->setEmail("user.$instagramId@$domain")
             ->setPassword('')
             ->setActive(true)
             ->setApproved(true)
-            ->setBio($userData['biography'])
+            ->setBio($userData['biography'] ?? null)
             ->setGender('gender_neutral')
             ->setRoles(match($role) {
                 'master' => ['ROLE_MASTER'],
                 'client' => ['ROLE_CLIENT'],
-                default => ['ROLE_USER'],
+                default  => ['ROLE_USER'],
             });
 
-        $this->entityManager->persist($oauth);
+        $op = (new UserOAuthProvider())
+            ->setProvider('instagram')
+            ->setProviderId($instagramId)
+            ->setUser($user);
+        $this->entityManager->persist($op);
         $this->entityManager->persist($user);
         $this->entityManager->flush();
 
@@ -130,17 +131,22 @@ class InstagramOAuthService extends AbstractOAuthService implements OAuthService
 
     public function updateUserData(User $user, array $userData): void
     {
-        if (isset($userData['username'])) {
+        if (isset($userData['username']) && empty($user->getLogin())) {
             $user->setLogin($userData['username']);
         }
         if (isset($userData['name'])) {
-            $user->setName(explode(' ', $userData['name'], 2)[0]);
-            $user->setSurname(explode(' ', $userData['name'], 2)[1]);
+            $nameParts = explode(' ', $userData['name'], 2);
+            if (empty($user->getName())) {
+                $user->setName($nameParts[0]);
+            }
+            if (empty($user->getSurname())) {
+                $user->setSurname($nameParts[1] ?? '');
+            }
         }
-        if (isset($userData['profile_picture_url'])) {
+        if (isset($userData['profile_picture_url']) && empty($user->getImageExternalUrl())) {
             $user->setImageExternalUrl($userData['profile_picture_url']);
         }
-        if (isset($userData['biography'])) {
+        if (isset($userData['biography']) && empty($user->getBio())) {
             $user->setBio($userData['biography']);
         }
     }

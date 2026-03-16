@@ -2,12 +2,10 @@
 
 namespace App\Service\OAuth\Meta\Facebook;
 
-use App\Entity\Extra\OAuthType;
 use App\Entity\User;
+use App\Entity\UserOAuthProvider;
 use App\Service\OAuth\AbstractOAuthService;
 use App\Service\OAuth\Interface\OAuthServiceInterface;
-use DateTime;
-use Exception;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
@@ -99,64 +97,54 @@ class FacebookOAuthService extends AbstractOAuthService implements OAuthServiceI
     public function findOrCreateUser(array $userData, ?string $role): User
     {
         $facebookId = $userData['id'];
-        $email = $userData['email'] ?? '';
+        $email      = $userData['email'] ?? null;
+        $nameParts  = explode(' ', $userData['name'] ?? '', 2);
 
-        if ($user = $this->userRepository->findByFacebookId($facebookId)) {
+        // 1. Already linked to this Facebook account
+        if ($user = $this->userRepository->findByOAuthProvider('facebook', $facebookId)) {
             $this->updateUserData($user, $userData);
             $this->entityManager->flush();
             return $user;
         }
 
-        if ($existingUser = $this->userRepository->findOneBy(['email' => $email])) {
-            if ($existingUser->getOauthType() !== null) {
-                throw new BadRequestHttpException('This email is already associated with another Meta account.');
-            }
-
-            $oauth = new OAuthType();
-            $oauth->setFacebookId($facebookId);
-            $existingUser->setOauthType($oauth);
+        // 2. Existing user with same email — link
+        if ($email && ($existingUser = $this->userRepository->findOneBy(['email' => $email]))) {
+            $op = (new UserOAuthProvider())
+                ->setProvider('facebook')
+                ->setProviderId($facebookId)
+                ->setUser($existingUser);
+            $this->entityManager->persist($op);
             $this->updateUserData($existingUser, $userData);
-            $this->entityManager->persist($oauth);
             $this->entityManager->flush();
             return $existingUser;
         }
 
-        $domain = preg_replace('/^https?:\/\//', '', $_ENV['FRONTEND_URL']);
-
-        $oauth = new OAuthType();
-        $oauth->setFacebookId($facebookId);
-
+        // 3. New user
         $user = (new User())
-            ->setOauthType($oauth)
-            ->setEmail($userData['email'] ?? "facebook.$facebookId@$domain")
-            ->setName(explode(' ', $userData['name'], 2)[0] ?? '')
-            ->setSurname(explode(' ', $userData['name'], 2)[1] ?? '')
+            ->setEmail($email ?? "oauth+facebook_{$facebookId}@internal.local")
+            ->setName($nameParts[0] ?? '')
+            ->setSurname($nameParts[1] ?? '')
             ->setImageExternalUrl($userData['picture']['data']['url'] ?? '')
             ->setPassword('')
             ->setActive(true)
             ->setApproved(true)
             ->setBio($userData['link'] ?? null)
             ->setGender(match($userData['gender'] ?? null) {
-                'male' => 'gender_male',
+                'male'   => 'gender_male',
                 'female' => 'gender_female',
-                default => 'gender_neutral'
+                default  => 'gender_neutral',
             })
             ->setRoles(match($role) {
                 'master' => ['ROLE_MASTER'],
                 'client' => ['ROLE_CLIENT'],
-                default => ['ROLE_USER'],
+                default  => ['ROLE_USER'],
             });
 
-        if (isset($userData['birthday'])) {
-            try {
-                $birthday = DateTime::createFromFormat('m/d/Y', $userData['birthday']);
-                if ($birthday !== false) {
-                    $user->setDateOfBirth($birthday);
-                }
-            } catch (Exception) {}
-        }
-
-        $this->entityManager->persist($oauth);
+        $op = (new UserOAuthProvider())
+            ->setProvider('facebook')
+            ->setProviderId($facebookId)
+            ->setUser($user);
+        $this->entityManager->persist($op);
         $this->entityManager->persist($user);
         $this->entityManager->flush();
 
@@ -167,21 +155,15 @@ class FacebookOAuthService extends AbstractOAuthService implements OAuthServiceI
     {
         if (isset($userData['name'])) {
             $nameParts = explode(' ', $userData['name'], 2);
-            $user->setName($nameParts[0] ?? '');
-            $user->setSurname($nameParts[1] ?? '');
+            if (empty($user->getName())) {
+                $user->setName($nameParts[0] ?? '');
+            }
+            if (empty($user->getSurname())) {
+                $user->setSurname($nameParts[1] ?? '');
+            }
         }
-
-        if (isset($userData['picture']['data']['url'])) {
+        if (isset($userData['picture']['data']['url']) && empty($user->getImageExternalUrl())) {
             $user->setImageExternalUrl($userData['picture']['data']['url']);
-        }
-
-        if (isset($userData['birthday'])) {
-            try {
-                $birthday = DateTime::createFromFormat('m/d/Y', $userData['birthday']);
-                if ($birthday !== false) {
-                    $user->setDateOfBirth($birthday);
-                }
-            } catch (Exception) {}
         }
     }
 }

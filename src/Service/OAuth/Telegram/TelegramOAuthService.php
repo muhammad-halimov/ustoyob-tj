@@ -3,13 +3,16 @@
 namespace App\Service\OAuth\Telegram;
 
 use App\Dto\OAuth\TelegramCallbackInput;
-use App\Entity\Extra\OAuthType;
 use App\Entity\User;
+use App\Entity\UserOAuthProvider;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Contracts\Cache\CacheInterface;
+use Symfony\Contracts\Cache\ItemInterface;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 readonly class TelegramOAuthService
 {
@@ -17,6 +20,8 @@ readonly class TelegramOAuthService
         private UserRepository           $userRepository,
         private EntityManagerInterface   $entityManager,
         private JWTTokenManagerInterface $jwtManager,
+        private HttpClientInterface      $httpClient,
+        private CacheInterface           $cache,
     ){}
 
     public function handleCallback(int $id, ?string $username, ?string $firstName, ?string $lastName, ?string $photoUrl, ?string $role): array
@@ -25,80 +30,70 @@ readonly class TelegramOAuthService
             throw new NotFoundHttpException('Telegram user not found');
         }
 
-        $userOutput = new TelegramCallbackInput();
+        $input            = new TelegramCallbackInput();
+        $input->id        = $id;
+        $input->username  = $username;
+        $input->firstName = $firstName;
+        $input->lastName  = $lastName;
+        $input->photoUrl  = $photoUrl;
 
-        $userOutput->id = $id;
-        $userOutput->username = $username;
-        $userOutput->firstName = $firstName;
-        $userOutput->lastName = $lastName;
-        $userOutput->photoUrl = $photoUrl;
-
-        $user = $this->findOrCreateUser($userOutput, $role);
-
-        return ['user' => $user, 'token' => $this->jwtManager->create($user)];
+        return $this->findOrCreateUser($input, $role ?? 'user');
     }
 
-    private function findOrCreateUser(TelegramCallbackInput $telegramData, string $role): User
+    private function findOrCreateUser(TelegramCallbackInput $telegramData, string $role): array
     {
-        $telegramId = $telegramData->id; // Уникальный ID пользователя в Telegram
+        $telegramId = (string) $telegramData->id;
 
-        // 1. Поиск по Telegram ID - пользователь уже заходил через Telegram
-        if ($user = $this->userRepository->findByTelegramId($telegramId)) {
+        // 1. Already linked — log in directly
+        if ($user = $this->userRepository->findByOAuthProvider('telegram', $telegramId)) {
             $this->updateUserFromTelegramData($user, $telegramData);
             $this->entityManager->flush();
-            return $user;
+            return ['user' => $user, 'token' => $this->jwtManager->create($user)];
         }
 
-        $domain = preg_replace('/^https?:\/\//', '', $_ENV['FRONTEND_URL']);
+        // 2. No existing link — store data temporarily and request an email
+        $tempToken = bin2hex(random_bytes(16));
+        $this->cache->get('telegram_pending_' . $tempToken, function (ItemInterface $item) use ($telegramData, $role, $telegramId): string {
+            $item->expiresAfter(600);
+            return json_encode([
+                'telegramId' => $telegramId,
+                'username'   => $telegramData->username,
+                'firstName'  => $telegramData->firstName,
+                'lastName'   => $telegramData->lastName,
+                'photoUrl'   => $telegramData->photoUrl,
+                'role'       => $role,
+            ]);
+        });
 
-        // 2. Создание нового пользователя - первый вход через Telegram
-        $oauth = new OAuthType();
-        $oauth->setTelegramId($telegramId);
-
-        $user = (new User())
-            ->setOauthType($oauth)
-            ->setLogin($telegramData->username ?? "telegram_user_$telegramId")
-            ->setName($telegramData->firstName)
-            ->setSurname($telegramData->lastName)
-            ->setImageExternalUrl($telegramData->photoUrl)
-            ->setEmail("user.$telegramId@$domain")
-            ->setPassword('') // OAuth пользователи не имеют пароля
-            ->setActive(true)
-            ->setApproved(true)
-            ->setGender('gender_neutral')
-            ->setRoles(match($role) {
-                'master' => ['ROLE_MASTER'],
-                'client' => ['ROLE_CLIENT'],
-                default => ['ROLE_USER'],
-            });
-
-        $this->entityManager->persist($oauth);
-        $this->entityManager->persist($user);
-        $this->entityManager->flush();
-
-        return $user;
+        return ['status' => 'email_required', 'temp_token' => $tempToken];
     }
 
     private function updateUserFromTelegramData(User $user, TelegramCallbackInput $telegramData): void
     {
-        if ($telegramData->username !== null) {
+        if ($telegramData->username !== null && empty($user->getLogin())) {
             $user->setLogin($telegramData->username);
         }
-
-        $user
-            ->setName($telegramData->firstName)
-            ->setSurname($telegramData->lastName)
-            ->setImageExternalUrl($telegramData->photoUrl);
+        if ($telegramData->firstName !== null && empty($user->getName())) {
+            $user->setName($telegramData->firstName);
+        }
+        if ($telegramData->lastName !== null && empty($user->getSurname())) {
+            $user->setSurname($telegramData->lastName);
+        }
+        if ($telegramData->photoUrl !== null && empty($user->getImageExternalUrl())) {
+            $user->setImageExternalUrl($telegramData->photoUrl);
+        }
     }
 
     private function checkTelegramUserExists(int $userId): bool
     {
         try {
-            $url = "https://api.telegram.org/bot{$_ENV['TELEGRAM_BOT_TOKEN']}/getChat?chat_id=$userId";
-            $response = file_get_contents($url);
-            $data = json_decode($response, true);
+            $data = $this->httpClient->request(
+                'GET',
+                "https://api.telegram.org/bot{$_ENV['TELEGRAM_BOT_TOKEN']}/getChat",
+                ['query' => ['chat_id' => $userId]]
+            )->toArray(false);
 
-            return isset($data['ok']) && $data['ok'] === true;
+            return $data['ok'] ?? false;
         } catch (Exception) {
             return false;
         }
