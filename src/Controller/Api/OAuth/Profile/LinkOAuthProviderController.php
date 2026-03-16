@@ -11,6 +11,7 @@ use App\Service\OAuth\Meta\Instagram\InstagramOAuthService;
 use App\Service\OAuth\Google\GoogleOAuthService;
 use App\Service\OAuth\StateStorage;
 use Doctrine\ORM\EntityManagerInterface;
+use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -32,6 +33,7 @@ class LinkOAuthProviderController extends AbstractController
         private readonly GoogleOAuthService          $googleService,
         private readonly FacebookOAuthService        $facebookService,
         private readonly InstagramOAuthService       $instagramService,
+        private readonly JWTTokenManagerInterface    $jwtManager,
     ) {}
 
     public function __invoke(Request $request): JsonResponse
@@ -58,8 +60,10 @@ class LinkOAuthProviderController extends AbstractController
             return $this->json(['error' => 'already_linked'], 400);
         }
 
+        $emailUpdated = false;
         if ($realEmail !== null && str_contains($currentUser->getEmail(), '@internal.local')) {
             $currentUser->setEmail($realEmail);
+            $emailUpdated = true;
         }
 
         $op = (new UserOAuthProvider())
@@ -69,7 +73,14 @@ class LinkOAuthProviderController extends AbstractController
         $this->entityManager->persist($op);
         $this->entityManager->flush();
 
-        return $this->json(['providers' => $this->buildProvidersList($currentUser)]);
+        $responseData = ['providers' => $this->buildProvidersList($currentUser)];
+
+        if ($emailUpdated) {
+            $responseData['new_token'] = $this->jwtManager->create($currentUser);
+            $responseData['new_email'] = $currentUser->getEmail();
+        }
+        
+        return $this->json($responseData);
     }
 
     private function resolveProviderId(string $provider, array $body): array
