@@ -4,6 +4,7 @@ namespace App\Entity;
 
 use App\Repository\User\UserOAuthProviderRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 
 #[ORM\Entity(repositoryClass: UserOAuthProviderRepository::class)]
 #[ORM\Table(name: 'user_oauth_provider')]
@@ -13,6 +14,9 @@ class UserOAuthProvider
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups([
+        'users:me:read'
+    ])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'oauthProviders')]
@@ -21,9 +25,15 @@ class UserOAuthProvider
 
     /** google | facebook | instagram | telegram */
     #[ORM\Column(length: 50)]
+    #[Groups([
+        'users:me:read'
+    ])]
     private string $provider;
 
     #[ORM\Column(type: 'text')]
+    #[Groups([
+        'users:me:read'
+    ])]
     private string $providerId;
 
     public function getId(): ?int
