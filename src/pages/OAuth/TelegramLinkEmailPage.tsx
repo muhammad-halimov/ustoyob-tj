@@ -127,6 +127,13 @@ const TelegramLinkEmailPage = () => {
         }
     };
 
+    const handleSkip = () => {
+        sessionStorage.removeItem('telegramTempToken');
+        sessionStorage.removeItem('pendingTelegramRole');
+        sessionStorage.removeItem('pendingTelegramSpecialty');
+        navigate(ROUTES.HOME, { replace: true });
+    };
+
     return (
         <div style={{
             display: 'flex',
@@ -189,6 +196,24 @@ const TelegramLinkEmailPage = () => {
                         }}
                     >
                         {loading ? t('oauth.pleaseWait') : t('oauth.linkEmailSubmit')}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleSkip}
+                        disabled={loading}
+                        style={{
+                            width: '100%',
+                            padding: '10px',
+                            marginTop: '10px',
+                            borderRadius: '8px',
+                            border: 'none',
+                            backgroundColor: 'transparent',
+                            color: isDark ? '#A8A8A8' : '#888',
+                            fontSize: '14px',
+                            cursor: loading ? 'not-allowed' : 'pointer',
+                        }}
+                    >
+                        {t('oauth.linkEmailSkip')}
                     </button>
                 </form>
             </div>

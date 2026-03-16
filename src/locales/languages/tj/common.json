@@ -76,6 +76,7 @@
     "linkEmailDescription": "Барои анҷом додани қайд, email-и худро ворид кунед",
     "emailPlaceholder": "Email-и шумо",
     "linkEmailSubmit": "Идома додан",
+    "linkEmailSkip": "Гузаштан",
     "invalidToken": "Сессияи тасдиқшавӣ нодуруст аст. Лутфан, такрор кунед."
   }
 }

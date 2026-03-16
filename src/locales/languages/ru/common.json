@@ -76,6 +76,7 @@
     "linkEmailDescription": "Для завершения регистрации введите ваш email",
     "emailPlaceholder": "Ваш email",
     "linkEmailSubmit": "Продолжить",
+    "linkEmailSkip": "Пропустить",
     "invalidToken": "Сессия авторизации недействительна. Попробуйте снова."
   }
 }
