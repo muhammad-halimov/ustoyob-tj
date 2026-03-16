@@ -70,6 +70,12 @@
     "tokenNotReceived": "Token not received",
     "expiredRequest": "Request expired. Please try again",
     "insufficientData": "Insufficient data for authorization",
-    "tryLater": "An error occurred, please try again later"
+    "tryLater": "An error occurred, please try again later",
+    "emailTaken": "An account with this email already exists. Please sign in with your password.",
+    "linkEmailTitle": "Link your email",
+    "linkEmailDescription": "To complete registration, please enter your email",
+    "emailPlaceholder": "Your email",
+    "linkEmailSubmit": "Continue",
+    "invalidToken": "Authorization session is invalid. Please try again."
   }
 }

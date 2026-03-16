@@ -70,6 +70,12 @@
     "tokenNotReceived": "Токен не получен",
     "expiredRequest": "Запрос устарел. Пожалуйста, повторите попытку",
     "insufficientData": "Недостаточно данных для авторизации",
-    "tryLater": "Произошла ошибка, повторите попозже"
+    "tryLater": "Произошла ошибка, повторите попозже",
+    "emailTaken": "Аккаунт с этим email уже существует. Войдите через пароль.",
+    "linkEmailTitle": "Привязать email",
+    "linkEmailDescription": "Для завершения регистрации введите ваш email",
+    "emailPlaceholder": "Ваш email",
+    "linkEmailSubmit": "Продолжить",
+    "invalidToken": "Сессия авторизации недействительна. Попробуйте снова."
   }
 }

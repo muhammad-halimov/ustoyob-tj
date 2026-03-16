@@ -14,7 +14,8 @@ const OAuthRedirectPage = () => {
     useEffect(() => {
         // Перенаправляем на страницу обработки callback
         // которая определит провайдера по текущему pathname
-        const callbackPath = location.pathname.replace(/^\/auth\//, '/auth/') + '/callback' + location.search;
+        const pathWithoutCallback = location.pathname.replace(/\/callback$/, '');
+        const callbackPath = pathWithoutCallback + '/callback' + location.search;
         navigate(callbackPath, { replace: true });
     }, [navigate, location]);
 

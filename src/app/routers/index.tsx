@@ -9,9 +9,9 @@ import CreateEdit from "../../pages/tickets/crud/CreateEdit.tsx";
 import MyTickets from "../../pages/tickets/me/MyTickets.tsx";
 import Category from "../../pages/tickets/category/Category.tsx";
 import OAuthCallbackPage from "../../pages/OAuth/OAuthCallbackPage.tsx";
-import GoogleOAuthPage from "../../pages/OAuth/GoogleOAuthPage.tsx";
 import OAuthRedirectPage from "../../pages/OAuth/OAuthRedirectPage.tsx";
 import TelegramCallbackPage from "../../pages/OAuth/TelegramCallbackPage.tsx";
+import TelegramLinkEmailPage from "../../pages/OAuth/TelegramLinkEmailPage.tsx";
 import { Legal } from "../../pages/legal";
 import { ROUTE_PATTERNS } from './routes';
 
@@ -44,11 +44,11 @@ const router = createBrowserRouter([
     },
     {
         path: ROUTE_PATTERNS.AUTH_GOOGLE,
-        element: <GoogleOAuthPage />,
+        element: <OAuthRedirectPage />,
     },
     {
         path: ROUTE_PATTERNS.AUTH_GOOGLE_CALLBACK,
-        element: <GoogleOAuthPage />,
+        element: <OAuthCallbackPage />,
     },
     {
         path: ROUTE_PATTERNS.AUTH_FACEBOOK,
@@ -69,6 +69,10 @@ const router = createBrowserRouter([
     {
         path: ROUTE_PATTERNS.AUTH_TELEGRAM_CALLBACK,
         element: <TelegramCallbackPage />,
+    },
+    {
+        path: ROUTE_PATTERNS.TELEGRAM_LINK_EMAIL,
+        element: <TelegramLinkEmailPage />,
     },
 ]);
 

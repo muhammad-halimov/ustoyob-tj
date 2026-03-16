@@ -25,7 +25,7 @@ const getProviderFromUrl = (pathname: string): OAuthProvider | null => {
 };
 
 interface OAuthResponse {
-    user: {
+    user?: {
         id: number;
         email: string;
         name: string;
@@ -34,8 +34,11 @@ interface OAuthResponse {
         occupation?: Array<{id: number; title: string; [key: string]: unknown}>;
         [key: string]: unknown;
     };
-    token: string;
-    message: string;
+    token?: string;
+    message?: string;
+    status?: 'email_required';
+    temp_token?: string;
+    error?: string;
 }
 
 interface OAuthErrorResponse {
@@ -69,27 +72,12 @@ const OAuthCallbackPage = () => {
         }
 
         const processCallback = async () => {
-            console.log(`Processing ${detectedProvider} callback...`);
-
-            // Для Google есть отдельная страница, перенаправляем
-            if (detectedProvider === 'google') {
-                console.log('Redirecting to GoogleOAuthPage...');
-                window.location.href = window.location.href.replace('/auth/instagram/callback', '/auth/google/callback');
-                return;
-            }
 
             // Для Instagram и Facebook
             const code = searchParams.get('code');
             const state = searchParams.get('state');
             const errorParam = searchParams.get('error');
             const errorDescription = searchParams.get('error_description');
-
-            console.log(`${detectedProvider} callback params:`, {
-                code: !!code,
-                state: !!state,
-                error: errorParam,
-                errorDescription
-            });
 
             // Обработка ошибок от провайдера
             if (errorParam) {
@@ -115,8 +103,6 @@ const OAuthCallbackPage = () => {
                 const savedRole = sessionStorage.getItem(savedRoleKey) || 'client';
                 const savedSpecialty = sessionStorage.getItem(savedSpecialtyKey);
 
-                console.log(`Using saved role for ${detectedProvider}:`, savedRole, 'specialty:', savedSpecialty);
-
                 // Подготавливаем запрос с ролью
                 const requestData: {
                     code: string;
@@ -133,11 +119,6 @@ const OAuthCallbackPage = () => {
                     requestData.occupation = `${API_BASE_URL}/api/occupations/${savedSpecialty}`;
                 }
 
-                console.log(`Sending ${detectedProvider} callback to server:`, {
-                    url: `${API_BASE_URL}/api/auth/${detectedProvider}/callback`,
-                    data: requestData
-                });
-
                 const response = await fetch(`${API_BASE_URL}/api/auth/${detectedProvider}/callback`, {
                     method: 'POST',
                     headers: {
@@ -148,7 +129,6 @@ const OAuthCallbackPage = () => {
                 });
 
                 const responseText = await response.text();
-                console.log('Server response:', response.status, responseText);
 
                 if (!response.ok) {
                     try {
@@ -160,7 +140,18 @@ const OAuthCallbackPage = () => {
                 }
 
                 const data: OAuthResponse = JSON.parse(responseText);
-                console.log('Server response data:', data);
+
+                if (data.status === 'email_required' && data.temp_token) {
+                    sessionStorage.setItem('telegramTempToken', data.temp_token);
+                    navigate(ROUTES.TELEGRAM_LINK_EMAIL);
+                    return;
+                }
+
+                if (data.error === 'email_taken') {
+                    setError(t('oauth.emailTaken'));
+                    setLoading(false);
+                    return;
+                }
 
                 // Сохраняем токен и данные пользователя
                 if (data.token && data.user) {
@@ -195,8 +186,6 @@ const OAuthCallbackPage = () => {
                         setUserOccupation(data.user.occupation);
                     }
 
-                    console.log(`${detectedProvider} auth successful, role: ${finalRole}`);
-
                     // Очищаем временные данные
                     sessionStorage.removeItem(savedRoleKey);
                     sessionStorage.removeItem(savedSpecialtyKey);
@@ -207,7 +196,7 @@ const OAuthCallbackPage = () => {
                     // Имитируем событие логина
                     window.dispatchEvent(new Event('login'));
                 } else {
-                    throw new Error('Данные пользователя не получены');
+                    throw new Error(t('oauth.tokenNotReceived'));
                 }
 
             } catch (err) {

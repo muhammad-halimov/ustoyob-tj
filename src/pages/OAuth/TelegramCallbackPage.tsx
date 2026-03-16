@@ -24,7 +24,7 @@ interface TelegramUserData {
 }
 
 interface TelegramAuthResponse {
-    user: {
+    user?: {
         id: number;
         email: string;
         name: string;
@@ -33,8 +33,11 @@ interface TelegramAuthResponse {
         occupation?: Array<{ id: number; title: string; [key: string]: unknown }>;
         [key: string]: unknown;
     };
-    token: string;
-    message: string;
+    token?: string;
+    message?: string;
+    status?: 'email_required';
+    temp_token?: string;
+    error?: string;
 }
 
 const TelegramCallbackPage = () => {
@@ -59,16 +62,6 @@ const TelegramCallbackPage = () => {
                 const photoUrl = searchParams.get('photo_url');
                 const authDate = searchParams.get('auth_date');
                 const hash = searchParams.get('hash');
-
-                console.log('Telegram callback params:', {
-                    id: !!id,
-                    firstName,
-                    lastName,
-                    username,
-                    photoUrl: !!photoUrl,
-                    authDate,
-                    hash: !!hash
-                });
 
                 // Проверяем что все необходимые параметры есть
                 if (!id || !firstName || !hash || !authDate) {
@@ -106,8 +99,6 @@ const TelegramCallbackPage = () => {
                 const savedRole = sessionStorage.getItem('pendingTelegramRole') || 'client';
                 const savedSpecialty = sessionStorage.getItem('pendingTelegramSpecialty');
 
-                console.log('Using saved role:', savedRole, 'specialty:', savedSpecialty);
-
                 // Подготавливаем запрос на бекенд
                 const requestData: {
                     id: number;
@@ -130,8 +121,6 @@ const TelegramCallbackPage = () => {
                     requestData.occupation = `${API_BASE_URL}/api/occupations/${savedSpecialty}`;
                 }
 
-                console.log('Sending Telegram callback to server:', requestData);
-
                 const response = await fetch(`${API_BASE_URL}/api/auth/telegram/callback`, {
                     method: 'POST',
                     headers: {
@@ -142,7 +131,6 @@ const TelegramCallbackPage = () => {
                 });
 
                 const responseText = await response.text();
-                console.log('Server response:', response.status, responseText);
 
                 if (!response.ok) {
                     try {
@@ -154,7 +142,12 @@ const TelegramCallbackPage = () => {
                 }
 
                 const data: TelegramAuthResponse = JSON.parse(responseText);
-                console.log('Telegram auth response:', data);
+
+                if (data.status === 'email_required' && data.temp_token) {
+                    sessionStorage.setItem('telegramTempToken', data.temp_token);
+                    navigate(ROUTES.TELEGRAM_LINK_EMAIL);
+                    return;
+                }
 
                 // Сохраняем токен и данные пользователя
                 if (data.token && data.user) {
@@ -189,8 +182,6 @@ const TelegramCallbackPage = () => {
                         setUserOccupation(data.user.occupation);
                     }
 
-                    console.log('Telegram auth successful, role:', finalRole);
-
                     // Очищаем временные данные
                     sessionStorage.removeItem('pendingTelegramRole');
                     sessionStorage.removeItem('pendingTelegramSpecialty');
@@ -201,7 +192,7 @@ const TelegramCallbackPage = () => {
                     // Имитируем событие логина
                     window.dispatchEvent(new Event('login'));
                 } else {
-                    throw new Error('Данные пользователя не получены');
+                    throw new Error(t('oauth.tokenNotReceived'));
                 }
 
             } catch (err) {
