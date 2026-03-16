@@ -127,11 +127,68 @@ const TelegramLinkEmailPage = () => {
         }
     };
 
-    const handleSkip = () => {
-        sessionStorage.removeItem('telegramTempToken');
-        sessionStorage.removeItem('pendingTelegramRole');
-        sessionStorage.removeItem('pendingTelegramSpecialty');
-        navigate(ROUTES.HOME, { replace: true });
+    const handleSkip = async () => {
+        const tempToken = sessionStorage.getItem('telegramTempToken');
+        if (!tempToken) {
+            navigate(ROUTES.HOME, { replace: true });
+            return;
+        }
+
+        setLoading(true);
+        setError('');
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/auth/telegram/link-email`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({ temp_token: tempToken }),
+            });
+
+            const data: LinkEmailResponse = await response.json();
+
+            if (data.token && data.user) {
+                setAuthToken(data.token);
+
+                const expiryTime = new Date();
+                expiryTime.setHours(expiryTime.getHours() + 1);
+                setAuthTokenExpiry(expiryTime.toISOString());
+
+                setUserData(data.user);
+
+                if (data.user.email) {
+                    setUserEmail(data.user.email);
+                }
+
+                const savedRole = sessionStorage.getItem('pendingTelegramRole') || 'client';
+                let finalRole = savedRole as 'master' | 'client';
+                if (data.user.roles && data.user.roles.length > 0) {
+                    const roles = data.user.roles.map(r => r.toLowerCase());
+                    if (roles.includes('role_master') || roles.includes('master')) {
+                        finalRole = 'master';
+                    } else if (roles.includes('role_client') || roles.includes('client')) {
+                        finalRole = 'client';
+                    }
+                }
+                setUserRole(finalRole);
+
+                if (data.user.occupation) {
+                    setUserOccupation(data.user.occupation);
+                }
+
+                sessionStorage.removeItem('telegramTempToken');
+                sessionStorage.removeItem('pendingTelegramRole');
+                sessionStorage.removeItem('pendingTelegramSpecialty');
+
+                window.dispatchEvent(new Event('login'));
+                navigate(ROUTES.HOME, { replace: true });
+            } else {
+                throw new Error(t('oauth.tokenNotReceived'));
+            }
+        } catch (err) {
+            console.error('TelegramSkip error:', err);
+            setError(err instanceof Error ? err.message : t('oauth.tryLater'));
+            setLoading(false);
+        }
     };
 
     return (
