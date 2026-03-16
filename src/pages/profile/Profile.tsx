@@ -41,6 +41,8 @@ import {WorkExamplesSection} from './shared/ui/WorkExamplesSection';
 import {WorkAreasSection} from './shared/ui/WorkAreasSection';
 import {ServicesSection} from './shared/ui/ServicesSection';
 import {ReviewsSection} from './shared/ui/ReviewsSection';
+import {LinkedAccountsSection} from './shared/ui/LinkedAccountsSection';
+import type {LinkedProvider} from './shared/ui/LinkedAccountsSection';
 import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 import Status from '../../shared/ui/Modal/Status';
 import Review from '../../shared/ui/Modal/Review';
@@ -156,7 +158,55 @@ function Profile() {
     const [editingPhone, setEditingPhone] = useState<string | null>(null);
     const [phoneForm, setPhoneForm] = useState({ number: '', type: 'tj' as 'tj' | 'international' });
 
+    const [linkedProviders, setLinkedProviders] = useState<LinkedProvider[]>([]);
+    const [linkedProvidersLoading, setLinkedProvidersLoading] = useState(false);
+
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+    // Загружаем привязанные OAuth-провайдеры (только для своей страницы)
+    useEffect(() => {
+        if (readOnly) return;
+        const token = getAuthToken();
+        if (!token) return;
+
+        setLinkedProvidersLoading(true);
+        fetch(`${API_BASE_URL}/api/profile/oauth/providers`, {
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then(r => r.json())
+            .then(data => setLinkedProviders(data.providers ?? []))
+            .catch(() => {})
+            .finally(() => setLinkedProvidersLoading(false));
+    }, [readOnly, API_BASE_URL]);
+
+    const handleLinkProvider = (provider: string) => {
+        fetch(`${API_BASE_URL}/api/auth/${provider}/url`)
+            .then(r => r.json())
+            .then(data => {
+                sessionStorage.setItem('oauthMode', 'link');
+                window.location.href = data.url;
+            })
+            .catch(() => {});
+    };
+
+    const handleUnlinkProvider = async (provider: string) => {
+        const token = getAuthToken();
+        if (!token) return;
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/profile/oauth/unlink/${provider}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const data = await res.json();
+            if (data.providers) {
+                setLinkedProviders(data.providers);
+            }
+            if (data.error === 'last_auth_method') {
+                setModalMessage(t('profile:oauth.lastAuthMethod'));
+                setShowErrorModal(true);
+            }
+        } catch { /* silent */ }
+    };
 
     // Проверяем начальный статус лайка при загрузке публичного профиля
     useEffect(() => {
@@ -3503,6 +3553,17 @@ function Profile() {
                         getAvailableNetworks={getAvailableNetworks}
                         onRefresh={() => fetchUserData(true)}
                     />
+
+                    {/* LinkedAccountsSection Component - только для своего профиля */}
+                    {!readOnly && (
+                        <LinkedAccountsSection
+                            providers={linkedProviders}
+                            loading={linkedProvidersLoading}
+                            readOnly={readOnly}
+                            onLink={handleLinkProvider}
+                            onUnlink={handleUnlinkProvider}
+                        />
+                    )}
 
                     {/* WorkExamplesSection Component - только для специалистов */}
                     {userRole === 'master' && (

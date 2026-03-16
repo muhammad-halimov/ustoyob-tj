@@ -119,5 +119,20 @@
   "selectCity": "Лутфан шаҳр ё ноҳияро интихоб кунед",
   "deletePhoneConfirm": "Оё мутмаин ҳастед, ки мехоҳед ин телефонро иҷтимоиро нест кунед?",
   "deleteWorkPhotoConfirm": "Оё мутмаин ҳастед, ки мехоҳед ин аксияро аз портфолио иҷтимоиро нест кунед?",
-  "deleteAllWorkPhotosConfirm": "Оё мутмаин ҳастед, ки мехоҳед ҳамаи аксияҳои портфолиоро иҷтимоиро нест кунед?"
+  "deleteAllWorkPhotosConfirm": "ОҸ мутмаин ҳастед, ки мехоҳед ҳамаи аксияҳои портфолиоро иҷтимоиро нест кунед?",
+  "oauth": {
+    "sectionTitle": "Ҳисобҳои пайвастшуда",
+    "loading": "Боргузӣ шаванд...",
+    "linked": "Пайваст шудааст",
+    "notLinked": "Пайваст нашудааст",
+    "linkBtn": "Пайваст кунед",
+    "unlinkBtn": "Ҳудо кунед",
+    "lastAuthMethod": "Танҳо як усули ворид шаван — ҳудо кардан шаван нест",
+    "provider": {
+      "google": "Google",
+      "facebook": "Facebook",
+      "instagram": "Instagram",
+      "telegram": "Telegram"
+    }
+  }
 }

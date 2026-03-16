@@ -119,6 +119,21 @@
   "selectCity": "Пожалуйста, выберите город или район",
   "deletePhoneConfirm": "Вы уверены, что хотите удалить этот телефон?",
   "deleteWorkPhotoConfirm": "Вы уверены, что хотите удалить это фото из портфолио?",
-  "deleteAllWorkPhotosConfirm": "Вы уверены, что хотите удалить все фото из портфолио?"
+  "deleteAllWorkPhotosConfirm": "Вы уверены, что хотите удалить все фото из портфолио?",
+  "oauth": {
+    "sectionTitle": "Привязанные аккаунты",
+    "loading": "Загрузка...",
+    "linked": "Привязан с",
+    "notLinked": "Не привязан",
+    "linkBtn": "Привязать",
+    "unlinkBtn": "Отвязать",
+    "lastAuthMethod": "Единственный способ входа — отвязать нельзя",
+    "provider": {
+      "google": "Google",
+      "facebook": "Facebook",
+      "instagram": "Instagram",
+      "telegram": "Telegram"
+    }
+  }
 }
 
