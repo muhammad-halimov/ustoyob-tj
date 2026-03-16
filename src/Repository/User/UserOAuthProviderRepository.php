@@ -15,4 +15,9 @@ class UserOAuthProviderRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, UserOAuthProvider::class);
     }
+
+    public function findOneByProviderAndId(string $provider, string $providerId): ?UserOAuthProvider
+    {
+        return $this->findOneBy(['provider' => $provider, 'providerId' => $providerId]);
+    }
 }
