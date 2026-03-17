@@ -96,6 +96,8 @@ class LinkOAuthProviderController extends AbstractController
                 throw new BadRequestHttpException('Expired Telegram auth data');
             }
 
+            $this->verifyTelegramHash($body, $hash);
+
             return ['id' => $id, 'email' => null];
         }
 
@@ -135,6 +137,22 @@ class LinkOAuthProviderController extends AbstractController
                 'email' => null,
             ],
         };
+    }
+
+    private function verifyTelegramHash(array $body, string $hash): void
+    {
+        $fields = [];
+        foreach (['id', 'first_name', 'last_name', 'username', 'photo_url', 'auth_date'] as $key) {
+            if (isset($body[$key]) && $body[$key] !== '' && $body[$key] !== null) {
+                $fields[$key] = (string) $body[$key];
+            }
+        }
+        ksort($fields);
+        $dataCheckString = implode("\n", array_map(fn($k, $v) => "$k=$v", array_keys($fields), $fields));
+        $secretKey = hash('sha256', $_ENV['TELEGRAM_BOT_TOKEN'], true);
+        if (!hash_equals(hash_hmac('sha256', $dataCheckString, $secretKey), $hash)) {
+            throw new BadRequestHttpException('Invalid Telegram signature');
+        }
     }
 
     private function buildProvidersList(User $user): array
