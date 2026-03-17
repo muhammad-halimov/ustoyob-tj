@@ -7,19 +7,20 @@ use App\Entity\Geography\City\City;
 use App\Entity\Geography\Province;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\DataFixtures\DependentFixtureInterface;
 use Doctrine\Persistence\ObjectManager;
 use ReflectionClass;
 
-class ProvinceFixture extends Fixture
+class ProvinceFixture extends Fixture implements DependentFixtureInterface
 {
     public function load(ObjectManager $manager): void
     {
         $provincesData = [
-            ['cdrs', ['tj'=>'ШНТМ','ru'=>'ГРРП','eng'=>'CDRS'], "ГРРП, Города и районы республиканского подчинения, западный Таджикистан", ['vahdat']],
-            ['sughd', ['tj'=>'Вилояти Суғд','ru'=>'Согдийская область','eng'=>'Sughd Province'], "Согдийская область, северный Таджикистан", ['hujand']],
-            ['hatlon', ['tj'=>'Вилояти Хатлон','ru'=>'Хатлонская область','eng'=>'Hatlon Province'], "Хатлонская область, южный Таджикистан", ['bohtar']],
-            ['apmb', ['tj'=>'ВМКБ','ru'=>'ГБАО','eng'=>'GBAO'], "ГБАО, Горно-Бадахшанская Автономная область, восточный Таджикистан", ['murghob']],
-            ['dushanbe', ['tj'=>'Душанбе','ru'=>'Душанбе','eng'=>'Dushanbe'], "Душанбе, республиканская столица, западный Таджикистан", ['dushanbe']],
+            ['cdrs',      ['tj' => 'ШНТМ',              'ru' => 'ГРРП',                'eng' => 'CDRS'],           'ГРРП, Города и районы республиканского подчинения, западный Таджикистан', ['vahdat', 'rogun', 'faizobod']],
+            ['sughd',     ['tj' => 'Вилояти Суғд',      'ru' => 'Согдийская область',  'eng' => 'Sughd Province'], 'Согдийская область, северный Таджикистан',                                ['hujand', 'istaravshan', 'konibodom', 'panjakent', 'buston']],
+            ['hatlon',    ['tj' => 'Вилояти Хатлон',    'ru' => 'Хатлонская область', 'eng' => 'Hatlon Province'], 'Хатлонская область, южный Таджикистан',                                   ['bohtar', 'kulob', 'qurghonteppa', 'vose', 'danghara', 'vakhsh']],
+            ['apmb',      ['tj' => 'ВМКБ',              'ru' => 'ГБАО',                'eng' => 'GBAO'],           'ГБАО, Горно-Бадахшанская Автономная область, восточный Таджикистан',     ['murghob', 'khorog', 'ishkoshim']],
+            ['dushanbe',  ['tj' => 'Душанбе',           'ru' => 'Душанбе',             'eng' => 'Dushanbe'],       'Душанбе, республиканская столица, западный Таджикистан',                  ['dushanbe']],
         ];
 
         foreach ($provincesData as [$ref, $translations, $desc, $citiesRefs]) {

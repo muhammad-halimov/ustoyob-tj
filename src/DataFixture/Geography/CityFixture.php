@@ -14,45 +14,82 @@ class CityFixture extends Fixture
     public function load(ObjectManager $manager): void
     {
         $citiesData = [
+            // ── ГРРП (CDRS) ──
             'Vahdat' => [
-                'translations' => [
-                    'tj' => 'Ваҳдат',
-                    'ru' => 'Вахдат',
-                    'eng' => 'Vahdat',
-                ],
-                'description' => 'Вахдат, ГРРП',
+                'translations' => ['tj' => 'Ваҳдат', 'ru' => 'Вахдат', 'eng' => 'Vahdat'],
+                'description'  => 'Вахдат, ГРРП',
             ],
+            'Rogun' => [
+                'translations' => ['tj' => 'Роғун', 'ru' => 'Рогун', 'eng' => 'Rogun'],
+                'description'  => 'Рогун, ГРРП',
+            ],
+            'Faizobod' => [
+                'translations' => ['tj' => 'Файзобод', 'ru' => 'Файзабад', 'eng' => 'Faizobod'],
+                'description'  => 'Файзабад, ГРРП',
+            ],
+            'Vakhsh' => [
+                'translations' => ['tj' => 'Вахш', 'ru' => 'Вахш', 'eng' => 'Vakhsh'],
+                'description'  => 'Вахш, Хатлонская область',
+            ],
+            // ── Душанбе ──
             'Dushanbe' => [
-                'translations' => [
-                    'tj' => 'Душанбе',
-                    'ru' => 'Душанбе',
-                    'eng' => 'Dushanbe',
-                ],
-                'description' => 'Душанбе, республиканская столица',
+                'translations' => ['tj' => 'Душанбе', 'ru' => 'Душанбе', 'eng' => 'Dushanbe'],
+                'description'  => 'Душанбе, республиканская столица',
             ],
+            // ── Согдийская область ──
             'Hujand' => [
-                'translations' => [
-                    'tj' => 'Хуҷанд',
-                    'ru' => 'Ходжент',
-                    'eng' => 'Hujand',
-                ],
-                'description' => 'Ходжент, Согдийская область',
+                'translations' => ['tj' => 'Хуҷанд', 'ru' => 'Ходжент', 'eng' => 'Hujand'],
+                'description'  => 'Ходжент, Согдийская область',
             ],
+            'Istaravshan' => [
+                'translations' => ['tj' => 'Истаравшан', 'ru' => 'Истаравшан', 'eng' => 'Istaravshan'],
+                'description'  => 'Истаравшан, Согдийская область',
+            ],
+            'Konibodom' => [
+                'translations' => ['tj' => 'Конибодом', 'ru' => 'Канибадам', 'eng' => 'Konibodom'],
+                'description'  => 'Канибадам, Согдийская область',
+            ],
+            'Panjakent' => [
+                'translations' => ['tj' => 'Панҷакент', 'ru' => 'Пенджикент', 'eng' => 'Panjakent'],
+                'description'  => 'Пенджикент, Согдийская область',
+            ],
+            'Buston' => [
+                'translations' => ['tj' => 'Бустон', 'ru' => 'Бустон', 'eng' => 'Buston'],
+                'description'  => 'Бустон (Чкаловск), Согдийская область',
+            ],
+            // ── Хатлонская область ──
             'Bohtar' => [
-                'translations' => [
-                    'tj' => 'Бохтар',
-                    'ru' => 'Бохтар',
-                    'eng' => 'Bohtar',
-                ],
-                'description' => 'Бохтар, Хатлонская область',
+                'translations' => ['tj' => 'Бохтар', 'ru' => 'Бохтар', 'eng' => 'Bohtar'],
+                'description'  => 'Бохтар (Курган-Тюбе), Хатлонская область',
             ],
+            'Kulob' => [
+                'translations' => ['tj' => 'Кӯлоб', 'ru' => 'Куляб', 'eng' => 'Kulob'],
+                'description'  => 'Куляб, Хатлонская область',
+            ],
+            'Qurghonteppa' => [
+                'translations' => ['tj' => 'Қӯрғонтеппа', 'ru' => 'Курган-Тюбе', 'eng' => 'Qurghonteppa'],
+                'description'  => 'Курган-Тюбе (старое название), Хатлонская область',
+            ],
+            'Vose' => [
+                'translations' => ['tj' => 'Восеъ', 'ru' => 'Восеъ', 'eng' => 'Vose'],
+                'description'  => 'Восеъ, Хатлонская область',
+            ],
+            'Danghara' => [
+                'translations' => ['tj' => 'Дангара', 'ru' => 'Дангара', 'eng' => 'Danghara'],
+                'description'  => 'Дангара, Хатлонская область',
+            ],
+            // ── ГБАО ──
             'Murghob' => [
-                'translations' => [
-                    'tj' => 'Мурғоб',
-                    'ru' => 'Мургаб',
-                    'eng' => 'Murghob',
-                ],
-                'description' => 'Мургаб, ГБАО',
+                'translations' => ['tj' => 'Мурғоб', 'ru' => 'Мургаб', 'eng' => 'Murghob'],
+                'description'  => 'Мургаб, ГБАО',
+            ],
+            'Khorog' => [
+                'translations' => ['tj' => 'Хоруғ', 'ru' => 'Хорог', 'eng' => 'Khorog'],
+                'description'  => 'Хорог, ГБАО — административный центр',
+            ],
+            'Ishkoshim' => [
+                'translations' => ['tj' => 'Ишкошим', 'ru' => 'Ишкашим', 'eng' => 'Ishkoshim'],
+                'description'  => 'Ишкашим, ГБАО',
             ],
         ];
 
