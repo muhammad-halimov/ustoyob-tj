@@ -35,7 +35,7 @@ use App\Entity\Chat\ChatImage;
 use App\Entity\Chat\ChatMessage;
 use App\Entity\Extra\BlackList;
 use App\Entity\Extra\Favorite;
-use App\Entity\UserOAuthProvider;
+use App\Entity\Extra\OAuthProvider;
 use App\Entity\Gallery\Gallery;
 use App\Entity\Geography\Address;
 use App\Entity\Review\Review;
@@ -750,7 +750,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Ignore]
     private Collection $mastersBlackListedByAuthor;
 
-    #[ORM\OneToMany(targetEntity: UserOAuthProvider::class, mappedBy: 'user', cascade: ['persist', 'remove'])]
+    #[ORM\OneToMany(targetEntity: OAuthProvider::class, mappedBy: 'user', cascade: ['persist', 'remove'])]
     #[Groups([
         'users:me:read'
     ])]
@@ -1823,7 +1823,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->oauthProviders;
     }
 
-    public function addOauthProvider(UserOAuthProvider $oauthProvider): static
+    public function addOauthProvider(OAuthProvider $oauthProvider): static
     {
         if (!$this->oauthProviders->contains($oauthProvider)) {
             $this->oauthProviders->add($oauthProvider);
@@ -1832,7 +1832,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    public function removeOauthProvider(UserOAuthProvider $oauthProvider): static
+    public function removeOauthProvider(OAuthProvider $oauthProvider): static
     {
         $this->oauthProviders->removeElement($oauthProvider);
         return $this;

@@ -2,8 +2,8 @@
 
 namespace App\Controller\Api\OAuth\Profile;
 
+use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
-use App\Entity\UserOAuthProvider;
 use App\Service\Extra\AccessService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -24,7 +24,7 @@ class GetOAuthProvidersController extends AbstractController
         $this->accessService->check($currentUser);
 
         $providers = array_map(
-            fn(UserOAuthProvider $p) => [
+            fn(OAuthProvider $p) => [
                 'provider' => $p->getProvider(),
                 'linkedAt' => $p->getCreatedAt()->format(\DateTimeInterface::ATOM),
             ],

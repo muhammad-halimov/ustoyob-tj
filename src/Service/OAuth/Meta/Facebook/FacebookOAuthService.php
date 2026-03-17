@@ -2,8 +2,8 @@
 
 namespace App\Service\OAuth\Meta\Facebook;
 
+use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
-use App\Entity\UserOAuthProvider;
 use App\Service\OAuth\AbstractOAuthService;
 use App\Service\OAuth\Interface\OAuthServiceInterface;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -109,7 +109,7 @@ class FacebookOAuthService extends AbstractOAuthService implements OAuthServiceI
 
         // 2. Existing user with same email — link
         if ($email && ($existingUser = $this->userRepository->findOneBy(['email' => $email]))) {
-            $op = (new UserOAuthProvider())
+            $op = (new OAuthProvider())
                 ->setProvider('facebook')
                 ->setProviderId($facebookId)
                 ->setUser($existingUser);
@@ -140,7 +140,7 @@ class FacebookOAuthService extends AbstractOAuthService implements OAuthServiceI
                 default  => ['ROLE_USER'],
             });
 
-        $op = (new UserOAuthProvider())
+        $op = (new OAuthProvider())
             ->setProvider('facebook')
             ->setProviderId($facebookId)
             ->setUser($user);

@@ -2,7 +2,7 @@
 
 namespace App\Service\OAuth\Meta\Instagram;
 
-use App\Entity\UserOAuthProvider;
+use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
 use App\Service\OAuth\AbstractOAuthService;
 use App\Service\OAuth\Interface\OAuthServiceInterface;
@@ -118,7 +118,7 @@ class InstagramOAuthService extends AbstractOAuthService implements OAuthService
                 default  => ['ROLE_USER'],
             });
 
-        $op = (new UserOAuthProvider())
+        $op = (new OAuthProvider())
             ->setProvider('instagram')
             ->setProviderId($instagramId)
             ->setUser($user);

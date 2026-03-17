@@ -2,6 +2,7 @@
 
 namespace App\Controller\Admin\User;
 
+use App\Controller\Admin\Extra\OAuthProviderCrudController;
 use App\Controller\Admin\Field\ExternalImageField;
 use App\Controller\Admin\Field\VichImageField;
 use App\Controller\Admin\Geography\AddressCrudController;
@@ -274,6 +275,12 @@ class UserCrudController extends AbstractCrudController
         yield ExternalImageField::new('imageExternalUrl', 'Фото профиля (внешняя ссылка)')
             ->hideOnIndex()
             ->setColumns(6);
+
+        yield CollectionField::new('oauthProviders', 'OAuth провайдеры')
+            ->useEntryCrudForm(OAuthProviderCrudController::class)
+            ->setFormTypeOptions(['by_reference' => false])
+            ->setColumns(12)
+            ->setRequired(false);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
             ->hideOnForm();

@@ -2,13 +2,13 @@
 
 namespace App\Controller\Api\OAuth\Profile;
 
+use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
-use App\Entity\UserOAuthProvider;
 use App\Repository\User\UserOAuthProviderRepository;
 use App\Service\Extra\AccessService;
+use App\Service\OAuth\Google\GoogleOAuthService;
 use App\Service\OAuth\Meta\Facebook\FacebookOAuthService;
 use App\Service\OAuth\Meta\Instagram\InstagramOAuthService;
-use App\Service\OAuth\Google\GoogleOAuthService;
 use App\Service\OAuth\StateStorage;
 use Doctrine\ORM\EntityManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
@@ -65,7 +65,7 @@ class LinkOAuthProviderController extends AbstractController
             $emailUpdated = true;
         }
 
-        $op = (new UserOAuthProvider())
+        $op = (new OAuthProvider())
             ->setProvider($provider)
             ->setProviderId($providerId)
             ->setUser($currentUser);
@@ -158,7 +158,7 @@ class LinkOAuthProviderController extends AbstractController
     private function buildProvidersList(User $user): array
     {
         return array_map(
-            fn(UserOAuthProvider $p) => [
+            fn(OAuthProvider $p) => [
                 'provider' => $p->getProvider(),
                 'linkedAt' => $p->getCreatedAt()->format(\DateTimeInterface::ATOM),
             ],

@@ -3,8 +3,8 @@
 namespace App\Service\OAuth\Telegram;
 
 use App\Dto\OAuth\TelegramCallbackInput;
+use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
-use App\Entity\UserOAuthProvider;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
@@ -65,7 +65,7 @@ readonly class TelegramOAuthService
                 default  => ['ROLE_USER'],
             });
 
-        $op = (new UserOAuthProvider())
+        $op = (new OAuthProvider())
             ->setProvider('telegram')
             ->setProviderId($telegramId)
             ->setUser($user);

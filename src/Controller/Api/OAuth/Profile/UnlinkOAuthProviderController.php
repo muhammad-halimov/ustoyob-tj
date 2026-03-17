@@ -2,8 +2,8 @@
 
 namespace App\Controller\Api\OAuth\Profile;
 
+use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
-use App\Entity\UserOAuthProvider;
 use App\Service\Extra\AccessService;
 use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
@@ -28,9 +28,9 @@ class UnlinkOAuthProviderController extends AbstractController
 
         $provider = (string) $request->attributes->get('provider', '');
 
-        /** @var UserOAuthProvider|null $providerEntity */
+        /** @var OAuthProvider|null $providerEntity */
         $providerEntity = $currentUser->getOauthProviders()
-            ->filter(fn(UserOAuthProvider $p) => $p->getProvider() === $provider)
+            ->filter(fn(OAuthProvider $p) => $p->getProvider() === $provider)
             ->first() ?: null;
 
         if ($providerEntity === null) {
@@ -49,13 +49,13 @@ class UnlinkOAuthProviderController extends AbstractController
         $this->entityManager->flush();
 
         $remaining = array_map(
-            fn(UserOAuthProvider $p) => [
+            fn(OAuthProvider $p) => [
                 'provider' => $p->getProvider(),
                 'linkedAt' => $p->getCreatedAt()->format(DateTimeInterface::ATOM),
             ],
             array_filter(
                 $currentUser->getOauthProviders()->toArray(),
-                fn(UserOAuthProvider $p) => $p->getId() !== $providerEntity->getId()
+                fn(OAuthProvider $p) => $p->getId() !== $providerEntity->getId()
             )
         );
 

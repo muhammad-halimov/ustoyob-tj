@@ -1,7 +1,10 @@
 <?php
 
-namespace App\Entity;
+namespace App\Entity\Extra;
 
+use App\Entity\Traits\CreatedAtTrait;
+use App\Entity\Traits\UpdatedAtTrait;
+use App\Entity\User;
 use App\Repository\User\UserOAuthProviderRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
@@ -9,8 +12,11 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ORM\Entity(repositoryClass: UserOAuthProviderRepository::class)]
 #[ORM\Table(name: 'user_oauth_provider')]
 #[ORM\UniqueConstraint(name: 'uq_provider_id', columns: ['provider', 'provider_id'])]
-class UserOAuthProvider
+#[ORM\HasLifecycleCallbacks]
+class OAuthProvider
 {
+    use UpdatedAtTrait, CreatedAtTrait;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -35,17 +41,6 @@ class UserOAuthProvider
         'users:me:read'
     ])]
     private string $providerId;
-
-    #[ORM\Column]
-    #[Groups([
-        'users:me:read'
-    ])]
-    private \DateTimeImmutable $createdAt;
-
-    public function __construct()
-    {
-        $this->createdAt = new \DateTimeImmutable();
-    }
 
     public function getId(): ?int
     {
@@ -83,10 +78,5 @@ class UserOAuthProvider
     {
         $this->providerId = $providerId;
         return $this;
-    }
-
-    public function getCreatedAt(): \DateTimeImmutable
-    {
-        return $this->createdAt;
     }
 }

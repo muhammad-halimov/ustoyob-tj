@@ -2,9 +2,8 @@
 
 namespace App\Service\OAuth\Google;
 
-use App\Entity\UserOAuthProvider;
+use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
-//use App\Entity\User\Phone;
 use App\Service\OAuth\AbstractOAuthService;
 use App\Service\OAuth\Interface\OAuthServiceInterface;
 use DateTime;
@@ -17,6 +16,8 @@ use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
+
+//use App\Entity\User\Phone;
 
 class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInterface
 {
@@ -187,7 +188,7 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
 
         // 2. Existing user with same verified email — link
         if ($email && ($existingUser = $this->userRepository->findOneBy(['email' => $email]))) {
-            $op = (new UserOAuthProvider())
+            $op = (new OAuthProvider())
                 ->setProvider('google')
                 ->setProviderId($googleId)
                 ->setUser($existingUser);
@@ -214,7 +215,7 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
 
         $this->setOptionalUserData($user, $userData);
 
-        $op = (new UserOAuthProvider())
+        $op = (new OAuthProvider())
             ->setProvider('google')
             ->setProviderId($googleId)
             ->setUser($user);
