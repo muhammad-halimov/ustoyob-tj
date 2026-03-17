@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import PageLoader from '../PageLoader/PageLoader';
 import styles from './EmptyState.module.scss';
 
 interface EmptyStateProps {
@@ -8,10 +9,19 @@ interface EmptyStateProps {
     onAction?: () => void;
     onRefresh?: () => void;
     className?: string;
+    isLoading?: boolean;
 }
 
-export function EmptyState({ title, subtitle, actionText, onAction, onRefresh, className }: EmptyStateProps) {
+export function EmptyState({ title, subtitle, actionText, onAction, onRefresh, className, isLoading }: EmptyStateProps) {
     const { t } = useTranslation(['common']);
+
+    if (isLoading) {
+        return (
+            <div className={`${styles.container} ${className || ''}`}>
+                <PageLoader fullPage={false} />
+            </div>
+        );
+    }
 
     return (
         <div className={`${styles.container} ${className || ''}`}>

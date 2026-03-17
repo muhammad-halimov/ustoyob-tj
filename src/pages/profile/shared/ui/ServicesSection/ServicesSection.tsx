@@ -86,7 +86,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
             <h3>{userRole === 'client' ? t('profile:servicesTitleClient') : t('profile:servicesTitle')} ({activeServices.length})</h3>
             <div className={styles.section_content}>
                 {servicesLoading ? (
-                    <div className={styles.loading}>{t('profile:loadingServices')}</div>
+                    <EmptyState isLoading />
                 ) : activeServices.length > 0 ? (
                     <>
                         {activeServices.map((service, index) => {
@@ -168,7 +168,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                     <EmptyState title={readOnly
                         ? (userRole === 'client' ? t('profile:noServicesClient') : t('profile:noServicesMaster'))
                         : (userRole === 'client' ? t('profile:addServicesClient') : t('profile:addServicesMaster'))
-                    } onRefresh={readOnly ? onRefresh : undefined} />
+                    } onRefresh={onRefresh} />
                 )}
                 {!readOnly && (
                     <div className={styles.add_education_container}>

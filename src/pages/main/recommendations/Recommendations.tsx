@@ -6,8 +6,9 @@ import { Card } from '../../../shared/ui/Ticket/Card/Card.tsx';
 import styles from './Recommendations.module.scss';
 import { useTranslation } from 'react-i18next';
 import { ROUTES } from '../../../app/routers/routes.ts';
-import { PageLoader } from '../../../widgets/PageLoader';
+
 import { EmptyState } from '../../../widgets/EmptyState';
+import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore.tsx';
 
 interface Announcement {
     id: number;
@@ -81,6 +82,7 @@ const formatProfileImageUrl = (imagePath: string): string => {
 
 function Recommendations() {
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+    const [showAll, setShowAll] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [userRole, setUserRole] = useState<'client' | 'master' | null>(getUserRole());
     const navigate = useNavigate();
@@ -133,7 +135,8 @@ function Recommendations() {
                     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
                 });
 
-                setAnnouncements(data.slice(0, 3));
+                setAnnouncements(data);
+                setShowAll(false);
             }
         } catch (error) {
             console.error('Error fetching announcements:', error);
@@ -267,10 +270,10 @@ function Recommendations() {
             <div className={styles.recommendation__wrap}>
                 <h3 className={styles.recommendation__title}>{t('pages.recommendations.title')}</h3>
                 {isLoading ? (
-                    <PageLoader text={t('pages.recommendations.loading', 'Загрузка...')} fullPage={false} />
+                    <EmptyState isLoading />
                 ) : announcements.length > 0 ? (
                     <div className={styles.recommendation__list}>
-                        {announcements.map((announcement) => (
+                        {announcements.slice(0, showAll ? announcements.length : 3).map((announcement) => (
                             <Card
                                 key={announcement.id}
                                 ticketId={announcement.id}
@@ -302,6 +305,16 @@ function Recommendations() {
                     </div>
                 ) : (
                     <EmptyState />
+                )}
+                {!isLoading && announcements.length > 3 && (
+                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+                        <ShowMore
+                            expanded={showAll}
+                            onToggle={() => setShowAll(prev => !prev)}
+                            showMoreText={t('pages.recommendations.showMore', 'Показать еще')}
+                            showLessText={t('pages.recommendations.showLess', 'Свернуть')}
+                        />
+                    </div>
                 )}
             </div>
         </div>

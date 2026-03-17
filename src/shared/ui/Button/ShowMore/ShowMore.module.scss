@@ -1,0 +1,44 @@
+@use '../../../../app/styles/variables' as vars;
+@use 'sass:map';
+
+.btn {
+  font-family: vars.$font-family;
+  background-color: map.get(vars.$colors, background-btn);
+  display: inline-flex;
+  max-width: 286px;
+  width: 100%;
+  color: map.get(vars.$colors, primary-text-white);
+  font-size: map.get(vars.$font-sizes, 'lg');
+  box-sizing: border-box;
+  border: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  padding: 10px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  user-select: none;
+
+  &:hover {
+    background: map.get(vars.$colors, actual-blue);
+  }
+
+  &:active {
+    background: map.get(vars.$colors, actual-blue);
+    transform: scale(0.97);
+  }
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+@media screen and (max-width: 480px) {
+  .btn {
+    max-width: 164px;
+    width: 100%;
+    font-size: 12px;
+  }
+}

@@ -23,6 +23,16 @@ interface UseFavoritesProps {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+// Module-level cache to deduplicate concurrent /api/favorites/me requests
+let _favoritesPromise: Promise<any> | null = null;
+let _favoritesCache: { data: any; timestamp: number } | null = null;
+const FAVORITES_CACHE_TTL = 30 * 1000; // 30 seconds
+
+const invalidateFavoritesCache = () => {
+    _favoritesCache = null;
+    _favoritesPromise = null;
+};
+
 export const useFavorites = ({ itemId, itemType, onSuccess, onError }: UseFavoritesProps) => {
     const [isLiked, setIsLiked] = useState(false);
     const [isLikeLoading, setIsLikeLoading] = useState(false);
@@ -48,31 +58,45 @@ export const useFavorites = ({ itemId, itemType, onSuccess, onError }: UseFavori
         }
     };
 
-    // Функция для получения текущих избранных через API
+    // Функция для получения текущих избранных через API (с дедупликацией)
     const getCurrentFavorites = useCallback(async (token: string) => {
-        const response = await fetch(`${API_BASE_URL}/api/favorites/me`, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        });
+        const now = Date.now();
 
-        if (!response.ok) {
-            throw new Error(`Failed to fetch favorites: ${response.status}`);
+        // Return cached data if still fresh
+        if (_favoritesCache && now - _favoritesCache.timestamp < FAVORITES_CACHE_TTL) {
+            return _favoritesCache.data;
         }
 
-        const currentFavorite: Favorite = await response.json();
-        console.log('🔍 Raw data from API:', currentFavorite);
-        
-        const result = {
-            favoriteId: currentFavorite.id,
-            masters: currentFavorite.masters?.map((m: { id: number }) => `/api/users/${m.id}`) || [],
-            clients: currentFavorite.clients?.map((c: { id: number }) => `/api/users/${c.id}`) || [],
-            tickets: currentFavorite.tickets?.map((t: { id: number }) => `/api/tickets/${t.id}`) || []
-        };
+        // Deduplicate: reuse in-flight promise
+        if (!_favoritesPromise) {
+            _favoritesPromise = fetch(`${API_BASE_URL}/api/favorites/me`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            }).then(async (response) => {
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch favorites: ${response.status}`);
+                }
+                const currentFavorite: Favorite = await response.json();
+                console.log('🔍 Raw data from API:', currentFavorite);
+                const result = {
+                    favoriteId: currentFavorite.id,
+                    masters: currentFavorite.masters?.map((m: { id: number }) => `/api/users/${m.id}`) || [],
+                    clients: currentFavorite.clients?.map((c: { id: number }) => `/api/users/${c.id}`) || [],
+                    tickets: currentFavorite.tickets?.map((t: { id: number }) => `/api/tickets/${t.id}`) || []
+                };
+                console.log('🔍 Processed favorites:', result);
+                _favoritesCache = { data: result, timestamp: Date.now() };
+                _favoritesPromise = null;
+                return result;
+            }).catch((err) => {
+                _favoritesPromise = null;
+                throw err;
+            });
+        }
 
-        console.log('🔍 Processed favorites:', result);
-        return result;
+        return _favoritesPromise;
     }, []);
 
     const checkFavoriteStatus = useCallback(async () => {
@@ -136,6 +160,7 @@ export const useFavorites = ({ itemId, itemType, onSuccess, onError }: UseFavori
             if (patchResponse.ok) {
                 setIsLiked(false);
                 setFavoriteId(null);
+                invalidateFavoritesCache();
                 window.dispatchEvent(new Event('favoritesUpdated'));
                 if (onSuccess) onSuccess();
             } else {
@@ -219,6 +244,7 @@ export const useFavorites = ({ itemId, itemType, onSuccess, onError }: UseFavori
                     console.log('🔍 Created new favorite:', newFavorite);
                     setIsLiked(true);
                     setFavoriteId(newFavorite.id);
+                    invalidateFavoritesCache();
                     window.dispatchEvent(new Event('favoritesUpdated'));
                     if (onSuccess) onSuccess();
                 } else {
@@ -268,6 +294,7 @@ export const useFavorites = ({ itemId, itemType, onSuccess, onError }: UseFavori
                 console.log('🔍 Updated favorite from server:', updatedFavorite);
                 setIsLiked(true);
                 setFavoriteId(currentFavorites.favoriteId);
+                invalidateFavoritesCache();
                 window.dispatchEvent(new Event('favoritesUpdated'));
                 if (onSuccess) onSuccess();
             } else {

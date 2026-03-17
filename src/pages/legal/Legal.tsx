@@ -31,11 +31,11 @@ function Legal() {
     // Определяем активный тип из URL
     useEffect(() => {
         const path = location.pathname;
-        if (path.includes('privacy-policy')) {
+        if (path === ROUTES.PRIVACY_POLICY) {
             setActiveType('privacy_policy');
-        } else if (path.includes('terms-of-service')) {
+        } else if (path === ROUTES.TERMS_OF_SERVICE) {
             setActiveType('terms_of_service');
-        } else if (path.includes('public-offer')) {
+        } else if (path === ROUTES.PUBLIC_OFFER) {
             setActiveType('public_offer');
         }
     }, [location.pathname]);

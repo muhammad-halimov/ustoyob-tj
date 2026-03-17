@@ -171,7 +171,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
             <h3>{t('profile:reviewsTitle')} ({reviews.length})</h3>
             <div className={styles.reviews_list}>
                 {reviewsLoading ? (
-                    <div className={styles.loading}>{t('profile:loadingReviews')}</div>
+                    <EmptyState isLoading />
                 ) : reviews.length > 0 ? (
                     <>
                         <div className={styles.reviews_desktop}>
@@ -295,7 +295,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                     )}
                                     {onComplaintClick && (
                                         <ActionsDropdown
-                                            style={{ position: 'absolute', top: '12px', right: '0', zIndex: 2 }}
+                                            style={{ position: 'absolute', top: '2px', right: '0', zIndex: 2 }}
                                             items={[{
                                                 icon: <IoWarningOutline />,
                                                 label: t('profile:complaint'),
@@ -437,7 +437,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                 )}
                                                 {onComplaintClick && (
                                                     <ActionsDropdown
-                                                        style={{ position: 'absolute', top: '12px', right: '0', zIndex: 2 }}
+                                                        style={{ position: 'absolute', top: '2px', right: '0', zIndex: 2 }}
                                                         items={[{
                                                             icon: <IoWarningOutline />,
                                                             label: t('profile:complaint'),
@@ -572,7 +572,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                             )}
                                             {onComplaintClick && (
                                                 <ActionsDropdown
-                                                    style={{ position: 'absolute', top: '12px', right: '0', zIndex: 2 }}
+                                                    style={{ position: 'absolute', top: '2px', right: '0', zIndex: 2 }}
                                                     items={[{
                                                         icon: <IoWarningOutline />,
                                                         label: t('profile:complaint'),

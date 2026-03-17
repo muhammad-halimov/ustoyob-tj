@@ -30,6 +30,7 @@ interface WorkAreasSectionProps {
     onCanWorkRemotelyToggle: () => Promise<void>;
     onReorder?: (addresses: Address[]) => void;
     onRefresh?: () => void;
+    isLoading?: boolean;
 }
 
 export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
@@ -48,6 +49,7 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
     onCanWorkRemotelyToggle,
     onReorder,
     onRefresh,
+    isLoading = false,
 }) => {
     const { t } = useTranslation(['profile']);
     const areaDrag = useDragReorder(addresses, onReorder ?? (() => {}));
@@ -130,7 +132,7 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
                         </div>
                     ))
                 ) : (
-                    <EmptyState title={readOnly ? t('profile:noWorkAreas') : t('profile:addWorkArea')} onRefresh={onRefresh} />
+                    <EmptyState isLoading={isLoading} title={readOnly ? t('profile:noWorkAreas') : t('profile:addWorkArea')} onRefresh={onRefresh} />
                 )}
 
                 {/* Кнопка добавления нового адреса */}

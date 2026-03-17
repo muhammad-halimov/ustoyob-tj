@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { getAuthToken, handleUnauthorized } from '../../../../utils/auth.ts';
 import { getStorageItem } from '../../../../utils/storageHelper.ts';
 import { AddressValue, AddressData } from '../../../../entities';
+import { PageLoader } from '../../../../widgets/PageLoader';
 import styles from './Address.module.scss';
 
 // Локальные интерфейсы для Address (расширенные версии)
@@ -245,7 +246,7 @@ const Address = ({ value, onChange, multipleSuburbs = true }: AddressSelectorPro
                 <div className={styles.province_list}>
                     <h4>{t('address:provinces')}</h4>
                     {isLocationLoading ? (
-                        <div className={styles.loading}>{t('address:loadingProvinces')}</div>
+                        <PageLoader fullPage={false} />
                     ) : provinces.length > 0 ? (
                         <div className={styles.province_grid}>
                             {provinces.map(province => (

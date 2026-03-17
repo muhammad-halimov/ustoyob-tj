@@ -8,7 +8,7 @@ import "swiper/css";
 import styles from './MainReviewsSection.module.scss';
 import { Preview, usePreview } from '../../../shared/ui/Photo/Preview';
 import { ReadMore } from '../../../widgets/ReadMore';
-import { PageLoader } from '../../../widgets/PageLoader';
+import { Marquee } from '../../../shared/ui/Text/Marquee';
 import { EmptyState } from '../../../widgets/EmptyState';
 import { getAuthorAvatar } from '../../../utils/imageHelper.ts';
 import { ActionsDropdown } from '../../../widgets/ActionsDropdown';
@@ -201,23 +201,12 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
 
     const photoGallery = usePreview({ images: galleryImages });
 
-    if (loading) {
+    if (loading || reviews.length === 0) {
         return (
             <div className={`${styles.main_reviews} ${className || ''}`}>
                 <div className={styles.container}>
                     <h3>{t('profile:reviewsTitle')}</h3>
-                    <PageLoader text={t('profile:loadingReviews')} fullPage={false} />
-                </div>
-            </div>
-        );
-    }
-
-    if (reviews.length === 0) {
-        return (
-            <div className={`${styles.main_reviews} ${className || ''}`}>
-                <div className={styles.container}>
-                    <h3>{t('profile:reviewsTitle')}</h3>
-                    <EmptyState title={t('profile:noReviews')} onRefresh={fetchReviews} />
+                    <EmptyState isLoading={loading} title={t('profile:noReviews')} onRefresh={fetchReviews} />
                 </div>
             </div>
         );
@@ -233,7 +222,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                     {reviews.slice(0, visibleCount).map((review, reviewIndex) => (
                         <div key={review.id} className={styles.reviews_item}>
                             <ActionsDropdown
-                                style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 2 }}
+                                style={{ position: 'absolute', top: '0px', right: '10px', zIndex: 2 }}
                                 items={[{
                                     icon: <IoWarningOutline />,
                                     label: t('profile:complaint'),
@@ -250,12 +239,12 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                     onError={(e) => { e.currentTarget.src = './default_user.png'; }}
                                 />
                                 <div className={styles.reviews_naming_title}>
-                                    <h3 
+                                    <div 
                                         onClick={() => handleClientProfileClick(review.client.id)}
                                         className={styles.clickable_name}
                                     >
-                                        {getClientName(review)}
-                                    </h3>
+                                        <Marquee text={getClientName(review)} alwaysScroll />
+                                    </div>
                                     <div className={styles.reviews_naming_raiting}>
                                         {t('profile:ratedLabel')} 
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -339,7 +328,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                             <SwiperSlide key={review.id}>
                                 <div className={styles.reviews_item}>
                                     <ActionsDropdown
-                                        style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 2 }}
+                                        style={{ position: 'absolute', top: '0px', right: '10px', zIndex: 2 }}
                                         items={[{
                                             icon: <IoWarningOutline />,
                                             label: t('profile:complaint'),
@@ -356,12 +345,12 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                             onError={(e) => { e.currentTarget.src = './default_user.png'; }}
                                         />
                                         <div className={styles.reviews_naming_title}>
-                                            <h3 
+                                            <div 
                                                 onClick={() => handleClientProfileClick(review.client.id)}
                                                 className={styles.clickable_name}
                                             >
-                                                {getClientName(review)}
-                                            </h3>
+                                                <Marquee text={getClientName(review)} alwaysScroll />
+                                            </div>
                                             <div className={styles.reviews_naming_raiting}>
                                                 {t('profile:ratedLabel')}
                                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

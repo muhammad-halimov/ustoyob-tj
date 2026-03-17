@@ -55,6 +55,18 @@
     background: var(--color-primary-hover);
     transform: scale(0.97);
   }
+
+  @media (max-width: 480px) {
+    padding: 10px 14px;
+    font-size: 14px;
+    gap: 6px;
+    border-radius: 8px;
+
+    svg {
+      width: 20px;
+      height: 20px;
+    }
+  }
 }
 
 .closeButton {

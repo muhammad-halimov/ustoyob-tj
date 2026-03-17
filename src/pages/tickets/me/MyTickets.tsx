@@ -142,6 +142,7 @@ function MyTickets() {
     const [allTickets, setAllTickets] = useState<FormattedTicket[]>([]);
     const [displayedTickets, setDisplayedTickets] = useState<FormattedTicket[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isContentLoading, setIsContentLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<'active' | 'inactive'>('active');
 
     const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -227,11 +228,12 @@ function MyTickets() {
         }
 
         try {
-            setIsLoading(true);
+            setIsContentLoading(true);
             const token = getAuthToken();
 
             if (!token) {
                 console.error('Token not found in fetchMyTickets');
+                setIsContentLoading(false);
                 setIsLoading(false);
                 return;
             }
@@ -315,6 +317,7 @@ function MyTickets() {
             console.error('Error fetching tickets:', error);
             setAllTickets([]);
         } finally {
+            setIsContentLoading(false);
             setIsLoading(false);
         }
     };
@@ -517,8 +520,8 @@ function MyTickets() {
 
             {/* Список объявлений */}
             <div className={styles.ticketsList}>
-                {isLoading ? (
-                    <div className={styles.loading}><p>{t('myTickets:loadingAds')}</p></div>
+                {isContentLoading ? (
+                    <EmptyState isLoading />
                 ) : displayedTickets.length === 0 ? (
                     <EmptyState
                         title={activeTab === 'active'

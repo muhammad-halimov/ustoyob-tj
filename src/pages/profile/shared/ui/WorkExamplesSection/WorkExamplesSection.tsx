@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Preview } from '../../../../../shared/ui/Photo/Preview';
 import { EmptyState } from '../../../../../widgets/EmptyState';
+import { PageLoader } from '../../../../../widgets/PageLoader';
 import { useDragReorder, DragHandle } from '../../../../../widgets/DragReorder';
 import styles from './WorkExamplesSection.module.scss';
 
@@ -33,6 +34,7 @@ interface WorkExamplesSectionProps {
     API_BASE_URL: string;
     onReorder?: (workExamples: WorkExample[]) => void;
     onRefresh?: () => void;
+    isLoading?: boolean;
 }
 
 export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
@@ -57,6 +59,7 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
     API_BASE_URL,
     onReorder,
     onRefresh,
+    isLoading = false,
 }) => {
     const workExampleInputRef = useRef<HTMLInputElement>(null);
     const { t } = useTranslation(['profile']);
@@ -64,6 +67,7 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
 
     return (
         <div className={styles.section_item}>
+            {isGalleryOperating && <PageLoader overlay />}
             <h3>{t('profile:workExamplesTitle')}</h3>
             <div className={styles.section_content}>
                 <div className={styles.work_examples}>
@@ -144,7 +148,7 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
                             )}
                         </>
                     ) : (
-                        <EmptyState title={readOnly ? t('profile:noWorkExamples') : t('profile:addWorkExamples')} onRefresh={onRefresh} />
+                        <EmptyState isLoading={isLoading} title={readOnly ? t('profile:noWorkExamples') : t('profile:addWorkExamples')} onRefresh={onRefresh} />
                     )}
                 </div>
 

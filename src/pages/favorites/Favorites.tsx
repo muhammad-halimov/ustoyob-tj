@@ -203,6 +203,7 @@ function Favorites() {
     const [favoriteTickets, setFavoriteTickets] = useState<FavoriteTicket[]>([]);
     const [favoriteUsers, setFavoriteUsers] = useState<FavoriteUser[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isFavoritesRefreshing, setIsFavoritesRefreshing] = useState(false);
     const [activeTab, setActiveTab] = useState<'orders' | 'masters'>('orders');
     const [likedTickets, setLikedTickets] = useState<number[]>([]);
     const [isLikeLoading, setIsLikeLoading] = useState<number | null>(null);
@@ -440,6 +441,7 @@ function Favorites() {
 
     const fetchFavorites = async () => {
         try {
+            setIsFavoritesRefreshing(true);
             const token = getAuthToken();
             console.log('Fetching favorites, token exists:', !!token);
 
@@ -604,6 +606,7 @@ function Favorites() {
             setLikedTickets([]);
         } finally {
             setIsLoading(false);
+            setIsFavoritesRefreshing(false);
         }
     };
 
@@ -1080,6 +1083,7 @@ function Favorites() {
             <div className={styles.recommendation}>
                 <div className={styles.recommendation_empty}>
                     <EmptyState
+                        isLoading={isFavoritesRefreshing}
                         title={t('pages.favorites.noFavorites')}
                         subtitle={t('pages.favorites.noFavoritesHint')}
                         onRefresh={fetchFavorites}
@@ -1135,6 +1139,7 @@ function Favorites() {
                 {/* Сообщение об отсутствии результатов после фильтрации */}
                 {(activeTab === 'orders' || !showTabs) && hasOrders && filteredTickets.length === 0 && (
                     <EmptyState
+                        isLoading={isFavoritesRefreshing}
                         title={t('common:emptyState.title')}
                         subtitle={t('pages.favorites.noFavoritesHint')}
                         onRefresh={fetchFavorites}
@@ -1143,12 +1148,12 @@ function Favorites() {
 
                 {/* Пустая вкладка объявлений (есть пользователи, но нет заказов) */}
                 {(activeTab === 'orders' || !showTabs) && !hasOrders && (
-                    <EmptyState title={t('pages.favorites.noFavorites')} onRefresh={fetchFavorites} />
+                    <EmptyState isLoading={isFavoritesRefreshing} title={t('pages.favorites.noFavorites')} onRefresh={fetchFavorites} />
                 )}
 
                 {/* Пустая вкладка пользователей */}
                 {activeTab === 'masters' && showTabs && !hasSecondTabItems && (
-                    <EmptyState onRefresh={fetchFavorites} />
+                    <EmptyState isLoading={isFavoritesRefreshing} onRefresh={fetchFavorites} />
                 )}
 
                 {/* Отображение заказов */}

@@ -570,8 +570,7 @@ const CreateEdit = () => {
             </div>
 
             <div className={styles.formWrapper}>
-            {isSubmitting && <PageLoader overlay />}
-            <form onSubmit={handleSubmit} className={styles.form} style={isSubmitting ? { visibility: 'hidden' } : undefined}>
+            <form onSubmit={handleSubmit} className={styles.form}>
                 {/* Название услуги */}
                 <div className={styles.section}>
                     <h2>{t('createEdit:serviceNameLabel')}</h2>
@@ -737,7 +736,8 @@ const CreateEdit = () => {
                 </div>
 
                 {/* Кнопки */}
-                <div className={styles.submitSection}>
+                <div className={styles.submitSection} style={{ position: 'relative' }}>
+                    {isSubmitting && <PageLoader overlay />}
                     {isEditMode && (
                         <button
                             type="button"

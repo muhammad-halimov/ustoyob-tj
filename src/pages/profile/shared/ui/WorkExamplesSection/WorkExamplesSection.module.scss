@@ -2,6 +2,7 @@
 @use 'sass:map';
 
 .section_item {
+  position: relative;
   width: 100%;
   display: flex;
   flex-direction: column;

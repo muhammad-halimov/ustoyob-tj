@@ -44,6 +44,7 @@ interface EducationSectionProps {
     }>>;
     onReorder?: (education: Education[]) => void;
     onRefresh?: () => void;
+    isLoading?: boolean;
 }
 
 export const EducationSection: React.FC<EducationSectionProps> = ({
@@ -62,6 +63,7 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
     setEducationForm,
     onReorder,
     onRefresh,
+    isLoading = false,
 }) => {
     const { t } = useTranslation(['profile']);
     const eduDrag = useDragReorder(education, onReorder ?? (() => {}));
@@ -198,7 +200,7 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
                     </>
                 ) : (
                     !editingEducation && (
-                        <EmptyState title={readOnly ? t('profile:noEducation') : t('profile:addEducationInfo')} onRefresh={onRefresh} />
+                        <EmptyState isLoading={isLoading} title={readOnly ? t('profile:noEducation') : t('profile:addEducationInfo')} onRefresh={onRefresh} />
                     )
                 )}
 

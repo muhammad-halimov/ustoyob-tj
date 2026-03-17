@@ -152,6 +152,11 @@ export function Ticket() {
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [showComplaintModal, setShowComplaintModal] = useState(false);
 
+    // States for review complaints
+    const [reviewComplaintReviewId, setReviewComplaintReviewId] = useState<number | null>(null);
+    const [reviewComplaintAuthorId, setReviewComplaintAuthorId] = useState<number | null>(null);
+    const [showReviewComplaintModal, setShowReviewComplaintModal] = useState(false);
+
     // States for reviews
     const [reviews, setReviews] = useState<ReviewType[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(false);
@@ -168,6 +173,7 @@ export function Ticket() {
     const [isTicketActive, setIsTicketActive] = useState(true);
     const [currentUserId, setCurrentUserId] = useState<number | null>(null);
     const [isTogglingActive, setIsTogglingActive] = useState(false);
+    const [isResponding, setIsResponding] = useState(false);
     const isLoadingRef = useRef<boolean>(false); // Отслеживаем текущие запросы
     const isServiceRef = useRef<boolean>(false);
 
@@ -520,7 +526,7 @@ export function Ticket() {
                 id: ticketData.id,
                 title: ticketData.title ? textHelper(ticketData.title) : t('ticket:noTitle'),
                 price: ticketData.budget || 0,
-                unit: ticketData.unit?.title || 'tjs',
+                unit: ticketData.unit?.title || 'N/A',
                 description: ticketData.description ? textHelper(ticketData.description) : t('ticket:noDescription'),
                 address: fullAddress,
                 date: formatDate(ticketData.createdAt),
@@ -683,6 +689,7 @@ export function Ticket() {
         }
 
         try {
+            setIsResponding(true);
             const chat = await createChatWithAuthor(authorId, order?.id);
 
             if (chat) {
@@ -690,6 +697,8 @@ export function Ticket() {
             }
         } catch (error) {
             console.error('Error creating chat:', error);
+        } finally {
+            setIsResponding(false);
         }
     };
 
@@ -1266,18 +1275,20 @@ export function Ticket() {
                 </section>
 
                 {currentUserId !== order?.authorId && (
-                <section className={styles.actionButtons}>
+                <section className={styles.actionButtons} style={{ position: 'relative' }}>
+                    {isResponding && <PageLoader overlay />}
                     {!(order?.isService && getUserRole() === 'master') && !(getUserRole() === 'client' && order?.displayedUserRole === 'client') && (
                         <button
                             className={`${styles.respondButton} ${
-                                (!isTicketActive || isCheckingChats) ? styles.respondButtonDisabled :
+                                (!isTicketActive || isCheckingChats || isResponding) ? styles.respondButtonDisabled :
                                 existingChatId ? styles.respondButtonDone :
                                 ''
                             }`}
                             onClick={() => order?.authorId && handleRespondClick(order.authorId)}
-                            disabled={!isTicketActive || isCheckingChats}
+                            disabled={!isTicketActive || isCheckingChats || isResponding}
                         >
                             {isCheckingChats ? t('ticket:checking') :
+                             isResponding ? t('ticket:checking') :
                              existingChatId ? t('ticket:done') :
                              !isTicketActive ? t('ticket:inactive') :
                              t('ticket:respond')}
@@ -1311,6 +1322,11 @@ export function Ticket() {
                     onMasterProfileClick={handleProfileClick}
                     onServiceClick={(ticketId) => navigate(ROUTES.TICKET_BY_ID(ticketId))}
                     getReviewImageIndex={getReviewImageIndex}
+                    onComplaintClick={(reviewId, authorId) => {
+                        setReviewComplaintReviewId(reviewId);
+                        setReviewComplaintAuthorId(authorId);
+                        setShowReviewComplaintModal(true);
+                    }}
                 />
             )}
 
@@ -1346,6 +1362,16 @@ export function Ticket() {
                 isOpen={showSuccessModal}
                 onClose={handleCloseSuccessModal}
                 message={modalMessage}
+            />
+
+            <Complaint
+                isOpen={showReviewComplaintModal}
+                onClose={() => setShowReviewComplaintModal(false)}
+                onSuccess={handleComplaintSuccess}
+                onError={handleComplaintError}
+                targetUserId={reviewComplaintAuthorId ?? 0}
+                reviewId={reviewComplaintReviewId ?? undefined}
+                complaintType="review"
             />
 
             <Status

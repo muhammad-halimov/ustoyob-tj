@@ -144,16 +144,26 @@ function Header({ onOpenAuthModal }: HeaderProps) {
         }
     });
 
-    // Обновляем отображаемое название города при изменении cities или selectedCity
+    // Обновляем отображаемое название города при изменении cities (смена языка)
     useEffect(() => {
+        if (cities.length === 0) return;
+        const savedCityId = localStorage.getItem('selectedCityId');
+        if (savedCityId) {
+            const found = cities.find(c => String(c.id) === savedCityId);
+            if (found) {
+                setDisplayCityName(found.title);
+                setSelectedCity(found.title);
+                localStorage.setItem('selectedCity', found.title);
+            }
+        }
+    }, [cities]);
+
+    // Устанавливаем плейсхолдер если город не выбран
+    useEffect(() => {
+        const savedCityId = localStorage.getItem('selectedCityId');
         const savedCity = localStorage.getItem('selectedCity');
-        
-        if (!savedCity) {
-            // Если город не выбран, показываем "Местоположение" переведённое
+        if (!savedCityId && !savedCity) {
             setDisplayCityName(t('header:location'));
-        } else {
-            // Просто используем название города из API (оно уже переведено)
-            setDisplayCityName(savedCity);
         }
     }, [t]);
 
@@ -314,11 +324,12 @@ function Header({ onOpenAuthModal }: HeaderProps) {
         navigate(ROUTES.HOME, { replace: true });
     };
 
-    const handleCitySelect = (cityTitle: string) => {
+    const handleCitySelect = (cityTitle: string, cityId?: number) => {
         const cityKey = cityTitle;
         setSelectedCity(cityKey);
         setDisplayCityName(cityKey);
         localStorage.setItem('selectedCity', cityKey);
+        if (cityId !== undefined) localStorage.setItem('selectedCityId', String(cityId));
         setShowCityModal(false);
         window.dispatchEvent(new Event('cityChanged'));
     };
@@ -766,7 +777,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                                 <div
                                     key={city.id}
                                     className={`${styles.cityItem} ${selectedCity === city.title ? styles.selected : ''}`}
-                                    onClick={() => handleCitySelect(city.title)}
+                                    onClick={() => handleCitySelect(city.title, city.id)}
                                 >
                                     {t(`cities:${city.title}`, { defaultValue: city.title })}
                                 </div>

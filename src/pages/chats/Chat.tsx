@@ -104,6 +104,7 @@ function Chat() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState("");
     const [isLoading, setIsLoading] = useState(true);
+    const [isChatListRefreshing, setIsChatListRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [currentUser, setCurrentUser] = useState<ApiUser | null>(null);
     const [isMobileChatActive, setIsMobileChatActive] = useState(false);
@@ -926,7 +927,6 @@ function Chat() {
             const token = getAuthToken();
             if (!token) {
                 console.log('No auth token available');
-                setError(t('chat.authRequired'));
                 setIsLoading(false);
                 return null;
             }
@@ -948,13 +948,11 @@ function Chat() {
                 return userData;
             } else {
                 console.error('Failed to fetch current user:', response.status);
-                setError(t('chat.authRequired'));
                 setIsLoading(false);
                 return null;
             }
         } catch (err) {
             console.error('Error fetching current user:', err);
-            setError(t('chat.authRequired'));
             setIsLoading(false);
             return null;
         }
@@ -963,6 +961,7 @@ function Chat() {
     const fetchChats = useCallback(async (silent = false) => {
         try {
             if (!silent) setIsLoading(true);
+            else setIsChatListRefreshing(true);
             if (!silent) setError(null);
 
             const token = getAuthToken();
@@ -1009,9 +1008,8 @@ function Chat() {
                 console.log(`Parsed ${chatsData.length} chats`);
             } else {
                 console.warn(`Failed to fetch chats (status: ${response.status})`);
-                if (!silent) setError(t('chat.errorLoadingChats'));
-                // In silent mode, don't wipe existing chats on a failed refresh
-                if (silent) return;
+                // Any failure (404, 5xx, etc.) — just leave the list as-is, EmptyState handles it
+                return;
             }
 
             if (silent) {
@@ -1064,9 +1062,9 @@ function Chat() {
             }
         } catch (error) {
             console.error('Error fetching chats:', error);
-            if (!silent) setError(t('chat.errorLoadingChats'));
         } finally {
             if (!silent) setIsLoading(false);
+            else setIsChatListRefreshing(false);
         }
     }, [API_BASE_URL, chatIdFromUrl, t, fetchChatMessages]);
 
@@ -1258,12 +1256,14 @@ function Chat() {
                 </div>
 
                 <div className={styles.chatList}>
-                    {filteredChats.length === 0 ? (
+                    {isChatListRefreshing ? (
+                        <EmptyState isLoading />
+                    ) : filteredChats.length === 0 ? (
                         <EmptyState
                             title={searchQuery ? t('chat.noChatsFound') :
                                 activeTab === "active" ? t('chat.noActiveChats') :
                                     t('chat.noArchivedChats')}
-                            onRefresh={() => fetchChats()}
+                            onRefresh={() => fetchChats(true)}
                         />
                     ) : (
                         filteredChats.map(chat => {

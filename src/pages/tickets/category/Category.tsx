@@ -4,7 +4,7 @@ import { getAuthToken, getUserRole, getUserData } from '../../../utils/auth.ts';
 import { getStorageItem } from '../../../utils/storageHelper.ts';
 import { Back } from '../../../shared/ui/Button/Back/Back.tsx';
 import { useLanguageChange } from '../../../hooks';
-import { PageLoader } from '../../../widgets/PageLoader';
+
 import { EmptyState } from '../../../widgets/EmptyState';
 import { ROUTES } from '../../../app/routers/routes';
 import styles from './Category.module.scss';
@@ -891,7 +891,7 @@ function Category() {
 
             <div className={styles.searchResults}>
                 {isLoading ? (
-                    <PageLoader text={t('category:loading')} fullPage={false} />
+                    <EmptyState isLoading />
                 ) : tickets.length === 0 ? (
                     <EmptyState
                         title={categoryName

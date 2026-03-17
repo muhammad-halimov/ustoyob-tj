@@ -26,6 +26,7 @@ interface PhonesSectionProps {
     setPhoneForm: React.Dispatch<React.SetStateAction<{ number: string; type: 'tj' | 'international' }>>;
     onReorder?: (phones: Phone[]) => void;
     onRefresh?: () => void;
+    isLoading?: boolean;
 }
 
 export const PhonesSection: React.FC<PhonesSectionProps> = ({
@@ -42,6 +43,7 @@ export const PhonesSection: React.FC<PhonesSectionProps> = ({
     setPhoneForm,
     onReorder,
     onRefresh,
+    isLoading = false,
 }) => {
     const { t } = useTranslation(['profile']);
     const phoneDrag = useDragReorder(phones, onReorder ?? (() => {}));
@@ -146,7 +148,7 @@ export const PhonesSection: React.FC<PhonesSectionProps> = ({
                     </>
                 ) : (
                     !editingPhone && (
-                        <EmptyState title={readOnly ? t('profile:noPhones') : t('profile:addPhone')} onRefresh={onRefresh} />
+                        <EmptyState isLoading={isLoading} title={readOnly ? t('profile:noPhones') : t('profile:addPhone')} onRefresh={onRefresh} />
                     )
                 )}
 

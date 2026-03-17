@@ -51,6 +51,7 @@ interface SocialNetworksSectionProps {
     getAvailableNetworks: () => AvailableSocialNetwork[];
     className?: string;
     onRefresh?: () => void;
+    isLoading?: boolean;
 }
 
 export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
@@ -77,6 +78,7 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
     getAvailableNetworks,
     className,
     onRefresh,
+    isLoading = false,
 }) => {
     const { t } = useTranslation(['profile']);
 
@@ -155,6 +157,7 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
                 <div className={styles.social_networks}>
                     {socialNetworks.length === 0 && (
                         <EmptyState
+                            isLoading={isLoading}
                             title={readOnly ? t('profile:noSocialNetworks') : t('profile:addSocialNetworks')}
                             onRefresh={onRefresh}
                         />

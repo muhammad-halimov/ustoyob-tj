@@ -1,5 +1,5 @@
 import {type ChangeEvent, useCallback, useEffect, useRef, useState} from 'react';
-import {useNavigate, useParams} from 'react-router-dom';
+import {Navigate, useNavigate, useParams} from 'react-router-dom';
 import {getAuthToken, getUserData, getUserRole, handleUnauthorized, logout} from '../../utils/auth.ts';
 import {ROUTES} from '../../app/routers/routes';
 import styles from './Profile.module.scss';
@@ -126,6 +126,11 @@ function Profile() {
     const [modalMessage, setModalMessage] = useState('');
     const [occupations, setOccupations] = useState<Occupation[]>([]);
     const [occupationsLoading, setOccupationsLoading] = useState(false);
+    const [isSocialNetworksRefreshing, setIsSocialNetworksRefreshing] = useState(false);
+    const [isPhonesRefreshing, setIsPhonesRefreshing] = useState(false);
+    const [isEducationRefreshing, setIsEducationRefreshing] = useState(false);
+    const [isWorkExamplesRefreshing, setIsWorkExamplesRefreshing] = useState(false);
+    const [isWorkAreasRefreshing, setIsWorkAreasRefreshing] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const workExampleInputRef = useRef<HTMLInputElement>(null);
     const specialtyInputRef = useRef<HTMLSelectElement>(null);
@@ -851,7 +856,8 @@ function Profile() {
 
             if (updateResponse.ok) {
                 // Получаем обновленные данные пользователя
-                const updatedUserResponse = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
+                const currentLocale = getStorageItem('i18nextLng') || 'ru';
+                const updatedUserResponse = await fetch(`${API_BASE_URL}/api/users/${profileData.id}?locale=${currentLocale}`, {
                     method: 'GET',
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -3473,6 +3479,14 @@ function Profile() {
         }
     };
 
+    // Sync redirect: if the logged-in user visits their own public profile, skip the flash
+    if (id) {
+        const cachedUser = getUserData();
+        if (cachedUser && cachedUser.id && cachedUser.id.toString() === id) {
+            return <Navigate to={ROUTES.PROFILE} replace />;
+        }
+    }
+
     if (isLoading) {
         return <PageLoader text={t('profile:loading')} />;
     }
@@ -3596,7 +3610,8 @@ function Profile() {
                         onCopySocialNetwork={handleCopySocialNetwork}
                         renderSocialIcon={renderSocialIcon}
                         getAvailableNetworks={getAvailableNetworks}
-                        onRefresh={() => fetchUserData(true)}
+                        onRefresh={async () => { setIsSocialNetworksRefreshing(true); await fetchUserData(true); setIsSocialNetworksRefreshing(false); }}
+                        isLoading={isSocialNetworksRefreshing}
                     />
 
                     {/* PhonesSection Component */}
@@ -3613,7 +3628,8 @@ function Profile() {
                         onAddPhone={handleAddPhone}
                         onCopyPhone={handleCopyPhone}
                         onReorder={!readOnly ? handleReorderPhones : undefined}
-                        onRefresh={() => fetchUserData(true)}
+                        onRefresh={async () => { setIsPhonesRefreshing(true); await fetchUserData(true); setIsPhonesRefreshing(false); }}
+                        isLoading={isPhonesRefreshing}
                     />
 
                     {/* EducationSection Component - только для специалистов */}
@@ -3633,7 +3649,8 @@ function Profile() {
                             onAddEducation={handleAddEducation}
                             setEducationForm={setEducationForm}
                             onReorder={!readOnly ? handleReorderEducation : undefined}
-                            onRefresh={() => fetchUserData(true)}
+                            onRefresh={async () => { setIsEducationRefreshing(true); await fetchUserData(true); setIsEducationRefreshing(false); }}
+                            isLoading={isEducationRefreshing}
                         />
                     )}
 
@@ -3660,7 +3677,8 @@ function Profile() {
                             getImageUrlWithCacheBust={getImageUrlWithCacheBust}
                             API_BASE_URL={API_BASE_URL}
                             onReorder={!readOnly ? handleReorderWorkExamples : undefined}
-                            onRefresh={fetchUserGallery}
+                            onRefresh={async () => { setIsWorkExamplesRefreshing(true); await fetchUserGallery(); setIsWorkExamplesRefreshing(false); }}
+                            isLoading={isWorkExamplesRefreshing}
                         />
                     )}
 
@@ -3691,7 +3709,8 @@ function Profile() {
                         onDeleteAddress={handleDeleteAddress}
                         onCanWorkRemotelyToggle={handleCanWorkRemotelyToggle}
                         onReorder={!readOnly ? handleReorderAddresses : undefined}
-                        onRefresh={() => fetchUserData(true)}
+                        onRefresh={async () => { setIsWorkAreasRefreshing(true); await fetchUserData(true); setIsWorkAreasRefreshing(false); }}
+                        isLoading={isWorkAreasRefreshing}
                     />
                 </div>
 

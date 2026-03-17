@@ -1,5 +1,5 @@
 import styles from "./Category.module.scss";
-import { AdBtn } from "../../../shared/ui/Button/Header/Add/AdBtn.tsx";
+import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore.tsx';
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from '../../../app/routers/routes.ts';
@@ -91,14 +91,6 @@ export default function Category() {
     const handleCategoryClick = (categoryId: number, categoryTitle: string) => {
         console.log('Category clicked:', categoryId);
         navigate(ROUTES.CATEGORY_TICKETS_BY_ID(categoryId), { state: { categoryName: categoryTitle } });
-    };
-
-    const handleViewAll = () => {
-        setShowAll(true);
-    };
-
-    const handleShowLess = () => {
-        setShowAll(false);
     };
 
     const handleSearch = (query: string) => {
@@ -259,34 +251,14 @@ export default function Category() {
                 ) : null}
             </div>
 
-            {/* Кнопка "Посмотреть все" */}
-            {shouldShowViewAll && (
+            {/* Кнопка "Посмотреть все" / "Свернуть" */}
+            {(shouldShowViewAll || shouldShowShowLess) && (
                 <div className={styles.category_btn_center}>
-                    <AdBtn
-                        text={t('category:viewAll', 'Посмотреть все')}
-                        icon={
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                                <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
-                        }
-                        alwaysVisible={true}
-                        onClick={handleViewAll}
-                    />
-                </div>
-            )}
-
-            {/* Кнопка "Свернуть" */}
-            {shouldShowShowLess && (
-                <div className={styles.category_btn_center}>
-                    <AdBtn
-                        text={t('category:showLess', 'Свернуть')}
-                        icon={
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                                <path d="M18 15l-6-6-6 6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
-                        }
-                        alwaysVisible={true}
-                        onClick={handleShowLess}
+                    <ShowMore
+                        expanded={showAll}
+                        onToggle={() => setShowAll(!showAll)}
+                        showMoreText={t('category:viewAll', 'Посмотреть все')}
+                        showLessText={t('category:showLess', 'Свернуть')}
                     />
                 </div>
             )}
