@@ -95,13 +95,17 @@ const OAuthCallbackPage = () => {
 
             try {
                 // Режим привязки провайдера к существующему аккаунту
-                const oauthMode = sessionStorage.getItem('oauthMode');
+                // Проверяем sessionStorage (обычный браузер) и localStorage по state (мобильный: новая вкладка)
+                const sessionMode = sessionStorage.getItem('oauthMode');
+                const localMode = state ? localStorage.getItem(`oauth_mode_${state}`) : null;
+                const oauthMode = sessionMode || localMode;
                 if (oauthMode === 'link') {
+                    sessionStorage.removeItem('oauthMode');
+                    if (state) localStorage.removeItem(`oauth_mode_${state}`);
                     const jwtToken = getAuthToken();
                     if (!jwtToken) {
                         setError(t('oauth.notAuthenticated') || 'Not authenticated');
                         setLoading(false);
-                        sessionStorage.removeItem('oauthMode');
                         return;
                     }
                     const linkRes = await fetch(`${API_BASE_URL}/api/profile/oauth/link`, {
@@ -114,7 +118,6 @@ const OAuthCallbackPage = () => {
                         body: JSON.stringify({ provider: detectedProvider, code, state }),
                     });
                     const linkData = await linkRes.json();
-                    sessionStorage.removeItem('oauthMode');
                     if (linkData.error === 'provider_taken') {
                         setError(t('oauth.providerTaken') || 'This account is already linked to another user');
                         setLoading(false);

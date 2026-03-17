@@ -229,6 +229,12 @@ function Profile() {
             .then(r => r.json())
             .then(data => {
                 sessionStorage.setItem('oauthMode', 'link');
+                // На мобильных нативное приложение открывает callback в новой вкладке,
+                // где sessionStorage пустой. Сохраняем mode по state-параметру в localStorage.
+                try {
+                    const stateParam = new URL(data.url).searchParams.get('state');
+                    if (stateParam) localStorage.setItem(`oauth_mode_${stateParam}`, 'link');
+                } catch {}
                 window.location.href = data.url;
             })
             .catch(() => {});
