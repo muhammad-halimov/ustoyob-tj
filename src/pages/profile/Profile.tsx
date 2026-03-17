@@ -203,6 +203,8 @@ function Profile() {
             // На мобильных нативное приложение открывает callback в новой вкладке,
             // где sessionStorage пустой — дублируем в localStorage
             localStorage.setItem('oauth_mode_telegram', 'link');
+
+            const overlay = document.createElement('div');
             overlay.id = 'telegram-link-modal';
             overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999';
 
@@ -237,7 +239,7 @@ function Profile() {
             box.appendChild(title);
             box.appendChild(widgetWrap);
             overlay.appendChild(box);
-            overlay.onclick = (e) => { if (e.target === overlay) { sessionStorage.removeItem('oauthMode'); overlay.remove(); } };
+            overlay.onclick = (e: MouseEvent) => { if (e.target === overlay) { sessionStorage.removeItem('oauthMode'); overlay.remove(); } };
             document.body.appendChild(overlay);
             return;
         }

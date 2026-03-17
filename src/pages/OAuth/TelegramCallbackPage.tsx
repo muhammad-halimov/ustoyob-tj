@@ -141,10 +141,9 @@ const TelegramCallbackPage = () => {
                     // Сигналим оригинальной вкладке и закрываем эту (новая вкладка на мобильном)
                     localStorage.setItem('telegram_link_success', Date.now().toString());
                     setTimeout(() => {
-                        if (!window.close()) {
-                            // window.close() не сработал (та же вкладка) — навигируем
-                            navigate(ROUTES.PROFILE, { replace: true });
-                        }
+                        window.close();
+                        // Если вкладка не закрылась (та же вкладка) — навигируем
+                        setTimeout(() => navigate(ROUTES.PROFILE, { replace: true }), 300);
                     }, 1500);
                     return;
                 }
