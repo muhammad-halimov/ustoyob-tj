@@ -171,22 +171,38 @@ function Profile() {
         const token = getAuthToken();
         if (!token) return;
 
-        setLinkedProvidersLoading(true);
-        fetch(`${API_BASE_URL}/api/profile/oauth/providers`, {
-            headers: { Authorization: `Bearer ${token}` },
-        })
-            .then(r => r.json())
-            .then(data => setLinkedProviders(Array.isArray(data) ? data : (data.providers ?? [])))
-            .catch(() => {})
-            .finally(() => setLinkedProvidersLoading(false));
+        const loadProviders = () => {
+            setLinkedProvidersLoading(true);
+            fetch(`${API_BASE_URL}/api/profile/oauth/providers`, {
+                headers: { Authorization: `Bearer ${token}` },
+            })
+                .then(r => r.json())
+                .then(data => setLinkedProviders(Array.isArray(data) ? data : (data.providers ?? [])))
+                .catch(() => {})
+                .finally(() => setLinkedProvidersLoading(false));
+        };
+
+        loadProviders();
+
+        // Слушаем успешную привязку Telegram из новой вкладки
+        const onStorage = (e: StorageEvent) => {
+            if (e.key === 'telegram_link_success') {
+                localStorage.removeItem('telegram_link_success');
+                document.getElementById('telegram-link-modal')?.remove();
+                loadProviders();
+            }
+        };
+        window.addEventListener('storage', onStorage);
+        return () => window.removeEventListener('storage', onStorage);
     }, [readOnly, API_BASE_URL]);
 
     const handleLinkProvider = (provider: string) => {
         if (provider === 'telegram') {
             // Показываем всплывающий виджет Telegram (как в AuthModal)
             sessionStorage.setItem('oauthMode', 'link');
-
-            const overlay = document.createElement('div');
+            // На мобильных нативное приложение открывает callback в новой вкладке,
+            // где sessionStorage пустой — дублируем в localStorage
+            localStorage.setItem('oauth_mode_telegram', 'link');
             overlay.id = 'telegram-link-modal';
             overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999';
 

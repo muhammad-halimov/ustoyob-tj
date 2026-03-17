@@ -114,7 +114,12 @@ export const LinkedAccountsSection: React.FC<LinkedAccountsSectionProps> = ({
                                     <div className={isLastLinked ? styles.tooltip_wrapper : undefined}>
                                         <button
                                             className={`${styles.action_btn} ${styles.unlink_btn}`}
-                                            onClick={() => onUnlink(provider)}
+                                            onClick={() => {
+                                                const name = t(`oauth.provider.${provider}`);
+                                                if (window.confirm(t('oauth.unlinkConfirm', { provider: name }))) {
+                                                    onUnlink(provider);
+                                                }
+                                            }}
                                             disabled={isLastLinked}
                                         >
                                             {t('oauth.unlinkBtn')}

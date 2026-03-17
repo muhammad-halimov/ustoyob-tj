@@ -127,6 +127,7 @@
     "notLinked": "Не привязан",
     "linkBtn": "Привязать",
     "unlinkBtn": "Отвязать",
+    "unlinkConfirm": "Отвязать {{provider}}? Вы не сможете использовать его для входа.",
     "lastAuthMethod": "Единственный способ входа — отвязать нельзя",
     "linkTelegramTitle": "Войдите через Telegram",
     "provider": {

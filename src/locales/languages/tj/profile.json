@@ -127,6 +127,7 @@
     "notLinked": "Пайваст нашудааст",
     "linkBtn": "Пайваст кунед",
     "unlinkBtn": "Ҳудо кунед",
+    "unlinkConfirm": "{{provider}}-ро ҷудо кунед? Шумо дигар тавассути он ворид шуда наметавонед.",
     "lastAuthMethod": "Танҳо як усули ворид шаван — ҳудо кардан шаван нест",
     "linkTelegramTitle": "Тавассути Telegram ворид шавед",
     "provider": {

@@ -94,10 +94,14 @@ const TelegramCallbackPage = () => {
                 // Заказчик не должен хранить BOT_TOKEN для валидации хэша
 
                 // Режим привязки — отправляем данные напрямую в link endpoint
-                const oauthMode = sessionStorage.getItem('oauthMode');
+                // Проверяем sessionStorage (та же вкладка) и localStorage (новая вкладка на мобильном)
+                const sessionMode = sessionStorage.getItem('oauthMode');
+                const localMode = localStorage.getItem('oauth_mode_telegram');
+                const oauthMode = sessionMode || localMode;
                 if (oauthMode === 'link') {
                     const jwtToken = getAuthToken();
                     sessionStorage.removeItem('oauthMode');
+                    localStorage.removeItem('oauth_mode_telegram');
                     if (!jwtToken) {
                         navigate(ROUTES.HOME, { replace: true });
                         return;
@@ -134,7 +138,14 @@ const TelegramCallbackPage = () => {
                     }
                     setSuccess(true);
                     setLoading(false);
-                    setTimeout(() => navigate(ROUTES.PROFILE, { replace: true }), 2000);
+                    // Сигналим оригинальной вкладке и закрываем эту (новая вкладка на мобильном)
+                    localStorage.setItem('telegram_link_success', Date.now().toString());
+                    setTimeout(() => {
+                        if (!window.close()) {
+                            // window.close() не сработал (та же вкладка) — навигируем
+                            navigate(ROUTES.PROFILE, { replace: true });
+                        }
+                    }, 1500);
                     return;
                 }
 

@@ -127,6 +127,7 @@
     "notLinked": "Not linked",
     "linkBtn": "Link",
     "unlinkBtn": "Unlink",
+    "unlinkConfirm": "Unlink {{provider}}? You won't be able to use it to sign in.",
     "lastAuthMethod": "Only sign-in method — cannot unlink",
     "linkTelegramTitle": "Sign in via Telegram",
     "provider": {
