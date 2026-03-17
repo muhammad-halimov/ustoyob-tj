@@ -163,7 +163,7 @@ class Chat
     /**
      * @var Collection<int, AppealChat>
      */
-    #[ORM\OneToMany(targetEntity: AppealChat::class, mappedBy: 'chat')]
+    #[ORM\OneToMany(targetEntity: AppealChat::class, mappedBy: 'chat', cascade: ['all'])]
     #[Ignore]
     private Collection $appealChats;
 
