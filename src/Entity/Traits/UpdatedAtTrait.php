@@ -9,14 +9,14 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[Orm\HasLifecycleCallbacks]
 trait UpdatedAtTrait
 {
-    #[ORM\Column(type: 'datetime', nullable: false)]
+    #[ORM\Column(type: 'datetime', nullable: true)]
     #[Groups([
         'legals:read',
         'chats:read',
     ])]
-    protected DateTime $updatedAt;
+    protected ?DateTime $updatedAt;
 
-    public function getUpdatedAt(): DateTime
+    public function getUpdatedAt(): ?DateTime
     {
         return $this->updatedAt;
     }
