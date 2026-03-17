@@ -14,7 +14,6 @@ use Doctrine\ORM\EntityManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -34,8 +33,6 @@ class LinkOAuthProviderController extends AbstractController
         private readonly FacebookOAuthService        $facebookService,
         private readonly InstagramOAuthService       $instagramService,
         private readonly JWTTokenManagerInterface    $jwtManager,
-        #[Autowire(env: 'TELEGRAM_BOT_TOKEN')]
-        private readonly string                      $telegramBotToken,
     ) {}
 
     public function __invoke(Request $request): JsonResponse
@@ -99,8 +96,6 @@ class LinkOAuthProviderController extends AbstractController
                 throw new BadRequestHttpException('Expired Telegram auth data');
             }
 
-            $this->verifyTelegramHash($body, $hash);
-
             return ['id' => $id, 'email' => null];
         }
 
@@ -140,22 +135,6 @@ class LinkOAuthProviderController extends AbstractController
                 'email' => null,
             ],
         };
-    }
-
-    private function verifyTelegramHash(array $body, string $hash): void
-    {
-        $fields = [];
-        foreach (['id', 'first_name', 'last_name', 'username', 'photo_url', 'auth_date'] as $key) {
-            if (isset($body[$key]) && $body[$key] !== '' && $body[$key] !== null) {
-                $fields[$key] = (string) $body[$key];
-            }
-        }
-        ksort($fields);
-        $dataCheckString = implode("\n", array_map(fn($k, $v) => "$k=$v", array_keys($fields), $fields));
-        $secretKey = hash('sha256', $this->telegramBotToken, true);
-        if (!hash_equals(hash_hmac('sha256', $dataCheckString, $secretKey), $hash)) {
-            throw new BadRequestHttpException('Invalid Telegram signature');
-        }
     }
 
     private function buildProvidersList(User $user): array
