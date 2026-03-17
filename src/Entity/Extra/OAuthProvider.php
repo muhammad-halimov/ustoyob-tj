@@ -17,6 +17,11 @@ class OAuthProvider
 {
     use UpdatedAtTrait, CreatedAtTrait;
 
+    public function __toString(): string
+    {
+        return $this->provider ?? "OAuth provider ID $this->providerId";
+    }
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]

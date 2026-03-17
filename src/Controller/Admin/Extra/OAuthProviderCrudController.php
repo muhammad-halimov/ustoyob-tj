@@ -21,15 +21,19 @@ class OAuthProviderCrudController extends AbstractCrudController
             ->hideOnForm();
 
         yield TextField::new('provider', 'Провайдер')
-            ->setColumns(4)
+            ->setColumns(6)
             ->setRequired(true);
 
         yield TextField::new('providerId', 'ID провайдера')
-            ->setColumns(5)
+            ->setColumns(6)
             ->setRequired(true);
 
         yield DateTimeField::new('createdAt', 'Создано')
-            ->setColumns(3)
+            ->setColumns(6)
+            ->setDisabled();
+
+        yield DateTimeField::new('updatedAt', 'Обновлено')
+            ->setColumns(6)
             ->setDisabled();
     }
 }

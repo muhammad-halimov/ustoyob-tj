@@ -2,21 +2,22 @@
 
 namespace App\Entity\Traits;
 
-use DateTime;
+use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 
-#[Orm\HasLifecycleCallbacks]
 trait CreatedAtTrait
 {
-    #[ORM\Column(type: 'datetime', nullable: false)]
+    #[ORM\Column(type: 'datetime_immutable', nullable: false)]
     #[Groups([
         'legals:read',
         'chats:read',
-    ])]
-    protected DateTime $createdAt;
 
-    public function getCreatedAt(): DateTime
+        'users:me:read',
+    ])]
+    protected DateTimeImmutable $createdAt;
+
+    public function getCreatedAt(): DateTimeImmutable
     {
         return $this->createdAt;
     }
@@ -24,6 +25,6 @@ trait CreatedAtTrait
     #[ORM\PrePersist]
     public function setCreatedAt(): void
     {
-        $this->createdAt = new DateTime();
+        $this->createdAt = new DateTimeImmutable();
     }
 }
