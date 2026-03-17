@@ -14,6 +14,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -33,6 +34,8 @@ class LinkOAuthProviderController extends AbstractController
         private readonly FacebookOAuthService        $facebookService,
         private readonly InstagramOAuthService       $instagramService,
         private readonly JWTTokenManagerInterface    $jwtManager,
+        #[Autowire(env: 'TELEGRAM_BOT_TOKEN')]
+        private readonly string                      $telegramBotToken,
     ) {}
 
     public function __invoke(Request $request): JsonResponse
@@ -149,7 +152,7 @@ class LinkOAuthProviderController extends AbstractController
         }
         ksort($fields);
         $dataCheckString = implode("\n", array_map(fn($k, $v) => "$k=$v", array_keys($fields), $fields));
-        $secretKey       = hash('sha256', $_ENV['TELEGRAM_BOT_TOKEN'], true);
+        $secretKey = hash('sha256', $this->telegramBotToken, true);
         if (!hash_equals(hash_hmac('sha256', $dataCheckString, $secretKey), $hash)) {
             throw new BadRequestHttpException('Invalid Telegram signature');
         }
