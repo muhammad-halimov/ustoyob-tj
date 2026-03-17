@@ -10,13 +10,20 @@ use App\Service\OAuth\Google\GoogleOAuthService;
 use App\Service\OAuth\Meta\Facebook\FacebookOAuthService;
 use App\Service\OAuth\Meta\Instagram\InstagramOAuthService;
 use App\Service\OAuth\StateStorage;
+use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
+use Psr\Cache\InvalidArgumentException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 
 
 class LinkOAuthProviderController extends AbstractController
@@ -35,6 +42,14 @@ class LinkOAuthProviderController extends AbstractController
         private readonly JWTTokenManagerInterface    $jwtManager,
     ) {}
 
+    /**
+     * @throws TransportExceptionInterface
+     * @throws InvalidArgumentException
+     * @throws ServerExceptionInterface
+     * @throws RedirectionExceptionInterface
+     * @throws DecodingExceptionInterface
+     * @throws ClientExceptionInterface
+     */
     public function __invoke(Request $request): JsonResponse
     {
         /** @var User $currentUser */
@@ -82,6 +97,17 @@ class LinkOAuthProviderController extends AbstractController
         return $this->json($responseData);
     }
 
+    /**
+     * @param string $provider
+     * @param array $body
+     * @return array
+     * @throws InvalidArgumentException
+     * @throws ClientExceptionInterface
+     * @throws DecodingExceptionInterface
+     * @throws RedirectionExceptionInterface
+     * @throws ServerExceptionInterface
+     * @throws TransportExceptionInterface
+     */
     private function resolveProviderId(string $provider, array $body): array
     {
         if ($provider === 'telegram') {
@@ -143,13 +169,13 @@ class LinkOAuthProviderController extends AbstractController
     {
         $fields = [];
         foreach (['id', 'first_name', 'last_name', 'username', 'photo_url', 'auth_date'] as $key) {
-            if (isset($body[$key]) && $body[$key] !== '' && $body[$key] !== null) {
+            if (isset($body[$key]) && $body[$key] !== '') {
                 $fields[$key] = (string) $body[$key];
             }
         }
         ksort($fields);
         $dataCheckString = implode("\n", array_map(fn($k, $v) => "$k=$v", array_keys($fields), $fields));
-        $secretKey = hash('sha256', $_ENV['TELEGRAM_BOT_TOKEN'], true);
+        $secretKey = hash('sha256', $_ENV['OUATH_TELEGRAM_CLIENT_SECRET'], true);
         if (!hash_equals(hash_hmac('sha256', $dataCheckString, $secretKey), $hash)) {
             throw new BadRequestHttpException('Invalid Telegram signature');
         }
@@ -160,7 +186,7 @@ class LinkOAuthProviderController extends AbstractController
         return array_map(
             fn(OAuthProvider $p) => [
                 'provider' => $p->getProvider(),
-                'linkedAt' => $p->getCreatedAt()->format(\DateTimeInterface::ATOM),
+                'linkedAt' => $p->getCreatedAt()->format(DateTimeInterface::ATOM),
             ],
             $user->getOauthProviders()->toArray()
         );
