@@ -2,22 +2,22 @@
 
 namespace App\Entity\Traits;
 
-use DateTimeImmutable;
+use DateTime;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 
 trait UpdatedAtTrait
 {
-    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    #[ORM\Column(type: 'datetime', nullable: true)]
     #[Groups([
         'legals:read',
         'chats:read',
 
         'users:me:read'
     ])]
-    protected ?DateTimeImmutable $updatedAt = null;
+    protected ?DateTime $updatedAt = null;
 
-    public function getUpdatedAt(): ?DateTimeImmutable
+    public function getUpdatedAt(): ?DateTime
     {
         return $this->updatedAt;
     }
@@ -26,6 +26,6 @@ trait UpdatedAtTrait
     #[ORM\PrePersist]
     public function setUpdatedAt(): void
     {
-        $this->updatedAt = new DateTimeImmutable();
+        $this->updatedAt = new DateTime();
     }
 }
