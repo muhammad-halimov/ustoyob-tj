@@ -35,7 +35,9 @@
     "defaultUser": "User",
     "defaultMaster": "Master",
     "defaultClient": "Client",
-    "negotiablePrice": "Negotiable price"
+    "negotiablePrice": "Negotiable price",
+    "respond": "Respond",
+    "responded": "Applied ✅"
   },
   "validation": {
     "required": "This field is required",

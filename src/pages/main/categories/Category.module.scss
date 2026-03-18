@@ -131,7 +131,15 @@
   }
 }
 
+@media screen and (max-width: 1200px) {
+  .category_title {
+    padding: 0 20px;
+  }
 
+  .category_search {
+    padding: 0 20px;
+  }
+}
 
 @media screen and (max-width: 480px) {
   .category {
@@ -139,10 +147,14 @@
     margin-top: 40px !important;
     margin-bottom: 30px !important;
 
-    h3 {
+    .category_title {
       font-size: 24px;
       font-weight: 600;
       margin-bottom: 20px;
+    }
+
+    .category_title, .category_search {
+      padding: 0 !important;
     }
 
     .category_search {

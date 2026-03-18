@@ -4,6 +4,8 @@ import { getAuthToken, getUserRole, getUserData } from '../../../utils/auth.ts';
 import { getStorageItem } from '../../../utils/storageHelper.ts';
 import { Back } from '../../../shared/ui/Button/Back/Back.tsx';
 import { useLanguageChange } from '../../../hooks';
+import { createChatWithAuthor } from '../../../utils/chatUtils';
+import Status from '../../../shared/ui/Modal/Status';
 
 import { EmptyState } from '../../../widgets/EmptyState';
 import { ROUTES } from '../../../app/routers/routes';
@@ -124,6 +126,14 @@ interface FormattedTicket {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+function getCatSession(catId: string | undefined): Record<string, unknown> | null {
+    if (!catId) return null;
+    try {
+        const raw = sessionStorage.getItem(`cat-filters-${catId}`);
+        return raw ? JSON.parse(raw) as Record<string, unknown> : null;
+    } catch { return null; }
+}
+
 function Category() {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
@@ -146,15 +156,70 @@ function Category() {
         return '';
     });
     const [userRole, setUserRole] = useState<'client' | 'master' | null>(null);
+    const currentUserId = getUserData()?.id;
     const [occupations, setOccupations] = useState<Occupation[]>([]);
-    const [selectedSubcategory, setSelectedSubcategory] = useState<number | null>(null);
-    const [showAllOccupations, setShowAllOccupations] = useState(false);
     const [subcategorySearchQuery, setSubcategorySearchQuery] = useState<string>('');
-    const [showOnlyServices, setShowOnlyServices] = useState(false);
-    const [showOnlyAnnouncements, setShowOnlyAnnouncements] = useState(false);
-    const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'price-asc' | 'price-desc' | 'reviews-asc' | 'reviews-desc' | 'rating-asc' | 'rating-desc'>('newest');
-    const [secondarySortBy, setSecondarySortBy] = useState<'none' | 'newest' | 'oldest' | 'price-asc' | 'price-desc' | 'reviews-asc' | 'reviews-desc' | 'rating-asc' | 'rating-desc'>('none');
-    const [timeFilter, setTimeFilter] = useState<'all' | 'today' | 'yesterday' | 'week' | 'month'>('all');
+    // Filter & sort state — restored from sessionStorage on mount
+    const [_catSession] = useState(() => getCatSession(id));
+    const [selectedSubcategory, setSelectedSubcategory] = useState<number | null>(() => (_catSession?.selectedSubcategory as number | null) ?? null);
+    const [showAllOccupations, setShowAllOccupations] = useState<boolean>(() => (_catSession?.showAllOccupations as boolean) ?? false);
+    const [showOnlyServices, setShowOnlyServices] = useState<boolean>(() => (_catSession?.showOnlyServices as boolean) ?? false);
+    const [showOnlyAnnouncements, setShowOnlyAnnouncements] = useState<boolean>(() => (_catSession?.showOnlyAnnouncements as boolean) ?? false);
+    const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'price-asc' | 'price-desc' | 'reviews-asc' | 'reviews-desc' | 'rating-asc' | 'rating-desc'>(() => ((_catSession?.sortBy as string) || 'newest') as any);
+    const [secondarySortBy, setSecondarySortBy] = useState<'none' | 'newest' | 'oldest' | 'price-asc' | 'price-desc' | 'reviews-asc' | 'reviews-desc' | 'rating-asc' | 'rating-desc'>(() => ((_catSession?.secondarySortBy as string) || 'none') as any);
+    const [timeFilter, setTimeFilter] = useState<'all' | 'today' | 'yesterday' | 'week' | 'month'>(() => ((_catSession?.timeFilter as string) || 'all') as any);
+    // Persist filter state to sessionStorage
+    useEffect(() => {
+        if (!id) return;
+        try {
+            sessionStorage.setItem(`cat-filters-${id}`, JSON.stringify({ showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter, selectedSubcategory, showAllOccupations }));
+        } catch { /* ignore */ }
+    }, [id, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter, selectedSubcategory, showAllOccupations]);
+    // Respond state
+    const [respondedTickets, setRespondedTickets] = useState<Set<number>>(new Set());
+    const [respondingTicketId, setRespondingTicketId] = useState<number | null>(null);
+    const [respondModal, setRespondModal] = useState<{ open: boolean; type: 'success' | 'error'; message: string }>({ open: false, type: 'success', message: '' });
+    // Check existing chats on mount
+    useEffect(() => {
+        const token = getAuthToken();
+        if (!token) return;
+        (async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/chats/me`, {
+                    headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                const chats: any[] = data['hydra:member'] || (Array.isArray(data) ? data : []);
+                const ids = new Set<number>();
+                chats.forEach((chat: any) => {
+                    const t = chat.ticket;
+                    const cid = t?.id ?? (() => { const m = String(t?.['@id'] || '').match(/\/\d+$/); return m ? parseInt(m[0].slice(1)) : null; })();
+                    if (cid) ids.add(cid);
+                });
+                if (ids.size > 0) setRespondedTickets(ids);
+            } catch { /* ignore */ }
+        })();
+    }, []);
+    const handleRespondCard = useCallback(async (ticketId: number, authorId: number) => {
+        const token = getAuthToken();
+        if (!token) return;
+        if (respondedTickets.has(ticketId) || respondingTicketId === ticketId) return;
+        setRespondingTicketId(ticketId);
+        try {
+            const chat = await createChatWithAuthor(authorId, ticketId);
+            if (chat) {
+                setRespondedTickets(prev => new Set(prev).add(ticketId));
+                setRespondModal({ open: true, type: 'success', message: 'Вы успешно откликнулись!' });
+            } else {
+                setRespondModal({ open: true, type: 'error', message: 'Не удалось откликнуться. Попробуйте ещё раз.' });
+            }
+        } catch {
+            setRespondModal({ open: true, type: 'error', message: 'Не удалось откликнуться. Попробуйте ещё раз.' });
+        } finally {
+            setRespondingTicketId(null);
+        }
+    }, [respondedTickets, respondingTicketId]);
     const { t, i18n } = useTranslation(['components', 'category', 'ticket']);
     const locale = i18n.language;
 
@@ -924,11 +989,20 @@ function Category() {
                             authorImage={ticket.authorImage}
                             negotiableBudget={ticket.negotiableBudget}
                             onClick={() => handleCardClick(ticket.id)}
+                            onRespondClick={ticket.authorId !== currentUserId ? (e) => { e.stopPropagation(); handleRespondCard(ticket.id, ticket.authorId); } : undefined}
+                            isResponded={respondedTickets.has(ticket.id)}
+                            isRespondLoading={respondingTicketId === ticket.id}
                         />
                     ))
                 )}
             </div>
             <CookieConsentBanner/>
+            <Status
+                type={respondModal.type}
+                isOpen={respondModal.open}
+                onClose={() => setRespondModal(prev => ({ ...prev, open: false }))}
+                message={respondModal.message}
+            />
         </div>
     );
 }

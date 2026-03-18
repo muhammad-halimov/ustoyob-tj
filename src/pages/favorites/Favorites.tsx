@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { getAuthToken, getUserRole } from '../../utils/auth';
+import { getAuthToken, getUserRole, getUserData } from '../../utils/auth';
 import styles from './Favorite.module.scss';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../app/routers/routes';
@@ -16,6 +16,7 @@ import { EmptyState } from '../../widgets/EmptyState';
 import { ProfileHeader } from '../profile/shared/ui/ProfileHeader';
 import Review from '../../shared/ui/Modal/Review';
 import Complaint from '../../shared/ui/Modal/Complaint';
+import Status from '../../shared/ui/Modal/Status';
 import { Back } from '../../shared/ui/Button/Back/Back.tsx';
 
 interface FavoriteTicket {
@@ -199,6 +200,11 @@ type SortByType = 'newest' | 'oldest' | 'price-asc' | 'price-desc' | 'reviews-as
 type SecondarySortByType = 'none' | SortByType;
 type TimeFilterType = 'all' | 'today' | 'yesterday' | 'week' | 'month';
 
+const FAV_FILTERS_KEY = 'fav-filters';
+function getFavSession(): Record<string, unknown> | null {
+    try { const r = sessionStorage.getItem(FAV_FILTERS_KEY); return r ? JSON.parse(r) : null; } catch { return null; }
+}
+
 function Favorites() {
     const [favoriteTickets, setFavoriteTickets] = useState<FavoriteTicket[]>([]);
     const [favoriteUsers, setFavoriteUsers] = useState<FavoriteUser[]>([]);
@@ -209,12 +215,21 @@ function Favorites() {
     const [isLikeLoading, setIsLikeLoading] = useState<number | null>(null);
     const [favoriteId, setFavoriteId] = useState<number | null>(null);
 
-    // Фильтры
-    const [showOnlyServices, setShowOnlyServices] = useState(false);
-    const [showOnlyAnnouncements, setShowOnlyAnnouncements] = useState(false);
-    const [sortBy, setSortBy] = useState<SortByType>('newest');
-    const [secondarySortBy, setSecondarySortBy] = useState<SecondarySortByType>('none');
-    const [timeFilter, setTimeFilter] = useState<TimeFilterType>('all');
+    // Фильтры — восстанавливаем из sessionStorage
+    const [_favSession] = useState(() => getFavSession());
+    const [showOnlyServices, setShowOnlyServices] = useState<boolean>(() => (_favSession?.showOnlyServices as boolean) ?? false);
+    const [showOnlyAnnouncements, setShowOnlyAnnouncements] = useState<boolean>(() => (_favSession?.showOnlyAnnouncements as boolean) ?? false);
+    const [sortBy, setSortBy] = useState<SortByType>(() => ((_favSession?.sortBy as string) || 'newest') as SortByType);
+    const [secondarySortBy, setSecondarySortBy] = useState<SecondarySortByType>(() => ((_favSession?.secondarySortBy as string) || 'none') as SecondarySortByType);
+    const [timeFilter, setTimeFilter] = useState<TimeFilterType>(() => ((_favSession?.timeFilter as string) || 'all') as TimeFilterType);
+    // Персистенция фильтров
+    useEffect(() => {
+        try { sessionStorage.setItem(FAV_FILTERS_KEY, JSON.stringify({ showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter })); } catch { /* ignore */ }
+    }, [showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter]);
+    // Состояния отклика
+    const [respondedTickets, setRespondedTickets] = useState<Set<number>>(new Set());
+    const [respondingTicketId, setRespondingTicketId] = useState<number | null>(null);
+    const [respondModal, setRespondModal] = useState<{ open: boolean; type: 'success' | 'error'; message: string }>({ open: false, type: 'success', message: '' });
 
     const handleServiceToggle = () => {
         setShowOnlyServices(prev => !prev);
@@ -227,13 +242,55 @@ function Favorites() {
     };
     const navigate = useNavigate();
     const userRole = getUserRole();
+    const currentUserId = getUserData()?.id;
     const { t } = useTranslation(['components', 'common']);
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
     
     // Загрузка избранного при монтировании
     useEffect(() => {
         fetchFavorites();
+        // Проверяем существующие чаты для постоянного состояния отклика
+        const token = getAuthToken();
+        if (token) {
+            (async () => {
+                try {
+                    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/chats/me`, {
+                        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+                    });
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    const chats: any[] = data['hydra:member'] || (Array.isArray(data) ? data : []);
+                    const ids = new Set<number>();
+                    chats.forEach((chat: any) => {
+                        const t = chat.ticket;
+                        const cid = t?.id ?? (() => { const m = String(t?.['@id'] || '').match(/\/\d+$/); return m ? parseInt(m[0].slice(1)) : null; })();
+                        if (cid) ids.add(cid);
+                    });
+                    if (ids.size > 0) setRespondedTickets(ids);
+                } catch { /* ignore */ }
+            })();
+        }
     }, []);
+
+    const handleRespondCard = async (ticketId: number, authorId: number) => {
+        const token = getAuthToken();
+        if (!token) return;
+        if (respondedTickets.has(ticketId) || respondingTicketId === ticketId) return;
+        setRespondingTicketId(ticketId);
+        try {
+            const chat = await createChatWithAuthor(authorId, ticketId);
+            if (chat) {
+                setRespondedTickets(prev => new Set(prev).add(ticketId));
+                setRespondModal({ open: true, type: 'success', message: 'Вы успешно откликнулись!' });
+            } else {
+                setRespondModal({ open: true, type: 'error', message: 'Не удалось откликнуться. Попробуйте ещё раз.' });
+            }
+        } catch {
+            setRespondModal({ open: true, type: 'error', message: 'Не удалось откликнуться. Попробуйте ещё раз.' });
+        } finally {
+            setRespondingTicketId(null);
+        }
+    };
     
     // Хук для реактивного обновления при смене языка
     useLanguageChange(() => {
@@ -1185,6 +1242,9 @@ function Favorites() {
                         authorImage={ticket.authorImage}
                         negotiableBudget={ticket.negotiableBudget}
                         onClick={() => handleCardClick(ticket.authorId, ticket.id)}
+                        onRespondClick={ticket.authorId !== currentUserId ? (e) => { e.stopPropagation(); handleRespondCard(ticket.id, ticket.authorId); } : undefined}
+                        isResponded={respondedTickets.has(ticket.id)}
+                        isRespondLoading={respondingTicketId === ticket.id}
                     />
                 ))}
 
@@ -1251,6 +1311,12 @@ function Favorites() {
                     targetUserId={complaintUserId}
                 />
             )}
+            <Status
+                type={respondModal.type}
+                isOpen={respondModal.open}
+                onClose={() => setRespondModal(prev => ({ ...prev, open: false }))}
+                message={respondModal.message}
+            />
         </div>
     );
 }

@@ -116,7 +116,7 @@ export default function Category() {
     if (loading) {
         return (
             <div className={styles.category}>
-                <h3>{t('category:title', 'Категории')}</h3>
+                <h3 className={styles.category_title}>{t('category:title', 'Категории')}</h3>
                 <PageLoader text={t('category:loading', 'Загрузка категорий...')} fullPage={false} />
             </div>
         );
@@ -126,8 +126,8 @@ export default function Category() {
     if (!loading && categories.length === 0) {
         return (
             <div className={styles.category}>
-                <h3>{t('category:title', 'Категории')}</h3>
-                <EmptyState title={t('category:noCategories', 'Нет доступных категорий')} />
+                <h3 className={styles.category_title}>{t('category:title', 'Категории')}</h3>
+                <EmptyState title={t('category:noCategories', 'Нет доступных категорий')} onRefresh={fetchCategories} />
             </div>
         );
     }
@@ -187,7 +187,7 @@ export default function Category() {
 
     return (
         <div className={styles.category}>
-            <h3>{t('category:title', 'Категории')}</h3>
+            <h3 className={styles.category_title}>{t('category:title', 'Категории')}</h3>
 
             {/* Поле поиска */}
             <div className={styles.category_search}>

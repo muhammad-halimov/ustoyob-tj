@@ -24,8 +24,8 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
             return savedTheme;
         }
 
-        // Если нет сохраненной темы, всегда используем светлую тему
-        return 'light';
+        // Если нет сохраненной темы, используем тёмную тему
+        return 'dark';
     });
 
     // Применяем тему к документу

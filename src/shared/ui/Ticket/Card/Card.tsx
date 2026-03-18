@@ -48,6 +48,9 @@ interface AnnouncementCardProps {
   photos?: string[];
   authorImage?: string;
   negotiableBudget?: boolean;
+  onRespondClick?: (e: React.MouseEvent) => void;
+  isResponded?: boolean;
+  isRespondLoading?: boolean;
 }
 
 // truncateText moved to src/utils/textHelper.ts
@@ -179,7 +182,10 @@ export function Card({
   onActiveToggle,
   photos,
   authorImage,
-  negotiableBudget
+  negotiableBudget,
+  onRespondClick,
+  isResponded = false,
+  isRespondLoading = false,
 }: AnnouncementCardProps) {
   const { t, i18n } = useTranslation('components');
   const [, forceUpdate] = useState({});
@@ -321,7 +327,18 @@ export function Card({
       </div>
       <div className={`${styles.card_header} ${displayTicketType ? styles.with_ticket_type : ''}`}>
         <div className={styles.card_title}><Marquee text={translatedTitle} alwaysScroll/></div>
-        <span className={styles.card_price}>{(negotiableBudget && !price) ? t('app.negotiablePrice') : `${price != null ? price.toLocaleString('ru-RU') : '—'} TJS, ${unit}`}</span>
+        {onRespondClick && (
+          <button
+            className={`${styles.card_respond_button} ${styles.card_respond_desktop} ${isResponded ? styles.card_respond_done : ''}`}
+            onClick={(e) => { e.stopPropagation(); if (!isResponded && !isRespondLoading) onRespondClick(e); }}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
+            disabled={isResponded || isRespondLoading}
+          >
+            {isRespondLoading ? '...' : isResponded ? t('app.responded') : t('app.respond')}
+          </button>
+        )}
+        <span className={styles.card_price}>{(negotiableBudget && !price) ? t('app.negotiablePrice') : `${price != null ? price.toLocaleString('ru-RU') : '—'} TJS, ${unit || 'N/A'}`}</span>
       </div>
 
       {photos && photos.length > 0 ? (
@@ -426,6 +443,17 @@ export function Card({
             {category && <span className={styles.card_category}>{truncateText(category, 30)}</span>}
             {subcategory && <span className={styles.card_subcategory}>{truncateText(subcategory, 30)}</span>}
           </div>
+          {onRespondClick && (
+            <button
+              className={`${styles.card_respond_button} ${styles.card_respond_mobile} ${isResponded ? styles.card_respond_done : ''}`}
+              onClick={(e) => { e.stopPropagation(); if (!isResponded && !isRespondLoading) onRespondClick(e); }}
+              onTouchStart={(e) => e.stopPropagation()}
+              onTouchEnd={(e) => e.stopPropagation()}
+              disabled={isResponded || isRespondLoading}
+            >
+              {isRespondLoading ? '...' : isResponded ? t('app.responded') : t('app.respond')}
+            </button>
+          )}
           {formattedTimeAgo && <span className={styles.card_timeAgo}>{formattedTimeAgo}</span>}
         </div>
       </div>

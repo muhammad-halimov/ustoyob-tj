@@ -6,6 +6,8 @@ import { Card } from '../../../shared/ui/Ticket/Card/Card.tsx';
 import styles from './Recommendations.module.scss';
 import { useTranslation } from 'react-i18next';
 import { ROUTES } from '../../../app/routers/routes.ts';
+import { createChatWithAuthor } from '../../../utils/chatUtils';
+import Status from '../../../shared/ui/Modal/Status';
 
 import { EmptyState } from '../../../widgets/EmptyState';
 import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore.tsx';
@@ -88,6 +90,51 @@ function Recommendations() {
     const navigate = useNavigate();
     const { t, i18n } = useTranslation('components');
     const locale = i18n.language;
+    // Respond state
+    const [respondedTickets, setRespondedTickets] = useState<Set<number>>(new Set());
+    const [respondingTicketId, setRespondingTicketId] = useState<number | null>(null);
+    const [respondModal, setRespondModal] = useState<{ open: boolean; type: 'success' | 'error'; message: string }>({ open: false, type: 'success', message: '' });
+    // Check existing chats on mount
+    useEffect(() => {
+        const token = getAuthToken();
+        if (!token) return;
+        (async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/chats/me`, {
+                    headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                const chats: any[] = data['hydra:member'] || (Array.isArray(data) ? data : []);
+                const ids = new Set<number>();
+                chats.forEach((chat: any) => {
+                    const t = chat.ticket;
+                    const cid = t?.id ?? (() => { const m = String(t?.['@id'] || '').match(/\/\d+$/); return m ? parseInt(m[0].slice(1)) : null; })();
+                    if (cid) ids.add(cid);
+                });
+                if (ids.size > 0) setRespondedTickets(ids);
+            } catch { /* ignore */ }
+        })();
+    }, []);
+    const handleRespondCard = async (ticketId: number, authorId: number) => {
+        const token = getAuthToken();
+        if (!token) return;
+        if (respondedTickets.has(ticketId) || respondingTicketId === ticketId) return;
+        setRespondingTicketId(ticketId);
+        try {
+            const chat = await createChatWithAuthor(authorId, ticketId);
+            if (chat) {
+                setRespondedTickets(prev => new Set(prev).add(ticketId));
+                setRespondModal({ open: true, type: 'success', message: 'Вы успешно откликнулись!' });
+            } else {
+                setRespondModal({ open: true, type: 'error', message: 'Не удалось откликнуться. Попробуйте ещё раз.' });
+            }
+        } catch {
+            setRespondModal({ open: true, type: 'error', message: 'Не удалось откликнуться. Попробуйте ещё раз.' });
+        } finally {
+            setRespondingTicketId(null);
+        }
+    };
 
     const fetchRecentAnnouncements = useCallback(async () => {
         try {
@@ -266,6 +313,7 @@ function Recommendations() {
     };
 
     return (
+    <>
         <div className={styles.recommendation}>
             <div className={styles.recommendation__wrap}>
                 <h3 className={styles.recommendation__title}>{t('pages.recommendations.title')}</h3>
@@ -300,11 +348,14 @@ function Recommendations() {
                                 })()}
                                 negotiableBudget={announcement.negotiableBudget}
                                 onClick={() => handleCardClick(announcement.id)}
+                                onRespondClick={(e) => { e.stopPropagation(); handleRespondCard(announcement.id, getAuthorId(announcement)!); }}
+                                isResponded={respondedTickets.has(announcement.id)}
+                                isRespondLoading={respondingTicketId === announcement.id}
                             />
                         ))}
                     </div>
                 ) : (
-                    <EmptyState />
+                    <EmptyState onRefresh={fetchRecentAnnouncements} />
                 )}
                 {!isLoading && announcements.length > 3 && (
                     <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
@@ -318,6 +369,13 @@ function Recommendations() {
                 )}
             </div>
         </div>
+        <Status
+            type={respondModal.type}
+            isOpen={respondModal.open}
+            onClose={() => setRespondModal(prev => ({ ...prev, open: false }))}
+            message={respondModal.message}
+        />
+    </>
     );
 }
 

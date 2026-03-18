@@ -35,7 +35,9 @@
     "defaultUser": "Истифода бар",
     "defaultMaster": "Намуна",
     "defaultClient": "Муштарӣ",
-    "negotiablePrice": "Нарх шартномавӣ"
+    "negotiablePrice": "Нарх шартномавӣ",
+    "respond": "Посух додан",
+    "responded": "Посух дода шуд ✅"
   },
   "validation": {
     "required": "Ин майдон ҳатмӣ аст",

@@ -1,7 +1,7 @@
 import styles from './Search.module.scss';
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import FilterPanel, { FilterState } from "../filters/FilterPanel.tsx";
-import { getAuthToken, getUserRole } from "../../../utils/auth.ts";
+import { getAuthToken, getUserRole, getUserData } from "../../../utils/auth.ts";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from '../../../app/routers/routes.ts';
 import {textHelper} from "../../../utils/textHelper.ts";
@@ -10,7 +10,11 @@ import { useLanguageChange } from "../../../hooks";
 import { Card } from "../../../shared/ui/Ticket/Card/Card.tsx";
 import { ServiceTypeFilter } from "../../../widgets/Sorting/ServiceTypeFilter";
 import { SortingFilter } from "../../../widgets/Sorting/SortingFilter";
+import { createChatWithAuthor } from '../../../utils/chatUtils';
 import { getCities, getOccupations } from "../../../utils/dataCache.ts";
+import { PageLoader } from '../../../widgets/PageLoader';
+import { EmptyState } from '../../../widgets/EmptyState';
+import Status from '../../../shared/ui/Modal/Status';
 
 // Интерфейсы
 interface ApiTicket {
@@ -154,35 +158,49 @@ interface City {
     name: string;
 }
 
+const SEARCH_SESSION_KEY = 'search-state';
+
+function getSearchSession(): Record<string, unknown> | null {
+    try {
+        const raw = sessionStorage.getItem(SEARCH_SESSION_KEY);
+        return raw ? JSON.parse(raw) as Record<string, unknown> : null;
+    } catch { return null; }
+}
+
 export default function Search({ onSearchResults, onFilterToggle }: SearchProps) {
     const { t } = useTranslation('components');
-    const [showFilters, setShowFilters] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
+    // Restore from session on mount (survives back-navigation)
+    const initSessionRef = useRef(getSearchSession());
+    const [showFilters, setShowFilters] = useState<boolean>(() => (initSessionRef.current?.showFilters as boolean) ?? false);
+    const [searchQuery, setSearchQuery] = useState<string>(() => (initSessionRef.current?.searchQuery as string) ?? '');
     const [selectedCity, setSelectedCity] = useState<string>(() => {
         return localStorage.getItem('selectedCity') || '';
     });
-    const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-    const [showResults, setShowResults] = useState(false);
-    const [filters, setFilters] = useState<FilterState>({
-        minPrice: '',
-        maxPrice: '',
-        category: '',
-        subcategory: '', // Добавляем подкатегорию
-        rating: '',
-        reviewCount: '',
-        sortBy: '',
-        city: '' // Добавляем город в фильтры
+    const [searchResults, setSearchResults] = useState<SearchResult[]>(() => (initSessionRef.current?.searchResults as SearchResult[]) ?? []);
+    const [showResults, setShowResults] = useState<boolean>(() => (initSessionRef.current?.showResults as boolean) ?? false);
+    const [filters, setFilters] = useState<FilterState>(() => {
+        const saved = initSessionRef.current?.filters as FilterState | undefined;
+        return saved ?? {
+            minPrice: '',
+            maxPrice: '',
+            category: '',
+            subcategory: '',
+            rating: '',
+            reviewCount: '',
+            sortBy: '',
+            city: ''
+        };
     });
     const [isLoading, setIsLoading] = useState(false);
     const [categories, setCategories] = useState<Category[]>([]);
     const [occupations, setOccupations] = useState<Occupation[]>([]);
-    const [cities, setCities] = useState<City[]>([]); // Состояние для городов
+    const [cities, setCities] = useState<City[]>([]);
     const [userRole, setUserRole] = useState<'client' | 'master' | null>(null);
-    const [showOnlyServices, setShowOnlyServices] = useState(false);
-    const [showOnlyAnnouncements, setShowOnlyAnnouncements] = useState(false);
-    const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'price-asc' | 'price-desc' | 'reviews-asc' | 'reviews-desc' | 'rating-asc' | 'rating-desc'>('newest');
-    const [secondarySortBy, setSecondarySortBy] = useState<'none' | 'newest' | 'oldest' | 'price-asc' | 'price-desc' | 'reviews-asc' | 'reviews-desc' | 'rating-asc' | 'rating-desc'>('none');
-    const [timeFilter, setTimeFilter] = useState<'all' | 'today' | 'yesterday' | 'week' | 'month'>('all');
+    const [showOnlyServices, setShowOnlyServices] = useState<boolean>(() => (initSessionRef.current?.showOnlyServices as boolean) ?? false);
+    const [showOnlyAnnouncements, setShowOnlyAnnouncements] = useState<boolean>(() => (initSessionRef.current?.showOnlyAnnouncements as boolean) ?? false);
+    const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'price-asc' | 'price-desc' | 'reviews-asc' | 'reviews-desc' | 'rating-asc' | 'rating-desc'>(() => ((initSessionRef.current?.sortBy as string) || 'newest') as 'newest' | 'oldest' | 'price-asc' | 'price-desc' | 'reviews-asc' | 'reviews-desc' | 'rating-asc' | 'rating-desc');
+    const [secondarySortBy, setSecondarySortBy] = useState<'none' | 'newest' | 'oldest' | 'price-asc' | 'price-desc' | 'reviews-asc' | 'reviews-desc' | 'rating-asc' | 'rating-desc'>(() => ((initSessionRef.current?.secondarySortBy as string) || 'none') as 'none' | 'newest' | 'oldest' | 'price-asc' | 'price-desc' | 'reviews-asc' | 'reviews-desc' | 'rating-asc' | 'rating-desc');
+    const [timeFilter, setTimeFilter] = useState<'all' | 'today' | 'yesterday' | 'week' | 'month'>(() => ((initSessionRef.current?.timeFilter as string) || 'all') as 'all' | 'today' | 'yesterday' | 'week' | 'month');
     const navigate = useNavigate();
 
     const previousSearchRef = useRef<{
@@ -195,8 +213,8 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         secondarySortBy: string;
         timeFilter: string;
     }>({
-        query: '',
-        filters: {
+        query: (initSessionRef.current?.searchQuery as string) ?? '',
+        filters: (initSessionRef.current?.filters as FilterState) ?? {
             minPrice: '',
             maxPrice: '',
             category: '',
@@ -207,11 +225,11 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             city: ''
         },
         userRole: null,
-        showOnlyServices: false,
-        showOnlyAnnouncements: false,
-        sortBy: 'newest',
-        secondarySortBy: 'none',
-        timeFilter: 'all'
+        showOnlyServices: (initSessionRef.current?.showOnlyServices as boolean) ?? false,
+        showOnlyAnnouncements: (initSessionRef.current?.showOnlyAnnouncements as boolean) ?? false,
+        sortBy: (initSessionRef.current?.sortBy as string) ?? 'newest',
+        secondarySortBy: (initSessionRef.current?.secondarySortBy as string) ?? 'none',
+        timeFilter: (initSessionRef.current?.timeFilter as string) ?? 'all',
     });
 
     // Функция для загрузки городов из API
@@ -947,11 +965,85 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         }
     }, [searchQuery, filters, userRole, fetchAllTickets, onSearchResults]);
 
+    const handleForceRefresh = useCallback(async () => {
+        if (isSearchInProgressRef.current) return;
+        isSearchInProgressRef.current = true;
+        try {
+            const results = await fetchAllTickets(searchQuery, filters);
+            setSearchResults(results);
+            setShowResults(true);
+            onSearchResults(results);
+            previousSearchRef.current = {
+                query: searchQuery.trim(),
+                filters,
+                userRole,
+                showOnlyServices,
+                showOnlyAnnouncements,
+                sortBy,
+                secondarySortBy,
+                timeFilter
+            };
+        } catch (error) {
+            console.error('Force refresh error:', error);
+        } finally {
+            isSearchInProgressRef.current = false;
+        }
+    }, [searchQuery, filters, userRole, fetchAllTickets, onSearchResults, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter]);
+
     // Обработчики событий
     const handleCardClick = useCallback((ticketId?: number) => {
         if (!ticketId) return;
         navigate(ROUTES.TICKET_BY_ID(ticketId));
     }, [navigate]);
+
+    // Состояния для отклика на карточку (без перехода)
+    const [respondedTickets, setRespondedTickets] = useState<Set<number>>(new Set());
+    const [respondingTicketId, setRespondingTicketId] = useState<number | null>(null);
+    const [respondModal, setRespondModal] = useState<{ open: boolean; type: 'success' | 'error'; message: string }>({ open: false, type: 'success', message: '' });
+
+    // Проверяем существующие чаты при монтировании (постоянное состояние отклика)
+    useEffect(() => {
+        const token = getAuthToken();
+        if (!token) return;
+        (async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/chats/me`, {
+                    headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                const chats: any[] = data['hydra:member'] || (Array.isArray(data) ? data : []);
+                const ids = new Set<number>();
+                chats.forEach((chat: any) => {
+                    const t = chat.ticket;
+                    const id = t?.id ?? (() => { const m = String(t?.['@id'] || '').match(/\/\d+$/); return m ? parseInt(m[0].slice(1)) : null; })();
+                    if (id) ids.add(id);
+                });
+                if (ids.size > 0) setRespondedTickets(ids);
+            } catch { /* ignore */ }
+        })();
+    }, []);
+
+    const handleRespondCard = useCallback(async (ticketId: number, authorId: number) => {
+        const token = getAuthToken();
+        if (!token) return;
+        if (respondedTickets.has(ticketId) || respondingTicketId === ticketId) return;
+        setRespondingTicketId(ticketId);
+        try {
+            const chat = await createChatWithAuthor(authorId, ticketId);
+            if (chat) {
+                setRespondedTickets(prev => new Set(prev).add(ticketId));
+                setRespondModal({ open: true, type: 'success', message: t('messages.respondSuccess', 'Вы успешно откликнулись!') });
+            } else {
+                setRespondModal({ open: true, type: 'error', message: t('messages.respondError', 'Не удалось откликнуться. Попробуйте ещё раз.') });
+            }
+        } catch (e) {
+            console.error('Respond error:', e);
+            setRespondModal({ open: true, type: 'error', message: t('messages.respondError', 'Не удалось откликнуться. Попробуйте ещё раз.') });
+        } finally {
+            setRespondingTicketId(null);
+        }
+    }, [respondedTickets, respondingTicketId, t]);
 
     const handleFilterToggle = useCallback((isVisible: boolean) => {
         setShowFilters(isVisible);
@@ -1131,20 +1223,41 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 secondarySortBy: 'none',
                 timeFilter: 'all'
             };
+            sessionStorage.removeItem(SEARCH_SESSION_KEY);
         };
 
         window.addEventListener('resetAllStates', handleResetAllStates);
         return () => window.removeEventListener('resetAllStates', handleResetAllStates);
     }, []);
 
+    // Сохраняем состояние поиска в sessionStorage при каждом изменении
+    useEffect(() => {
+        try {
+            sessionStorage.setItem(SEARCH_SESSION_KEY, JSON.stringify({
+                searchQuery,
+                searchResults,
+                showResults,
+                showFilters,
+                filters,
+                showOnlyServices,
+                showOnlyAnnouncements,
+                sortBy,
+                secondarySortBy,
+                timeFilter,
+            }));
+        } catch { /* ignore quota errors */ }
+    }, [searchQuery, searchResults, showResults, showFilters, filters, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter]);
+
     // Мемоизированный рендер результатов
     const renderedResults = useMemo(() => {
+        const currentUserId = getUserData()?.id;
+
         if (isLoading) {
-            return <div className={styles.loading}><p>{t('app.loading')}</p></div>;
+            return <PageLoader fullPage={false} />;
         }
 
         if (searchResults.length === 0) {
-            return <div className={styles.noResults}><p>{t('messages.noResults')}</p></div>;
+            return <EmptyState title={t('messages.noResults')} onRefresh={handleForceRefresh} />;
         }
 
         return searchResults.map((result) => {
@@ -1178,10 +1291,13 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     authorImage={result.authorImage}
                     negotiableBudget={result.negotiableBudget}
                     onClick={() => handleCardClick(result.id)}
+                    onRespondClick={result.authorId !== currentUserId ? () => handleRespondCard(result.id, result.authorId!) : undefined}
+                    isResponded={respondedTickets.has(result.id)}
+                    isRespondLoading={respondingTicketId === result.id}
                 />
             );
         });
-    }, [isLoading, searchResults, userRole, handleCardClick, textHelper, t]);
+    }, [isLoading, searchResults, userRole, handleCardClick, textHelper, t, handleForceRefresh, handleRespondCard, respondedTickets, respondingTicketId]);
 
     return (
         <div className={`${styles.container} ${showFilters ? styles.containerExpanded : ''}`}>
@@ -1304,6 +1420,12 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     </div>
                 </div>
             </div>
+            <Status
+                type={respondModal.type}
+                isOpen={respondModal.open}
+                onClose={() => setRespondModal(prev => ({ ...prev, open: false }))}
+                message={respondModal.message}
+            />
         </div>
     );
 }

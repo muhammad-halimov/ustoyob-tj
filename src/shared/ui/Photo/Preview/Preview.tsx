@@ -91,7 +91,15 @@ export const Preview: React.FC<PhotoGalleryProps> = ({
     };
 
     const modalContent = (
-        <div className={styles.photo_modal_overlay} onClick={onClose}>
+        <div
+            className={styles.photo_modal_overlay}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+                e.stopPropagation();
+                e.nativeEvent.stopImmediatePropagation();
+                onClose();
+            }}
+        >
             <div className={styles.photo_modal_content}>
                 <button
                     className={styles.photo_modal_close}

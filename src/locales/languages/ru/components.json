@@ -35,7 +35,9 @@
     "defaultUser": "Пользователь",
     "defaultMaster": "Специалист",
     "defaultClient": "Заказчик",
-    "negotiablePrice": "Цена договорная"
+    "negotiablePrice": "Цена договорная",
+    "respond": "Откликнуться",
+    "responded": "Откликнулся ✅"
   },
   "validation": {
     "required": "Это поле обязательно",
