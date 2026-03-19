@@ -96,7 +96,10 @@ use Symfony\Component\Validator\Constraints as Assert;
             input: TicketPatchInput::class,
         ),
     ],
-    paginationEnabled: false,
+    paginationClientItemsPerPage: true,
+    paginationEnabled: true,
+    paginationItemsPerPage: 25,
+    paginationMaximumItemsPerPage: 50,
 )]
 #[ApiFilter(BooleanFilter::class, properties: ['active', 'service', 'negotiableBudget'])]
 #[ApiFilter(ExistsFilter::class, properties: ['master', 'author'])]

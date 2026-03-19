@@ -58,7 +58,10 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             input: ImageInput::class,
         ),
     ],
-    paginationEnabled: false,
+    paginationClientItemsPerPage: true,
+    paginationEnabled: true,
+    paginationItemsPerPage: 25,
+    paginationMaximumItemsPerPage: 50,
 )]
 #[ApiFilter(SearchFilter::class, properties: [
     'title' => 'partial',

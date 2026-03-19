@@ -168,7 +168,10 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
             name: 'users_offline',
         ),
     ],
-    paginationEnabled: false,
+    paginationClientItemsPerPage: true,
+    paginationEnabled: true,
+    paginationItemsPerPage: 25,
+    paginationMaximumItemsPerPage: 50,
 )]
 #[ApiFilter(BooleanFilter::class, properties: ['active', 'atHome'])]
 #[ApiFilter(RangeFilter::class, properties: ['rating'])]

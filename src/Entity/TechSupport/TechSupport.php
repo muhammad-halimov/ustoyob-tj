@@ -69,7 +69,10 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             'techSupport:read',
         ],
     ],
-    paginationEnabled: false,
+    paginationClientItemsPerPage: true,
+    paginationEnabled: true,
+    paginationItemsPerPage: 25,
+    paginationMaximumItemsPerPage: 50,
 )]
 class TechSupport
 {

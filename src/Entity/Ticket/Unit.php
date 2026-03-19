@@ -35,7 +35,10 @@ use Symfony\Component\Serializer\Attribute\Ignore;
         'groups' => ['units:read'],
         'skip_null_values' => false,
     ],
-    paginationEnabled: false,
+    paginationClientItemsPerPage: true,
+    paginationEnabled: true,
+    paginationItemsPerPage: 25,
+    paginationMaximumItemsPerPage: 50,
 )]
 class Unit
 {

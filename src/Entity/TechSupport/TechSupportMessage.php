@@ -40,7 +40,10 @@ use Symfony\Component\Serializer\Attribute\Groups;
         'groups' => ['techSupportMessages:read'],
         'skip_null_values' => false,
     ],
-    paginationEnabled: false,
+    paginationClientItemsPerPage: true,
+    paginationEnabled: true,
+    paginationItemsPerPage: 25,
+    paginationMaximumItemsPerPage: 50,
 )]
 class TechSupportMessage
 {

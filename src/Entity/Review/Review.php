@@ -80,7 +80,10 @@ use Symfony\Component\Validator\Constraints as Assert;
         'groups' => ['reviews:read', 'reviewsClient:read'],
         'skip_null_values' => false,
     ],
-    paginationEnabled: false,
+    paginationClientItemsPerPage: true,
+    paginationEnabled: true,
+    paginationItemsPerPage: 25,
+    paginationMaximumItemsPerPage: 50,
 )]
 #[ApiFilter(BooleanFilter::class, properties: ['services.service'])]
 #[ApiFilter(ExistsFilter::class, properties: ['services', 'master', 'client', 'services', 'reviewImages',])]

@@ -51,7 +51,10 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
         'groups' => ['categories:read'],
         'skip_null_values' => false,
     ],
-    paginationEnabled: false,
+    paginationClientItemsPerPage: true,
+    paginationEnabled: true,
+    paginationItemsPerPage: 25,
+    paginationMaximumItemsPerPage: 50,
 )]
 #[ApiFilter(SearchFilter::class, properties: ['occupations', 'description' => 'partial', 'title'])]
 class Category

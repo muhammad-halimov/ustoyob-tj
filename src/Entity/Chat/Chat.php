@@ -86,7 +86,10 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             controller: DeleteChatController::class,
         )
     ],
-    paginationEnabled: false,
+    paginationClientItemsPerPage: true,
+    paginationEnabled: true,
+    paginationItemsPerPage: 25,
+    paginationMaximumItemsPerPage: 50,
 )]
 class Chat
 {

@@ -70,7 +70,10 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
             controller: DeleteChatMessageController::class,
         )
     ],
-    paginationEnabled: false,
+    paginationClientItemsPerPage: true,
+    paginationEnabled: true,
+    paginationItemsPerPage: 25,
+    paginationMaximumItemsPerPage: 50,
 )]
 class ChatMessage
 {
