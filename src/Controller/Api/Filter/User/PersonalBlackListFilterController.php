@@ -2,7 +2,7 @@
 
 namespace App\Controller\Api\Filter\User;
 
-use App\Entity\Extra\Favorite;
+use App\Entity\Extra\BlackList;
 use App\Entity\User;
 use App\Repository\User\BlackListRepository;
 use App\Service\Extra\AccessService;
@@ -25,11 +25,11 @@ class PersonalBlackListFilterController extends AbstractController
 
         $this->accessService->check($bearerUser);
 
-        /** @var Favorite $favorite */
-        $favorite = $this->blackListRepository->findBlackLists($bearerUser)[0] ?? null;
+        /** @var BlackList[] $favorites */
+        $favorites = $this->blackListRepository->findBlackLists($bearerUser)[0] ?? null;
 
-        return empty($favorite)
+        return empty($favorites)
             ? $this->json(['message' => 'Resource not found'], 404)
-            : $this->json($favorite, context: ['groups' => ['blackLists:read']]);
+            : $this->json($favorites, context: ['groups' => ['blackLists:read']]);
     }
 }

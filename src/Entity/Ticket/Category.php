@@ -38,6 +38,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
         ),
         new GetCollection(
             uriTemplate: '/categories',
+            provider: CategoryTitleLocalizationProvider::class,
         ),
         new Post(
             uriTemplate: '/categories',

@@ -28,8 +28,12 @@ class PersonalFavoriteFilterController extends AbstractController
 
         $this->accessService->check($bearerUser);
 
-        /** @var Favorite $favorite */
+        /** @var Favorite|null $favorite */
         $favorite = $this->favoriteRepository->findUserFavorites($bearerUser)[0] ?? null;
+
+        if (!$favorite) {
+            return $this->json(['message' => 'Resource not found'], 404);
+        }
 
         $locale = $request->query->get('locale', 'tj');
 

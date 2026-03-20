@@ -38,7 +38,10 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
         'groups' => ['cities:read'],
         'skip_null_values' => false,
     ],
-    paginationEnabled: false,
+    paginationClientItemsPerPage: true,
+    paginationEnabled: true,
+    paginationItemsPerPage: 25,
+    paginationMaximumItemsPerPage: 50,
 )]
 class City extends AddressComponent
 {

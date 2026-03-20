@@ -38,7 +38,10 @@ use Symfony\Component\HttpFoundation\File\File;
         'groups' => ['districts:read'],
         'skip_null_values' => false,
     ],
-    paginationEnabled: false,
+    paginationClientItemsPerPage: true,
+    paginationEnabled: true,
+    paginationItemsPerPage: 25,
+    paginationMaximumItemsPerPage: 50,
 )]
 class District extends AddressComponent
 {

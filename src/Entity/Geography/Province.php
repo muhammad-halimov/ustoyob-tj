@@ -53,18 +53,12 @@ class Province extends AddressComponent
      * @var Collection<int, City>
      */
     #[ORM\OneToMany(targetEntity: City::class, mappedBy: 'province', cascade: ['persist'])]
-    #[Groups([
-        'provinces:read',
-    ])]
     private Collection $cities;
 
     /**
      * @var Collection<int, District>
      */
     #[ORM\OneToMany(targetEntity: District::class, mappedBy: 'province', cascade: ['persist'])]
-    #[Groups([
-        'provinces:read',
-    ])]
     private Collection $districts;
 
     /**
