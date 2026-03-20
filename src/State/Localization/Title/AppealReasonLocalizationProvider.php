@@ -2,39 +2,19 @@
 
 namespace App\State\Localization\Title;
 
-use ApiPlatform\Metadata\Operation;
-use ApiPlatform\State\ProviderInterface;
 use App\Entity\Appeal\AppealReason;
-use App\Entity\Extra\Translation;
-use App\Service\Extra\LocalizationService;
-use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use App\State\Localization\AbstractLocalizationProvider;
 
-readonly class AppealReasonLocalizationProvider implements ProviderInterface
+readonly class AppealReasonLocalizationProvider extends AbstractLocalizationProvider
 {
-    public function __construct(
-        private ProviderInterface   $decorated,
-        private RequestStack        $requestStack,
-        private LocalizationService $localizationService,
-    ) {}
-
-    public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
+    protected function supports(object $entity): bool
     {
-        $result = $this->decorated->provide($operation, $uriVariables, $context);
+        return $entity instanceof AppealReason;
+    }
 
-        $request = $this->requestStack->getCurrentRequest();
-        $locale = $request?->query->get('locale', 'tj') ?? 'tj';
-
-        if (!in_array($locale, array_values(Translation::LOCALES))) {
-            throw new NotFoundHttpException("Locale not found");
-        }
-
-        foreach ($result as $entity) {
-            if ($entity instanceof AppealReason) {
-                $this->localizationService->localizeEntity($entity, $locale);
-            }
-        }
-
-        return $result;
+    protected function localize(object $entity, string $locale): void
+    {
+        /** @var AppealReason $entity */
+        $this->localizationService->localizeEntity($entity, $locale);
     }
 }

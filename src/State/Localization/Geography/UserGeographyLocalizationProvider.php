@@ -2,56 +2,19 @@
 
 namespace App\State\Localization\Geography;
 
-use ApiPlatform\Metadata\GetCollection;
-use ApiPlatform\Metadata\Operation;
-use ApiPlatform\State\ProviderInterface;
-use App\Entity\Extra\Translation;
 use App\Entity\User;
-use App\Service\Extra\LocalizationService;
-use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use App\State\Localization\AbstractLocalizationProvider;
 
-readonly class UserGeographyLocalizationProvider implements ProviderInterface
+readonly class UserGeographyLocalizationProvider extends AbstractLocalizationProvider
 {
-    public function __construct(
-        private ProviderInterface $decorated,
-        private RequestStack $requestStack,
-        private LocalizationService $localizationService,
-    ) {}
-
-    public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
+    protected function supports(object $entity): bool
     {
-        // Получаем данные от стандартного провайдера (с применением всех фильтров)
-        $result = $this->decorated->provide($operation, $uriVariables, $context);
-
-        $request = $this->requestStack->getCurrentRequest();
-        $locale = $request?->query->get('locale', 'tj') ?? 'tj';
-
-        if (!in_array($locale, array_values(Translation::LOCALES))) {
-            throw new NotFoundHttpException("Locale not found");
-        }
-
-        if ($operation instanceof GetCollection) {
-            // Коллекция — итерируем и локализуем каждого юзера
-            foreach ($result as $entity) {
-                if ($entity instanceof User) {
-                    $this->localizeUser($entity, $locale);
-                }
-            }
-            return $result;
-        } else {
-            // Одиночный Get — декоратор может вернуть массив, анврапим
-            $user = is_array($result) ? ($result[0] ?? null) : $result;
-            if ($user instanceof User) {
-                $this->localizeUser($user, $locale);
-            }
-            return $user;
-        }
+        return $entity instanceof User;
     }
 
-    // Локализуем географию и специализации юзера
-    private function localizeUser(User $entity, string $locale): void
+    protected function localize(object $entity, string $locale): void
     {
+        /** @var User $entity */
         $this->localizationService->localizeGeography($entity, $locale);
 
         foreach ($entity->getOccupation() as $occupation) {

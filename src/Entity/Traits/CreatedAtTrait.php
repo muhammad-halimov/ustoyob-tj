@@ -13,6 +13,10 @@ trait CreatedAtTrait
         'legals:read',
         'chats:read',
 
+        'masterTickets:read',
+        'clientTickets:read',
+        'favorites:read',
+
         'users:me:read',
     ])]
     protected DateTimeImmutable $createdAt;

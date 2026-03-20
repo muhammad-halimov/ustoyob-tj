@@ -26,11 +26,12 @@ use App\Entity\Extra\BlackList;
 use App\Entity\Extra\Favorite;
 use App\Entity\Geography\Address;
 use App\Entity\Review\Review;
+use App\Entity\Traits\CreatedAtTrait;
+use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
 use App\Entity\User\Occupation;
 use App\Repository\TicketRepository;
 use App\State\Localization\Geography\TicketGeographyLocalizationProvider;
-use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
@@ -108,6 +109,8 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiFilter(RangeFilter::class, properties: ['budget', 'master.rating', 'author.rating'])]
 class Ticket
 {
+    use CreatedAtTrait, UpdatedAtTrait;
+
     public function __toString(): string
     {
         if (!$this->author && !$this->master) return $this->title;
@@ -353,22 +356,6 @@ class Ticket
     #[ORM\ManyToMany(targetEntity: BlackList::class, mappedBy: 'tickets')]
     #[Ignore]
     private Collection $ticketsBlackListedByAuthor;
-
-    #[ORM\Column(type: 'datetime', nullable: false)]
-    #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'favorites:read',
-    ])]
-    protected DateTime $createdAt;
-
-    #[ORM\Column(type: 'datetime', nullable: false)]
-    #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'favorites:read',
-    ])]
-    protected DateTime $updatedAt;
 
     public function getId(): ?int
     {
@@ -628,29 +615,6 @@ class Ticket
         }
 
         return $this;
-    }
-
-    public function getCreatedAt(): DateTime
-    {
-        return $this->createdAt;
-    }
-
-    #[ORM\PrePersist]
-    public function setCreatedAt(): void
-    {
-        $this->createdAt = new DateTime();
-    }
-
-    public function getUpdatedAt(): DateTime
-    {
-        return $this->updatedAt;
-    }
-
-    #[ORM\PreUpdate]
-    #[ORM\PrePersist]
-    public function setUpdatedAt(): void
-    {
-        $this->updatedAt = new DateTime();
     }
 
     /**

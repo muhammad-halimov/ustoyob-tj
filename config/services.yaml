@@ -1,3 +1,5 @@
+#file: noinspection YamlXmlServiceInstanceInspection
+
 # This file is the entry point to configure your own services.
 # Files in the packages/ subdirectory configure your dependencies.
 
@@ -25,59 +27,59 @@ services:
     # please note that last definitions always *replace* previous ones
 
     App\State\Localization\Geography\TicketGeographyLocalizationProvider:
-        decorates: 'api_platform.doctrine.orm.state.collection_provider'
+        autoconfigure: false
         arguments:
-            # noinspection MissingServiceYaml
-            $decorated: '@.inner'
+            $itemProvider: '@api_platform.doctrine.orm.state.item_provider'
+            $collectionProvider: '@api_platform.doctrine.orm.state.collection_provider'
         tags:
             - { name: 'api_platform.state_provider' }
 
     App\State\Localization\Geography\UserGeographyLocalizationProvider:
-        decorates: 'api_platform.doctrine.orm.state.collection_provider'
+        autoconfigure: false
         arguments:
-            # noinspection MissingServiceYaml
-            $decorated: '@.inner'
+            $itemProvider: '@api_platform.doctrine.orm.state.item_provider'
+            $collectionProvider: '@api_platform.doctrine.orm.state.collection_provider'
         tags:
             - { name: 'api_platform.state_provider' }
 
 
     App\State\Localization\Title\CategoryTitleLocalizationProvider:
-        decorates: 'api_platform.doctrine.orm.state.collection_provider'
+        autoconfigure: false
         arguments:
-            # noinspection MissingServiceYaml
-            $decorated: '@.inner'
+            $itemProvider: '@api_platform.doctrine.orm.state.item_provider'
+            $collectionProvider: '@api_platform.doctrine.orm.state.collection_provider'
         tags:
             - { name: 'api_platform.state_provider' }
 
     App\State\Localization\Title\OccupationTitleLocalizationProvider:
-        decorates: 'api_platform.doctrine.orm.state.collection_provider'
+        autoconfigure: false
         arguments:
-            # noinspection MissingServiceYaml
-            $decorated: '@.inner'
+            $itemProvider: '@api_platform.doctrine.orm.state.item_provider'
+            $collectionProvider: '@api_platform.doctrine.orm.state.collection_provider'
         tags:
             - { name: 'api_platform.state_provider' }
 
     App\State\Localization\Title\UnitTitleLocalizationProvider:
-        decorates: 'api_platform.doctrine.orm.state.collection_provider'
+        autoconfigure: false
         arguments:
-            # noinspection MissingServiceYaml
-            $decorated: '@.inner'
+            $itemProvider: '@api_platform.doctrine.orm.state.item_provider'
+            $collectionProvider: '@api_platform.doctrine.orm.state.collection_provider'
         tags:
             - { name: 'api_platform.state_provider' }
 
     App\State\Localization\Title\AppealReasonLocalizationProvider:
-        decorates: 'api_platform.doctrine.orm.state.collection_provider'
+        autoconfigure: false
         arguments:
-            # noinspection MissingServiceYaml
-            $decorated: '@.inner'
+            $itemProvider: '@api_platform.doctrine.orm.state.item_provider'
+            $collectionProvider: '@api_platform.doctrine.orm.state.collection_provider'
         tags:
             - { name: 'api_platform.state_provider' }
 
     App\State\Localization\Title\LegalLocalizationProvider:
-        decorates: 'api_platform.doctrine.orm.state.collection_provider'
+        autoconfigure: false
         arguments:
-            # noinspection MissingServiceYaml
-            $decorated: '@.inner'
+            $itemProvider: '@api_platform.doctrine.orm.state.item_provider'
+            $collectionProvider: '@api_platform.doctrine.orm.state.collection_provider'
         tags:
             - { name: 'api_platform.state_provider' }
 

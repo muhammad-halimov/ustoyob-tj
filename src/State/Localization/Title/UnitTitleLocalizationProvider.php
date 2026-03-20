@@ -2,42 +2,19 @@
 
 namespace App\State\Localization\Title;
 
-use ApiPlatform\Metadata\Operation;
-use ApiPlatform\State\ProviderInterface;
-use App\Entity\Extra\Translation;
 use App\Entity\Ticket\Unit;
-use App\Service\Extra\LocalizationService;
-use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use App\State\Localization\AbstractLocalizationProvider;
 
-readonly class UnitTitleLocalizationProvider implements ProviderInterface
+readonly class UnitTitleLocalizationProvider extends AbstractLocalizationProvider
 {
-    public function __construct(
-        private ProviderInterface $decorated,
-        private RequestStack $requestStack,
-        private LocalizationService $localizationService,
-    ) {}
-
-    public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
+    protected function supports(object $entity): bool
     {
-        $result = $this->decorated->provide($operation, $uriVariables, $context);
+        return $entity instanceof Unit;
+    }
 
-        $request = $this->requestStack->getCurrentRequest();
-        $locale = $request?->query->get('locale', 'tj') ?? 'tj';
-
-        if (!in_array($locale, array_values(Translation::LOCALES))) {
-            throw new NotFoundHttpException("Locale not found");
-        }
-
-        // Проверяем, это массив с одним элементом или коллекция
-        $isSingleWrappedInArray = is_array($result) && count($result) === 1 && isset($result[0]) && $result[0] instanceof Unit;
-
-        foreach ($result as $entity) {
-            if ($entity instanceof Unit) {
-                $this->localizationService->localizeEntity($entity, $locale);
-            }
-        }
-
-        return $isSingleWrappedInArray ? $result[0] : $result;
+    protected function localize(object $entity, string $locale): void
+    {
+        /** @var Unit $entity */
+        $this->localizationService->localizeEntity($entity, $locale);
     }
 }

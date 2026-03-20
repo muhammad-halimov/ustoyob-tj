@@ -13,6 +13,10 @@ trait UpdatedAtTrait
         'legals:read',
         'chats:read',
 
+        'masterTickets:read',
+        'clientTickets:read',
+        'favorites:read',
+
         'users:me:read'
     ])]
     protected ?DateTime $updatedAt = null;

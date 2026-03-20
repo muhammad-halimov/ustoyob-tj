@@ -2,45 +2,23 @@
 
 namespace App\State\Localization\Title;
 
-use ApiPlatform\Metadata\Operation;
-use ApiPlatform\State\ProviderInterface;
-use App\Entity\Extra\Translation;
 use App\Entity\Ticket\Category;
-use App\Service\Extra\LocalizationService;
-use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use App\State\Localization\AbstractLocalizationProvider;
 
-readonly class CategoryTitleLocalizationProvider implements ProviderInterface
+readonly class CategoryTitleLocalizationProvider extends AbstractLocalizationProvider
 {
-    public function __construct(
-        private ProviderInterface $decorated,
-        private RequestStack $requestStack,
-        private LocalizationService $localizationService,
-    ) {}
-
-    public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
+    protected function supports(object $entity): bool
     {
-        $result = $this->decorated->provide($operation, $uriVariables, $context);
+        return $entity instanceof Category;
+    }
 
-        $request = $this->requestStack->getCurrentRequest();
-        $locale = $request?->query->get('locale', 'tj') ?? 'tj';
+    protected function localize(object $entity, string $locale): void
+    {
+        /** @var Category $entity */
+        $this->localizationService->localizeEntity($entity, $locale);
 
-        if (!in_array($locale, array_values(Translation::LOCALES))) {
-            throw new NotFoundHttpException("Locale not found");
+        if ($entity->getOccupation() !== null) {
+            $this->localizationService->localizeEntity($entity->getOccupation(), $locale);
         }
-
-        // Проверяем, это массив с одним элементом или коллекция
-        $isSingleWrappedInArray = is_array($result) && count($result) === 1 && isset($result[0]) && $result[0] instanceof Category;
-
-        foreach ($result as $entity) {
-            if ($entity instanceof Category) {
-                $this->localizationService->localizeEntity($entity, $locale);
-
-                if ($entity->getOccupation() !== null)
-                    $this->localizationService->localizeEntity($entity->getOccupation(), $locale);
-            }
-        }
-
-        return $isSingleWrappedInArray ? $result[0] : $result;
     }
 }
