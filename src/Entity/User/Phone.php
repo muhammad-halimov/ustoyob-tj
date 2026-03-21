@@ -8,12 +8,14 @@ use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\User\PhoneRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 use App\Validator\Constraints as AppAssert;
 
 #[ORM\Entity(repositoryClass: PhoneRepository::class)]
 #[ORM\HasLifecycleCallbacks]
+#[UniqueEntity(fields: ['phone'], message: 'This phone number is used by the other user')]
 class Phone
 {
     use CreatedAtTrait, UpdatedAtTrait;
