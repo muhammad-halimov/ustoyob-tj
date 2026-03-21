@@ -14,16 +14,16 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\CRUD\User\User\ConfirmAccountController;
-use App\Controller\Api\CRUD\User\User\ConfirmAccountTokenlessController;
-use App\Controller\Api\CRUD\User\User\GrantRoleController;
-use App\Controller\Api\CRUD\User\User\MarkOfflineController;
-use App\Controller\Api\CRUD\User\User\PingController;
-use App\Controller\Api\CRUD\User\User\PostUserPhotoController;
+use App\Controller\Api\CRUD\GET\User\PersonalUserFilterController;
+use App\Controller\Api\CRUD\GET\User\SocialNetworkController;
+use App\Controller\Api\CRUD\POST\User\User\ConfirmAccountController;
+use App\Controller\Api\CRUD\POST\User\User\ConfirmAccountTokenlessController;
+use App\Controller\Api\CRUD\POST\User\User\GrantRoleController;
+use App\Controller\Api\CRUD\POST\User\User\MarkOfflineController;
+use App\Controller\Api\CRUD\POST\User\User\PingController;
+use App\Controller\Api\CRUD\POST\User\User\PostUserPhotoController;
 use App\Controller\Api\Filter\Address\AddressFilter;
-use App\Controller\Api\Filter\User\PersonalUserFilterController;
 use App\Controller\Api\Filter\User\RolesFilter;
-use App\Controller\Api\Filter\User\SocialNetworkController;
 use App\Dto\Image\ImageInput;
 use App\Dto\User\AccountConfirmInput;
 use App\Dto\User\AccountConfirmOutput;
@@ -33,8 +33,6 @@ use App\Entity\Appeal\Appeal;
 use App\Entity\Chat\Chat;
 use App\Entity\Chat\ChatImage;
 use App\Entity\Chat\ChatMessage;
-use App\Entity\Extra\BlackList;
-use App\Entity\Extra\Favorite;
 use App\Entity\Extra\OAuthProvider;
 use App\Entity\Gallery\Gallery;
 use App\Entity\Geography\Address;
@@ -213,13 +211,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->chatMessages = new ArrayCollection();
         $this->galleries = new ArrayCollection();
         $this->tickets = new ArrayCollection();
-        $this->favorites = new ArrayCollection();
         $this->chatImages = new ArrayCollection();
         $this->masterReviews = new ArrayCollection();
         $this->clientReviews = new ArrayCollection();
         $this->occupation = new ArrayCollection();
-        $this->clientsFavorites = new ArrayCollection();
-        $this->mastersFavorites = new ArrayCollection();
         $this->techSupportImages = new ArrayCollection();
         $this->techSupportMessages = new ArrayCollection();
         $this->techSupports = new ArrayCollection();
@@ -227,9 +222,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->appeals = new ArrayCollection();
         $this->appealsAsRespondent = new ArrayCollection();
         $this->addresses = new ArrayCollection();
-        $this->blackLists = new ArrayCollection();
-        $this->clientsBlackListedByAuthor = new ArrayCollection();
-        $this->mastersBlackListedByAuthor = new ArrayCollection();
         $this->oauthProviders = new ArrayCollection();
 //        $this->phones = new ArrayCollection();
     }
@@ -625,13 +617,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private Collection $tickets;
 
     /**
-     * @var Collection<int, Favorite>
-     */
-    #[ORM\OneToMany(targetEntity: Favorite::class, mappedBy: 'user')]
-    #[ApiProperty(writable: false)]
-    private Collection $favorites;
-
-    /**
      * @var Collection<int, ChatImage>
      */
     #[ORM\OneToMany(targetEntity: ChatImage::class, mappedBy: 'author', cascade: ['all'])]
@@ -663,20 +648,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'user:public:read',
     ])]
     private Collection $occupation;
-
-    /**
-     * @var Collection<int, Favorite>
-     */
-    #[ORM\ManyToMany(targetEntity: Favorite::class, mappedBy: 'clients')]
-    #[Ignore]
-    private Collection $clientsFavorites;
-
-    /**
-     * @var Collection<int, Favorite>
-     */
-    #[ORM\ManyToMany(targetEntity: Favorite::class, mappedBy: 'masters')]
-    #[Ignore]
-    private Collection $mastersFavorites;
 
     /**
      * @var Collection<int, TechSupportImage>
@@ -731,27 +702,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 //        'user:public:read',
     ])]
     private Collection $addresses;
-
-    /**
-     * @var Collection<int, BlackList>
-     */
-    #[ORM\OneToMany(targetEntity: BlackList::class, mappedBy: 'author')]
-    #[Ignore]
-    private Collection $blackLists;
-
-    /**
-     * @var Collection<int, BlackList>
-     */
-    #[ORM\ManyToMany(targetEntity: BlackList::class, mappedBy: 'clients')]
-    #[Ignore]
-    private Collection $clientsBlackListedByAuthor;
-
-    /**
-     * @var Collection<int, BlackList>
-     */
-    #[ORM\ManyToMany(targetEntity: BlackList::class, mappedBy: 'masters')]
-    #[Ignore]
-    private Collection $mastersBlackListedByAuthor;
 
     #[ORM\OneToMany(targetEntity: OAuthProvider::class, mappedBy: 'user', cascade: ['persist', 'remove'])]
     #[Groups([
@@ -1251,36 +1201,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * @return Collection<int, Favorite>
-     */
-    public function getFavorites(): Collection
-    {
-        return $this->favorites;
-    }
-
-    public function addFavorite(Favorite $favorite): static
-    {
-        if (!$this->favorites->contains($favorite)) {
-            $this->favorites->add($favorite);
-            $favorite->setUser($this);
-        }
-
-        return $this;
-    }
-
-    public function removeFavorite(Favorite $favorite): static
-    {
-        if ($this->favorites->removeElement($favorite)) {
-            // set the owning side to null (unless already changed)
-            if ($favorite->getUser() === $this) {
-                $favorite->setUser(null);
-            }
-        }
-
-        return $this;
-    }
-
-    /**
      * @return Collection<int, ChatImage>
      */
     public function getChatImages(): Collection
@@ -1392,60 +1312,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         if ($this->occupation->removeElement($occupation)) {
             $occupation->removeMaster($this);
-        }
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, Favorite>
-     */
-    public function getClientsFavorites(): Collection
-    {
-        return $this->clientsFavorites;
-    }
-
-    public function addClientsFavorite(Favorite $clientsFavorite): static
-    {
-        if (!$this->clientsFavorites->contains($clientsFavorite)) {
-            $this->clientsFavorites->add($clientsFavorite);
-            $clientsFavorite->addClient($this);
-        }
-
-        return $this;
-    }
-
-    public function removeClientsFavorite(Favorite $clientsFavorite): static
-    {
-        if ($this->clientsFavorites->removeElement($clientsFavorite)) {
-            $clientsFavorite->removeClient($this);
-        }
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, Favorite>
-     */
-    public function getMastersFavorites(): Collection
-    {
-        return $this->mastersFavorites;
-    }
-
-    public function addMastersFavorite(Favorite $mastersFavorite): static
-    {
-        if (!$this->mastersFavorites->contains($mastersFavorite)) {
-            $this->mastersFavorites->add($mastersFavorite);
-            $mastersFavorite->addMaster($this);
-        }
-
-        return $this;
-    }
-
-    public function removeMastersFavorite(Favorite $mastersFavorite): static
-    {
-        if ($this->mastersFavorites->removeElement($mastersFavorite)) {
-            $mastersFavorite->removeMaster($this);
         }
 
         return $this;
@@ -1732,90 +1598,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         if ($this->addresses->removeElement($address)) {
             $address->removeUser($this);
-        }
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, BlackList>
-     */
-    public function getBlackLists(): Collection
-    {
-        return $this->blackLists;
-    }
-
-    public function addBlackList(BlackList $blackList): static
-    {
-        if (!$this->blackLists->contains($blackList)) {
-            $this->blackLists->add($blackList);
-            $blackList->setAuthor($this);
-        }
-
-        return $this;
-    }
-
-    public function removeBlackList(BlackList $blackList): static
-    {
-        if ($this->blackLists->removeElement($blackList)) {
-            // set the owning side to null (unless already changed)
-            if ($blackList->getAuthor() === $this) {
-                $blackList->setAuthor(null);
-            }
-        }
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, BlackList>
-     */
-    public function getClientsBlackListedByAuthor(): Collection
-    {
-        return $this->clientsBlackListedByAuthor;
-    }
-
-    public function addClientsBlackListedByAuthor(BlackList $clientsBlackListedByAuthor): static
-    {
-        if (!$this->clientsBlackListedByAuthor->contains($clientsBlackListedByAuthor)) {
-            $this->clientsBlackListedByAuthor->add($clientsBlackListedByAuthor);
-            $clientsBlackListedByAuthor->addClient($this);
-        }
-
-        return $this;
-    }
-
-    public function removeClientsBlackListedByAuthor(BlackList $clientsBlackListedByAuthor): static
-    {
-        if ($this->clientsBlackListedByAuthor->removeElement($clientsBlackListedByAuthor)) {
-            $clientsBlackListedByAuthor->removeClient($this);
-        }
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, BlackList>
-     */
-    public function getMastersBlackListedByAuthor(): Collection
-    {
-        return $this->mastersBlackListedByAuthor;
-    }
-
-    public function addMastersBlackListedByAuthor(BlackList $mastersBlackListedByAuthor): static
-    {
-        if (!$this->mastersBlackListedByAuthor->contains($mastersBlackListedByAuthor)) {
-            $this->mastersBlackListedByAuthor->add($mastersBlackListedByAuthor);
-            $mastersBlackListedByAuthor->addMaster($this);
-        }
-
-        return $this;
-    }
-
-    public function removeMastersBlackListedByAuthor(BlackList $mastersBlackListedByAuthor): static
-    {
-        if ($this->mastersBlackListedByAuthor->removeElement($mastersBlackListedByAuthor)) {
-            $mastersBlackListedByAuthor->removeMaster($this);
         }
 
         return $this;

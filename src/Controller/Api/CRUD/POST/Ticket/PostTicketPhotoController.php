@@ -1,0 +1,55 @@
+<?php
+
+namespace App\Controller\Api\CRUD\POST\Ticket;
+
+use App\Controller\Api\CRUD\POST\Image\AbstractPhotoUploadController;
+use App\Entity\Ticket\Ticket;
+use App\Entity\Ticket\TicketImage;
+use App\Entity\User;
+use App\Repository\TicketRepository;
+use App\Service\Extra\AccessService;
+use Doctrine\ORM\EntityManagerInterface;
+use ReflectionClass;
+use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\HttpFoundation\JsonResponse;
+
+class PostTicketPhotoController extends AbstractPhotoUploadController
+{
+    public function __construct(
+        EntityManagerInterface            $entityManager,
+        Security                          $security,
+        AccessService                     $accessService,
+        private readonly TicketRepository $ticketRepository,
+    ) {
+        parent::__construct($entityManager, $security, $accessService);
+    }
+
+    protected function findEntity(int $id): ?object
+    {
+        return $this->ticketRepository->find($id);
+    }
+
+    protected function checkOwnership(object $entity, User $bearerUser): ?JsonResponse
+    {
+        /** @var Ticket $entity */
+        if ($entity->getAuthor() !== $bearerUser && $entity->getMaster() !== $bearerUser) {
+            return $this->json(['message' => "Ownership doesn't match"], 403);
+        }
+        return null;
+    }
+
+    protected function processImageFile(object $entity, UploadedFile $imageFile, User $bearerUser): void
+    {
+        /** @var Ticket $entity */
+        $position = $entity->getUserTicketImages()->count();
+        $ticketImage = (new TicketImage())->setImageFile($imageFile)->setPosition($position);
+        $entity->addUserTicketImage($ticketImage);
+        $this->entityManager->persist($ticketImage);
+    }
+
+    protected function getEntityName(): string
+    {
+        return (new ReflectionClass(Ticket::class))->getName();
+    }
+}

@@ -1,24 +1,25 @@
 <?php
 namespace App\Entity\Geography\District;
 
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
-use App\Controller\Api\Filter\Geography\District\DistrictFilterController;
-use App\Controller\Api\Filter\Geography\District\DistrictsFilterController;
+use App\Controller\Api\Filter\Translation\TranslationSearchFilter;
 use App\Entity\Geography\AddressComponent;
 use App\Entity\Geography\Province;
 use App\Repository\DistrictRepository;
+use App\State\Localization\Geography\DistrictLocalizationProvider;
 use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
-
-use Symfony\Component\Serializer\Attribute\Groups;
-use Vich\UploaderBundle\Mapping\Attribute as Vich;
-use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\HttpFoundation\File\File;
+use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Validator\Constraints as Assert;
+use Vich\UploaderBundle\Mapping\Attribute as Vich;
 
 #[Vich\Uploadable]
 #[ORM\Entity(repositoryClass: DistrictRepository::class)]
@@ -27,11 +28,11 @@ use Symfony\Component\HttpFoundation\File\File;
         new Get(
             uriTemplate: '/districts/{id}',
             requirements: ['id' => '\d+'],
-            controller: DistrictFilterController::class,
+            provider: DistrictLocalizationProvider::class
         ),
         new GetCollection(
             uriTemplate: '/districts',
-            controller: DistrictsFilterController::class,
+            provider: DistrictLocalizationProvider::class
         ),
     ],
     normalizationContext: [
@@ -43,6 +44,20 @@ use Symfony\Component\HttpFoundation\File\File;
     paginationItemsPerPage: 25,
     paginationMaximumItemsPerPage: 50,
 )]
+#[ApiFilter(SearchFilter::class, properties: [
+    'province.id'          => 'exact',
+    'communities.id'       => 'exact',
+    'settlements.id'       => 'exact',
+    'settlements.villages.id' => 'exact',
+])]
+#[ApiFilter(TranslationSearchFilter::class, properties: [
+    'title'                      => 'partial',
+    'description'                => 'partial',
+    'province.title'             => 'partial',
+    'communities.title'          => 'partial',
+    'settlements.title'          => 'partial',
+    'settlements.villages.title' => 'partial',
+])]
 class District extends AddressComponent
 {
     #[Vich\UploadableField(mapping: 'district_photos', fileNameProperty: 'image')]

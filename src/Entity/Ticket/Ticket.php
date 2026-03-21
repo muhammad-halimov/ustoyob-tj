@@ -12,18 +12,16 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\CRUD\Ticket\PatchTicketController;
-use App\Controller\Api\CRUD\Ticket\PostTicketController;
-use App\Controller\Api\CRUD\Ticket\PostTicketPhotoController;
+use App\Controller\Api\CRUD\GET\Ticket\PersonalTicketFilterController;
+use App\Controller\Api\CRUD\PATCH\Ticket\PatchTicketController;
+use App\Controller\Api\CRUD\POST\Ticket\PostTicketController;
+use App\Controller\Api\CRUD\POST\Ticket\PostTicketPhotoController;
 use App\Controller\Api\Filter\Address\AddressFilter;
-use App\Controller\Api\Filter\Ticket\PersonalTicketFilterController;
 use App\Dto\Image\ImageInput;
 use App\Dto\Ticket\TicketInput;
 use App\Dto\Ticket\TicketPatchInput;
 use App\Entity\Appeal\Appeal;
 use App\Entity\Chat\Chat;
-use App\Entity\Extra\BlackList;
-use App\Entity\Extra\Favorite;
 use App\Entity\Geography\Address;
 use App\Entity\Review\Review;
 use App\Entity\Traits\CreatedAtTrait;
@@ -124,10 +122,8 @@ class Ticket
         $this->userTicketImages = new ArrayCollection();
         $this->reviews = new ArrayCollection();
         $this->appeals = new ArrayCollection();
-        $this->favorites = new ArrayCollection();
         $this->chats = new ArrayCollection();
         $this->addresses = new ArrayCollection();
-        $this->ticketsBlackListedByAuthor = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -326,13 +322,6 @@ class Ticket
     private Collection $appeals;
 
     /**
-     * @var Collection<int, Favorite>
-     */
-    #[ORM\ManyToMany(targetEntity: Favorite::class, mappedBy: 'tickets')]
-    #[Ignore]
-    private Collection $favorites;
-
-    /**
      * @var Collection<int, Chat>
      */
     #[ORM\OneToMany(targetEntity: Chat::class, mappedBy: 'ticket')]
@@ -349,13 +338,6 @@ class Ticket
         'favorites:read',
     ])]
     private Collection $addresses;
-
-    /**
-     * @var Collection<int, BlackList>
-     */
-    #[ORM\ManyToMany(targetEntity: BlackList::class, mappedBy: 'tickets')]
-    #[Ignore]
-    private Collection $ticketsBlackListedByAuthor;
 
     public function getId(): ?int
     {
@@ -591,33 +573,6 @@ class Ticket
     }
 
     /**
-     * @return Collection<int, Favorite>
-     */
-    public function getFavorites(): Collection
-    {
-        return $this->favorites;
-    }
-
-    public function addFavorite(Favorite $favorite): static
-    {
-        if (!$this->favorites->contains($favorite)) {
-            $this->favorites->add($favorite);
-            $favorite->addTicket($this);
-        }
-
-        return $this;
-    }
-
-    public function removeFavorite(Favorite $favorite): static
-    {
-        if ($this->favorites->removeElement($favorite)) {
-            $favorite->removeTicket($this);
-        }
-
-        return $this;
-    }
-
-    /**
      * @return Collection<int, Chat>
      */
     public function getChats(): Collection
@@ -671,32 +626,6 @@ class Ticket
         return $this;
     }
 
-    /**
-     * @return Collection<int, BlackList>
-     */
-    public function getTicketsBlackListedByAuthor(): Collection
-    {
-        return $this->ticketsBlackListedByAuthor;
-    }
-
-    public function addTicketsBlackListedByAuthor(BlackList $ticketsBlackListedByAuthor): static
-    {
-        if (!$this->ticketsBlackListedByAuthor->contains($ticketsBlackListedByAuthor)) {
-            $this->ticketsBlackListedByAuthor->add($ticketsBlackListedByAuthor);
-            $ticketsBlackListedByAuthor->addTicket($this);
-        }
-
-        return $this;
-    }
-
-    public function removeTicketsBlackListedByAuthor(BlackList $ticketsBlackListedByAuthor): static
-    {
-        if ($this->ticketsBlackListedByAuthor->removeElement($ticketsBlackListedByAuthor)) {
-            $ticketsBlackListedByAuthor->removeTicket($this);
-        }
-
-        return $this;
-    }
 
     public function getSubcategory(): ?Occupation
     {

@@ -1,18 +1,18 @@
 <?php
 namespace App\Entity\Geography;
 
+use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
-use App\Controller\Api\Filter\Geography\Province\ProvinceFilterController;
-use App\Controller\Api\Filter\Geography\Province\ProvincesFilterController;
+use App\Controller\Api\Filter\Translation\TranslationSearchFilter;
 use App\Entity\Geography\City\City;
 use App\Entity\Geography\District\District;
 use App\Repository\ProvinceRepository;
+use App\State\Localization\Geography\ProvinceLocalizationProvider;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Component\Serializer\Attribute\Groups;
 
 #[ORM\Entity(repositoryClass: ProvinceRepository::class)]
 #[ApiResource(
@@ -20,19 +20,26 @@ use Symfony\Component\Serializer\Attribute\Groups;
         new Get(
             uriTemplate: '/provinces/{id}',
             requirements: ['id' => '\d+'],
-            controller: ProvinceFilterController::class,
+            provider: ProvinceLocalizationProvider::class
         ),
         new GetCollection(
             uriTemplate: '/provinces',
-            controller: ProvincesFilterController::class,
+            provider: ProvinceLocalizationProvider::class
         ),
     ],
     normalizationContext: [
         'groups' => ['provinces:read'],
         'skip_null_values' => false,
     ],
-    paginationEnabled: false,
+    paginationClientItemsPerPage: true,
+    paginationEnabled: true,
+    paginationItemsPerPage: 25,
+    paginationMaximumItemsPerPage: 50,
 )]
+#[ApiFilter(TranslationSearchFilter::class, properties: [
+    'title'       => 'partial',
+    'description' => 'partial',
+])]
 class Province extends AddressComponent
 {
     public function __construct()

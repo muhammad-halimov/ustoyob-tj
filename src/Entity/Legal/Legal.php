@@ -25,22 +25,25 @@ use Symfony\Component\Serializer\Attribute\Ignore;
     operations: [
         new GetCollection(
             uriTemplate: '/legals',
-            provider: LegalLocalizationProvider::class,
             normalizationContext: [
                 'groups' => ['legals:read'],
                 'skip_null_values' => false,
             ],
+            provider: LegalLocalizationProvider::class,
         ),
         new Get(
             uriTemplate: '/legals/{id}',
-            provider: LegalLocalizationProvider::class,
             normalizationContext: [
                 'groups' => ['legals:read'],
                 'skip_null_values' => false,
             ],
+            provider: LegalLocalizationProvider::class,
         ),
     ],
-    paginationEnabled: false,
+    paginationClientItemsPerPage: true,
+    paginationEnabled: true,
+    paginationItemsPerPage: 25,
+    paginationMaximumItemsPerPage: 50,
 )]
 #[ApiFilter(SearchFilter::class, properties: ['type' => 'exact', 'title', 'description' => 'partial'])]
 class Legal

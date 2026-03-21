@@ -26,6 +26,20 @@ services:
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
 
+    App\State\CollectionEntry\BlackListStateProvider:
+        autoconfigure: false
+        arguments:
+            $collectionProvider: '@api_platform.doctrine.orm.state.collection_provider'
+        tags:
+            - { name: 'api_platform.state_provider' }
+
+    App\State\CollectionEntry\FavoriteStateProvider:
+        autoconfigure: false
+        arguments:
+            $collectionProvider: '@api_platform.doctrine.orm.state.collection_provider'
+        tags:
+            - { name: 'api_platform.state_provider' }
+
     App\State\Localization\Geography\TicketGeographyLocalizationProvider:
         autoconfigure: false
         arguments:
@@ -42,6 +56,29 @@ services:
         tags:
             - { name: 'api_platform.state_provider' }
 
+    App\State\Localization\Geography\CityLocalizationProvider:
+        autoconfigure: false
+        arguments:
+            $itemProvider: '@api_platform.doctrine.orm.state.item_provider'
+            $collectionProvider: '@api_platform.doctrine.orm.state.collection_provider'
+        tags:
+            - { name: 'api_platform.state_provider' }
+
+    App\State\Localization\Geography\DistrictLocalizationProvider:
+        autoconfigure: false
+        arguments:
+            $itemProvider: '@api_platform.doctrine.orm.state.item_provider'
+            $collectionProvider: '@api_platform.doctrine.orm.state.collection_provider'
+        tags:
+            - { name: 'api_platform.state_provider' }
+
+    App\State\Localization\Geography\ProvinceLocalizationProvider:
+        autoconfigure: false
+        arguments:
+            $itemProvider: '@api_platform.doctrine.orm.state.item_provider'
+            $collectionProvider: '@api_platform.doctrine.orm.state.collection_provider'
+        tags:
+            - { name: 'api_platform.state_provider' }
 
     App\State\Localization\Title\CategoryTitleLocalizationProvider:
         autoconfigure: false

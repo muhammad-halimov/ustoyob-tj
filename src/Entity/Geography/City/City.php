@@ -2,15 +2,17 @@
 
 namespace App\Entity\Geography\City;
 
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
-use App\Controller\Api\Filter\Geography\City\CitiesFilterController;
-use App\Controller\Api\Filter\Geography\City\CityFilterController;
+use App\Controller\Api\Filter\Translation\TranslationSearchFilter;
 use App\Entity\Geography\AddressComponent;
 use App\Entity\Geography\Province;
 use App\Repository\CityRepository;
+use App\State\Localization\Geography\CityLocalizationProvider;
 use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -27,11 +29,11 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
         new Get(
             uriTemplate: '/cities/{id}',
             requirements: ['id' => '\d+'],
-            controller: CityFilterController::class,
+            provider: CityLocalizationProvider::class,
         ),
         new GetCollection(
             uriTemplate: '/cities',
-            controller: CitiesFilterController::class,
+            provider: CityLocalizationProvider::class,
         ),
     ],
     normalizationContext: [
@@ -43,6 +45,16 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
     paginationItemsPerPage: 25,
     paginationMaximumItemsPerPage: 50,
 )]
+#[ApiFilter(SearchFilter::class, properties: [
+    'province.id' => 'exact',
+    'suburbs.id'  => 'exact',
+])]
+#[ApiFilter(TranslationSearchFilter::class, properties: [
+    'title'          => 'partial',
+    'description'    => 'partial',
+    'province.title' => 'partial',
+    'suburbs.title'  => 'partial',
+])]
 class City extends AddressComponent
 {
     public function __construct()

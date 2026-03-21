@@ -9,8 +9,8 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\CRUD\Appeal\PostAppealConntroller;
-use App\Controller\Api\CRUD\Appeal\PostAppealPhotoController;
+use App\Controller\Api\CRUD\POST\Appeal\PostAppealConntroller;
+use App\Controller\Api\CRUD\POST\Appeal\PostAppealPhotoController;
 use App\Dto\Appeal\Appeal\AppealInput;
 use App\Dto\Image\ImageInput;
 use App\Entity\Appeal\AppealTypes\AppealChat;
@@ -41,6 +41,11 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         ),
         new GetCollection(
             uriTemplate: '/appeals',
+            normalizationContext: ['groups' => ['appeal:read', 'appeal:ticket:read', 'appeal:chat:read', 'appeal:review:read', 'appeal:user:read']],
+            security: "is_granted('ROLE_ADMIN')",
+        ),
+        new GetCollection(
+            uriTemplate: '/appeals/me',
             normalizationContext: ['groups' => ['appeal:read', 'appeal:ticket:read', 'appeal:chat:read', 'appeal:review:read', 'appeal:user:read']],
             security: "is_granted('ROLE_ADMIN')",
         ),

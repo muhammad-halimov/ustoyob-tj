@@ -4,6 +4,7 @@ namespace App\Service\Extra;
 
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
+use App\Repository\User\BlackListRepository;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\Security\Core\Exception\TokenNotFoundException;
@@ -13,7 +14,10 @@ readonly class AccessService
     private const array TRIPLE_ALLOWED_ROLES = ['ROLE_ADMIN', 'ROLE_CLIENT', 'ROLE_MASTER'];
     private const array DOUBLE_ALLOWED_ROLES = ['ROLE_CLIENT', 'ROLE_MASTER'];
 
-    public function __construct(private Security $security){}
+    public function __construct(
+        private Security            $security,
+        private BlackListRepository $blackListRepository,
+    ){}
 
     public function check(User|null $user, string $grade = 'triple', bool $activeAndApproved = true) : bool
     {
@@ -61,31 +65,23 @@ readonly class AccessService
 
     public function checkBlackList(User|null $author, User|null $assumedUser = null, Ticket|null $ticket = null): bool
     {
-        if ($ticket && $author) { // Проверяем, не заблокировал ли author этот Ticket
+        if ($ticket && $author) {
             $this->check($author);
 
-            foreach ($author->getBlackLists() as $blackList) {
-                if ($blackList->getTickets()->contains($ticket)) {
-                    throw new AccessDeniedHttpException('You blacklisted this ticket');
-                }
+            if ($this->blackListRepository->findDuplicate($author, null, $ticket)) {
+                throw new AccessDeniedHttpException('You blacklisted this ticket');
             }
         }
 
         if ($assumedUser) {
             $this->check($assumedUser);
 
-            foreach ($author->getBlackLists() as $blackList) { // Проверяем, не заблокировал ли author пользователя assumedUser
-                if ($blackList->getClients()->contains($assumedUser) ||
-                    $blackList->getMasters()->contains($assumedUser)) {
-                    throw new AccessDeniedHttpException('You blacklisted this user');
-                }
+            if ($this->blackListRepository->findDuplicate($author, $assumedUser)) {
+                throw new AccessDeniedHttpException('You blacklisted this user');
             }
 
-            foreach ($assumedUser->getBlackLists() as $blackList) { // Проверяем, не заблокировал ли assumedUser пользователя author
-                if ($blackList->getClients()->contains($author) ||
-                    $blackList->getMasters()->contains($author)) {
-                    throw new AccessDeniedHttpException('You are blacklisted by this user');
-                }
+            if ($this->blackListRepository->findDuplicate($assumedUser, $author)) {
+                throw new AccessDeniedHttpException('You are blacklisted by this user');
             }
         }
 
