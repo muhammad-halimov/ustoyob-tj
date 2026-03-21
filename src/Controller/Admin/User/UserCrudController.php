@@ -209,8 +209,7 @@ class UserCrudController extends AbstractCrudController
         yield CollectionField::new('phones', 'Телефоны')
             ->useEntryCrudForm(PhoneCrudController::class)
             ->setColumns(4)
-            ->setFormTypeOptions(['by_reference' => false])
-            ->hideOnIndex();
+            ->setFormTypeOptions(['by_reference' => false]);
 
         yield TelephoneField::new('telegramChatId', 'ID телеграм чата (админ)')
             ->hideOnIndex()
@@ -272,6 +271,7 @@ class UserCrudController extends AbstractCrudController
             ->useEntryCrudForm(OAuthProviderCrudController::class)
             ->setFormTypeOptions(['by_reference' => false])
             ->setColumns(12)
+            ->hideOnIndex()
             ->setRequired(false);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
