@@ -43,6 +43,8 @@ class ClientFixture extends Fixture implements DependentFixtureInterface
 
         foreach ($clientsData as $j => [$active, $approved, $ref, $email, $name, $surname, $phone, $gender, $ticketRefs]) {
             $client = new User()
+                ->setActive($active)
+                ->setApproved($approved)
                 ->setEmail($email)
                 ->setName($name)
                 ->setSurname($surname)
