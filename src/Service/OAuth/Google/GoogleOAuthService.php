@@ -17,7 +17,7 @@ use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 
-//use App\Entity\User\Phone;
+use App\Entity\User\Phone;
 
 class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInterface
 {
@@ -246,8 +246,9 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
     private function setOptionalUserData(User $user, array $googleData): void
     {
         if (!empty($googleData['phone'])) {
-//            $user->addPhone(new Phone()->setPhone($googleData['phone']));
-            $user->setPhone2($googleData['phone']);
+            $phone = new Phone();
+            $phone->setPhone($googleData['phone']);
+            $user->addPhone($phone);
         }
 
         if (isset($googleData['gender'])) {

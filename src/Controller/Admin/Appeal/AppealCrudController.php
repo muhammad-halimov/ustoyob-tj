@@ -97,7 +97,7 @@ class AppealCrudController extends AbstractCrudController
         return match (true) {
             $entity instanceof AppealChat   => AppealChatCrudController::class,
             $entity instanceof AppealReview => AppealReviewCrudController::class,
-            $entity instanceof AppealUser => AppealUserCrudController::class,
+            $entity instanceof AppealUser   => AppealUserCrudController::class,
             default                         => AppealTicketCrudController::class,
         };
     }

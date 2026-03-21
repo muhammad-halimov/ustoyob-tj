@@ -9,8 +9,8 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
@@ -63,11 +63,9 @@ class TechSupportCrudController extends AbstractCrudController
             ->setRequired(true)
             ->setColumns(6);
 
-        yield ChoiceField::new('reason', 'Категория талона')
+        yield AssociationField::new('reason', 'Категория талона')
             ->setColumns(6)
-            ->setChoices(TechSupport::SUPPORT)
-            ->addCssClass('support-field')
-            ->setRequired(true);
+            ->setRequired(false);
 
         yield ChoiceField::new('status', 'Статус')
             ->setColumns(3)

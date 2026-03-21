@@ -206,14 +206,11 @@ class UserCrudController extends AbstractCrudController
             ->setRequired(false)
             ->hideOnIndex();
 
-        yield TelephoneField::new('phone1', 'Телефон 1')
-            ->setColumns(2)
-            ->setRequired(false);
-
-        yield TelephoneField::new('phone2', 'Телефон 2')
-            ->hideOnIndex()
-            ->setColumns(2)
-            ->setRequired(false);
+        yield CollectionField::new('phones', 'Телефоны')
+            ->useEntryCrudForm(PhoneCrudController::class)
+            ->setColumns(4)
+            ->setFormTypeOptions(['by_reference' => false])
+            ->hideOnIndex();
 
         yield TelephoneField::new('telegramChatId', 'ID телеграм чата (админ)')
             ->hideOnIndex()
@@ -225,11 +222,6 @@ class UserCrudController extends AbstractCrudController
             ->setFormTypeOptions(['by_reference' => false])
             ->addCssClass("occupation-field")
             ->hideOnIndex();
-
-//        yield CollectionField::new('phones', 'Телефоны')
-//            ->useEntryCrudForm(PhoneCrudController::class)
-//            ->setColumns(5)
-//            ->setFormTypeOptions(['by_reference' => false]);
 
         yield CollectionField::new('addresses', 'Адреса')
             ->useEntryCrudForm(AddressCrudController::class)

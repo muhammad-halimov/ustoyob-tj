@@ -3,9 +3,13 @@
 namespace App\Entity\User;
 
 use ApiPlatform\Metadata\ApiProperty;
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Metadata\Post;
 use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
-//use App\Entity\User;
+use App\Entity\User;
 use App\Repository\User\PhoneRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
@@ -15,6 +19,31 @@ use App\Validator\Constraints as AppAssert;
 #[ORM\Entity(repositoryClass: PhoneRepository::class)]
 #[ORM\UniqueConstraint(name: 'UNIQ_PHONE_NUMBER', fields: ['phone'])]
 #[ORM\HasLifecycleCallbacks]
+#[ApiResource(
+    operations: [
+        new Post(
+            uriTemplate: '/phones',
+            normalizationContext: ['groups' => ['users:me:read']],
+            denormalizationContext: ['groups' => ['phone:write']],
+            securityPostDenormalize: "object.getOwner() == user",
+            securityPostDenormalizeMessage: 'You can only add phones to your own account.',
+        ),
+        new Patch(
+            uriTemplate: '/phones/{id}',
+            requirements: ['id' => '\d+'],
+            normalizationContext: ['groups' => ['users:me:read']],
+            denormalizationContext: ['groups' => ['phone:write']],
+            security: "object.getOwner() == user",
+            securityMessage: 'You can only edit your own phones.',
+        ),
+        new Delete(
+            uriTemplate: '/phones/{id}',
+            requirements: ['id' => '\d+'],
+            security: "object.getOwner() == user",
+            securityMessage: 'You can only delete your own phones.',
+        ),
+    ],
+)]
 class Phone
 {
     use CreatedAtTrait, UpdatedAtTrait;
@@ -44,12 +73,13 @@ class Phone
     #[Groups(['masters:read', 'clients:read', 'users:me:read'])]
     private ?int $id = null;
 
-//    #[ORM\ManyToOne(inversedBy: 'phones')]
-//    #[ORM\JoinColumn(nullable: false)]
-//    private ?User $owner = null;
+    #[ORM\ManyToOne(inversedBy: 'phones')]
+    #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['phone:write'])]
+    private ?User $owner = null;
 
     #[ORM\Column(length: 20, unique: true)]
-    #[Groups(['masters:read', 'clients:read', 'users:me:read'])]
+    #[Groups(['masters:read', 'clients:read', 'users:me:read', 'phone:write'])]
     #[AppAssert\PhoneConstraint]
     #[Assert\NotBlank(message: 'Phone number is required')]
     #[Assert\Length(max: 20, maxMessage: 'Phone number cannot be longer than {{ limit }} characters')]
@@ -60,7 +90,7 @@ class Phone
     private ?string $countryCode = '+992';
 
     #[ORM\Column]
-    #[Groups(['masters:read', 'clients:read', 'users:me:read'])]
+    #[Groups(['masters:read', 'clients:read', 'users:me:read', 'phone:write'])]
     private bool $main = false;
 
     #[ORM\Column]
@@ -73,16 +103,16 @@ class Phone
         return $this->id;
     }
 
-//    public function getOwner(): ?User
-//    {
-//        return $this->owner;
-//    }
-//
-//    public function setOwner(?User $owner): static
-//    {
-//        $this->owner = $owner;
-//        return $this;
-//    }
+    public function getOwner(): ?User
+    {
+        return $this->owner;
+    }
+
+    public function setOwner(?User $owner): static
+    {
+        $this->owner = $owner;
+        return $this;
+    }
 
     public function getPhone(): ?string
     {
