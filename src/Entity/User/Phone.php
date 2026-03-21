@@ -13,7 +13,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 use App\Validator\Constraints as AppAssert;
 
 #[ORM\Entity(repositoryClass: PhoneRepository::class)]
-#[ORM\UniqueConstraint(name: 'UNIQ_PHONE_NUMBER', fields: ['phone'])]
+#[ORM\UniqueConstraint(name: 'UNIQ_OWNER_PHONE', fields: ['owner', 'phone'])]
 #[ORM\HasLifecycleCallbacks]
 class Phone
 {
@@ -41,7 +41,7 @@ class Phone
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['masters:read', 'clients:read', 'users:me:read'])]
+    #[Groups(['masters:read', 'clients:read', 'users:me:read', 'users:phones:write'])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'phones')]
@@ -49,7 +49,7 @@ class Phone
     #[Groups(['phone:write'])]
     private ?User $owner = null;
 
-    #[ORM\Column(length: 20, unique: true)]
+    #[ORM\Column(length: 20)]
     #[Groups(['masters:read', 'clients:read', 'users:me:read', 'phone:write', 'users:phones:write'])]
     #[AppAssert\PhoneConstraint]
     #[Assert\NotBlank(message: 'Phone number is required')]

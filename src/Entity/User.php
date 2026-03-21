@@ -134,6 +134,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
         new Patch(
             uriTemplate: '/users/{id}',
             requirements: ['id' => '\d+'],
+            denormalizationContext: ['groups' => ['users:phones:write', 'clients:read', 'masters:read', 'user:public:read']],
             security:
                 "is_granted('ROLE_ADMIN') or
                  ((is_granted('ROLE_MASTER') or
@@ -432,6 +433,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'masters:read',
         'clients:read',
         'users:me:read',
+        'users:phones:write',
     ])]
     private Collection $phones;
 
