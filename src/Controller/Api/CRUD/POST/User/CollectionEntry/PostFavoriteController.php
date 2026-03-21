@@ -30,25 +30,25 @@ class PostFavoriteController extends AbstractPostCollectionEntryController
         return new Favorite();
     }
 
-    protected function findDuplicate(User $owner, ?User $user = null, ?Ticket $ticket = null): Favorite
+    protected function findDuplicate(User $owner, ?User $user = null, ?Ticket $ticket = null): ?Favorite
     {
         return $this->repository->findDuplicate($owner, $user, $ticket);
     }
 
-    protected function validateUser(User $bearerUser, User $target): ?string
+    protected function validateUser(User $bearer, User $target): ?string
     {
         try {
-            $this->accessService->checkBlackList($bearerUser, $target);
+            $this->accessService->checkBlackList($bearer, $target);
             return null;
         } catch (Exception $e) {
             return $e->getMessage();
         }
     }
 
-    protected function validateTicket(User $bearerUser, Ticket $target): ?string
+    protected function validateTicket(User $bearer, Ticket $target): ?string
     {
         try {
-            $this->accessService->checkBlackList($bearerUser, ticket: $target);
+            $this->accessService->checkBlackList($bearer, ticket: $target);
             return null;
         } catch (Exception $e) {
             return $e->getMessage();
