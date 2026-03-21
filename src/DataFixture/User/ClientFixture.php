@@ -23,46 +23,49 @@ class ClientFixture extends Fixture implements DependentFixtureInterface
         // First ticket is also the one linked to the client reviews (review_30+2j, 30+2j+1).
 
         $clientsData = [
-            // [ref, email, name, surname, phone, gender, ticketRefs]
-            ['rudaki',    'rudaki@mail.pr',    'Абуабдуллоҳ', 'Рӯдакӣ',    '+992 900 200 000', 'gender_male',   ['ticket', 'ticket_remont']],                       // j=0  2 tickets
-            ['huroson',   'huroson@mail.pr',   'Рустам',      'Хуросон',   '+992 900 200 001', 'gender_male',   ['ticket_uborka', 't_2', 't_3']],                   // j=1  3 tickets
-            ['navruz',    'navruz@mail.pr',    'Навруз',      'Алиев',     '+992 900 200 002', 'gender_male',   ['ticket_it', 't_14']],                             // j=2  2 tickets
-            ['sitora',    'sitora@mail.pr',    'Ситора',      'Назарова',  '+992 900 200 003', 'gender_female', ['ticket_foto', 't_20']],                           // j=3  2 tickets
-            ['zafar',     'zafar@mail.pr',     'Зафар',       'Муродов',   '+992 900 200 004', 'gender_male',   ['ticket_pereezd', 't_21']],                        // j=4  2 tickets
-            ['dilnoza',   'dilnoza@mail.pr',   'Дилноза',     'Каримова',  '+992 900 200 005', 'gender_female', ['ticket_manikur', 'ticket_matem']],                // j=5  2 tickets
-            ['bobur',     'bobur@mail.pr',     'Бобур',       'Ахмадов',   '+992 900 200 006', 'gender_male',   ['ticket_unitaz', 'ticket_plitka']],                // j=6  2 tickets
-            ['kamola',    'kamola@mail.pr',    'Камола',      'Юсупова',   '+992 900 200 007', 'gender_female', ['ticket_lyustra', 't_5', 't_16']],                 // j=7  3 tickets
-            ['sardor',    'sardor@mail.pr',    'Сардор',      'Рустамов',  '+992 900 200 008', 'gender_male',   ['ticket_1c', 't_12', 't_13']],                     // j=8  3 tickets
-            ['malika',    'malika@mail.pr',    'Малика',      'Хасанова',  '+992 900 200 009', 'gender_female', ['ticket_svadba', 't_27']],                         // j=9  2 tickets
-            ['jasur',     'jasur@mail.pr',     'Жасур',       'Маматов',   '+992 900 200 010', 'gender_male',   ['ticket_maslo', 't_24']],                          // j=10 2 tickets
-            ['munira',    'munira@mail.pr',    'Мунира',      'Тошматова', '+992 900 200 011', 'gender_female', ['ticket_dogovor', 't_28']],                        // j=11 2 tickets
-            ['parviz',    'parviz@mail.pr',    'Парвиз',      'Ходжаев',   '+992 900 200 012', 'gender_male',   ['ticket_kuzov', 't_25']],                          // j=12 2 tickets
-            ['shahlo',    'shahlo@mail.pr',    'Шахло',       'Раҳимова',  '+992 900 200 013', 'gender_female', ['ticket_logo', 't_34']],                           // j=13 2 tickets
-            ['suhrab',    'suhrab@mail.pr',    'Сухроб',      'Давлатов',  '+992 900 200 014', 'gender_male',   ['ticket_transfer', 'ticket_provodka']],             // j=14 2 tickets
+            // [active, approved, ref, email, name, surname, phone, gender, ticketRefs]
+            [true, true, 'rudaki',    'rudaki@mail.pr',    'Абуабдуллоҳ', 'Рӯдакӣ',    '+992 900 200 000', 'gender_male',   ['ticket', 'ticket_remont']],                       // j=0  2 tickets
+            [false, false, 'huroson',   'huroson@mail.pr',   'Рустам',      'Хуросон',   '+992 900 200 001', 'gender_male',   ['ticket_uborka', 't_2', 't_3']],                   // j=1  3 tickets
+            [true, true, 'navruz',    'navruz@mail.pr',    'Навруз',      'Алиев',     '+992 900 200 002', 'gender_male',   ['ticket_it', 't_14']],                             // j=2  2 tickets
+            [true, true, 'sitora',    'sitora@mail.pr',    'Ситора',      'Назарова',  '+992 900 200 003', 'gender_female', ['ticket_foto', 't_20']],                           // j=3  2 tickets
+            [false, false, 'zafar',     'zafar@mail.pr',     'Зафар',       'Муродов',   '+992 900 200 004', 'gender_male',   ['ticket_pereezd', 't_21']],                        // j=4  2 tickets
+            [false, false, 'dilnoza',   'dilnoza@mail.pr',   'Дилноза',     'Каримова',  '+992 900 200 005', 'gender_female', ['ticket_manikur', 'ticket_matem']],                // j=5  2 tickets
+            [false, false, 'bobur',     'bobur@mail.pr',     'Бобур',       'Ахмадов',   '+992 900 200 006', 'gender_male',   ['ticket_unitaz', 'ticket_plitka']],                // j=6  2 tickets
+            [false, false, 'kamola',    'kamola@mail.pr',    'Камола',      'Юсупова',   '+992 900 200 007', 'gender_female', ['ticket_lyustra', 't_5', 't_16']],                 // j=7  3 tickets
+            [false, false, 'sardor',    'sardor@mail.pr',    'Сардор',      'Рустамов',  '+992 900 200 008', 'gender_male',   ['ticket_1c', 't_12', 't_13']],                     // j=8  3 tickets
+            [false, false, 'malika',    'malika@mail.pr',    'Малика',      'Хасанова',  '+992 900 200 009', 'gender_female', ['ticket_svadba', 't_27']],                         // j=9  2 tickets
+            [false, false, 'jasur',     'jasur@mail.pr',     'Жасур',       'Маматов',   '+992 900 200 010', 'gender_male',   ['ticket_maslo', 't_24']],                          // j=10 2 tickets
+            [false, false, 'munira',    'munira@mail.pr',    'Мунира',      'Тошматова', '+992 900 200 011', 'gender_female', ['ticket_dogovor', 't_28']],                        // j=11 2 tickets
+            [false, false, 'parviz',    'parviz@mail.pr',    'Парвиз',      'Ходжаев',   '+992 900 200 012', 'gender_male',   ['ticket_kuzov', 't_25']],                          // j=12 2 tickets
+            [false, false, 'shahlo',    'shahlo@mail.pr',    'Шахло',       'Раҳимова',  '+992 900 200 013', 'gender_female', ['ticket_logo', 't_34']],                           // j=13 2 tickets
+            [true, true, 'suhrab',    'suhrab@mail.pr',    'Сухроб',      'Давлатов',  '+992 900 200 014', 'gender_male',   ['ticket_transfer', 'ticket_provodka']],             // j=14 2 tickets
         ];
 
-        foreach ($clientsData as $j => [$ref, $email, $name, $surname, $phone, $gender, $ticketRefs]) {
-            $client = new User();
-            $client->setEmail($email);
-            $client->setName($name);
-            $client->setSurname($surname);
-            $client->setPassword('123456');
-            $phoneEntity = new Phone();
-            $phoneEntity->setPhone($phone)->setMain(true);
-            $client->addPhone($phoneEntity);
-            $manager->persist($phoneEntity);
-            $client->setRoles(['ROLE_CLIENT']);
-            $client->setGender($gender);
+        foreach ($clientsData as $j => [$active, $approved, $ref, $email, $name, $surname, $phone, $gender, $ticketRefs]) {
+            $client = new User()
+                ->setEmail($email)
+                ->setName($name)
+                ->setSurname($surname)
+                ->setPassword('123456')
+                ->setRoles(['ROLE_CLIENT'])
+                ->setGender($gender);
 
-            foreach ($ticketRefs as $ticketRef) {
+            $phoneEntity = new Phone()
+                ->setPhone($phone)
+                ->setMain(true);
+
+            $client->addPhone($phoneEntity);
+
+            $manager->persist($phoneEntity);
+
+            foreach ($ticketRefs as $ticketRef)
                 $client->addUserTicket($this->getReference($ticketRef, Ticket::class));
-            }
 
             // Author of master-type reviews (client wrote these reviews about masters)
-            $client->addClientReview($this->getReference('review_' . (2 * $j),               Review::class));
+            $client->addClientReview($this->getReference('review_' . (2 * $j), Review::class));
             $client->addClientReview($this->getReference('review_' . (2 * ((($j + 8) % 15)) + 1), Review::class));
             // Subject of client-type reviews (this client gets reviewed)
-            $client->addClientReview($this->getReference('review_' . (30 + 2 * $j),     Review::class));
+            $client->addClientReview($this->getReference('review_' . (30 + 2 * $j), Review::class));
             $client->addClientReview($this->getReference('review_' . (30 + 2 * $j + 1), Review::class));
 
             $manager->persist($client);

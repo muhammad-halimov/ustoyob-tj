@@ -49,7 +49,6 @@ use App\Entity\User\Phone;
 use App\Entity\User\SocialNetwork;
 use App\Repository\UserRepository;
 use App\State\Localization\Geography\UserGeographyLocalizationProvider;
-use App\Validator\Constraints as AppAssert;
 use DateTime;
 use DateTimeImmutable;
 use Deprecated;
@@ -428,7 +427,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /**
      * @var Collection<int, Phone>
      */
-    #[ORM\OneToMany(targetEntity: Phone::class, mappedBy: 'owner', cascade: ['persist', 'remove'])]
+    #[ORM\OneToMany(targetEntity: Phone::class, mappedBy: 'owner', cascade: ['persist', 'remove'], orphanRemoval: true)]
     #[Groups([
         'masters:read',
         'clients:read',
