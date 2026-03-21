@@ -16,6 +16,7 @@ use App\Controller\Api\CRUD\POST\TechSupport\TechSupport\PostTechSupportControll
 use App\Controller\Api\CRUD\POST\TechSupport\TechSupport\PostTechSupportPhotoController;
 use App\Dto\Image\ImageInput;
 use App\Dto\TechSupport\TechSupportInput;
+use App\Entity\Appeal\AppealReason;
 use App\Entity\User;
 use App\Repository\TechSupport\TechSupportRepository;
 use DateTime;
@@ -82,17 +83,6 @@ class TechSupport
         $this->techSupportMessages = new ArrayCollection();
     }
 
-    public const array SUPPORT = [
-        'Проблемы с аккаунтом' => 'account',
-        'Проблемы с объявлениями' => 'ticket',
-        'Вопросы по работе платформы' => 'platform',
-        'Технические проблемы' => 'issues',
-        'Юридические вопросы' => 'law',
-        'Предложения и фидбек' => 'feedback',
-        'Экстренный' => 'urgent',
-        'Другое' => 'other',
-    ];
-
     public const array STATUSES = [
         'Новый' => 'new',
         'Заново открыто' => 'renewed',
@@ -122,11 +112,12 @@ class TechSupport
     ])]
     private ?string $title = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'techSupport:read',
     ])]
-    private ?string $reason = null;
+    private ?AppealReason $reason = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
@@ -320,12 +311,12 @@ class TechSupport
         return $this;
     }
 
-    public function getReason(): ?string
+    public function getReason(): ?AppealReason
     {
         return $this->reason;
     }
 
-    public function setReason(?string $reason): static
+    public function setReason(?AppealReason $reason): static
     {
         $this->reason = $reason;
         return $this;

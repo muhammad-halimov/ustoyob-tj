@@ -7,6 +7,7 @@ use App\DataFixture\Additional\TicketFixture;
 use App\Entity\Review\Review;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
+use App\Entity\User\Phone;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
 use Doctrine\Persistence\ObjectManager;
@@ -46,7 +47,10 @@ class ClientFixture extends Fixture implements DependentFixtureInterface
             $client->setName($name);
             $client->setSurname($surname);
             $client->setPassword('123456');
-            $client->setPhone1($phone);
+            $phoneEntity = new Phone();
+            $phoneEntity->setPhone($phone)->setMain(true);
+            $client->addPhone($phoneEntity);
+            $manager->persist($phoneEntity);
             $client->setRoles(['ROLE_CLIENT']);
             $client->setGender($gender);
 

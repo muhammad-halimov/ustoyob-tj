@@ -45,6 +45,7 @@ use App\Entity\Traits\CreatedAtTrait;
 use App\Entity\Traits\UpdatedAtTrait;
 use App\Entity\User\Education;
 use App\Entity\User\Occupation;
+use App\Entity\User\Phone;
 use App\Entity\User\SocialNetwork;
 use App\Repository\UserRepository;
 use App\State\Localization\Geography\UserGeographyLocalizationProvider;
@@ -64,8 +65,6 @@ use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
 use Symfony\Component\Validator\Constraints as Assert;
 use Vich\UploaderBundle\Mapping\Attribute as Vich;
-
-//use App\Entity\User\Phone;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: '`user`')]
@@ -176,7 +175,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
 #[ApiFilter(SearchFilter::class, properties: ['occupation', 'gender', 'socialNetworks'])]
 #[ApiFilter(AddressFilter::class)]
 #[ApiFilter(RolesFilter::class)]
-#[ApiFilter(ExistsFilter::class, properties: ['image', 'phone1', 'phone2'])]
+#[ApiFilter(ExistsFilter::class, properties: ['image'])]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     use UpdatedAtTrait, CreatedAtTrait;
@@ -223,7 +222,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->appealsAsRespondent = new ArrayCollection();
         $this->addresses = new ArrayCollection();
         $this->oauthProviders = new ArrayCollection();
-//        $this->phones = new ArrayCollection();
+        $this->phones = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -426,45 +425,16 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ApiProperty(writable: false)]
     private ?string $imageExternalUrl = null;
 
-//    /**
-//     * @var Collection<int, Phone>
-//     */
-//    #[ORM\OneToMany(targetEntity: Phone::class, mappedBy: 'owner', cascade: ['persist', 'remove'])]
-//    #[Groups([
-//        'masters:read',
-//        'clients:read',
-//        'users:me:read',
-//    ])]
-//    private Collection $phones;
-
-    #[ORM\Column(length: 20, nullable: true)]
+    /**
+     * @var Collection<int, Phone>
+     */
+    #[ORM\OneToMany(targetEntity: Phone::class, mappedBy: 'owner', cascade: ['persist', 'remove'])]
     #[Groups([
         'masters:read',
         'clients:read',
         'users:me:read',
-
-//        'user:public:read',
     ])]
-    #[AppAssert\PhoneConstraint]
-    #[Assert\Length(
-        max: 20,
-        maxMessage: 'Phone number cannot be longer than {{ limit }} characters'
-    )]
-    private ?string $phone1 = null;
-
-    #[ORM\Column(length: 20, nullable: true)]
-    #[Groups([
-        'masters:read',
-        'clients:read',
-        'users:me:read',
-
-//        'user:public:read',
-    ])]
-    #[Assert\Length(
-        max: 20,
-        maxMessage: 'Phone number cannot be longer than {{ limit }} characters'
-    )]
-    private ?string $phone2 = null;
+    private Collection $phones;
 
     #[ORM\Column(type: 'boolean', nullable: true)]
     #[Groups([
@@ -840,46 +810,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setImageExternalUrl(?string $imageExternalUrl): static
     {
         $this->imageExternalUrl = $imageExternalUrl;
-
-        return $this;
-    }
-
-    public function getPhone1(): ?string
-    {
-        return $this->phone1;
-    }
-
-    public function setPhone1(?string $phone1): static
-    {
-        // Нормализуем при сохранении
-        if ($phone1) {
-            $cleaned = preg_replace('/[^\d+]/', '', $phone1);
-            // Добавляем +992 только если нет кода страны (нет +)
-            if (!str_starts_with($cleaned, '+')) {
-                $cleaned = '+992' . $cleaned;
-            }
-            $this->phone1 = $cleaned;
-        } else {
-            $this->phone1 = null;
-        }
-
-        return $this;
-    }
-
-    public function getPhone2(): ?string
-    {
-        return $this->phone2;
-    }
-
-    public function setPhone2(?string $phone2): static
-    {
-        // Нормализуем при сохранении
-        if ($phone2) {
-            $cleaned = preg_replace('/[^\d+]/', '', $phone2);
-            $this->phone2 = $cleaned;
-        } else {
-            $this->phone2 = null;
-        }
 
         return $this;
     }
@@ -1643,33 +1573,33 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-//    /**
-//     * @return Collection<int, Phone>
-//     */
-//    public function getPhones(): Collection
-//    {
-//        return $this->phones;
-//    }
-//
-//    public function addPhone(Phone $phone): static
-//    {
-//        if (!$this->phones->contains($phone)) {
-//            $this->phones->add($phone);
-//            $phone->setOwner($this);
-//        }
-//
-//        return $this;
-//    }
-//
-//    public function removePhone(Phone $phone): static
-//    {
-//        if ($this->phones->removeElement($phone)) {
-//            // set the owning side to null (unless already changed)
-//            if ($phone->getOwner() === $this) {
-//                $phone->setOwner(null);
-//            }
-//        }
-//
-//        return $this;
-//    }
+    /**
+     * @return Collection<int, Phone>
+     */
+    public function getPhones(): Collection
+    {
+        return $this->phones;
+    }
+
+    public function addPhone(Phone $phone): static
+    {
+        if (!$this->phones->contains($phone)) {
+            $this->phones->add($phone);
+            $phone->setOwner($this);
+        }
+
+        return $this;
+    }
+
+    public function removePhone(Phone $phone): static
+    {
+        if ($this->phones->removeElement($phone)) {
+            // set the owning side to null (unless already changed)
+            if ($phone->getOwner() === $this) {
+                $phone->setOwner(null);
+            }
+        }
+
+        return $this;
+    }
 }

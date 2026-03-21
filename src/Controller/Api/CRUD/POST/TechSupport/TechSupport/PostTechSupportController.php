@@ -2,6 +2,7 @@
 
 namespace App\Controller\Api\CRUD\POST\TechSupport\TechSupport;
 
+use App\Entity\Appeal\AppealReason;
 use App\Entity\TechSupport\TechSupport;
 use App\Entity\User;
 use App\Service\Extra\AccessService;
@@ -30,18 +31,23 @@ class PostTechSupportController extends AbstractController
 
         $data = json_decode($request->getContent(), true);
 
-        $titleParam = $data['title'];
-        $reasonParam = $data['reason'];
-        $priorityParam = $data['priority'];
-        $descriptionParam = $data['description'];
+        $titleParam       = $data['title'] ?? null;
+        $reasonId         = $data['reason'] ?? null;
+        $priorityParam    = $data['priority'] ?? null;
+        $descriptionParam = $data['description'] ?? null;
 
-        if (!in_array($reasonParam, array_values($techSupport::SUPPORT)))
-            return $this->json(['message' => "Wrong support type", 400]);
+        $reason = null;
+        if ($reasonId !== null) {
+            $reason = $this->entityManager->getRepository(AppealReason::class)->find((int) $reasonId);
+            if (!$reason || !in_array($reason->getApplicableTo(), ['support', 'overall'], true)) {
+                return $this->json(['message' => 'Wrong support reason'], 400);
+            }
+        }
 
         $techSupport
             ->setTitle($titleParam)
-            ->setReason($reasonParam)
-            ->setStatus("new")
+            ->setReason($reason)
+            ->setStatus('new')
             ->setPriority($priorityParam)
             ->setDescription($descriptionParam)
             ->setAuthor($bearerUser);
@@ -50,13 +56,13 @@ class PostTechSupportController extends AbstractController
         $this->entityManager->flush();
 
         $message = [
-            'id' => $techSupport->getId(),
-            'title' => $techSupport->getTitle(),
-            'supportReason' => $techSupport->getReason(),
-            'status' => $techSupport->getStatus(),
-            'priority' => $techSupport->getPriority(),
+            'id'          => $techSupport->getId(),
+            'title'       => $techSupport->getTitle(),
+            'supportReason' => $reason ? ['id' => $reason->getId(), 'code' => $reason->getCode()] : null,
+            'status'      => $techSupport->getStatus(),
+            'priority'    => $techSupport->getPriority(),
             'description' => $techSupport->getDescription(),
-            'author' => "/api/users/{$techSupport->getAuthor()->getId()}",
+            'author'      => "/api/users/{$techSupport->getAuthor()->getId()}",
         ];
 
         return $this->json($message);

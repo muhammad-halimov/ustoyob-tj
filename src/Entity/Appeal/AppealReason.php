@@ -38,11 +38,12 @@ class AppealReason
     use CreatedAtTrait, UpdatedAtTrait;
 
     public const array APPLICABLE_TO_CHOICES = [
-        'Для чатов'         => 'chat',
-        'Для объявлений'    => 'ticket',
-        'Для отзывов'       => 'review',
-        'Для пользователей' => 'user',
-        'Для всех'          => 'overall',
+        'Для чатов'          => 'chat',
+        'Для объявлений'     => 'ticket',
+        'Для отзывов'        => 'review',
+        'Для пользователей'  => 'user',
+        'Для тех. поддержки' => 'support',
+        'Для всех'           => 'overall',
     ];
 
     public function __toString(): string
@@ -69,6 +70,7 @@ class AppealReason
         'appeal:reason:read',
         'appeal:chat:read',
         'appeal:ticket:read',
+        'techSupport:read',
     ])]
     private ?int $id = null;
 
@@ -77,6 +79,7 @@ class AppealReason
         'appeal:reason:read',
         'appeal:chat:read',
         'appeal:ticket:read',
+        'techSupport:read',
     ])]
     private ?string $code = null;
 
@@ -92,6 +95,7 @@ class AppealReason
         'appeal:reason:read',
         'appeal:chat:read',
         'appeal:ticket:read',
+        'techSupport:read',
     ])]
     #[ApiProperty(writable: false)]
     private ?string $title = null;

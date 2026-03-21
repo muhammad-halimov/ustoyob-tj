@@ -116,6 +116,62 @@ class AppealReasonFixture extends Fixture
                 'eng' => 'Unfair Rating',
             ],
         ],
+        'account_issue' => [
+            'applicableTo' => 'support',
+            'translations' => [
+                'ru'  => 'Проблемы с аккаунтом',
+                'tj'  => 'Мушкилоти аккаунт',
+                'eng' => 'Account Issues',
+            ],
+        ],
+        'ads_issue' => [
+            'applicableTo' => 'support',
+            'translations' => [
+                'ru'  => 'Проблемы с объявлениями',
+                'tj'  => 'Мушкилоти эълонҳо',
+                'eng' => 'Ads Issues',
+            ],
+        ],
+        'platform_question' => [
+            'applicableTo' => 'support',
+            'translations' => [
+                'ru'  => 'Вопросы по работе платформы',
+                'tj'  => 'Саволҳо оид ба кори платформа',
+                'eng' => 'Platform Questions',
+            ],
+        ],
+        'tech_issue' => [
+            'applicableTo' => 'support',
+            'translations' => [
+                'ru'  => 'Технические проблемы',
+                'tj'  => 'Мушкилоти техникӣ',
+                'eng' => 'Technical Issues',
+            ],
+        ],
+        'law_question' => [
+            'applicableTo' => 'support',
+            'translations' => [
+                'ru'  => 'Юридические вопросы',
+                'tj'  => 'Саволҳои ҳуқуқӣ',
+                'eng' => 'Legal Questions',
+            ],
+        ],
+        'suggestion' => [
+            'applicableTo' => 'support',
+            'translations' => [
+                'ru'  => 'Предложения и фидбек',
+                'tj'  => 'Пешниҳодҳо ва фидбек',
+                'eng' => 'Suggestions & Feedback',
+            ],
+        ],
+        'urgent_support' => [
+            'applicableTo' => 'support',
+            'translations' => [
+                'ru'  => 'Экстренный',
+                'tj'  => 'Фаврӣ',
+                'eng' => 'Urgent',
+            ],
+        ],
     ];
 
     public function load(ObjectManager $manager): void

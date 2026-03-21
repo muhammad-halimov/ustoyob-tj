@@ -26,7 +26,7 @@ readonly class NotifyTechSupportEmailService
             UrlGeneratorInterface::ABSOLUTE_URL
         );
 
-        $reasonLabel = array_search($techSupport->getReason(), TechSupport::SUPPORT);
+        $reasonLabel = $techSupport->getReason()?->getTitle() ?? $techSupport->getReason()?->getCode() ?? 'Не указано';
         $statusLabel = array_search($techSupport->getStatus(), TechSupport::STATUSES);
         $priorityLabel = array_search($techSupport->getPriority(), TechSupport::PRIORITIES);
 
