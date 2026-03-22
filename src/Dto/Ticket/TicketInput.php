@@ -2,7 +2,7 @@
 
 namespace App\Dto\Ticket;
 
-use App\Entity\Geography\Address;
+use App\Entity\Geography\Abstract\Address;
 use App\Entity\Ticket\Category;
 use App\Entity\Ticket\Unit;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -42,6 +42,6 @@ class TicketInput
     /**
      * @var Address[]
      */
-    #[Assert\NotBlank(message: 'Address is required')]
+    #[Assert\NotBlank(message: 'Abstract is required')]
     public array $address; // IRI или ID
 }

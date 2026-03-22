@@ -2,36 +2,26 @@
 
 namespace App\Controller\Api\CRUD\GET\TechSupport;
 
-use App\Entity\TechSupport\TechSupport;
-use App\Entity\User;
+use App\ApiResource\AppError;
+use App\Controller\Api\CRUD\Abstract\AbstractApiController;
 use App\Repository\TechSupport\TechSupportRepository;
-use App\Service\Extra\AccessService;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
-class PersonalTechSupportFilterController extends AbstractController
+class PersonalTechSupportFilterController extends AbstractApiController
 {
     public function __construct(
         private readonly TechSupportRepository $techSupportRepository,
-        private readonly AccessService         $accessService,
-        private readonly Security              $security,
     ){}
 
     public function __invoke(): JsonResponse
     {
-        /** @var User $bearerUser */
-        $bearerUser = $this->security->getUser();
+        $bearerUser = $this->checkedUser();
 
-        $this->accessService->check($bearerUser);
-
-        /** @var TechSupport $data */
         $data = $this->techSupportRepository->findTechSupportsByUser($bearerUser)
-            ? $this->techSupportRepository->findTechSupportsByUser($bearerUser)
-            : $this->techSupportRepository->findTechSupportsByAdmin($bearerUser);
+            ?: $this->techSupportRepository->findTechSupportsByAdmin($bearerUser);
 
-        return empty($data)
-            ? $this->json(['message' => 'Resource not found'], 404)
-            : $this->json($data, context: ['groups' => ['techSupport:read']]);
+        if (empty($data)) return $this->errorJson(AppError::RESOURCE_NOT_FOUND);
+
+        return $this->json($data, context: ['groups' => ['techSupport:read']]);
     }
 }

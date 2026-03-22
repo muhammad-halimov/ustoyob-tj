@@ -3,26 +3,20 @@
 namespace App\Controller\Api\CRUD\POST\User\CollectionEntry;
 
 use App\Entity\Extra\AbstractCollectionEntry;
-use App\Entity\Extra\Favorite;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
+use App\Entity\User\Favorite;
 use App\Repository\User\FavoriteRepository;
-use App\Service\Extra\AccessService;
 use App\Service\Extra\ExtractIriService;
-use Doctrine\ORM\EntityManagerInterface;
 use Exception;
-use Symfony\Bundle\SecurityBundle\Security;
 
 class PostFavoriteController extends AbstractPostCollectionEntryController
 {
     public function __construct(
-        EntityManagerInterface          $entityManager,
-        ExtractIriService               $extractIriService,
-        AccessService                   $accessService,
-        Security                        $security,
+        ExtractIriService       $extractIriService,
         private readonly FavoriteRepository $repository,
     ) {
-        parent::__construct($entityManager, $extractIriService, $accessService, $security);
+        parent::__construct($extractIriService);
     }
 
     protected function newEntry(): AbstractCollectionEntry

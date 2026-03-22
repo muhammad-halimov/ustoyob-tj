@@ -2,8 +2,8 @@
 
 namespace App\Entity\User;
 
-use App\Entity\Traits\CreatedAtTrait;
-use App\Entity\Traits\UpdatedAtTrait;
+use App\Entity\Trait\CreatedAtTrait;
+use App\Entity\Trait\UpdatedAtTrait;
 use App\Entity\User;
 use DateTimeInterface;
 use Doctrine\ORM\Mapping as ORM;

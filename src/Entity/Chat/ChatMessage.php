@@ -14,16 +14,17 @@ use App\Controller\Api\CRUD\PATCH\Chat\Message\PatchChatMessageController;
 use App\Controller\Api\CRUD\POST\Chat\Message\PostChatMessageController;
 use App\Controller\Api\CRUD\POST\Chat\Message\PostChatMessagePhotoController;
 use App\Dto\Image\ImageInput;
+use App\Entity\Extra\MultipleImage;
+use App\Entity\Trait\CreatedAtTrait;
+use App\Entity\Trait\DescriptionTrait;
+use App\Entity\Trait\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\Chat\ChatMessageRepository;
-use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
-use Symfony\Component\Serializer\Attribute\SerializedName;
 use Vich\UploaderBundle\Mapping\Attribute as Vich;
 
 #[ORM\HasLifecycleCallbacks]
@@ -77,15 +78,17 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
 )]
 class ChatMessage
 {
-    public function __toString(): string
-    {
-        return "MessageID #{$this->id}; ChatID #{$this->chat->getId()}; Text: {$this->text}" ?? "Message #$this->id";
-    }
+    use CreatedAtTrait, UpdatedAtTrait, DescriptionTrait;
 
     public function __construct()
     {
         $this->chatMessages = new ArrayCollection();
-        $this->chatImages = new ArrayCollection();
+        $this->images = new ArrayCollection();
+    }
+
+    public function __toString(): string
+    {
+        return "MessageID #{$this->id}; ChatID #{$this->chat->getId()}; Text: {$this->description}" ?? "ChatMessage #$this->id";
     }
 
     #[ORM\Id]
@@ -96,14 +99,6 @@ class ChatMessage
         'chatMessages:read'
     ])]
     private ?int $id = null;
-
-
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    #[Groups([
-        'chats:read',
-        'chatMessages:read'
-    ])]
-    private ?string $text = null;
 
     #[ORM\ManyToOne(inversedBy: 'messages')]
     #[Groups([
@@ -136,46 +131,19 @@ class ChatMessage
     private Collection $chatMessages;
 
     /**
-     * @var Collection<int, ChatImage>
+     * @var Collection<int, MultipleImage>
      */
-    #[ORM\OneToMany(targetEntity: ChatImage::class, mappedBy: 'chatMessage', cascade: ['all'])]
-    #[Groups([
-        'chats:read',
-        'chatMessages:read',
-    ])]
-    #[SerializedName('images')]
-    #[ApiProperty(writable: false)]
-    private Collection $chatImages;
-
-    #[ORM\Column(type: 'datetime', nullable: false)]
+    #[ORM\OneToMany(targetEntity: MultipleImage::class, mappedBy: 'chatMessage')]
+    #[ORM\OrderBy(['position' => 'ASC'])]
     #[Groups([
         'chats:read',
         'chatMessages:read'
     ])]
-    protected DateTime $createdAt;
-
-    #[ORM\Column(type: 'datetime', nullable: false)]
-    #[Groups([
-        'chats:read',
-        'chatMessages:read'
-    ])]
-    protected DateTime $updatedAt;
+    private Collection $images;
 
     public function getId(): ?int
     {
         return $this->id;
-    }
-
-    public function getText(): ?string
-    {
-        return $this->text;
-    }
-
-    public function setText(?string $text): static
-    {
-        $this->text = $text;
-
-        return $this;
     }
 
     public function getChat(): ?Chat
@@ -200,29 +168,6 @@ class ChatMessage
         $this->author = $author;
 
         return $this;
-    }
-
-    public function getCreatedAt(): DateTime
-    {
-        return $this->createdAt;
-    }
-
-    #[ORM\PrePersist]
-    public function setCreatedAt(): void
-    {
-        $this->createdAt = new DateTime();
-    }
-
-    public function getUpdatedAt(): DateTime
-    {
-        return $this->updatedAt;
-    }
-
-    #[ORM\PreUpdate]
-    #[ORM\PrePersist]
-    public function setUpdatedAt(): void
-    {
-        $this->updatedAt = new DateTime();
     }
 
     public function getReplyTo(): ?self
@@ -268,28 +213,29 @@ class ChatMessage
     }
 
     /**
-     * @return Collection<int, ChatImage>
+     * @return Collection<int, MultipleImage>
      */
-    public function getChatImages(): Collection
+    public function getImages(): Collection
     {
-        return $this->chatImages;
+        return $this->images;
     }
 
-    public function addChatImage(ChatImage $chatImage): static
+    public function addImage(MultipleImage $image): static
     {
-        if (!$this->chatImages->contains($chatImage)) {
-            $this->chatImages->add($chatImage);
-            $chatImage->setChatMessage($this);
+        if (!$this->images->contains($image)) {
+            $this->images->add($image);
+            $image->setChatMessage($this);
         }
 
         return $this;
     }
 
-    public function removeChatImage(ChatImage $chatImage): static
+    public function removeImage(MultipleImage $image): static
     {
-        if ($this->chatImages->removeElement($chatImage)) {
-            if ($chatImage->getChatMessage() === $this) {
-                $chatImage->setChatMessage(null);
+        if ($this->images->removeElement($image)) {
+            // set the owning side to null (unless already changed)
+            if ($image->getChatMessage() === $this) {
+                $image->setChatMessage(null);
             }
         }
 

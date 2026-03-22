@@ -2,6 +2,7 @@
 
 namespace App\Controller\Api\Auth;
 
+use App\ApiResource\AppError;
 use Doctrine\Persistence\ManagerRegistry;
 use Gesdinet\JWTRefreshTokenBundle\Entity\RefreshToken;
 use Gesdinet\JWTRefreshTokenBundle\Model\RefreshTokenManagerInterface;
@@ -24,12 +25,12 @@ class ApiLogoutController extends AbstractController
         $token = $tokenStorage->getToken();
 
         if (!$token)
-            return new JsonResponse(['success' => false, 'message' => 'Token not found'], 401);
+            return new JsonResponse(['success' => false, 'message' => AppError::get(AppError::TOKEN_NOT_FOUND)->message], AppError::get(AppError::TOKEN_NOT_FOUND)->http);
 
         $user = $token->getUser();
 
         if (!$user)
-            return new JsonResponse(['success' => false, 'message' => 'User not found'], 401);
+            return new JsonResponse(['success' => false, 'message' => AppError::get(AppError::USER_NOT_FOUND)->message], AppError::get(AppError::USER_NOT_FOUND)->http);
 
         // Диспатчим событие logout — для Lexik blocklist токен попадёт автоматически
         $eventDispatcher->dispatch(new LogoutEvent($request, $token));

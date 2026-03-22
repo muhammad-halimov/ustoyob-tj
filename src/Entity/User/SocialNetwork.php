@@ -2,10 +2,10 @@
 
 namespace App\Entity\User;
 
-use App\Entity\Traits\CreatedAtTrait;
-use App\Entity\Traits\UpdatedAtTrait;
+use App\Entity\Trait\CreatedAtTrait;
+use App\Entity\Trait\UpdatedAtTrait;
 use App\Entity\User;
-use App\Repository\SocialNetworkRepository;
+use App\Repository\User\SocialNetworkRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
@@ -21,7 +21,7 @@ class SocialNetwork
         return $this->network ?? "Social Network #$this->id";
     }
 
-    const NETWORKS = [
+    const array NETWORKS = [
         'Instagram' => 'instagram',
         'Telegram' => 'telegram',
         'WhatsApp' => 'whatsapp',

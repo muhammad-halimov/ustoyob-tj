@@ -2,6 +2,7 @@
 
 namespace App\Controller\Admin\Review;
 
+use App\Controller\Admin\Extra\MultipleImageCrudController;
 use App\Entity\Review\Review;
 use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
@@ -100,10 +101,11 @@ class ReviewCrudController extends AbstractCrudController
         yield TextEditorField::new('description', 'Описание')
             ->setColumns(12);
 
-        yield CollectionField::new('reviewImages', 'Галерея изображений')
-            ->useEntryCrudForm(ReviewImageCrudController::class)
+        yield CollectionField::new('images', 'Галерея изображений')
+            ->useEntryCrudForm(MultipleImageCrudController::class)
             ->hideOnIndex()
-            ->setColumns(12);
+            ->setColumns(12)
+            ->setRequired(false);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')
             ->hideOnForm();

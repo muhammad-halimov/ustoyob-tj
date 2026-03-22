@@ -4,7 +4,6 @@ namespace App\Entity\Appeal;
 
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
-use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
@@ -12,29 +11,43 @@ use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\GET\Appeal\PersonalAppealsFilterController;
 use App\Controller\Api\CRUD\POST\Appeal\PostAppealConntroller;
 use App\Controller\Api\CRUD\POST\Appeal\PostAppealPhotoController;
-use App\Dto\Appeal\Appeal\AppealInput;
+use App\Dto\Appeal\AppealInput;
 use App\Dto\Image\ImageInput;
 use App\Entity\Appeal\AppealTypes\AppealChat;
 use App\Entity\Appeal\AppealTypes\AppealReview;
 use App\Entity\Chat\Chat;
+use App\Entity\Extra\MultipleImage;
 use App\Entity\Review\Review;
 use App\Entity\Ticket\Ticket;
-use App\Entity\Traits\CreatedAtTrait;
-use App\Entity\Traits\UpdatedAtTrait;
+use App\Entity\Trait\AppealReasonTrait;
+use App\Entity\Trait\CreatedAtTrait;
+use App\Entity\Trait\DescriptionTrait;
+use App\Entity\Trait\TitleTrait;
+use App\Entity\Trait\TypeTrait;
+use App\Entity\Trait\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\User\AppealRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
-use Symfony\Component\Serializer\Attribute\SerializedName;
 
 #[ORM\Entity(repositoryClass: AppealRepository::class)]
 #[ORM\HasLifecycleCallbacks]
 #[ORM\InheritanceType('JOINED')]
 #[ApiResource(
     operations: [
+        new GetCollection(
+            uriTemplate: '/appeals/me',
+            controller: PersonalAppealsFilterController::class,
+            normalizationContext: ['groups' => [
+                'appeal:read',
+                'appeal:ticket:read',
+                'appeal:chat:read',
+                'appeal:review:read',
+                'appeal:user:read'
+            ]],
+        ),
         new Get(
             uriTemplate: '/appeals/{id}',
             normalizationContext: ['groups' => [
@@ -56,17 +69,6 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
                 'appeal:user:read'
             ]],
             security: "is_granted('ROLE_ADMIN')",
-        ),
-        new GetCollection(
-            uriTemplate: '/appeals/me',
-            controller: PersonalAppealsFilterController::class,
-            normalizationContext: ['groups' => [
-                'appeal:read',
-                'appeal:ticket:read',
-                'appeal:chat:read',
-                'appeal:review:read',
-                'appeal:user:read'
-            ]],
         ),
         new Post(
             uriTemplate: '/appeals',
@@ -102,7 +104,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 ])]
 abstract class Appeal
 {
-    use CreatedAtTrait, UpdatedAtTrait;
+    use CreatedAtTrait, UpdatedAtTrait, TitleTrait, DescriptionTrait, TypeTrait, AppealReasonTrait;
 
     public const array TYPES = [
         'Услуга / Объявление' => 'ticket',
@@ -114,46 +116,58 @@ abstract class Appeal
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['appeal:read', 'appeal:chat:read', 'appeal:ticket:read', 'appeal:review:read', 'appeal:user:read'])]
+    #[Groups([
+        'appeal:read',
+        'appeal:chat:read',
+        'appeal:ticket:read',
+        'appeal:review:read',
+        'appeal:user:read'
+    ])]
     private ?int $id = null;
 
-    #[ORM\Column(length: 20, nullable: true)]
-    #[Groups(['appeal:read', 'appeal:chat:read', 'appeal:ticket:read', 'appeal:review:read', 'appeal:user:read'])]
-    private ?string $type = null;
-
-    #[ORM\Column(length: 255, nullable: true)]
-    #[Groups(['appeal:read', 'appeal:chat:read', 'appeal:ticket:read', 'appeal:review:read', 'appeal:user:read'])]
-    private ?string $title = null;
-
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    #[Groups(['appeal:read', 'appeal:chat:read', 'appeal:ticket:read', 'appeal:review:read', 'appeal:user:read'])]
-    private ?string $description = null;
-
-    #[ORM\ManyToOne]
-    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
-    #[Groups(['appeal:read', 'appeal:chat:read', 'appeal:ticket:read', 'appeal:review:read', 'appeal:user:read'])]
-    private ?AppealReason $reason = null;
-
     #[ORM\ManyToOne(inversedBy: 'appeals')]
-    #[Groups(['appeal:read', 'appeal:chat:read', 'appeal:ticket:read', 'appeal:review:read', 'appeal:user:read'])]
+    #[Groups([
+        'appeal:read',
+        'appeal:chat:read',
+        'appeal:ticket:read',
+        'appeal:review:read',
+        'appeal:user:read'
+    ])]
     private ?User $author = null;
 
     #[ORM\ManyToOne(inversedBy: 'appealsAsRespondent')]
-    #[Groups(['appeal:read', 'appeal:chat:read', 'appeal:ticket:read', 'appeal:review:read', 'appeal:user:read'])]
+    #[Groups([
+        'appeal:read',
+        'appeal:chat:read',
+        'appeal:ticket:read',
+        'appeal:review:read',
+        'appeal:user:read'
+    ])]
     private ?User $respondent = null;
 
     #[ORM\ManyToOne(inversedBy: 'appeals')]
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
-    #[Groups(['appeal:read', 'appeal:chat:read', 'appeal:ticket:read', 'appeal:review:read', 'appeal:user:read'])]
+    #[Groups([
+        'appeal:read',
+        'appeal:chat:read',
+        'appeal:ticket:read',
+        'appeal:review:read',
+        'appeal:user:read'
+    ])]
     private ?Ticket $ticket = null;
 
     /**
-     * @var Collection<int, AppealImage>
+     * @var Collection<int, MultipleImage>
      */
-    #[ORM\OneToMany(targetEntity: AppealImage::class, mappedBy: 'appeal', cascade: ['all'])]
-    #[Groups(['appeal:read', 'appeal:chat:read', 'appeal:ticket:read', 'appeal:review:read', 'appeal:user:read'])]
-    #[ApiProperty(writable: false)]
-    #[SerializedName('images')]
+    #[ORM\OneToMany(targetEntity: MultipleImage::class, mappedBy: 'appeal')]
+    #[ORM\OrderBy(['position' => 'ASC'])]
+    #[Groups([
+        'appeal:read',
+        'appeal:chat:read',
+        'appeal:ticket:read',
+        'appeal:review:read',
+        'appeal:user:read'
+    ])]
     private Collection $images;
 
     public function __construct()
@@ -169,17 +183,6 @@ abstract class Appeal
     public function getId(): ?int
     {
         return $this->id;
-    }
-
-    public function getType(): string
-    {
-        return $this->type;
-    }
-
-    public function setType(string $type): static
-    {
-        $this->type = $type;
-        return $this;
     }
 
     public function getTypeLabel(): string
@@ -211,39 +214,6 @@ abstract class Appeal
         if ($this instanceof AppealReview) {
             $this->setReview($review);
         }
-        return $this;
-    }
-
-    public function getTitle(): ?string
-    {
-        return $this->title;
-    }
-
-    public function setTitle(?string $title): static
-    {
-        $this->title = $title;
-        return $this;
-    }
-
-    public function getDescription(): ?string
-    {
-        return $this->description;
-    }
-
-    public function setDescription(?string $description): static
-    {
-        $this->description = $description;
-        return $this;
-    }
-
-    public function getReason(): ?AppealReason
-    {
-        return $this->reason;
-    }
-
-    public function setReason(?AppealReason $reason): static
-    {
-        $this->reason = $reason;
         return $this;
     }
 
@@ -280,33 +250,6 @@ abstract class Appeal
         return $this;
     }
 
-    /**
-     * @return Collection<int, AppealImage>
-     */
-    public function getImages(): Collection
-    {
-        return $this->images;
-    }
-
-    public function addImage(AppealImage $image): static
-    {
-        if (!$this->images->contains($image)) {
-            $this->images->add($image);
-            $image->setAppeal($this);
-        }
-        return $this;
-    }
-
-    public function removeImage(AppealImage $image): static
-    {
-        if ($this->images->removeElement($image)) {
-            if ($image->getAppeal() === $this) {
-                $image->setAppeal(null);
-            }
-        }
-        return $this;
-    }
-
     public function getInfo(): string
     {
         $typeCode  = $this instanceof AppealChat ? 'chat' : 'ticket';
@@ -331,5 +274,35 @@ abstract class Appeal
         }
 
         return implode("\n", $lines);
+    }
+
+    /**
+     * @return Collection<int, MultipleImage>
+     */
+    public function getImages(): Collection
+    {
+        return $this->images;
+    }
+
+    public function addImage(MultipleImage $image): static
+    {
+        if (!$this->images->contains($image)) {
+            $this->images->add($image);
+            $image->setAppeal($this);
+        }
+
+        return $this;
+    }
+
+    public function removeImage(MultipleImage $image): static
+    {
+        if ($this->images->removeElement($image)) {
+            // set the owning side to null (unless already changed)
+            if ($image->getAppeal() === $this) {
+                $image->setAppeal(null);
+            }
+        }
+
+        return $this;
     }
 }

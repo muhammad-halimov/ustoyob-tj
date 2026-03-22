@@ -2,47 +2,33 @@
 
 namespace App\Controller\Api\CRUD\PATCH\Chat\Chat;
 
+use App\ApiResource\AppError;
+use App\Controller\Api\CRUD\Abstract\AbstractApiController;
 use App\Entity\Chat\Chat;
-use App\Entity\User;
-use App\Repository\Chat\ChatRepository;
-use App\Service\Extra\AccessService;
-use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
-class PatchChatController extends AbstractController
+class PatchChatController extends AbstractApiController
 {
-    public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly ChatRepository         $chatRepository,
-        private readonly Security               $security,
-        private readonly AccessService          $accessService,
-    ){}
 
     public function __invoke(int $id, Request $request): JsonResponse
     {
-        /** @var User $bearerUser */
-        $bearerUser = $this->security->getUser();
-
-        $this->accessService->check($bearerUser);
-
-        $data = json_decode($request->getContent(), true);
+        $bearerUser = $this->checkedUser();
 
         /** @var Chat $chat */
-        $chat = $this->chatRepository->find($id);
+        $chat = $this->findOr404(Chat::class, $id);
 
-        if (!$chat) return $this->json(['message' => "Resource not found"], 404);
+        if ($chat instanceof JsonResponse)
+            return $chat;
 
         if ($chat->getAuthor() !== $bearerUser && $chat->getReplyAuthor() !== $bearerUser)
-            return $this->json(['message' => "Ownership doesn't match"], 403);
+            return $this->errorJson(AppError::OWNERSHIP_MISMATCH);
 
         $this->accessService->checkBlackList($chat->getAuthor(), $chat->getReplyAuthor());
 
-        $chat->setActive((bool)$data['active']);
+        $chat->setActive((bool)$this->getContent()['active']);
 
-        $this->entityManager->flush();
+        $this->flush();
 
         return $this->json(['message' => "Resource updated successfully"]);
     }

@@ -2,19 +2,15 @@
 
 namespace App\Controller\Api\CRUD\POST\User\User;
 
+use App\ApiResource\AppError;
+use App\Controller\Api\CRUD\Abstract\AbstractApiController;
 use App\Entity\User\AccountConfirmationToken;
 use DateTime;
-use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
-class ConfirmAccountController extends AbstractController
+class ConfirmAccountController extends AbstractApiController
 {
-    public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-    ){}
-
     public function __invoke(Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
@@ -26,7 +22,7 @@ class ConfirmAccountController extends AbstractController
             ->findOneBy(['token' => $data['token']]);
 
         if (!$confirmationToken || $confirmationToken->getExpiresAt() < new DateTime())
-            return $this->json(['success' => false, 'message' => 'Token is invalid or expired'], 400);
+            return $this->errorJson(AppError::TOKEN_INVALID_OR_EXPIRED);
 
         $user = $confirmationToken->getUser();
 

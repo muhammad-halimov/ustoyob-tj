@@ -2,12 +2,13 @@
 
 namespace App\DataFixture\Additional;
 
+use App\DataFixture\Ticket\TicketFixture;
 use App\DataFixture\User\ClientFixture;
 use App\DataFixture\User\MasterFixture;
-use App\Entity\Extra\BlackList;
-use App\Entity\Extra\Favorite;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
+use App\Entity\User\BlackList;
+use App\Entity\User\Favorite;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
 use Doctrine\Persistence\ObjectManager;

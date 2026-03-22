@@ -2,13 +2,11 @@
 
 namespace App\Controller\Api\CRUD\POST\User\User;
 
+use App\ApiResource\AppError;
 use App\Controller\Api\CRUD\POST\Image\AbstractPhotoUploadController;
 use App\Entity\User;
-use App\Repository\UserRepository;
-use App\Service\Extra\AccessService;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Repository\User\UserRepository;
 use ReflectionClass;
-use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -16,26 +14,19 @@ use Symfony\Component\HttpFoundation\Request;
 class PostUserPhotoController extends AbstractPhotoUploadController
 {
     public function __construct(
-        EntityManagerInterface $entityManager,
-        Security $security,
-        AccessService $accessService,
         private readonly UserRepository $userRepository,
-    ) {
-        parent::__construct($entityManager, $security, $accessService);
-    }
+    ) {}
 
-    // Специальный случай - возвращаем кастомный ответ
     public function __invoke(int $id, Request $request): JsonResponse
     {
         $response = parent::__invoke($id, $request);
 
-        // Если успешно, добавляем URL изображения
         if ($response->getStatusCode() === 200) {
             $user = $this->userRepository->find($id);
             return $this->json([
                 'id' => $user->getId(),
                 'image' => $user->getImage(),
-                'message' => 'Photo updated successfully'
+                'message' => 'Photo updated successfully',
             ]);
         }
 
@@ -49,9 +40,8 @@ class PostUserPhotoController extends AbstractPhotoUploadController
 
     protected function checkOwnership(object $entity, User $bearerUser): ?JsonResponse
     {
-        /** @var User $entity */
         if ($entity !== $bearerUser) {
-            return $this->json(["message" => "Ownership doesn't match"], 403);
+            return $this->errorJson(AppError::OWNERSHIP_MISMATCH);
         }
         return null;
     }

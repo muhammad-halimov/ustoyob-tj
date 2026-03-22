@@ -2,27 +2,20 @@
 
 namespace App\Controller\Api\CRUD\POST\User\User;
 
+use App\Controller\Api\CRUD\Abstract\AbstractApiController;
 use App\Entity\User;
-use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
-class MarkOfflineController extends AbstractController
+class MarkOfflineController extends AbstractApiController
 {
-    public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly Security               $security,
-    ) {}
-
     public function __invoke(): JsonResponse
     {
         $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
 
-        /** @var User $user */
-        $user = $this->security->getUser();
-        $user->setLastSeen(null);
-        $this->entityManager->flush();
+        /** @var User $bearerUser */
+        $this->currentUser()->setLastSeen(null);
+
+        $this->flush();
 
         return $this->json(['ok' => true]);
     }

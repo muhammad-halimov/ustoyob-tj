@@ -3,7 +3,7 @@
 namespace App\DataFixture\User;
 
 use App\DataFixture\Additional\ReviewFIxture;
-use App\DataFixture\Additional\TicketFixture;
+use App\DataFixture\Ticket\TicketFixture;
 use App\Entity\Review\Review;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;

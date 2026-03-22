@@ -2,32 +2,23 @@
 
 namespace App\Controller\Api\CRUD\GET\Gallery;
 
-use App\Entity\User;
-use App\Repository\GalleryRepository;
-use App\Service\Extra\AccessService;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Bundle\SecurityBundle\Security;
+use App\ApiResource\AppError;
+use App\Controller\Api\CRUD\Abstract\AbstractApiController;
+use App\Repository\Gallery\GalleryRepository;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
-class PersonalGalleryFilterController extends AbstractController
+class PersonalGalleryFilterController extends AbstractApiController
 {
     public function __construct(
         private readonly GalleryRepository $galleryRepository,
-        private readonly AccessService     $accessService,
-        private readonly Security          $security,
     ){}
 
     public function __invoke(): JsonResponse
     {
-        /** @var User $bearerUser */
-        $bearerUser = $this->security->getUser();
-
-        $this->accessService->check($bearerUser, 'double');
-
-        $data = $this->galleryRepository->findUserGallery($bearerUser);
+        $data = $this->galleryRepository->findUserGallery($this->checkedUser('double'));
 
         return empty($data)
-            ? $this->json(['message' => 'Resource not found'], 404)
+            ? $this->errorJson(AppError::RESOURCE_NOT_FOUND)
             : $this->json($data, context: ['groups' => ['galleries:read']]);
     }
 }

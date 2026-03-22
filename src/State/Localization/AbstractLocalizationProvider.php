@@ -5,13 +5,16 @@ namespace App\State\Localization;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
-use App\Entity\Extra\Translation;
 use App\Service\Extra\LocalizationService;
+use App\State\Trait\LocaleResolveTrait;
+use App\State\Trait\ProviderResolveTrait;
 use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 abstract readonly class AbstractLocalizationProvider implements ProviderInterface
 {
+    use LocaleResolveTrait;
+    use ProviderResolveTrait;
+
     public function __construct(
         protected ProviderInterface   $itemProvider,
         protected ProviderInterface   $collectionProvider,
@@ -19,27 +22,11 @@ abstract readonly class AbstractLocalizationProvider implements ProviderInterfac
         protected LocalizationService $localizationService,
     ) {}
 
-    private function getLocale(RequestStack $requestStack): string
-    {
-        $request = $requestStack->getCurrentRequest();
-        $locale  = $request?->query->get('locale', 'tj') ?? 'tj';
-
-        if (!in_array($locale, array_values(Translation::LOCALES))) {
-            throw new NotFoundHttpException("Locale not found");
-        }
-
-        return $locale;
-    }
-
-    private function resolveProvider(Operation $operation): ProviderInterface {
-        return $operation instanceof GetCollection ? $this->collectionProvider : $this->itemProvider;
-    }
-
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
     {
         $provider = $this->resolveProvider($operation);
         $result   = $provider->provide($operation, $uriVariables, $context);
-        $locale   = $this->getLocale($this->requestStack);
+        $locale   = $this->resolveLocale();
 
         if ($operation instanceof GetCollection) {
             foreach ($result as $entity) {

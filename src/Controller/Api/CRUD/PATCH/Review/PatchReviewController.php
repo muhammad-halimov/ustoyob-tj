@@ -2,42 +2,29 @@
 
 namespace App\Controller\Api\CRUD\PATCH\Review;
 
+use App\ApiResource\AppError;
+use App\Controller\Api\CRUD\Abstract\AbstractApiController;
+use App\Entity\Extra\MultipleImage;
 use App\Entity\Review\Review;
-use App\Entity\Review\ReviewImage;
-use App\Entity\User;
-use App\Repository\ReviewRepository;
-use App\Service\Extra\AccessService;
-use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
-class PatchReviewController extends AbstractController
+class PatchReviewController extends AbstractApiController
 {
-    public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly ReviewRepository       $reviewRepository,
-        private readonly AccessService          $accessService,
-        private readonly Security               $security,
-    ){}
-
     public function __invoke(int $id, Request $request): JsonResponse
     {
-        /** @var User $bearerUser */
-        $bearerUser = $this->security->getUser();
-
-        $this->accessService->check($bearerUser);
+        $bearerUser = $this->checkedUser();
 
         /** @var Review $review */
-        $review = $this->reviewRepository->find($id);
+        $review = $this->findOr404(Review::class, $id, AppError::REVIEW_NOT_FOUND);
 
-        if (!$review) return $this->json(['message' => 'Review not found'], 404);
+        if ($review instanceof JsonResponse)
+            return $review;
 
         if ($bearerUser !== $review->getClient() && $bearerUser !== $review->getMaster())
-            return $this->json(['message' => "Ownership doesn't match"], 403);
+            return $this->errorJson(AppError::OWNERSHIP_MISMATCH);
 
-        $data = json_decode($request->getContent(), true);
+        $data = $this->getContent();
 
         $ratingParam = (float)$data['rating'];
         $descriptionParam = $data['description'] ?? null;
@@ -46,10 +33,10 @@ class PatchReviewController extends AbstractController
         $imagesParam = $imagesParam ? (is_array($imagesParam) ? $imagesParam : [$imagesParam]) : [];
 
         // Проверка диапазона (например, от 1 до 5)
-        if ($ratingParam < 1 || $ratingParam > 5) return $this->json(['message' => 'Rating must be between 1 and 5'], 400);
+        if ($ratingParam < 1 || $ratingParam > 5) return $this->errorJson(AppError::INVALID_RATING);
 
-        foreach ($review->getReviewImages() as $img) {
-            $review->removeReviewImage($img);
+        foreach ($review->getImages() as $img) {
+            $review->removeImage($img);
             $this->entityManager->remove($img);
         }
 
@@ -59,17 +46,17 @@ class PatchReviewController extends AbstractController
 
         foreach ($imagesParam as $image) {
             if ($image['image'] && $image['image'] !== "string")
-                $review->addReviewImage((new ReviewImage())->setImage($image['image']));
+                $review->addImage((new MultipleImage())->setImage($image['image']));
         }
 
-        $this->entityManager->flush();
+        $this->flush();
 
         $message = [
             'id' => $review->getId(),
             'type' => $review->getType(),
             'rating' => $review->getRating(),
             'description' => $review->getDescription(),
-            'images' => array_values($review->getReviewImages()->map(fn($img) => ['image' => $img->getImage()])->toArray()),
+            'images' => array_values($review->getImages()->map(fn($img) => ['image' => $img->getImage()])->toArray()),
             'ticket' => $review->getServices() ? "/api/tickets/{$review->getServices()->getId()}" : null,
             'master' => "/api/users/{$review->getMaster()->getId()}",
             'client' => "/api/users/{$review->getClient()->getId()}",

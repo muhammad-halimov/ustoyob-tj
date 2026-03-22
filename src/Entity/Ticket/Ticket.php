@@ -22,13 +22,16 @@ use App\Dto\Ticket\TicketInput;
 use App\Dto\Ticket\TicketPatchInput;
 use App\Entity\Appeal\Appeal;
 use App\Entity\Chat\Chat;
-use App\Entity\Geography\Address;
+use App\Entity\Extra\MultipleImage;
+use App\Entity\Geography\Abstract\Address;
 use App\Entity\Review\Review;
-use App\Entity\Traits\CreatedAtTrait;
-use App\Entity\Traits\UpdatedAtTrait;
+use App\Entity\Trait\CreatedAtTrait;
+use App\Entity\Trait\DescriptionTrait;
+use App\Entity\Trait\TitleTrait;
+use App\Entity\Trait\UpdatedAtTrait;
 use App\Entity\User;
 use App\Entity\User\Occupation;
-use App\Repository\TicketRepository;
+use App\Repository\Ticket\TicketRepository;
 use App\State\Localization\Geography\TicketGeographyLocalizationProvider;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -107,7 +110,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiFilter(RangeFilter::class, properties: ['budget', 'master.rating', 'author.rating'])]
 class Ticket
 {
-    use CreatedAtTrait, UpdatedAtTrait;
+    use CreatedAtTrait, UpdatedAtTrait, TitleTrait, DescriptionTrait;
 
     public function __toString(): string
     {
@@ -119,11 +122,11 @@ class Ticket
 
     public function __construct()
     {
-        $this->userTicketImages = new ArrayCollection();
         $this->reviews = new ArrayCollection();
         $this->appeals = new ArrayCollection();
         $this->chats = new ArrayCollection();
         $this->addresses = new ArrayCollection();
+        $this->images = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -140,27 +143,6 @@ class Ticket
         'chats:read',
     ])]
     private ?int $id = null;
-
-    #[ORM\Column(length: 64, nullable: true)]
-    #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'reviews:read',
-        'favorites:read',
-        'appeal:ticket:read',
-        'appeal:chat:read',
-        'blackLists:read',
-        'chats:read',
-    ])]
-    private ?string $title = null;
-
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'favorites:read',
-    ])]
-    private ?string $description = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups([
@@ -217,8 +199,17 @@ class Ticket
     #[Groups([
         'masterTickets:read',
         'clientTickets:read',
+        'favorites:read',
     ])]
-    private int $position = 0;
+    private int $viewsCount = 0;
+
+    #[ORM\Column(options: ['default' => 0])]
+    #[Groups([
+        'masterTickets:read',
+        'clientTickets:read',
+        'favorites:read',
+    ])]
+    private int $responsesCount = 0;
 
     #[ORM\ManyToOne(inversedBy: 'userTickets')]
     #[ORM\JoinColumn(name: 'category_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
@@ -263,24 +254,6 @@ class Ticket
         'blackLists:read'
     ])]
     private ?User $master = null;
-
-    /**
-     * @var Collection<int, TicketImage>
-     */
-    #[ORM\OneToMany(targetEntity: TicketImage::class, mappedBy: 'userTicket', cascade: ['all'])]
-    #[ORM\OrderBy(['position' => 'ASC'])]
-    #[Groups([
-        'ticketImages:read',
-
-        'reviews:read',
-        'favorites:read',
-        'appeal:ticket:read',
-        'appeal:chat:read',
-        'blackLists:read',
-        'chats:read',
-    ])]
-    #[SerializedName('images')]
-    private Collection $userTicketImages;
 
     #[ORM\ManyToOne(cascade: ['all'], inversedBy: 'userTickets')]
     #[ORM\JoinColumn(name: 'unit_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
@@ -339,31 +312,55 @@ class Ticket
     ])]
     private Collection $addresses;
 
+    /**
+     * @var Collection<int, MultipleImage>
+     */
+    #[ORM\OneToMany(targetEntity: MultipleImage::class, mappedBy: 'ticket')]
+    #[ORM\OrderBy(['position' => 'ASC'])]
+    #[Groups([
+        'masterTickets:read',
+        'clientTickets:read',
+        'reviews:read',
+        'favorites:read',
+        'appeal:ticket:read',
+        'appeal:chat:read',
+        'blackLists:read',
+        'chats:read',
+    ])]
+    private Collection $images;
+
     public function getId(): ?int
     {
         return $this->id;
     }
 
-    public function getTitle(): ?string
+    public function getViewsCount(): int
     {
-        return $this->title;
+        return $this->viewsCount;
     }
 
-    public function setTitle(?string $title): static
+    public function setViewsCount(int $viewsCount): static
     {
-        $this->title = $title;
+        $this->viewsCount = $viewsCount;
 
         return $this;
     }
 
-    public function getDescription(): ?string
+    public function getResponsesCount(): int
     {
-        return strip_tags($this->description);
+        return $this->responsesCount;
     }
 
-    public function setDescription(?string $description): static
+    public function setResponsesCount(int $responsesCount): static
     {
-        $this->description = $description;
+        $this->responsesCount = $responsesCount;
+
+        return $this;
+    }
+
+    public function incrementResponsesCount(): static
+    {
+        $this->responsesCount++;
 
         return $this;
     }
@@ -426,36 +423,6 @@ class Ticket
         return $this;
     }
 
-    /**
-     * @return Collection<int, TicketImage>
-     */
-    public function getUserTicketImages(): Collection
-    {
-        return $this->userTicketImages;
-    }
-
-    public function addUserTicketImage(TicketImage $userTicketImage): static
-    {
-        if (!$this->userTicketImages->contains($userTicketImage)) {
-            $this->userTicketImages->add($userTicketImage);
-            $userTicketImage->setUserTicket($this);
-        }
-
-        return $this;
-    }
-
-    public function removeUserTicketImage(TicketImage $userTicketImage): static
-    {
-        if ($this->userTicketImages->removeElement($userTicketImage)) {
-            // set the owning side to null (unless already changed)
-            if ($userTicketImage->getUserTicket() === $this) {
-                $userTicketImage->setUserTicket(null);
-            }
-        }
-
-        return $this;
-    }
-
     public function getActive(): ?bool
     {
         return $this->active;
@@ -464,17 +431,6 @@ class Ticket
     public function setActive(?bool $active): Ticket
     {
         $this->active = $active;
-        return $this;
-    }
-
-    public function getPosition(): int
-    {
-        return $this->position;
-    }
-
-    public function setPosition(int $position): static
-    {
-        $this->position = $position;
         return $this;
     }
 
@@ -635,6 +591,36 @@ class Ticket
     public function setSubcategory(?Occupation $subcategory): static
     {
         $this->subcategory = $subcategory;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, MultipleImage>
+     */
+    public function getImages(): Collection
+    {
+        return $this->images;
+    }
+
+    public function addImage(MultipleImage $image): static
+    {
+        if (!$this->images->contains($image)) {
+            $this->images->add($image);
+            $image->setTicket($this);
+        }
+
+        return $this;
+    }
+
+    public function removeImage(MultipleImage $image): static
+    {
+        if ($this->images->removeElement($image)) {
+            // set the owning side to null (unless already changed)
+            if ($image->getTicket() === $this) {
+                $image->setTicket(null);
+            }
+        }
 
         return $this;
     }

@@ -6,13 +6,15 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use App\Entity\Extra\Translation;
-use App\Entity\Traits\CreatedAtTrait;
-use App\Entity\Traits\UpdatedAtTrait;
-use App\Repository\UnitRepository;
+use App\Entity\Trait\CreatedAtTrait;
+use App\Entity\Trait\DescriptionTrait;
+use App\Entity\Trait\PriorityTrait;
+use App\Entity\Trait\TitleTrait;
+use App\Entity\Trait\UpdatedAtTrait;
+use App\Repository\Ticket\UnitRepository;
 use App\State\Localization\Title\UnitTitleLocalizationProvider;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
@@ -42,7 +44,7 @@ use Symfony\Component\Serializer\Attribute\Ignore;
 )]
 class Unit
 {
-    use UpdatedAtTrait, CreatedAtTrait;
+    use UpdatedAtTrait, CreatedAtTrait, TitleTrait, DescriptionTrait, PriorityTrait;
 
     public function __toString(): string
     {
@@ -76,21 +78,6 @@ class Unit
     ])]
     private ?int $id = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
-    #[Groups([
-        'units:read',
-        'masterTickets:read',
-        'clientTickets:read',
-        'favorites:read',
-    ])]
-    private ?string $title = null;
-
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    #[Groups([
-        'units:read',
-    ])]
-    private ?string $description = null;
-
     /**
      * @var Collection<int, Ticket>
      */
@@ -107,30 +94,6 @@ class Unit
     public function getId(): ?int
     {
         return $this->id;
-    }
-
-    public function getTitle(): ?string
-    {
-        return $this->title;
-    }
-
-    public function setTitle(?string $title): static
-    {
-        $this->title = $title;
-
-        return $this;
-    }
-
-    public function getDescription(): ?string
-    {
-        return $this->description;
-    }
-
-    public function setDescription(?string $description): static
-    {
-        $this->description = $description;
-
-        return $this;
     }
 
     /**

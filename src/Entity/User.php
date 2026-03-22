@@ -31,23 +31,24 @@ use App\Dto\User\RoleOutput;
 use App\Dto\User\SocialNetworkOutput;
 use App\Entity\Appeal\Appeal;
 use App\Entity\Chat\Chat;
-use App\Entity\Chat\ChatImage;
 use App\Entity\Chat\ChatMessage;
+use App\Entity\Extra\MultipleImage;
 use App\Entity\Extra\OAuthProvider;
 use App\Entity\Gallery\Gallery;
-use App\Entity\Geography\Address;
+use App\Entity\Geography\Abstract\Address;
 use App\Entity\Review\Review;
 use App\Entity\TechSupport\TechSupport;
-use App\Entity\TechSupport\TechSupportImage;
 use App\Entity\TechSupport\TechSupportMessage;
 use App\Entity\Ticket\Ticket;
-use App\Entity\Traits\CreatedAtTrait;
-use App\Entity\Traits\UpdatedAtTrait;
+use App\Entity\Trait\CreatedAtTrait;
+use App\Entity\Trait\DescriptionTrait;
+use App\Entity\Trait\SingleImageTrait;
+use App\Entity\Trait\UpdatedAtTrait;
 use App\Entity\User\Education;
 use App\Entity\User\Occupation;
 use App\Entity\User\Phone;
 use App\Entity\User\SocialNetwork;
-use App\Repository\UserRepository;
+use App\Repository\User\UserRepository;
 use App\State\Localization\Geography\UserGeographyLocalizationProvider;
 use DateTime;
 use DateTimeImmutable;
@@ -57,7 +58,6 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use InvalidArgumentException;
-use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Serializer\Attribute\Groups;
@@ -134,7 +134,12 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
         new Patch(
             uriTemplate: '/users/{id}',
             requirements: ['id' => '\d+'],
-            denormalizationContext: ['groups' => ['users:phones:write', 'clients:read', 'masters:read', 'user:public:read']],
+            denormalizationContext: ['groups' => [
+                'users:phones:write',
+                'clients:read',
+                'masters:read',
+                'user:public:read'
+            ]],
             security:
                 "is_granted('ROLE_ADMIN') or
                  ((is_granted('ROLE_MASTER') or
@@ -178,7 +183,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
 #[ApiFilter(ExistsFilter::class, properties: ['image'])]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
-    use UpdatedAtTrait, CreatedAtTrait;
+    use UpdatedAtTrait, CreatedAtTrait, SingleImageTrait, DescriptionTrait;
 
     public const array ROLES = [
         'Администратор' => 'ROLE_ADMIN',
@@ -210,11 +215,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->chatMessages = new ArrayCollection();
         $this->galleries = new ArrayCollection();
         $this->tickets = new ArrayCollection();
-        $this->chatImages = new ArrayCollection();
+        $this->imageAuthors = new ArrayCollection();
         $this->masterReviews = new ArrayCollection();
         $this->clientReviews = new ArrayCollection();
         $this->occupation = new ArrayCollection();
-        $this->techSupportImages = new ArrayCollection();
         $this->techSupportMessages = new ArrayCollection();
         $this->techSupports = new ArrayCollection();
         $this->techSupportsAsAuthor = new ArrayCollection();
@@ -336,15 +340,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     ])]
     private ?string $patronymic = null;
 
-    #[ORM\Column(type: 'text', nullable: true)]
-    #[Groups([
-        'masters:read',
-        'clients:read',
-
-        'user:public:read',
-    ])]
-    private ?string $bio = null;
-
     #[ORM\Column(type: 'float', nullable: true)]
     #[Groups([
         'masters:read',
@@ -378,31 +373,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 //        'user:public:read',
     ])]
     private ?DateTime $dateOfBirth = null;
-
-    #[Vich\UploadableField(mapping: 'profile_photos', fileNameProperty: 'image')]
-    #[Assert\Image(mimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])]
-    private ?File $imageFile = null;
-
-    #[ORM\Column(length: 255, nullable: true)]
-    #[Groups([
-        'masters:read',
-        'clients:read',
-        'reviews:read',
-        'reviewsClient:read',
-        'galleries:read',
-        'masterTickets:read',
-        'clientTickets:read',
-        'chats:read',
-        'chatMessages:read',
-        'appeal:ticket:read',
-        'favorites:read',
-        'techSupport:read',
-        'blackLists:read',
-
-        'user:public:read',
-    ])]
-    #[ApiProperty(writable: false)]
-    private ?string $image = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups([
@@ -588,11 +558,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private Collection $tickets;
 
     /**
-     * @var Collection<int, ChatImage>
+     * @var Collection<int, MultipleImage>
      */
-    #[ORM\OneToMany(targetEntity: ChatImage::class, mappedBy: 'author', cascade: ['all'])]
+    #[ORM\OneToMany(targetEntity: MultipleImage::class, mappedBy: 'author', cascade: ['all'])]
     #[Ignore]
-    private Collection $chatImages;
+    private Collection $imageAuthors;
 
     /**
      * @var Collection<int, Review>
@@ -619,13 +589,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         'user:public:read',
     ])]
     private Collection $occupation;
-
-    /**
-     * @var Collection<int, TechSupportImage>
-     */
-    #[ORM\OneToMany(targetEntity: TechSupportImage::class, mappedBy: 'author')]
-    #[Ignore]
-    private Collection $techSupportImages;
 
     /**
      * @var Collection<int, TechSupportMessage>
@@ -743,17 +706,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
-    public function getBio(): ?string
-    {
-        return strip_tags($this->bio);
-    }
-
-    public function setBio(?string $bio): User
-    {
-        $this->bio = $bio;
-        return $this;
-    }
-
     public function getRating(): ?float
     {
         return $this->rating;
@@ -773,33 +725,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setGender(?string $gender): User
     {
         $this->gender = $gender;
-        return $this;
-    }
-
-    public function getImage(): ?string
-    {
-        return $this->image;
-    }
-
-    public function setImage(?string $image): static
-    {
-        $this->image = $image;
-
-        return $this;
-    }
-
-    public function getImageFile(): ?File
-    {
-        return $this->imageFile;
-    }
-
-    public function setImageFile(?File $imageFile): self
-    {
-        $this->imageFile = $imageFile;
-        if (null !== $imageFile) {
-            $this->updatedAt = new DateTime();
-        }
-
         return $this;
     }
 
@@ -1132,29 +1057,29 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * @return Collection<int, ChatImage>
+     * @return Collection<int, MultipleImage>
      */
-    public function getChatImages(): Collection
+    public function getImageAuthors(): Collection
     {
-        return $this->chatImages;
+        return $this->imageAuthors;
     }
 
-    public function addChatImage(ChatImage $chatImage): static
+    public function addImageAuthor(MultipleImage $imageAuthor): static
     {
-        if (!$this->chatImages->contains($chatImage)) {
-            $this->chatImages->add($chatImage);
-            $chatImage->setAuthor($this);
+        if (!$this->imageAuthors->contains($imageAuthor)) {
+            $this->imageAuthors->add($imageAuthor);
+            $imageAuthor->setAuthor($this);
         }
 
         return $this;
     }
 
-    public function removeChatImage(ChatImage $chatImage): static
+    public function removeImageAuthor(MultipleImage $imageAuthor): static
     {
-        if ($this->chatImages->removeElement($chatImage)) {
+        if ($this->imageAuthors->removeElement($imageAuthor)) {
             // set the owning side to null (unless already changed)
-            if ($chatImage->getAuthor() === $this) {
-                $chatImage->setAuthor(null);
+            if ($imageAuthor->getAuthor() === $this) {
+                $imageAuthor->setAuthor(null);
             }
         }
 
@@ -1243,36 +1168,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         if ($this->occupation->removeElement($occupation)) {
             $occupation->removeMaster($this);
-        }
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, TechSupportImage>
-     */
-    public function getTechSupportImages(): Collection
-    {
-        return $this->techSupportImages;
-    }
-
-    public function addTechSupportImage(TechSupportImage $techSupportImage): static
-    {
-        if (!$this->techSupportImages->contains($techSupportImage)) {
-            $this->techSupportImages->add($techSupportImage);
-            $techSupportImage->setAuthor($this);
-        }
-
-        return $this;
-    }
-
-    public function removeTechSupportImage(TechSupportImage $techSupportImage): static
-    {
-        if ($this->techSupportImages->removeElement($techSupportImage)) {
-            // set the owning side to null (unless already changed)
-            if ($techSupportImage->getAuthor() === $this) {
-                $techSupportImage->setAuthor(null);
-            }
         }
 
         return $this;

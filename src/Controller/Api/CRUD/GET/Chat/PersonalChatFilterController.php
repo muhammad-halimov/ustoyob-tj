@@ -2,32 +2,23 @@
 
 namespace App\Controller\Api\CRUD\GET\Chat;
 
-use App\Entity\User;
+use App\ApiResource\AppError;
+use App\Controller\Api\CRUD\Abstract\AbstractApiController;
 use App\Repository\Chat\ChatRepository;
-use App\Service\Extra\AccessService;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
-class PersonalChatFilterController extends AbstractController
+class PersonalChatFilterController extends AbstractApiController
 {
     public function __construct(
         private readonly ChatRepository $chatRepository,
-        private readonly AccessService  $accessService,
-        private readonly Security       $security,
     ){}
 
     public function __invoke(): JsonResponse
     {
-        /** @var User $bearerUser */
-        $bearerUser = $this->security->getUser();
-
-        $this->accessService->check($bearerUser);
-
-        $data = $this->chatRepository->findUserChats($bearerUser);
+        $data = $this->chatRepository->findUserChats($this->checkedUser());
 
         return empty($data)
-            ? $this->json(['message' => 'Resource not found'], 404)
+            ? $this->errorJson(AppError::RESOURCE_NOT_FOUND)
             : $this->json($data, context: ['groups' => ['chats:read']]);
     }
 }

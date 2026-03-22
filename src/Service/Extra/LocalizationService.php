@@ -4,12 +4,32 @@ namespace App\Service\Extra;
 
 use Doctrine\Common\Collections\Collection;
 
-class LocalizationService
+/**
+ * Применяет перевод (locale-зависимый title/description) к сущностям
+ * географии и любым иным переводимым сущностям.
+ *
+ * Модель переводов:
+ *   Entity содержит коллекцию Translation-объектов, каждый из которых
+ *   хранит locale + title (+ опц. description).
+ *   Сервис находит нужный перевод и filter() и вызывает entity::setTitle().
+ *
+ * Фоллбэк-стратегия:
+ *   Если перевод на запрошенный locale не найден — берётся первый
+ *   доступный (translations->first()), а если переводов нет вовсе —
+ *   ставится 'Unknown'.
+ *
+ * Методы:
+ *   localizeGeography()   — полный обход адресной иерархии единицы
+ *   localizeEntity()      — простая локализация: только setTitle()
+ *   localizeEntityFull()  — полная локализация: setTitle() + setDescription()
+ *   getLocalizedTitle()   — возвращает строку без применения к сущности
+ */
+readonly class LocalizationService
 {
     /**
-     * @param object $entity
-     * @param string $locale
-     * @return void
+     * Локализует всю адресную иерархию сущности (тикет, юзер и т.д.).
+     * Обходит все адреса и вызывает localizeEntity() для каждой части:
+     * вилаят → шахр → район → [махалла, дехот, община] → город → [молокан]
      */
     public function localizeGeography(object $entity, string $locale): void
     {
@@ -72,9 +92,12 @@ class LocalizationService
     }
 
     /**
-     * Безопасная локализация:
-     * - нет ?-> на first()
-     * - нет fatal error
+     * Локализует одну сущность: находит перевод по locale и вызывает
+     * entity->setTitle(). Если перевода нет — берёт первый из списка;
+     * если переводов нет вовсе — ставит 'Unknown'.
+     *
+     * Безопасно работает с любыми объектами: перед вызовом проверяет наличие
+     * нужных методов через method_exists().
      */
     public function localizeEntity(object $entity, string $locale): void
     {
@@ -104,6 +127,11 @@ class LocalizationService
         $entity->setTitle($title);
     }
 
+    /**
+     * То же, что localizeEntity(), но дополнительно применяет setDescription().
+     * Используется для сущностей, у которых перевод содержит и title и description
+     * (например Legal, AppealReason).
+     */
     public function localizeEntityFull(object $entity, string $locale): void
     {
         if (!$entity) return;
@@ -132,6 +160,33 @@ class LocalizationService
     }
 
     /**
+     * Локализация тикета целиком: адреса + категория + единица + подкатегория.
+     *
+     * Одним вызовом заменяет повторяющийся блок из 8 строк,
+     * который раньше дублировался в Post/Patch/Filter-контроллерах.
+     */
+    public function localizeTicket(object $ticket, string $locale): void
+    {
+        $this->localizeGeography($ticket, $locale);
+
+        if (method_exists($ticket, 'getCategory') && $ticket->getCategory()) {
+            $this->localizeEntity($ticket->getCategory(), $locale);
+        }
+
+        if (method_exists($ticket, 'getUnit') && $ticket->getUnit()) {
+            $this->localizeEntity($ticket->getUnit(), $locale);
+        }
+
+        if (method_exists($ticket, 'getSubcategory') && $ticket->getSubcategory()) {
+            $this->localizeEntity($ticket->getSubcategory(), $locale);
+        }
+    }
+
+    /**
+     * Возвращает локализованный title как строку (entity не изменяется).
+     * Используется в местах, где нужно только получить строку без
+     * побочных эффектов (например, для логирования или ответа API с доп. полем).
+     *
      * @param object $entity
      * @param string $locale
      * @return string

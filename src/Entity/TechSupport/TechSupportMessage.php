@@ -10,10 +10,14 @@ use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\DELETE\TechSupport\Message\DeleteTechSupportMessageController;
 use App\Controller\Api\CRUD\PATCH\TechSupport\Message\PatchTechSupportMessageController;
 use App\Controller\Api\CRUD\POST\TechSupport\Message\PostTechSupportMessageController;
+use App\Entity\Extra\MultipleImage;
+use App\Entity\Trait\CreatedAtTrait;
+use App\Entity\Trait\DescriptionTrait;
+use App\Entity\Trait\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\TechSupport\TechSupportMessageRepository;
-use DateTime;
-use Doctrine\DBAL\Types\Types;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 
@@ -47,6 +51,8 @@ use Symfony\Component\Serializer\Attribute\Groups;
 )]
 class TechSupportMessage
 {
+    use CreatedAtTrait, UpdatedAtTrait, DescriptionTrait;
+
     public function __toString(): string
     {
         return $this->text ?? "TS message #$this->id";
@@ -60,13 +66,6 @@ class TechSupportMessage
         'techSupport:read',
     ])]
     private ?int $id = null;
-
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    #[Groups([
-        'techSupportMessages:read',
-        'techSupport:read',
-    ])]
-    private ?string $text = null;
 
     #[ORM\ManyToOne(inversedBy: 'techSupportMessages')]
     #[ORM\JoinColumn(name: 'author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
@@ -84,58 +83,25 @@ class TechSupportMessage
     ])]
     private ?TechSupport $techSupport = null;
 
-    #[ORM\Column(type: 'datetime', nullable: false)]
+    /**
+     * @var Collection<int, MultipleImage>
+     */
+    #[ORM\OneToMany(targetEntity: MultipleImage::class, mappedBy: 'techSupportMessage')]
+    #[ORM\OrderBy(['position' => 'ASC'])]
     #[Groups([
         'techSupportMessages:read',
         'techSupport:read',
     ])]
-    protected DateTime $createdAt;
+    private Collection $images;
 
-    #[ORM\Column(type: 'datetime', nullable: false)]
-    #[Groups([
-        'techSupportMessages:read',
-        'techSupport:read',
-    ])]
-    protected DateTime $updatedAt;
+    public function __construct()
+    {
+        $this->images = new ArrayCollection();
+    }
 
     public function getId(): ?int
     {
         return $this->id;
-    }
-
-    public function getText(): ?string
-    {
-        return $this->text;
-    }
-
-    public function setText(?string $text): static
-    {
-        $this->text = $text;
-
-        return $this;
-    }
-
-    public function getCreatedAt(): DateTime
-    {
-        return $this->createdAt;
-    }
-
-    #[ORM\PrePersist]
-    public function setCreatedAt(): void
-    {
-        $this->createdAt = new DateTime();
-    }
-
-    public function getUpdatedAt(): DateTime
-    {
-        return $this->updatedAt;
-    }
-
-    #[ORM\PreUpdate]
-    #[ORM\PrePersist]
-    public function setUpdatedAt(): void
-    {
-        $this->updatedAt = new DateTime();
     }
 
     public function getAuthor(): ?User
@@ -158,6 +124,36 @@ class TechSupportMessage
     public function setTechSupport(?TechSupport $techSupport): static
     {
         $this->techSupport = $techSupport;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, MultipleImage>
+     */
+    public function getImages(): Collection
+    {
+        return $this->images;
+    }
+
+    public function addImage(MultipleImage $image): static
+    {
+        if (!$this->images->contains($image)) {
+            $this->images->add($image);
+            $image->setTechSupportMessage($this);
+        }
+
+        return $this;
+    }
+
+    public function removeImage(MultipleImage $image): static
+    {
+        if ($this->images->removeElement($image)) {
+            // set the owning side to null (unless already changed)
+            if ($image->getTechSupportMessage() === $this) {
+                $image->setTechSupportMessage(null);
+            }
+        }
 
         return $this;
     }

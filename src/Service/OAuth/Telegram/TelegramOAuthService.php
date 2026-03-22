@@ -2,14 +2,20 @@
 
 namespace App\Service\OAuth\Telegram;
 
+use App\ApiResource\AppError;
 use App\Dto\OAuth\TelegramCallbackInput;
 use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
-use App\Repository\UserRepository;
+use App\Repository\User\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 readonly class TelegramOAuthService
@@ -21,10 +27,17 @@ readonly class TelegramOAuthService
         private HttpClientInterface      $httpClient,
     ){}
 
+    /**
+     * @throws TransportExceptionInterface
+     * @throws ServerExceptionInterface
+     * @throws RedirectionExceptionInterface
+     * @throws DecodingExceptionInterface
+     * @throws ClientExceptionInterface
+     */
     public function handleCallback(int $id, ?string $username, ?string $firstName, ?string $lastName, ?string $photoUrl, ?string $role): array
     {
         if (!$this->checkTelegramUserExists($id)) {
-            throw new NotFoundHttpException('Telegram user not found');
+            throw new NotFoundHttpException(AppError::get(AppError::USER_NOT_FOUND)->message);
         }
 
         $input            = new TelegramCallbackInput();
@@ -93,6 +106,13 @@ readonly class TelegramOAuthService
         }
     }
 
+    /**
+     * @throws TransportExceptionInterface
+     * @throws ServerExceptionInterface
+     * @throws RedirectionExceptionInterface
+     * @throws DecodingExceptionInterface
+     * @throws ClientExceptionInterface
+     */
     private function checkTelegramUserExists(int $userId): bool
     {
         try {

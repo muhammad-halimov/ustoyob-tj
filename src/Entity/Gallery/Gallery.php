@@ -15,15 +15,15 @@ use App\Controller\Api\CRUD\PATCH\Gallery\PatchGalleryController;
 use App\Controller\Api\CRUD\POST\Gallery\PostGalleryController;
 use App\Controller\Api\CRUD\POST\Gallery\PostGalleryPhotoController;
 use App\Dto\Image\ImageInput;
-use App\Entity\Traits\CreatedAtTrait;
-use App\Entity\Traits\UpdatedAtTrait;
+use App\Entity\Extra\MultipleImage;
+use App\Entity\Trait\CreatedAtTrait;
+use App\Entity\Trait\UpdatedAtTrait;
 use App\Entity\User;
-use App\Repository\GalleryRepository;
+use App\Repository\Gallery\GalleryRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
-use Symfony\Component\Serializer\Attribute\SerializedName;
 
 #[ORM\Entity(repositoryClass: GalleryRepository::class)]
 #[ORM\HasLifecycleCallbacks]
@@ -32,13 +32,16 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         new GetCollection(
             uriTemplate: '/galleries/me',
             controller: PersonalGalleryFilterController::class,
+            normalizationContext: ['groups' => ['galleries:read'], 'skip_null_values' => false],
         ),
         new GetCollection(
             uriTemplate: '/galleries',
+            normalizationContext: ['groups' => ['galleries:read'], 'skip_null_values' => false],
         ),
         new Post(
             uriTemplate: '/galleries',
             controller: PostGalleryController::class,
+            normalizationContext: ['groups' => ['galleries:read'], 'skip_null_values' => false],
             input: false,
         ),
         new Post(
@@ -46,26 +49,25 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
             controller: PostGalleryPhotoController::class,
+            normalizationContext: ['groups' => ['galleries:read'], 'skip_null_values' => false],
             input: ImageInput::class,
         ),
         new Patch(
             uriTemplate: '/galleries/{id}',
             requirements: ['id' => '\d+'],
             controller: PatchGalleryController::class,
+            normalizationContext: ['groups' => ['galleries:read'], 'skip_null_values' => false],
         ),
         new Delete(
             uriTemplate: '/galleries/{id}',
             requirements: ['id' => '\d+'],
+            normalizationContext: ['groups' => ['galleries:read'], 'skip_null_values' => false],
             security:
                 "is_granted('ROLE_ADMIN')
                             or
                  (is_granted('ROLE_MASTER') and
                  object.getUser() == user)",
         ),
-    ],
-    normalizationContext: [
-        'groups' => ['galleries:read'],
-        'skip_null_values' => false,
     ],
     paginationClientItemsPerPage: true,
     paginationEnabled: true,
@@ -90,17 +92,6 @@ class Gallery
     ])]
     private ?int $id = null;
 
-    /**
-     * @var Collection<int, GalleryImage>
-     */
-    #[ORM\OneToMany(targetEntity: GalleryImage::class, mappedBy: 'gallery', cascade: ['all'])]
-    #[ORM\OrderBy(['position' => 'ASC'])]
-    #[Groups([
-        'galleries:read',
-    ])]
-    #[SerializedName('images')]
-    private Collection $userServiceGalleryItems;
-
     #[ORM\ManyToOne(inversedBy: 'galleries')]
     #[Groups([
         'galleries:read',
@@ -108,44 +99,24 @@ class Gallery
     #[ApiProperty(writable: false)]
     private ?User $user = null;
 
+    /**
+     * @var Collection<int, MultipleImage>
+     */
+    #[ORM\OneToMany(targetEntity: MultipleImage::class, mappedBy: 'gallery', cascade: ['all'])]
+    #[ORM\OrderBy(['position' => 'ASC'])]
+    #[Groups([
+        'galleries:read',
+    ])]
+    private Collection $images;
+
     public function __construct()
     {
-        $this->userServiceGalleryItems = new ArrayCollection();
+        $this->images = new ArrayCollection();
     }
 
     public function getId(): ?int
     {
         return $this->id;
-    }
-
-    /**
-     * @return Collection<int, GalleryImage>
-     */
-    public function getUserServiceGalleryItems(): Collection
-    {
-        return $this->userServiceGalleryItems;
-    }
-
-    public function addUserServiceGalleryItem(GalleryImage $userServiceGalleryItem): static
-    {
-        if (!$this->userServiceGalleryItems->contains($userServiceGalleryItem)) {
-            $this->userServiceGalleryItems->add($userServiceGalleryItem);
-            $userServiceGalleryItem->setGallery($this);
-        }
-
-        return $this;
-    }
-
-    public function removeUserServiceGalleryItem(GalleryImage $userServiceGalleryItem): static
-    {
-        if ($this->userServiceGalleryItems->removeElement($userServiceGalleryItem)) {
-            // set the owning side to null (unless already changed)
-            if ($userServiceGalleryItem->getGallery() === $this) {
-                $userServiceGalleryItem->setGallery(null);
-            }
-        }
-
-        return $this;
     }
 
     public function getUser(): ?User
@@ -156,6 +127,36 @@ class Gallery
     public function setUser(?User $user): static
     {
         $this->user = $user;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, MultipleImage>
+     */
+    public function getImages(): Collection
+    {
+        return $this->images;
+    }
+
+    public function addImage(MultipleImage $image): static
+    {
+        if (!$this->images->contains($image)) {
+            $this->images->add($image);
+            $image->setGallery($this);
+        }
+
+        return $this;
+    }
+
+    public function removeImage(MultipleImage $image): static
+    {
+        if ($this->images->removeElement($image)) {
+            // set the owning side to null (unless already changed)
+            if ($image->getGallery() === $this) {
+                $image->setGallery(null);
+            }
+        }
 
         return $this;
     }

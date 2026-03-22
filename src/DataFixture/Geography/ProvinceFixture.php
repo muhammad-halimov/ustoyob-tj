@@ -4,7 +4,7 @@ namespace App\DataFixture\Geography;
 
 use App\Entity\Extra\Translation;
 use App\Entity\Geography\City\City;
-use App\Entity\Geography\Province;
+use App\Entity\Geography\Province\Province;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;

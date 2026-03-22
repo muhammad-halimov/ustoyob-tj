@@ -2,13 +2,11 @@
 
 namespace App\Controller\Api\CRUD\POST\Chat\Chat;
 
+use App\ApiResource\AppError;
+use App\Controller\Api\CRUD\Abstract\AbstractApiController;
 use App\Entity\Chat\Chat;
-use App\Entity\User;
 use App\Repository\Chat\ChatRepository;
-use App\Service\Extra\AccessService;
 use Firebase\JWT\JWT;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 /**
@@ -30,31 +28,26 @@ use Symfony\Component\HttpFoundation\JsonResponse;
  * 3. Возвращаем Mercure-токен + название топика.
  * 4. Фронтенд открывает EventSource с этим токеном.
  */
-class GetChatSubscribeTokenController extends AbstractController
+class GetChatSubscribeTokenController extends AbstractApiController
 {
     public function __construct(
         private readonly ChatRepository $chatRepository,
-        private readonly Security       $security,
-        private readonly AccessService  $accessService,
         private readonly string         $mercureJwtSecret, // Инжектируется из services.yaml (bind $mercureJwtSecret)
     ) {}
 
     public function __invoke(int $id): JsonResponse
     {
-        /** @var User $bearerUser */
-        $bearerUser = $this->security->getUser();
-
-        $this->accessService->check($bearerUser);
+        $bearerUser = $this->checkedUser();
 
         /** @var Chat|null $chat */
         $chat = $this->chatRepository->find($id);
 
         if (!$chat)
-            return $this->json(['message' => 'Resource not found'], 404);
+            return $this->errorJson(AppError::RESOURCE_NOT_FOUND);
 
         // Только участник чата может получить токен подписки
         if ($chat->getAuthor() !== $bearerUser && $chat->getReplyAuthor() !== $bearerUser)
-            return $this->json(['message' => "Ownership doesn't match"], 403);
+            return $this->errorJson(AppError::OWNERSHIP_MISMATCH);
 
         $topic = "chat:{$id}";
 

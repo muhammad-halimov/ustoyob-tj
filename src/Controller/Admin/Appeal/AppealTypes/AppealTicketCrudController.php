@@ -2,8 +2,7 @@
 
 namespace App\Controller\Admin\Appeal\AppealTypes;
 
-use App\Controller\Admin\Appeal\AppealImageCrudController;
-use App\Entity\Appeal\AppealReason;
+use App\Controller\Admin\Extra\MultipleImageCrudController;
 use App\Entity\Appeal\AppealTypes\AppealTicket;
 use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
@@ -107,7 +106,7 @@ class AppealTicketCrudController extends AbstractCrudController
             ->hideOnIndex();
 
         yield CollectionField::new('images', 'Галерея изображений')
-            ->useEntryCrudForm(AppealImageCrudController::class)
+            ->useEntryCrudForm(MultipleImageCrudController::class)
             ->hideOnIndex()
             ->setColumns(12)
             ->setRequired(false);

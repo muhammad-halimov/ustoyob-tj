@@ -2,13 +2,15 @@
 namespace App\Entity\Geography\District;
 
 use ApiPlatform\Metadata\ApiResource;
-use App\Entity\Geography\AddressComponent;
+use App\Entity\Geography\Abstract\AddressComponent;
 use App\Repository\Geography\District\SettlementRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Vich\UploaderBundle\Mapping\Attribute as Vich;
 
+#[Vich\Uploadable]
 #[ORM\Entity(repositoryClass: SettlementRepository::class)]
 #[ApiResource(operations: [])]
 class Settlement extends AddressComponent

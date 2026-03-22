@@ -9,20 +9,23 @@ use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\GET\TechSupport\AdminTechSupportFilterController;
 use App\Controller\Api\CRUD\GET\TechSupport\PersonalTechSupportFilterController;
-use App\Controller\Api\CRUD\GET\TechSupport\SupportReasonFilterController;
 use App\Controller\Api\CRUD\GET\TechSupport\UserTechSupportFilterController;
 use App\Controller\Api\CRUD\PATCH\TechSupport\TechSupport\PatchTechSupportController;
 use App\Controller\Api\CRUD\POST\TechSupport\TechSupport\PostTechSupportController;
 use App\Controller\Api\CRUD\POST\TechSupport\TechSupport\PostTechSupportPhotoController;
 use App\Dto\Image\ImageInput;
 use App\Dto\TechSupport\TechSupportInput;
-use App\Entity\Appeal\AppealReason;
+use App\Entity\Extra\MultipleImage;
+use App\Entity\Trait\AppealReasonTrait;
+use App\Entity\Trait\CreatedAtTrait;
+use App\Entity\Trait\DescriptionTrait;
+use App\Entity\Trait\PriorityTrait;
+use App\Entity\Trait\TitleTrait;
+use App\Entity\Trait\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\TechSupport\TechSupportRepository;
-use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\SerializedName;
@@ -34,27 +37,28 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         new GetCollection(
             uriTemplate: '/tech-support/me',
             controller: PersonalTechSupportFilterController::class,
+            normalizationContext: ['groups' => ['techSupport:read']],
         ),
         new GetCollection(
             uriTemplate: '/tech-support/user/{id}',
             controller: UserTechSupportFilterController::class,
+            normalizationContext: ['groups' => ['techSupport:read']],
         ),
         new GetCollection(
             uriTemplate: '/tech-support/admin/{id}',
             controller: AdminTechSupportFilterController::class,
-        ),
-        new GetCollection(
-            uriTemplate: '/tech-support/reasons',
-            controller: SupportReasonFilterController::class,
+            normalizationContext: ['groups' => ['techSupport:read']],
         ),
         new Post(
             uriTemplate: '/tech-support',
             controller: PostTechSupportController::class,
+            normalizationContext: ['groups' => ['techSupport:read']],
         ),
         new Patch(
             uriTemplate: '/tech-support/{id}',
             requirements: ['id' => '\d+'],
             controller: PatchTechSupportController::class,
+            normalizationContext: ['groups' => ['techSupport:read']],
             input: TechSupportInput::class,
         ),
         new Post(
@@ -62,13 +66,9 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
             controller: PostTechSupportPhotoController::class,
+            normalizationContext: ['groups' => ['techSupport:read']],
             input: ImageInput::class,
         ),
-    ],
-    normalizationContext: [
-        'groups' => [
-            'techSupport:read',
-        ],
     ],
     paginationClientItemsPerPage: true,
     paginationEnabled: true,
@@ -77,9 +77,10 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 )]
 class TechSupport
 {
+    use CreatedAtTrait, UpdatedAtTrait, TitleTrait, DescriptionTrait, PriorityTrait, AppealReasonTrait;
+
     public function __construct()
     {
-        $this->techSupportImages = new ArrayCollection();
         $this->techSupportMessages = new ArrayCollection();
     }
 
@@ -92,10 +93,10 @@ class TechSupport
     ];
 
     public const array PRIORITIES = [
-        'Низкий' => 'low',
-        'Средний' => 'normal',
-        'Высокий' => 'high',
-        'Экстренный' => 'urgent',
+        'Низкий' => 1,
+        'Средний' => 2,
+        'Высокий' => 3,
+        'Экстренный' => 4,
     ];
 
     #[ORM\Id]
@@ -110,44 +111,8 @@ class TechSupport
     #[Groups([
         'techSupport:read',
     ])]
-    private ?string $title = null;
-
-    #[ORM\ManyToOne]
-    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
-    #[Groups([
-        'techSupport:read',
-    ])]
-    private ?AppealReason $reason = null;
-
-    #[ORM\Column(length: 255, nullable: true)]
-    #[Groups([
-        'techSupport:read',
-    ])]
     #[ApiProperty(writable: false)]
     private ?string $status = null;
-
-    #[ORM\Column(length: 255, nullable: true)]
-    #[Groups([
-        'techSupport:read',
-    ])]
-    private ?string $priority = null;
-
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    #[Groups([
-        'techSupport:read',
-    ])]
-    private ?string $description = null;
-
-    /**
-     * @var Collection<int, TechSupportImage>
-     */
-    #[ORM\OneToMany(targetEntity: TechSupportImage::class, mappedBy: 'techSupport', cascade: ['all'])]
-    #[Groups([
-        'techSupport:read',
-    ])]
-    #[SerializedName('images')]
-    #[ApiProperty(writable: false)]
-    private Collection $techSupportImages;
 
     /**
      * @var Collection<int, TechSupportMessage>
@@ -176,51 +141,9 @@ class TechSupport
     #[ApiProperty(writable: false)]
     private ?User $author = null;
 
-    #[ORM\Column(type: 'datetime', nullable: false)]
-    #[Groups([
-        'techSupport:read',
-    ])]
-    protected DateTime $createdAt;
-
-    #[ORM\Column(type: 'datetime', nullable: false)]
-    #[Groups([
-        'techSupport:read',
-    ])]
-    protected DateTime $updatedAt;
-
     public function getId(): ?int
     {
         return $this->id;
-    }
-
-    /**
-     * @return Collection<int, TechSupportImage>
-     */
-    public function getTechSupportImages(): Collection
-    {
-        return $this->techSupportImages;
-    }
-
-    public function addTechSupportImage(TechSupportImage $techSupportImage): static
-    {
-        if (!$this->techSupportImages->contains($techSupportImage)) {
-            $this->techSupportImages->add($techSupportImage);
-            $techSupportImage->setTechSupport($this);
-        }
-
-        return $this;
-    }
-
-    public function removeTechSupportImage(TechSupportImage $techSupportImage): static
-    {
-        if ($this->techSupportImages->removeElement($techSupportImage)) {
-            // set the owning side to null (unless already changed)
-            if ($techSupportImage->getTechSupport() === $this) {
-                $techSupportImage->setTechSupport(null);
-            }
-        }
-
-        return $this;
     }
 
     /**
@@ -253,29 +176,6 @@ class TechSupport
         return $this;
     }
 
-    public function getCreatedAt(): DateTime
-    {
-        return $this->createdAt;
-    }
-
-    #[ORM\PrePersist]
-    public function setCreatedAt(): void
-    {
-        $this->createdAt = new DateTime();
-    }
-
-    public function getUpdatedAt(): DateTime
-    {
-        return $this->updatedAt;
-    }
-
-    #[ORM\PreUpdate]
-    #[ORM\PrePersist]
-    public function setUpdatedAt(): void
-    {
-        $this->updatedAt = new DateTime();
-    }
-
     public function getAdministrant(): ?User
     {
         return $this->administrant;
@@ -300,28 +200,6 @@ class TechSupport
         return $this;
     }
 
-    public function getTitle(): ?string
-    {
-        return $this->title;
-    }
-
-    public function setTitle(?string $title): static
-    {
-        $this->title = $title;
-        return $this;
-    }
-
-    public function getReason(): ?AppealReason
-    {
-        return $this->reason;
-    }
-
-    public function setReason(?AppealReason $reason): static
-    {
-        $this->reason = $reason;
-        return $this;
-    }
-
     public function getStatus(): ?string
     {
         return $this->status;
@@ -333,25 +211,28 @@ class TechSupport
         return $this;
     }
 
-    public function getPriority(): ?string
+    /**
+     * Returns all MultipleImage objects from all messages, sorted newest first.
+     *
+     * @return MultipleImage[]
+     */
+    #[Groups([
+        'techSupport:read',
+    ])]
+    #[SerializedName('images')]
+    #[ApiProperty(writable: false)]
+    public function getImages(): array
     {
-        return $this->priority;
-    }
+        $images = [];
 
-    public function setPriority(?string $priority): static
-    {
-        $this->priority = $priority;
-        return $this;
-    }
+        foreach ($this->techSupportMessages as $techSupportMessage) {
+            foreach ($techSupportMessage->getImages() as $image) {
+                $images[] = $image;
+            }
+        }
 
-    public function getDescription(): ?string
-    {
-        return strip_tags($this->description);
-    }
+        usort($images, fn(MultipleImage $a, MultipleImage $b) => $b->getCreatedAt() <=> $a->getCreatedAt());
 
-    public function setDescription(?string $description): static
-    {
-        $this->description = $description;
-        return $this;
+        return $images;
     }
 }

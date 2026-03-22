@@ -2,8 +2,9 @@
 
 namespace App\Service\OAuth;
 
+use App\ApiResource\AppError;
 use App\Entity\User;
-use App\Repository\UserRepository;
+use App\Repository\User\UserRepository;
 use App\Service\OAuth\Interface\OAuthServiceInterface;
 use App\Service\OAuth\Interface\TokenExchangeInterface;
 use App\Service\OAuth\Interface\UserDataFetcherInterface;
@@ -26,7 +27,7 @@ abstract class AbstractOAuthService implements
 {
     public function __construct(
         protected readonly HttpClientInterface      $httpClient,
-        protected readonly StateStorage             $stateStorage,
+        protected readonly StateStorageService      $stateStorage,
         protected readonly UserRepository           $userRepository,
         protected readonly EntityManagerInterface   $entityManager,
         protected readonly JWTTokenManagerInterface $jwtManager,
@@ -56,7 +57,7 @@ abstract class AbstractOAuthService implements
     public function handleCode(string $code, string $state, ?string $role): array
     {
         if (!$this->stateStorage->has($state)) {
-            throw new BadRequestHttpException('Invalid state');
+            throw new BadRequestHttpException(AppError::get(AppError::OAUTH_INVALID_STATE)->message);
         }
 
         $this->stateStorage->remove($state);

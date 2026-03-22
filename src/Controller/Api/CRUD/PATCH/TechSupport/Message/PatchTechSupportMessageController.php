@@ -2,71 +2,54 @@
 
 namespace App\Controller\Api\CRUD\PATCH\TechSupport\Message;
 
+use App\ApiResource\AppError;
+use App\Controller\Api\CRUD\Abstract\AbstractApiController;
 use App\Entity\TechSupport\TechSupport;
 use App\Entity\TechSupport\TechSupportMessage;
-use App\Entity\User;
-use App\Repository\TechSupport\TechSupportMessageRepository;
-use App\Service\Extra\AccessService;
 use App\Service\Extra\ExtractIriService;
-use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
-class PatchTechSupportMessageController extends AbstractController
+class PatchTechSupportMessageController extends AbstractApiController
 {
     public function __construct(
-        private readonly EntityManagerInterface       $entityManager,
-        private readonly TechSupportMessageRepository $techSupportMessageRepository,
-        private readonly ExtractIriService      $extractIriService,
-        private readonly AccessService          $accessService,
-        private readonly Security               $security,
+        private readonly ExtractIriService $extractIriService,
     ){}
 
     public function __invoke(int $id, Request $request): JsonResponse
     {
-        /** @var User $bearerUser */
-        $bearerUser = $this->security->getUser();
-
-        $this->accessService->check($bearerUser);
+        $bearerUser = $this->checkedUser();
 
         $data = json_decode($request->getContent(), true);
-        $text = $data['text'];
-        $techSupportParam = $data['techSupport'];
+        $text = $data['description'] ?? null;
+        $techSupportParam = $data['techSupport'] ?? null;
 
-        /** @var TechSupport $techSupport */
+        if (!$text) return $this->errorJson(AppError::EMPTY_TEXT);
+        if (!$techSupportParam) return $this->errorJson(AppError::MISSING_REQUIRED_FIELDS);
+
+        /** @var TechSupport|JsonResponse $techSupport */
         $techSupport = $this->extractIriService->extract($techSupportParam, TechSupport::class, 'tech-suports');
-        /** @var TechSupportMessage $techSupportMessage */
-        $techSupportMessage = $this->techSupportMessageRepository->find($id);
+        if (!$techSupport) return $this->errorJson(AppError::TECH_SUPPORT_NOT_FOUND);
 
-        if (!$text)
-            return $this->json(['message' => "Empty text"], 404);
+        /** @var TechSupportMessage|JsonResponse $message */
+        $message = $this->findOr404(TechSupportMessage::class, $id);
+        if ($message instanceof JsonResponse) return $message;
 
-        if (!$techSupportParam)
-            return $this->json(['message' => "Wrong tech support format"], 404);
+        if ($techSupport->getAdministrant() !== $bearerUser && $techSupport->getAuthor() !== $bearerUser) {
+            return $this->errorJson(AppError::OWNERSHIP_MISMATCH);
+        }
 
-        if (!$techSupport)
-            return $this->json(['message' => "Tech support not found"], 404);
-
-        if (!$techSupportMessage)
-            return $this->json(['message' => "Tech support message not found"], 404);
-
-        if ($techSupport->getAdministrant() !== $bearerUser && $techSupport->getAuthor() !== $bearerUser)
-            return $this->json(['message' => "Ownership doesn't match"], 403);
-
-        $techSupportMessage
-            ->setText($text)
+        $message
+            ->setDescription($text)
             ->setTechSupport($techSupport)
             ->setAuthor($bearerUser);
 
-        $techSupport->addTechSupportMessage($techSupportMessage);
-
-        $this->entityManager->flush();
+        $techSupport->addTechSupportMessage($message);
+        $this->flush();
 
         return $this->json([
             'techSupport' => ['id' => $techSupport->getId()],
-            'message' => ['id' => $techSupportMessage->getId()],
+            'message' => ['id' => $message->getId()],
         ]);
     }
 }

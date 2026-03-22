@@ -11,12 +11,12 @@ use Symfony\Component\TypeInfo\Type;
 final class RolesFilter extends AbstractFilter
 {
     protected function filterProperty(
-        string $property, $value,
-        QueryBuilder $queryBuilder,
+        string                      $property, $value,
+        QueryBuilder                $queryBuilder,
         QueryNameGeneratorInterface $queryNameGenerator,
-        string $resourceClass,
-        Operation $operation = null,
-        array $context = []
+        string                      $resourceClass,
+        ?Operation                  $operation = null,
+        array                       $context = []
     ): void {
         if ($property !== 'roles') {
             return;

@@ -2,68 +2,44 @@
 
 namespace App\Controller\Api\CRUD\PATCH\TechSupport\TechSupport;
 
+use App\ApiResource\AppError;
+use App\Controller\Api\CRUD\Abstract\AbstractApiController;
 use App\Entity\TechSupport\TechSupport;
-use App\Entity\User;
 use App\Repository\TechSupport\TechSupportRepository;
-use App\Service\Extra\AccessService;
-use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
-class PatchTechSupportController extends AbstractController
+class PatchTechSupportController extends AbstractApiController
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly TechSupportRepository  $techSupportRepository,
-        private readonly AccessService          $accessService,
-        private readonly Security               $security,
+        private readonly TechSupportRepository $techSupportRepository,
     ){}
 
     public function __invoke(int $id, Request $request): JsonResponse
     {
-        /** @var User $bearerUser */
-        $bearerUser = $this->security->getUser();
+        $bearerUser = $this->checkedUser('double');
 
-        $this->accessService->check($bearerUser, 'double');
-
-        /** @var TechSupport $techSupport */
         $techSupport = $this->techSupportRepository->find($id);
+        if (!$techSupport) return $this->errorJson(AppError::TECH_SUPPORT_NOT_FOUND);
+
+        if ($techSupport->getAuthor() !== $bearerUser && $techSupport->getAdministrant() !== $bearerUser) {
+            return $this->errorJson(AppError::EXTRA_DENIED);
+        }
 
         $data = json_decode($request->getContent(), true);
+        $statusParam = $data['status'] ?? null;
 
-        $statusParam = $data['status'];
+        if (!$statusParam || !in_array($statusParam, array_values(TechSupport::STATUSES), true)) {
+            return $this->errorJson(AppError::WRONG_TECH_SUPPORT_STATUS);
+        }
 
-        if (!in_array("ROLE_ADMIN", $bearerUser->getRoles()) && $statusParam == 'in_progress')
-            return $this->json(['message' => 'Extra denied'], 403);
-
-        if (!$techSupport)
-            return $this->json(['message' => 'Tech support not found'], 404);
-
-        if ($techSupport->getAuthor() !== $bearerUser && $techSupport->getAdministrant() !== $bearerUser)
-            return $this->json(['message' => 'Extra denied'], 403);
-
-        if (!in_array($statusParam, array_values($techSupport::STATUSES)))
-            return $this->json([
-                'message' => 'Wrong status type. Formats [new, renewed, in_progress, resolved, closed]'
-            ], 400);
+        if ($statusParam === 'in_progress' && !in_array('ROLE_ADMIN', $bearerUser->getRoles(), true)) {
+            return $this->errorJson(AppError::EXTRA_DENIED);
+        }
 
         $techSupport->setStatus($statusParam);
+        $this->flush();
 
-        $this->entityManager->flush();
-
-        $message = [
-            'id' => $techSupport->getId(),
-            'title' => $techSupport->getTitle(),
-            'supportReason' => $techSupport->getReason(),
-            'status' => $techSupport->getStatus(),
-            'priority' => $techSupport->getPriority(),
-            'administrant' => "/api/users/{$techSupport->getAdministrant()->getId()}" ?? null,
-            'description' => $techSupport->getDescription(),
-            'author' => "/api/users/{$techSupport->getAuthor()->getId()}",
-        ];
-
-        return $this->json($message);
+        return $this->json($techSupport, context: ['groups' => ['techSupport:read']]);
     }
 }

@@ -4,8 +4,9 @@ namespace App\Entity\Extra;
 
 use ApiPlatform\Metadata\ApiProperty;
 use App\Entity\Ticket\Ticket;
-use App\Entity\Traits\CreatedAtTrait;
-use App\Entity\Traits\UpdatedAtTrait;
+use App\Entity\Trait\CreatedAtTrait;
+use App\Entity\Trait\TypeTrait;
+use App\Entity\Trait\UpdatedAtTrait;
 use App\Entity\User;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
@@ -20,7 +21,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ORM\HasLifecycleCallbacks]
 abstract class AbstractCollectionEntry
 {
-    use CreatedAtTrait, UpdatedAtTrait;
+    use CreatedAtTrait, UpdatedAtTrait, TypeTrait;
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -33,11 +34,6 @@ abstract class AbstractCollectionEntry
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     #[ApiProperty(writable: false)]
     protected ?User $owner = null;
-
-    /** 'user' or 'ticket' */
-    #[ORM\Column(length: 10, nullable: false)]
-    #[Groups(['blackLists:read', 'favorites:read'])]
-    protected string $type = 'ticket';
 
     /** Blacklisted / favorited user (client or master) */
     #[ORM\ManyToOne]
@@ -64,17 +60,6 @@ abstract class AbstractCollectionEntry
     public function setOwner(?User $owner): static
     {
         $this->owner = $owner;
-        return $this;
-    }
-
-    public function getType(): string
-    {
-        return $this->type;
-    }
-
-    public function setType(string $type): static
-    {
-        $this->type = $type;
         return $this;
     }
 

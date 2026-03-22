@@ -2,28 +2,20 @@
 
 namespace App\Controller\Api\CRUD\POST\TechSupport\TechSupport;
 
+use App\ApiResource\AppError;
 use App\Controller\Api\CRUD\POST\Image\AbstractPhotoUploadController;
+use App\Entity\Extra\MultipleImage;
 use App\Entity\TechSupport\TechSupport;
-use App\Entity\TechSupport\TechSupportImage;
 use App\Entity\User;
 use App\Repository\TechSupport\TechSupportRepository;
-use App\Service\Extra\AccessService;
-use Doctrine\ORM\EntityManagerInterface;
-use ReflectionClass;
-use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 class PostTechSupportPhotoController extends AbstractPhotoUploadController
 {
     public function __construct(
-        EntityManagerInterface                 $entityManager,
-        Security                               $security,
-        AccessService                          $accessService,
         private readonly TechSupportRepository $techSupportRepository,
-    ) {
-        parent::__construct($entityManager, $security, $accessService);
-    }
+    ) {}
 
     protected function findEntity(int $id): ?object
     {
@@ -34,7 +26,7 @@ class PostTechSupportPhotoController extends AbstractPhotoUploadController
     {
         /** @var TechSupport $entity */
         if ($entity->getAuthor() !== $bearerUser && $entity->getAdministrant() !== $bearerUser) {
-            return $this->json(['message' => "Ownership doesn't match"], 403);
+            return $this->errorJson(AppError::OWNERSHIP_MISMATCH);
         }
         return null;
     }
@@ -42,13 +34,13 @@ class PostTechSupportPhotoController extends AbstractPhotoUploadController
     protected function processImageFile(object $entity, UploadedFile $imageFile, User $bearerUser): void
     {
         /** @var TechSupport $entity */
-        $tehcSupportImage = (new TechSupportImage())->setImageFile($imageFile);
+        $tehcSupportImage = (new MultipleImage())->setImageFile($imageFile);
         $entity->addTechSupportImage($tehcSupportImage);
         $this->entityManager->persist($tehcSupportImage);
     }
 
     protected function getEntityName(): string
     {
-        return (new ReflectionClass(TechSupport::class))->getName();
+        return TechSupport::class;
     }
 }

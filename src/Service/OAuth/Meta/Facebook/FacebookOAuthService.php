@@ -2,6 +2,7 @@
 
 namespace App\Service\OAuth\Meta\Facebook;
 
+use App\ApiResource\AppError;
 use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
 use App\Service\OAuth\AbstractOAuthService;
@@ -61,10 +62,9 @@ class FacebookOAuthService extends AbstractOAuthService implements OAuthServiceI
                     'code' => $code,
                 ],
             ])->toArray();
-        } catch (ClientExceptionInterface $e) {
+        } catch (ClientExceptionInterface) {
             throw new BadRequestHttpException(
-                "Failed to exchange code with {$this->getProviderName()}. The code may be expired or invalid.",
-                code: $e->getCode()
+                AppError::get(AppError::OAUTH_CODE_EXCHANGE_FAILED)->message
             );
         }
     }
@@ -86,10 +86,9 @@ class FacebookOAuthService extends AbstractOAuthService implements OAuthServiceI
                     'access_token' => $tokens['access_token']
                 ],
             ])->toArray();
-        } catch (ClientExceptionInterface $e) {
+        } catch (ClientExceptionInterface) {
             throw new BadRequestHttpException(
-                "Failed to exchange token with {$this->getProviderName()}. The token may be expired or invalid.",
-                code: $e->getCode()
+                AppError::get(AppError::OAUTH_CODE_EXCHANGE_FAILED)->message
             );
         }
     }
@@ -128,7 +127,7 @@ class FacebookOAuthService extends AbstractOAuthService implements OAuthServiceI
             ->setPassword('')
             ->setActive(true)
             ->setApproved(true)
-            ->setBio($userData['link'] ?? null)
+            ->setDescription($userData['link'] ?? null)
             ->setGender(match($userData['gender'] ?? null) {
                 'male'   => 'gender_male',
                 'female' => 'gender_female',

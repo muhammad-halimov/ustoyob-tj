@@ -13,6 +13,8 @@ framework:
         pools:
             block_list_token_cache_pool:
                 adapter: cache.adapter.redis
+            ticket_views_cache_pool:
+                adapter: cache.adapter.redis
 
 when@test:
     framework:

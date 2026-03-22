@@ -2,43 +2,25 @@
 
 namespace App\Controller\Api\CRUD\DELETE\TechSupport\Message;
 
-use App\Entity\TechSupport\TechSupport;
-use App\Entity\User;
-use App\Repository\TechSupport\TechSupportMessageRepository;
-use App\Service\Extra\AccessService;
-use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Bundle\SecurityBundle\Security;
+use App\ApiResource\AppError;
+use App\Controller\Api\CRUD\Abstract\AbstractApiController;
+use App\Entity\TechSupport\TechSupportMessage;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
-class DeleteTechSupportMessageController extends AbstractController
+class DeleteTechSupportMessageController extends AbstractApiController
 {
-    public function __construct(
-        private readonly EntityManagerInterface       $entityManager,
-        private readonly TechSupportMessageRepository $techSupportMessageRepository,
-        private readonly AccessService                $accessService,
-        private readonly Security                     $security,
-    ){}
-
     public function __invoke(int $id): JsonResponse
     {
-        /** @var User $bearerUser */
-        $bearerUser = $this->security->getUser();
+        /** @var TechSupportMessage|JsonResponse $message */
+        $message = $this->findOr404(TechSupportMessage::class, $id);
 
-        $this->accessService->check($bearerUser);
+        if ($message instanceof JsonResponse)
+            return $message;
 
-        /** @var TechSupport $techSupportMessage */
-        $techSupportMessage = $this->techSupportMessageRepository->find($id);
+        if ($message->getAuthor() !== $this->checkedUser()) {
+            return $this->errorJson(AppError::OWNERSHIP_MISMATCH);
+        }
 
-        if (!$techSupportMessage)
-            return $this->json(['message' => "Resource not found"], 404);
-
-        if ($techSupportMessage->getAuthor() !== $bearerUser)
-            return $this->json(['message' => "Ownership doesn't match"], 403);
-
-        $this->entityManager->remove($techSupportMessage);
-        $this->entityManager->flush();
-
-        return $this->json(['message' => 'Resource successfully removed'], 204);
+        return $this->removeAndRespond($message);
     }
 }

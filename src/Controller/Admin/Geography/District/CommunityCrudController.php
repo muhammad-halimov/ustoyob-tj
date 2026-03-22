@@ -3,6 +3,7 @@
 namespace App\Controller\Admin\Geography\District;
 
 use App\Controller\Admin\Extra\TranslationCrudController;
+use App\Controller\Admin\Field\VichImageField;
 use App\Entity\Geography\District\Community;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
@@ -29,6 +30,19 @@ class CommunityCrudController extends AbstractCrudController
             ->setRequired(false);
 
         yield TextEditorField::new('description', 'Описание')
+            ->setColumns(12);
+
+        yield VichImageField::new('imageFile', 'Фото')
+            ->setHelp('
+                <div class="mt-3">
+                    <span class="badge badge-info">*.jpg</span>
+                    <span class="badge badge-info">*.jpeg</span>
+                    <span class="badge badge-info">*.png</span>
+                    <span class="badge badge-info">*.jiff</span>
+                    <span class="badge badge-info">*.webp</span>
+                </div>
+            ')
+            ->onlyOnForms()
             ->setColumns(12);
 
         yield DateTimeField::new('updatedAt', 'Обновлено')

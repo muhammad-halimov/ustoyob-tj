@@ -2,46 +2,41 @@
 
 namespace App\Controller\Api\CRUD\POST\User\User;
 
+use App\ApiResource\AppError;
+use App\Controller\Api\CRUD\Abstract\AbstractApiController;
 use App\Entity\User;
-use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
-class GrantRoleController extends AbstractController
+class GrantRoleController extends AbstractApiController
 {
-    public function __construct(
-        private readonly EntityManagerInterface     $entityManager,
-        private readonly Security                   $security,
-    ){}
 
     public function __invoke(Request $request): JsonResponse
     {
         $this->denyAccessUnlessGranted("IS_AUTHENTICATED_FULLY");
 
         /** @var User $bearerUser */
-        $bearerUser = $this->security->getUser();
+        $bearerUser = $this->currentUser();
 
         $data = json_decode($request->getContent(), true);
         $roleParam = $data['role'];
 
         if (in_array('ROLE_ADMIN', $bearerUser->getRoles()))
-            return $this->json(['message' => "You're admin"], 403);
+            return $this->errorJson(AppError::ROLE_ALREADY_ADMIN);
 
         if (!in_array("ROLE_CLIENT", $bearerUser->getRoles()) && in_array("ROLE_MASTER", $bearerUser->getRoles()))
-            return $this->json(['message' => "You're master"], 403);
+            return $this->errorJson(AppError::ROLE_ALREADY_MASTER);
 
         if (!in_array("ROLE_MASTER", $bearerUser->getRoles()) && in_array("ROLE_CLIENT", $bearerUser->getRoles()))
-            return $this->json(['message' => "You're client"], 403);
+            return $this->errorJson(AppError::ROLE_ALREADY_CLIENT);
 
         if ($roleParam == 'master')
             $bearerUser->setRoles(['ROLE_MASTER']);
         elseif ($roleParam == 'client')
             $bearerUser->setRoles(['ROLE_CLIENT']);
-        else return $this->json(['message' => "Wrong role provided"], 404);
+        else return $this->errorJson(AppError::WRONG_ROLE);
 
-        $this->entityManager->flush();
+        $this->flush();
 
         return $this->json(['message' => "Granted $roleParam role"]);
     }

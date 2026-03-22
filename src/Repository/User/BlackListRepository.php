@@ -2,9 +2,9 @@
 
 namespace App\Repository\User;
 
-use App\Entity\Extra\BlackList;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
+use App\Entity\User\BlackList;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -18,13 +18,17 @@ class BlackListRepository extends ServiceEntityRepository
         parent::__construct($registry, BlackList::class);
     }
 
+    /**
+     * Возвращает чёрный список владельца с пагинацией.
+     * $type опционально фильтрует по типу записи ('user' | 'ticket').
+     */
     public function findByOwner(User $owner, int $page = 1, int $limit = 25, ?string $type = null): array
     {
         $qb = $this->createQueryBuilder('b')
             ->where('b.owner = :owner')
             ->setParameter('owner', $owner)
             ->orderBy('b.id', 'DESC')
-            ->setFirstResult(($page - 1) * $limit)
+            ->setFirstResult(($page - 1) * $limit) // оффсет для пагинации
             ->setMaxResults($limit);
 
         if ($type !== null) {
@@ -34,6 +38,9 @@ class BlackListRepository extends ServiceEntityRepository
         return $qb->getQuery()->getResult();
     }
 
+    /**
+     * Количество записей в чёрном списке владельца (для пагинации вне DQL).
+     */
     public function countByOwner(User $owner): int
     {
         return (int) $this->createQueryBuilder('b')
@@ -44,6 +51,13 @@ class BlackListRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
+    /**
+     * Проверяет, есть ли уже такая запись в чёрном списке.
+     * Условия строятся динамически в зависимости от переданных аргументов:
+     *   - $targetUser != null — ищем по пользователю
+     *   - $targetTicket != null — ищем по тикету
+     *   - Оба сразу — ищем по обоим условиям (AND)
+     */
     public function findDuplicate(User $owner, ?User $targetUser = null, ?Ticket $targetTicket = null): ?BlackList
     {
         $qb = $this->createQueryBuilder('b')

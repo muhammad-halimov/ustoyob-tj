@@ -2,34 +2,25 @@
 
 namespace App\Controller\Api\CRUD\GET\Review;
 
+use App\ApiResource\AppError;
+use App\Controller\Api\CRUD\Abstract\AbstractApiController;
 use App\Entity\Review\Review;
-use App\Entity\User;
-use App\Repository\ReviewRepository;
-use App\Service\Extra\AccessService;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Bundle\SecurityBundle\Security;
+use App\Repository\Review\ReviewRepository;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
-class PersonalReviewFilterController extends AbstractController
+class PersonalReviewFilterController extends AbstractApiController
 {
     public function __construct(
         private readonly ReviewRepository $reviewRepository,
-        private readonly AccessService    $accessService,
-        private readonly Security         $security,
     ){}
 
     public function __invoke(): JsonResponse
     {
-        /** @var User $bearerUser */
-        $bearerUser = $this->security->getUser();
-
-        $this->accessService->check($bearerUser);
-
         /** @var Review $data */
-        $data = $this->reviewRepository->findUserReviews($bearerUser);
+        $data = $this->reviewRepository->findUserReviews($this->checkedUser());
 
         return empty($data)
-            ? $this->json(['message' => 'Resource not found'], 404)
+            ? $this->errorJson(AppError::RESOURCE_NOT_FOUND)
             : $this->json($data, context: ['groups' => ['reviews:read', 'reviewsClient:read']]);
     }
 }

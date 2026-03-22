@@ -2,28 +2,20 @@
 
 namespace App\Controller\Api\CRUD\POST\Ticket;
 
+use App\ApiResource\AppError;
 use App\Controller\Api\CRUD\POST\Image\AbstractPhotoUploadController;
+use App\Entity\Extra\MultipleImage;
 use App\Entity\Ticket\Ticket;
-use App\Entity\Ticket\TicketImage;
 use App\Entity\User;
-use App\Repository\TicketRepository;
-use App\Service\Extra\AccessService;
-use Doctrine\ORM\EntityManagerInterface;
-use ReflectionClass;
-use Symfony\Bundle\SecurityBundle\Security;
+use App\Repository\Ticket\TicketRepository;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 class PostTicketPhotoController extends AbstractPhotoUploadController
 {
     public function __construct(
-        EntityManagerInterface            $entityManager,
-        Security                          $security,
-        AccessService                     $accessService,
         private readonly TicketRepository $ticketRepository,
-    ) {
-        parent::__construct($entityManager, $security, $accessService);
-    }
+    ) {}
 
     protected function findEntity(int $id): ?object
     {
@@ -34,7 +26,7 @@ class PostTicketPhotoController extends AbstractPhotoUploadController
     {
         /** @var Ticket $entity */
         if ($entity->getAuthor() !== $bearerUser && $entity->getMaster() !== $bearerUser) {
-            return $this->json(['message' => "Ownership doesn't match"], 403);
+            return $this->errorJson(AppError::OWNERSHIP_MISMATCH);
         }
         return null;
     }
@@ -42,14 +34,14 @@ class PostTicketPhotoController extends AbstractPhotoUploadController
     protected function processImageFile(object $entity, UploadedFile $imageFile, User $bearerUser): void
     {
         /** @var Ticket $entity */
-        $position = $entity->getUserTicketImages()->count();
-        $ticketImage = (new TicketImage())->setImageFile($imageFile)->setPosition($position);
+        $position = $entity->getImages()->count();
+        $ticketImage = (new MultipleImage())->setImageFile($imageFile)->setPosition($position);
         $entity->addUserTicketImage($ticketImage);
         $this->entityManager->persist($ticketImage);
     }
 
     protected function getEntityName(): string
     {
-        return (new ReflectionClass(Ticket::class))->getName();
+        return Ticket::class;
     }
 }

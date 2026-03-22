@@ -2,6 +2,7 @@
 
 namespace App\Controller\Api\OAuth\Profile;
 
+use App\ApiResource\AppError;
 use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
 use App\Service\Extra\AccessService;
@@ -34,14 +35,14 @@ class UnlinkOAuthProviderController extends AbstractController
             ->first() ?: null;
 
         if ($providerEntity === null) {
-            return $this->json(['error' => 'not_linked'], 400);
+            return $this->json(['error' => AppError::OAUTH_NOT_LINKED, 'message' => AppError::get(AppError::OAUTH_NOT_LINKED)->message], 400);
         }
 
         $hasPassword      = !empty($currentUser->getPassword());
         $hasOtherProvider = $currentUser->getOauthProviders()->count() > 1;
 
         if (!$hasPassword && !$hasOtherProvider) {
-            return $this->json(['error' => 'last_auth_method'], 400);
+            return $this->json(['error' => AppError::OAUTH_LAST_AUTH_METHOD, 'message' => AppError::get(AppError::OAUTH_LAST_AUTH_METHOD)->message], 400);
         }
 
         $currentUser->removeOauthProvider($providerEntity);

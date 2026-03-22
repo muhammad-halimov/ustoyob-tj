@@ -2,6 +2,7 @@
 
 namespace App\Controller\Admin\Gallery;
 
+use App\Controller\Admin\Extra\MultipleImageCrudController;
 use App\Entity\Gallery\Gallery;
 use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
@@ -63,8 +64,8 @@ class GalleryCrudController extends AbstractCrudController
             ->setRequired(true)
             ->setColumns(12);
 
-        yield CollectionField::new('userServiceGalleryItems', 'Галерея изображений')
-            ->useEntryCrudForm(GalleryImageCrudController::class)
+        yield CollectionField::new('images', 'Галерея изображений')
+            ->useEntryCrudForm(MultipleImageCrudController::class)
             ->hideOnIndex()
             ->setColumns(12)
             ->setRequired(false);

@@ -2,38 +2,30 @@
 
 namespace App\Controller\Api\CRUD\POST\Review;
 
+use App\ApiResource\AppError;
+use App\Controller\Api\CRUD\Abstract\AbstractApiController;
 use App\Entity\Review\Review;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
 use App\Repository\Chat\ChatRepository;
-use App\Service\Extra\AccessService;
+use App\Repository\Review\ReviewRepository;
 use App\Service\Extra\ExtractIriService;
-use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
-class PostReviewController extends AbstractController
+class PostReviewController extends AbstractApiController
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
         private readonly ExtractIriService      $extractIriService,
         private readonly ChatRepository         $chatRepository,
-        private readonly AccessService          $accessService,
-        private readonly Security               $security,
+        private readonly ReviewRepository       $reviewRepository,
     ){}
 
     public function __invoke(Request $request): JsonResponse
     {
-        /** @var User $bearerUser */
-        $bearerUser = $this->security->getUser();
+        $bearerUser = $this->checkedUser();
 
-        $this->accessService->check($bearerUser);
-
-        $review = new Review();
-
-        $data = json_decode($request->getContent(), true);
+        $data = $this->getContent();
 
         $typeParam = $data['type'];
         $ratingParam = (float)$data['rating'];
@@ -43,7 +35,7 @@ class PostReviewController extends AbstractController
         $clientParam = $data['client'] ?? null;
 
         // Проверка диапазона
-        if ($ratingParam < 1 || $ratingParam > 5) return $this->json(['message' => 'Rating must be between 1 and 5'], 400);
+        if ($ratingParam < 1 || $ratingParam > 5) return $this->errorJson(AppError::INVALID_RATING);
 
         // Загружаем сущности только если ID переданы
         /** @var Ticket|null $ticket */
@@ -57,90 +49,70 @@ class PostReviewController extends AbstractController
             !$this->chatRepository->findChatBetweenUsers($bearerUser, $master) &&
             !$this->chatRepository->findChatBetweenUsers($bearerUser, $client)
         )
-            return $this->json(['message' => 'No interactions between users'], 422);
+            return $this->errorJson(AppError::NO_INTERACTIONS);
 
-        $message = [
-            'type' => $typeParam,
-            'rating' => $ratingParam,
-            'description' => $descriptionParam,
-        ];
+        if ($ticket && $this->reviewRepository->findExistingReviewByAuthorAndTicket($bearerUser, $ticket, $typeParam))
+            return $this->errorJson(AppError::REVIEW_ALREADY_EXISTS);
+
+        $review = new Review();
 
         if ($typeParam === 'client') {
             if (!$clientParam)
-                return $this->json(['message' => 'Client parameter is required'], 422);
+                return $this->errorJson(AppError::CLIENT_PARAM_REQUIRED);
 
             if (!$client)
-                return $this->json(['message' => 'Client not found'], 404);
+                return $this->errorJson(AppError::CLIENT_NOT_FOUND);
 
             if (!in_array("ROLE_MASTER", $bearerUser->getRoles()))
-                return $this->json(['message' => "You can't post a client review while not being a master"], 403);
+                return $this->errorJson(AppError::REVIEW_NOT_MASTER);
 
             if (!in_array("ROLE_CLIENT", $client->getRoles()))
-                return $this->json(['message' => "Client's role doesn't match"], 403);
+                return $this->errorJson(AppError::REVIEW_CLIENT_ROLE_MISMATCH);
 
             if ($ticket) {
                 if ($ticket->getService() && $ticket->getAuthor() !== $client)
-                    return $this->json(['message' => "Client's ticket doesn't match"], 404);
+                    return $this->errorJson(AppError::REVIEW_CLIENT_TICKET_MISMATCH);
 
                 $review->setServices($ticket);
-
-                $message += [
-                    'ticket' => "/api/tickets/{$ticket->getId()}",
-                ];
             }
 
             $review
                 ->setMaster($bearerUser)
                 ->setClient($client);
-
-            $message += [
-                'master' => "/api/users/{$bearerUser->getId()}",
-                'client' => "/api/users/{$client->getId()}",
-            ];
         }
         elseif ($typeParam === 'master') {
             if (!$masterParam)
-                return $this->json(['message' => 'Master parameter is required'], 422);
+                return $this->errorJson(AppError::MASTER_PARAM_REQUIRED);
 
             if (!$master)
-                return $this->json(['message' => 'Master not found'], 404);
+                return $this->errorJson(AppError::MASTER_NOT_FOUND);
 
             if (!in_array("ROLE_CLIENT", $bearerUser->getRoles()))
-                return $this->json(['message' => "You can't post a master review while not being a client"], 403);
+                return $this->errorJson(AppError::REVIEW_NOT_CLIENT);
 
             if (!in_array("ROLE_MASTER", $master->getRoles()))
-                return $this->json(['message' => "Master's role doesn't match"], 403);
+                return $this->errorJson(AppError::REVIEW_MASTER_ROLE_MISMATCH);
 
             if ($ticket) {
                 if (!$ticket->getService() && $ticket->getMaster() !== $master)
-                    return $this->json(['message' => "Master's service doesn't match"], 404);
+                    return $this->errorJson(AppError::REVIEW_MASTER_SERVICE_MISMATCH);
 
                 $review->setServices($ticket);
-
-                $message += [
-                    'ticket' => "/api/tickets/{$ticket->getId()}",
-                ];
             }
 
             $review
                 ->setClient($bearerUser)
                 ->setMaster($master);
-
-            $message += [
-                'master' => "/api/users/{$master->getId()}",
-                'client' => "/api/users/{$bearerUser->getId()}",
-            ];
         }
-        else return $this->json(['message' => 'Wrong review type'], 400);
+        else return $this->errorJson(AppError::WRONG_REVIEW_TYPE);
 
         $review
             ->setDescription($descriptionParam)
             ->setRating($ratingParam)
             ->setType($typeParam);
 
-        $this->entityManager->persist($review);
-        $this->entityManager->flush();
+        $this->persist($review);
 
-        return $this->json((['id' => $review->getId()] + $message), 201);
+        return $this->json($review, context: ['groups' => ['reviews:read', 'reviewsClient:read'], 'skip_null_values' => false]);
     }
 }

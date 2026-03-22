@@ -7,10 +7,24 @@ use Doctrine\Bundle\DoctrineBundle\Attribute\AsEntityListener;
 use Doctrine\ORM\Events;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
+/**
+ * Автоматически хэширует пароль пользователя перед записью в БД.
+ *
+ * Зачем слушатель, а не логика в контроллере?
+ *   Пароль может быть установлен из разных мест: регистрация, смена пароля,
+ *   OAuth-создание аккаунта, команды консоли, фикстуры. Listener гарантирует,
+ *   что plaintext никогда не попадёт в БД независимо от точки входа.
+ */
 #[AsEntityListener(event: Events::prePersist, entity: User::class)]
 #[AsEntityListener(event: Events::preUpdate, entity: User::class)]
 readonly class UserListener
 {
+    /**
+     * Префиксы уже захэшированных паролей.
+     *   $2y$, $2a$, $2b$ — bcrypt (PHP по умолчанию использует $2y$)
+     *   $argon2 — Argon2i / Argon2id
+     * Если пароль начинается с одного из них — он уже хэширован, пропускаем.
+     */
     private const array HASHED_PASSWORD_PREFIX = ['$2y$', '$argon2', '$2a$', '$2b$'];
 
     public function __construct(

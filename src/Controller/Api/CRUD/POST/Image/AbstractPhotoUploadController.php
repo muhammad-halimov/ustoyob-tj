@@ -2,51 +2,41 @@
 
 namespace App\Controller\Api\CRUD\POST\Image;
 
+use App\ApiResource\AppError;
+use App\Controller\Api\CRUD\Abstract\AbstractApiController;
 use App\Entity\User;
-use App\Service\Extra\AccessService;
-use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
-abstract class AbstractPhotoUploadController extends AbstractController
+abstract class AbstractPhotoUploadController extends AbstractApiController
 {
-    public function __construct(
-        protected readonly EntityManagerInterface $entityManager,
-        protected readonly Security $security,
-        protected readonly AccessService $accessService,
-    ) {}
-
-    /**
-     * Главный метод для обработки загрузки фото
-     */
     public function __invoke(int $id, Request $request): JsonResponse
     {
-        /** @var User $bearerUser */
-        $bearerUser = $this->security->getUser();
-
-//        $accessLevel = $this->getAccessLevel();
-        $this->accessService->check($bearerUser, 'double');
+        $bearerUser = $this->checkedUser('double');
 
         $entity = $this->findEntity($id);
 
-        if (!$entity) return $this->json(['message' => $this->getEntityName() . ' not found'], 404);
-
-        $imageFiles = $request->files->get('imageFile');
-        $imageFiles = is_array($imageFiles) ? $imageFiles : [$imageFiles];
-        $uploadedCount = 0;
-
-        if (!$imageFiles) return $this->json(['message' => 'No files provided'], 400);
+        if (!$entity)
+            return $this->errorJson(AppError::RESOURCE_NOT_FOUND);
 
         $ownershipCheck = $this->checkOwnership($entity, $bearerUser);
 
-        if ($ownershipCheck !== null) return $ownershipCheck;
+        if ($ownershipCheck !== null)
+            return $ownershipCheck;
 
-        $additionalChecks = $this->performAdditionalChecks($entity, $bearerUser);
+        $additionalChecks = $this->performAdditionalChecks($entity);
 
-        if ($additionalChecks !== null) return $additionalChecks;
+        if ($additionalChecks !== null)
+            return $additionalChecks;
+
+        $imageFiles = $request->files->get('imageFile');
+
+        if (!$imageFiles)
+            return $this->errorJson(AppError::NO_FILES_PROVIDED);
+
+        $imageFiles = is_array($imageFiles) ? $imageFiles : [$imageFiles];
+        $uploadedCount = 0;
 
         foreach ($imageFiles as $imageFile)
             if ($imageFile instanceof UploadedFile && $imageFile->isValid()) {
@@ -54,47 +44,18 @@ abstract class AbstractPhotoUploadController extends AbstractController
                 $uploadedCount++;
             }
 
-        $this->entityManager->flush();
+        $this->flush();
 
-        return $this->json([
-            'message' => 'Photos uploaded successfully',
-            'count' => $uploadedCount
-        ]);
+        return $this->json(['message' => 'Photos uploaded successfully', 'count' => $uploadedCount]);
     }
 
-    /**
-     * Найти сущность по ID
-     */
     abstract protected function findEntity(int $id): ?object;
 
-    /**
-     * Проверить владение сущностью
-     */
     abstract protected function checkOwnership(object $entity, User $bearerUser): ?JsonResponse;
 
-    /**
-     * Обработать файл изображения
-     */
     abstract protected function processImageFile(object $entity, UploadedFile $imageFile, User $bearerUser): void;
 
-    /**
-     * Получить название сущности для сообщений об ошибках
-     */
     abstract protected function getEntityName(): string;
 
-    /**
-     * Получить уровень доступа ('normal', 'double', и т.д.)
-     */
-//    protected function getAccessLevel(): ?string
-//    {
-//        return 'double';
-//    }
-
-    /**
-     * Дополнительные проверки (например, blacklist)
-     */
-    protected function performAdditionalChecks(object $entity, User $bearerUser): ?JsonResponse
-    {
-        return null;
-    }
+    protected function performAdditionalChecks(object $entity): ?JsonResponse { return null; }
 }

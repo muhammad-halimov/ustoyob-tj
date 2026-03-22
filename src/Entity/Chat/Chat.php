@@ -18,10 +18,12 @@ use App\Controller\Api\CRUD\POST\Chat\Chat\PostChatController;
 use App\Dto\Chat\ChatPatchInput;
 use App\Dto\Chat\ChatPostInput;
 use App\Entity\Appeal\AppealTypes\AppealChat;
+use App\Entity\Extra\MultipleImage;
 use App\Entity\Ticket\Ticket;
+use App\Entity\Trait\CreatedAtTrait;
+use App\Entity\Trait\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\Chat\ChatRepository;
-use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
@@ -93,6 +95,8 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 )]
 class Chat
 {
+    use CreatedAtTrait, UpdatedAtTrait;
+
     public function __toString(): string
     {
         return "Chat #$this->id";
@@ -150,18 +154,6 @@ class Chat
     ])]
     #[ApiProperty(writable: false)]
     private Collection $messages;
-
-    #[ORM\Column(type: 'datetime', nullable: false)]
-    #[Groups([
-        'chats:read',
-    ])]
-    protected DateTime $createdAt;
-
-    #[ORM\Column(type: 'datetime', nullable: false)]
-    #[Groups([
-        'chats:read',
-    ])]
-    protected DateTime $updatedAt;
 
     /**
      * @var Collection<int, AppealChat>
@@ -236,9 +228,9 @@ class Chat
     }
 
     /**
-     * Returns all ChatImage objects from all messages, sorted newest first.
+     * Returns all MultipleImage objects from all messages, sorted newest first.
      *
-     * @return ChatImage[]
+     * @return MultipleImage[]
      */
     #[Groups([
         'chats:read',
@@ -250,37 +242,14 @@ class Chat
         $images = [];
 
         foreach ($this->messages as $message) {
-            foreach ($message->getChatImages() as $image) {
+            foreach ($message->getImages() as $image) {
                 $images[] = $image;
             }
         }
 
-        usort($images, fn(ChatImage $a, ChatImage $b) => $b->getCreatedAt() <=> $a->getCreatedAt());
+        usort($images, fn(MultipleImage $a, MultipleImage $b) => $b->getCreatedAt() <=> $a->getCreatedAt());
 
         return $images;
-    }
-
-    public function getCreatedAt(): DateTime
-    {
-        return $this->createdAt;
-    }
-
-    #[ORM\PrePersist]
-    public function setCreatedAt(): void
-    {
-        $this->createdAt = new DateTime();
-    }
-
-    public function getUpdatedAt(): DateTime
-    {
-        return $this->updatedAt;
-    }
-
-    #[ORM\PreUpdate]
-    #[ORM\PrePersist]
-    public function setUpdatedAt(): void
-    {
-        $this->updatedAt = new DateTime();
     }
 
     public function getTicket(): ?Ticket

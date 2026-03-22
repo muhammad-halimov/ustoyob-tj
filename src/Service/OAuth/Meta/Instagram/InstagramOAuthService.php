@@ -2,6 +2,7 @@
 
 namespace App\Service\OAuth\Meta\Instagram;
 
+use App\ApiResource\AppError;
 use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
 use App\Service\OAuth\AbstractOAuthService;
@@ -57,8 +58,7 @@ class InstagramOAuthService extends AbstractOAuthService implements OAuthService
             ])->toArray();
         } catch (ClientExceptionInterface $e) {
             throw new BadRequestHttpException(
-                "Failed to exchange code with {$this->getProviderName()}. The code may be expired or invalid.",
-                code: $e->getCode()
+                AppError::get(AppError::OAUTH_CODE_EXCHANGE_FAILED)->message
             );
         }
     }
@@ -82,8 +82,7 @@ class InstagramOAuthService extends AbstractOAuthService implements OAuthService
             ])->toArray();
         } catch (ClientExceptionInterface $e) {
             throw new BadRequestHttpException(
-                "Failed to exchange token with {$this->getProviderName()}. The token may be expired or invalid.",
-                code: $e->getCode()
+                AppError::get(AppError::OAUTH_CODE_EXCHANGE_FAILED)->message
             );
         }
     }
@@ -110,7 +109,7 @@ class InstagramOAuthService extends AbstractOAuthService implements OAuthService
             ->setPassword('')
             ->setActive(true)
             ->setApproved(true)
-            ->setBio($userData['biography'] ?? null)
+            ->setDescription($userData['biography'] ?? null)
             ->setGender('gender_neutral')
             ->setRoles(match($role) {
                 'master' => ['ROLE_MASTER'],
@@ -146,8 +145,8 @@ class InstagramOAuthService extends AbstractOAuthService implements OAuthService
         if (isset($userData['profile_picture_url']) && empty($user->getImageExternalUrl())) {
             $user->setImageExternalUrl($userData['profile_picture_url']);
         }
-        if (isset($userData['biography']) && empty($user->getBio())) {
-            $user->setBio($userData['biography']);
+        if (isset($userData['biography']) && empty($user->getDescription())) {
+            $user->setDescription($userData['biography']);
         }
     }
 }

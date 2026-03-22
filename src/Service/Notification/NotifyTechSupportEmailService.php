@@ -10,6 +10,17 @@ use Symfony\Component\Mailer\Transport;
 use Symfony\Component\Mime\Email;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
+/**
+ * Отправляет администратору email-уведомление при создании или изменении
+ * тикета техподдержки.
+ *
+ * Почему Transport::fromDsn вместо MailerInterface — см. AccountConfirmationService.
+ *
+ * ENV-переменные:
+ *   MAILER_DSN    — DSN почтового транспорта
+ *   MAILER_SENDER — адрес отправителя
+ *   FRONTEND_URL  — имя сайта в письме
+ */
 readonly class NotifyTechSupportEmailService
 {
     public function __construct(private UrlGeneratorInterface $urlGenerator) {}
@@ -35,7 +46,7 @@ readonly class NotifyTechSupportEmailService
         $description = htmlspecialchars($techSupport->getDescription(), ENT_QUOTES, 'UTF-8');
         $authorEmail = htmlspecialchars($techSupport->getAuthor()->getEmail(), ENT_QUOTES, 'UTF-8');
         $messagesCount = $techSupport->getTechSupportMessages()->count();
-        $imagesCount = $techSupport->getTechSupportImages()->count();
+        $imagesCount = $techSupport->getTechSupportMessages()->first()->getImages()->count();
 
         // Текстовая версия письма
         $textContent = <<<TEXT

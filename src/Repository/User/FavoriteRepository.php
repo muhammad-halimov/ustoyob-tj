@@ -2,9 +2,9 @@
 
 namespace App\Repository\User;
 
-use App\Entity\Extra\Favorite;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
+use App\Entity\User\Favorite;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -18,13 +18,17 @@ class FavoriteRepository extends ServiceEntityRepository
         parent::__construct($registry, Favorite::class);
     }
 
+    /**
+     * Возвращает избранное владельца с пагинацией.
+     * $type опционально фильтрует по типу записи ('user' | 'ticket').
+     */
     public function findByOwner(User $owner, int $page = 1, int $limit = 25, ?string $type = null): array
     {
         $qb = $this->createQueryBuilder('f')
             ->where('f.owner = :owner')
             ->setParameter('owner', $owner)
             ->orderBy('f.id', 'DESC')
-            ->setFirstResult(($page - 1) * $limit)
+            ->setFirstResult(($page - 1) * $limit) // оффсет для пагинации
             ->setMaxResults($limit);
 
         if ($type !== null) {
@@ -34,6 +38,9 @@ class FavoriteRepository extends ServiceEntityRepository
         return $qb->getQuery()->getResult();
     }
 
+    /**
+     * Количество записей в избранном владельца (для пагинации вне DQL).
+     */
     public function countByOwner(User $owner): int
     {
         return (int) $this->createQueryBuilder('f')
@@ -44,6 +51,13 @@ class FavoriteRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
+    /**
+     * Проверяет, есть ли уже такая запись в избранном.
+     * Условия строятся динамически в зависимости от переданных аргументов:
+     *   - $targetUser != null — ищем по пользователю
+     *   - $targetTicket != null — ищем по тикету
+     *   - Оба сразу — ищем по обоим (AND)
+     */
     public function findDuplicate(User $owner, ?User $targetUser = null, ?Ticket $targetTicket = null): ?Favorite
     {
         $qb = $this->createQueryBuilder('f')

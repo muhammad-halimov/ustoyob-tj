@@ -2,15 +2,17 @@
 
 namespace App\Entity\Extra;
 
-use App\Entity\Appeal\AppealReason;
-use App\Entity\Geography\AddressComponent;
+use App\Entity\Geography\Abstract\AddressComponent;
 use App\Entity\Legal\Legal;
 use App\Entity\Ticket\Category;
 use App\Entity\Ticket\Unit;
-use App\Entity\Traits\CreatedAtTrait;
-use App\Entity\Traits\UpdatedAtTrait;
+use App\Entity\Trait\AppealReasonTrait;
+use App\Entity\Trait\CreatedAtTrait;
+use App\Entity\Trait\DescriptionTrait;
+use App\Entity\Trait\TitleTrait;
+use App\Entity\Trait\UpdatedAtTrait;
 use App\Entity\User\Occupation;
-use App\Repository\Geography\TranslationRepository;
+use App\Repository\Translation\TranslationRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
@@ -19,7 +21,7 @@ use Symfony\Component\Serializer\Attribute\Ignore;
 #[ORM\Entity(repositoryClass: TranslationRepository::class)]
 class Translation
 {
-    use UpdatedAtTrait, CreatedAtTrait;
+    use UpdatedAtTrait, CreatedAtTrait, TitleTrait, DescriptionTrait, AppealReasonTrait;
 
     public function __toString(): string
     {
@@ -54,21 +56,6 @@ class Translation
     ])]
     private ?string $locale = 'tj';
 
-    #[ORM\Column(length: 255, nullable: true)]
-    #[Groups([
-        'districts:read',
-        'provinces:read',
-        'masterTickets:read',
-        'clientTickets:read',
-        'cities:read',
-        'masters:read',
-        'clients:read',
-    ])]
-    private ?string $title = null;
-
-    #[ORM\Column(type: 'text', nullable: true)]
-    private ?string $description = null;
-
     #[ORM\ManyToOne(inversedBy: 'translations')]
     #[ORM\JoinColumn(name: 'address_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Ignore]
@@ -90,11 +77,6 @@ class Translation
     private ?Unit $unit = null;
 
     #[ORM\ManyToOne(inversedBy: 'translations')]
-    #[ORM\JoinColumn(name: 'reason_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
-    #[Ignore]
-    private ?AppealReason $reason = null;
-
-    #[ORM\ManyToOne(inversedBy: 'translations')]
     #[ORM\JoinColumn(name: 'legal_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Ignore]
     private ?Legal $legal = null;
@@ -112,18 +94,6 @@ class Translation
     public function setLocale(?string $locale): static
     {
         $this->locale = $locale;
-
-        return $this;
-    }
-
-    public function getTitle(): ?string
-    {
-        return $this->title;
-    }
-
-    public function setTitle(?string $title): static
-    {
-        $this->title = $title;
 
         return $this;
     }
@@ -172,29 +142,6 @@ class Translation
     public function setUnit(?Unit $unit): static
     {
         $this->unit = $unit;
-
-        return $this;
-    }
-
-    public function getDescription(): ?string
-    {
-        return $this->description;
-    }
-
-    public function setDescription(?string $description): static
-    {
-        $this->description = $description;
-        return $this;
-    }
-
-    public function getReason(): ?AppealReason
-    {
-        return $this->reason;
-    }
-
-    public function setReason(?AppealReason $reason): static
-    {
-        $this->reason = $reason;
 
         return $this;
     }

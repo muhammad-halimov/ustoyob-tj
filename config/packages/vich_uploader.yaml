@@ -2,57 +2,8 @@ vich_uploader:
     db_driver: orm
 
     mappings:
-        profile_photos:
-            uri_prefix: /images/profile_photos
-            upload_destination: '%kernel.project_dir%/public/images/profile_photos'
-            namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
-
-        gallery_photos:
-            uri_prefix: /images/gallery_photos
-            upload_destination: '%kernel.project_dir%/public/images/gallery_photos'
-            namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
-
-        category_photos:
-            uri_prefix: /images/service_category_photos
-            upload_destination: '%kernel.project_dir%/public/images/service_category_photos'
-            namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
-
-        district_photos:
-            uri_prefix: /images/service_district_photos
-            upload_destination: '%kernel.project_dir%/public/images/service_district_photos'
-            namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
-
-        city_photos:
-            uri_prefix: /images/service_city_photos
-            upload_destination: '%kernel.project_dir%/public/images/service_city_photos'
-            namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
-
-        chat_photos:
-            uri_prefix: /images/chat_photos
-            upload_destination: '%kernel.project_dir%/public/images/chat_photos'
-            namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
-
-        ticket_photos:
-            uri_prefix: /images/ticket_photos
-            upload_destination: '%kernel.project_dir%/public/images/ticket_photos'
-            namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
-
-        occupation_photos:
-            uri_prefix: /images/occupation_photos
-            upload_destination: '%kernel.project_dir%/public/images/occupation_photos'
-            namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
-
-        appeal_photos:
-            uri_prefix: /images/appeal_photos
-            upload_destination: '%kernel.project_dir%/public/images/appeal_photos'
-            namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
-
-        review_photos:
-            uri_prefix: /images/review_photos
-            upload_destination: '%kernel.project_dir%/public/images/review_photos'
-            namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
-
-        tech_support_photos:
-            uri_prefix: /images/tech_support_photos
-            upload_destination: '%kernel.project_dir%/public/images/tech_support_photos'
-            namer: Vich\UploaderBundle\Naming\SmartUniqueNamer
+        default_photos:
+            uri_prefix: /uploads
+            upload_destination: '%kernel.project_dir%/public/uploads'
+            directory_namer: App\Service\Extra\EntityDirectoryNamerService
+            namer: Vich\UploaderBundle\Naming\HashNamer

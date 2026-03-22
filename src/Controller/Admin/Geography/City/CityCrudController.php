@@ -70,7 +70,7 @@ class CityCrudController extends AbstractCrudController
         yield TextEditorField::new('description', 'Описание')
             ->setColumns(12);
 
-        yield VichImageField::new('imageFile', 'Изображение')
+        yield VichImageField::new('imageFile', 'Фото')
             ->setHelp('
                 <div class="mt-3">
                     <span class="badge badge-info">*.jpg</span>

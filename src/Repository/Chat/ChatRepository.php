@@ -17,6 +17,9 @@ class ChatRepository extends ServiceEntityRepository
         parent::__construct($registry, Chat::class);
     }
 
+    /**
+     * Все чаты, где юзер является инициатором ИЛИ реципиентом.
+     */
     public function findUserChats(User $user): array
     {
         return $this
@@ -27,6 +30,10 @@ class ChatRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * Чаты строго между $author и $replyAuthor (по−0стированный порядок).
+     * В отличие от findChatBetweenUsers() не проверяет обратный порядок.
+     */
     public function findChatsByAuthors(?User $author, ?User $replyAuthor): array|null
     {
         return $this
@@ -38,6 +45,19 @@ class ChatRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * Ищет чат между двумя пользователями в любом направлении.
+     *
+     * Проверяет два источника:
+     *   1. Прямая связь Chat.author / Chat.replyAuthor (запрос без тикета)
+     *   2. Через Ticket: ticket.author и ticket.master
+     *      (мастер откликается на тикет клиента — связь идёт через Ticket,
+     *       а не напрямую в Chat)
+     *
+     * Используется для проверки наличия взаимодействия перед оставлением отзыва.
+     *
+     * @param bool $array тру — вернуть массив, фалс — первый найденный Chat|null
+     */
     public function findChatBetweenUsers(?User $user1, ?User $user2, bool $array = false): Chat|array|null
     {
         $query = $this->createQueryBuilder('c')

@@ -2,6 +2,7 @@
 
 namespace App\Service\OAuth\Google;
 
+use App\ApiResource\AppError;
 use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
 use App\Service\OAuth\AbstractOAuthService;
@@ -72,8 +73,7 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
             ])->toArray();
         } catch (ClientExceptionInterface $e) {
             throw new BadRequestHttpException(
-                "Failed to exchange code with {$this->getProviderName()}. The code may be expired or invalid.",
-                code: $e->getCode()
+                AppError::get(AppError::OAUTH_CODE_EXCHANGE_FAILED)->message
             );
         }
     }
@@ -88,7 +88,7 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
     public function fetchUserData(array $tokens): array
     {
         if (!isset($tokens['id_token'])) {
-            throw new BadRequestHttpException('No id_token received from Google');
+            throw new BadRequestHttpException(AppError::get(AppError::OAUTH_CODE_EXCHANGE_FAILED)->message);
         }
 
         $userData = $this->verifyIdToken($tokens['id_token']);
@@ -117,20 +117,20 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
 
         try {
             $decoded = JWT::decode($idToken, JWK::parseKeySet($this->googlePublicKeys));
-        } catch (Exception $e) {
-            throw new BadRequestHttpException('Invalid ID token: ' . $e->getMessage());
+        } catch (Exception) {
+            throw new BadRequestHttpException(AppError::get(AppError::TOKEN_INVALID_OR_EXPIRED)->message);
         }
 
         if ($decoded->aud !== $_ENV['OAUTH_GOOGLE_CLIENT_ID']) {
-            throw new BadRequestHttpException('Invalid token audience');
+            throw new BadRequestHttpException(AppError::get(AppError::TOKEN_INVALID_OR_EXPIRED)->message);
         }
 
         if (!in_array($decoded->iss, [$_ENV['GOOGLE_ACCOUNT_URI'], 'accounts.google.com'])) {
-            throw new BadRequestHttpException('Invalid token issuer');
+            throw new BadRequestHttpException(AppError::get(AppError::TOKEN_INVALID_OR_EXPIRED)->message);
         }
 
         if ($decoded->exp < time()) {
-            throw new BadRequestHttpException('Token has expired');
+            throw new BadRequestHttpException(AppError::get(AppError::TOKEN_INVALID_OR_EXPIRED)->message);
         }
 
         return (array)$decoded;
@@ -173,7 +173,7 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
     public function findOrCreateUser(array $userData, ?string $role): User
     {
         if (!($userData['email_verified'] ?? false)) {
-            throw new BadRequestHttpException('Unverified by Google');
+            throw new BadRequestHttpException(AppError::get(AppError::OAUTH_UNVERIFIED_EMAIL)->message);
         }
 
         $googleId = $userData['sub'];

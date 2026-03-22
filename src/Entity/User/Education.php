@@ -2,8 +2,10 @@
 
 namespace App\Entity\User;
 
-use App\Entity\Traits\CreatedAtTrait;
-use App\Entity\Traits\UpdatedAtTrait;
+use App\Entity\Trait\CreatedAtTrait;
+use App\Entity\Trait\DescriptionTrait;
+use App\Entity\Trait\TitleTrait;
+use App\Entity\Trait\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\User\EducationRepository;
 use Doctrine\ORM\Mapping as ORM;
@@ -15,12 +17,12 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\HasLifecycleCallbacks]
 class Education
 {
-    use UpdatedAtTrait, CreatedAtTrait;
+    use UpdatedAtTrait, CreatedAtTrait, TitleTrait, DescriptionTrait;
 
     public function __toString(): string
     {
         if ($this->beginning && $this->ending)
-            return "$this->uniTitle, $this->beginning - $this->ending";
+            return "$this->title, $this->beginning - $this->ending";
 
         return $this->uniTitle ?? "Education #$this->id";
     }
@@ -35,15 +37,6 @@ class Education
         'user:public:read',
     ])]
     private ?int $id = null;
-
-    #[ORM\Column(length: 255, nullable: true)]
-    #[Groups([
-        'masters:read',
-        'masterTickets:read',
-
-        'user:public:read',
-    ])]
-    private ?string $uniTitle = null;
 
     #[ORM\Column(nullable: true)]
     #[Groups([
@@ -90,18 +83,6 @@ class Education
     public function getId(): ?int
     {
         return $this->id;
-    }
-
-    public function getUniTitle(): ?string
-    {
-        return $this->uniTitle;
-    }
-
-    public function setUniTitle(?string $uniTitle): static
-    {
-        $this->uniTitle = $uniTitle;
-
-        return $this;
     }
 
     public function getBeginning(): ?int

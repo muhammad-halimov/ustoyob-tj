@@ -4,12 +4,12 @@ namespace App\Entity\Appeal;
 
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
-use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\GetCollection;
 use App\Entity\Extra\Translation;
-use App\Entity\Traits\CreatedAtTrait;
-use App\Entity\Traits\UpdatedAtTrait;
+use App\Entity\Trait\CreatedAtTrait;
+use App\Entity\Trait\TitleTrait;
+use App\Entity\Trait\UpdatedAtTrait;
 use App\Repository\Appeal\AppealReasonRepository;
 use App\State\Localization\Title\AppealReasonLocalizationProvider;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -35,7 +35,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ApiFilter(SearchFilter::class, properties: ['applicableTo' => 'exact'])]
 class AppealReason
 {
-    use CreatedAtTrait, UpdatedAtTrait;
+    use CreatedAtTrait, UpdatedAtTrait, TitleTrait;
 
     public const array APPLICABLE_TO_CHOICES = [
         'Для чатов'          => 'chat',
@@ -90,16 +90,6 @@ class AppealReason
     ])]
     private string $applicableTo = 'both';
 
-    #[ORM\Column(length: 255, nullable: true)]
-    #[Groups([
-        'appeal:reason:read',
-        'appeal:chat:read',
-        'appeal:ticket:read',
-        'techSupport:read',
-    ])]
-    #[ApiProperty(writable: false)]
-    private ?string $title = null;
-
     /**
      * @var Collection<int, Translation>
      */
@@ -136,18 +126,6 @@ class AppealReason
     public function setApplicableTo(string $applicableTo): static
     {
         $this->applicableTo = $applicableTo;
-
-        return $this;
-    }
-
-    public function getTitle(): ?string
-    {
-        return $this->title;
-    }
-
-    public function setTitle(?string $title): static
-    {
-        $this->title = $title;
 
         return $this;
     }

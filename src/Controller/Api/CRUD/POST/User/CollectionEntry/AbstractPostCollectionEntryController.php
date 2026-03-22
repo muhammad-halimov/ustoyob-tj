@@ -2,24 +2,19 @@
 
 namespace App\Controller\Api\CRUD\POST\User\CollectionEntry;
 
+use App\ApiResource\AppError;
+use App\Controller\Api\CRUD\Abstract\AbstractApiController;
 use App\Entity\Extra\AbstractCollectionEntry;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
-use App\Service\Extra\AccessService;
 use App\Service\Extra\ExtractIriService;
-use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
-abstract class AbstractPostCollectionEntryController extends AbstractController
+abstract class AbstractPostCollectionEntryController extends AbstractApiController
 {
     public function __construct(
-        protected readonly EntityManagerInterface $entityManager,
-        protected readonly ExtractIriService      $extractIriService,
-        protected readonly AccessService          $accessService,
-        protected readonly Security               $security,
+        protected readonly ExtractIriService $extractIriService,
     ) {}
 
     abstract protected function newEntry(): AbstractCollectionEntry;
@@ -34,37 +29,27 @@ abstract class AbstractPostCollectionEntryController extends AbstractController
 
     final public function __invoke(Request $request): JsonResponse
     {
-        /** @var User $bearer */
-        $bearer = $this->security->getUser();
-        $this->accessService->check($bearer);
+        $bearer = $this->checkedUser();
 
         $data      = json_decode($request->getContent(), true) ?? [];
         $userIri   = $data['user']   ?? null;
         $ticketIri = $data['ticket'] ?? null;
 
         if ($userIri === null && $ticketIri === null) {
-            return $this->json(['message' => 'Provide either "user" or "ticket" IRI'], 400);
+            return $this->errorJson(AppError::PROVIDE_USER_OR_TICKET_IRI);
         }
 
         if ($userIri !== null && $ticketIri !== null) {
-            return $this->json(['message' => 'Provide only one of "user" or "ticket", not both'], 400);
+            return $this->errorJson(AppError::PROVIDE_ONLY_ONE_IRI);
         }
 
         if ($userIri !== null) {
             /** @var User|null $user */
             $user = $this->extractIriService->extract($userIri, User::class, 'users');
 
-            if (!$user) {
-                return $this->json(['message' => "User $userIri not found"], 404);
-            }
-
-            if ($bearer === $user) {
-                return $this->json(['message' => 'Cannot add yourself'], 422);
-            }
-
-            if ($this->findDuplicate($bearer, $user)) {
-                return $this->json(['message' => 'Already added'], 409);
-            }
+            if (!$user) return $this->errorJson(AppError::USER_NOT_FOUND);
+            if ($bearer === $user) return $this->errorJson(AppError::CANNOT_ADD_YOURSELF);
+            if ($this->findDuplicate($bearer, $user)) return $this->errorJson(AppError::ALREADY_ADDED);
 
             if ($error = $this->validateUser($bearer, $user)) {
                 return $this->json(['message' => $error], 422);
@@ -75,13 +60,8 @@ abstract class AbstractPostCollectionEntryController extends AbstractController
             /** @var Ticket|null $ticket */
             $ticket = $this->extractIriService->extract($ticketIri, Ticket::class, 'tickets');
 
-            if (!$ticket) {
-                return $this->json(['message' => "Ticket $ticketIri not found"], 404);
-            }
-
-            if ($this->findDuplicate($bearer, null, $ticket)) {
-                return $this->json(['message' => 'Already added'], 409);
-            }
+            if (!$ticket) return $this->errorJson(AppError::TICKET_NOT_FOUND);
+            if ($this->findDuplicate($bearer, null, $ticket)) return $this->errorJson(AppError::ALREADY_ADDED);
 
             if ($error = $this->validateTicket($bearer, $ticket)) {
                 return $this->json(['message' => $error], 422);
@@ -90,8 +70,7 @@ abstract class AbstractPostCollectionEntryController extends AbstractController
             $entry = $this->newEntry()->setOwner($bearer)->setTicket($ticket)->setType('ticket');
         }
 
-        $this->entityManager->persist($entry);
-        $this->entityManager->flush();
+        $this->persist($entry);
 
         return $this->json($entry, 201, context: ['groups' => [$this->getSerializationGroup()], 'skip_null_values' => true]);
     }

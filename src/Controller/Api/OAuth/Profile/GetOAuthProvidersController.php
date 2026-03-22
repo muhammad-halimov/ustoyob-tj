@@ -5,6 +5,7 @@ namespace App\Controller\Api\OAuth\Profile;
 use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
 use App\Service\Extra\AccessService;
+use DateTimeInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -26,7 +27,7 @@ class GetOAuthProvidersController extends AbstractController
         $providers = array_map(
             fn(OAuthProvider $p) => [
                 'provider' => $p->getProvider(),
-                'linkedAt' => $p->getCreatedAt()->format(\DateTimeInterface::ATOM),
+                'linkedAt' => $p->getCreatedAt()->format(DateTimeInterface::ATOM),
             ],
             $currentUser->getOauthProviders()->toArray()
         );

@@ -2,6 +2,7 @@
 
 namespace App\Controller\Api\OAuth\Profile;
 
+use App\ApiResource\AppError;
 use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
 use App\Repository\User\UserOAuthProviderRepository;
@@ -9,7 +10,7 @@ use App\Service\Extra\AccessService;
 use App\Service\OAuth\Google\GoogleOAuthService;
 use App\Service\OAuth\Meta\Facebook\FacebookOAuthService;
 use App\Service\OAuth\Meta\Instagram\InstagramOAuthService;
-use App\Service\OAuth\StateStorage;
+use App\Service\OAuth\StateStorageService;
 use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
@@ -35,7 +36,7 @@ class LinkOAuthProviderController extends AbstractController
         private readonly AccessService               $accessService,
         private readonly EntityManagerInterface      $entityManager,
         private readonly UserOAuthProviderRepository $oauthProviderRepository,
-        private readonly StateStorage                $stateStorage,
+        private readonly StateStorageService         $stateStorage,
         private readonly GoogleOAuthService          $googleService,
         private readonly FacebookOAuthService        $facebookService,
         private readonly InstagramOAuthService       $instagramService,
@@ -60,7 +61,7 @@ class LinkOAuthProviderController extends AbstractController
         $provider = (string) ($body['provider'] ?? '');
 
         if (!in_array($provider, self::VALID_PROVIDERS, true)) {
-            throw new BadRequestHttpException('Invalid provider. Must be one of: ' . implode(', ', self::VALID_PROVIDERS));
+            throw new BadRequestHttpException(AppError::get(AppError::OAUTH_INVALID_PROVIDER)->message . '. Must be one of: ' . implode(', ', self::VALID_PROVIDERS));
         }
 
         ['id' => $providerId, 'email' => $realEmail] = $this->resolveProviderId($provider, $body);
@@ -69,9 +70,9 @@ class LinkOAuthProviderController extends AbstractController
 
         if ($existing !== null) {
             if ($existing->getUser()->getId() !== $currentUser->getId()) {
-                return $this->json(['error' => 'provider_taken'], 400);
+                return $this->json(['error' => AppError::OAUTH_PROVIDER_TAKEN, 'message' => AppError::get(AppError::OAUTH_PROVIDER_TAKEN)->message], 400);
             }
-            return $this->json(['error' => 'already_linked'], 400);
+            return $this->json(['error' => AppError::OAUTH_ALREADY_LINKED, 'message' => AppError::get(AppError::OAUTH_ALREADY_LINKED)->message], 400);
         }
 
         $emailUpdated = false;
@@ -116,10 +117,10 @@ class LinkOAuthProviderController extends AbstractController
             $authDate = (int)    ($body['auth_date'] ?? 0);
 
             if ($id === '' || $hash === '') {
-                throw new BadRequestHttpException('id and hash are required for Telegram');
+                throw new BadRequestHttpException(AppError::get(AppError::OAUTH_ID_HASH_REQUIRED)->message);
             }
             if (time() - $authDate > 600) {
-                throw new BadRequestHttpException('Expired Telegram auth data');
+                throw new BadRequestHttpException(AppError::get(AppError::OAUTH_TELEGRAM_EXPIRED)->message);
             }
 
             $this->verifyTelegramHash($body, $hash);
@@ -132,11 +133,11 @@ class LinkOAuthProviderController extends AbstractController
         $state = (string) ($body['state'] ?? '');
 
         if ($code === '' || $state === '') {
-            throw new BadRequestHttpException('code and state are required for ' . $provider);
+            throw new BadRequestHttpException(AppError::get(AppError::OAUTH_CODE_STATE_REQUIRED)->message . ' for ' . $provider);
         }
 
         if (!$this->stateStorage->has($state)) {
-            throw new BadRequestHttpException('Invalid or expired state');
+            throw new BadRequestHttpException(AppError::get(AppError::OAUTH_INVALID_STATE)->message);
         }
         $this->stateStorage->remove($state);
 
@@ -177,7 +178,7 @@ class LinkOAuthProviderController extends AbstractController
         $dataCheckString = implode("\n", array_map(fn($k, $v) => "$k=$v", array_keys($fields), $fields));
         $secretKey = hash('sha256', $_ENV['OUATH_TELEGRAM_CLIENT_SECRET'], true);
         if (!hash_equals(hash_hmac('sha256', $dataCheckString, $secretKey), $hash)) {
-            throw new BadRequestHttpException('Invalid Telegram signature');
+            throw new BadRequestHttpException(AppError::get(AppError::OAUTH_INVALID_SIGNATURE)->message);
         }
     }
 

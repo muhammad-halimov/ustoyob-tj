@@ -2,6 +2,8 @@
 
 namespace App\Controller\Api\CRUD\POST\Appeal;
 
+use App\ApiResource\AppError;
+use App\Controller\Api\CRUD\Abstract\AbstractApiController;
 use App\Entity\Appeal\AppealReason;
 use App\Entity\Appeal\AppealTypes\AppealChat;
 use App\Entity\Appeal\AppealTypes\AppealReview;
@@ -13,17 +15,12 @@ use App\Entity\Ticket\Ticket;
 use App\Entity\User;
 use App\Repository\Chat\ChatRepository;
 use App\Service\Extra\ExtractIriService;
-use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
-class PostAppealConntroller extends AbstractController
+class PostAppealConntroller extends AbstractApiController
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly Security               $security,
         private readonly ExtractIriService      $extractIriService,
         private readonly ChatRepository         $chatRepository,
     ) {}
@@ -31,9 +28,9 @@ class PostAppealConntroller extends AbstractController
     public function __invoke(Request $request): JsonResponse
     {
         /** @var User|null $bearerUser */
-        $bearerUser = $this->security->getUser();
+        $bearerUser = $this->checkedUser();
 
-        $data = json_decode($request->getContent(), true);
+        $data = $this->getContent();
 
         // безопасное извлечение данных
         $typeParam        = $data['type'] ?? null;
@@ -44,13 +41,13 @@ class PostAppealConntroller extends AbstractController
         $ticketParam      = $data['ticket'] ?? null;
 
         if (!$titleParam || !$descriptionParam || !$reasonParam || !$typeParam)
-            return $this->json(['message' => 'Missing required fields'], 400);
+            return $this->errorJson(AppError::MISSING_REQUIRED_FIELDS);
 
         /** @var AppealReason $reason */
         $reason = $this->extractIriService->extract($reasonParam, AppealReason::class, 'appeal-reasons');
 
         if (!$reason)
-            return $this->json(['message' => 'Appeal reason not found'], 404);
+            return $this->errorJson(AppError::APPEAL_REASON_NOT_FOUND);
 
         /** @var User|null $respondent */
         $respondent = $respondentParam
@@ -58,21 +55,21 @@ class PostAppealConntroller extends AbstractController
             : null;
 
         if ($respondentParam && !$respondent)
-            return $this->json(['message' => 'Respondent not found'], 404);
+            return $this->errorJson(AppError::RESPONDENT_NOT_FOUND);
 
         if ($typeParam === 'ticket') {
             if (!$ticketParam)
-                return $this->json(['message' => 'Missing ticket'], 400);
+                return $this->errorJson(AppError::MISSING_TICKET);
 
             /** @var Ticket|null $ticket */
             $ticket = $this->extractIriService->extract($ticketParam, Ticket::class, 'tickets');
 
             if (!$ticket)
-                return $this->json(['message' => 'Ticket not found'], 404);
+                return $this->errorJson(AppError::TICKET_NOT_FOUND);
 
             // respondent должен быть автором или мастером тикета
             if ($respondent && $ticket->getAuthor() !== $respondent && $ticket->getMaster() !== $respondent)
-                return $this->json(['message' => "Respondent's ticket doesn't match"], 400);
+                return $this->errorJson(AppError::APPEAL_TICKET_MISMATCH);
 
             $appeal = (new AppealTicket())
                 ->setTitle($titleParam)
@@ -83,33 +80,31 @@ class PostAppealConntroller extends AbstractController
                 ->setTicket($ticket);
 
         } elseif ($typeParam === 'chat') {
-            if (!$bearerUser)
-                return $this->json(['message' => 'Authentication required for chat appeals'], 401);
 
             if ($respondent && (
                 !$this->chatRepository->findChatBetweenUsers($bearerUser, $respondent) &&
                 !$this->chatRepository->findChatBetweenUsers($respondent, $bearerUser)
             ))
-                return $this->json(['message' => 'No interactions between users'], 422);
+                return $this->errorJson(AppError::NO_INTERACTIONS);
 
             $chatParam = $data['chat'] ?? null;
 
             if (!$chatParam)
-                return $this->json(['message' => 'Missing chat'], 400);
+                return $this->errorJson(AppError::MISSING_CHAT);
 
             /** @var Chat $chat */
             $chat = $this->extractIriService->extract($chatParam, Chat::class, 'chats');
 
             if (!$chat)
-                return $this->json(['message' => 'Chat not found'], 404);
+                return $this->errorJson(AppError::CHAT_NOT_FOUND);
 
             // текущий юзер должен быть участником чата
             if ($chat->getAuthor() !== $bearerUser && $chat->getReplyAuthor() !== $bearerUser)
-                return $this->json(['message' => "Ownership doesn't match"], 403);
+                return $this->errorJson(AppError::OWNERSHIP_MISMATCH);
 
             // respondent должен быть вторым участником чата
             if ($respondent && $chat->getReplyAuthor() !== $respondent && $chat->getAuthor() !== $respondent)
-                return $this->json(['message' => "Respondent's chat doesn't match"], 400);
+                return $this->errorJson(AppError::APPEAL_CHAT_MISMATCH);
 
             /** @var Ticket|null $ticket */
             $ticket = $ticketParam
@@ -129,13 +124,13 @@ class PostAppealConntroller extends AbstractController
             $reviewParam = $data['review'] ?? null;
 
             if (!$reviewParam)
-                return $this->json(['message' => 'Missing review'], 400);
+                return $this->errorJson(AppError::MISSING_REVIEW);
 
             /** @var Review|null $review */
             $review = $this->extractIriService->extract($reviewParam, Review::class, 'reviews');
 
             if (!$review)
-                return $this->json(['message' => 'Review not found'], 404);
+                return $this->errorJson(AppError::REVIEW_NOT_FOUND);
 
             /** @var Ticket|null $ticket */
             $ticket = $ticketParam
@@ -153,7 +148,7 @@ class PostAppealConntroller extends AbstractController
 
         } elseif ($typeParam === 'user') {
             if (!$respondentParam)
-                return $this->json(['message' => 'Missing respondent for user appeal'], 400);
+                return $this->errorJson(AppError::MISSING_RESPONDENT);
 
             $appeal = (new AppealUser())
                 ->setTitle($titleParam)
@@ -162,11 +157,10 @@ class PostAppealConntroller extends AbstractController
                 ->setRespondent($respondent)
                 ->setAuthor($bearerUser);
 
-        } else return $this->json(['message' => "Wrong type"], 400);
+        } else return $this->errorJson(AppError::WRONG_APPEAL_TYPE);
 
         // сохраняем
-        $this->entityManager->persist($appeal);
-        $this->entityManager->flush();
+        $this->persist($appeal);
 
         return $this->json($appeal, 201, context: ['groups' => [
             'appeal:read',

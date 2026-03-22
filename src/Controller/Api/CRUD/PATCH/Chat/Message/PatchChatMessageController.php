@@ -2,105 +2,85 @@
 
 namespace App\Controller\Api\CRUD\PATCH\Chat\Message;
 
+use App\ApiResource\AppError;
+use App\Controller\Api\CRUD\Abstract\AbstractApiController;
 use App\Entity\Chat\Chat;
-use App\Entity\Chat\ChatImage;
 use App\Entity\Chat\ChatMessage;
-use App\Entity\User;
-use App\Repository\Chat\ChatMessageRepository;
-use App\Service\Extra\AccessService;
+use App\Entity\Extra\MultipleImage;
 use App\Service\Extra\ExtractIriService;
-use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
-class PatchChatMessageController extends AbstractController
+class PatchChatMessageController extends AbstractApiController
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly ChatMessageRepository  $chatMessageRepository,
-        private readonly ExtractIriService      $extractIriService,
-        private readonly AccessService          $accessService,
-        private readonly Security               $security,
+        private readonly ExtractIriService $extractIriService,
     ){}
 
     public function __invoke(int $id, Request $request): JsonResponse
     {
-        /** @var User $bearerUser */
-        $bearerUser = $this->security->getUser();
+        $bearerUser = $this->checkedUser();
 
-        $this->accessService->check($bearerUser);
+        $data = $this->getContent();
 
-        $data = json_decode($request->getContent(), true);
         $chatParam = $data['chat'] ?? null;
-        $text = $data['text'] ?? null;
-        $imagesParam = $data['images'] ?? null; // optional array of image filename strings
+        $text = $data['description'] ?? null;
+        $imagesParam = $data['images'] ?? null;
 
-        // Извлекаем ID из строки "/api/chats/1" или просто "1"
         /** @var Chat $chat */
         $chat = $this->extractIriService->extract($chatParam, Chat::class, 'chats');
-        /** @var ChatMessage $chatMessage */
-        $chatMessage = $this->chatMessageRepository->find($id);
 
-        if(!$chatMessage)
-            return $this->json(['message' => "Chat message not found"], 404);
+        /** @var ChatMessage|JsonResponse $chatMessage */
+        $chatMessage = $this->findOr404(ChatMessage::class, $id, AppError::CHAT_MESSAGE_NOT_FOUND);
+        if ($chatMessage instanceof JsonResponse) return $chatMessage;
 
-        if($chatParam !== null && !$chat)
-            return $this->json(['message' => "Chat not found"], 404);
+        if (!$chat) return $this->errorJson(AppError::CHAT_NOT_FOUND);
 
-        if(!$chat)
-            return $this->json(['message' => "Chat not found"], 404);
-
-        if ($text === null && empty($imagesParam))
-            return $this->json(['message' => "Nothing to update"], 400);
-
-        if ($chat->getAuthor() !== $bearerUser && $chat->getReplyAuthor() !== $bearerUser)
-            return $this->json(['message' => "Ownership doesn't match"], 403);
-
-        if ($text !== null) {
-            $chatMessage->setText($text);
+        if ($text === null && empty($imagesParam)) {
+            return $this->errorJson(AppError::NOTHING_TO_UPDATE);
         }
 
-        // Sync images: keep existing ChatImage entries whose image string is in the new list,
-        // remove those that are not, and add new entries for strings not yet in the collection.
+        if ($chat->getAuthor() !== $bearerUser && $chat->getReplyAuthor() !== $bearerUser) {
+            return $this->errorJson(AppError::OWNERSHIP_MISMATCH);
+        }
+
+        if ($text !== null) {
+            $chatMessage->setDescription($text);
+        }
+
         if ($imagesParam !== null) {
-            // Expected format: [{"image": "photo_abc.jpg"}, ...]
             $imageStrings = array_filter(array_map(
                 fn($item) => is_array($item) && isset($item['image']) ? (string) $item['image'] : null,
                 $imagesParam
             ));
 
-            $existingImages = $chatMessage->getChatImages();
+            $existingImages = $chatMessage->getImages();
 
-            // Remove images not in the new list
             foreach ($existingImages as $chatImage) {
                 if (!in_array($chatImage->getImage(), $imageStrings, true)) {
-                    $chatMessage->removeChatImage($chatImage);
+                    $chatMessage->removeImage($chatImage);
                     $this->entityManager->remove($chatImage);
                 }
             }
 
-            // Collect already-existing image strings
             $existingImageStrings = array_map(
-                fn(ChatImage $ci) => $ci->getImage(),
+                fn(MultipleImage $ci) => $ci->getImage(),
                 $existingImages->toArray()
             );
 
-            // Add new image string entries that don't exist yet
             foreach ($imageStrings as $imageString) {
                 if (!in_array($imageString, $existingImageStrings, true)) {
-                    $newChatImage = (new ChatImage())
+                    $newChatImage = (new MultipleImage())
                         ->setImage($imageString)
                         ->setAuthor($bearerUser);
-                    $chatMessage->addChatImage($newChatImage);
+                    $chatMessage->addImage($newChatImage);
                     $this->entityManager->persist($newChatImage);
                 }
             }
         }
 
         $chatMessage->setUpdatedAt();
-        $this->entityManager->flush();
+        $this->flush();
 
         return $this->json($chatMessage, context: [
             'groups' => ['chatMessages:read'],

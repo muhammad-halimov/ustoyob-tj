@@ -2,122 +2,104 @@
 
 namespace App\Controller\Api\CRUD\POST\Chat\Chat;
 
+use App\ApiResource\AppError;
+use App\Controller\Api\CRUD\Abstract\AbstractApiController;
 use App\Entity\Chat\Chat;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
 use App\Repository\Chat\ChatRepository;
-use App\Service\Extra\AccessService;
 use App\Service\Extra\ExtractIriService;
-use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
-class PostChatController extends AbstractController
+class PostChatController extends AbstractApiController
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly ChatRepository         $chatRepository,
-        private readonly Security               $security,
-        private readonly AccessService          $accessService,
-        private readonly ExtractIriService      $extractIriService,
+        private readonly ChatRepository    $chatRepository,
+        private readonly ExtractIriService $extractIriService,
     ){}
 
     public function __invoke(Request $request): JsonResponse
     {
-        /** @var User $bearerUser */
-        $bearerUser = $this->security->getUser();
+        $bearerUser = $this->checkedUser();
 
-        $this->accessService->check($bearerUser);
+        $data = $this->getContent();
 
-        $data = json_decode($request->getContent(), true);
-
-        $replyAuthorParam = $data['replyAuthor'];
+        $replyAuthorParam = $data['replyAuthor'] ?? null;
         $ticketParam = $data['ticket'] ?? null;
 
-        /** @var User $replyAuthor */
+        if (!$replyAuthorParam) return $this->errorJson(AppError::MISSING_REQUIRED_FIELDS);
+
+        /** @var User|null $replyAuthor */
         $replyAuthor = $this->extractIriService->extract($replyAuthorParam, User::class, 'users');
+
+        if (!$replyAuthor) return $this->errorJson(AppError::USER_NOT_FOUND);
+
+        if ($replyAuthor === $bearerUser) return $this->errorJson(AppError::CHAT_WITH_SELF);
+
+        $this->accessService->check($replyAuthor);
+        $this->accessService->checkBlackList($bearerUser, $replyAuthor);
 
         /** @var Ticket|null $ticket */
         $ticket = $ticketParam
             ? $this->extractIriService->extract($ticketParam, Ticket::class, 'tickets')
             : null;
 
-        if (!$replyAuthor)
-            return $this->json(['message' => 'User not found'], 404);
+        if ($ticketParam && !$ticket) return $this->errorJson(AppError::TICKET_NOT_FOUND);
 
-        if ($replyAuthor === $bearerUser)
-            return $this->json(['message' => 'You cannot post a chat with yourself'], 403);
+        // Проверка дубликата в обоих направлениях
+        $criteria = ['author' => $bearerUser, 'replyAuthor' => $replyAuthor, 'ticket' => $ticket];
+        $reverse  = ['author' => $replyAuthor, 'replyAuthor' => $bearerUser, 'ticket' => $ticket];
 
-        $this->accessService->check($replyAuthor);
-        $this->accessService->checkBlackList($bearerUser, $replyAuthor);
+        if ($this->chatRepository->findOneBy($criteria) || $this->chatRepository->findOneBy($reverse)) {
+            return $this->errorJson(AppError::CHAT_ALREADY_EXISTS);
+        }
 
-        // Проверяем существование тикета, если он передан
-        if ($ticketParam && !$ticket)
-            return $this->json(['message' => 'Ticket not found'], 404);
+        // Валидация: с тикетом — автор тикета должен быть одним из участников
+        if ($ticket && !$this->isTicketChatAllowed($bearerUser, $replyAuthor, $ticket)) {
+            return $this->errorJson(AppError::CHAT_REPLY_AUTHOR_MISMATCH);
+        }
 
-        // Проверка на дубликат чата с учетом тикета
-        $existingChat = $this->chatRepository->findOneBy([
-            'author' => $bearerUser,
-            'replyAuthor' => $replyAuthor,
-            'ticket' => $ticket // null если без тикета, конкретный тикет если с тикетом
-        ]);
-
-        // Также проверяем обратное направление (replyAuthor -> author)
-        if (!$existingChat)
-            $existingChat = $this->chatRepository->findOneBy([
-                'author' => $replyAuthor,
-                'replyAuthor' => $bearerUser,
-                'ticket' => $ticket
-            ]);
-
-        if ($existingChat)
-            return $this->json(['message' => 'Chat already exists'], 409);
+        // Без тикета — оба должны быть CLIENT или MASTER
+        $allowedRoles = ['ROLE_CLIENT', 'ROLE_MASTER'];
+        if (!$ticket
+            && (!array_intersect($allowedRoles, $bearerUser->getRoles()) || !array_intersect($allowedRoles, $replyAuthor->getRoles()))) {
+            return $this->errorJson(AppError::CHAT_REPLY_AUTHOR_MISMATCH);
+        }
 
         $chat = (new Chat())
             ->setActive(true)
             ->setAuthor($bearerUser)
-            ->setReplyAuthor($replyAuthor);
+            ->setReplyAuthor($replyAuthor)
+            ->setTicket($ticket);
 
-        if (!$ticket &&  // Чат клиента/мастера с мастером/клиентом, без тикета
-            (in_array("ROLE_CLIENT", $bearerUser->getRoles()) || in_array("ROLE_MASTER", $bearerUser->getRoles())) &&
-            (in_array("ROLE_CLIENT", $replyAuthor->getRoles()) || in_array("ROLE_MASTER", $replyAuthor->getRoles()))) {
+        $this->persist($chat);
 
-            $this->entityManager->persist($chat->setTicket(null));
-            $this->entityManager->flush();
+        return $this->json($chat, 201, context: ['groups' => ['chats:read']]);
+    }
 
-            $data = json_decode($this->json($chat, context: ['groups' => ['chats:read']])->getContent(), true);
+    /**
+     * Тикетный чат: клиент→мастер (откликается на услугу) или мастер→клиент (откликается на объявление).
+     */
+    private function isTicketChatAllowed(User $bearer, User $replyAuthor, Ticket $ticket): bool
+    {
+        $bearerRoles = $bearer->getRoles();
+        $replyRoles  = $replyAuthor->getRoles();
 
-            return $this->json(array_merge($data, ['message' => 'Resource successfully posted. RC/M -> RC/M']), 201);
+        // Клиент → мастер: тикет принадлежит мастеру
+        if (in_array('ROLE_CLIENT', $bearerRoles, true)
+            && in_array('ROLE_MASTER', $replyRoles, true)
+            && $ticket->getMaster() === $replyAuthor) {
+            return true;
         }
 
-        if ($ticket &&  // Чат клиента с мастером, отклик на услугу мастера
-            in_array("ROLE_CLIENT", $bearerUser->getRoles()) &&
-            in_array("ROLE_MASTER", $replyAuthor->getRoles()) &&
-            $ticket->getMaster() === $replyAuthor){
-
-            $this->entityManager->persist($chat->setTicket($ticket));
-            $this->entityManager->flush();
-
-            $data = json_decode($this->json($chat, context: ['groups' => ['chats:read']])->getContent(), true);
-
-            return $this->json(array_merge($data, ['message' => 'Resource successfully posted. RC -> RМ/T']), 201);
+        // Мастер → клиент: тикет принадлежит клиенту
+        if (in_array('ROLE_MASTER', $bearerRoles, true)
+            && in_array('ROLE_CLIENT', $replyRoles, true)
+            && $ticket->getAuthor() === $replyAuthor) {
+            return true;
         }
 
-        if ($ticket &&  // Чат мастера с клиентом, отклик на объявление клиента
-            in_array("ROLE_MASTER", $bearerUser->getRoles()) &&
-            in_array("ROLE_CLIENT", $replyAuthor->getRoles()) &&
-            $ticket->getAuthor() === $replyAuthor) {
-
-            $this->entityManager->persist($chat->setTicket($ticket));
-            $this->entityManager->flush();
-
-            $data = json_decode($this->json($chat, context: ['groups' => ['chats:read']])->getContent(), true);
-
-            return $this->json(array_merge($data, ['message' => 'Resource successfully posted. RM -> RC/T']), 201);
-        }
-
-        return $this->json(['message' => "Probably ticket's author/master doesn't match to reply author"], 400);
+        return false;
     }
 }

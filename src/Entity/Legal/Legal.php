@@ -8,13 +8,15 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use App\Entity\Extra\Translation;
-use App\Entity\Traits\CreatedAtTrait;
-use App\Entity\Traits\UpdatedAtTrait;
+use App\Entity\Trait\CreatedAtTrait;
+use App\Entity\Trait\DescriptionTrait;
+use App\Entity\Trait\TitleTrait;
+use App\Entity\Trait\TypeTrait;
+use App\Entity\Trait\UpdatedAtTrait;
 use App\Repository\Legal\LegalRepository;
 use App\State\Localization\Title\LegalLocalizationProvider;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
@@ -48,7 +50,7 @@ use Symfony\Component\Serializer\Attribute\Ignore;
 #[ApiFilter(SearchFilter::class, properties: ['type' => 'exact', 'title', 'description' => 'partial'])]
 class Legal
 {
-    use CreatedAtTrait, UpdatedAtTrait;
+    use CreatedAtTrait, UpdatedAtTrait, TitleTrait, DescriptionTrait, TypeTrait;
 
     public function __toString(): string
     {
@@ -67,18 +69,6 @@ class Legal
     #[Groups(['legals:read'])]
     private ?int $id = null;
 
-    #[ORM\Column(length: 32, nullable: true)]
-    #[Groups(['legals:read'])]
-    private ?string $type = null;
-
-    #[ORM\Column(length: 255, nullable: true)]
-    #[Groups(['legals:read'])]
-    private ?string $title = null;
-
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    #[Groups(['legals:read'])]
-    private ?string $description = null;
-
     /**
      * @var Collection<int, Translation>
      */
@@ -94,42 +84,6 @@ class Legal
     public function getId(): ?int
     {
         return $this->id;
-    }
-
-    public function getType(): ?string
-    {
-        return $this->type;
-    }
-
-    public function setType(?string $type): static
-    {
-        $this->type = $type;
-
-        return $this;
-    }
-
-    public function getTitle(): ?string
-    {
-        return $this->title;
-    }
-
-    public function setTitle(?string $title): static
-    {
-        $this->title = $title;
-
-        return $this;
-    }
-
-    public function getDescription(): ?string
-    {
-        return $this->description;
-    }
-
-    public function setDescription(?string $description): static
-    {
-        $this->description = $description;
-
-        return $this;
     }
 
     /**

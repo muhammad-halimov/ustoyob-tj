@@ -2,43 +2,29 @@
 
 namespace App\Controller\Api\CRUD\POST\Gallery;
 
+use App\ApiResource\AppError;
+use App\Controller\Api\CRUD\Abstract\AbstractApiController;
 use App\Entity\Gallery\Gallery;
-use App\Entity\User;
-use App\Repository\GalleryRepository;
-use App\Service\Extra\AccessService;
-use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Bundle\SecurityBundle\Security;
+use App\Repository\Gallery\GalleryRepository;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
-class PostGalleryController extends AbstractController
+class PostGalleryController extends AbstractApiController
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
         private readonly GalleryRepository      $galleryRepository,
-        private readonly AccessService     $accessService,
-        private readonly Security          $security,
     ){}
 
     public function __invoke(): JsonResponse
     {
-        /** @var User $bearerUser */
-        $bearerUser = $this->security->getUser();
-
-        $this->accessService->check($bearerUser, 'double');
+        $bearerUser = $this->checkedUser('double');
 
         if ($this->galleryRepository->findUserGallery($bearerUser))
-            return $this->json(['message' => "This user has gallery, patch instead"], 400);
+            return $this->errorJson(AppError::GALLERY_EXISTS_PATCH_INSTEAD);
 
         $gallery = (new Gallery())->setUser($bearerUser);
 
-        $this->entityManager->persist($gallery);
-        $this->entityManager->flush();
+        $this->persist($gallery);
 
-        return $this->json([
-            'id' => $gallery->getId(),
-            'user' => "/api/users/{$gallery->getUser()->getId()}",
-            'message' => 'Resource successfully posted',
-        ]);
+        return $this->json($gallery, context: ['groups' => ['galleries:read'], 'skip_null_values' => false]);
     }
 }

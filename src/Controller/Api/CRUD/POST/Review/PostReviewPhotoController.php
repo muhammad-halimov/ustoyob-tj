@@ -2,28 +2,20 @@
 
 namespace App\Controller\Api\CRUD\POST\Review;
 
+use App\ApiResource\AppError;
 use App\Controller\Api\CRUD\POST\Image\AbstractPhotoUploadController;
+use App\Entity\Extra\MultipleImage;
 use App\Entity\Review\Review;
-use App\Entity\Review\ReviewImage;
 use App\Entity\User;
-use App\Repository\ReviewRepository;
-use App\Service\Extra\AccessService;
-use Doctrine\ORM\EntityManagerInterface;
-use ReflectionClass;
-use Symfony\Bundle\SecurityBundle\Security;
+use App\Repository\Review\ReviewRepository;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
 class PostReviewPhotoController extends AbstractPhotoUploadController
 {
     public function __construct(
-        EntityManagerInterface            $entityManager,
-        Security                          $security,
-        AccessService                     $accessService,
         private readonly ReviewRepository $reviewRepository,
-    ) {
-        parent::__construct($entityManager, $security, $accessService);
-    }
+    ) {}
 
     protected function findEntity(int $id): ?object
     {
@@ -34,7 +26,7 @@ class PostReviewPhotoController extends AbstractPhotoUploadController
     {
         /** @var Review $entity */
         if ($entity->getClient() !== $bearerUser && $entity->getMaster() !== $bearerUser) {
-            return $this->json(['message' => "Ownership doesn't match"], 403);
+            return $this->errorJson(AppError::OWNERSHIP_MISMATCH);
         }
         return null;
     }
@@ -42,13 +34,13 @@ class PostReviewPhotoController extends AbstractPhotoUploadController
     protected function processImageFile(object $entity, UploadedFile $imageFile, User $bearerUser): void
     {
         /** @var Review $entity */
-        $entityImage = (new ReviewImage())->setImageFile($imageFile);
+        $entityImage = (new MultipleImage())->setImageFile($imageFile);
         $entity->addReviewImage($entityImage);
         $this->entityManager->persist($entityImage);
     }
 
     protected function getEntityName(): string
     {
-        return (new ReflectionClass(Review::class))->getName();
+        return Review::class;
     }
 }

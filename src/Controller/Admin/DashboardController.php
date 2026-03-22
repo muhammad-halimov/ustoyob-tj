@@ -2,13 +2,11 @@
 
 namespace App\Controller\Admin;
 
-use App\Controller\Admin\Appeal\AppealReasonCrudController;
 use App\Controller\Admin\Appeal\AppealTypes\AppealChatCrudController;
 use App\Controller\Admin\Appeal\AppealTypes\AppealReviewCrudController;
 use App\Controller\Admin\Appeal\AppealTypes\AppealTicketCrudController;
 use App\Controller\Admin\Appeal\AppealTypes\AppealUserCrudController;
-use App\Controller\Admin\TechSupport\TechSupportCrudController;
-use App\Controller\Admin\User\UserCrudController;
+use App\Controller\Admin\TechSupport\TechSupport\TechSupportCrudController;
 use App\Entity\Appeal\Appeal;
 use App\Entity\Appeal\AppealReason;
 use App\Entity\Appeal\AppealTypes\AppealChat;
@@ -19,7 +17,7 @@ use App\Entity\Chat\Chat;
 use App\Entity\Gallery\Gallery;
 use App\Entity\Geography\City\City;
 use App\Entity\Geography\District\District;
-use App\Entity\Geography\Province;
+use App\Entity\Geography\Province\Province;
 use App\Entity\Legal\Legal;
 use App\Entity\Review\Review;
 use App\Entity\TechSupport\TechSupport;

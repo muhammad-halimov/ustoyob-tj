@@ -4,7 +4,7 @@ namespace App\State\CollectionEntry;
 
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
-use App\Entity\Extra\Favorite;
+use App\Entity\User\Favorite;
 use App\Service\Extra\AccessService;
 use App\Service\Extra\LocalizationService;
 use Symfony\Bundle\SecurityBundle\Security;

@@ -2,7 +2,7 @@
 
 namespace App\State\Localization\Geography;
 
-use App\Entity\Geography\Province;
+use App\Entity\Geography\Province\Province;
 use App\State\Localization\AbstractLocalizationProvider;
 
 readonly class ProvinceLocalizationProvider extends AbstractLocalizationProvider

@@ -5,13 +5,28 @@ namespace App\EventListener;
 use App\Entity\TechSupport\TechSupport;
 use App\Entity\User;
 use App\Repository\TechSupport\TechSupportRepository;
-use App\Repository\UserRepository;
+use App\Repository\User\UserRepository;
 use App\Service\Notification\NotifyTechSupportEmailService;
 use App\Service\Notification\NotifyTechSupportTelegramBotService;
 use Doctrine\Bundle\DoctrineBundle\Attribute\AsEntityListener;
 use Doctrine\ORM\Events;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
+/**
+ * Обрабатывает бизнес-логику тикетов техподдержки:
+ *
+ *  prePersist  — назначает наименее загруженного администратора и задаёт
+ *                начальный статус «new» (до записи в БД)
+ *  postPersist — отправляет уведомление назначенному администратору
+ *                (после успешной записи, когда у тикета есть ID)
+ *  postUpdate  — уведомляет при любом изменении тикета (смена статуса,
+ *                ответ пользователя и т.д.)
+ *
+ * Балансировка нагрузки:
+ *   При создании каждого нового тикета мы ищем администратора с наименьшим
+ *   числом активных тикетов (статусы: new / renewed / in_progress).
+ *   Это простой алгоритм round-robin по нагрузке без внешних очередей.
+ */
 #[AsEntityListener(event: Events::prePersist, entity: TechSupport::class)]
 #[AsEntityListener(event: Events::postPersist, entity: TechSupport::class)]
 #[AsEntityListener(event: Events::postUpdate, entity: TechSupport::class)]

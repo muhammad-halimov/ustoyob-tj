@@ -3,8 +3,8 @@
 namespace App\Entity\User;
 
 use ApiPlatform\Metadata\ApiProperty;
-use App\Entity\Traits\CreatedAtTrait;
-use App\Entity\Traits\UpdatedAtTrait;
+use App\Entity\Trait\CreatedAtTrait;
+use App\Entity\Trait\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\User\PhoneRepository;
 use Doctrine\ORM\Mapping as ORM;

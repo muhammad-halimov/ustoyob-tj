@@ -68,9 +68,9 @@ class DistrictCrudController extends AbstractCrudController
             ->setColumns(6);
 
         yield TextEditorField::new('description', 'Описание')
-            ->setColumns(12);
+            ->setColumns(10);
 
-        yield VichImageField::new('imageFile', 'Изображение')
+        yield VichImageField::new('imageFile', 'Фото')
             ->setHelp('
                 <div class="mt-3">
                     <span class="badge badge-info">*.jpg</span>
@@ -81,7 +81,7 @@ class DistrictCrudController extends AbstractCrudController
                 </div>
             ')
             ->onlyOnForms()
-            ->setColumns(12);
+            ->setColumns(2);
 
         yield CollectionField::new('communities', 'ПГТ / Шаҳракҳо')
             ->useEntryCrudForm(CommunityCrudController::class)

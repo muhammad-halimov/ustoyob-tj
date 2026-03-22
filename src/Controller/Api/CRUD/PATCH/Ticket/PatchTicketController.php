@@ -2,279 +2,156 @@
 
 namespace App\Controller\Api\CRUD\PATCH\Ticket;
 
-use App\Entity\Geography\Address;
-use App\Entity\Geography\City\City;
-use App\Entity\Geography\City\Suburb;
-use App\Entity\Geography\District\Community;
-use App\Entity\Geography\District\District;
-use App\Entity\Geography\District\Settlement;
-use App\Entity\Geography\District\Village;
-use App\Entity\Geography\Province;
+use App\ApiResource\AppError;
+use App\Controller\Api\CRUD\Abstract\AbstractApiController;
+use App\Controller\Api\CRUD\Abstract\AddressValidationTrait;
+use App\Entity\Extra\MultipleImage;
 use App\Entity\Ticket\Category;
 use App\Entity\Ticket\Ticket;
-use App\Entity\Ticket\TicketImage;
 use App\Entity\Ticket\Unit;
-use App\Entity\User;
 use App\Entity\User\Occupation;
-use App\Repository\TicketRepository;
-use App\Service\Extra\AccessService;
+use App\Repository\Ticket\TicketRepository;
 use App\Service\Extra\ExtractIriService;
 use App\Service\Extra\LocalizationService;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
-class PatchTicketController extends AbstractController
+class PatchTicketController extends AbstractApiController
 {
+    use AddressValidationTrait;
+
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly ExtractIriService      $extractIriService,
-        private readonly TicketRepository       $ticketRepository,
-        private readonly LocalizationService    $localizationService,
-        private readonly AccessService          $accessService,
-        private readonly Security               $security,
+        private readonly ExtractIriService   $extractIriService,
+        private readonly TicketRepository    $ticketRepository,
+        private readonly LocalizationService $localizationService,
     ) {}
+
+    protected function getExtractIriService(): ExtractIriService { return $this->extractIriService; }
+    protected function getEntityManager(): EntityManagerInterface { return $this->entityManager; }
 
     public function __invoke(int $id, Request $request): JsonResponse
     {
-        /** @var User $bearerUser */
-        $bearerUser = $this->security->getUser();
+        $bearerUser = $this->checkedUser();
 
-        $this->accessService->check($bearerUser);
+        $ticket = $this->ticketRepository->find($id);
 
-        /** @var Ticket $ticketEntity */
-        $ticketEntity = $this->ticketRepository->find($id);
+        if (!$ticket)
+            return $this->errorJson(AppError::TICKET_NOT_FOUND);
 
-        if (!$ticketEntity) return $this->json(['message' => 'Ticket not found'], 404);
+        $data = $this->getContent();
 
-        $data = json_decode($request->getContent(), true);
+        if (!is_array($data))
+            return $this->errorJson(AppError::INVALID_JSON);
 
-        // Проверка валидности JSON
-        if (!is_array($data)) return $this->json(['message' => 'Invalid JSON data'], 400);
+        if ($ticket->getAuthor() !== $bearerUser && $ticket->getMaster() !== $bearerUser) {
+            return $this->errorJson(AppError::OWNERSHIP_MISMATCH);
+        }
 
-        if ($ticketEntity->getAuthor() !== $bearerUser && $ticketEntity->getMaster() !== $bearerUser)
-            return $this->json(['message' => "Ownership doesn't match"], 403);
+        // ── Категория / подкатегория / единица ──
 
-        $titleParam = $data['title'] ?? $ticketEntity->getTitle();
-        $descriptionParam = $data['description'] ?? $ticketEntity->getDescription();
-        $noticeParam = $data['notice'] ?? $ticketEntity->getNotice();
-        $budgetParam = $data['budget'] ?? $ticketEntity->getBudget();
-        $negotiableBudgetParam = $data['negotiableBudget'] ?? $ticketEntity->getNegotiableBudget();
-        $activeParam = isset($data['active']) ? (bool)$data['active'] : $ticketEntity->getActive();
-        $positionParam = $data['position'] ?? null;
-        $categoryParam = $data['category'] ?? null;
-        $subcategoryParam = $data['subcategory'] ?? null;
-        $unitParam = $data['unit'] ?? null;
-        $addressParam = $data['address'] ?? null;
-        $imagesParam = $data['images'] ?? null;
-
-        // Извлечение Category и Unit
         /** @var Category $category */
-        $category = $categoryParam
-            ? $this->extractIriService->extract($categoryParam, Category::class, 'categories')
-            : $ticketEntity->getCategory();
+        $category = isset($data['category'])
+            ? $this->extractIriService->extract($data['category'], Category::class, 'categories')
+            : $ticket->getCategory();
 
-        /** @var Unit $unit */
-        $unit = $unitParam
-            ? $this->extractIriService->extract($unitParam, Unit::class, 'units')
-            : $ticketEntity->getUnit();
+        /** @var Unit|null $unit */
+        $unit = isset($data['unit'])
+            ? $this->extractIriService->extract($data['unit'], Unit::class, 'units')
+            : $ticket->getUnit();
 
-        /** @var Occupation $subcategory */
-        $subcategory = $subcategoryParam
-            ? $this->extractIriService->extract($subcategoryParam, Occupation::class, 'occupations')
+        /** @var Occupation|null $subcategory */
+        $subcategory = isset($data['subcategory'])
+            ? $this->extractIriService->extract($data['subcategory'], Occupation::class, 'occupations')
             : null;
 
         if ($subcategory && $subcategory !== $category->getOccupation()) {
-            return $this->json(['message' => "Subcategory doesn't belong to this category"], 404);
+            return $this->errorJson(AppError::SUBCATEGORY_NOT_IN_CATEGORY);
         }
 
-        // Проверка и добавление адресов с исключением дубликатов
+        // ── Адреса ──
+
+        $addressParam = $data['address'] ?? null;
+
         if ($addressParam && is_array($addressParam)) {
-            // Если address передан как объект, преобразуем в массив
-            if (!isset($addressParam[0])) {
-                $addressParam = [$addressParam];
-            }
+            $ticket->getAddresses()->clear();
 
-            $ticketEntity->getAddresses()->clear();
+            $normalized = $this->normalizeAddressParam($addressParam);
+            if ($normalized instanceof JsonResponse) return $normalized;
 
-            $existingAddresses = [];
-            foreach ($addressParam as $addressData) {
-                if (!isset($addressData['province']) || !$addressData['province']) {
-                    return $this->json(['message' => 'Province is required'], 400);
-                }
-
-                $provinceParam = $addressData['province'];
-                $cityParam = $addressData['city'] ?? null;
-                $suburbParam = $addressData['suburb'] ?? null;
-                $districtParam = $addressData['district'] ?? null;
-                $communityParam = $addressData['community'] ?? null;
-                $settlementParam = $addressData['settlement'] ?? null;
-                $villageParam = $addressData['village'] ?? null;
-
-                $addressKey = implode(':', [
-                    $provinceParam, $cityParam, $suburbParam,
-                    $districtParam, $communityParam, $settlementParam, $villageParam
-                ]);
-
-                if (in_array($addressKey, $existingAddresses, true)) {
-                    return $this->json(['message' => 'Duplicate address detected'], 400);
-                }
-
-                $existingAddresses[] = $addressKey;
-
-                /** @var Province $province */
-                $province = $this->extractIriService->extract($provinceParam, Province::class, 'provinces');
-                $addressEntity = new Address();
-                $addressEntity->setProvince($province);
-
-                if ($cityParam) {
-                    /** @var City $city */
-                    $city = $this->extractIriService->extract($cityParam, City::class, 'cities');
-
-                    // Проверка принадлежности города к провинции
-                    if ($city->getProvince()?->getId() !== $province->getId()) {
-                        return $this->json(['message' => 'City does not belong to the specified province'], 400);
-                    }
-
-                    /** @var Suburb|null $suburb */
-                    $suburb = $suburbParam ?
-                        $this->extractIriService->extract($suburbParam, Suburb::class, 'suburbs') : null;
-
-                    // Проверка принадлежности suburb к городу
-                    if ($suburb && $suburb->getCities()?->getId() !== $city->getId()) {
-                        return $this->json(['message' => 'Suburb does not belong to the specified city'], 400);
-                    }
-
-                    $addressEntity->setCity($city)->setSuburb($suburb);
-                }
-
-                if ($districtParam) {
-                    /** @var District $district */
-                    $district = $this->extractIriService->extract($districtParam, District::class, 'districts');
-
-                    // Проверка принадлежности района к провинции
-                    if ($district->getProvince()?->getId() !== $province->getId()) {
-                        return $this->json(['message' => 'District does not belong to the specified province'], 400);
-                    }
-
-                    /** @var Community|null $community */
-                    $community = $communityParam ?
-                        $this->extractIriService->extract($communityParam, Community::class, 'communities') : null;
-
-                    // Проверка принадлежности community к району
-                    if ($community && $community->getDistrict()?->getId() !== $district->getId()) {
-                        return $this->json(['message' => 'Community does not belong to the specified district'], 400);
-                    }
-
-                    /** @var Settlement|null $settlement */
-                    $settlement = $settlementParam ?
-                        $this->extractIriService->extract($settlementParam, Settlement::class, 'settlements') : null;
-
-                    // Проверка принадлежности settlement к району
-                    if ($settlement && $settlement->getDistrict()?->getId() !== $district->getId()) {
-                        return $this->json(['message' => 'Settlement does not belong to the specified district'], 400);
-                    }
-
-                    /** @var Village|null $village */
-                    $village = $villageParam ?
-                        $this->extractIriService->extract($villageParam, Village::class, 'villages') : null;
-
-                    // Проверка принадлежности village к settlement
-                    if ($village && $settlement && $village->getSettlement()?->getId() !== $settlement->getId()) {
-                        return $this->json(['message' => 'Village does not belong to the specified settlement'], 400);
-                    }
-
-                    // Если указана деревня без settlement
-                    if ($village && !$settlement) {
-                        return $this->json(['message' => 'Settlement is required when village is specified'], 400);
-                    }
-
-                    $addressEntity->setDistrict($district)
-                        ->setSettlement($settlement)
-                        ->setCommunity($community)
-                        ->setVillage($village);
-                }
-
-                $ticketEntity->addAddress($addressEntity);
-                $this->entityManager->persist($addressEntity);
-            }
+            $error = $this->buildAndValidateAddresses($ticket, $normalized);
+            if ($error) return $error;
         }
 
-        if (is_array($imagesParam)) {
-            $incomingNames = array_filter(array_column($imagesParam, 'image'));
+        // ── Изображения ──
 
-            // Удаляем только те записи, которых нет в новом списке (Vich удалит их файлы)
-            foreach ($ticketEntity->getUserTicketImages()->toArray() as $oldImage) {
-                if (!in_array($oldImage->getImage(), $incomingNames, true)) {
-                    $ticketEntity->removeUserTicketImage($oldImage);
-                    $this->entityManager->remove($oldImage);
-                }
-            }
-
-            // Строим карту существующих записей по имени файла
-            $existingByName = [];
-            foreach ($ticketEntity->getUserTicketImages()->toArray() as $img) {
-                $existingByName[$img->getImage()] = $img;
-            }
-
-            // Обновляем позиции и добавляем новые
-            foreach ($imagesParam as $position => $imageData) {
-                if (empty($imageData['image'])) {
-                    return $this->json(['message' => 'Image filename is required'], 400);
-                }
-                if (isset($existingByName[$imageData['image']])) {
-                    // Обновляем позицию существующего изображения
-                    $existingByName[$imageData['image']]->setPosition($position);
-                } else {
-                    // Добавляем новое изображение
-                    $ticketImage = new TicketImage();
-                    $ticketImage->setImage($imageData['image']);
-                    $ticketImage->setPosition($position);
-                    $ticketEntity->addUserTicketImage($ticketImage);
-                    $this->entityManager->persist($ticketImage);
-                }
-            }
+        if (isset($data['images']) && is_array($data['images'])) {
+            $this->syncTicketImages($ticket, $data['images']);
         }
 
-        $ticketEntity
-            ->setTitle($titleParam)
-            ->setDescription($descriptionParam)
-            ->setNotice($noticeParam)
-            ->setActive($activeParam)
+        // ── Основные поля ──
+
+        $ticket
+            ->setTitle($data['title'] ?? $ticket->getTitle())
+            ->setDescription($data['description'] ?? $ticket->getDescription())
+            ->setNotice($data['notice'] ?? $ticket->getNotice())
+            ->setActive(isset($data['active']) ? (bool)$data['active'] : $ticket->getActive())
             ->setCategory($category)
-            ->setSubcategory($subcategory ?? null)
+            ->setSubcategory($subcategory)
             ->setUnit($unit);
 
-        if ($negotiableBudgetParam)
-            $ticketEntity
-                ->setNegotiableBudget($negotiableBudgetParam)
-                ->setBudget(null)
-                ->setUnit(null);
-        else
-            $ticketEntity
-                ->setBudget($budgetParam)
-                ->setUnit($unit);
-
-        if ($positionParam !== null) {
-            $ticketEntity->setPosition((int)$positionParam);
+        if (!empty($data['negotiableBudget'])) {
+            $ticket->setNegotiableBudget($data['negotiableBudget'])->setBudget(null)->setUnit(null);
+        } else {
+            $ticket->setBudget($data['budget'] ?? $ticket->getBudget())->setUnit($unit);
         }
 
-        $this->entityManager->flush();
+        if (isset($data['position'])) {
+            $ticket->setPosition((int)$data['position']);
+        }
 
-        $locale = $request->query->get('locale', 'tj');
-        $this->localizationService->localizeGeography($ticketEntity, $locale);
+        $this->flush();
 
-        if ($ticketEntity->getCategory())
-            $this->localizationService->localizeEntity($ticketEntity->getCategory(), $locale);
+        $this->localizationService->localizeTicket($ticket, $this->getLocale());
 
-        if ($ticketEntity->getUnit())
-            $this->localizationService->localizeEntity($ticketEntity->getUnit(), $locale);
+        return $this->json($ticket, context: ['groups' => ['masterTickets:read', 'clientTickets:read', 'ticketImages:read']]);
+    }
 
-        if ($ticketEntity->getSubcategory())
-            $this->localizationService->localizeEntity($ticketEntity->getSubcategory(), $locale);
+    /**
+     * Синхронизация изображений тикета: удаление отсутствующих,
+     * обновление позиций существующих, добавление новых.
+     */
+    private function syncTicketImages(Ticket $ticket, array $imagesParam): ?JsonResponse
+    {
+        $incomingNames = array_filter(array_column($imagesParam, 'image'));
 
-        return $this->json($ticketEntity, context: ['groups' => ['masterTickets:read', 'clientTickets:read', 'ticketImages:read']]);
+        foreach ($ticket->getImages()->toArray() as $oldImage) {
+            if (!in_array($oldImage->getImage(), $incomingNames, true)) {
+                $ticket->removeImage($oldImage);
+                $this->entityManager->remove($oldImage);
+            }
+        }
+
+        $existingByName = [];
+        foreach ($ticket->getImages()->toArray() as $img) {
+            $existingByName[$img->getImage()] = $img;
+        }
+
+        foreach ($imagesParam as $position => $imageData) {
+            if (empty($imageData['image'])) {
+                return $this->errorJson(AppError::IMAGE_FILENAME_REQUIRED);
+            }
+            if (isset($existingByName[$imageData['image']])) {
+                $existingByName[$imageData['image']]->setPosition($position);
+            } else {
+                $ticketImage = new MultipleImage();
+                $ticketImage->setImage($imageData['image']);
+                $ticketImage->setPosition($position);
+                $ticket->addImage($ticketImage);
+                $this->entityManager->persist($ticketImage);
+            }
+        }
+
+        return null;
     }
 }

@@ -2,58 +2,45 @@
 
 namespace App\Controller\Api\CRUD\PATCH\Gallery;
 
-use App\Entity\Gallery\Gallery;
-use App\Entity\Gallery\GalleryImage;
-use App\Entity\User;
-use App\Repository\GalleryRepository;
-use App\Service\Extra\AccessService;
-use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Bundle\SecurityBundle\Security;
+use App\ApiResource\AppError;
+use App\Controller\Api\CRUD\Abstract\AbstractApiController;
+use App\Entity\Extra\MultipleImage;
+use App\Repository\Gallery\GalleryRepository;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 
-class PatchGalleryController extends AbstractController
+class PatchGalleryController extends AbstractApiController
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly Security               $security,
-        private readonly AccessService          $accessService,
-        private readonly GalleryRepository      $galleryRepository,
+        private readonly GalleryRepository $galleryRepository,
     ) {}
 
     public function __invoke(int $id, Request $request): JsonResponse
     {
-        /** @var User $bearerUser */
-        $bearerUser = $this->security->getUser();
+        $bearerUser = $this->checkedUser('double');
 
-        $this->accessService->check($bearerUser, 'double');
-
-        /** @var Gallery $galleryEntity */
         $galleryEntity = $this->galleryRepository->findUserGallery($bearerUser);
 
-        if (!$galleryEntity) {
-            return $this->json(['message' => 'Gallery not found'], 404);
-        }
+        if (!$galleryEntity)
+            return $this->errorJson(AppError::GALLERY_NOT_FOUND);
 
-        $data = json_decode($request->getContent(), true);
+        $data = $this->getContent();
 
-        // Check if 'images' key exists
-        if (!isset($data['images'])) return $this->json(['message' => 'Invalid JSON data'], 400);
+        if (!isset($data['images']))
+            return $this->errorJson(AppError::INVALID_JSON);
 
         $images = $data['images'];
-
         $incomingNames = array_filter(array_column($images, 'image'));
 
-        foreach ($galleryEntity->getUserServiceGalleryItems()->toArray() as $existingImage) {
-            if (!in_array($existingImage->getImage(), $incomingNames)) {
-                $galleryEntity->removeUserServiceGalleryItem($existingImage);
+        foreach ($galleryEntity->getImages()->toArray() as $existingImage) {
+            if (!in_array($existingImage->getImage(), $incomingNames, true)) {
+                $galleryEntity->removeImage($existingImage);
                 $this->entityManager->remove($existingImage);
             }
         }
 
         $existingByName = [];
-        foreach ($galleryEntity->getUserServiceGalleryItems() as $existingImage) {
+        foreach ($galleryEntity->getImages() as $existingImage) {
             if ($existingImage->getImage()) {
                 $existingByName[$existingImage->getImage()] = $existingImage;
             }
@@ -66,15 +53,15 @@ class PatchGalleryController extends AbstractController
             if (isset($existingByName[$imagePath])) {
                 $existingByName[$imagePath]->setPosition($position);
             } else {
-                $galleryImage = (new GalleryImage())
+                $galleryImage = (new MultipleImage())
                     ->setImage($imagePath)
                     ->setPosition($position);
-                $galleryEntity->addUserServiceGalleryItem($galleryImage);
+                $galleryEntity->addImage($galleryImage);
                 $this->entityManager->persist($galleryImage);
             }
         }
 
-        $this->entityManager->flush();
+        $this->flush();
 
         return $this->json($galleryEntity, context: ['groups' => ['galleries:read']]);
     }

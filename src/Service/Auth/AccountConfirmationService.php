@@ -13,6 +13,25 @@ use Symfony\Component\Mailer\Transport;
 use Symfony\Component\Mime\Email;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
+/**
+ * Отправка письма для подтверждения аккаунта.
+ *
+ * Почему Transport::fromDsn вместо инжекции MailerInterface?
+ *   MailerInterface Symfony по умолчанию отправляет письма асинхронно через Messenger.
+ *   Transport::fromDsn отправляет СИНХРОННО в одном месте — мы сразу
+ *   знаем результат: письмо ушло или вылетело исключение.
+ *
+ * Поток работы:
+ *   1. Удалить все старые токены пользователя
+ *   2. Создать новый токен (64 hex-символа, TTL 24ч)
+ *   3. Сгенерировать абсолютный URL на маршрут app_confirm_account
+ *   4. Отправить письмо с plain-text и HTML-версией
+ *
+ * ENV-переменные:
+ *   MAILER_DSN    — DSN почтового транспорта
+ *   MAILER_SENDER — адрес отправителя
+ *   FRONTEND_URL  — имя сайта в письме
+ */
 readonly class AccountConfirmationService
 {
     public function __construct(

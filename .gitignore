@@ -9,6 +9,7 @@
 /config/secrets/*
 /public/bundles/
 /public/images/*
+/public/uploads/*
 /var/
 /vendor/
 ###< symfony/framework-bundle ###

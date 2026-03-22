@@ -4,22 +4,18 @@ namespace App\Entity\Geography\City;
 
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
-use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use App\Controller\Api\Filter\Translation\TranslationSearchFilter;
-use App\Entity\Geography\AddressComponent;
-use App\Entity\Geography\Province;
-use App\Repository\CityRepository;
+use App\Entity\Geography\Abstract\AddressComponent;
+use App\Entity\Geography\Province\Province;
+use App\Repository\Geography\City\CityRepository;
 use App\State\Localization\Geography\CityLocalizationProvider;
-use DateTime;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\Serializer\Attribute\Groups;
-use Symfony\Component\Validator\Constraints as Assert;
 use Vich\UploaderBundle\Mapping\Attribute as Vich;
 
 #[ORM\Entity(repositoryClass: CityRepository::class)]
@@ -62,23 +58,6 @@ class City extends AddressComponent
         $this->suburbs = new ArrayCollection();
     }
 
-    #[Vich\UploadableField(mapping: 'city_photos', fileNameProperty: 'image')]
-    #[Assert\Image(mimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])]
-    private ?File $imageFile = null;
-
-    #[ORM\Column(length: 255, nullable: true)]
-    #[ApiProperty(writable: false)]
-    #[Groups([
-        'cities:read',
-        'provinces:read',
-        'masterTickets:read',
-        'clientTickets:read',
-        'favorites:read',
-        'districts:read',
-        'masters:read',
-    ])]
-    private ?string $image = null;
-
     #[ORM\ManyToOne(inversedBy: 'cities')]
     #[ORM\JoinColumn(name: 'province_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
@@ -97,33 +76,6 @@ class City extends AddressComponent
         'districts:read',
     ])]
     private Collection $suburbs;
-
-    public function getImage(): ?string
-    {
-        return $this->image;
-    }
-
-    public function setImage(?string $image): static
-    {
-        $this->image = $image;
-
-        return $this;
-    }
-
-    public function getImageFile(): ?File
-    {
-        return $this->imageFile;
-    }
-
-    public function setImageFile(?File $imageFile): self
-    {
-        $this->imageFile = $imageFile;
-        if (null !== $imageFile) {
-            $this->updatedAt = new DateTime();
-        }
-
-        return $this;
-    }
 
     public function getProvince(): ?Province
     {

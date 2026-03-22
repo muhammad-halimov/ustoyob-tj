@@ -2,7 +2,7 @@
 
 namespace App\Controller\Admin\Appeal\AppealTypes;
 
-use App\Controller\Admin\Appeal\AppealImageCrudController;
+use App\Controller\Admin\Extra\MultipleImageCrudController;
 use App\Entity\Appeal\AppealTypes\AppealChat;
 use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
@@ -105,7 +105,7 @@ class AppealChatCrudController extends AbstractCrudController
             ->setColumns(12);
 
         yield CollectionField::new('images', 'Галерея изображений')
-            ->useEntryCrudForm(AppealImageCrudController::class)
+            ->useEntryCrudForm(MultipleImageCrudController::class)
             ->hideOnIndex()
             ->setColumns(12)
             ->setRequired(false);
