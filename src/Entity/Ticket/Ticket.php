@@ -464,7 +464,7 @@ class Ticket
     {
         if (!$this->reviews->contains($review)) {
             $this->reviews->add($review);
-            $review->setServices($this);
+            $review->setTicket($this);
         }
 
         return $this;
@@ -474,8 +474,8 @@ class Ticket
     {
         if ($this->reviews->removeElement($review)) {
             // set the owning side to null (unless already changed)
-            if ($review->getServices() === $this) {
-                $review->setServices(null);
+            if ($review->getTicket() === $this) {
+                $review->setTicket(null);
             }
         }
 

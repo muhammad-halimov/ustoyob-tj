@@ -80,7 +80,7 @@ class PostReviewController extends AbstractApiController
             if ($ticket->getService() && $ticket->getAuthor() !== $client)
                 return $this->errorJson(AppError::REVIEW_CLIENT_TICKET_MISMATCH);
 
-            $review->setServices($ticket);
+            $review->setTicket($ticket);
 
             $review
                 ->setMaster($bearerUser)
@@ -102,7 +102,7 @@ class PostReviewController extends AbstractApiController
             if (!$ticket->getService() && $ticket->getMaster() !== $master)
                 return $this->errorJson(AppError::REVIEW_MASTER_SERVICE_MISMATCH);
 
-            $review->setServices($ticket);
+            $review->setTicket($ticket);
 
             $review
                 ->setClient($bearerUser)

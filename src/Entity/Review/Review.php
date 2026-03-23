@@ -33,7 +33,6 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
-use Symfony\Component\Serializer\Attribute\SerializedName;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: ReviewRepository::class)]
@@ -90,15 +89,15 @@ use Symfony\Component\Validator\Constraints as Assert;
     paginationItemsPerPage: 25,
     paginationMaximumItemsPerPage: 50,
 )]
-#[ApiFilter(BooleanFilter::class, properties: ['services.service'])]
-#[ApiFilter(ExistsFilter::class, properties: ['services', 'master', 'client', 'services', 'reviewImages',])]
+#[ApiFilter(BooleanFilter::class, properties: ['ticket.service'])]
+#[ApiFilter(ExistsFilter::class, properties: ['ticket', 'master', 'client', 'images'])]
 #[ApiFilter(SearchFilter::class, properties: [
     'type',
     'master',
     'client',
     'description' => 'partial',
-    'services',
-    'services.title',
+    'ticket',
+    'ticket.title',
 ])]
 #[ApiFilter(RangeFilter::class, properties: ['rating'])]
 class Review
@@ -141,12 +140,11 @@ class Review
     private ?float $rating = null;
 
     #[ORM\ManyToOne(inversedBy: 'reviews')]
-    #[ORM\JoinColumn(name: 'services_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    #[ORM\JoinColumn(name: 'ticket_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         'reviews:read',
     ])]
-    #[SerializedName('ticket')]
-    private ?Ticket $services = null;
+    private ?Ticket $ticket = null;
 
     /**
      * @var Collection<int, AppealReview>
@@ -199,14 +197,14 @@ class Review
         return $this;
     }
 
-    public function getServices(): ?Ticket
+    public function getTicket(): ?Ticket
     {
-        return $this->services;
+        return $this->ticket;
     }
 
-    public function setServices(?Ticket $services): static
+    public function setTicket(?Ticket $ticket): static
     {
-        $this->services = $services;
+        $this->ticket = $ticket;
 
         return $this;
     }
