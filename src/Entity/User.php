@@ -125,7 +125,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
             output: AccountConfirmOutput::class,
         ),
         new Post(
-            uriTemplate: '/users/{id}/update-images',
+            uriTemplate: '/users/{id}/upload-images',
             inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
             controller: UniversalImageUploadController::class,
