@@ -26,7 +26,7 @@ class PostChatMessageController extends AbstractApiController
         $textParam = $data['description'] ?? '';
         $replyToParam = $data['replyTo'] ?? null;
 
-        if (!$chatParam || !array_key_exists('text', $data))
+        if (!$chatParam || !array_key_exists('description', $data))
             return $this->errorJson(AppError::MISSING_REQUIRED_FIELDS);
 
         // Извлекаем ID из строки "/api/chats/1" или просто "1"
