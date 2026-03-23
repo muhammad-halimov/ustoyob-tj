@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Marquee } from '../../../../../shared/ui/Text/Marquee';
 import { EmptyState } from '../../../../../widgets/EmptyState';
 import { useDragReorder, DragHandle } from '../../../../../widgets/DragReorder';
+import { AuthBanner } from '../../../../../widgets/Banners/AuthBanner/AuthBanner';
 import styles from './PhonesSection.module.scss';
 import { EditActions } from '../EditActions/EditActions';
 
@@ -28,6 +29,7 @@ interface PhonesSectionProps {
     onReorder?: (phones: Phone[]) => void;
     onRefresh?: () => void;
     isLoading?: boolean;
+    onLoginClick?: () => void;
 }
 
 export const PhonesSection: React.FC<PhonesSectionProps> = ({
@@ -45,6 +47,7 @@ export const PhonesSection: React.FC<PhonesSectionProps> = ({
     onReorder,
     onRefresh,
     isLoading = false,
+    onLoginClick,
 }) => {
     const { t } = useTranslation(['profile']);
     const phoneDrag = useDragReorder(phones, onReorder ?? (() => {}));
@@ -52,6 +55,12 @@ export const PhonesSection: React.FC<PhonesSectionProps> = ({
         <div className={styles.section_item}>
             <h3>{t('profile:phonesTitle')}</h3>
             <div className={styles.section_content}>
+                {readOnly && onLoginClick && (
+                    <AuthBanner
+                        onLoginClick={onLoginClick}
+                        message={t('profile:loginToSeePhones', 'Войдите, чтобы увидеть контакты')}
+                    />
+                )}
                 {phones && phones.length > 0 ? (
                     <>
                         {phones.map((phone, index) => (
@@ -148,7 +157,7 @@ export const PhonesSection: React.FC<PhonesSectionProps> = ({
                 ))}
                     </>
                 ) : (
-                    !editingPhone && (
+                    !editingPhone && !onLoginClick && (
                         <EmptyState isLoading={isLoading} title={readOnly ? t('profile:noPhones') : t('profile:addPhone')} onRefresh={onRefresh} />
                     )
                 )}

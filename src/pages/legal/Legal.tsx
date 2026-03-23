@@ -81,7 +81,7 @@ function Legal() {
         };
 
         fetchDocument();
-    }, [activeType]);
+    }, [activeType, i18n.language]);
 
     // Переключение документа
     const handleTypeChange = (type: DocumentType) => {
@@ -109,9 +109,9 @@ function Legal() {
     }
 
     const navTabs = [
-        { key: 'terms_of_service' as DocumentType, label: <><IoDocumentTextOutline />{t('footer.termsOfUse', 'Условия использования')}</> },
-        { key: 'privacy_policy' as DocumentType, label: <><IoShieldCheckmarkOutline />{t('footer.privacyPolicy', 'Политика конфиденциальности')}</> },
-        { key: 'public_offer' as DocumentType, label: <><IoReceiptOutline />{t('footer.publicOffer', 'Публичная оферта')}</> },
+        { key: 'terms_of_service' as DocumentType, icon: <IoDocumentTextOutline />, label: t('footer.termsOfUse', 'Условия использования') },
+        { key: 'privacy_policy' as DocumentType, icon: <IoShieldCheckmarkOutline />, label: t('footer.privacyPolicy', 'Политика конфиденциальности') },
+        { key: 'public_offer' as DocumentType, icon: <IoReceiptOutline />, label: t('footer.publicOffer', 'Публичная оферта') },
     ];
 
     if (error || !document) {

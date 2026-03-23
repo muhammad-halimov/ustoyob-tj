@@ -12,6 +12,7 @@ import { Marquee } from '../../Text/Marquee';
 import { Carousel } from '../../Photo/Carousel';
 import { Toggle } from '../../Button/Toggle/Toggle.tsx';
 import { ActionsDropdown } from '../../../../widgets/ActionsDropdown';
+import Status from '../../Modal/Status';
 // Re-export for backward compatibility (other files import truncateText from Card)
 export default truncateText
 
@@ -194,6 +195,7 @@ export function Card({
 }: AnnouncementCardProps) {
   const { t, i18n } = useTranslation('components');
   const [, forceUpdate] = useState({});
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   // Транслитерация имени автора (автоопределение языка)
   const translatedAuthor = useTranslatedName(author);
@@ -210,7 +212,7 @@ export function Card({
     itemId: ticketId || 0,
     itemType: 'ticket',
     onSuccess: () => console.log('🎉 Favorite action successful'),
-    onError: (message) => console.error('❌ Favorite action error:', message)
+    onError: (message) => setErrorMessage(message)
   });
 
   // Проверяем статус избранного при монтировании если используем управляемое состояние
@@ -272,6 +274,12 @@ export function Card({
 
   return (
     <div className={styles.card} onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default' }}>
+      <Status
+        type="error"
+        isOpen={!!errorMessage}
+        onClose={() => setErrorMessage(null)}
+        message={errorMessage || ''}
+      />
       <div className={styles.card_top_controls}>
         {displayTicketType && (
           <div className={styles.card_ticketType}>
@@ -329,6 +337,7 @@ export function Card({
             </button>
             {(onComplaintClick || onReviewClick) && (
               <div
+                className={styles.card_dropdown_wrapper}
                 onClick={(e) => e.stopPropagation()}
                 onTouchStart={(e) => e.stopPropagation()}
                 onTouchEnd={(e) => e.stopPropagation()}

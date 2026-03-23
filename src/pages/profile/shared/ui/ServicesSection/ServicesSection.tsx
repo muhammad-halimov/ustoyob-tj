@@ -67,7 +67,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                         return firstImage;
                     } else {
                         // Формируем полный URL к изображению
-                        return `${API_BASE_URL}/images/ticket_photos/${firstImage}`;
+                        return `${API_BASE_URL}/uploads/tickets/${firstImage}`;
                     }
                 }
             }

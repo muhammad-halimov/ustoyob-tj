@@ -9,7 +9,7 @@ export interface Education {
 
 export interface EducationApiData {
     id: number;
-    uniTitle?: string;
+    title?: string;
     beginning?: number;
     ending?: number;
     graduated?: boolean;

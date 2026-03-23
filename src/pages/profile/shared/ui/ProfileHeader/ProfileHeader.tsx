@@ -186,7 +186,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         <>
         <div className={styles.profile_content}>
             {(userRole || onReview || onComplaint) && (
-                <div className={styles.badge_actions_row}>
+                <div className={styles.badge_actions_row} onClick={(e) => e.stopPropagation()}>
                     {userRole && (
                         <div className={styles.profile_type_badge}>
                             {userRole === 'master' ? t('profile:profileMaster') : t('profile:profileClient')}

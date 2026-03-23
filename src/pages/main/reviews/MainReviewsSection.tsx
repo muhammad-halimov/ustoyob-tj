@@ -176,8 +176,8 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
     const getReviewImageUrl = (imagePath: string): string => {
         if (!imagePath) return './default_user.png';
         if (imagePath.startsWith('http')) return imagePath;
-        if (imagePath.startsWith('/images/review_photos/')) return `${API_BASE_URL}${imagePath}`;
-        return `${API_BASE_URL}/images/review_photos/${imagePath}`;
+        if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) return `${API_BASE_URL}${imagePath}`;
+        return `${API_BASE_URL}/uploads/reviews/${imagePath}`;
     };
 
     // Аватар заказчика через общую утилиту

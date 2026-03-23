@@ -73,14 +73,14 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const formatTicketImageUrl = (imagePath: string): string => {
     if (!imagePath) return '';
     if (imagePath.startsWith('http')) return imagePath;
-    if (imagePath.startsWith('/images/ticket_photos/')) return `${API_BASE_URL}${imagePath}`;
-    return `${API_BASE_URL}/images/ticket_photos/${imagePath}`;
+    if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) return `${API_BASE_URL}${imagePath}`;
+    return `${API_BASE_URL}/uploads/tickets/${imagePath}`;
 };
 
 const formatProfileImageUrl = (imagePath: string): string => {
     if (!imagePath) return '';
     if (imagePath.startsWith('http')) return imagePath;
-    return `${API_BASE_URL}/images/profile_photos/${imagePath}`;
+    return `${API_BASE_URL}/uploads/users/${imagePath}`;
 };
 
 function Recommendations() {

@@ -74,7 +74,7 @@ interface ApiTicket {
         rating?: number;
         education?: {
             id: number;
-            uniTitle: string;
+            title: string;
             beginning: number;
             ending: number;    
             graduated: boolean;
@@ -344,12 +344,12 @@ export function Ticket() {
 
         console.log('Formatting ticket image path:', imagePath);
 
-        if (imagePath.startsWith('/images/ticket_photos/')) {
+        if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) {
             return `${API_BASE_URL}${imagePath}`;
         } else if (imagePath.startsWith('http')) {
             return imagePath;
         } else {
-            return `${API_BASE_URL}/images/ticket_photos/${imagePath}`;
+            return `${API_BASE_URL}/uploads/tickets/${imagePath}`;
         }
     };
 
@@ -827,7 +827,7 @@ export function Ticket() {
             
             // Формируем правильный эндпоинт
             const serviceParam = isService ? 'true' : 'false';
-            const url = `${API_BASE_URL}/api/reviews?services.service=${serviceParam}&exists[services]=true&exists[master]=true&exists[client]=true&services=${order.id}`;
+            const url = `${API_BASE_URL}/api/reviews?ticket.service=${serviceParam}&exists[ticket]=true&exists[master]=true&exists[client]=true&ticket=${order.id}`;
             
             const headers: HeadersInit = {
                 'Content-Type': 'application/json',
@@ -868,7 +868,7 @@ export function Ticket() {
                 if (image) {
                     if (image.startsWith('http')) return image;
                     if (image.startsWith('/')) return `${API_BASE_URL}${image}`;
-                    return `${API_BASE_URL}/images/profile_photos/${image}`;
+                    return `${API_BASE_URL}/uploads/users/${image}`;
                 }
                 if (externalUrl) return externalUrl;
                 return '';
@@ -898,7 +898,7 @@ export function Ticket() {
                     imageExternalUrl: clientRaw.imageExternalUrl || '',
                 } : null;
 
-                const serviceTitle = String(review.ticket?.title || review.services?.title || 'Услуга');
+                const serviceTitle = String(review.ticket?.title || 'Услуга');
 
                 return {
                     id: review.id,
@@ -906,7 +906,7 @@ export function Ticket() {
                     description: review.description || '',
                     forReviewer: review.forClient || false,
                     services: {
-                        id: review.ticket?.id || review.services?.id || 0,
+                        id: review.ticket?.id || 0,
                         title: serviceTitle
                     },
                     ticket: review.ticket,

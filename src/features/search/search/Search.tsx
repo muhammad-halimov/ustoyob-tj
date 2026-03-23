@@ -130,14 +130,14 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 function formatTicketImageUrl(filename: string): string {
     if (!filename) return '';
     if (filename.startsWith('http')) return filename;
-    if (filename.startsWith('/images/ticket_photos/')) return `${API_BASE_URL}${filename}`;
-    return `${API_BASE_URL}/images/ticket_photos/${filename}`;
+    if (filename.startsWith('/uploads/') || filename.startsWith('/images/')) return `${API_BASE_URL}${filename}`;
+    return `${API_BASE_URL}/uploads/tickets/${filename}`;
 }
 
 function formatProfileImageUrl(filename: string): string {
     if (!filename) return '';
     if (filename.startsWith('http')) return filename;
-    return `${API_BASE_URL}/images/profile_photos/${filename}`;
+    return `${API_BASE_URL}/uploads/users/${filename}`;
 }
 
 interface Category {

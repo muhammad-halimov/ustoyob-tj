@@ -59,7 +59,6 @@ export interface ReviewApiData {
     rating?: number;
     description?: string;
     forClient?: boolean;
-    services?: { id: number; title: string };
     ticket?: ReviewTicket;
     images?: ReviewImage[];
     createdAt?: string;

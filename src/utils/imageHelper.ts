@@ -1,7 +1,7 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 /**
- * Uploads one or more files to `/api/{endpoint}/{id}/upload-photo` in a single multipart/form-data POST.
+ * Uploads one or more files to `/api/{endpoint}/{id}/upload-images` in a single multipart/form-data POST.
  * Files are sent as `imageFile[]` — the backend handles both single and multiple files.
  */
 export const uploadPhotos = async (
@@ -16,7 +16,7 @@ export const uploadPhotos = async (
     }
     const headers: HeadersInit = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
-    const response = await fetch(`${API_BASE_URL}/api/${endpoint}/${id}/upload-photo`, {
+    const response = await fetch(`${API_BASE_URL}/api/${endpoint}/${id}/upload-images`, {
         method: 'POST',
         headers,
         body: formData,
@@ -47,11 +47,12 @@ export const getAvatarUrl = async (userData: any, userType: 'client' | 'master')
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
     const pathsToCheck = [
-        `${API_BASE_URL}/images/profile_photos/${imagePath}`,
+        `${API_BASE_URL}/uploads/users/${imagePath}`,
         `${API_BASE_URL}/${userData.image}`,
         userData.image,
         `${API_BASE_URL}/uploads/profile_photos/${imagePath}`,
         `${API_BASE_URL}/uploads/${userType}s/${imagePath}`,
+        `${API_BASE_URL}/images/profile_photos/${imagePath}`,
         `${API_BASE_URL}/images/${userType}s/${imagePath}`
     ];
 
@@ -106,7 +107,7 @@ export const getAuthorAvatar = (
     if (user.image) {
         if (user.image.startsWith('http')) return user.image;
         if (user.image.startsWith('/')) return `${API_BASE_URL}${user.image}`;
-        return `${API_BASE_URL}/images/profile_photos/${user.image}`;
+        return `${API_BASE_URL}/uploads/users/${user.image}`;
     }
 
     // Priority 2: external OAuth URL (Google, VK, etc.)

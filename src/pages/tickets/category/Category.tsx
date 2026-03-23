@@ -306,27 +306,27 @@ function Category() {
     const formatProfileImageUrl = (imagePath: string): string => {
         if (!imagePath) return '';
 
-        if (imagePath.startsWith('/images/profile_photos/')) {
+        if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) {
             return `${API_BASE_URL}${imagePath}`;
         } else if (imagePath.startsWith('http')) {
             return imagePath;
         } else {
-            return `${API_BASE_URL}/images/profile_photos/${imagePath}`;
+            return `${API_BASE_URL}/uploads/users/${imagePath}`;
         }
     };
 
     const formatTicketImageUrl = (imagePath: string): string => {
         if (!imagePath) return '';
         if (imagePath.startsWith('http')) return imagePath;
-        if (imagePath.startsWith('/images/ticket_photos/')) return `${API_BASE_URL}${imagePath}`;
-        return `${API_BASE_URL}/images/ticket_photos/${imagePath}`;
+        if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) return `${API_BASE_URL}${imagePath}`;
+        return `${API_BASE_URL}/uploads/tickets/${imagePath}`;
     };
 
     const formatOccupationImageUrl = (imagePath?: string): string => {
         if (!imagePath) return '/default_subcategory.png'; // Дефолтное изображение
 
-        // Проверяем, начинается ли путь с /images/
-        if (imagePath.startsWith('/images/')) {
+        // Проверяем, начинается ли путь с /uploads/ или /images/
+        if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) {
             return `${API_BASE_URL}${imagePath}`;
         }
 
@@ -336,7 +336,7 @@ function Category() {
         }
 
         // По умолчанию используем путь из API для изображений профессий
-        return `${API_BASE_URL}/images/occupation_photos/${imagePath}`;
+        return `${API_BASE_URL}/uploads/occupations/${imagePath}`;
     };
 
     const fetchCategoryName = async () => {

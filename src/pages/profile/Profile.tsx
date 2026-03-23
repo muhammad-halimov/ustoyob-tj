@@ -1585,8 +1585,8 @@ function Profile() {
 
             console.log(`Fetching reviews for ${userRole} ID:`, profileData.id);
             const endpoint = userRole === 'client' 
-                ? `/api/reviews?exists[services]=true&exists[master]=true&exists[client]=true&type=client&client=${profileData.id}`
-                : `/api/reviews?exists[services]=true&exists[master]=true&exists[client]=true&type=master&master=${profileData.id}`;
+                ? `/api/reviews?exists[ticket]=true&exists[master]=true&exists[client]=true&type=client&client=${profileData.id}`
+                : `/api/reviews?exists[ticket]=true&exists[master]=true&exists[client]=true&type=master&master=${profileData.id}`;
             console.log(`Trying endpoint: ${endpoint}`);
 
             const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -1704,7 +1704,7 @@ function Profile() {
                             image: ''
                         };
 
-                        const serviceTitle = String(review.ticket?.title || review.services?.title || 'Услуга');
+                        const serviceTitle = String(review.ticket?.title || 'Услуга');
                         console.log(`Review ${review.id} has service title: ${serviceTitle}`);
 
                         const transformedReview: ReviewType = {
@@ -1713,7 +1713,7 @@ function Profile() {
                             description: review.description || '',
                             forReviewer: review.forClient || false,
                             services: {
-                                id: review.ticket?.id || review.services?.id || 0,
+                                id: review.ticket?.id || 0,
                                 title: String(serviceTitle) // Ensure it's always a string
                             },
                             ticket: review.ticket,
@@ -2259,7 +2259,7 @@ function Profile() {
         if (!imagePath) return "../fonTest6.png";
         if (imagePath.startsWith("http")) return imagePath;
         if (imagePath.startsWith("/")) return `${API_BASE_URL}${imagePath}`;
-        return `${API_BASE_URL}/images/gallery_photos/${imagePath}`;
+        return `${API_BASE_URL}/uploads/galleries/${imagePath}`;
     };
 
     const fetchUserGallery = async () => {
@@ -2442,7 +2442,7 @@ function Profile() {
             
             return {
                 id: edu.id?.toString() || Date.now().toString(),
-                institution: edu.uniTitle || '',
+                institution: edu.title || '',
                 specialty: String(specialty), // Принудительно преобразуем в строку
                 startYear: edu.beginning?.toString() || '',
                 endYear: edu.ending?.toString() || '',
@@ -2584,7 +2584,7 @@ function Profile() {
             
             return {
                 id: edu.id,
-                uniTitle: edu.uniTitle,
+                title: edu.title,
                 beginning: edu.beginning,
                 ending: edu.ending,
                 graduated: edu.graduated,
@@ -2635,7 +2635,7 @@ function Profile() {
 
         const parsedId = parseInt(educationId);
         const educationData: Record<string, unknown> = {
-            uniTitle: updatedEducation.institution,
+            title: updatedEducation.institution,
             beginning: parseInt(updatedEducation.startYear) || new Date().getFullYear(),
             ending: updatedEducation.currentlyStudying ? null : (parseInt(updatedEducation.endYear) || null),
             graduated: !updatedEducation.currentlyStudying,
@@ -3140,59 +3140,10 @@ function Profile() {
             }
 
             setIsAvatarUploading(true);
-            const formData = new FormData();
-            formData.append("imageFile", file);
 
-            if (profileData) {
-                formData.append("email", "user@example.com");
-                formData.append("name", profileData.fullName.split(' ')[1] || "");
-                formData.append("surname", profileData.fullName.split(' ')[0] || "");
-                formData.append("patronymic", profileData.fullName.split(' ').slice(2).join(' ') || "");
-                formData.append("password", "current-password");
-                formData.append("roles", "ROLE_USER");
-            }
+            await uploadPhotos('users', profileData.id, [file], token);
 
-            const response = await fetch(`${API_BASE_URL}/api/users/${profileData.id}/update-photo`, {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                },
-                body: formData,
-            });
-
-            const responseText = await response.text();
-            console.log('Photo upload response status:', response.status);
-            console.log('Photo upload response text:', responseText);
-
-            if (!response.ok) {
-                console.error(`Ошибка при загрузке (${response.status}):`, responseText);
-
-                if (response.status === 400) {
-                    setModalMessage(t('profile:badRequest'));
-                } else if (response.status === 403) {
-                    setModalMessage(t('profile:forbidden'));
-                } else if (response.status === 422) {
-                    setModalMessage(t('profile:validationError'));
-                } else {
-                    setModalMessage(`${t('profile:uploadError')} (${response.status})`);
-                }
-                setShowErrorModal(true);
-                return;
-            }
-
-            let result;
-            try {
-                result = JSON.parse(responseText);
-            } catch (e) {
-                console.error('Error parsing response as JSON:', e);
-                if (response.status === 201) {
-                    result = { success: true };
-                } else {
-                    throw new Error('Invalid response format');
-                }
-            }
-
-            console.log("Фото успешно загружено:", result);
+            console.log("Фото успешно загружено");
 
             // Получаем актуальный аватар с сервера — реактивный ре-рендер компонента
             await fetchUserAvatar();
@@ -3562,6 +3513,7 @@ function Profile() {
                         onReorder={!readOnly ? handleReorderPhones : undefined}
                         onRefresh={async () => { setIsPhonesRefreshing(true); await fetchUserData(true); setIsPhonesRefreshing(false); }}
                         isLoading={isPhonesRefreshing}
+                        onLoginClick={readOnly ? () => setShowAuthModal(true) : undefined}
                     />
 
                     {/* EducationSection Component - только для специалистов */}

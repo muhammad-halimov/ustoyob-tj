@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
         },
-        '/images': {
+        '/uploads': {
           target: env.VITE_PROXY_BASE_URL,
           changeOrigin: true,
           secure: false,

@@ -372,20 +372,20 @@ function Favorites() {
     const formatProfileImageUrl = (imagePath: string): string => {
         if (!imagePath) return './default_user.png';
 
-        if (imagePath.startsWith('/images/profile_photos/')) {
+        if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) {
             return `${API_BASE_URL}${imagePath}`;
         } else if (imagePath.startsWith('http')) {
             return imagePath;
         } else {
-            return `${API_BASE_URL}/images/profile_photos/${imagePath}`;
+            return `${API_BASE_URL}/uploads/users/${imagePath}`;
         }
     };
 
     const formatTicketImageUrl = (imagePath: string): string => {
         if (!imagePath) return '';
         if (imagePath.startsWith('http')) return imagePath;
-        if (imagePath.startsWith('/images/ticket_photos/')) return `${API_BASE_URL}${imagePath}`;
-        return `${API_BASE_URL}/images/ticket_photos/${imagePath}`;
+        if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) return `${API_BASE_URL}${imagePath}`;
+        return `${API_BASE_URL}/uploads/tickets/${imagePath}`;
     };
 
     // Функция для определения реального статуса тикета

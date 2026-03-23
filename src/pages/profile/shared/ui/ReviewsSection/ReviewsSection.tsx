@@ -127,8 +127,8 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
         return true;
     };
     const getServiceTitleText = (review: Review): string =>
-        typeof review.services === 'object' && review.services && review.services.title
-            ? String(review.services.title)
+        review.ticket?.title
+            ? String(review.ticket.title)
             : t('profile:serviceDefault');
     // Собираем все изображения из отзывов для галереи
     const reviewGalleryImages = useMemo(() => {
@@ -139,7 +139,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
             if (review.images && review.images.length > 0) {
                 review.images.forEach(image => {
                     if (image.image) {
-                        images.push(`${API_BASE_URL}/images/review_photos/${image.image}`);
+                        images.push(`${API_BASE_URL}/uploads/reviews/${image.image}`);
                     }
                 });
             }
@@ -264,26 +264,10 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                     onClick={() => photoGallery.openGallery(getReviewImageIndex(reviewIndex, imageIndex))}
                                                 >
                                                     <img
-                                                        src={`${API_BASE_URL}/images/review_photos/${image.image}`}
+                                                        src={`${API_BASE_URL}/uploads/reviews/${image.image}`}
                                                         alt={`${t('profile:reviewPhotoAlt')} ${imageIndex + 1}`}
-                                                        onLoad={() => {
-                                                            console.log('Review image loaded:', `${API_BASE_URL}/images/review_photos/${image.image}`);
-                                                        }}
                                                         onError={(e) => {
-                                                            const originalSrc = e.currentTarget.src;
-                                                            console.error('Failed to load review image:', originalSrc);
-                                                            
-                                                            // Попробуем альтернативный путь
-                                                            const altSrc = `${API_BASE_URL}/uploads/review_photos/${image.image}`;
-                                                            if (originalSrc !== altSrc && !originalSrc.includes('default_user')) {
-                                                                console.log('Trying alternative path:', altSrc);
-                                                                e.currentTarget.src = altSrc;
-                                                                return;
-                                                            }
-                                                            
-                                                            // Если альтернативный путь тоже не сработал
-                                                            if (!originalSrc.includes('default_user')) {
-                                                                console.log('Using fallback image for review photo');
+                                                            if (!e.currentTarget.src.includes('default_user')) {
                                                                 e.currentTarget.src = "./default_user.png";
                                                             }
                                                         }}
@@ -406,26 +390,10 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                                 onClick={() => photoGallery.openGallery(getReviewImageIndex(reviewIndex, imageIndex))}
                                                             >
                                                                 <img
-                                                                    src={`${API_BASE_URL}/images/review_photos/${image.image}`}
+                                                                    src={`${API_BASE_URL}/uploads/reviews/${image.image}`}
                                                                     alt={`${t('profile:reviewPhotoAlt')} ${imageIndex + 1}`}
-                                                                    onLoad={() => {
-                                                                        console.log('Review image loaded (mobile):', `${API_BASE_URL}/images/review_photos/${image.image}`);
-                                                                    }}
                                                                     onError={(e) => {
-                                                                        const originalSrc = e.currentTarget.src;
-                                                                        console.error('Failed to load review image (mobile):', originalSrc);
-                                                                        
-                                                                        // Попробуем альтернативный путь
-                                                                        const altSrc = `${API_BASE_URL}/uploads/review_photos/${image.image}`;
-                                                                        if (originalSrc !== altSrc && !originalSrc.includes('default_user')) {
-                                                                            console.log('Trying alternative path (mobile):', altSrc);
-                                                                            e.currentTarget.src = altSrc;
-                                                                            return;
-                                                                        }
-                                                                        
-                                                                        // Если альтернативный путь тоже не сработал
-                                                                        if (!originalSrc.includes('default_user')) {
-                                                                            console.log('Using fallback image for review photo (mobile)');
+                                                                        if (!e.currentTarget.src.includes('default_user')) {
                                                                             e.currentTarget.src = "./default_user.png";
                                                                         }
                                                                     }}
@@ -541,26 +509,10 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                             onClick={() => photoGallery.openGallery(getReviewImageIndex(reviewIndex, imageIndex))}
                                                         >
                                                             <img
-                                                                src={`${API_BASE_URL}/images/review_photos/${image.image}`}
+                                                                src={`${API_BASE_URL}/uploads/reviews/${image.image}`}
                                                                 alt={`${t('profile:reviewPhotoAlt')} ${imageIndex + 1}`}
-                                                                onLoad={() => {
-                                                                    console.log('Review image loaded (list):', `${API_BASE_URL}/images/review_photos/${image.image}`);
-                                                                }}
                                                                 onError={(e) => {
-                                                                    const originalSrc = e.currentTarget.src;
-                                                                    console.error('Failed to load review image (list):', originalSrc);
-                                                                    
-                                                                    // Попробуем альтернативный путь
-                                                                    const altSrc = `${API_BASE_URL}/uploads/review_photos/${image.image}`;
-                                                                    if (originalSrc !== altSrc && !originalSrc.includes('default_user')) {
-                                                                        console.log('Trying alternative path (list):', altSrc);
-                                                                        e.currentTarget.src = altSrc;
-                                                                        return;
-                                                                    }
-                                                                    
-                                                                    // Если альтернативный путь тоже не сработал
-                                                                    if (!originalSrc.includes('default_user')) {
-                                                                        console.log('Using fallback image for review photo (list)');
+                                                                    if (!e.currentTarget.src.includes('default_user')) {
                                                                         e.currentTarget.src = "./default_user.png";
                                                                     }
                                                                 }}

@@ -171,8 +171,8 @@ export default function Category() {
             return "./fonTest4.png"; // Запасное изображение
         }
 
-        // Проверяем, начинается ли путь с /images/
-        if (imagePath.startsWith('/images/')) {
+        // Проверяем, начинается ли путь с /uploads/ или /images/
+        if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) {
             return `${API_URL}${imagePath}`;
         }
 
@@ -182,7 +182,7 @@ export default function Category() {
         }
 
         // По умолчанию используем путь из API
-        return `${API_URL}/images/service_category_photos/${imagePath}`;
+        return `${API_URL}/uploads/categories/${imagePath}`;
     };
 
     return (

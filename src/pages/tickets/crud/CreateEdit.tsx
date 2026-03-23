@@ -124,16 +124,15 @@ const CreateEdit = () => {
     const getImageUrl = (imagePath: string): string => {
         if (!imagePath) return '';
         
-        if (imagePath.startsWith('/images/ticket_photos/')) {
+        if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) {
             return `${API_BASE_URL}${imagePath}`;
         } else if (imagePath.startsWith('http')) {
             return imagePath;
         } else {
-            return `${API_BASE_URL}/images/ticket_photos/${imagePath}`;
+            return `${API_BASE_URL}/uploads/tickets/${imagePath}`;
         }
     };
 
-    // Preview для просмотра существующих фото
     const existingImageUrls = photos
         .filter((p): p is Extract<PhotoItem, { type: 'existing' }> => p.type === 'existing')
         .map(p => getImageUrl(p.image));

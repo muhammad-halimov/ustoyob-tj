@@ -180,7 +180,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({
             const token = getAuthToken();
             const headers: HeadersInit = { 'Content-Type': 'application/json' };
             if (token) headers['Authorization'] = `Bearer ${token}`;
-            const res = await fetch(`${API_BASE_URL}/api/reviews?exists[services]=true&exists[master]=true&exists[client]=true&master=${userId}`, { headers });
+            const res = await fetch(`${API_BASE_URL}/api/reviews?exists[ticket]=true&exists[master]=true&exists[client]=true&master=${userId}`, { headers });
             if (!res.ok) return 0;
             const data = await res.json();
             const arr: any[] = Array.isArray(data) ? data : (data['hydra:member'] ?? []);

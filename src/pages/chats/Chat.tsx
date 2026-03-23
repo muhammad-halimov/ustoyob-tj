@@ -262,7 +262,7 @@ function Chat() {
             return `${API_BASE_URL}${imagePath}`;
         }
 
-        return `${API_BASE_URL}/images/appeal_photos/${imagePath}`;
+        return `${API_BASE_URL}/uploads/chat_messages/${imagePath}`;
     }, [API_BASE_URL]);
 
     const fetchChatMessages = useCallback(async (chatId: number) => {
@@ -1280,7 +1280,7 @@ function Chat() {
                                     <div className={styles.avatar}>
                                         {interlocutor.image ? (
                                             <img
-                                                src={`${API_BASE_URL}${interlocutor.image.startsWith('/') ? interlocutor.image : '/images/profile_photos/' + interlocutor.image}`}
+                                                src={`${API_BASE_URL}${interlocutor.image.startsWith('/') ? interlocutor.image : '/uploads/users/' + interlocutor.image}`}
                                                 className={styles.avatarImage}
                                                 alt={getTranslatedFullName(interlocutor)}
                                             />
@@ -1350,7 +1350,7 @@ function Chat() {
                                     <div className={styles.avatar}>
                                         {currentInterlocutor.image ? (
                                             <img
-                                                src={`${API_BASE_URL}${currentInterlocutor.image.startsWith('/') ? currentInterlocutor.image : '/images/profile_photos/' + currentInterlocutor.image}`}
+                                                src={`${API_BASE_URL}${currentInterlocutor.image.startsWith('/') ? currentInterlocutor.image : '/uploads/users/' + currentInterlocutor.image}`}
                                                 className={styles.avatarImage}
                                                 alt={getTranslatedFullName(currentInterlocutor)}
                                             />
