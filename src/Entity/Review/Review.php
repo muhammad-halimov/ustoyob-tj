@@ -47,6 +47,7 @@ use Symfony\Component\Validator\Constraints as Assert;
         ),
         new GetCollection(
             uriTemplate: '/reviews',
+            normalizationContext: ['groups' => ['reviews:read', 'reviewsClient:read'], 'skip_null_values' => false],
         ),
         new Post(
             uriTemplate: '/reviews/{id}/upload-photo',
