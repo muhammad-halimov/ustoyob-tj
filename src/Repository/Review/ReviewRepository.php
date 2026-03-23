@@ -23,7 +23,7 @@ class ReviewRepository extends ServiceEntityRepository
 
         return $this->createQueryBuilder('r')
             ->where('r.type = :type')
-            ->andWhere('r.services = :ticket')
+            ->andWhere('r.ticket = :ticket')
             ->andWhere("r.{$authorField} = :author")
             ->setParameter('type', $type)
             ->setParameter('ticket', $ticket)

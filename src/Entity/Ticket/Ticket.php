@@ -267,7 +267,7 @@ class Ticket
     /**
      * @var Collection<int, Review>
      */
-    #[ORM\OneToMany(targetEntity: Review::class, mappedBy: 'services')]
+    #[ORM\OneToMany(targetEntity: Review::class, mappedBy: 'ticket')]
     #[Ignore]
     private Collection $reviews;
 
