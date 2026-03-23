@@ -27,23 +27,30 @@ class PostReviewController extends AbstractApiController
 
         $data = $this->getContent();
 
-        $typeParam = $data['type'];
-        $ratingParam = (float)$data['rating'];
+        $typeParam        = $data['type'];
+        $ratingParam      = (float)$data['rating'];
         $descriptionParam = $data['description'] ?? null;
-        $ticketParam = $data['ticket'] ?? null;
-        $masterParam = $data['master'] ?? null;
-        $clientParam = $data['client'] ?? null;
+        $ticketParam      = $data['ticket'] ?? null;
+        $masterParam      = $data['master'] ?? null;
+        $clientParam      = $data['client'] ?? null;
+
+        // Тикет обязателен — один отзыв привязан к конкретному тикету
+        if (!$ticketParam)
+            return $this->errorJson(AppError::MISSING_TICKET);
 
         // Проверка диапазона
         if ($ratingParam < 1 || $ratingParam > 5) return $this->errorJson(AppError::INVALID_RATING);
 
         // Загружаем сущности только если ID переданы
         /** @var Ticket|null $ticket */
-        $ticket = $ticketParam ? $this->extractIriService->extract($ticketParam, Ticket::class, 'tickets'): null;
+        $ticket = $this->extractIriService->extract($ticketParam, Ticket::class, 'tickets');
         /** @var User|null $client */
-        $client = $clientParam ? $this->extractIriService->extract($clientParam, User::class, 'users'): null;
+        $client = $clientParam ? $this->extractIriService->extract($clientParam, User::class, 'users') : null;
         /** @var User|null $master */
-        $master = $masterParam ? $this->extractIriService->extract($masterParam, User::class, 'users'): null;
+        $master = $masterParam ? $this->extractIriService->extract($masterParam, User::class, 'users') : null;
+
+        if (!$ticket)
+            return $this->errorJson(AppError::TICKET_NOT_FOUND);
 
         if (
             !$this->chatRepository->findChatBetweenUsers($bearerUser, $master) &&
@@ -51,7 +58,8 @@ class PostReviewController extends AbstractApiController
         )
             return $this->errorJson(AppError::NO_INTERACTIONS);
 
-        if ($ticket && $this->reviewRepository->findExistingReviewByAuthorAndTicket($bearerUser, $ticket, $typeParam))
+        // Один пользователь — один отзыв на тикет (по типу: мастер оставляет клиенту, клиент — мастеру)
+        if ($this->reviewRepository->findExistingReviewByAuthorAndTicket($bearerUser, $ticket, $typeParam))
             return $this->errorJson(AppError::REVIEW_ALREADY_EXISTS);
 
         $review = new Review();
@@ -69,12 +77,10 @@ class PostReviewController extends AbstractApiController
             if (!in_array("ROLE_CLIENT", $client->getRoles()))
                 return $this->errorJson(AppError::REVIEW_CLIENT_ROLE_MISMATCH);
 
-            if ($ticket) {
-                if ($ticket->getService() && $ticket->getAuthor() !== $client)
-                    return $this->errorJson(AppError::REVIEW_CLIENT_TICKET_MISMATCH);
+            if ($ticket->getService() && $ticket->getAuthor() !== $client)
+                return $this->errorJson(AppError::REVIEW_CLIENT_TICKET_MISMATCH);
 
-                $review->setServices($ticket);
-            }
+            $review->setServices($ticket);
 
             $review
                 ->setMaster($bearerUser)
@@ -93,12 +99,10 @@ class PostReviewController extends AbstractApiController
             if (!in_array("ROLE_MASTER", $master->getRoles()))
                 return $this->errorJson(AppError::REVIEW_MASTER_ROLE_MISMATCH);
 
-            if ($ticket) {
-                if (!$ticket->getService() && $ticket->getMaster() !== $master)
-                    return $this->errorJson(AppError::REVIEW_MASTER_SERVICE_MISMATCH);
+            if (!$ticket->getService() && $ticket->getMaster() !== $master)
+                return $this->errorJson(AppError::REVIEW_MASTER_SERVICE_MISMATCH);
 
-                $review->setServices($ticket);
-            }
+            $review->setServices($ticket);
 
             $review
                 ->setClient($bearerUser)
