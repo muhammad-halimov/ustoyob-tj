@@ -365,6 +365,12 @@ class Ticket
         return $this;
     }
 
+    public function incrementViewsCount(): static
+    {
+        $this->viewsCount++;
+        return $this;
+    }
+
     public function getNotice(): ?string
     {
         return strip_tags($this->notice);
