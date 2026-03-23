@@ -1,9 +1,8 @@
 <?php
 
-namespace App\Controller\Api\CRUD\POST\Image;
+namespace App\Controller\Api\CRUD\Abstract;
 
 use App\ApiResource\AppError;
-use App\Controller\Api\CRUD\Abstract\AbstractApiController;
 use App\Entity\User;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;

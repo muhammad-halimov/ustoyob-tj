@@ -3,7 +3,7 @@
 namespace App\Controller\Api\CRUD\POST\Chat\Message;
 
 use App\ApiResource\AppError;
-use App\Controller\Api\CRUD\POST\Image\AbstractPhotoUploadController;
+use App\Controller\Api\CRUD\Abstract\AbstractPhotoUploadController;
 use App\Entity\Chat\ChatMessage;
 use App\Entity\Extra\MultipleImage;
 use App\Entity\User;

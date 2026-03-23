@@ -3,7 +3,7 @@
 namespace App\Controller\Api\CRUD\POST\TechSupport\TechSupport;
 
 use App\ApiResource\AppError;
-use App\Controller\Api\CRUD\POST\Image\AbstractPhotoUploadController;
+use App\Controller\Api\CRUD\Abstract\AbstractPhotoUploadController;
 use App\Entity\Extra\MultipleImage;
 use App\Entity\TechSupport\TechSupport;
 use App\Entity\User;

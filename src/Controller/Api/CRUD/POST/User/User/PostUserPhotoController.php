@@ -3,7 +3,7 @@
 namespace App\Controller\Api\CRUD\POST\User\User;
 
 use App\ApiResource\AppError;
-use App\Controller\Api\CRUD\POST\Image\AbstractPhotoUploadController;
+use App\Controller\Api\CRUD\Abstract\AbstractPhotoUploadController;
 use App\Entity\User;
 use App\Repository\User\UserRepository;
 use ReflectionClass;
