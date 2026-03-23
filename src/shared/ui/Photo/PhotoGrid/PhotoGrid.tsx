@@ -11,6 +11,7 @@ interface PhotoGridProps {
     onChange: (photos: PhotoItem[]) => void;
     getImageUrl: (path: string) => string;
     onOpenGallery?: (existingIndex: number) => void;
+    onClickPhoto?: (index: number) => void;
     inputId?: string;
     photoAlt?: string;
     disabled?: boolean;
@@ -21,6 +22,7 @@ const PhotoGrid: React.FC<PhotoGridProps> = ({
     onChange,
     getImageUrl,
     onOpenGallery,
+    onClickPhoto,
     inputId = 'photo-grid-upload',
     photoAlt = 'Photo',
     disabled = false,
@@ -61,12 +63,16 @@ const PhotoGrid: React.FC<PhotoGridProps> = ({
                     <img
                         src={photo.type === 'existing' ? getImageUrl(photo.image) : photo.previewUrl}
                         alt={`${photoAlt} ${index + 1}`}
-                        onClick={photo.type === 'existing' && onOpenGallery
-                            ? () => onOpenGallery(
-                                photos.slice(0, index).filter(p => p.type === 'existing').length
-                              )
-                            : undefined}
-                        style={photo.type === 'existing' && onOpenGallery ? { cursor: 'pointer' } : undefined}
+                        onClick={
+                            photo.type === 'existing' && onOpenGallery
+                                ? () => onOpenGallery(
+                                    photos.slice(0, index).filter(p => p.type === 'existing').length
+                                  )
+                                : onClickPhoto
+                                    ? () => onClickPhoto(index)
+                                    : undefined
+                        }
+                        style={(photo.type === 'existing' && onOpenGallery) || onClickPhoto ? { cursor: 'pointer' } : undefined}
                     />
                     <button
                         type="button"

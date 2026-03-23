@@ -633,7 +633,6 @@ const CreateEdit = () => {
                         value={addressValue}
                         onChange={setAddressValue}
                         required={true}
-                        multipleSuburbs={true}
                     />
                 </div>
 

@@ -11,8 +11,7 @@ import {useTranslation} from 'react-i18next';
 import {useLanguageChange} from '../../../hooks';
 import {getStorageItem} from '../../../utils/storageHelper.ts';
 import Status from '../../../shared/ui/Modal/Status';
-import Review from '../../../shared/ui/Modal/Review';
-import Complaint from '../../../shared/ui/Modal/Complaint/Complaint.tsx';
+import FeedbackModal from '../../../shared/ui/Modal/Feedback';
 import { Carousel } from '../../../shared/ui/Photo/Carousel';
 import { Marquee } from '../../../shared/ui/Text/Marquee';
 import { Back } from '../../../shared/ui/Button/Back/Back.tsx';
@@ -187,24 +186,7 @@ export function Ticket() {
     useEffect(() => {
         console.log('Ticket useEffect triggered with id:', id);
         
-        initChatModals({
-            showSuccessModal: (message: string) => {
-                setModalMessage(message);
-                setShowSuccessModal(true);
-                // Автоматическое закрытие через 3 секунды
-                setTimeout(() => setShowSuccessModal(false), 3000);
-            },
-            showErrorModal: (message: string) => {
-                setModalMessage(message);
-                setShowErrorModal(true);
-                setTimeout(() => setShowErrorModal(false), 3000);
-            },
-            showInfoModal: (message: string) => {
-                setModalMessage(message);
-                setShowInfoModal(true);
-                setTimeout(() => setShowInfoModal(false), 3000);
-            }
-        });
+        initChatModals();
 
         const loadData = async () => {
             // Проверяем что нет активного запроса
@@ -290,29 +272,13 @@ export function Ticket() {
         setShowComplaintModal(false);
     };
 
-    const handleComplaintSuccess = (message: string) => {
-        setModalMessage(message);
-        setShowSuccessModal(true);
-        setTimeout(() => setShowSuccessModal(false), 3000);
-    };
+    const handleComplaintSuccess = (_message: string) => {};
 
-    const handleComplaintError = (message: string) => {
-        setModalMessage(message);
-        setShowErrorModal(true);
-        setTimeout(() => setShowErrorModal(false), 3000);
-    };
+    const handleComplaintError = (_message: string) => {};
 
-    const handleReviewSuccess = (message: string) => {
-        setModalMessage(message);
-        setShowSuccessModal(true);
-        setTimeout(() => setShowSuccessModal(false), 3000);
-    };
+    const handleReviewSuccess = (_message: string) => {};
 
-    const handleReviewError = (message: string) => {
-        setModalMessage(message);
-        setShowErrorModal(true);
-        setTimeout(() => setShowErrorModal(false), 3000);
-    };
+    const handleReviewError = (_message: string) => {};
 
     const handleReviewSubmitted = (updatedCount: number) => {
         setReviewCount(updatedCount);
@@ -697,6 +663,8 @@ export function Ticket() {
             }
         } catch (error) {
             console.error('Error creating chat:', error);
+            setModalMessage(error instanceof Error ? error.message : 'Не удалось создать чат');
+            setShowErrorModal(true);
         } finally {
             setIsResponding(false);
         }
@@ -722,7 +690,8 @@ export function Ticket() {
                     }
                 } catch (error) {
                     console.error('Error creating chat after login:', error);
-                    navigate(ROUTES.CHATS);
+                    setModalMessage(error instanceof Error ? error.message : 'Не удалось создать чат');
+                    setShowErrorModal(true);
                 }
             };
             createChat();
@@ -1330,7 +1299,8 @@ export function Ticket() {
                 />
             )}
 
-            <Review
+            <FeedbackModal
+                mode="review"
                 isOpen={showReviewModal}
                 onClose={handleCloseReviewModal}
                 onSuccess={handleReviewSuccess}
@@ -1348,7 +1318,8 @@ export function Ticket() {
                 />
             )}
 
-            <Complaint
+            <FeedbackModal
+                mode="complaint"
                 isOpen={showComplaintModal}
                 onClose={handleCloseComplaintModal}
                 onSuccess={handleComplaintSuccess}
@@ -1364,7 +1335,8 @@ export function Ticket() {
                 message={modalMessage}
             />
 
-            <Complaint
+            <FeedbackModal
+                mode="complaint"
                 isOpen={showReviewComplaintModal}
                 onClose={() => setShowReviewComplaintModal(false)}
                 onSuccess={handleComplaintSuccess}

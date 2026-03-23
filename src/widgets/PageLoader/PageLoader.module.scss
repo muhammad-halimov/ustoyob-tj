@@ -43,3 +43,16 @@
   background: var(--color-background-primary);
   border-radius: inherit;
 }
+
+.compact {
+  min-height: unset;
+  padding: 0;
+  background: transparent;
+  flex-direction: row;
+}
+
+.spinnerCompact {
+  width: 18px;
+  height: 18px;
+  border-width: 2px;
+}

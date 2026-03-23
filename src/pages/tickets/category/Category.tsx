@@ -6,6 +6,7 @@ import { Back } from '../../../shared/ui/Button/Back/Back.tsx';
 import { useLanguageChange } from '../../../hooks';
 import { createChatWithAuthor } from '../../../utils/chatUtils';
 import Status from '../../../shared/ui/Modal/Status';
+import FeedbackModal from '../../../shared/ui/Modal/Feedback';
 
 import { EmptyState } from '../../../widgets/EmptyState';
 import { ROUTES } from '../../../app/routers/routes';
@@ -179,6 +180,8 @@ function Category() {
     const [respondedTickets, setRespondedTickets] = useState<Set<number>>(new Set());
     const [respondingTicketId, setRespondingTicketId] = useState<number | null>(null);
     const [respondModal, setRespondModal] = useState<{ open: boolean; type: 'success' | 'error'; message: string }>({ open: false, type: 'success', message: '' });
+    const [cardReviewTarget, setCardReviewTarget] = useState<{ authorId: number; ticketId: number } | null>(null);
+    const [cardComplaintTarget, setCardComplaintTarget] = useState<{ authorId: number; ticketId: number } | null>(null);
     // Check existing chats on mount
     useEffect(() => {
         const token = getAuthToken();
@@ -203,7 +206,10 @@ function Category() {
     }, []);
     const handleRespondCard = useCallback(async (ticketId: number, authorId: number) => {
         const token = getAuthToken();
-        if (!token) return;
+        if (!token) {
+            window.dispatchEvent(new CustomEvent('openAuthModal'));
+            return;
+        }
         if (respondedTickets.has(ticketId) || respondingTicketId === ticketId) return;
         setRespondingTicketId(ticketId);
         try {
@@ -214,8 +220,9 @@ function Category() {
             } else {
                 setRespondModal({ open: true, type: 'error', message: 'Не удалось откликнуться. Попробуйте ещё раз.' });
             }
-        } catch {
-            setRespondModal({ open: true, type: 'error', message: 'Не удалось откликнуться. Попробуйте ещё раз.' });
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : 'Не удалось откликнуться. Попробуйте ещё раз.';
+            setRespondModal({ open: true, type: 'error', message: msg });
         } finally {
             setRespondingTicketId(null);
         }
@@ -992,6 +999,8 @@ function Category() {
                             onRespondClick={ticket.authorId !== currentUserId ? (e) => { e.stopPropagation(); handleRespondCard(ticket.id, ticket.authorId); } : undefined}
                             isResponded={respondedTickets.has(ticket.id)}
                             isRespondLoading={respondingTicketId === ticket.id}
+                            onReviewClick={ticket.authorId !== currentUserId ? () => { const tok = getAuthToken(); if (!tok) { window.dispatchEvent(new CustomEvent('openAuthModal')); return; } setCardReviewTarget({ authorId: ticket.authorId, ticketId: ticket.id }); } : undefined}
+                            onComplaintClick={ticket.authorId !== currentUserId ? () => { const tok = getAuthToken(); if (!tok) { window.dispatchEvent(new CustomEvent('openAuthModal')); return; } setCardComplaintTarget({ authorId: ticket.authorId, ticketId: ticket.id }); } : undefined}
                         />
                     ))
                 )}
@@ -1003,6 +1012,30 @@ function Category() {
                 onClose={() => setRespondModal(prev => ({ ...prev, open: false }))}
                 message={respondModal.message}
             />
+            {cardReviewTarget && (
+                <FeedbackModal
+                    mode="review"
+                    isOpen={!!cardReviewTarget}
+                    onClose={() => setCardReviewTarget(null)}
+                    onSuccess={() => setCardReviewTarget(null)}
+                    onError={() => {}}
+                    ticketId={cardReviewTarget.ticketId}
+                    targetUserId={cardReviewTarget.authorId}
+                    showServiceSelector={false}
+                />
+            )}
+            {cardComplaintTarget && (
+                <FeedbackModal
+                    mode="complaint"
+                    isOpen={!!cardComplaintTarget}
+                    onClose={() => setCardComplaintTarget(null)}
+                    onSuccess={() => setCardComplaintTarget(null)}
+                    onError={() => {}}
+                    targetUserId={cardComplaintTarget.authorId}
+                    ticketId={cardComplaintTarget.ticketId}
+                    complaintType="ticket"
+                />
+            )}
         </div>
     );
 }

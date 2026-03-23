@@ -449,6 +449,7 @@
   }
 
   &_respond_button {
+    position: relative;
     background: map.get(vars.$colors, actual-blue);
     color: #fff;
     border: none;
@@ -470,6 +471,19 @@
     &:active:not(:disabled) {
       transform: scale(0.97);
     }
+  }
+
+  &_respond_spinner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
   }
 
   &_respond_done {
@@ -733,4 +747,8 @@
       }
     }
   }
+}
+
+@keyframes spin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
 }

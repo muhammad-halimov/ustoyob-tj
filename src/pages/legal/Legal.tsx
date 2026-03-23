@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { getAuthToken } from '../../utils/auth';
 import { ROUTES } from '../../app/routers/routes';
 import { Back } from '../../shared/ui/Button/Back/Back.tsx';
+import { Tabs } from '../../shared/ui/Tabs';
+import { IoDocumentTextOutline, IoShieldCheckmarkOutline, IoReceiptOutline } from 'react-icons/io5';
 import styles from './Legal.module.scss';
 
 interface LegalDocument {
@@ -106,31 +108,22 @@ function Legal() {
         );
     }
 
+    const navTabs = [
+        { key: 'terms_of_service' as DocumentType, label: <><IoDocumentTextOutline />{t('footer.termsOfUse', 'Условия использования')}</> },
+        { key: 'privacy_policy' as DocumentType, label: <><IoShieldCheckmarkOutline />{t('footer.privacyPolicy', 'Политика конфиденциальности')}</> },
+        { key: 'public_offer' as DocumentType, label: <><IoReceiptOutline />{t('footer.publicOffer', 'Публичная оферта')}</> },
+    ];
+
     if (error || !document) {
         return (
             <div className={styles.container}>
                 <Back className={styles.backButtonSpacing} />
                 <div className={styles.header}>
-                    <div className={styles.navigation}>
-                        <button 
-                            className={`${styles.navButton} ${activeType === 'terms_of_service' ? styles.active : ''}`}
-                            onClick={() => handleTypeChange('terms_of_service')}
-                        >
-                            {t('footer.termsOfUse', 'Условия использования')}
-                        </button>
-                        <button 
-                            className={`${styles.navButton} ${activeType === 'privacy_policy' ? styles.active : ''}`}
-                            onClick={() => handleTypeChange('privacy_policy')}
-                        >
-                            {t('footer.privacyPolicy', 'Политика конфиденциальности')}
-                        </button>
-                        <button 
-                            className={`${styles.navButton} ${activeType === 'public_offer' ? styles.active : ''}`}
-                            onClick={() => handleTypeChange('public_offer')}
-                        >
-                            {t('footer.publicOffer', 'Публичная оферта')}
-                        </button>
-                    </div>
+                    <Tabs
+                        tabs={navTabs}
+                        activeTab={activeType}
+                        onChange={handleTypeChange}
+                    />
                 </div>
                 <div className={styles.content}>
                     <div className={styles.error}>
@@ -147,26 +140,11 @@ function Legal() {
         <div className={styles.container}>
             <Back className={styles.backButtonSpacing} />
             <div className={styles.header}>
-                <div className={styles.navigation}>
-                    <button 
-                        className={`${styles.navButton} ${activeType === 'terms_of_service' ? styles.active : ''}`}
-                        onClick={() => handleTypeChange('terms_of_service')}
-                    >
-                        {t('footer.termsOfUse', 'Условия использования')}
-                    </button>
-                    <button 
-                        className={`${styles.navButton} ${activeType === 'privacy_policy' ? styles.active : ''}`}
-                        onClick={() => handleTypeChange('privacy_policy')}
-                    >
-                        {t('footer.privacyPolicy', 'Политика конфиденциальности')}
-                    </button>
-                    <button 
-                        className={`${styles.navButton} ${activeType === 'public_offer' ? styles.active : ''}`}
-                        onClick={() => handleTypeChange('public_offer')}
-                    >
-                        {t('footer.publicOffer', 'Публичная оферта')}
-                    </button>
-                </div>
+                <Tabs
+                    tabs={navTabs}
+                    activeTab={activeType}
+                    onChange={handleTypeChange}
+                />
             </div>
 
             <div className={styles.content}>

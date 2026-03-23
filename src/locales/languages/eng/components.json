@@ -268,7 +268,8 @@
     "errorDefault": "Error submitting complaint",
     "errorUnexpected": "An unexpected error occurred while submitting the complaint",
     "successMessage": "Complaint submitted successfully!",
-    "userComplaintToggle": "Complaint about user"
+    "userComplaintToggle": "Complaint about user",
+    "attachPhoto": "Attached photos"
   },
   "search": {
     "searchPlaceholder": "Search...",

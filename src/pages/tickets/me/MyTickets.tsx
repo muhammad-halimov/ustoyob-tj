@@ -13,6 +13,8 @@ import { Card } from '../../../shared/ui/Ticket/Card/Card.tsx';
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 import Status from '../../../shared/ui/Modal/Status';
 import { Back } from '../../../shared/ui/Button/Back/Back.tsx';
+import { Tabs } from '../../../shared/ui/Tabs';
+import { IoCheckmarkCircleOutline, IoCloseCircleOutline } from 'react-icons/io5';
 
 interface ApiUser {
     id: number;
@@ -503,20 +505,14 @@ function MyTickets() {
             </div>
 
             {/* Табы для фильтрации */}
-            <div className={styles.tabs}>
-                <button
-                    className={`${styles.tab} ${activeTab === 'active' ? styles.active : ''}`}
-                    onClick={() => setActiveTab('active')}
-                >
-                    {t('myTickets:activeTab', { count: allTickets.filter(ticket => ticket.active).length })}
-                </button>
-                <button
-                    className={`${styles.tab} ${activeTab === 'inactive' ? styles.active : ''}`}
-                    onClick={() => setActiveTab('inactive')}
-                >
-                    {t('myTickets:inactiveTab', { count: allTickets.filter(ticket => !ticket.active).length })}
-                </button>
-            </div>
+            <Tabs
+                tabs={[
+                    { key: 'active' as const, label: <><IoCheckmarkCircleOutline />{t('myTickets:activeTab', { count: allTickets.filter(ticket => ticket.active).length })}</> },
+                    { key: 'inactive' as const, label: <><IoCloseCircleOutline />{t('myTickets:inactiveTab', { count: allTickets.filter(ticket => !ticket.active).length })}</> },
+                ]}
+                activeTab={activeTab}
+                onChange={setActiveTab}
+            />
 
             {/* Список объявлений */}
             <div className={styles.ticketsList}>

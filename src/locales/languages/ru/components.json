@@ -268,7 +268,8 @@
     "errorDefault": "Ошибка при отправке жалобы",
     "errorUnexpected": "Произошла непредвиденная ошибка при отправке жалобы",
     "successMessage": "Жалоба успешно отправлена!",
-    "userComplaintToggle": "Жалоба на пользователя"
+    "userComplaintToggle": "Жалоба на пользователя",
+    "attachPhoto": "Приложенные фото"
   },
   "search": {
     "searchPlaceholder": "Поиск...",

@@ -268,7 +268,8 @@
     "errorDefault": "Хатогӣ ҳангоми ирсоли шикоят",
     "errorUnexpected": "Хатогии ногаҳонӣ ҳангоми ирсоли шикоят рух дод",
     "successMessage": "Шикоят бомуваффақият ирсол шуд!",
-    "userComplaintToggle": "Шикоят дар бораи корбар"
+    "userComplaintToggle": "Шикоят дар бораи корбар",
+    "attachPhoto": "Аксҳои замимашуда"
   },
   "search": {
     "searchPlaceholder": "Ҷустуҷӯ...",

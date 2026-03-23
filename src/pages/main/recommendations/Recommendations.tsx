@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { ROUTES } from '../../../app/routers/routes.ts';
 import { createChatWithAuthor } from '../../../utils/chatUtils';
 import Status from '../../../shared/ui/Modal/Status';
+import FeedbackModal from '../../../shared/ui/Modal/Feedback';
 
 import { EmptyState } from '../../../widgets/EmptyState';
 import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore.tsx';
@@ -94,6 +95,9 @@ function Recommendations() {
     const [respondedTickets, setRespondedTickets] = useState<Set<number>>(new Set());
     const [respondingTicketId, setRespondingTicketId] = useState<number | null>(null);
     const [respondModal, setRespondModal] = useState<{ open: boolean; type: 'success' | 'error'; message: string }>({ open: false, type: 'success', message: '' });
+    const [cardReviewTarget, setCardReviewTarget] = useState<{ authorId: number; ticketId: number } | null>(null);
+    const [cardComplaintTarget, setCardComplaintTarget] = useState<{ authorId: number; ticketId: number } | null>(null);
+    const currentUserId = getUserData()?.id;
     // Check existing chats on mount
     useEffect(() => {
         const token = getAuthToken();
@@ -118,7 +122,10 @@ function Recommendations() {
     }, []);
     const handleRespondCard = async (ticketId: number, authorId: number) => {
         const token = getAuthToken();
-        if (!token) return;
+        if (!token) {
+            window.dispatchEvent(new CustomEvent('openAuthModal'));
+            return;
+        }
         if (respondedTickets.has(ticketId) || respondingTicketId === ticketId) return;
         setRespondingTicketId(ticketId);
         try {
@@ -129,8 +136,9 @@ function Recommendations() {
             } else {
                 setRespondModal({ open: true, type: 'error', message: 'Не удалось откликнуться. Попробуйте ещё раз.' });
             }
-        } catch {
-            setRespondModal({ open: true, type: 'error', message: 'Не удалось откликнуться. Попробуйте ещё раз.' });
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : 'Не удалось откликнуться. Попробуйте ещё раз.';
+            setRespondModal({ open: true, type: 'error', message: msg });
         } finally {
             setRespondingTicketId(null);
         }
@@ -348,9 +356,11 @@ function Recommendations() {
                                 })()}
                                 negotiableBudget={announcement.negotiableBudget}
                                 onClick={() => handleCardClick(announcement.id)}
-                                onRespondClick={(e) => { e.stopPropagation(); handleRespondCard(announcement.id, getAuthorId(announcement)!); }}
+                                onRespondClick={getAuthorId(announcement) !== currentUserId ? (e) => { e.stopPropagation(); handleRespondCard(announcement.id, getAuthorId(announcement)!); } : undefined}
                                 isResponded={respondedTickets.has(announcement.id)}
                                 isRespondLoading={respondingTicketId === announcement.id}
+                                onReviewClick={getAuthorId(announcement) !== currentUserId ? () => { const tok = getAuthToken(); if (!tok) { window.dispatchEvent(new CustomEvent('openAuthModal')); return; } setCardReviewTarget({ authorId: getAuthorId(announcement)!, ticketId: announcement.id }); } : undefined}
+                                onComplaintClick={getAuthorId(announcement) !== currentUserId ? () => { const tok = getAuthToken(); if (!tok) { window.dispatchEvent(new CustomEvent('openAuthModal')); return; } setCardComplaintTarget({ authorId: getAuthorId(announcement)!, ticketId: announcement.id }); } : undefined}
                             />
                         ))}
                     </div>
@@ -375,6 +385,30 @@ function Recommendations() {
             onClose={() => setRespondModal(prev => ({ ...prev, open: false }))}
             message={respondModal.message}
         />
+        {cardReviewTarget && (
+            <FeedbackModal
+                mode="review"
+                isOpen={!!cardReviewTarget}
+                onClose={() => setCardReviewTarget(null)}
+                onSuccess={() => setCardReviewTarget(null)}
+                onError={() => {}}
+                ticketId={cardReviewTarget.ticketId}
+                targetUserId={cardReviewTarget.authorId}
+                showServiceSelector={false}
+            />
+        )}
+        {cardComplaintTarget && (
+            <FeedbackModal
+                mode="complaint"
+                isOpen={!!cardComplaintTarget}
+                onClose={() => setCardComplaintTarget(null)}
+                onSuccess={() => setCardComplaintTarget(null)}
+                onError={() => {}}
+                targetUserId={cardComplaintTarget.authorId}
+                ticketId={cardComplaintTarget.ticketId}
+                complaintType="ticket"
+            />
+        )}
     </>
     );
 }

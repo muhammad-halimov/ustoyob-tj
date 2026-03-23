@@ -10,6 +10,7 @@ interface Phone {
     id: string;
     number: string;
     type: 'tj' | 'international';
+    main?: boolean;
 }
 
 interface PhonesSectionProps {

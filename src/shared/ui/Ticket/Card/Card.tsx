@@ -11,6 +11,7 @@ import { truncateText } from '../../../../utils/textHelper.ts';
 import { Marquee } from '../../Text/Marquee';
 import { Carousel } from '../../Photo/Carousel';
 import { Toggle } from '../../Button/Toggle/Toggle.tsx';
+import { ActionsDropdown } from '../../../../widgets/ActionsDropdown';
 // Re-export for backward compatibility (other files import truncateText from Card)
 export default truncateText
 
@@ -51,6 +52,8 @@ interface AnnouncementCardProps {
   onRespondClick?: (e: React.MouseEvent) => void;
   isResponded?: boolean;
   isRespondLoading?: boolean;
+  onComplaintClick?: () => void;
+  onReviewClick?: () => void;
 }
 
 // truncateText moved to src/utils/textHelper.ts
@@ -186,6 +189,8 @@ export function Card({
   onRespondClick,
   isResponded = false,
   isRespondLoading = false,
+  onComplaintClick,
+  onReviewClick,
 }: AnnouncementCardProps) {
   const { t, i18n } = useTranslation('components');
   const [, forceUpdate] = useState({});
@@ -322,6 +327,40 @@ export function Card({
                 />
               </svg>
             </button>
+            {(onComplaintClick || onReviewClick) && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
+              >
+                <ActionsDropdown
+                  items={[
+                    {
+                      icon: (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      ),
+                      label: t('pages.favorites.leaveReview'),
+                      onClick: () => onReviewClick?.(),
+                      hidden: !onReviewClick,
+                    },
+                    {
+                      icon: (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          <line x1="4" y1="22" x2="4" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                        </svg>
+                      ),
+                      label: t('pages.favorites.complaint'),
+                      onClick: () => onComplaintClick?.(),
+                      danger: true,
+                      hidden: !onComplaintClick,
+                    },
+                  ]}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -335,7 +374,10 @@ export function Card({
             onTouchEnd={(e) => e.stopPropagation()}
             disabled={isResponded || isRespondLoading}
           >
-            {isRespondLoading ? '...' : isResponded ? t('app.responded') : t('app.respond')}
+            <span style={{ visibility: isRespondLoading ? 'hidden' : 'visible' }}>
+              {isResponded ? t('app.responded') : t('app.respond')}
+            </span>
+            {isRespondLoading && <span className={styles.card_respond_spinner} />}
           </button>
         )}
         <span className={styles.card_price}>{(negotiableBudget && !price) ? t('app.negotiablePrice') : `${price != null ? price.toLocaleString('ru-RU') : '—'} TJS, ${unit || 'N/A'}`}</span>
@@ -451,7 +493,10 @@ export function Card({
               onTouchEnd={(e) => e.stopPropagation()}
               disabled={isResponded || isRespondLoading}
             >
-              {isRespondLoading ? '...' : isResponded ? t('app.responded') : t('app.respond')}
+              <span style={{ visibility: isRespondLoading ? 'hidden' : 'visible' }}>
+                {isResponded ? t('app.responded') : t('app.respond')}
+              </span>
+              {isRespondLoading && <span className={styles.card_respond_spinner} />}
             </button>
           )}
           {formattedTimeAgo && <span className={styles.card_timeAgo}>{formattedTimeAgo}</span>}

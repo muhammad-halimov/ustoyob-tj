@@ -11,7 +11,7 @@
   z-index: 1000;
 }
 
-.complaintModal {
+.feedbackModal {
   background: white;
   border-radius: 12px;
   padding: 24px;
@@ -52,45 +52,144 @@
   gap: 20px;
 }
 
-.toggleSection {
-  display: flex;
-  align-items: center;
-}
-
-.toggleLabel {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  user-select: none;
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
-}
-
-.toggleInput {
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
-  accent-color: #3A54DA;
-}
-
-.toggleText {
-  color: #333;
-}
-
+// Shared label styles
+.commentSection,
+.ratingSection,
+.serviceSection,
 .ticketSection,
 .reasonSection,
 .titleSection,
 .descriptionSection {
   label {
+    display: block;
     margin-bottom: 8px;
     font-weight: 500;
     color: #333;
     font-size: 14px;
-    display: block;
   }
 }
+
+// Photo section
+.photoSection {
+  :global(.photoGrid) {
+    grid-template-columns: repeat(auto-fill, minmax(56px, 56px));
+    justify-content: start;
+    gap: 6px;
+  }
+}
+
+.photoLabel {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #333;
+  font-size: 14px;
+}
+
+// ===== REVIEW-specific =====
+
+.serviceSelect {
+  width: 100%;
+  padding: 12px;
+  margin-top: 4px;
+  background-color: #F2F2F5;
+  border-radius: 10px;
+  border: none;
+  font-family: inherit;
+  font-size: 14px;
+  color: #333;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+    background-color: #e8e8eb;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.loadingServices,
+.noServices {
+  padding: 12px;
+  background-color: #F2F2F5;
+  border-radius: 10px;
+  text-align: center;
+  color: #666;
+  font-size: 14px;
+}
+
+.commentTextarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  background-color: #F2F2F5;
+  border-radius: 10px;
+  resize: vertical;
+  font-family: inherit;
+  border: none;
+  font-size: 14px;
+
+  &:focus {
+    outline: none;
+  }
+
+  &::placeholder {
+    color: #999;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.stars {
+  display: flex;
+  gap: 8px;
+  padding: 10px 120px;
+  border-radius: 10px;
+  background-color: #F2F2F5;
+  max-width: 200px;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.star {
+  background: none;
+  border: none;
+  font-size: 30px;
+  color: #A6A6A6;
+  transition: color 0.2s;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  min-width: 36px;
+  min-height: 36px;
+  user-select: none;
+
+  &.active {
+    color: #FFC107;
+  }
+
+  &:hover:not(:disabled) {
+    color: #ffc107;
+  }
+
+  &:active:not(:disabled) {
+    color: #ffc107;
+    transform: scale(1.15);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+}
+
+// ===== COMPLAINT-specific =====
 
 .ticketSelect,
 .reasonSelect {
@@ -177,10 +276,7 @@
   }
 }
 
-.photoSection {
-  padding: 0 20px;
-  margin-bottom: 12px;
-}
+// ===== ACTIONS =====
 
 .modalActions {
   display: flex;
@@ -225,24 +321,65 @@
   &:hover:not(:disabled) {
     background: #e0e0e0;
   }
+
+  &:active:not(:disabled) {
+    background: #e0e0e0;
+    transform: scale(0.97);
+  }
 }
 
 .submitButton {
-  background: #ff4444;
+  background: #3A54DA;
   color: white;
+  position: relative;
 
   svg {
     margin-left: 10px;
   }
 
   &:hover:not(:disabled) {
+    background: #2a44ca;
+  }
+
+  &:active:not(:disabled) {
+    background: #2a44ca;
+    transform: scale(0.97);
+  }
+}
+
+// Complaint: red submit button
+.submitButtonComplaint {
+  background: #ff4444;
+
+  &:hover:not(:disabled) {
+    background: #ff3333;
+  }
+
+  &:active:not(:disabled) {
     background: #ff3333;
   }
 }
 
+.submitSpinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: modalSpin 0.8s linear infinite;
+}
+
+@keyframes modalSpin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
 /* Responsive */
 @media (max-width: 768px) {
-  .complaintModal {
+  .feedbackModal {
     max-width: 95%;
     padding: 20px;
   }
@@ -250,11 +387,15 @@
   .modalHeader h2 {
     font-size: 18px;
   }
+
+  .star {
+    font-size: 24px;
+  }
 }
 
-// Темная тема
+// Dark theme
 :global(html[data-theme="dark"]) {
-  .complaintModal {
+  .feedbackModal {
     background-color: var(--color-background-primary);
     color: var(--color-text-primary);
   }
@@ -263,6 +404,10 @@
     color: var(--color-text-primary);
   }
 
+  .commentSection,
+  .photoSection,
+  .ratingSection,
+  .serviceSection,
   .ticketSection,
   .reasonSection,
   .titleSection,
@@ -272,6 +417,11 @@
     }
   }
 
+  .photoLabel {
+    color: var(--color-text-primary);
+  }
+
+  .serviceSelect,
   .ticketSelect,
   .reasonSelect {
     background-color: var(--color-background-all);
@@ -288,15 +438,19 @@
     }
   }
 
+  .loadingServices,
+  .noServices,
   .loadingTickets,
   .noTickets {
     background-color: var(--color-background-all);
     color: var(--color-text-secondary);
   }
 
-  .titleInput {
+  .commentTextarea,
+  .descriptionTextarea {
     background-color: var(--color-background-all);
     color: var(--color-text-primary);
+    border-color: var(--color-stroke);
 
     &::placeholder {
       color: var(--color-text-secondary);
@@ -307,7 +461,7 @@
     }
   }
 
-  .descriptionTextarea {
+  .titleInput {
     background-color: var(--color-background-all);
     color: var(--color-text-primary);
 
@@ -331,6 +485,22 @@
 
     &:hover:not(:disabled) {
       background-color: var(--color-background-secondary);
+    }
+  }
+
+  .stars {
+    background-color: var(--color-background-all);
+  }
+
+  .star {
+    color: var(--color-text-secondary);
+
+    &.active {
+      color: #FFC107;
+    }
+
+    &:hover:not(:disabled) {
+      color: #ffc107;
     }
   }
 }

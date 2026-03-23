@@ -54,10 +54,9 @@ interface AddressSelectorProps {
     value?: AddressValue;
     onChange: (value: AddressValue) => void;
     required?: boolean;
-    multipleSuburbs?: boolean;
 }
 
-const Address = ({ value, onChange, multipleSuburbs = true }: AddressSelectorProps) => {
+const Address = ({ value, onChange }: AddressSelectorProps) => {
     const { t } = useTranslation(['address']);
     const [provinces, setProvinces] = useState<Province[]>([]);
     const [cities, setCities] = useState<City[]>([]);
@@ -182,22 +181,11 @@ const Address = ({ value, onChange, multipleSuburbs = true }: AddressSelectorPro
     };
 
     const handleSuburbSelect = (suburbId: number) => {
-        if (multipleSuburbs) {
-            const newSuburbIds = selectedSuburbIds.includes(suburbId)
-                ? selectedSuburbIds.filter(id => id !== suburbId)
-                : [...selectedSuburbIds, suburbId];
-            
-            onChange({
-                ...value!,
-                suburbIds: newSuburbIds
-            });
-        } else {
-            const newSuburbIds = selectedSuburbIds.includes(suburbId) ? [] : [suburbId];
-            onChange({
-                ...value!,
-                suburbIds: newSuburbIds
-            });
-        }
+        const newSuburbIds = selectedSuburbIds.includes(suburbId) ? [] : [suburbId];
+        onChange({
+            ...value!,
+            suburbIds: newSuburbIds
+        });
     };
 
     const handleDistrictSelect = (districtId: number) => {

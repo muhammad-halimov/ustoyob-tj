@@ -46,8 +46,7 @@ import {LinkedAccountsSection} from './shared/ui/LinkedAccountsSection';
 import type {LinkedProvider} from './shared/ui/LinkedAccountsSection';
 import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 import Status from '../../shared/ui/Modal/Status';
-import Review from '../../shared/ui/Modal/Review';
-import Complaint from '../../shared/ui/Modal/Complaint';
+import FeedbackModal from '../../shared/ui/Modal/Feedback';
 import AuthModal from '../../features/auth/AuthModal';
 import AuthBanner from '../../widgets/Banners/AuthBanner/AuthBanner';
 import { getAuthorAvatar } from '../../utils/imageHelper.ts';
@@ -75,6 +74,7 @@ interface LocalPhone {
     id: string;
     number: string;
     type: 'tj' | 'international';
+    main?: boolean;
 }
 
 function Profile() {
@@ -147,7 +147,7 @@ function Profile() {
     // Состояния лайка/избранного на публичном профиле
     const [isProfileLiked, setIsProfileLiked] = useState(false);
     const [isProfileLikeLoading, setIsProfileLikeLoading] = useState(false);
-    const [profileFavoriteId, setProfileFavoriteId] = useState<number | null>(null);
+    const [profileEntryId, setProfileEntryId] = useState<number | null>(null); // FavoriteEntry id for DELETE
     
     // Состояния для адресов
     const [editingAddress, setEditingAddress] = useState<string | null>(null);
@@ -294,16 +294,15 @@ function Profile() {
         (async () => {
             try {
                 const res = await fetch(`${API_BASE_URL}/api/favorites/me`, {
-                    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+                    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }
                 });
                 if (!res.ok) return;
                 const data = await res.json();
-                setProfileFavoriteId(data.id ?? null);
-                const allUsers: Array<{ id: number }> = [
-                    ...(data.masters || []),
-                    ...(data.clients || [])
-                ];
-                setIsProfileLiked(allUsers.some((u) => u.id === Number(profileData.id)));
+                const entries: Array<{ id: number; type: string; user: { id: number } | null }> =
+                    data['hydra:member'] ?? (Array.isArray(data) ? data : []);
+                const match = entries.find(e => e.type === 'user' && e.user?.id === Number(profileData.id));
+                setIsProfileLiked(!!match);
+                setProfileEntryId(match?.id ?? null);
             } catch { /* silent */ }
         })();
     }, [readOnly, profileData?.id]);
@@ -995,21 +994,15 @@ function Profile() {
     };
 
     const handleAddPhone = () => {
-        if (!profileData?.phones) return;
-        
-        // Проверяем сколько телефонов уже добавлено
-        const tjPhones = profileData.phones.filter(p => p.type === 'tj').length;
-        const intPhones = profileData.phones.filter(p => p.type === 'international').length;
-        
-        if (tjPhones === 0) {
-            setPhoneForm({ number: '+992', type: 'tj' });
-        } else if (intPhones === 0) {
-            setPhoneForm({ number: '+', type: 'international' });
-        } else {
-            alert('Максимум 2 телефона: один РТ (+992) и один международный');
+        if (!profileData) return;
+
+        if (profileData.phones.length >= 2) {
+            alert('Максимум 2 телефона');
             return;
         }
-        
+
+        const hasTj = profileData.phones.some(p => p.type === 'tj');
+        setPhoneForm({ number: hasTj ? '+' : '+992', type: hasTj ? 'international' : 'tj' });
         setEditingPhone('new');
     };
 
@@ -1044,55 +1037,51 @@ function Profile() {
                 return;
             }
 
-            let updatedPhones: LocalPhone[];
-            
+            // GET actual server-side phones to avoid stale state
+            const getRes = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
+                headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+            });
+            if (!getRes.ok) throw new Error('Failed to fetch current phones');
+            const userData = await getRes.json();
+            const serverPhones: { id: number; phone: string; main: boolean }[] = userData.phones || [];
+
+            let phonesPayload;
             if (editingPhone === 'new') {
-                // Добавление нового телефона
-                updatedPhones = [
-                    ...profileData.phones,
-                    {
-                        id: 'phone-' + (profileData.phones.length + 1),
-                        number: trimmedNumber,
-                        type: phoneForm.type
-                    }
+                const isFirst = serverPhones.length === 0;
+                phonesPayload = [
+                    ...serverPhones.map(p => ({ id: p.id, phone: p.phone, main: p.main })),
+                    { phone: trimmedNumber, main: isFirst },
                 ];
             } else {
-                // Редактирование существующего
-                updatedPhones = profileData.phones.map(p =>
-                    p.id === editingPhone
-                        ? { ...p, number: trimmedNumber, type: phoneForm.type }
-                        : p
-                );
+                phonesPayload = serverPhones.map(p => ({
+                    id: p.id,
+                    phone: String(p.id) === editingPhone ? trimmedNumber : p.phone,
+                    main: p.main,
+                }));
             }
-
-            // Преобразуем в формат phone1 и phone2 (по позиции слота)
-            const phone1 = updatedPhones[0]?.number || null;
-            const phone2 = updatedPhones[1]?.number || null;
 
             const response = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
                 method: 'PATCH',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/merge-patch+json',
+                    'Accept': 'application/json',
                 },
-                body: JSON.stringify({
-                    phone1,
-                    phone2
-                }),
+                body: JSON.stringify({ phones: phonesPayload }),
             });
 
             if (response.ok) {
-                setProfileData(prev => prev ? {
-                    ...prev,
-                    phones: updatedPhones
-                } : null);
+                await fetchUserData(true);
                 handleEditPhoneCancel();
+            } else if (response.status === 422) {
+                const errorData = await response.json();
+                const violation = errorData?.violations?.[0]?.message;
+                alert(violation || 'Этот номер телефона уже занят');
             } else {
                 const errorText = await response.text();
                 console.error('Error saving phone:', errorText);
                 alert('Ошибка при сохранении телефона');
             }
-
         } catch (error) {
             console.error('Error saving phone:', error);
             alert('Ошибка при сохранении телефона');
@@ -1113,35 +1102,35 @@ function Profile() {
                 return;
             }
 
-            const updatedPhones = profileData.phones.filter(p => p.id !== phoneId);
-            
-            // Преобразуем в формат phone1 и phone2 (по позиции слота)
-            const phone1 = updatedPhones[0]?.number || null;
-            const phone2 = updatedPhones[1]?.number || null;
+            // GET actual server-side phones to avoid stale state
+            const getRes = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
+                headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+            });
+            if (!getRes.ok) throw new Error('Failed to fetch current phones');
+            const userData = await getRes.json();
+            const serverPhones: { id: number; phone: string; main: boolean }[] = userData.phones || [];
+
+            const phonesPayload = serverPhones
+                .filter(p => String(p.id) !== phoneId)
+                .map(p => ({ id: p.id, phone: p.phone, main: p.main }));
 
             const response = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
                 method: 'PATCH',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/merge-patch+json',
+                    'Accept': 'application/json',
                 },
-                body: JSON.stringify({
-                    phone1,
-                    phone2
-                }),
+                body: JSON.stringify({ phones: phonesPayload }),
             });
 
             if (response.ok) {
-                setProfileData(prev => prev ? {
-                    ...prev,
-                    phones: updatedPhones
-                } : null);
+                await fetchUserData(true);
             } else {
                 const errorText = await response.text();
                 console.error('Error deleting phone:', errorText);
                 alert('Ошибка при удалении телефона');
             }
-
         } catch (error) {
             console.error('Error deleting phone:', error);
             alert('Ошибка при удалении телефона');
@@ -1411,22 +1400,13 @@ function Profile() {
             // Обновляем состояние социальных сетей
             setSocialNetworks(loadedSocialNetworks);
 
-            // Преобразуем телефоны из phone1 и phone2
-            const loadedPhones: LocalPhone[] = [];
-            if (userData.phone1 && typeof userData.phone1 === 'string') {
-                loadedPhones.push({
-                    id: 'phone-1',
-                    number: userData.phone1,
-                    type: userData.phone1.startsWith('+992') ? 'tj' : 'international'
-                });
-            }
-            if (userData.phone2 && typeof userData.phone2 === 'string') {
-                loadedPhones.push({
-                    id: 'phone-2',
-                    number: userData.phone2,
-                    type: userData.phone2.startsWith('+992') ? 'tj' : 'international'
-                });
-            }
+            // Преобразуем телефоны из коллекции phones
+            const loadedPhones: LocalPhone[] = ((userData.phones as any[]) || []).map((p: any) => ({
+                id: String(p.id),
+                number: p.phone,
+                type: (p.countryCode === '+992' ? 'tj' : 'international') as 'tj' | 'international',
+                main: p.main ?? false,
+            }));
 
             // localizedOccupations уже получены выше через Promise.all
             setOccupations(localizedOccupations);
@@ -2891,23 +2871,6 @@ function Profile() {
 
     const handleReorderPhones = async (newPhones: LocalPhone[]) => {
         setProfileData(prev => prev ? { ...prev, phones: newPhones } : null);
-        const token = getAuthToken();
-        if (!token || !profileData?.id) return;
-        try {
-            await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/merge-patch+json',
-                },
-                body: JSON.stringify({
-                    phone1: newPhones[0]?.number || null,
-                    phone2: newPhones[1]?.number || null,
-                }),
-            });
-        } catch (error) {
-            console.error('Error reordering phones:', error);
-        }
     };
 
     const handleReorderWorkExamples = async (newWorkExamples: { id: string; image: string; title: string }[]) => {
@@ -3337,31 +3300,16 @@ function Profile() {
         setShowComplaintModal(false);
     };
 
-    const handleComplaintSuccess = (message: string) => {
-        setModalMessage(message);
-        setShowSuccessModal(true);
-        setTimeout(() => setShowSuccessModal(false), 3000);
-    };
+    const handleComplaintSuccess = (_message: string) => {};
 
-    const handleComplaintError = (message: string) => {
-        setModalMessage(message);
-        setShowErrorModal(true);
-        setTimeout(() => setShowErrorModal(false), 3000);
-    };
+    const handleComplaintError = (_message: string) => {};
 
-    const handleReviewSuccess = (message: string) => {
-        setModalMessage(message);
-        setShowSuccessModal(true);
-        setTimeout(() => setShowSuccessModal(false), 3000);
+    const handleReviewSuccess = (_message: string) => {
         // Обновляем список отзывов
         fetchReviews();
     };
 
-    const handleReviewError = (message: string) => {
-        setModalMessage(message);
-        setShowErrorModal(true);
-        setTimeout(() => setShowErrorModal(false), 3000);
-    };
+    const handleReviewError = (_message: string) => {};
 
     const handleReviewSubmitted = async (updatedCount: number) => {
         // Обновляем количество отзывов в профиле
@@ -3419,59 +3367,43 @@ function Profile() {
 
         setIsProfileLikeLoading(true);
         try {
-            const res = await fetch(`${API_BASE_URL}/api/favorites/me`, {
-                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
-            });
-
-            let favId: number | null = profileFavoriteId;
-            let existingMasters: string[] = [];
-            let existingClients: string[] = [];
-            let existingTickets: string[] = [];
-
-            if (res.ok) {
-                const data = await res.json();
-                favId = data.id ?? null;
-                setProfileFavoriteId(favId);
-                existingMasters = (data.masters || []).map((m: { id: number }) => `/api/users/${m.id}`);
-                existingClients = (data.clients || []).map((c: { id: number }) => `/api/users/${c.id}`);
-                existingTickets = (data.tickets || []).map((tk: { id: number }) => `/api/tickets/${tk.id}`);
-            }
-
-            const userIri = `/api/users/${profileData.id}`;
-            // Выбираем массив в зависимости от роли просматриваемого пользователя
-            const isMasterProfile = userRole === 'master';
-            let updatedMasters = [...existingMasters];
-            let updatedClients = [...existingClients];
-
-            if (isProfileLiked) {
-                if (isMasterProfile) updatedMasters = updatedMasters.filter(u => u !== userIri);
-                else updatedClients = updatedClients.filter(u => u !== userIri);
-            } else {
-                if (isMasterProfile && !updatedMasters.includes(userIri)) updatedMasters.push(userIri);
-                else if (!isMasterProfile && !updatedClients.includes(userIri)) updatedClients.push(userIri);
-            }
-
-            const body = { masters: updatedMasters, clients: updatedClients, tickets: existingTickets };
-
-            if (favId) {
-                await fetch(`${API_BASE_URL}/api/favorites/${favId}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/merge-patch+json', Authorization: `Bearer ${token}` },
-                    body: JSON.stringify(body)
+            if (isProfileLiked && profileEntryId) {
+                // Unlike — DELETE /api/favorites/{entryId}
+                const res = await fetch(`${API_BASE_URL}/api/favorites/${profileEntryId}`, {
+                    method: 'DELETE',
+                    headers: { Authorization: `Bearer ${token}` },
                 });
+                if (res.ok || res.status === 204) {
+                    setIsProfileLiked(false);
+                    setProfileEntryId(null);
+                    window.dispatchEvent(new Event('favoritesUpdated'));
+                }
             } else {
-                const createRes = await fetch(`${API_BASE_URL}/api/favorites`, {
+                // Like — POST /api/favorites { user: IRI }
+                const res = await fetch(`${API_BASE_URL}/api/favorites`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                    body: JSON.stringify(body)
+                    body: JSON.stringify({ user: `/api/users/${profileData.id}` }),
                 });
-                if (createRes.ok) {
-                    const created = await createRes.json();
-                    setProfileFavoriteId(created.id ?? null);
+                if (res.status === 201 || res.ok) {
+                    const entry = await res.json();
+                    setIsProfileLiked(true);
+                    setProfileEntryId(entry.id ?? null);
+                    window.dispatchEvent(new Event('favoritesUpdated'));
+                } else if (res.status === 409) {
+                    // Already in favorites — re-fetch to get entryId
+                    const checkRes = await fetch(`${API_BASE_URL}/api/favorites/me`, {
+                        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }
+                    });
+                    if (checkRes.ok) {
+                        const data = await checkRes.json();
+                        const entries: Array<{ id: number; type: string; user: { id: number } | null }> =
+                            data['hydra:member'] ?? [];
+                        const match = entries.find(e => e.type === 'user' && e.user?.id === Number(profileData.id));
+                        if (match) { setIsProfileLiked(true); setProfileEntryId(match.id); }
+                    }
                 }
             }
-            setIsProfileLiked(prev => !prev);
-            window.dispatchEvent(new Event('favoritesUpdated'));
         } catch (error) {
             console.error('Error toggling profile like:', error);
         } finally {
@@ -3763,7 +3695,8 @@ function Profile() {
                 </div>
             )}
 
-            <Review
+            <FeedbackModal
+                mode="review"
                 isOpen={showReviewModal}
                 onClose={handleCloseReviewModal}
                 onSuccess={handleReviewSuccess}
@@ -3774,7 +3707,8 @@ function Profile() {
                 showServiceSelector={true}
             />
 
-            <Complaint
+            <FeedbackModal
+                mode="complaint"
                 isOpen={showComplaintModal}
                 onClose={handleCloseComplaintModal}
                 onSuccess={handleComplaintSuccess}
@@ -3784,11 +3718,12 @@ function Profile() {
                 showUserComplaintToggle
             />
 
-            <Complaint
+            <FeedbackModal
+                mode="complaint"
                 isOpen={isReviewComplaintOpen}
                 onClose={() => setIsReviewComplaintOpen(false)}
-                onSuccess={(msg) => { setModalMessage(msg); setShowSuccessModal(true); }}
-                onError={(msg) => { setModalMessage(msg); setShowErrorModal(true); }}
+                onSuccess={() => {}}
+                onError={() => {}}
                 targetUserId={complaintReviewAuthorId ?? 0}
                 reviewId={complaintReviewId ?? undefined}
                 complaintType="review"

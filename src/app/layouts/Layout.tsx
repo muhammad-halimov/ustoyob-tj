@@ -25,6 +25,13 @@ export default function Layout() {
         }
     }, [navigate]);
 
+    // Глобальное открытие AuthModal через custom event
+    useEffect(() => {
+        const handler = () => setIsAuthModalOpen(true);
+        window.addEventListener('openAuthModal', handler);
+        return () => window.removeEventListener('openAuthModal', handler);
+    }, []);
+
     if (isOAuthPage) {
         return <Outlet />;
     }

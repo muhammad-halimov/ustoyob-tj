@@ -92,7 +92,6 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
                                         value={addressForm}
                                         onChange={setAddressForm}
                                         required={true}
-                                        multipleSuburbs={true}
                                     />
                                     <EditActions onSave={onEditAddressSave} onCancel={onEditAddressCancel} className={styles.edit_actions_geo} />
                                 </div>
@@ -155,7 +154,6 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
                             value={addressForm}
                             onChange={setAddressForm}
                             required={true}
-                            multipleSuburbs={true}
                         />
                         <EditActions onSave={onEditAddressSave} onCancel={onEditAddressCancel} className={styles.edit_actions_geo} />
                     </div>

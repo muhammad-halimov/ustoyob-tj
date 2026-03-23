@@ -15,6 +15,7 @@ import { getCities, getOccupations } from "../../../utils/dataCache.ts";
 import { PageLoader } from '../../../widgets/PageLoader';
 import { EmptyState } from '../../../widgets/EmptyState';
 import Status from '../../../shared/ui/Modal/Status';
+import FeedbackModal from '../../../shared/ui/Modal/Feedback';
 
 // Интерфейсы
 interface ApiTicket {
@@ -1000,6 +1001,8 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     const [respondedTickets, setRespondedTickets] = useState<Set<number>>(new Set());
     const [respondingTicketId, setRespondingTicketId] = useState<number | null>(null);
     const [respondModal, setRespondModal] = useState<{ open: boolean; type: 'success' | 'error'; message: string }>({ open: false, type: 'success', message: '' });
+    const [cardReviewTarget, setCardReviewTarget] = useState<{ authorId: number; ticketId: number } | null>(null);
+    const [cardComplaintTarget, setCardComplaintTarget] = useState<{ authorId: number; ticketId: number } | null>(null);
 
     // Проверяем существующие чаты при монтировании (постоянное состояние отклика)
     useEffect(() => {
@@ -1026,7 +1029,10 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
     const handleRespondCard = useCallback(async (ticketId: number, authorId: number) => {
         const token = getAuthToken();
-        if (!token) return;
+        if (!token) {
+            window.dispatchEvent(new CustomEvent('openAuthModal'));
+            return;
+        }
         if (respondedTickets.has(ticketId) || respondingTicketId === ticketId) return;
         setRespondingTicketId(ticketId);
         try {
@@ -1038,8 +1044,8 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 setRespondModal({ open: true, type: 'error', message: t('messages.respondError', 'Не удалось откликнуться. Попробуйте ещё раз.') });
             }
         } catch (e) {
-            console.error('Respond error:', e);
-            setRespondModal({ open: true, type: 'error', message: t('messages.respondError', 'Не удалось откликнуться. Попробуйте ещё раз.') });
+            const msg = e instanceof Error ? e.message : t('messages.respondError', 'Не удалось откликнуться. Попробуйте ещё раз.');
+            setRespondModal({ open: true, type: 'error', message: msg });
         } finally {
             setRespondingTicketId(null);
         }
@@ -1294,6 +1300,8 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     onRespondClick={result.authorId !== currentUserId ? () => handleRespondCard(result.id, result.authorId!) : undefined}
                     isResponded={respondedTickets.has(result.id)}
                     isRespondLoading={respondingTicketId === result.id}
+                    onReviewClick={result.authorId !== currentUserId ? () => { const tok = getAuthToken(); if (!tok) { window.dispatchEvent(new CustomEvent('openAuthModal')); return; } setCardReviewTarget({ authorId: result.authorId!, ticketId: result.id }); } : undefined}
+                    onComplaintClick={result.authorId !== currentUserId ? () => { const tok = getAuthToken(); if (!tok) { window.dispatchEvent(new CustomEvent('openAuthModal')); return; } setCardComplaintTarget({ authorId: result.authorId!, ticketId: result.id }); } : undefined}
                 />
             );
         });
@@ -1426,6 +1434,30 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 onClose={() => setRespondModal(prev => ({ ...prev, open: false }))}
                 message={respondModal.message}
             />
+            {cardReviewTarget && (
+                <FeedbackModal
+                    mode="review"
+                    isOpen={!!cardReviewTarget}
+                    onClose={() => setCardReviewTarget(null)}
+                    onSuccess={() => setCardReviewTarget(null)}
+                    onError={() => {}}
+                    ticketId={cardReviewTarget.ticketId}
+                    targetUserId={cardReviewTarget.authorId}
+                    showServiceSelector={false}
+                />
+            )}
+            {cardComplaintTarget && (
+                <FeedbackModal
+                    mode="complaint"
+                    isOpen={!!cardComplaintTarget}
+                    onClose={() => setCardComplaintTarget(null)}
+                    onSuccess={() => setCardComplaintTarget(null)}
+                    onError={() => {}}
+                    targetUserId={cardComplaintTarget.authorId}
+                    ticketId={cardComplaintTarget.ticketId}
+                    complaintType="ticket"
+                />
+            )}
         </div>
     );
 }

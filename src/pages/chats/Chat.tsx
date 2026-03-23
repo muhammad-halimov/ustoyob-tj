@@ -4,7 +4,7 @@ import { getAuthToken } from "../../utils/auth";
 import { ROUTES } from '../../app/routers/routes';
 import { smartNameTranslator } from '../../utils/textHelper';
 import AuthModal from '../../features/auth/AuthModal';
-import Complaint from '../../shared/ui/Modal/Complaint/Complaint.tsx';
+import FeedbackModal from '../../shared/ui/Modal/Feedback';
 import { PageLoader } from '../../widgets/PageLoader';
 import { EmptyState } from '../../widgets/EmptyState';
 import styles from "./Chat.module.scss";
@@ -15,6 +15,7 @@ import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/Cooki
 import { Back } from '../../shared/ui/Button/Back/Back.tsx';
 import { ActionsDropdown } from '../../widgets/ActionsDropdown';
 import { uploadPhotos } from '../../utils/imageHelper';
+import { Tabs } from '../../shared/ui/Tabs';
 
 interface Message {
     id: number;
@@ -50,11 +51,11 @@ interface ApiUser {
 
 interface ApiMessage {
     id: number;
-    text: string;
+    description: string;
     author: ApiUser;
     createdAt?: string;
     updatedAt?: string;
-    replyTo?: { id: number; text: string; author: ApiUser } | null;
+    replyTo?: { id: number; description: string; author: ApiUser } | null;
     images?: UploadedImage[];
 }
 
@@ -314,14 +315,14 @@ function Chat() {
                             id: msg.id,
                             sender: msg.author.id === currentUser.id ? "me" : "other",
                             name: getTranslatedFullName(msg.author),
-                            text: msg.text,
+                            text: msg.description,
                             type: 'text' as const,
                             time: createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                             createdAt: createdAt.toISOString(),
                             edited: isEdited,
                             replyTo: msg.replyTo ? {
                                 id: msg.replyTo.id,
-                                text: msg.replyTo.text,
+                                text: msg.replyTo.description,
                                 name: getTranslatedFullName(msg.replyTo.author)
                             } : undefined,
                             images: (msg.images || []).map(img => ({
@@ -455,14 +456,14 @@ function Chat() {
                         id: apiMsg.id,
                         sender: apiMsg.author.id === user.id ? 'me' : 'other',
                         name: getTranslatedFullName(apiMsg.author),
-                        text: apiMsg.text,
+                        text: apiMsg.description,
                         type: 'text' as const,
                         time: createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                         createdAt: createdAt.toISOString(),
                         edited: isEdited,
                         replyTo: apiMsg.replyTo ? {
                             id: apiMsg.replyTo.id,
-                            text: apiMsg.replyTo.text,
+                            text: apiMsg.replyTo.description,
                             name: getTranslatedFullName(apiMsg.replyTo.author)
                         } : undefined,
                         images: (apiMsg.images || []).map(img => ({
@@ -629,7 +630,7 @@ function Chat() {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    text: messageText,
+                    description: messageText,
                     chat: `/api/chats/${chatId}`,
                     ...(replyToId ? { replyTo: `/api/chat-messages/${replyToId}` } : {})
                 })
@@ -683,7 +684,7 @@ function Chat() {
                     'Content-Type': 'application/merge-patch+json'
                 },
                 body: JSON.stringify({
-                    text: newText,
+                    description: newText,
                     chat: `/api/chats/${selectedChat}`,
                     images: keepImages.map(img => ({ image: img.name }))
                 })
@@ -885,10 +886,10 @@ function Chat() {
             const phone2 = interlocutor.phone2?.toLowerCase() || '';
             const ticketTitle = chat.ticket?.title?.toLowerCase() || '';
             const lastMessageText = chat.messages?.length
-                ? chat.messages[chat.messages.length - 1].text?.toLowerCase() || ''
+                ? chat.messages[chat.messages.length - 1].description?.toLowerCase() || ''
                 : '';
             const anyMessageText = chat.messages?.some(m =>
-                m.text?.toLowerCase().includes(searchLower)
+                m.description?.toLowerCase().includes(searchLower)
             ) || false;
 
             return fullName.includes(searchLower) ||
@@ -1149,16 +1150,16 @@ function Chat() {
 
     const getLastMessageText = useCallback((chat: ApiChat) => {
         const msg = chat.messages?.[chat.messages.length - 1];
-        if (msg?.text) {
-            return msg.text.length > 30 ? msg.text.substring(0, 30) + '...' : msg.text;
+        if (msg?.description) {
+            return msg.description.length > 30 ? msg.description.substring(0, 30) + '...' : msg.description;
         }
 
         // Проверяем есть ли фото в любом из сообщений
         const hasImages = chat.messages?.some(m => m.images && m.images.length > 0);
         if (hasImages) {
-            const lastTextMsg = chat.messages?.find(m => m.text && m.text.trim());
+            const lastTextMsg = chat.messages?.find(m => m.description && m.description.trim());
             if (lastTextMsg) {
-                return lastTextMsg.text.length > 30 ? lastTextMsg.text.substring(0, 30) + '...' : lastTextMsg.text;
+                return lastTextMsg.description.length > 30 ? lastTextMsg.description.substring(0, 30) + '...' : lastTextMsg.description;
             }
             return `📷 ${t('chat.noPhotoDescription')}`;
         }
@@ -1250,10 +1251,14 @@ function Chat() {
                     </div>
                 </div>
 
-                <div className={styles.tabs}>
-                    <button className={`${styles.tab} ${activeTab === "active" ? styles.active : ""}`} onClick={() => setActiveTab("active")}><IoChatbubblesOutline />{t('chat.active')}</button>
-                    <button className={`${styles.tab} ${activeTab === "archive" ? styles.active : ""}`} onClick={() => setActiveTab("archive")}><IoArchiveOutline />{t('chat.archive')}</button>
-                </div>
+                <Tabs
+                    tabs={[
+                        { key: 'active' as const, label: <><IoChatbubblesOutline />{t('chat.active')}</> },
+                        { key: 'archive' as const, label: <><IoArchiveOutline />{t('chat.archive')}</> },
+                    ]}
+                    activeTab={activeTab}
+                    onChange={setActiveTab}
+                />
 
                 <div className={styles.chatList}>
                     {isChatListRefreshing ? (
@@ -1778,11 +1783,12 @@ function Chat() {
                 fallbackImage="../fonTest5.png"
             />
             {showComplaintModal && currentInterlocutor && (
-                <Complaint
+                <FeedbackModal
+                    mode="complaint"
                     isOpen={showComplaintModal}
                     onClose={() => setShowComplaintModal(false)}
-                    onSuccess={(msg) => { setShowComplaintModal(false); setError(msg); setTimeout(() => setError(null), 3000); }}
-                    onError={(msg) => { setError(msg); setTimeout(() => setError(null), 3000); }}
+                    onSuccess={() => setShowComplaintModal(false)}
+                    onError={() => {}}
                     targetUserId={currentInterlocutor.id}
                     ticketId={currentChat?.ticket?.id}
                     chatId={selectedChat ?? undefined}
@@ -1790,11 +1796,12 @@ function Chat() {
                 />
             )}
             {sidebarComplaintTarget && (
-                <Complaint
+                <FeedbackModal
+                    mode="complaint"
                     isOpen={true}
                     onClose={() => setSidebarComplaintTarget(null)}
-                    onSuccess={(msg) => { setSidebarComplaintTarget(null); setError(msg); setTimeout(() => setError(null), 3000); }}
-                    onError={(msg) => { setError(msg); setTimeout(() => setError(null), 3000); }}
+                    onSuccess={() => setSidebarComplaintTarget(null)}
+                    onError={() => {}}
                     targetUserId={sidebarComplaintTarget.interlocutorId}
                     ticketId={sidebarComplaintTarget.ticketId}
                     chatId={sidebarComplaintTarget.chatId}
