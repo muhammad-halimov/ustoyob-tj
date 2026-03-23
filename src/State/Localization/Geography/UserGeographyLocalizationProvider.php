@@ -22,7 +22,8 @@ readonly class UserGeographyLocalizationProvider extends AbstractLocalizationPro
         }
 
         foreach ($entity->getEducation() as $education) {
-            $this->localizationService->localizeEntity($education->getOccupation(), $locale);
+            $occupation = $education->getOccupation();
+            if ($occupation !== null) $this->localizationService->localizeEntity($occupation, $locale);
         }
     }
 }
