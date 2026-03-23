@@ -36,7 +36,7 @@ class PostGalleryPhotoController extends AbstractPhotoUploadController
         /** @var Gallery $entity */
         $position = $entity->getImages()->count();
         $galleryImage = (new MultipleImage())->setImageFile($imageFile)->setPosition($position);
-        $entity->addUserServiceGalleryItem($galleryImage);
+        $entity->addImage($galleryImage);
         $this->entityManager->persist($galleryImage);
     }
 

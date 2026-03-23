@@ -51,17 +51,6 @@ class PatchReviewController extends AbstractApiController
 
         $this->flush();
 
-        $message = [
-            'id' => $review->getId(),
-            'type' => $review->getType(),
-            'rating' => $review->getRating(),
-            'description' => $review->getDescription(),
-            'images' => array_values($review->getImages()->map(fn($img) => ['image' => $img->getImage()])->toArray()),
-            'ticket' => $review->getServices() ? "/api/tickets/{$review->getServices()->getId()}" : null,
-            'master' => "/api/users/{$review->getMaster()->getId()}",
-            'client' => "/api/users/{$review->getClient()->getId()}",
-        ];
-
-        return $this->json($message);
+        return $this->json($review, context: ['groups' => ['reviews:read', 'reviewsClient:read'], 'skip_null_values' => false]);
     }
 }
