@@ -16,12 +16,12 @@ use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\GET\User\PersonalUserFilterController;
 use App\Controller\Api\CRUD\GET\User\SocialNetworkController;
+use App\Controller\Api\CRUD\POST\Image\UniversalImageUploadController;
 use App\Controller\Api\CRUD\POST\User\User\ConfirmAccountController;
 use App\Controller\Api\CRUD\POST\User\User\ConfirmAccountTokenlessController;
 use App\Controller\Api\CRUD\POST\User\User\GrantRoleController;
 use App\Controller\Api\CRUD\POST\User\User\MarkOfflineController;
 use App\Controller\Api\CRUD\POST\User\User\PingController;
-use App\Controller\Api\CRUD\POST\User\User\PostUserPhotoController;
 use App\Controller\Api\Filter\Address\AddressFilter;
 use App\Controller\Api\Filter\User\RolesFilter;
 use App\Dto\Image\ImageInput;
@@ -125,10 +125,10 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
             output: AccountConfirmOutput::class,
         ),
         new Post(
-            uriTemplate: '/users/{id}/update-photo',
+            uriTemplate: '/users/{id}/update-images',
             inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
-            controller: PostUserPhotoController::class,
+            controller: UniversalImageUploadController::class,
             input: ImageInput::class,
         ),
         new Patch(

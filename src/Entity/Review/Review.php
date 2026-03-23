@@ -14,8 +14,8 @@ use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\GET\Review\PersonalReviewFilterController;
 use App\Controller\Api\CRUD\PATCH\Review\PatchReviewController;
+use App\Controller\Api\CRUD\POST\Image\UniversalImageUploadController;
 use App\Controller\Api\CRUD\POST\Review\PostReviewController;
-use App\Controller\Api\CRUD\POST\Review\PostReviewPhotoController;
 use App\Dto\Image\ImageInput;
 use App\Dto\Review\ReviewPatchInput;
 use App\Entity\Appeal\AppealTypes\AppealReview;
@@ -50,10 +50,10 @@ use Symfony\Component\Validator\Constraints as Assert;
             normalizationContext: ['groups' => ['reviews:read', 'reviewsClient:read'], 'skip_null_values' => false],
         ),
         new Post(
-            uriTemplate: '/reviews/{id}/upload-photo',
+            uriTemplate: '/reviews/{id}/upload-images',
             inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
-            controller: PostReviewPhotoController::class,
+            controller: UniversalImageUploadController::class,
             normalizationContext: ['groups' => ['reviews:read', 'reviewsClient:read'], 'skip_null_values' => false],
             input: ImageInput::class,
         ),

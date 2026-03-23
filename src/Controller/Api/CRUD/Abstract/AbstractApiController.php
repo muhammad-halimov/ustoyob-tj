@@ -102,6 +102,22 @@ abstract class AbstractApiController extends AbstractController
     }
 
     /**
+     * Возврат файла/ов
+     */
+    protected function getFile(string $key = 'imageFile'): mixed
+    {
+        return $this->requestStack->getCurrentRequest()->files->get($key);
+    }
+
+    /**
+     * Возврат аттрибутов, н-р _api_resource_class, _api_normalization_context
+     */
+    protected function getAttribute(string $attribute, mixed $default = null): mixed
+    {
+        return $this->requestStack->getCurrentRequest()->attributes->get($attribute, $default);
+    }
+
+    /**
      * Persist одной или нескольких сущностей + flush.
      */
     protected function persist(object ...$entities): void

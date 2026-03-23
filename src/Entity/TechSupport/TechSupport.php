@@ -12,8 +12,6 @@ use App\Controller\Api\CRUD\GET\TechSupport\PersonalTechSupportFilterController;
 use App\Controller\Api\CRUD\GET\TechSupport\UserTechSupportFilterController;
 use App\Controller\Api\CRUD\PATCH\TechSupport\TechSupport\PatchTechSupportController;
 use App\Controller\Api\CRUD\POST\TechSupport\TechSupport\PostTechSupportController;
-use App\Controller\Api\CRUD\POST\TechSupport\TechSupport\PostTechSupportPhotoController;
-use App\Dto\Image\ImageInput;
 use App\Dto\TechSupport\TechSupportInput;
 use App\Entity\Extra\MultipleImage;
 use App\Entity\Trait\AppealReasonTrait;
@@ -60,14 +58,6 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             controller: PatchTechSupportController::class,
             normalizationContext: ['groups' => ['techSupport:read']],
             input: TechSupportInput::class,
-        ),
-        new Post(
-            uriTemplate: '/tech-support/{id}/upload-photo',
-            inputFormats: ['multipart' => ['multipart/form-data']],
-            requirements: ['id' => '\d+'],
-            controller: PostTechSupportPhotoController::class,
-            normalizationContext: ['groups' => ['techSupport:read']],
-            input: ImageInput::class,
         ),
     ],
     paginationClientItemsPerPage: true,

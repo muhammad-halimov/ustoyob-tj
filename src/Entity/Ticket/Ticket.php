@@ -14,8 +14,8 @@ use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\GET\Ticket\PersonalTicketFilterController;
 use App\Controller\Api\CRUD\PATCH\Ticket\PatchTicketController;
+use App\Controller\Api\CRUD\POST\Image\UniversalImageUploadController;
 use App\Controller\Api\CRUD\POST\Ticket\PostTicketController;
-use App\Controller\Api\CRUD\POST\Ticket\PostTicketPhotoController;
 use App\Controller\Api\Filter\Address\AddressFilter;
 use App\Dto\Image\ImageInput;
 use App\Dto\Ticket\TicketInput;
@@ -81,10 +81,10 @@ use Symfony\Component\Validator\Constraints as Assert;
             input: TicketInput::class,
         ),
         new Post(
-            uriTemplate: '/tickets/{id}/upload-photo',
+            uriTemplate: '/tickets/{id}/upload-images',
             inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
-            controller: PostTicketPhotoController::class,
+            controller: UniversalImageUploadController::class,
             input: ImageInput::class,
         ),
         new Patch(

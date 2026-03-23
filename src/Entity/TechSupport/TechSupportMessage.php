@@ -9,7 +9,9 @@ use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\DELETE\TechSupport\Message\DeleteTechSupportMessageController;
 use App\Controller\Api\CRUD\PATCH\TechSupport\Message\PatchTechSupportMessageController;
+use App\Controller\Api\CRUD\POST\Image\UniversalImageUploadController;
 use App\Controller\Api\CRUD\POST\TechSupport\Message\PostTechSupportMessageController;
+use App\Dto\Image\ImageInput;
 use App\Entity\Extra\MultipleImage;
 use App\Entity\Trait\CreatedAtTrait;
 use App\Entity\Trait\DescriptionTrait;
@@ -38,7 +40,14 @@ use Symfony\Component\Serializer\Attribute\Groups;
             uriTemplate: '/tech-support-messages/{id}',
             requirements: ['id' => '\d+'],
             controller: DeleteTechSupportMessageController::class,
-        )
+        ),
+        new Post(
+            uriTemplate: '/tech-support-messages/{id}/upload-images',
+            inputFormats: ['multipart' => ['multipart/form-data']],
+            requirements: ['id' => '\d+'],
+            controller: UniversalImageUploadController::class,
+            input: ImageInput::class,
+        ),
     ],
     normalizationContext: [
         'groups' => ['techSupportMessages:read'],

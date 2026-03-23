@@ -10,7 +10,7 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\GET\Appeal\PersonalAppealsFilterController;
 use App\Controller\Api\CRUD\POST\Appeal\PostAppealConntroller;
-use App\Controller\Api\CRUD\POST\Appeal\PostAppealPhotoController;
+use App\Controller\Api\CRUD\POST\Image\UniversalImageUploadController;
 use App\Dto\Appeal\AppealInput;
 use App\Dto\Image\ImageInput;
 use App\Entity\Appeal\AppealTypes\AppealChat;
@@ -83,10 +83,10 @@ use Symfony\Component\Serializer\Attribute\Groups;
             input: AppealInput::class,
         ),
         new Post(
-            uriTemplate: '/appeals/{id}/upload-photo',
+            uriTemplate: '/appeals/{id}/upload-images',
             inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
-            controller: PostAppealPhotoController::class,
+            controller: UniversalImageUploadController::class,
             input: ImageInput::class,
         ),
     ],

@@ -13,7 +13,7 @@ use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\GET\Gallery\PersonalGalleryFilterController;
 use App\Controller\Api\CRUD\PATCH\Gallery\PatchGalleryController;
 use App\Controller\Api\CRUD\POST\Gallery\PostGalleryController;
-use App\Controller\Api\CRUD\POST\Gallery\PostGalleryPhotoController;
+use App\Controller\Api\CRUD\POST\Image\UniversalImageUploadController;
 use App\Dto\Image\ImageInput;
 use App\Entity\Extra\MultipleImage;
 use App\Entity\Trait\CreatedAtTrait;
@@ -45,10 +45,10 @@ use Symfony\Component\Serializer\Attribute\Groups;
             input: false,
         ),
         new Post(
-            uriTemplate: '/galleries/{id}/upload-photo',
+            uriTemplate: '/galleries/{id}/upload-images',
             inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
-            controller: PostGalleryPhotoController::class,
+            controller: UniversalImageUploadController::class,
             normalizationContext: ['groups' => ['galleries:read'], 'skip_null_values' => false],
             input: ImageInput::class,
         ),

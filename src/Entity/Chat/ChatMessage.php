@@ -12,7 +12,7 @@ use App\Controller\Api\CRUD\DELETE\Chat\Message\DeleteChatMessageController;
 use App\Controller\Api\CRUD\GET\Chat\ChatMessageFilterController;
 use App\Controller\Api\CRUD\PATCH\Chat\Message\PatchChatMessageController;
 use App\Controller\Api\CRUD\POST\Chat\Message\PostChatMessageController;
-use App\Controller\Api\CRUD\POST\Chat\Message\PostChatMessagePhotoController;
+use App\Controller\Api\CRUD\POST\Image\UniversalImageUploadController;
 use App\Dto\Image\ImageInput;
 use App\Entity\Extra\MultipleImage;
 use App\Entity\Trait\CreatedAtTrait;
@@ -50,10 +50,10 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
             ],
         ),
         new Post(
-            uriTemplate: '/chat-messages/{id}/upload-photo',
+            uriTemplate: '/chat-messages/{id}/upload-images',
             inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
-            controller: PostChatMessagePhotoController::class,
+            controller: UniversalImageUploadController::class,
             input: ImageInput::class,
         ),
         new Patch(

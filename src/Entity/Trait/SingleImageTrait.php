@@ -7,6 +7,7 @@ use DateTime;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Serializer\Attribute\Ignore;
 use Symfony\Component\Validator\Constraints as Assert;
 use Vich\UploaderBundle\Mapping\Attribute as Vich;
 
@@ -39,7 +40,8 @@ trait SingleImageTrait
      */
     #[Vich\UploadableField(mapping: 'default_photos', fileNameProperty: 'image')]
     #[Assert\Image(mimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])]
-    #[ApiProperty(writable: false)]
+    #[ApiProperty(readable: false, writable: false)]
+    #[Ignore]
     private ?File $imageFile = null;
 
     /**
