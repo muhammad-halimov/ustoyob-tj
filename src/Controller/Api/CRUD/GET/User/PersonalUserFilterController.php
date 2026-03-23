@@ -26,7 +26,8 @@ class PersonalUserFilterController extends AbstractApiController
         }
 
         foreach ($bearerUser->getEducation() as $education) {
-            $this->localizationService->localizeEntity($education->getOccupation(), $locale);
+            $occupation = $education->getOccupation();
+            if ($occupation !== null) $this->localizationService->localizeEntity($occupation, $locale);
         }
 
         return $this->json($bearerUser, context: ['groups' => ['masters:read', 'clients:read', 'users:me:read']]);
