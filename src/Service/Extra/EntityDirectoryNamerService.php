@@ -4,6 +4,7 @@ namespace App\Service\Extra;
 
 use App\Entity\Appeal\Appeal;
 use App\Entity\Chat\ChatMessage;
+use App\Entity\Extra\MultipleImage;
 use App\Entity\Gallery\Gallery;
 use App\Entity\Geography\City\City;
 use App\Entity\Geography\City\Suburb;
@@ -25,6 +26,19 @@ readonly class EntityDirectoryNamerService implements DirectoryNamerInterface
 {
     public function directoryName(object|array $object, PropertyMapping $mapping): string
     {
+        // MultipleImage — универсальная сущность; определяем папку по заполненной связи
+        if ($object instanceof MultipleImage) {
+            return match (true) {
+                $object->getGallery()            !== null => 'galleries',
+                $object->getTicket()             !== null => 'tickets',
+                $object->getChatMessage()        !== null => 'chat_messages',
+                $object->getTechSupportMessage() !== null => 'tech_support_messages',
+                $object->getReview()             !== null => 'reviews',
+                $object->getAppeal()             !== null => 'appeals',
+                default                                   => 'misc',
+            };
+        }
+
         return match (true) {
             $object instanceof Category => 'categories',
             $object instanceof Ticket   => 'tickets',
@@ -42,7 +56,6 @@ readonly class EntityDirectoryNamerService implements DirectoryNamerInterface
             $object instanceof User        => 'users',
 
             $object instanceof TechSupportMessage => 'tech_support_messages',
-            $object instanceof TechSupport        => 'tech_support',
             $object instanceof Review             => 'reviews',
             $object instanceof Appeal             => 'appeals',
 
