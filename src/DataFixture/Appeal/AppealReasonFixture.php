@@ -2,7 +2,7 @@
 
 namespace App\DataFixture\Appeal;
 
-use App\Entity\Appeal\AppealReason;
+use App\Entity\Appeal\Reason\AppealReason;
 use App\Entity\Extra\Translation;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Common\Collections\ArrayCollection;

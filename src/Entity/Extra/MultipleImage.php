@@ -2,13 +2,18 @@
 
 namespace App\Entity\Extra;
 
-use App\Entity\Appeal\Appeal;
+use ApiPlatform\Metadata\ApiProperty;
+use App\Entity\Appeal\Appeal\Appeal;
 use App\Entity\Chat\ChatMessage;
 use App\Entity\Gallery\Gallery;
 use App\Entity\Review\Review;
 use App\Entity\TechSupport\TechSupportMessage;
 use App\Entity\Ticket\Ticket;
-use App\Entity\Trait\SingleImageTrait;
+use App\Entity\Trait\Readable\CreatedAtTrait;
+use App\Entity\Trait\Readable\G;
+use App\Entity\Trait\Readable\PriorityTrait;
+use App\Entity\Trait\Readable\SingleImageTrait;
+use App\Entity\Trait\Readable\UpdatedAtTrait;
 use App\Entity\User;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
@@ -26,7 +31,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
 #[Vich\Uploadable]
 class MultipleImage
 {
-    use SingleImageTrait;
+    use SingleImageTrait, CreatedAtTrait, UpdatedAtTrait, PriorityTrait;
 
     /**
      * Первичный ключ. Группы сериализации покрывают все контексты,
@@ -36,41 +41,29 @@ class MultipleImage
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
-        'categories:read',
-
-        'masterTickets:read',
-        'clientTickets:read',
-
-        'favorites:read',
-        'occupations:read',
-
-        'cities:read',
-        'districts:read',
-        'provinces:read',
-
-        'masters:read',
-        'clients:read',
-
-        'appeal:read',
-        'appeal:chat:read',
-        'appeal:ticket:read',
-        'appeal:user:read',
-
-        'reviews:read',
-        'reviewsClient:read',
-
-        'galleries:read',
-
-        'chats:read',
-        'chatMessages:read',
-
-        'techSupport:read',
-
-        'blackLists:read',
-
-        'user:public:read',
-
-        'ticketImages:read',
+        G::CATEGORIES,
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+        G::FAVORITES,
+        G::OCCUPATIONS,
+        G::CITIES,
+        G::DISTRICTS,
+        G::PROVINCES,
+        G::MASTERS,
+        G::CLIENTS,
+        G::APPEAL,
+        G::APPEAL_CHAT,
+        G::APPEAL_TICKET,
+        G::APPEAL_USER,
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::GALLERIES,
+        G::CHATS,
+        G::CHAT_MESSAGES,
+        G::TECH_SUPPORT,
+        G::BLACK_LISTS,
+        G::USER_PUBLIC,
+        G::TICKET_IMAGES,
     ])]
     protected ?int $id = null;
 
@@ -81,11 +74,29 @@ class MultipleImage
     #[ORM\ManyToOne(inversedBy: 'imageAuthors')]
     #[ORM\JoinColumn(name: 'author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
-        'chats:read',
-        'chatMessages:read',
-
-        'techSupport:read',
-        'techSupportMessages:read',
+        G::CATEGORIES,
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+        G::FAVORITES,
+        G::OCCUPATIONS,
+        G::CITIES,
+        G::DISTRICTS,
+        G::PROVINCES,
+        G::MASTERS,
+        G::CLIENTS,
+        G::APPEAL,
+        G::APPEAL_CHAT,
+        G::APPEAL_TICKET,
+        G::APPEAL_USER,
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::GALLERIES,
+        G::CHATS,
+        G::CHAT_MESSAGES,
+        G::TECH_SUPPORT,
+        G::BLACK_LISTS,
+        G::USER_PUBLIC,
+        G::TICKET_IMAGES,
     ])]
     private ?User $author = null;
 
@@ -93,36 +104,42 @@ class MultipleImage
      * Изображение галереи работ мастера.
      */
     #[ORM\ManyToOne(inversedBy: 'images')]
+    #[ApiProperty(writable: false)]
     private ?Gallery $gallery = null;
 
     /**
      * Изображение тикета (услуги/объявления).
      */
     #[ORM\ManyToOne(inversedBy: 'images')]
+    #[ApiProperty(writable: false)]
     private ?Ticket $ticket = null;
 
     /**
      * Изображение прикреплённое к сообщению техподдержки.
      */
     #[ORM\ManyToOne(inversedBy: 'image')]
+    #[ApiProperty(writable: false)]
     private ?TechSupportMessage $techSupportMessage = null;
 
     /**
      * Изображение прикреплённое к отзыву.
      */
     #[ORM\ManyToOne(inversedBy: 'images')]
+    #[ApiProperty(writable: false)]
     private ?Review $review = null;
 
     /**
      * Изображение прикреплённое к сообщению чата.
      */
     #[ORM\ManyToOne(inversedBy: 'images')]
+    #[ApiProperty(writable: false)]
     private ?ChatMessage $chatMessage = null;
 
     /**
      * Изображение прикреплённое к обращению (жалобе).
      */
     #[ORM\ManyToOne(inversedBy: 'images')]
+    #[ApiProperty(writable: false)]
     private ?Appeal $appeal = null;
 
     public function getId(): ?int

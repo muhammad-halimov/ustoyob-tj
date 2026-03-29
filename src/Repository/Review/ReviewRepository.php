@@ -5,6 +5,7 @@ namespace App\Repository\Review;
 use App\Entity\Review\Review;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -33,37 +34,33 @@ class ReviewRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
-    public function findUserReviews(User $user): array
+    public function findUserReviews(User $user): ?QueryBuilder
     {
-        if (in_array('ROLE_CLIENT', $user->getRoles())){
+        if (in_array('ROLE_CLIENT', $user->getRoles())) {
             return $this
                 ->createQueryBuilder('r')
                 ->innerJoin('r.client', 'rev')
                 ->where('r.client = :client')
                 ->andWhere("r.type = :type")
-//                ->andWhere("rev.roles LIKE :role")
                 ->andWhere("CAST(rev.roles AS text) LIKE :role")
                 ->setParameter('client', $user)
                 ->setParameter('type', "master")
-                ->setParameter('role', '%ROLE_CLIENT%')
-                ->getQuery()
-                ->getResult();
-        } else if(in_array('ROLE_MASTER', $user->getRoles())){
+                ->setParameter('role', '%ROLE_CLIENT%');
+        }
+
+        if (in_array('ROLE_MASTER', $user->getRoles())) {
             return $this
                 ->createQueryBuilder('r')
                 ->innerJoin('r.master', 'master')
                 ->where('r.master = :master')
                 ->andWhere("r.type = :type")
-//                ->andWhere("master.roles LIKE :role")
                 ->andWhere("CAST(master.roles AS text) LIKE :role")
                 ->setParameter('master', $user)
                 ->setParameter('type', "client")
-                ->setParameter('role', '%ROLE_MASTER%')
-                ->getQuery()
-                ->getResult();
+                ->setParameter('role', '%ROLE_MASTER%');
         }
 
-        return [];
+        return null;
     }
 
     public function findReviewsByTypeAndRole(User $user, string $type, string $role): array

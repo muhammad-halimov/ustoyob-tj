@@ -2,7 +2,7 @@
 
 namespace App\Controller\Api\CRUD\Abstract;
 
-use App\ApiResource\AppError;
+use App\ApiResource\AppMessages;
 use App\Entity\Geography\Abstract\Address;
 use App\Entity\Geography\City\City;
 use App\Entity\Geography\City\Suburb;
@@ -19,7 +19,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 /**
  * Валидация и построение адресной иерархии для тикетов.
  *
- * Используется в PostTicketController и PatchTicketController,
+ * Используется в ApiPostTicketController и ApiPatchTicketController,
  * где логика идентична: нормализация входного массива address,
  * проверка дубликатов, валидация принадлежности каждого уровня
  * (province → city → suburb, province → district → community/settlement → village).
@@ -42,7 +42,7 @@ trait AddressValidationTrait
     private function normalizeAddressParam(mixed $addressParam): array|JsonResponse
     {
         if (!is_array($addressParam) || empty($addressParam)) {
-            return $this->errorJson(AppError::ADDRESS_NOT_FOUND);
+            return $this->errorJson(AppMessages::ADDRESS_NOT_FOUND);
         }
 
         // Если передан один объект вместо массива — оборачиваем
@@ -68,7 +68,7 @@ trait AddressValidationTrait
 
         foreach ($addressList as $item) {
             if (empty($item['province'])) {
-                return $this->errorJson(AppError::PROVINCE_REQUIRED);
+                return $this->errorJson(AppMessages::PROVINCE_REQUIRED);
             }
 
             // Ключ дедупликации
@@ -83,7 +83,7 @@ trait AddressValidationTrait
             ]);
 
             if (in_array($key, $seen, true)) {
-                return $this->errorJson(AppError::DUPLICATE_ADDRESS);
+                return $this->errorJson(AppMessages::DUPLICATE_ADDRESS);
             }
             $seen[] = $key;
 
@@ -99,7 +99,7 @@ trait AddressValidationTrait
                 $city = $iri->extract($item['city'], City::class, 'cities');
 
                 if ($city->getProvince()?->getId() !== $province->getId()) {
-                    return $this->errorJson(AppError::CITY_NOT_IN_PROVINCE);
+                    return $this->errorJson(AppMessages::CITY_NOT_IN_PROVINCE);
                 }
 
                 $suburb = null;
@@ -107,7 +107,7 @@ trait AddressValidationTrait
                     /** @var Suburb $suburb */
                     $suburb = $iri->extract($item['suburb'], Suburb::class, 'suburbs');
                     if ($suburb->getCities()?->getId() !== $city->getId()) {
-                        return $this->errorJson(AppError::SUBURB_NOT_IN_CITY);
+                        return $this->errorJson(AppMessages::SUBURB_NOT_IN_CITY);
                     }
                 }
 
@@ -120,7 +120,7 @@ trait AddressValidationTrait
                 $district = $iri->extract($item['district'], District::class, 'districts');
 
                 if ($district->getProvince()?->getId() !== $province->getId()) {
-                    return $this->errorJson(AppError::DISTRICT_NOT_IN_PROVINCE);
+                    return $this->errorJson(AppMessages::DISTRICT_NOT_IN_PROVINCE);
                 }
 
                 $community  = null;
@@ -131,7 +131,7 @@ trait AddressValidationTrait
                     /** @var Community $community */
                     $community = $iri->extract($item['community'], Community::class, 'communities');
                     if ($community->getDistrict()?->getId() !== $district->getId()) {
-                        return $this->errorJson(AppError::COMMUNITY_NOT_IN_DISTRICT);
+                        return $this->errorJson(AppMessages::COMMUNITY_NOT_IN_DISTRICT);
                     }
                 }
 
@@ -139,18 +139,18 @@ trait AddressValidationTrait
                     /** @var Settlement $settlement */
                     $settlement = $iri->extract($item['settlement'], Settlement::class, 'settlements');
                     if ($settlement->getDistrict()?->getId() !== $district->getId()) {
-                        return $this->errorJson(AppError::SETTLEMENT_NOT_IN_DISTRICT);
+                        return $this->errorJson(AppMessages::SETTLEMENT_NOT_IN_DISTRICT);
                     }
                 }
 
                 if (!empty($item['village'])) {
                     if (!$settlement) {
-                        return $this->errorJson(AppError::SETTLEMENT_REQUIRED_FOR_VILLAGE);
+                        return $this->errorJson(AppMessages::SETTLEMENT_REQUIRED_FOR_VILLAGE);
                     }
                     /** @var Village $village */
                     $village = $iri->extract($item['village'], Village::class, 'villages');
                     if ($village->getSettlement()?->getId() !== $settlement->getId()) {
-                        return $this->errorJson(AppError::VILLAGE_NOT_IN_SETTLEMENT);
+                        return $this->errorJson(AppMessages::VILLAGE_NOT_IN_SETTLEMENT);
                     }
                 }
 

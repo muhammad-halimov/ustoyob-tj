@@ -7,13 +7,15 @@ use App\Entity\Ticket\Unit;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
+use App\Controller\Admin\Traits\TimestampFieldsTrait;
 
 class UnitCrudController extends AbstractCrudController
 {
+    use TimestampFieldsTrait;
+
     public static function getEntityFqcn(): string
     {
         return Unit::class;
@@ -48,10 +50,6 @@ class UnitCrudController extends AbstractCrudController
         yield TextEditorField::new('description', 'Описание')
             ->setColumns(4);
 
-        yield DateTimeField::new('updatedAt', 'Обновлено')
-            ->hideOnForm();
-
-        yield DateTimeField::new('createdAt', 'Создано')
-            ->hideOnForm();
+        yield from $this->timestampFields();
     }
 }

@@ -2,77 +2,77 @@
 
 namespace App\Controller\Api\CRUD\POST\User\CollectionEntry;
 
-use App\ApiResource\AppError;
-use App\Controller\Api\CRUD\Abstract\AbstractApiController;
+use App\ApiResource\AppMessages;
+use App\Controller\Api\CRUD\Abstract\AbstractApiPostController;
+use App\Dto\User\CollectionEntryInput;
 use App\Entity\Extra\AbstractCollectionEntry;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
-use App\Service\Extra\ExtractIriService;
-use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\Request;
+use App\Service\Extra\LocalizationService;
+use Symfony\Contracts\Service\Attribute\Required;
 
-abstract class AbstractPostCollectionEntryController extends AbstractApiController
+abstract class AbstractPostCollectionEntryController extends AbstractApiPostController
 {
-    public function __construct(
-        protected readonly ExtractIriService $extractIriService,
-    ) {}
+    protected LocalizationService $localizationService;
+
+    #[Required]
+    public function setLocalizationService(LocalizationService $localizationService): void
+    {
+        $this->localizationService = $localizationService;
+    }
+
+    protected function afterFetch(object|array $entity, User $user): void
+    {
+        /** @var AbstractCollectionEntry $entity */
+        if ($entity->getOwner()) $this->localizationService->localizeUser($entity->getOwner(), $this->getLocale());
+        if ($entity->getUser()) $this->localizationService->localizeUser($entity->getUser(), $this->getLocale());
+        if ($entity->getTicket()) $this->localizationService->localizeTicket($entity->getTicket(), $this->getLocale());
+    }
 
     abstract protected function newEntry(): AbstractCollectionEntry;
 
     abstract protected function findDuplicate(User $owner, ?User $user = null, ?Ticket $ticket = null): mixed;
 
-    abstract protected function getSerializationGroup(): string;
-
     /** Override to add extra validation. Return error string to block, null to allow. */
-    protected function validateUser(User $bearer, User $target): ?string  { return null; }
+    protected function validateUser(User $bearer, User $target): ?string { return null; }
+
     protected function validateTicket(User $bearer, Ticket $target): ?string { return null; }
 
-    final public function __invoke(Request $request): JsonResponse
+    protected function getUserGrade(): string { return 'triple'; }
+
+    protected function getInputClass(): string { return CollectionEntryInput::class; }
+
+    final protected function handle(User $bearer, object $dto): object
     {
-        $bearer = $this->checkedUser();
+        /** @var CollectionEntryInput $dto */
+        if ($dto->user === null && $dto->ticket === null)
+            return $this->errorJson(AppMessages::PROVIDE_USER_OR_TICKET_IRI);
 
-        $data      = json_decode($request->getContent(), true) ?? [];
-        $userIri   = $data['user']   ?? null;
-        $ticketIri = $data['ticket'] ?? null;
+        if ($dto->user !== null && $dto->ticket !== null)
+            return $this->errorJson(AppMessages::PROVIDE_ONLY_ONE_IRI);
 
-        if ($userIri === null && $ticketIri === null) {
-            return $this->errorJson(AppError::PROVIDE_USER_OR_TICKET_IRI);
-        }
+        if ($dto->user !== null) {
+            $user = $dto->user;
 
-        if ($userIri !== null && $ticketIri !== null) {
-            return $this->errorJson(AppError::PROVIDE_ONLY_ONE_IRI);
-        }
+            if (!$user) return $this->errorJson(AppMessages::USER_NOT_FOUND);
+            if ($bearer === $user) return $this->errorJson(AppMessages::CANNOT_ADD_YOURSELF);
+            if ($this->findDuplicate($bearer, $user)) return $this->errorJson(AppMessages::ALREADY_ADDED);
 
-        if ($userIri !== null) {
-            /** @var User|null $user */
-            $user = $this->extractIriService->extract($userIri, User::class, 'users');
-
-            if (!$user) return $this->errorJson(AppError::USER_NOT_FOUND);
-            if ($bearer === $user) return $this->errorJson(AppError::CANNOT_ADD_YOURSELF);
-            if ($this->findDuplicate($bearer, $user)) return $this->errorJson(AppError::ALREADY_ADDED);
-
-            if ($error = $this->validateUser($bearer, $user)) {
+            if ($error = $this->validateUser($bearer, $user))
                 return $this->json(['message' => $error], 422);
-            }
 
-            $entry = $this->newEntry()->setOwner($bearer)->setUser($user)->setType('user');
-        } else {
-            /** @var Ticket|null $ticket */
-            $ticket = $this->extractIriService->extract($ticketIri, Ticket::class, 'tickets');
-
-            if (!$ticket) return $this->errorJson(AppError::TICKET_NOT_FOUND);
-            if ($this->findDuplicate($bearer, null, $ticket)) return $this->errorJson(AppError::ALREADY_ADDED);
-
-            if ($error = $this->validateTicket($bearer, $ticket)) {
-                return $this->json(['message' => $error], 422);
-            }
-
-            $entry = $this->newEntry()->setOwner($bearer)->setTicket($ticket)->setType('ticket');
+            return $this->newEntry()->setOwner($bearer)->setUser($user)->setType('user');
         }
 
-        $this->persist($entry);
+        $ticket = $dto->ticket;
 
-        return $this->json($entry, 201, context: ['groups' => [$this->getSerializationGroup()], 'skip_null_values' => true]);
+        if (!$ticket) return $this->errorJson(AppMessages::TICKET_NOT_FOUND);
+        if ($this->findDuplicate($bearer, null, $ticket)) return $this->errorJson(AppMessages::ALREADY_ADDED);
+
+        if ($error = $this->validateTicket($bearer, $ticket))
+            return $this->json(['message' => $error], 422);
+
+        return $this->newEntry()->setOwner($bearer)->setTicket($ticket)->setType('ticket');
     }
 }
 

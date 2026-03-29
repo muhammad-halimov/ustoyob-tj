@@ -6,12 +6,9 @@ use App\Dto\Image\ImageObjectInput;
 
 class ReviewPatchInput
 {
-    public float $rating;
+    public float   $rating      = 0;
+    public ?string $description = null;
 
-    public string $description;
-
-    /**
-     * @var ImageObjectInput[]
-     */
-    public array $images;
+    /** @var ImageObjectInput[] */
+    public array   $images = [];
 }

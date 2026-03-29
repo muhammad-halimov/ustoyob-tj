@@ -2,46 +2,20 @@
 
 namespace App\Dto\Ticket;
 
-use App\Entity\Geography\Abstract\Address;
 use App\Entity\Ticket\Category;
 use App\Entity\Ticket\Unit;
-use Symfony\Component\Validator\Constraints as Assert;
+use App\Entity\User\Occupation;
 
 class TicketInput
 {
-    #[Assert\NotBlank(message: 'Title is required')]
-    #[Assert\Length(min: 3, max: 255)]
-    public string $title;
-
-    #[Assert\NotBlank(message: 'Description is required')]
-    #[Assert\Length(min: 3, max: 255)]
-    public string $description;
-
-    #[Assert\Length(min: 3, max: 255)]
-    public string $notice;
-
-    #[Assert\NotBlank(message: 'Status is required')]
-    public bool $active;
-
-    #[Assert\NotBlank(message: 'Ticket type is required')]
-    public bool $service;
-
-    #[Assert\NotBlank(message: 'Price/Budget is required')]
-    public int $budget;
-
-    public ?bool $negotiableBudget = null;
-
-    #[Assert\NotBlank(message: 'Category is required')]
-    public Category $category; // IRI или ID
-
-    public ?Category $subcategory = null; // IRI или ID
-
-    #[Assert\NotBlank(message: 'Unit is required')]
-    public Unit $unit; // IRI или ID
-
-    /**
-     * @var Address[]
-     */
-    #[Assert\NotBlank(message: 'Abstract is required')]
-    public array $address; // IRI или ID
+    public ?string     $title            = null;
+    public ?string     $description      = null;
+    public ?string     $notice           = null;
+    public ?bool       $active           = null;
+    public ?float      $budget           = null;
+    public ?string     $negotiableBudget = null;
+    public ?Category   $category         = null;
+    public ?Occupation $subcategory      = null;
+    public ?Unit       $unit             = null;
+    public array       $address          = [];
 }

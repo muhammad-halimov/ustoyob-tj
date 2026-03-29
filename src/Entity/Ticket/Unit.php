@@ -6,11 +6,12 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use App\Entity\Extra\Translation;
-use App\Entity\Trait\CreatedAtTrait;
-use App\Entity\Trait\DescriptionTrait;
-use App\Entity\Trait\PriorityTrait;
-use App\Entity\Trait\TitleTrait;
-use App\Entity\Trait\UpdatedAtTrait;
+use App\Entity\Trait\NonReadable\CreatedAtTrait;
+use App\Entity\Trait\NonReadable\UpdatedAtTrait;
+use App\Entity\Trait\Readable\DescriptionTrait;
+use App\Entity\Trait\Readable\G;
+use App\Entity\Trait\Readable\PriorityTrait;
+use App\Entity\Trait\Readable\TitleTrait;
 use App\Repository\Ticket\UnitRepository;
 use App\State\Localization\Title\UnitTitleLocalizationProvider;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -33,10 +34,7 @@ use Symfony\Component\Serializer\Attribute\Ignore;
             provider: UnitTitleLocalizationProvider::class,
         ),
     ],
-    normalizationContext: [
-        'groups' => ['units:read'],
-        'skip_null_values' => false,
-    ],
+    normalizationContext: ['groups' => G::OPS_UNITS, 'skip_null_values' => false],
     paginationClientItemsPerPage: true,
     paginationEnabled: true,
     paginationItemsPerPage: 25,
@@ -71,10 +69,19 @@ class Unit
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
-        'units:read',
-        'masterTickets:read',
-        'clientTickets:read',
-        'favorites:read',
+        G::UNITS,
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::FAVORITES,
+        G::CHATS,
+        G::CHAT_MESSAGES,
+        G::APPEAL_TICKET,
+        G::APPEAL_CHAT,
+        G::BLACK_LISTS,
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private ?int $id = null;
 

@@ -9,19 +9,20 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\CRUD\DELETE\Chat\Chat\DeleteChatController;
-use App\Controller\Api\CRUD\GET\Chat\ChatFilterController;
-use App\Controller\Api\CRUD\GET\Chat\PersonalChatFilterController;
-use App\Controller\Api\CRUD\PATCH\Chat\Chat\PatchChatController;
-use App\Controller\Api\CRUD\POST\Chat\Chat\GetChatSubscribeTokenController;
-use App\Controller\Api\CRUD\POST\Chat\Chat\PostChatController;
+use App\Controller\Api\CRUD\DELETE\Chat\Chat\ApiDeleteChatController;
+use App\Controller\Api\CRUD\GET\Chat\Chat\ApiGetChatController;
+use App\Controller\Api\CRUD\GET\Chat\Chat\ApiGetChatSubscribeTokenController;
+use App\Controller\Api\CRUD\GET\Chat\Chat\ApiGetMyChatsController;
+use App\Controller\Api\CRUD\PATCH\Chat\Chat\ApiPatchChatController;
+use App\Controller\Api\CRUD\POST\Chat\Chat\ApiPostChatController;
 use App\Dto\Chat\ChatPatchInput;
 use App\Dto\Chat\ChatPostInput;
-use App\Entity\Appeal\AppealTypes\AppealChat;
+use App\Entity\Appeal\Types\AppealChat;
 use App\Entity\Extra\MultipleImage;
 use App\Entity\Ticket\Ticket;
-use App\Entity\Trait\CreatedAtTrait;
-use App\Entity\Trait\UpdatedAtTrait;
+use App\Entity\Trait\Readable\CreatedAtTrait;
+use App\Entity\Trait\Readable\G;
+use App\Entity\Trait\Readable\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\Chat\ChatRepository;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -38,54 +39,39 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
         new Get(
             uriTemplate: '/chats/{id}',
             requirements: ['id' => '\d+'],
-            controller: ChatFilterController::class,
-            normalizationContext: [
-                'groups' => ['chats:read'],
-                'skip_null_values' => false,
-            ],
+            controller: ApiGetChatController::class,
+            normalizationContext: ['groups' => G::OPS_CHATS],
         ),
         // [MERCURE] Эндпоинт для получения подписного JWT-токена.
         // Фронтенд вызывает его перед открытием SSE-соединения.
         new Get(
             uriTemplate: '/chats/{id}/subscribe',
             requirements: ['id' => '\d+'],
-            controller: GetChatSubscribeTokenController::class,
-            normalizationContext: [
-                'groups' => ['chats:read'],
-                'skip_null_values' => false,
-            ],
+            controller: ApiGetChatSubscribeTokenController::class,
+            normalizationContext: ['groups' => G::OPS_CHATS],
         ),
         new GetCollection(
             uriTemplate: '/chats/me',
-            controller: PersonalChatFilterController::class,
-            normalizationContext: [
-                'groups' => ['chats:read'],
-                'skip_null_values' => false,
-            ],
+            controller: ApiGetMyChatsController::class,
+            normalizationContext: ['groups' => G::OPS_CHATS],
         ),
         new Post(
             uriTemplate: '/chats',
-            controller: PostChatController::class,
-            normalizationContext: [
-                'groups' => ['chats:read'],
-                'skip_null_values' => false,
-            ],
+            controller: ApiPostChatController::class,
+            normalizationContext: ['groups' => G::OPS_CHATS],
             input: ChatPostInput::class,
         ),
         new Patch(
             uriTemplate: '/chats/{id}',
             requirements: ['id' => '\d+'],
-            controller: PatchChatController::class,
-            normalizationContext: [
-                'groups' => ['chats:read'],
-                'skip_null_values' => false,
-            ],
+            controller: ApiPatchChatController::class,
+            normalizationContext: ['groups' => G::OPS_CHATS],
             input: ChatPatchInput::class,
         ),
         new Delete(
             uriTemplate: '/chats/{id}',
             requirements: ['id' => '\d+'],
-            controller: DeleteChatController::class,
+            controller: ApiDeleteChatController::class,
         )
     ],
     paginationClientItemsPerPage: true,
@@ -106,25 +92,25 @@ class Chat
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
-        'chats:read',
-        'chatMessages:read',
-        'appeal:chat:read',
+        G::CHATS,
+        G::CHAT_MESSAGES,
+        G::APPEAL_CHAT,
     ])]
     private ?int $id = null;
 
     #[ORM\Column(type: 'boolean', nullable: true)]
     #[Groups([
-        'chats:read',
-        'chatMessages:read',
-        'appeal:chat:read',
+        G::CHATS,
+        G::CHAT_MESSAGES,
+        G::APPEAL_CHAT,
     ])]
     private ?bool $active = null;
 
     #[ORM\ManyToOne(inversedBy: 'messageAuthor')]
     #[ORM\JoinColumn(name: 'author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
-        'chats:read',
-        'appeal:chat:read',
+        G::CHATS,
+        G::APPEAL_CHAT,
     ])]
     #[ApiProperty(writable: false)]
     private ?User $author = null;
@@ -132,16 +118,16 @@ class Chat
     #[ORM\ManyToOne(inversedBy: 'messageReplyAuthor')]
     #[ORM\JoinColumn(name: 'reply_author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
-        'chats:read',
-        'appeal:chat:read',
+        G::CHATS,
+        G::APPEAL_CHAT,
     ])]
     private ?User $replyAuthor = null;
 
     #[ORM\ManyToOne(inversedBy: 'chats')]
     #[ORM\JoinColumn(name: 'ticket_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
-        'chats:read',
-        'appeal:chat:read',
+        G::CHATS,
+        G::APPEAL_CHAT,
     ])]
     private ?Ticket $ticket = null;
 
@@ -150,7 +136,7 @@ class Chat
      */
     #[ORM\OneToMany(targetEntity: ChatMessage::class, mappedBy: 'chat', cascade: ['all'])]
     #[Groups([
-        'chats:read',
+        G::CHATS,
     ])]
     #[ApiProperty(writable: false)]
     private Collection $messages;
@@ -233,7 +219,7 @@ class Chat
      * @return MultipleImage[]
      */
     #[Groups([
-        'chats:read',
+        G::CHATS,
     ])]
     #[SerializedName('images')]
     #[ApiProperty(writable: false)]
@@ -313,7 +299,7 @@ class Chat
      * Фронтенд читает его из ответа GET /api/chats/{id} и сразу знает,
      * на какой топик подписываться — без хардкода на клиенте.
      */
-    #[Groups(['chats:read', 'chatMessages:read'])]
+    #[Groups([G::CHATS, G::CHAT_MESSAGES])]
     #[SerializedName('mercureTopic')]
     public function getMercureTopic(): string
     {

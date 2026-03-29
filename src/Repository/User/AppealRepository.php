@@ -2,11 +2,12 @@
 
 namespace App\Repository\User;
 
-use App\Entity\Appeal\Appeal;
-use App\Entity\Appeal\AppealTypes\AppealTicket;
+use App\Entity\Appeal\Appeal\Appeal;
+use App\Entity\Appeal\Types\AppealTicket;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -23,14 +24,12 @@ class AppealRepository extends ServiceEntityRepository
      * Возвращает избранное владельца с пагинацией.
      * $type опционально фильтрует по типу записи ('user' | 'ticket').
      */
-    public function findByAuthor(User $author): array
+    public function findByAuthor(User $author): QueryBuilder
     {
         return $this
             ->createQueryBuilder('appeal')
             ->where('appeal.author = :author')
-            ->setParameter('author', $author)
-            ->getQuery()
-            ->getResult();
+            ->setParameter('author', $author);
     }
 
     public function findTicketComplaints(Ticket $ticket): ?array

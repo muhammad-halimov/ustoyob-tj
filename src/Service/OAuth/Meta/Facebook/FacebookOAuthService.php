@@ -2,7 +2,7 @@
 
 namespace App\Service\OAuth\Meta\Facebook;
 
-use App\ApiResource\AppError;
+use App\ApiResource\AppMessages;
 use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
 use App\Service\OAuth\AbstractOAuthService;
@@ -64,7 +64,7 @@ class FacebookOAuthService extends AbstractOAuthService implements OAuthServiceI
             ])->toArray();
         } catch (ClientExceptionInterface) {
             throw new BadRequestHttpException(
-                AppError::get(AppError::OAUTH_CODE_EXCHANGE_FAILED)->message
+                AppMessages::get(AppMessages::OAUTH_CODE_EXCHANGE_FAILED)->message
             );
         }
     }
@@ -88,7 +88,7 @@ class FacebookOAuthService extends AbstractOAuthService implements OAuthServiceI
             ])->toArray();
         } catch (ClientExceptionInterface) {
             throw new BadRequestHttpException(
-                AppError::get(AppError::OAUTH_CODE_EXCHANGE_FAILED)->message
+                AppMessages::get(AppMessages::OAUTH_CODE_EXCHANGE_FAILED)->message
             );
         }
     }

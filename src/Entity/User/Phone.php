@@ -3,15 +3,16 @@
 namespace App\Entity\User;
 
 use ApiPlatform\Metadata\ApiProperty;
-use App\Entity\Trait\CreatedAtTrait;
-use App\Entity\Trait\UpdatedAtTrait;
+use App\Entity\Trait\Readable\CreatedAtTrait;
+use App\Entity\Trait\Readable\G;
+use App\Entity\Trait\Readable\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\User\PhoneRepository;
+use App\Validator\Constraints as AppAssert;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
-use App\Validator\Constraints as AppAssert;
 
 #[ORM\Entity(repositoryClass: PhoneRepository::class)]
 #[ORM\HasLifecycleCallbacks]
@@ -42,31 +43,70 @@ class Phone
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['masters:read', 'clients:read', 'users:me:read', 'users:phones:write'])]
+    #[Groups([
+        G::MASTERS,
+        G::CLIENTS,
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
+        G::USERS_ME,
+        G::PHONES_WRITE
+    ])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'phones')]
     #[ORM\JoinColumn(nullable: false)]
-    #[Groups(['phone:write'])]
+    #[Groups([
+        G::PHONE_WRITE
+    ])]
+    #[ApiProperty(writable: false)]
     private ?User $owner = null;
 
     #[ORM\Column(length: 20, unique: true)]
-    #[Groups(['masters:read', 'clients:read', 'users:me:read', 'phone:write', 'users:phones:write'])]
+    #[Groups([
+        G::MASTERS,
+        G::CLIENTS,
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
+        G::USERS_ME,
+        G::PHONES_WRITE,
+        G::PHONE_WRITE
+    ])]
     #[AppAssert\PhoneConstraint]
     #[Assert\NotBlank(message: 'Phone number is required')]
     #[Assert\Length(max: 20, maxMessage: 'Phone number cannot be longer than {{ limit }} characters')]
     private ?string $phone = null;
 
     #[ORM\Column(length: 5, nullable: true)]
-    #[Groups(['masters:read', 'clients:read', 'users:me:read', 'users:phones:write'])]
+    #[Groups([
+        G::MASTERS,
+        G::CLIENTS,
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
+        G::USERS_ME,
+        G::PHONES_WRITE
+    ])]
     private ?string $countryCode = '+992';
 
     #[ORM\Column]
-    #[Groups(['masters:read', 'clients:read', 'users:me:read', 'phone:write', 'users:phones:write'])]
+    #[Groups([
+        G::MASTERS,
+        G::CLIENTS,
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
+        G::USERS_ME,
+        G::PHONE_WRITE,
+        G::PHONES_WRITE
+    ])]
     private bool $main = false;
 
     #[ORM\Column]
-    #[Groups(['masters:read', 'clients:read', 'users:me:read'])]
+    #[Groups([
+        G::MASTERS,
+        G::CLIENTS,
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
+        G::USERS_ME
+    ])]
     #[ApiProperty(writable: false)]
     private bool $verified = false;
 

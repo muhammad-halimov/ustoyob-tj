@@ -2,9 +2,10 @@
 
 namespace App\Service\OAuth;
 
-use App\ApiResource\AppError;
+use App\ApiResource\AppMessages;
 use App\Entity\User;
 use App\Repository\User\UserRepository;
+use App\Service\Extra\StateStorageService;
 use App\Service\OAuth\Interface\OAuthServiceInterface;
 use App\Service\OAuth\Interface\TokenExchangeInterface;
 use App\Service\OAuth\Interface\UserDataFetcherInterface;
@@ -25,6 +26,8 @@ abstract class AbstractOAuthService implements
     UserDataFetcherInterface,
     UserManagementInterface
 {
+    private const string OAUTH_PREFIX = 'oauth_state_';
+
     public function __construct(
         protected readonly HttpClientInterface      $httpClient,
         protected readonly StateStorageService      $stateStorage,
@@ -40,7 +43,7 @@ abstract class AbstractOAuthService implements
     public function generateOAuthRedirectUri(): string
     {
         $randomState = bin2hex(random_bytes(16));
-        $this->stateStorage->add($randomState);
+        $this->stateStorage->save(self::OAUTH_PREFIX . $randomState, 'true');
 
         $queryParams = array_merge($this->getAuthParams(), ['state' => $randomState]);
 
@@ -56,11 +59,11 @@ abstract class AbstractOAuthService implements
      */
     public function handleCode(string $code, string $state, ?string $role): array
     {
-        if (!$this->stateStorage->has($state)) {
-            throw new BadRequestHttpException(AppError::get(AppError::OAUTH_INVALID_STATE)->message);
+        if ($this->stateStorage->get(self::OAUTH_PREFIX . $state) === null) {
+            throw new BadRequestHttpException(AppMessages::get(AppMessages::OAUTH_INVALID_STATE)->message);
         }
 
-        $this->stateStorage->remove($state);
+        $this->stateStorage->delete(self::OAUTH_PREFIX . $state);
 
         $tokens = $this->exchangeCodeForTokens($code);
         $userData = $this->fetchUserData($tokens);

@@ -8,16 +8,17 @@ use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\CRUD\DELETE\Chat\Message\DeleteChatMessageController;
-use App\Controller\Api\CRUD\GET\Chat\ChatMessageFilterController;
-use App\Controller\Api\CRUD\PATCH\Chat\Message\PatchChatMessageController;
-use App\Controller\Api\CRUD\POST\Chat\Message\PostChatMessageController;
-use App\Controller\Api\CRUD\POST\Image\UniversalImageUploadController;
+use App\Controller\Api\CRUD\DELETE\Chat\Message\ApiDeleteChatMessageController;
+use App\Controller\Api\CRUD\GET\Chat\Message\ApiGetChatMessageController;
+use App\Controller\Api\CRUD\PATCH\Chat\Message\ApiPatchChatMessageController;
+use App\Controller\Api\CRUD\POST\Chat\Message\ApiPostChatMessageController;
+use App\Controller\Api\CRUD\POST\Image\Image\ApiPostUniversalImageController;
 use App\Dto\Image\ImageInput;
 use App\Entity\Extra\MultipleImage;
-use App\Entity\Trait\CreatedAtTrait;
-use App\Entity\Trait\DescriptionTrait;
-use App\Entity\Trait\UpdatedAtTrait;
+use App\Entity\Trait\Readable\CreatedAtTrait;
+use App\Entity\Trait\Readable\DescriptionTrait;
+use App\Entity\Trait\Readable\G;
+use App\Entity\Trait\Readable\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\Chat\ChatMessageRepository;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -35,40 +36,31 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
         new Get(
             uriTemplate: '/chat-messages/{id}',
             requirements: ['id' => '\d+'],
-            controller: ChatMessageFilterController::class,
-            normalizationContext: [
-                'groups' => ['chatMessages:read'],
-                'skip_null_values' => false,
-            ],
+            controller: ApiGetChatMessageController::class,
+            normalizationContext: ['groups' => G::OPS_CHAT_MSGS],
         ),
         new Post(
             uriTemplate: '/chat-messages',
-            controller: PostChatMessageController::class,
-            normalizationContext: [
-                'groups' => ['chatMessages:read'],
-                'skip_null_values' => false,
-            ],
+            controller: ApiPostChatMessageController::class,
+            normalizationContext: ['groups' => G::OPS_CHAT_MSGS],
         ),
         new Post(
             uriTemplate: '/chat-messages/{id}/upload-images',
             inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
-            controller: UniversalImageUploadController::class,
+            controller: ApiPostUniversalImageController::class,
             input: ImageInput::class,
         ),
         new Patch(
             uriTemplate: '/chat-messages/{id}',
             requirements: ['id' => '\d+'],
-            controller: PatchChatMessageController::class,
-            normalizationContext: [
-                'groups' => ['chatMessages:read'],
-                'skip_null_values' => false,
-            ],
+            controller: ApiPatchChatMessageController::class,
+            normalizationContext: ['groups' => G::OPS_CHAT_MSGS],
         ),
         new Delete(
             uriTemplate: '/chat-messages/{id}',
             requirements: ['id' => '\d+'],
-            controller: DeleteChatMessageController::class,
+            controller: ApiDeleteChatMessageController::class,
         )
     ],
     paginationClientItemsPerPage: true,
@@ -95,22 +87,22 @@ class ChatMessage
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
-        'chats:read',
-        'chatMessages:read'
+        G::CHATS,
+        G::CHAT_MESSAGES
     ])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'messages')]
     #[Groups([
-        'chatMessages:read'
+        G::CHAT_MESSAGES
     ])]
     private ?Chat $chat = null;
 
     #[ORM\ManyToOne(inversedBy: 'chatMessages')]
     #[ORM\JoinColumn(name: 'author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
-        'chats:read',
-        'chatMessages:read'
+        G::CHATS,
+        G::CHAT_MESSAGES
     ])]
     #[ApiProperty(writable: false)]
     private ?User $author = null;
@@ -118,8 +110,8 @@ class ChatMessage
     #[ORM\ManyToOne(targetEntity: self::class, inversedBy: 'chatMessages')]
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     #[Groups([
-        'chats:read',
-        'chatMessages:read',
+        G::CHATS,
+        G::CHAT_MESSAGES,
     ])]
     private ?self $replyTo = null;
 
@@ -134,11 +126,12 @@ class ChatMessage
      * @var Collection<int, MultipleImage>
      */
     #[ORM\OneToMany(targetEntity: MultipleImage::class, mappedBy: 'chatMessage')]
-    #[ORM\OrderBy(['position' => 'ASC'])]
+    #[ORM\OrderBy(['priority' => 'ASC'])]
     #[Groups([
-        'chats:read',
-        'chatMessages:read'
+        G::CHATS,
+        G::CHAT_MESSAGES
     ])]
+    #[ApiProperty(writable: false)]
     private Collection $images;
 
     public function getId(): ?int

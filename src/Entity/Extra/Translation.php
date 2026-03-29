@@ -6,11 +6,12 @@ use App\Entity\Geography\Abstract\AddressComponent;
 use App\Entity\Legal\Legal;
 use App\Entity\Ticket\Category;
 use App\Entity\Ticket\Unit;
-use App\Entity\Trait\AppealReasonTrait;
-use App\Entity\Trait\CreatedAtTrait;
-use App\Entity\Trait\DescriptionTrait;
-use App\Entity\Trait\TitleTrait;
-use App\Entity\Trait\UpdatedAtTrait;
+use App\Entity\Trait\Readable\AppealReasonTrait;
+use App\Entity\Trait\Readable\CreatedAtTrait;
+use App\Entity\Trait\Readable\DescriptionTrait;
+use App\Entity\Trait\Readable\G;
+use App\Entity\Trait\Readable\TitleTrait;
+use App\Entity\Trait\Readable\UpdatedAtTrait;
 use App\Entity\User\Occupation;
 use App\Repository\Translation\TranslationRepository;
 use Doctrine\ORM\Mapping as ORM;
@@ -46,13 +47,13 @@ class Translation
 
     #[ORM\Column(length: 4, nullable: true)]
     #[Groups([
-        'districts:read',
-        'provinces:read',
-        'masterTickets:read',
-        'clientTickets:read',
-        'cities:read',
-        'masters:read',
-        'clients:read',
+        G::DISTRICTS,
+        G::PROVINCES,
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+        G::CITIES,
+        G::MASTERS,
+        G::CLIENTS,
     ])]
     private ?string $locale = 'tj';
 

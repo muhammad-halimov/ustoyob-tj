@@ -7,19 +7,20 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\CRUD\GET\TechSupport\AdminTechSupportFilterController;
-use App\Controller\Api\CRUD\GET\TechSupport\PersonalTechSupportFilterController;
-use App\Controller\Api\CRUD\GET\TechSupport\UserTechSupportFilterController;
-use App\Controller\Api\CRUD\PATCH\TechSupport\TechSupport\PatchTechSupportController;
-use App\Controller\Api\CRUD\POST\TechSupport\TechSupport\PostTechSupportController;
+use App\Controller\Api\CRUD\GET\TechSupport\TechSupport\ApiAdminApiTechSupportController;
+use App\Controller\Api\CRUD\GET\TechSupport\TechSupport\ApiGetMyTechSupportsController;
+use App\Controller\Api\CRUD\GET\TechSupport\TechSupport\ApiUserApiTechSupportController;
+use App\Controller\Api\CRUD\PATCH\TechSupport\TechSupport\ApiPatchTechSupportController;
+use App\Controller\Api\CRUD\POST\TechSupport\TechSupport\ApiPostTechSupportController;
 use App\Dto\TechSupport\TechSupportInput;
 use App\Entity\Extra\MultipleImage;
-use App\Entity\Trait\AppealReasonTrait;
-use App\Entity\Trait\CreatedAtTrait;
-use App\Entity\Trait\DescriptionTrait;
-use App\Entity\Trait\PriorityTrait;
-use App\Entity\Trait\TitleTrait;
-use App\Entity\Trait\UpdatedAtTrait;
+use App\Entity\Trait\Readable\AppealReasonTrait;
+use App\Entity\Trait\Readable\CreatedAtTrait;
+use App\Entity\Trait\Readable\DescriptionTrait;
+use App\Entity\Trait\Readable\G;
+use App\Entity\Trait\Readable\PriorityTrait;
+use App\Entity\Trait\Readable\TitleTrait;
+use App\Entity\Trait\Readable\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\TechSupport\TechSupportRepository;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -33,30 +34,30 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 #[ApiResource(
     operations: [
         new GetCollection(
-            uriTemplate: '/tech-support/me',
-            controller: PersonalTechSupportFilterController::class,
-            normalizationContext: ['groups' => ['techSupport:read']],
+            uriTemplate: '/tech-supports/me',
+            controller: ApiGetMyTechSupportsController::class,
+            normalizationContext: ['groups' => G::OPS_TECH_SUPPORT],
         ),
         new GetCollection(
-            uriTemplate: '/tech-support/user/{id}',
-            controller: UserTechSupportFilterController::class,
-            normalizationContext: ['groups' => ['techSupport:read']],
+            uriTemplate: '/tech-supports/user/{id}',
+            controller: ApiUserApiTechSupportController::class,
+            normalizationContext: ['groups' => G::OPS_TECH_SUPPORT],
         ),
         new GetCollection(
-            uriTemplate: '/tech-support/admin/{id}',
-            controller: AdminTechSupportFilterController::class,
-            normalizationContext: ['groups' => ['techSupport:read']],
+            uriTemplate: '/tech-supports/admin/{id}',
+            controller: ApiAdminApiTechSupportController::class,
+            normalizationContext: ['groups' => G::OPS_TECH_SUPPORT],
         ),
         new Post(
-            uriTemplate: '/tech-support',
-            controller: PostTechSupportController::class,
-            normalizationContext: ['groups' => ['techSupport:read']],
+            uriTemplate: '/tech-supports',
+            controller: ApiPostTechSupportController::class,
+            normalizationContext: ['groups' => G::OPS_TECH_SUPPORT],
         ),
         new Patch(
-            uriTemplate: '/tech-support/{id}',
+            uriTemplate: '/tech-supports/{id}',
             requirements: ['id' => '\d+'],
-            controller: PatchTechSupportController::class,
-            normalizationContext: ['groups' => ['techSupport:read']],
+            controller: ApiPatchTechSupportController::class,
+            normalizationContext: ['groups' => G::OPS_TECH_SUPPORT],
             input: TechSupportInput::class,
         ),
     ],
@@ -93,13 +94,15 @@ class TechSupport
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
-        'techSupport:read',
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Groups([
-        'techSupport:read',
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     #[ApiProperty(writable: false)]
     private ?string $status = null;
@@ -109,7 +112,7 @@ class TechSupport
      */
     #[ORM\OneToMany(targetEntity: TechSupportMessage::class, mappedBy: 'techSupport', cascade: ['all'])]
     #[Groups([
-        'techSupport:read',
+        G::TECH_SUPPORT,
     ])]
     #[SerializedName('messages')]
     #[ApiProperty(writable: false)]
@@ -118,7 +121,8 @@ class TechSupport
     #[ORM\ManyToOne(inversedBy: 'techSupports')]
     #[ORM\JoinColumn(name: 'administrant_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
-        'techSupport:read',
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     #[ApiProperty(writable: false)]
     private ?User $administrant = null;
@@ -126,7 +130,8 @@ class TechSupport
     #[ORM\ManyToOne(inversedBy: 'techSupportsAsAuthor')]
     #[ORM\JoinColumn(name: 'author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
-        'techSupport:read',
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     #[ApiProperty(writable: false)]
     private ?User $author = null;
@@ -207,7 +212,7 @@ class TechSupport
      * @return MultipleImage[]
      */
     #[Groups([
-        'techSupport:read',
+        G::TECH_SUPPORT,
     ])]
     #[SerializedName('images')]
     #[ApiProperty(writable: false)]

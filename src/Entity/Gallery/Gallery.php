@@ -7,17 +7,19 @@ use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\CRUD\GET\Gallery\PersonalGalleryFilterController;
-use App\Controller\Api\CRUD\PATCH\Gallery\PatchGalleryController;
-use App\Controller\Api\CRUD\POST\Gallery\PostGalleryController;
-use App\Controller\Api\CRUD\POST\Image\UniversalImageUploadController;
+use App\Controller\Api\CRUD\GET\Gallery\Gallery\ApiGetMyGalleriesController;
+use App\Controller\Api\CRUD\PATCH\Gallery\Gallery\ApiPatchGalleryController;
+use App\Controller\Api\CRUD\POST\Gallery\Gallery\ApiPostGalleryController;
+use App\Controller\Api\CRUD\POST\Image\Image\ApiPostUniversalImageController;
 use App\Dto\Image\ImageInput;
 use App\Entity\Extra\MultipleImage;
-use App\Entity\Trait\CreatedAtTrait;
-use App\Entity\Trait\UpdatedAtTrait;
+use App\Entity\Trait\Readable\CreatedAtTrait;
+use App\Entity\Trait\Readable\G;
+use App\Entity\Trait\Readable\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\Gallery\GalleryRepository;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -29,39 +31,40 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
     operations: [
-        new GetCollection(
+        new Get(
             uriTemplate: '/galleries/me',
-            controller: PersonalGalleryFilterController::class,
-            normalizationContext: ['groups' => ['galleries:read'], 'skip_null_values' => false],
+            controller: ApiGetMyGalleriesController::class,
+            normalizationContext: ['groups' => G::OPS_GALLERIES, 'skip_null_values' => false],
+            read: false,
         ),
         new GetCollection(
             uriTemplate: '/galleries',
-            normalizationContext: ['groups' => ['galleries:read'], 'skip_null_values' => false],
+            normalizationContext: ['groups' => G::OPS_GALLERIES, 'skip_null_values' => false],
         ),
         new Post(
             uriTemplate: '/galleries',
-            controller: PostGalleryController::class,
-            normalizationContext: ['groups' => ['galleries:read'], 'skip_null_values' => false],
+            controller: ApiPostGalleryController::class,
+            normalizationContext: ['groups' => G::OPS_GALLERIES, 'skip_null_values' => false],
             input: false,
         ),
         new Post(
             uriTemplate: '/galleries/{id}/upload-images',
             inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
-            controller: UniversalImageUploadController::class,
-            normalizationContext: ['groups' => ['galleries:read'], 'skip_null_values' => false],
+            controller: ApiPostUniversalImageController::class,
+            normalizationContext: ['groups' => G::OPS_GALLERIES, 'skip_null_values' => false],
             input: ImageInput::class,
         ),
         new Patch(
             uriTemplate: '/galleries/{id}',
             requirements: ['id' => '\d+'],
-            controller: PatchGalleryController::class,
-            normalizationContext: ['groups' => ['galleries:read'], 'skip_null_values' => false],
+            controller: ApiPatchGalleryController::class,
+            normalizationContext: ['groups' => G::OPS_GALLERIES, 'skip_null_values' => false],
         ),
         new Delete(
             uriTemplate: '/galleries/{id}',
             requirements: ['id' => '\d+'],
-            normalizationContext: ['groups' => ['galleries:read'], 'skip_null_values' => false],
+            normalizationContext: ['groups' => G::OPS_GALLERIES, 'skip_null_values' => false],
             security:
                 "is_granted('ROLE_ADMIN')
                             or
@@ -88,13 +91,13 @@ class Gallery
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
-        'galleries:read',
+        G::GALLERIES,
     ])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'galleries')]
     #[Groups([
-        'galleries:read',
+        G::GALLERIES,
     ])]
     #[ApiProperty(writable: false)]
     private ?User $user = null;
@@ -103,9 +106,9 @@ class Gallery
      * @var Collection<int, MultipleImage>
      */
     #[ORM\OneToMany(targetEntity: MultipleImage::class, mappedBy: 'gallery', cascade: ['all'])]
-    #[ORM\OrderBy(['position' => 'ASC'])]
+    #[ORM\OrderBy(['priority' => 'ASC'])]
     #[Groups([
-        'galleries:read',
+        G::GALLERIES,
     ])]
     private Collection $images;
 

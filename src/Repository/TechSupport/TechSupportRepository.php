@@ -5,6 +5,7 @@ namespace App\Repository\TechSupport;
 use App\Entity\TechSupport\TechSupport;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -18,23 +19,19 @@ class TechSupportRepository extends ServiceEntityRepository
     }
 
 
-    public function findTechSupportsByAdmin(User $user): ?array
+    public function findTechSupportsByAdmin(User $user): QueryBuilder
     {
         return $this
             ->createQueryBuilder('a')
             ->andWhere("a.administrant = :user")
-            ->setParameter('user', $user)
-            ->getQuery()
-            ->getResult();
+            ->setParameter('user', $user);
     }
 
-    public function findTechSupportsByUser(User $user): ?array
+    public function findTechSupportsByUser(User $user): QueryBuilder
     {
         return $this
             ->createQueryBuilder('a')
             ->andWhere("a.author = :user")
-            ->setParameter('user', $user)
-            ->getQuery()
-            ->getResult();
+            ->setParameter('user', $user);
     }
 }

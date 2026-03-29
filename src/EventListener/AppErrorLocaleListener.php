@@ -2,7 +2,7 @@
 
 namespace App\EventListener;
 
-use App\ApiResource\AppError;
+use App\ApiResource\AppMessages;
 use App\Entity\Extra\Translation;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
@@ -44,6 +44,6 @@ class AppErrorLocaleListener
 
         // Устанавливаем локаль глобально — все AppError::get() в этом запросе
         // будут возвращать сообщения на нужном языке
-        AppError::setLocale($locale);
+        AppMessages::setLocale($locale);
     }
 }

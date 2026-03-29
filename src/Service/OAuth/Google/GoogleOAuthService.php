@@ -2,7 +2,7 @@
 
 namespace App\Service\OAuth\Google;
 
-use App\ApiResource\AppError;
+use App\ApiResource\AppMessages;
 use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
 use App\Service\OAuth\AbstractOAuthService;
@@ -73,7 +73,7 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
             ])->toArray();
         } catch (ClientExceptionInterface $e) {
             throw new BadRequestHttpException(
-                AppError::get(AppError::OAUTH_CODE_EXCHANGE_FAILED)->message
+                AppMessages::get(AppMessages::OAUTH_CODE_EXCHANGE_FAILED)->message
             );
         }
     }
@@ -88,7 +88,7 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
     public function fetchUserData(array $tokens): array
     {
         if (!isset($tokens['id_token'])) {
-            throw new BadRequestHttpException(AppError::get(AppError::OAUTH_CODE_EXCHANGE_FAILED)->message);
+            throw new BadRequestHttpException(AppMessages::get(AppMessages::OAUTH_CODE_EXCHANGE_FAILED)->message);
         }
 
         $userData = $this->verifyIdToken($tokens['id_token']);
@@ -118,19 +118,19 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
         try {
             $decoded = JWT::decode($idToken, JWK::parseKeySet($this->googlePublicKeys));
         } catch (Exception) {
-            throw new BadRequestHttpException(AppError::get(AppError::TOKEN_INVALID_OR_EXPIRED)->message);
+            throw new BadRequestHttpException(AppMessages::get(AppMessages::TOKEN_INVALID_OR_EXPIRED)->message);
         }
 
         if ($decoded->aud !== $_ENV['OAUTH_GOOGLE_CLIENT_ID']) {
-            throw new BadRequestHttpException(AppError::get(AppError::TOKEN_INVALID_OR_EXPIRED)->message);
+            throw new BadRequestHttpException(AppMessages::get(AppMessages::TOKEN_INVALID_OR_EXPIRED)->message);
         }
 
         if (!in_array($decoded->iss, [$_ENV['GOOGLE_ACCOUNT_URI'], 'accounts.google.com'])) {
-            throw new BadRequestHttpException(AppError::get(AppError::TOKEN_INVALID_OR_EXPIRED)->message);
+            throw new BadRequestHttpException(AppMessages::get(AppMessages::TOKEN_INVALID_OR_EXPIRED)->message);
         }
 
         if ($decoded->exp < time()) {
-            throw new BadRequestHttpException(AppError::get(AppError::TOKEN_INVALID_OR_EXPIRED)->message);
+            throw new BadRequestHttpException(AppMessages::get(AppMessages::TOKEN_INVALID_OR_EXPIRED)->message);
         }
 
         return (array)$decoded;
@@ -173,7 +173,7 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
     public function findOrCreateUser(array $userData, ?string $role): User
     {
         if (!($userData['email_verified'] ?? false)) {
-            throw new BadRequestHttpException(AppError::get(AppError::OAUTH_UNVERIFIED_EMAIL)->message);
+            throw new BadRequestHttpException(AppMessages::get(AppMessages::OAUTH_UNVERIFIED_EMAIL)->message);
         }
 
         $googleId = $userData['sub'];

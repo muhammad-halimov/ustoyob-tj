@@ -2,7 +2,7 @@
 
 namespace App\Controller\Api\Auth;
 
-use App\ApiResource\AppError;
+use App\ApiResource\AppMessages;
 use App\Dto\ApiAuth\ApiLogin\LoginInput;
 use App\Repository\User\UserRepository;
 use App\Service\Auth\RefreshTokenService;
@@ -26,23 +26,23 @@ class ApiLoginController extends AbstractController
     {
         $user = $userRepository->findOneBy(['email' => $input->email]);
 
-        if (!$user) throw new UnauthorizedHttpException('', AppError::get(AppError::INVALID_CREDENTIALS)->message);
+        if (!$user) throw new UnauthorizedHttpException('', AppMessages::get(AppMessages::INVALID_CREDENTIALS)->message);
 
         $oauthType = $user->getOauthType();
 
         // Проверка пароля
         if ($oauthType !== null && $oauthType->hasAnyProvider()) {
             // Пользователь зарегистрирован через OAuth - запрещаем вход по паролю
-            throw new UnauthorizedHttpException('', AppError::get(AppError::OAUTH_ONLY_ACCOUNT)->message . '. Please login via: ' . implode(', ', $oauthType->getActiveProviders()));
+            throw new UnauthorizedHttpException('', AppMessages::get(AppMessages::OAUTH_ONLY_ACCOUNT)->message . '. Please login via: ' . implode(', ', $oauthType->getActiveProviders()));
         }
 
         // Обычная регистрация - пароль обязателен
         if (empty($input->password)) {
-            throw new UnauthorizedHttpException('', AppError::get(AppError::PASSWORD_REQUIRED)->message);
+            throw new UnauthorizedHttpException('', AppMessages::get(AppMessages::PASSWORD_REQUIRED)->message);
         }
 
         if (empty($user->getPassword()) || !$passwordHasher->isPasswordValid($user, $input->password)) {
-            throw new UnauthorizedHttpException('', AppError::get(AppError::INVALID_CREDENTIALS)->message);
+            throw new UnauthorizedHttpException('', AppMessages::get(AppMessages::INVALID_CREDENTIALS)->message);
         }
 
         // Создаем JWT

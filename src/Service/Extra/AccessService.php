@@ -2,7 +2,7 @@
 
 namespace App\Service\Extra;
 
-use App\ApiResource\AppError;
+use App\ApiResource\AppMessages;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
 use App\Repository\User\BlackListRepository;
@@ -46,42 +46,42 @@ readonly class AccessService
     public function check(User|null $user, string $grade = 'triple', bool $activeAndApproved = true) : bool
     {
         if (!$user)
-            throw new TokenNotFoundException(AppError::get(AppError::AUTHENTICATION_REQUIRED)->message);
+            throw new TokenNotFoundException(AppMessages::get(AppMessages::AUTHENTICATION_REQUIRED)->message);
         elseif (!$this->security->isGranted('IS_AUTHENTICATED_FULLY'))
-            throw new AccessDeniedHttpException(AppError::get(AppError::AUTHENTICATION_REQUIRED)->message);
+            throw new AccessDeniedHttpException(AppMessages::get(AppMessages::AUTHENTICATION_REQUIRED)->message);
         elseif (!$this->security->getUser())
-            throw new TokenNotFoundException(AppError::get(AppError::AUTHENTICATION_REQUIRED)->message);
+            throw new TokenNotFoundException(AppMessages::get(AppMessages::AUTHENTICATION_REQUIRED)->message);
 
         if ($activeAndApproved) {
             if (!$user->getActive())
-                throw new AccessDeniedHttpException(AppError::get(AppError::ACCESS_DENIED)->message);
+                throw new AccessDeniedHttpException(AppMessages::get(AppMessages::ACCESS_DENIED)->message);
             elseif (!$user->getApproved())
-                throw new AccessDeniedHttpException(AppError::get(AppError::ACCESS_DENIED)->message);
+                throw new AccessDeniedHttpException(AppMessages::get(AppMessages::ACCESS_DENIED)->message);
         }
 
         switch ($grade) {
             case 'triple':
                 if (!array_intersect(self::TRIPLE_ALLOWED_ROLES, $user->getRoles()))
-                    throw new AccessDeniedHttpException(AppError::get(AppError::EXTRA_DENIED)->message);
+                    throw new AccessDeniedHttpException(AppMessages::get(AppMessages::EXTRA_DENIED)->message);
                 break;
             case 'double':
                 if (!array_intersect(self::DOUBLE_ALLOWED_ROLES, $user->getRoles()))
-                    throw new AccessDeniedHttpException(AppError::get(AppError::EXTRA_DENIED)->message);
+                    throw new AccessDeniedHttpException(AppMessages::get(AppMessages::EXTRA_DENIED)->message);
                 break;
             case 'client':
                 if (!in_array("ROLE_CLIENT", $user->getRoles()))
-                    throw new AccessDeniedHttpException(AppError::get(AppError::EXTRA_DENIED)->message);
+                    throw new AccessDeniedHttpException(AppMessages::get(AppMessages::EXTRA_DENIED)->message);
                 break;
             case 'master':
                 if (!in_array("ROLE_MASTER", $user->getRoles()))
-                    throw new AccessDeniedHttpException(AppError::get(AppError::EXTRA_DENIED)->message);
+                    throw new AccessDeniedHttpException(AppMessages::get(AppMessages::EXTRA_DENIED)->message);
                 break;
             case 'admin':
                 if (!in_array("ROLE_ADMIN", $user->getRoles()))
-                    throw new AccessDeniedHttpException(AppError::get(AppError::EXTRA_DENIED)->message);
+                    throw new AccessDeniedHttpException(AppMessages::get(AppMessages::EXTRA_DENIED)->message);
                 break;
             default:
-                throw new AccessDeniedHttpException(AppError::get(AppError::EXTRA_DENIED)->message);
+                throw new AccessDeniedHttpException(AppMessages::get(AppMessages::EXTRA_DENIED)->message);
         }
 
         return true;
@@ -103,7 +103,7 @@ readonly class AccessService
             $this->check($author);
 
             if ($this->blackListRepository->findDuplicate($author, null, $ticket)) {
-                throw new AccessDeniedHttpException(AppError::get(AppError::ACCESS_DENIED)->message);
+                throw new AccessDeniedHttpException(AppMessages::get(AppMessages::ACCESS_DENIED)->message);
             }
         }
 
@@ -111,11 +111,11 @@ readonly class AccessService
             $this->check($assumedUser);
 
             if ($this->blackListRepository->findDuplicate($author, $assumedUser)) {
-                throw new AccessDeniedHttpException(AppError::get(AppError::ACCESS_DENIED)->message);
+                throw new AccessDeniedHttpException(AppMessages::get(AppMessages::ACCESS_DENIED)->message);
             }
 
             if ($this->blackListRepository->findDuplicate($assumedUser, $author)) {
-                throw new AccessDeniedHttpException(AppError::get(AppError::ACCESS_DENIED)->message);
+                throw new AccessDeniedHttpException(AppMessages::get(AppMessages::ACCESS_DENIED)->message);
             }
         }
 

@@ -5,13 +5,15 @@ namespace App\Controller\Admin\Extra;
 use App\Entity\Extra\Translation;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use App\Controller\Admin\Traits\TimestampFieldsTrait;
 
 class TranslationCrudController extends AbstractCrudController
 {
+    use TimestampFieldsTrait;
+
     public static function getEntityFqcn(): string
     {
         return Translation::class;
@@ -35,10 +37,6 @@ class TranslationCrudController extends AbstractCrudController
             ->setColumns(12)
             ->setRequired(false);
 
-        yield DateTimeField::new('updatedAt', 'Обновлено')
-            ->hideOnForm();
-
-        yield DateTimeField::new('createdAt', 'Создано')
-            ->hideOnForm();
+        yield from $this->timestampFields();
     }
 }

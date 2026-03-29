@@ -9,6 +9,7 @@ use App\Controller\Api\Filter\Translation\TranslationSearchFilter;
 use App\Entity\Geography\Abstract\AddressComponent;
 use App\Entity\Geography\City\City;
 use App\Entity\Geography\District\District;
+use App\Entity\Trait\Readable\G;
 use App\Repository\Geography\Province\ProvinceRepository;
 use App\State\Localization\Geography\ProvinceLocalizationProvider;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -30,10 +31,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
             provider: ProvinceLocalizationProvider::class
         ),
     ],
-    normalizationContext: [
-        'groups' => ['provinces:read'],
-        'skip_null_values' => false,
-    ],
+    normalizationContext: ['groups' => G::OPS_PROVINCES, 'skip_null_values' => false],
     paginationClientItemsPerPage: true,
     paginationEnabled: true,
     paginationItemsPerPage: 25,

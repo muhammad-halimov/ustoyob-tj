@@ -2,8 +2,9 @@
 
 namespace App\Entity\User;
 
-use App\Entity\Trait\CreatedAtTrait;
-use App\Entity\Trait\UpdatedAtTrait;
+use App\Entity\Trait\NonReadable\CreatedAtTrait;
+use App\Entity\Trait\NonReadable\UpdatedAtTrait;
+use App\Entity\Trait\Readable\G;
 use App\Entity\User;
 use App\Repository\User\SocialNetworkRepository;
 use Doctrine\ORM\Mapping as ORM;
@@ -41,11 +42,22 @@ class SocialNetwork
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
-        'social:read',
-        'masters:read',
-        'clients:read',
-
-        'user:public:read',
+        G::SOCIAL,
+        G::USER_PUBLIC,
+        G::MASTERS,
+        G::CLIENTS,
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::GALLERIES,
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+        G::CHATS,
+        G::CHAT_MESSAGES,
+        G::APPEAL_TICKET,
+        G::FAVORITES,
+        G::BLACK_LISTS,
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private ?int $id = null;
 
@@ -55,20 +67,42 @@ class SocialNetwork
 
     #[ORM\Column(length: 32, nullable: true)]
     #[Groups([
-        'social:read',
-        'masters:read',
-        'clients:read',
-
-        'user:public:read',
+        G::SOCIAL,
+        G::USER_PUBLIC,
+        G::MASTERS,
+        G::CLIENTS,
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::GALLERIES,
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+        G::CHATS,
+        G::CHAT_MESSAGES,
+        G::APPEAL_TICKET,
+        G::FAVORITES,
+        G::BLACK_LISTS,
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private ?string $network = null;
 
     #[ORM\Column(length: 64, nullable: true)]
     #[Groups([
-        'masters:read',
-        'clients:read',
-
-        'user:public:read',
+        G::USER_PUBLIC,
+        G::MASTERS,
+        G::CLIENTS,
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::GALLERIES,
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+        G::CHATS,
+        G::CHAT_MESSAGES,
+        G::APPEAL_TICKET,
+        G::FAVORITES,
+        G::BLACK_LISTS,
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private ?string $handle = null;
 

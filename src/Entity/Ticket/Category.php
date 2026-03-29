@@ -7,14 +7,14 @@ use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
-use ApiPlatform\Metadata\Post;
 use App\Entity\Extra\Translation;
-use App\Entity\Trait\CreatedAtTrait;
-use App\Entity\Trait\DescriptionTrait;
-use App\Entity\Trait\PriorityTrait;
-use App\Entity\Trait\SingleImageTrait;
-use App\Entity\Trait\TitleTrait;
-use App\Entity\Trait\UpdatedAtTrait;
+use App\Entity\Trait\NonReadable\CreatedAtTrait;
+use App\Entity\Trait\NonReadable\UpdatedAtTrait;
+use App\Entity\Trait\Readable\DescriptionTrait;
+use App\Entity\Trait\Readable\G;
+use App\Entity\Trait\Readable\PriorityTrait;
+use App\Entity\Trait\Readable\SingleImageTrait;
+use App\Entity\Trait\Readable\TitleTrait;
 use App\Entity\User\Occupation;
 use App\Repository\Ticket\CategoryRepository;
 use App\State\Localization\Title\CategoryTitleLocalizationProvider;
@@ -39,18 +39,8 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
             uriTemplate: '/categories',
             provider: CategoryTitleLocalizationProvider::class,
         ),
-        new Post(
-            uriTemplate: '/categories',
-            security:
-                "is_granted('ROLE_ADMIN') or
-                 is_granted('ROLE_MASTER')",
-            provider: CategoryTitleLocalizationProvider::class,
-        )
     ],
-    normalizationContext: [
-        'groups' => ['categories:read'],
-        'skip_null_values' => false,
-    ],
+    normalizationContext: ['groups' => G::OPS_CATEGORIES, 'skip_null_values' => false],
     paginationClientItemsPerPage: true,
     paginationEnabled: true,
     paginationItemsPerPage: 25,
@@ -86,11 +76,20 @@ class Category
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
-        'categories:read',
-        'masterTickets:read',
-        'clientTickets:read',
-        'favorites:read',
-        'occupations:read'
+        G::CATEGORIES,
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::CHATS,
+        G::CHAT_MESSAGES,
+        G::FAVORITES,
+        G::APPEAL_TICKET,
+        G::APPEAL_CHAT,
+        G::BLACK_LISTS,
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
+        G::OCCUPATIONS,
     ])]
     private ?int $id = null;
 
@@ -103,7 +102,7 @@ class Category
 
     #[ORM\ManyToOne(inversedBy: 'categories')]
     #[Groups([
-        'categories:read',
+        G::CATEGORIES,
     ])]
     private ?Occupation $occupation = null;
 

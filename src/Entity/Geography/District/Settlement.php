@@ -3,6 +3,7 @@ namespace App\Entity\Geography\District;
 
 use ApiPlatform\Metadata\ApiResource;
 use App\Entity\Geography\Abstract\AddressComponent;
+use App\Entity\Trait\Readable\G;
 use App\Repository\Geography\District\SettlementRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -22,10 +23,7 @@ class Settlement extends AddressComponent
      * @var Collection<int, Village>
      */
     #[ORM\OneToMany(targetEntity: Village::class, mappedBy: 'settlement', cascade: ['all'])]
-    #[Groups([
-        'districts:read',
-        'provinces:read',
-    ])]
+    #[Groups([G::DISTRICTS, G::PROVINCES])]
     private Collection $villages;
 
     public function __construct()

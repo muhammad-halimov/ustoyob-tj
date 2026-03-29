@@ -7,9 +7,10 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\CRUD\POST\User\CollectionEntry\PostBlackListController;
+use App\Controller\Api\CRUD\POST\User\CollectionEntry\ApiPostBlackListController;
 use App\Controller\Api\Filter\Extra\CollectionEntryTypeFilter;
 use App\Entity\Extra\AbstractCollectionEntry;
+use App\Entity\Trait\Readable\G;
 use App\Repository\User\BlackListRepository;
 use App\State\CollectionEntry\BlackListStateProvider;
 use Doctrine\ORM\Mapping as ORM;
@@ -20,18 +21,18 @@ use Doctrine\ORM\Mapping as ORM;
     operations: [
         new GetCollection(
             uriTemplate: '/black-lists/me',
-            normalizationContext: ['groups' => ['blackLists:read']],
+            normalizationContext: ['groups' => G::OPS_BLACK_LISTS],
             provider: BlackListStateProvider::class,
         ),
         new Post(
             uriTemplate: '/black-lists',
-            controller: PostBlackListController::class,
-            normalizationContext: ['groups' => ['blackLists:read']],
+            controller: ApiPostBlackListController::class,
+            normalizationContext: ['groups' => G::OPS_BLACK_LISTS],
         ),
         new Delete(
             uriTemplate: '/black-lists/{id}',
             requirements: ['id' => '\d+'],
-            normalizationContext: ['groups' => ['blackLists:read']],
+            normalizationContext: ['groups' => G::OPS_BLACK_LISTS],
             security:
                 "is_granted('ROLE_ADMIN')
                             or

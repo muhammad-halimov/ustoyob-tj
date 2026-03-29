@@ -5,17 +5,20 @@ namespace App\Entity\TechSupport;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\CRUD\DELETE\TechSupport\Message\DeleteTechSupportMessageController;
-use App\Controller\Api\CRUD\PATCH\TechSupport\Message\PatchTechSupportMessageController;
-use App\Controller\Api\CRUD\POST\Image\UniversalImageUploadController;
-use App\Controller\Api\CRUD\POST\TechSupport\Message\PostTechSupportMessageController;
+use App\Controller\Api\CRUD\DELETE\TechSupport\Message\ApiDeleteTechSupportMessageController;
+use App\Controller\Api\CRUD\GET\TechSupport\Message\ApiGetTechSupportMessageController;
+use App\Controller\Api\CRUD\PATCH\TechSupport\Message\ApiPatchTechSupportMessageController;
+use App\Controller\Api\CRUD\POST\Image\Image\ApiPostUniversalImageController;
+use App\Controller\Api\CRUD\POST\TechSupport\Message\ApiPostTechSupportMessageController;
 use App\Dto\Image\ImageInput;
 use App\Entity\Extra\MultipleImage;
-use App\Entity\Trait\CreatedAtTrait;
-use App\Entity\Trait\DescriptionTrait;
-use App\Entity\Trait\UpdatedAtTrait;
+use App\Entity\Trait\Readable\CreatedAtTrait;
+use App\Entity\Trait\Readable\DescriptionTrait;
+use App\Entity\Trait\Readable\G;
+use App\Entity\Trait\Readable\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\TechSupport\TechSupportMessageRepository;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -27,32 +30,34 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
     operations: [
-        new Post(
-            uriTemplate: '/tech-support-messages',
-            controller: PostTechSupportMessageController::class,
+        new Get(
+            uriTemplate: '/tech-support-messages/{id}',
+            requirements: ['id' => '\d+'],
+            controller: ApiGetTechSupportMessageController::class,
         ),
         new Patch(
             uriTemplate: '/tech-support-messages/{id}',
             requirements: ['id' => '\d+'],
-            controller: PatchTechSupportMessageController::class,
+            controller: ApiPatchTechSupportMessageController::class,
         ),
         new Delete(
             uriTemplate: '/tech-support-messages/{id}',
             requirements: ['id' => '\d+'],
-            controller: DeleteTechSupportMessageController::class,
+            controller: ApiDeleteTechSupportMessageController::class,
+        ),
+        new Post(
+            uriTemplate: '/tech-support-messages',
+            controller: ApiPostTechSupportMessageController::class,
         ),
         new Post(
             uriTemplate: '/tech-support-messages/{id}/upload-images',
             inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
-            controller: UniversalImageUploadController::class,
+            controller: ApiPostUniversalImageController::class,
             input: ImageInput::class,
         ),
     ],
-    normalizationContext: [
-        'groups' => ['techSupportMessages:read'],
-        'skip_null_values' => false,
-    ],
+    normalizationContext: ['groups' => G::OPS_TECH_MSGS],
     paginationClientItemsPerPage: true,
     paginationEnabled: true,
     paginationItemsPerPage: 25,
@@ -71,16 +76,16 @@ class TechSupportMessage
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
-        'techSupportMessages:read',
-        'techSupport:read',
+        G::TECH_SUPPORT_MESSAGES,
+        G::TECH_SUPPORT,
     ])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'techSupportMessages')]
     #[ORM\JoinColumn(name: 'author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
-        'techSupportMessages:read',
-        'techSupport:read',
+        G::TECH_SUPPORT_MESSAGES,
+        G::TECH_SUPPORT,
     ])]
     #[ApiProperty(writable: false)]
     private ?User $author = null;
@@ -88,7 +93,7 @@ class TechSupportMessage
     #[ORM\ManyToOne(inversedBy: 'techSupportMessages')]
     #[ORM\JoinColumn(name: 'tech_support_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
-        'techSupportMessages:read',
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private ?TechSupport $techSupport = null;
 
@@ -96,10 +101,11 @@ class TechSupportMessage
      * @var Collection<int, MultipleImage>
      */
     #[ORM\OneToMany(targetEntity: MultipleImage::class, mappedBy: 'techSupportMessage')]
-    #[ORM\OrderBy(['position' => 'ASC'])]
+    #[ORM\OrderBy(['priority' => 'ASC'])]
+    #[ApiProperty(writable: false)]
     #[Groups([
-        'techSupportMessages:read',
-        'techSupport:read',
+        G::TECH_SUPPORT_MESSAGES,
+        G::TECH_SUPPORT,
     ])]
     private Collection $images;
 

@@ -12,23 +12,24 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\CRUD\GET\Ticket\PersonalTicketFilterController;
-use App\Controller\Api\CRUD\PATCH\Ticket\PatchTicketController;
-use App\Controller\Api\CRUD\POST\Image\UniversalImageUploadController;
-use App\Controller\Api\CRUD\POST\Ticket\PostTicketController;
+use App\Controller\Api\CRUD\GET\Ticket\Ticket\ApiGetMyTicketsController;
+use App\Controller\Api\CRUD\PATCH\Ticket\Ticket\ApiPatchTicketController;
+use App\Controller\Api\CRUD\POST\Image\Image\ApiPostUniversalImageController;
+use App\Controller\Api\CRUD\POST\Ticket\Ticket\ApiPostTicketController;
 use App\Controller\Api\Filter\Address\AddressFilter;
 use App\Dto\Image\ImageInput;
 use App\Dto\Ticket\TicketInput;
 use App\Dto\Ticket\TicketPatchInput;
-use App\Entity\Appeal\Appeal;
+use App\Entity\Appeal\Appeal\Appeal;
 use App\Entity\Chat\Chat;
 use App\Entity\Extra\MultipleImage;
 use App\Entity\Geography\Abstract\Address;
 use App\Entity\Review\Review;
-use App\Entity\Trait\CreatedAtTrait;
-use App\Entity\Trait\DescriptionTrait;
-use App\Entity\Trait\TitleTrait;
-use App\Entity\Trait\UpdatedAtTrait;
+use App\Entity\Trait\Readable\CreatedAtTrait;
+use App\Entity\Trait\Readable\DescriptionTrait;
+use App\Entity\Trait\Readable\G;
+use App\Entity\Trait\Readable\TitleTrait;
+use App\Entity\Trait\Readable\UpdatedAtTrait;
 use App\Entity\User;
 use App\Entity\User\Occupation;
 use App\Repository\Ticket\TicketRepository;
@@ -48,53 +49,38 @@ use Symfony\Component\Validator\Constraints as Assert;
     operations: [
         new GetCollection(
             uriTemplate: '/tickets/me',
-            controller: PersonalTicketFilterController::class,
-            normalizationContext: [
-                'groups' => ['masterTickets:read', 'clientTickets:read', 'ticketImages:read'],
-                'skip_null_values' => false,
-            ],
+            controller: ApiGetMyTicketsController::class,
+            normalizationContext: ['groups' => G::OPS_TICKETS_FULL],
         ),
         new Get(
             uriTemplate: '/tickets/{id}',
             requirements: ['id' => '\d+'],
-            normalizationContext: [
-                'groups' => ['masterTickets:read', 'clientTickets:read', 'ticketImages:read'],
-                'skip_null_values' => false,
-            ],
+            normalizationContext: ['groups' => G::OPS_TICKETS_FULL, 'skip_null_values' => false],
             provider: TicketGeographyLocalizationProvider::class,
         ),
         new GetCollection(
             uriTemplate: '/tickets',
-            normalizationContext: [
-                'groups' => ['masterTickets:read', 'clientTickets:read', 'ticketImages:read'],
-                'skip_null_values' => false,
-            ],
+            normalizationContext: ['groups' => G::OPS_TICKETS_FULL, 'skip_null_values' => false],
             provider: TicketGeographyLocalizationProvider::class,
         ),
         new Post(
             uriTemplate: '/tickets',
-            controller: PostTicketController::class,
-            normalizationContext: [
-                'groups' => ['masterTickets:read', 'clientTickets:read'],
-                'skip_null_values' => false,
-            ],
+            controller: ApiPostTicketController::class,
+            normalizationContext: ['groups' => G::OPS_TICKETS],
             input: TicketInput::class,
         ),
         new Post(
             uriTemplate: '/tickets/{id}/upload-images',
             inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
-            controller: UniversalImageUploadController::class,
+            controller: ApiPostUniversalImageController::class,
             input: ImageInput::class,
         ),
         new Patch(
             uriTemplate: '/tickets/{id}',
             requirements: ['id' => '\d+'],
-            controller: PatchTicketController::class,
-            normalizationContext: [
-                'groups' => ['masterTickets:read', 'clientTickets:read', 'ticketImages:read'],
-                'skip_null_values' => false,
-            ],
+            controller: ApiPatchTicketController::class,
+            normalizationContext: ['groups' => G::OPS_TICKETS_FULL],
             input: TicketPatchInput::class,
         ),
     ],
@@ -133,134 +119,184 @@ class Ticket
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'reviews:read',
-        'favorites:read',
-        'appeal:ticket:read',
-        'appeal:chat:read',
-        'blackLists:read',
-        'chats:read',
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+        G::REVIEWS,
+        G::FAVORITES,
+        G::APPEAL_TICKET,
+        G::APPEAL_CHAT,
+        G::BLACK_LISTS,
+        G::CHATS,
     ])]
     private ?int $id = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'favorites:read',
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::FAVORITES,
+        G::APPEAL_TICKET,
+        G::APPEAL_CHAT,
+        G::BLACK_LISTS,
+        G::CHATS,
     ])]
     private ?string $notice = null;
 
     #[ORM\Column(nullable: true)]
     #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'favorites:read',
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::FAVORITES,
+        G::APPEAL_TICKET,
+        G::APPEAL_CHAT,
+        G::BLACK_LISTS,
+        G::CHATS,
     ])]
     #[Assert\PositiveOrZero(message: 'Field cannot be less than zero')]
     private ?float $budget = null;
 
     #[ORM\Column(type: 'boolean', nullable: true)]
     #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'favorites:read',
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::FAVORITES,
+        G::APPEAL_TICKET,
+        G::APPEAL_CHAT,
+        G::BLACK_LISTS,
+        G::CHATS,
     ])]
-    private ?bool $negotiableBudget = null;
+    private ?bool $negotiableBudget = false;
 
     #[ORM\Column(type: 'boolean', nullable: true)]
     #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'reviews:read',
-        'favorites:read',
-        'appeal:ticket:read',
-        'appeal:chat:read',
-        'blackLists:read',
-        'chats:read',
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+        G::REVIEWS,
+        G::FAVORITES,
+        G::APPEAL_TICKET,
+        G::APPEAL_CHAT,
+        G::BLACK_LISTS,
+        G::CHATS,
     ])]
     private ?bool $service = null;
 
     #[ORM\Column(type: 'boolean', nullable: true)]
     #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'reviews:read',
-        'favorites:read',
-        'appeal:ticket:read',
-        'appeal:chat:read',
-        'blackLists:read',
-        'chats:read',
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+        G::REVIEWS,
+        G::FAVORITES,
+        G::APPEAL_TICKET,
+        G::APPEAL_CHAT,
+        G::BLACK_LISTS,
+        G::CHATS,
     ])]
     private ?bool $active = null;
 
     #[ORM\Column(options: ['default' => 0])]
     #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'favorites:read',
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::FAVORITES,
+        G::APPEAL_TICKET,
+        G::APPEAL_CHAT,
+        G::BLACK_LISTS,
+        G::CHATS,
     ])]
     private int $viewsCount = 0;
 
     #[ORM\Column(options: ['default' => 0])]
     #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'favorites:read',
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::FAVORITES,
+        G::APPEAL_TICKET,
+        G::APPEAL_CHAT,
+        G::BLACK_LISTS,
+        G::CHATS,
     ])]
     private int $responsesCount = 0;
 
     #[ORM\ManyToOne(inversedBy: 'userTickets')]
     #[ORM\JoinColumn(name: 'category_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'favorites:read',
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::FAVORITES,
+        G::APPEAL_TICKET,
+        G::APPEAL_CHAT,
+        G::BLACK_LISTS,
+        G::CHATS,
     ])]
     private ?Category $category = null;
 
     #[ORM\ManyToOne(inversedBy: 'tickets')]
     #[ORM\JoinColumn(name: 'subcategory_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'favorites:read',
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::FAVORITES,
+        G::APPEAL_TICKET,
+        G::APPEAL_CHAT,
+        G::BLACK_LISTS,
+        G::CHATS,
     ])]
     private ?Occupation $subcategory = null;
 
     #[ORM\ManyToOne(inversedBy: 'userTickets')]
     #[ORM\JoinColumn(name: 'author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'reviews:read',
-        'favorites:read',
-        'appeal:ticket:read',
-        'appeal:chat:read',
-        'blackLists:read'
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+        G::REVIEWS,
+        G::FAVORITES,
+        G::APPEAL_TICKET,
+        G::APPEAL_CHAT,
+        G::BLACK_LISTS,
+        G::CHATS,
     ])]
     private ?User $author = null;
 
     #[ORM\ManyToOne(inversedBy: 'tickets')]
     #[ORM\JoinColumn(name: 'master_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'reviews:read',
-        'favorites:read',
-        'appeal:ticket:read',
-        'appeal:chat:read',
-        'blackLists:read'
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+        G::REVIEWS,
+        G::FAVORITES,
+        G::APPEAL_TICKET,
+        G::APPEAL_CHAT,
+        G::BLACK_LISTS,
+        G::CHATS,
     ])]
     private ?User $master = null;
 
     #[ORM\ManyToOne(cascade: ['all'], inversedBy: 'userTickets')]
     #[ORM\JoinColumn(name: 'unit_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'favorites:read',
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::FAVORITES,
+        G::APPEAL_TICKET,
+        G::APPEAL_CHAT,
+        G::BLACK_LISTS,
+        G::CHATS,
     ])]
     private ?Unit $unit = null;
 
@@ -272,14 +308,14 @@ class Ticket
     private Collection $reviews;
 
     #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'reviews:read',
-        'favorites:read',
-        'appeal:ticket:read',
-        'appeal:chat:read',
-        'blackLists:read',
-        'chats:read',
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+        G::REVIEWS,
+        G::FAVORITES,
+        G::APPEAL_TICKET,
+        G::APPEAL_CHAT,
+        G::BLACK_LISTS,
+        G::CHATS,
     ])]
     #[SerializedName('reviewsCount')]
     public function getTicketReviewsCount(): ?int
@@ -306,9 +342,15 @@ class Ticket
      */
     #[ORM\ManyToMany(targetEntity: Address::class, inversedBy: 'tickets', cascade: ['all'])]
     #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'favorites:read',
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::FAVORITES,
+        G::APPEAL_TICKET,
+        G::APPEAL_CHAT,
+        G::BLACK_LISTS,
+        G::CHATS,
     ])]
     private Collection $addresses;
 
@@ -316,16 +358,16 @@ class Ticket
      * @var Collection<int, MultipleImage>
      */
     #[ORM\OneToMany(targetEntity: MultipleImage::class, mappedBy: 'ticket')]
-    #[ORM\OrderBy(['position' => 'ASC'])]
+    #[ORM\OrderBy(['priority' => 'ASC'])]
     #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'reviews:read',
-        'favorites:read',
-        'appeal:ticket:read',
-        'appeal:chat:read',
-        'blackLists:read',
-        'chats:read',
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+        G::REVIEWS,
+        G::FAVORITES,
+        G::APPEAL_TICKET,
+        G::APPEAL_CHAT,
+        G::BLACK_LISTS,
+        G::CHATS,
     ])]
     private Collection $images;
 

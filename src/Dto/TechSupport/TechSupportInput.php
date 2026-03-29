@@ -4,5 +4,5 @@ namespace App\Dto\TechSupport;
 
 class TechSupportInput
 {
-    public string $status;
+    public ?string $status = null;
 }

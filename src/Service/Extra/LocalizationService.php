@@ -2,6 +2,7 @@
 
 namespace App\Service\Extra;
 
+use App\Entity\Appeal\Appeal\Appeal;
 use Doctrine\Common\Collections\Collection;
 
 /**
@@ -179,6 +180,63 @@ readonly class LocalizationService
 
         if (method_exists($ticket, 'getSubcategory') && $ticket->getSubcategory()) {
             $this->localizeEntity($ticket->getSubcategory(), $locale);
+        }
+
+        if (method_exists($ticket, 'getAuthor') && $ticket->getAuthor()) {
+            $this->localizeUser($ticket->getAuthor(), $locale);
+        }
+
+        if (method_exists($ticket, 'getMaster') && $ticket->getMaster()) {
+            $this->localizeUser($ticket->getMaster(), $locale);
+        }
+    }
+
+    /**
+     * Локализация тикета целиком: адреса + категория + единица + подкатегория.
+     *
+     * Одним вызовом заменяет повторяющийся блок из 8 строк,
+     * который раньше дублировался в Post/Patch/Filter-контроллерах.
+     */
+    public function localizeUser(object $user, string $locale): void
+    {
+        $this->localizeGeography($user, $locale);
+
+        if (method_exists($user, 'getOccupation')) {
+            foreach ($user->getOccupation() as $occupation) {
+                $this->localizeEntity($occupation, $locale);
+            }
+        }
+
+        if (method_exists($user, 'getEducation')) {
+            foreach ($user->getEducation() as $education) {
+                $occupation = $education->getOccupation();
+                if ($occupation !== null) $this->localizeEntity($occupation, $locale);
+            }
+        }
+    }
+
+    public function localizeAppeal(Appeal $appeal, string $locale): void
+    {
+        if ($appeal->getAuthor())     $this->localizeUser($appeal->getAuthor(), $locale);
+        if ($appeal->getRespondent()) $this->localizeUser($appeal->getRespondent(), $locale);
+        if ($appeal->getReason())     $this->localizeEntity($appeal->getReason(), $locale);
+
+        if ($appeal->getTicket()) {
+            $this->localizeTicket($appeal->getTicket(), $locale);
+        }
+
+        $review = $appeal->getReviewAssoc();
+        if ($review !== null) {
+            if ($review->getMaster()) $this->localizeUser($review->getMaster(), $locale);
+            if ($review->getClient()) $this->localizeUser($review->getClient(), $locale);
+            if ($review->getTicket()) $this->localizeTicket($review->getTicket(), $locale);
+        }
+
+        $chat = $appeal->getChatAssoc();
+        if ($chat !== null) {
+            if ($chat->getAuthor())      $this->localizeUser($chat->getAuthor(), $locale);
+            if ($chat->getReplyAuthor()) $this->localizeUser($chat->getReplyAuthor(), $locale);
+            if ($chat->getTicket()) $this->localizeTicket($chat->getTicket(), $locale);
         }
     }
 

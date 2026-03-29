@@ -7,12 +7,17 @@ use App\Controller\Admin\Field\VichImageField;
 use App\Entity\Geography\District\Settlement;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
+use App\Controller\Admin\Traits\TimestampFieldsTrait;
+use App\Controller\Admin\Traits\VichImageHelpTrait;
 
 class SettlementCrudController extends AbstractCrudController
 {
+    use VichImageHelpTrait;
+
+    use TimestampFieldsTrait;
+
     public static function getEntityFqcn(): string
     {
         return Settlement::class;
@@ -39,22 +44,10 @@ class SettlementCrudController extends AbstractCrudController
             ->setRequired(false);
 
         yield VichImageField::new('imageFile', 'Фото')
-            ->setHelp('
-                <div class="mt-3">
-                    <span class="badge badge-info">*.jpg</span>
-                    <span class="badge badge-info">*.jpeg</span>
-                    <span class="badge badge-info">*.png</span>
-                    <span class="badge badge-info">*.jiff</span>
-                    <span class="badge badge-info">*.webp</span>
-                </div>
-            ')
+            ->setHelp($this->vichImageBadgeHelp())
             ->onlyOnForms()
             ->setColumns(12);
 
-        yield DateTimeField::new('updatedAt', 'Обновлено')
-            ->hideOnForm();
-
-        yield DateTimeField::new('createdAt', 'Создано')
-            ->hideOnForm();
+        yield from $this->timestampFields();
     }
 }

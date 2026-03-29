@@ -2,10 +2,11 @@
 
 namespace App\Entity\User;
 
-use App\Entity\Trait\CreatedAtTrait;
-use App\Entity\Trait\DescriptionTrait;
-use App\Entity\Trait\TitleTrait;
-use App\Entity\Trait\UpdatedAtTrait;
+use App\Entity\Trait\NonReadable\CreatedAtTrait;
+use App\Entity\Trait\NonReadable\UpdatedAtTrait;
+use App\Entity\Trait\Readable\DescriptionTrait;
+use App\Entity\Trait\Readable\G;
+use App\Entity\Trait\Readable\TitleTrait;
 use App\Entity\User;
 use App\Repository\User\EducationRepository;
 use Doctrine\ORM\Mapping as ORM;
@@ -31,39 +32,103 @@ class Education
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
-        'masters:read',
-        'masterTickets:read',
+        G::MASTERS,
+        G::CLIENTS,
+        G::USER_PUBLIC,
 
-        'user:public:read',
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::GALLERIES,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private ?int $id = null;
 
     #[ORM\Column(nullable: true)]
     #[Groups([
-        'masters:read',
-        'masterTickets:read',
+        G::MASTERS,
+        G::CLIENTS,
+        G::USER_PUBLIC,
 
-        'user:public:read',
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::GALLERIES,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     #[Assert\PositiveOrZero(message: 'Field cannot be less than zero')]
     private ?int $beginning = null;
 
     #[ORM\Column(nullable: true)]
     #[Groups([
-        'masters:read',
-        'masterTickets:read',
+        G::MASTERS,
+        G::CLIENTS,
+        G::USER_PUBLIC,
 
-        'user:public:read',
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::GALLERIES,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     #[Assert\PositiveOrZero(message: 'Field cannot be less than zero')]
     private ?int $ending = null;
 
     #[ORM\Column(type: 'boolean', nullable: true)]
     #[Groups([
-        'masters:read',
-        'masterTickets:read',
+        G::MASTERS,
+        G::CLIENTS,
+        G::USER_PUBLIC,
 
-        'user:public:read',
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::GALLERIES,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private ?bool $graduated = null;
 
@@ -73,10 +138,26 @@ class Education
 
     #[ORM\ManyToOne(inversedBy: 'education')]
     #[Groups([
-        'masters:read',
-        'masterTickets:read',
+        G::MASTERS,
+        G::CLIENTS,
+        G::USER_PUBLIC,
 
-        'user:public:read',
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::GALLERIES,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private ?Occupation $occupation = null;
 

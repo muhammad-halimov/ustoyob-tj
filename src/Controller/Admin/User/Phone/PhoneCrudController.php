@@ -6,12 +6,14 @@ use App\Entity\User\Phone;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use App\Controller\Admin\Traits\TimestampFieldsTrait;
 
 class PhoneCrudController extends AbstractCrudController
 {
+    use TimestampFieldsTrait;
+
     public static function getEntityFqcn(): string
     {
         return Phone::class;
@@ -36,10 +38,6 @@ class PhoneCrudController extends AbstractCrudController
             ->setColumns(12)
             ->setRequired(true);
 
-        yield DateTimeField::new('updatedAt', 'Обновлено')
-            ->hideOnForm();
-
-        yield DateTimeField::new('createdAt', 'Создано')
-            ->hideOnForm();
+        yield from $this->timestampFields();
     }
 }

@@ -104,6 +104,14 @@ services:
         tags:
             - { name: 'api_platform.state_provider' }
 
+    App\State\Localization\Appeal\AppealLocalizationProvider:
+        autoconfigure: false
+        arguments:
+            $itemProvider: '@api_platform.doctrine.orm.state.item_provider'
+            $collectionProvider: '@api_platform.doctrine.orm.state.collection_provider'
+        tags:
+            - { name: 'api_platform.state_provider' }
+
     App\State\Localization\Title\AppealReasonLocalizationProvider:
         autoconfigure: false
         arguments:

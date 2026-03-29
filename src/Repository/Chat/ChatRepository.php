@@ -5,6 +5,7 @@ namespace App\Repository\Chat;
 use App\Entity\Chat\Chat;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -20,14 +21,12 @@ class ChatRepository extends ServiceEntityRepository
     /**
      * Все чаты, где юзер является инициатором ИЛИ реципиентом.
      */
-    public function findUserChats(User $user): array
+    public function findUserChats(User $user): QueryBuilder
     {
         return $this
             ->createQueryBuilder('c')
             ->where('c.author = :user OR c.replyAuthor = :user')
-            ->setParameter('user', $user)
-            ->getQuery()
-            ->getResult();
+            ->setParameter('user', $user);
     }
 
     /**

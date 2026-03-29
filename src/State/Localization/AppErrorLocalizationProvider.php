@@ -4,7 +4,7 @@ namespace App\State\Localization;
 
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
-use App\ApiResource\AppError;
+use App\ApiResource\AppMessages;
 use App\State\Trait\LocaleResolveTrait;
 use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -22,13 +22,13 @@ class AppErrorLocalizationProvider implements ProviderInterface
 
         if (isset($uriVariables['code'])) {
             try {
-                return AppError::get($uriVariables['code'], $locale);
+                return AppMessages::get($uriVariables['code'], $locale);
             } catch (InvalidArgumentException) {
                 throw new NotFoundHttpException("Error code '{$uriVariables['code']}' not found");
             }
         }
 
-        return AppError::all($locale);
+        return AppMessages::all($locale);
     }
 }
 

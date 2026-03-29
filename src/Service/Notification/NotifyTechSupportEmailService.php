@@ -4,127 +4,42 @@ namespace App\Service\Notification;
 
 use App\Entity\TechSupport\TechSupport;
 use App\Entity\User;
+use App\Service\Extra\AbstractTechSupportNotificationService;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
-use Symfony\Component\Mailer\Mailer;
-use Symfony\Component\Mailer\Transport;
-use Symfony\Component\Mime\Email;
-use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 /**
- * Отправляет администратору email-уведомление при создании или изменении
- * тикета техподдержки.
- *
- * Почему Transport::fromDsn вместо MailerInterface — см. AccountConfirmationService.
- *
- * ENV-переменные:
- *   MAILER_DSN    — DSN почтового транспорта
- *   MAILER_SENDER — адрес отправителя
- *   FRONTEND_URL  — имя сайта в письме
+ * Email-канал уведомлений о тикетах ТП.
  */
-readonly class NotifyTechSupportEmailService
+class NotifyTechSupportEmailService extends AbstractTechSupportNotificationService
 {
-    public function __construct(private UrlGeneratorInterface $urlGenerator) {}
 
-    /**
-     * @throws TransportExceptionInterface
-     */
-    public function sendTechSupportEmail(User $user, TechSupport $techSupport): string
+    /** @throws TransportExceptionInterface */
+    public function sendTechSupportNotification(User $user, TechSupport $techSupport): string
     {
-        // Генерируем ссылку для подтверждения
-        $techSupportUrl = $this->urlGenerator->generate(
-            'admin_tech_support_edit',
-            ['entityId' => $techSupport->getId()],
-            UrlGeneratorInterface::ABSOLUTE_URL
+        $url      = $this->techSupportAdminUrl($techSupport);
+        $siteName = $this->siteName();
+        $title    = htmlspecialchars($techSupport->getTitle(), ENT_QUOTES, 'UTF-8');
+        $desc     = htmlspecialchars($techSupport->getDescription(), ENT_QUOTES, 'UTF-8');
+        $author   = htmlspecialchars($techSupport->getAuthor()->getEmail(), ENT_QUOTES, 'UTF-8');
+        $msgs     = $techSupport->getTechSupportMessages()->count();
+        $imgs     = $techSupport->getTechSupportMessages()->first()
+            ? $techSupport->getTechSupportMessages()->first()->getImages()->count()
+            : 0;
+
+        return $this->sendEmail(
+            to:      $user->getEmail(),
+            subject: "Новая заявка в ТП | {$siteName}",
+            text:    "Новая заявка в ТП\n\n{$techSupport->getTitle()}\n{$this->reason($techSupport)} | {$this->status($techSupport)} | {$this->priority($techSupport)}\n{$techSupport->getAuthor()->getEmail()} | {$msgs} сообщ. | {$imgs} фото\n\n{$techSupport->getDescription()}\n\n{$url}",
+            html:    $this->htmlEmail(
+                'Новая заявка в ТП',
+                "<p>Заголовок: <strong>{$title}</strong></p>"
+                . "<p>Категория: <strong>{$this->reason($techSupport)}</strong> | Статус: <strong>{$this->status($techSupport)}</strong> | Приоритет: <strong>{$this->priority($techSupport)}</strong></p>"
+                . "<p>Пользователь: <strong>{$author}</strong> | Сообщений: <strong>{$msgs}</strong> | Фото: <strong>{$imgs}</strong></p>"
+                . "<p style=\"color:#666;font-size:14px\">{$desc}</p>"
+                . $this->htmlButton($url, 'Перейти в ТП'),
+                "Если вы не админ на {$siteName} — проигнорируйте письмо.",
+            ),
+            refId:   (string) $techSupport->getId(),
         );
-
-        $reasonLabel = $techSupport->getReason()?->getTitle() ?? $techSupport->getReason()?->getCode() ?? 'Не указано';
-        $statusLabel = array_search($techSupport->getStatus(), TechSupport::STATUSES);
-        $priorityLabel = array_search($techSupport->getPriority(), TechSupport::PRIORITIES);
-
-        $siteName = $_ENV['FRONTEND_URL'];
-        $title = htmlspecialchars($techSupport->getTitle(), ENT_QUOTES, 'UTF-8');
-        $description = htmlspecialchars($techSupport->getDescription(), ENT_QUOTES, 'UTF-8');
-        $authorEmail = htmlspecialchars($techSupport->getAuthor()->getEmail(), ENT_QUOTES, 'UTF-8');
-        $messagesCount = $techSupport->getTechSupportMessages()->count();
-        $imagesCount = $techSupport->getTechSupportMessages()->first()->getImages()->count();
-
-        // Текстовая версия письма
-        $textContent = <<<TEXT
-            Новая заявка в ТП
-
-            Заголовок: {$techSupport->getTitle()}
-            Категория: {$reasonLabel}
-            Статус: {$statusLabel}
-            Приоритет: {$priorityLabel}
-            Пользователь: {$techSupport->getAuthor()->getEmail()}
-            Сообщений: {$messagesCount}
-            Фотографий: {$imagesCount}
-
-            Описание:
-            {$techSupport->getDescription()}
-
-            Ссылка на заявку:
-            {$techSupportUrl}
-
-            Если вы не админ на {$siteName}, просто проигнорируйте это письмо.
-        TEXT;
-
-        // HTML версия письма
-        $htmlContent = <<<HTML
-            <!DOCTYPE html>
-            <html lang="ru-RU">
-            <head>
-                <meta charset="UTF-8">
-            </head>
-            <body>
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-                    <h1 style="color: #667eea;">Новая заявка в ТП</h1>
-                    <p>Заголовок: <strong>{$title}</strong></p>
-                    <p>Категория: <strong>{$reasonLabel}</strong></p>
-                    <p>Статус: <strong>{$statusLabel}</strong></p>
-                    <p>Приоритет: <strong>{$priorityLabel}</strong></p>
-                    <p>Пользователь: <strong>{$authorEmail}</strong></p>
-                    <p>Сообщений: <strong>{$messagesCount}</strong></p>
-                    <p>Фотографий: <strong>{$imagesCount}</strong></p>
-                    <p>Описание:</p>
-                    <p style="color: #666; font-size: 14px;">{$description}</p>
-                    <p style="margin: 30px 0;">
-                        <a href="{$techSupportUrl}"
-                           style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                                  color: white;
-                                  padding: 15px 30px;
-                                  text-decoration: none;
-                                  border-radius: 50px;
-                                  display: inline-block;
-                                  font-weight: 600;">
-                            Перейти в ТП
-                        </a>
-                    </p>
-                    <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-                    <p style="color: #999; font-size: 12px;">
-                        Если вы не админ на {$siteName}, просто проигнорируйте это письмо.
-                    </p>
-                </div>
-            </body>
-            </html>
-        HTML;
-
-        // Создаем письмо
-        $email = (new Email())
-            ->from($_ENV['MAILER_SENDER'])
-            ->to($user->getEmail())
-            ->subject("Новая заявка в ТП | {$siteName}")
-            ->text($textContent)
-            ->html($htmlContent);
-
-        // Добавляем заголовки для улучшения доставляемости
-        $headers = $email->getHeaders();
-        $headers->addTextHeader('X-Entity-Ref-ID', (string)$techSupport->getId());
-        $headers->addTextHeader('X-Mailer', 'Symfony Mailer');
-
-        // Отправляем
-        new Mailer(Transport::fromDsn($_ENV['MAILER_DSN']))->send($email);
-
-        return "Письмо отправлено админу {$user->getEmail()}";
     }
 }

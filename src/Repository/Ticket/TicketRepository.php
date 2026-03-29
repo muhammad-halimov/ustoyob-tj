@@ -5,6 +5,7 @@ namespace App\Repository\Ticket;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -17,36 +18,32 @@ class TicketRepository extends ServiceEntityRepository
         parent::__construct($registry, Ticket::class);
     }
 
-    public function findTicketsByUserRole(User $user): array
+    public function findTicketsByUserRole(User $user): ?QueryBuilder
     {
-        if (in_array('ROLE_CLIENT', $user->getRoles())){
+        if (in_array('ROLE_CLIENT', $user->getRoles())) {
             return $this
                 ->createQueryBuilder('t')
                 ->innerJoin('t.author', 'author')
                 ->where('t.author = :authorId')
                 ->andWhere("t.service = :status")
-//                ->andWhere("author.roles LIKE :role")
                 ->andWhere("CAST(author.roles AS text) LIKE :role")
                 ->setParameter('authorId', $user->getId())
                 ->setParameter('status', false)
-                ->setParameter('role', '%ROLE_CLIENT%')
-                ->getQuery()
-                ->getResult();
-        } else if(in_array('ROLE_MASTER', $user->getRoles())){
+                ->setParameter('role', '%ROLE_CLIENT%');
+        }
+
+        if (in_array('ROLE_MASTER', $user->getRoles())) {
             return $this
                 ->createQueryBuilder('t')
                 ->innerJoin('t.master', 'master')
                 ->where('t.master = :masterId')
                 ->andWhere("t.service = :status")
-//                ->andWhere("master.roles LIKE :role")
                 ->andWhere("CAST(master.roles AS text) LIKE :role")
                 ->setParameter('masterId', $user->getId())
                 ->setParameter('status', true)
-                ->setParameter('role', '%ROLE_MASTER%')
-                ->getQuery()
-                ->getResult();
+                ->setParameter('role', '%ROLE_MASTER%');
         }
 
-        return [];
+        return null;
     }
 }

@@ -12,20 +12,21 @@ use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\CRUD\GET\Review\PersonalReviewFilterController;
-use App\Controller\Api\CRUD\PATCH\Review\PatchReviewController;
-use App\Controller\Api\CRUD\POST\Image\UniversalImageUploadController;
-use App\Controller\Api\CRUD\POST\Review\PostReviewController;
+use App\Controller\Api\CRUD\GET\Review\Review\ApiGetMyReviewsController;
+use App\Controller\Api\CRUD\PATCH\Review\Review\ApiPatchReviewController;
+use App\Controller\Api\CRUD\POST\Image\Image\ApiPostUniversalImageController;
+use App\Controller\Api\CRUD\POST\Review\Review\ApiPostReviewController;
 use App\Dto\Image\ImageInput;
 use App\Dto\Review\ReviewPatchInput;
-use App\Entity\Appeal\AppealTypes\AppealReview;
+use App\Entity\Appeal\Types\AppealReview;
 use App\Entity\Extra\MultipleImage;
 use App\Entity\Ticket\Ticket;
-use App\Entity\Trait\CreatedAtTrait;
-use App\Entity\Trait\DescriptionTrait;
-use App\Entity\Trait\TitleTrait;
-use App\Entity\Trait\TypeTrait;
-use App\Entity\Trait\UpdatedAtTrait;
+use App\Entity\Trait\Readable\CreatedAtTrait;
+use App\Entity\Trait\Readable\DescriptionTrait;
+use App\Entity\Trait\Readable\G;
+use App\Entity\Trait\Readable\TitleTrait;
+use App\Entity\Trait\Readable\TypeTrait;
+use App\Entity\Trait\Readable\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\Review\ReviewRepository;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -41,37 +42,37 @@ use Symfony\Component\Validator\Constraints as Assert;
     operations: [
         new GetCollection(
             uriTemplate: '/reviews/me',
-            controller: PersonalReviewFilterController::class,
-            normalizationContext: ['groups' => ['reviews:read', 'reviewsClient:read'], 'skip_null_values' => false],
+            controller: ApiGetMyReviewsController::class,
+            normalizationContext: ['groups' => G::OPS_REVIEWS],
         ),
         new GetCollection(
             uriTemplate: '/reviews',
-            normalizationContext: ['groups' => ['reviews:read', 'reviewsClient:read'], 'skip_null_values' => false],
+            normalizationContext: ['groups' => G::OPS_REVIEWS, 'skip_null_values' => false],
         ),
         new Post(
             uriTemplate: '/reviews/{id}/upload-images',
             inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
-            controller: UniversalImageUploadController::class,
-            normalizationContext: ['groups' => ['reviews:read', 'reviewsClient:read'], 'skip_null_values' => false],
+            controller: ApiPostUniversalImageController::class,
+            normalizationContext: ['groups' => G::OPS_REVIEWS],
             input: ImageInput::class,
         ),
         new Post(
             uriTemplate: '/reviews',
-            controller: PostReviewController::class,
-            normalizationContext: ['groups' => ['reviews:read', 'reviewsClient:read'], 'skip_null_values' => false],
+            controller: ApiPostReviewController::class,
+            normalizationContext: ['groups' => G::OPS_REVIEWS],
         ),
         new Patch(
             uriTemplate: '/reviews/{id}',
             requirements: ['id' => '\d+'],
-            controller: PatchReviewController::class,
-            normalizationContext: ['groups' => ['reviews:read', 'reviewsClient:read'], 'skip_null_values' => false],
+            controller: ApiPatchReviewController::class,
+            normalizationContext: ['groups' => G::OPS_REVIEWS],
             input: ReviewPatchInput::class,
         ),
         new Delete(
             uriTemplate: '/reviews/{id}',
             requirements: ['id' => '\d+'],
-            normalizationContext: ['groups' => ['reviews:read', 'reviewsClient:read'], 'skip_null_values' => false],
+            normalizationContext: ['groups' => G::OPS_REVIEWS],
             security:
                 "is_granted('ROLE_ADMIN')
                             or
@@ -125,15 +126,17 @@ class Review
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
-        'reviews:read',
-        'reviewsClient:read',
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::APPEAL_REVIEW,
     ])]
     private ?int $id = null;
 
     #[ORM\Column(nullable: true)]
     #[Groups([
-        'reviews:read',
-        'reviewsClient:read',
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::APPEAL_REVIEW,
     ])]
     #[Assert\PositiveOrZero(message: 'Field cannot be less than zero')]
     #[Assert\LessThanOrEqual(value: 5.0, message: 'Field cannot be greater than 5')]
@@ -142,7 +145,8 @@ class Review
     #[ORM\ManyToOne(inversedBy: 'reviews')]
     #[ORM\JoinColumn(name: 'ticket_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
-        'reviews:read',
+        G::REVIEWS,
+        G::APPEAL_REVIEW,
     ])]
     private ?Ticket $ticket = null;
 
@@ -156,16 +160,18 @@ class Review
     #[ORM\ManyToOne(inversedBy: 'masterReviews')]
     #[ORM\JoinColumn(name: 'master_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
-        'reviews:read',
-        'reviewsClient:read',
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::APPEAL_REVIEW,
     ])]
     private ?User $master = null;
 
     #[ORM\ManyToOne(inversedBy: 'clientReviews')]
     #[ORM\JoinColumn(name: 'client_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
-        'reviews:read',
-        'reviewsClient:read',
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::APPEAL_REVIEW,
     ])]
     private ?User $client = null;
 
@@ -173,10 +179,11 @@ class Review
      * @var Collection<int, MultipleImage>
      */
     #[ORM\OneToMany(targetEntity: MultipleImage::class, mappedBy: 'review')]
-    #[ORM\OrderBy(['position' => 'ASC'])]
+    #[ORM\OrderBy(['priority' => 'ASC'])]
     #[Groups([
-        'reviews:read',
-        'reviewsClient:read',
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::APPEAL_REVIEW,
     ])]
     private Collection $images;
 

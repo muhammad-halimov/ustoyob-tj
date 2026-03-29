@@ -11,13 +11,18 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use App\Controller\Admin\Traits\AdminActionsTrait;
+use App\Controller\Admin\Traits\TimestampFieldsTrait;
 
 class LegalCrudController extends AbstractCrudController
 {
+    use TimestampFieldsTrait;
+
+    use AdminActionsTrait;
+
     public function __construct(private readonly LegalRepository $legalRepository){}
 
 
@@ -37,27 +42,6 @@ class LegalCrudController extends AbstractCrudController
             ->setPageTitle(Crud::PAGE_DETAIL, "Информация о регуляции");
     }
 
-    public function configureActions(Actions $actions): Actions
-    {
-        $actions
-            ->add(Crud::PAGE_INDEX, Action::DETAIL);
-
-        $actions
-            ->reorder(Crud::PAGE_INDEX, [
-                Action::DETAIL,
-                Action::EDIT,
-                Action::DELETE
-            ]);
-
-        if ($this->legalRepository->count() >= count(Legal::TYPES))
-            $actions->remove(Crud::PAGE_INDEX, Action::NEW);
-
-        return parent::configureActions($actions)->setPermissions([
-            Action::NEW => 'ROLE_ADMIN',
-            Action::DELETE => 'ROLE_ADMIN',
-            Action::EDIT => 'ROLE_ADMIN',
-        ]);
-    }
 
     public function configureFields(string $pageName): iterable
     {
@@ -80,10 +64,6 @@ class LegalCrudController extends AbstractCrudController
             ->setRequired(true)
             ->setColumns(12);
 
-        yield DateTimeField::new('updatedAt', 'Обновлено')
-            ->hideOnForm();
-
-        yield DateTimeField::new('createdAt', 'Создано')
-            ->hideOnForm();
+        yield from $this->timestampFields();
     }
 }

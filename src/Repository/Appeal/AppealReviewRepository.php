@@ -2,7 +2,7 @@
 
 namespace App\Repository\Appeal;
 
-use App\Entity\Appeal\AppealTypes\AppealReview;
+use App\Entity\Appeal\Types\AppealReview;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 

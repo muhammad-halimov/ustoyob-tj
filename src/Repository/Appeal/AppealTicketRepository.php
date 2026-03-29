@@ -2,7 +2,7 @@
 
 namespace App\Repository\Appeal;
 
-use App\Entity\Appeal\AppealTypes\AppealTicket;
+use App\Entity\Appeal\Types\AppealTicket;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 

@@ -9,13 +9,14 @@ use App\Entity\Geography\District\Settlement;
 use App\Entity\Geography\District\Village;
 use App\Entity\Geography\Province\Province;
 use App\Entity\Ticket\Ticket;
-use App\Entity\Trait\CreatedAtTrait;
-use App\Entity\Trait\UpdatedAtTrait;
+use App\Entity\Trait\NonReadable\CreatedAtTrait;
+use App\Entity\Trait\NonReadable\UpdatedAtTrait;
+use App\Entity\Trait\Readable\G;
 use App\Entity\User;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Component\Serializer\Annotation\Groups;
+use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
 
 #[ORM\HasLifecycleCallbacks]
@@ -60,97 +61,201 @@ class Address
 
     #[ORM\Id, ORM\GeneratedValue, ORM\Column]
     #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'favorites:read',
-        'masters:read',
-        'clients:read',
+        G::USER_PUBLIC,
+        G::MASTERS,
+        G::CLIENTS,
 
-        'user:public:read',
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Province::class)]
     #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'favorites:read',
-        'masters:read',
-        'clients:read',
+        G::USER_PUBLIC,
+        G::MASTERS,
+        G::CLIENTS,
 
-        'user:public:read',
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private ?Province $province = null;
 
     #[ORM\ManyToOne(City::class)]
     #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'favorites:read',
-        'masters:read',
-        'clients:read',
+        G::USER_PUBLIC,
+        G::MASTERS,
+        G::CLIENTS,
 
-        'user:public:read',
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private ?City $city = null;
 
     #[ORM\ManyToOne(targetEntity: Suburb::class)]
     #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'favorites:read',
-        'masters:read',
-        'clients:read',
+        G::USER_PUBLIC,
+        G::MASTERS,
+        G::CLIENTS,
 
-        'user:public:read',
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private ?Suburb $suburb = null;
 
     #[ORM\ManyToOne(targetEntity: District::class)]
     #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'favorites:read',
-        'masters:read',
-        'clients:read',
+        G::USER_PUBLIC,
+        G::MASTERS,
+        G::CLIENTS,
 
-        'user:public:read',
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private ?District $district = null;
 
     #[ORM\ManyToOne(Settlement::class)]
     #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'favorites:read',
-        'masters:read',
-        'clients:read',
+        G::USER_PUBLIC,
+        G::MASTERS,
+        G::CLIENTS,
 
-        'user:public:read',
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private ?Settlement $settlement = null;
 
     #[ORM\ManyToOne(Community::class)]
     #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'favorites:read',
-        'masters:read',
-        'clients:read',
+        G::USER_PUBLIC,
+        G::MASTERS,
+        G::CLIENTS,
 
-        'user:public:read',
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private ?Community $community = null;
 
     #[ORM\ManyToOne(Village::class)]
     #[Groups([
-        'masterTickets:read',
-        'clientTickets:read',
-        'favorites:read',
-        'masters:read',
-        'clients:read',
+        G::USER_PUBLIC,
+        G::MASTERS,
+        G::CLIENTS,
 
-        'user:public:read',
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private ?Village $village = null;
 

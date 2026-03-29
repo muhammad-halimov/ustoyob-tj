@@ -9,13 +9,18 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use App\Controller\Admin\Traits\AdminActionsTrait;
+use App\Controller\Admin\Traits\TimestampFieldsTrait;
 
 class EducationCrudController extends AbstractCrudController
 {
+    use TimestampFieldsTrait;
+
+    use AdminActionsTrait;
+
     public static function getEntityFqcn(): string
     {
         return Education::class;
@@ -33,25 +38,6 @@ class EducationCrudController extends AbstractCrudController
     }
 
 
-    public function configureActions(Actions $actions): Actions
-    {
-        $actions
-            ->add(Crud::PAGE_INDEX, Action::DETAIL);
-
-        $actions
-            ->reorder(Crud::PAGE_INDEX, [
-                Action::DETAIL,
-                Action::EDIT,
-                Action::DELETE
-            ]);
-
-        return parent::configureActions($actions)
-            ->setPermissions([
-                Action::NEW => 'ROLE_ADMIN',
-                Action::DELETE => 'ROLE_ADMIN',
-                Action::EDIT => 'ROLE_ADMIN',
-            ]);
-    }
 
     public function configureFields(string $pageName): iterable
     {
@@ -76,10 +62,6 @@ class EducationCrudController extends AbstractCrudController
         yield BooleanField::new('graduated', 'Окончено')
             ->setColumns(12);
 
-        yield DateTimeField::new('updatedAt', 'Обновлено')
-            ->hideOnForm();
-
-        yield DateTimeField::new('createdAt', 'Создано')
-            ->hideOnForm();
+        yield from $this->timestampFields();
     }
 }

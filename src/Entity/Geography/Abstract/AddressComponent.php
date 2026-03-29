@@ -2,11 +2,12 @@
 namespace App\Entity\Geography\Abstract;
 
 use App\Entity\Extra\Translation;
-use App\Entity\Trait\CreatedAtTrait;
-use App\Entity\Trait\DescriptionTrait;
-use App\Entity\Trait\SingleImageTrait;
-use App\Entity\Trait\TitleTrait;
-use App\Entity\Trait\UpdatedAtTrait;
+use App\Entity\Trait\NonReadable\CreatedAtTrait;
+use App\Entity\Trait\NonReadable\UpdatedAtTrait;
+use App\Entity\Trait\Readable\DescriptionTrait;
+use App\Entity\Trait\Readable\G;
+use App\Entity\Trait\Readable\SingleImageTrait;
+use App\Entity\Trait\Readable\TitleTrait;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
@@ -43,16 +44,28 @@ abstract class AddressComponent
     #[ORM\GeneratedValue]
     #[ORM\Column(type: 'integer')]
     #[Groups([
-        'districts:read',
-        'provinces:read',
-        'masterTickets:read',
-        'clientTickets:read',
-        'favorites:read',
-        'cities:read',
-        'masters:read',
-        'clients:read',
-
-        'user:public:read',
+        G::DISTRICTS,
+        G::PROVINCES,
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::FAVORITES,
+        G::GALLERIES,
+        G::CITIES,
+        G::MASTERS,
+        G::CLIENTS,
+        G::BLACK_LISTS,
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
+        G::CHATS,
+        G::CHAT_MESSAGES,
+        G::APPEAL,
+        G::APPEAL_TICKET,
+        G::APPEAL_CHAT,
+        G::APPEAL_REVIEW,
+        G::APPEAL_USER,
+        G::USER_PUBLIC,
     ])]
     protected ?int $id = null;
 

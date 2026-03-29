@@ -14,14 +14,22 @@ use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use App\Controller\Admin\Traits\AdminActionsTrait;
+use App\Controller\Admin\Traits\TimestampFieldsTrait;
+use App\Controller\Admin\Traits\NonAdminUserQueryTrait;
 
 class TicketCrudController extends AbstractCrudController
 {
+    use NonAdminUserQueryTrait;
+
+    use TimestampFieldsTrait;
+
+    use AdminActionsTrait;
+
     public static function getEntityFqcn(): string
     {
         return Ticket::class;
@@ -43,25 +51,6 @@ class TicketCrudController extends AbstractCrudController
             ->setPageTitle(Crud::PAGE_DETAIL, "Информация о объявлении");
     }
 
-    public function configureActions(Actions $actions): Actions
-    {
-        $actions
-            ->add(Crud::PAGE_INDEX, Action::DETAIL);
-
-        $actions
-            ->reorder(Crud::PAGE_INDEX, [
-                Action::DETAIL,
-                Action::EDIT,
-                Action::DELETE
-            ]);
-
-        return parent::configureActions($actions)
-            ->setPermissions([
-                Action::NEW => 'ROLE_ADMIN',
-                Action::DELETE => 'ROLE_ADMIN',
-                Action::EDIT => 'ROLE_ADMIN',
-            ]);
-    }
 
     public function configureFields(string $pageName): iterable
     {
@@ -81,17 +70,13 @@ class TicketCrudController extends AbstractCrudController
             ->setColumns(8);
 
         yield AssociationField::new('author', 'Клиент')
-            ->setQueryBuilder(function (QueryBuilder $qb) {
-                return $qb->andWhere("CAST(entity.roles as text) NOT LIKE '%ROLE_ADMIN%'");
-            })
+            ->setQueryBuilder($this->nonAdminQb())
             ->setRequired(true)
             ->addCssClass("author-field")
             ->setColumns(6);
 
         yield AssociationField::new('master', 'Мастер')
-            ->setQueryBuilder(function (QueryBuilder $qb) {
-                return $qb->andWhere("CAST(entity.roles as text) NOT LIKE '%ROLE_ADMIN%'");
-            })
+            ->setQueryBuilder($this->nonAdminQb())
             ->setRequired(true)
             ->addCssClass("master-field")
             ->setColumns(6);
@@ -139,10 +124,6 @@ class TicketCrudController extends AbstractCrudController
             ->setFormTypeOptions(['by_reference' => false])
             ->setColumns(6);
 
-        yield DateTimeField::new('updatedAt', 'Обновлено')
-            ->hideOnForm();
-
-        yield DateTimeField::new('createdAt', 'Создано')
-            ->hideOnForm();
+        yield from $this->timestampFields();
     }
 }

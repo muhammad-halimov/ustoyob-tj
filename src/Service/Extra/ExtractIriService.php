@@ -2,7 +2,7 @@
 
 namespace App\Service\Extra;
 
-use App\ApiResource\AppError;
+use App\ApiResource\AppMessages;
 use Doctrine\ORM\EntityManagerInterface;
 use InvalidArgumentException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -31,7 +31,7 @@ readonly class ExtractIriService
      */
     public function extract(string $iriOrId, ?string $entityClass, string $routeName): object
     {
-        if ($entityClass === null) throw new InvalidArgumentException(AppError::get(AppError::MISSING_REQUIRED_FIELDS)->message);
+        if ($entityClass === null) throw new InvalidArgumentException(AppMessages::get(AppMessages::MISSING_REQUIRED_FIELDS)->message);
 
         // Извлекаем ID из IRI. Если передано число — regex не срабатывает,
         // и $id остаётся оригинальной строкой (фаллбак на число).
@@ -40,7 +40,7 @@ readonly class ExtractIriService
 
         $entity = $this->em->getRepository($entityClass)->find($id);
 
-        if (!$entity) throw new NotFoundHttpException(AppError::get(AppError::RESOURCE_NOT_FOUND)->message);
+        if (!$entity) throw new NotFoundHttpException(AppMessages::get(AppMessages::RESOURCE_NOT_FOUND)->message);
 
         return $entity;
     }

@@ -2,7 +2,7 @@
 
 namespace App\Repository\Appeal;
 
-use App\Entity\Appeal\AppealTypes\AppealChat;
+use App\Entity\Appeal\Types\AppealChat;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 

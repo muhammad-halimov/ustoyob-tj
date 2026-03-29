@@ -8,12 +8,13 @@ use ApiPlatform\Metadata\GetCollection;
 use App\Entity\Extra\Translation;
 use App\Entity\Ticket\Category;
 use App\Entity\Ticket\Ticket;
-use App\Entity\Trait\CreatedAtTrait;
-use App\Entity\Trait\DescriptionTrait;
-use App\Entity\Trait\PriorityTrait;
-use App\Entity\Trait\SingleImageTrait;
-use App\Entity\Trait\TitleTrait;
-use App\Entity\Trait\UpdatedAtTrait;
+use App\Entity\Trait\NonReadable\CreatedAtTrait;
+use App\Entity\Trait\NonReadable\UpdatedAtTrait;
+use App\Entity\Trait\Readable\DescriptionTrait;
+use App\Entity\Trait\Readable\G;
+use App\Entity\Trait\Readable\PriorityTrait;
+use App\Entity\Trait\Readable\SingleImageTrait;
+use App\Entity\Trait\Readable\TitleTrait;
 use App\Entity\User;
 use App\Repository\User\OccupationRepository;
 use App\State\Localization\Title\OccupationTitleLocalizationProvider;
@@ -21,7 +22,6 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
-
 use Symfony\Component\Serializer\Attribute\Ignore;
 use Vich\UploaderBundle\Mapping\Attribute as Vich;
 
@@ -40,10 +40,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
             provider: OccupationTitleLocalizationProvider::class,
         ),
     ],
-    normalizationContext: [
-        'groups' => ['occupations:read'],
-        'skip_null_values' => false,
-    ],
+    normalizationContext: ['groups' => G::OPS_OCCUPATIONS, 'skip_null_values' => false],
     paginationClientItemsPerPage: true,
     paginationEnabled: true,
     paginationItemsPerPage: 25,
@@ -81,15 +78,29 @@ class Occupation
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
-        'masters:read',
-        'occupations:read',
-        'categories:read',
+        G::USER_PUBLIC,
+        G::MASTERS,
+        G::CLIENTS,
 
-        'masterTickets:read',
-        'clientTickets:read',
-        'favorites:read',
+        G::OCCUPATIONS,
+        G::CATEGORIES,
 
-        'user:public:read',
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+        G::FAVORITES,
+
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::GALLERIES,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private ?int $id = null;
 
@@ -112,7 +123,7 @@ class Occupation
      */
     #[ORM\OneToMany(targetEntity: Category::class, mappedBy: 'occupation')]
     #[Groups([
-        'occupations:read',
+        G::OCCUPATIONS,
     ])]
     private Collection $categories;
 

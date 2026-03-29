@@ -7,10 +7,10 @@ use App\Controller\Admin\Appeal\AppealTypes\AppealReviewCrudController;
 use App\Controller\Admin\Appeal\AppealTypes\AppealTicketCrudController;
 use App\Controller\Admin\Appeal\AppealTypes\AppealUserCrudController;
 use App\Controller\Admin\Extra\MultipleImageCrudController;
-use App\Entity\Appeal\Appeal;
-use App\Entity\Appeal\AppealTypes\AppealChat;
-use App\Entity\Appeal\AppealTypes\AppealReview;
-use App\Entity\Appeal\AppealTypes\AppealUser;
+use App\Entity\Appeal\Appeal\Appeal;
+use App\Entity\Appeal\Types\AppealChat;
+use App\Entity\Appeal\Types\AppealReview;
+use App\Entity\Appeal\Types\AppealUser;
 use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
@@ -21,7 +21,6 @@ use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\FormField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
@@ -30,9 +29,15 @@ use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Component\HttpFoundation\Response;
+use App\Controller\Admin\Traits\TimestampFieldsTrait;
+use App\Controller\Admin\Traits\NonAdminUserQueryTrait;
 
 class AppealCrudController extends AbstractCrudController
 {
+    use NonAdminUserQueryTrait;
+
+    use TimestampFieldsTrait;
+
     public function __construct(private readonly AdminUrlGenerator $adminUrlGenerator) {}
 
     public static function getEntityFqcn(): string
@@ -135,15 +140,13 @@ class AppealCrudController extends AbstractCrudController
             ->setColumns(12);
 
         yield AssociationField::new('author', 'Истец (null — анонимно)')
-            ->setQueryBuilder(fn (QueryBuilder $qb) =>
-                $qb->andWhere("CAST(entity.roles as text) NOT LIKE '%ROLE_ADMIN%'")
+            ->setQueryBuilder($this->nonAdminQb()
             )
             ->setRequired(false)
             ->setColumns(6);
 
         yield AssociationField::new('respondent', 'Ответчик')
-            ->setQueryBuilder(fn (QueryBuilder $qb) =>
-                $qb->andWhere("CAST(entity.roles as text) NOT LIKE '%ROLE_ADMIN%'")
+            ->setQueryBuilder($this->nonAdminQb()
             )
             ->setRequired(false)
             ->setColumns(6);
@@ -164,10 +167,6 @@ class AppealCrudController extends AbstractCrudController
             ->setColumns(12)
             ->setRequired(false);
 
-        yield DateTimeField::new('updatedAt', 'Обновлено')
-            ->hideOnForm();
-
-        yield DateTimeField::new('createdAt', 'Создано')
-            ->hideOnForm();
+        yield from $this->timestampFields();
     }
 }

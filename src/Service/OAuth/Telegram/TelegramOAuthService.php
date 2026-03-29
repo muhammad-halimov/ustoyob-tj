@@ -2,7 +2,7 @@
 
 namespace App\Service\OAuth\Telegram;
 
-use App\ApiResource\AppError;
+use App\ApiResource\AppMessages;
 use App\Dto\OAuth\TelegramCallbackInput;
 use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
@@ -37,7 +37,7 @@ readonly class TelegramOAuthService
     public function handleCallback(int $id, ?string $username, ?string $firstName, ?string $lastName, ?string $photoUrl, ?string $role): array
     {
         if (!$this->checkTelegramUserExists($id)) {
-            throw new NotFoundHttpException(AppError::get(AppError::USER_NOT_FOUND)->message);
+            throw new NotFoundHttpException(AppMessages::get(AppMessages::USER_NOT_FOUND)->message);
         }
 
         $input            = new TelegramCallbackInput();

@@ -2,8 +2,9 @@
 
 namespace App\Entity\Extra;
 
-use App\Entity\Trait\CreatedAtTrait;
-use App\Entity\Trait\UpdatedAtTrait;
+use App\Entity\Trait\Readable\CreatedAtTrait;
+use App\Entity\Trait\Readable\G;
+use App\Entity\Trait\Readable\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\User\UserOAuthProviderRepository;
 use Doctrine\ORM\Mapping as ORM;
@@ -25,9 +26,7 @@ class OAuthProvider
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups([
-        'users:me:read'
-    ])]
+    #[Groups([G::USERS_ME])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'oauthProviders')]
@@ -36,15 +35,11 @@ class OAuthProvider
 
     /** google | facebook | instagram | telegram */
     #[ORM\Column(length: 50)]
-    #[Groups([
-        'users:me:read'
-    ])]
+    #[Groups([G::USERS_ME])]
     private string $provider;
 
     #[ORM\Column(type: 'text')]
-    #[Groups([
-        'users:me:read'
-    ])]
+    #[Groups([G::USERS_ME])]
     private string $providerId;
 
     public function getId(): ?int

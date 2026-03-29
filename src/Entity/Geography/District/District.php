@@ -9,6 +9,7 @@ use ApiPlatform\Metadata\GetCollection;
 use App\Controller\Api\Filter\Translation\TranslationSearchFilter;
 use App\Entity\Geography\Abstract\AddressComponent;
 use App\Entity\Geography\Province\Province;
+use App\Entity\Trait\Readable\G;
 use App\Repository\Geography\District\DistrictRepository;
 use App\State\Localization\Geography\DistrictLocalizationProvider;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -31,10 +32,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
             provider: DistrictLocalizationProvider::class
         ),
     ],
-    normalizationContext: [
-        'groups' => ['districts:read'],
-        'skip_null_values' => false,
-    ],
+    normalizationContext: ['groups' => G::OPS_DISTRICTS, 'skip_null_values' => false],
     paginationClientItemsPerPage: true,
     paginationEnabled: true,
     paginationItemsPerPage: 25,
@@ -65,7 +63,7 @@ class District extends AddressComponent
     #[ORM\ManyToOne(inversedBy: 'districts')]
     #[ORM\JoinColumn(name: 'province_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
-        'districts:read',
+        G::DISTRICTS,
     ])]
     private ?Province $province = null;
 
@@ -74,8 +72,8 @@ class District extends AddressComponent
      */
     #[ORM\OneToMany(targetEntity: Settlement::class, mappedBy: 'district', cascade: ['all'])]
     #[Groups([
-        'districts:read',
-        'provinces:read',
+        G::DISTRICTS,
+        G::PROVINCES,
     ])]
     private Collection $settlements;
 
@@ -84,8 +82,8 @@ class District extends AddressComponent
      */
     #[ORM\OneToMany(targetEntity: Community::class, mappedBy: 'district', cascade: ['all'])]
     #[Groups([
-        'districts:read',
-        'provinces:read',
+        G::DISTRICTS,
+        G::PROVINCES,
     ])]
     private Collection $communities;
 

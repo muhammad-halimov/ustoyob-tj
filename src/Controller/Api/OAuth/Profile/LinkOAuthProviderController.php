@@ -2,15 +2,15 @@
 
 namespace App\Controller\Api\OAuth\Profile;
 
-use App\ApiResource\AppError;
+use App\ApiResource\AppMessages;
 use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
 use App\Repository\User\UserOAuthProviderRepository;
 use App\Service\Extra\AccessService;
+use App\Service\Extra\StateStorageService;
 use App\Service\OAuth\Google\GoogleOAuthService;
 use App\Service\OAuth\Meta\Facebook\FacebookOAuthService;
 use App\Service\OAuth\Meta\Instagram\InstagramOAuthService;
-use App\Service\OAuth\StateStorageService;
 use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
@@ -29,7 +29,8 @@ use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 
 class LinkOAuthProviderController extends AbstractController
 {
-    private const array VALID_PROVIDERS = ['google', 'facebook', 'instagram', 'telegram'];
+    private const array  VALID_PROVIDERS = ['google', 'facebook', 'instagram', 'telegram'];
+    private const string OAUTH_PREFIX    = 'oauth_state_';
 
     public function __construct(
         private readonly Security                    $security,
@@ -61,7 +62,7 @@ class LinkOAuthProviderController extends AbstractController
         $provider = (string) ($body['provider'] ?? '');
 
         if (!in_array($provider, self::VALID_PROVIDERS, true)) {
-            throw new BadRequestHttpException(AppError::get(AppError::OAUTH_INVALID_PROVIDER)->message . '. Must be one of: ' . implode(', ', self::VALID_PROVIDERS));
+            throw new BadRequestHttpException(AppMessages::get(AppMessages::OAUTH_INVALID_PROVIDER)->message . '. Must be one of: ' . implode(', ', self::VALID_PROVIDERS));
         }
 
         ['id' => $providerId, 'email' => $realEmail] = $this->resolveProviderId($provider, $body);
@@ -70,9 +71,9 @@ class LinkOAuthProviderController extends AbstractController
 
         if ($existing !== null) {
             if ($existing->getUser()->getId() !== $currentUser->getId()) {
-                return $this->json(['error' => AppError::OAUTH_PROVIDER_TAKEN, 'message' => AppError::get(AppError::OAUTH_PROVIDER_TAKEN)->message], 400);
+                return $this->json(['error' => AppMessages::OAUTH_PROVIDER_TAKEN, 'message' => AppMessages::get(AppMessages::OAUTH_PROVIDER_TAKEN)->message], 400);
             }
-            return $this->json(['error' => AppError::OAUTH_ALREADY_LINKED, 'message' => AppError::get(AppError::OAUTH_ALREADY_LINKED)->message], 400);
+            return $this->json(['error' => AppMessages::OAUTH_ALREADY_LINKED, 'message' => AppMessages::get(AppMessages::OAUTH_ALREADY_LINKED)->message], 400);
         }
 
         $emailUpdated = false;
@@ -117,10 +118,10 @@ class LinkOAuthProviderController extends AbstractController
             $authDate = (int)    ($body['auth_date'] ?? 0);
 
             if ($id === '' || $hash === '') {
-                throw new BadRequestHttpException(AppError::get(AppError::OAUTH_ID_HASH_REQUIRED)->message);
+                throw new BadRequestHttpException(AppMessages::get(AppMessages::OAUTH_ID_HASH_REQUIRED)->message);
             }
             if (time() - $authDate > 600) {
-                throw new BadRequestHttpException(AppError::get(AppError::OAUTH_TELEGRAM_EXPIRED)->message);
+                throw new BadRequestHttpException(AppMessages::get(AppMessages::OAUTH_TELEGRAM_EXPIRED)->message);
             }
 
             $this->verifyTelegramHash($body, $hash);
@@ -133,13 +134,13 @@ class LinkOAuthProviderController extends AbstractController
         $state = (string) ($body['state'] ?? '');
 
         if ($code === '' || $state === '') {
-            throw new BadRequestHttpException(AppError::get(AppError::OAUTH_CODE_STATE_REQUIRED)->message . ' for ' . $provider);
+            throw new BadRequestHttpException(AppMessages::get(AppMessages::OAUTH_CODE_STATE_REQUIRED)->message . ' for ' . $provider);
         }
 
-        if (!$this->stateStorage->has($state)) {
-            throw new BadRequestHttpException(AppError::get(AppError::OAUTH_INVALID_STATE)->message);
+        if ($this->stateStorage->get(self::OAUTH_PREFIX . $state) === null) {
+            throw new BadRequestHttpException(AppMessages::get(AppMessages::OAUTH_INVALID_STATE)->message);
         }
-        $this->stateStorage->remove($state);
+        $this->stateStorage->delete(self::OAUTH_PREFIX . $state);
 
         $service = match($provider) {
             'google'    => $this->googleService,
@@ -178,7 +179,7 @@ class LinkOAuthProviderController extends AbstractController
         $dataCheckString = implode("\n", array_map(fn($k, $v) => "$k=$v", array_keys($fields), $fields));
         $secretKey = hash('sha256', $_ENV['OUATH_TELEGRAM_CLIENT_SECRET'], true);
         if (!hash_equals(hash_hmac('sha256', $dataCheckString, $secretKey), $hash)) {
-            throw new BadRequestHttpException(AppError::get(AppError::OAUTH_INVALID_SIGNATURE)->message);
+            throw new BadRequestHttpException(AppMessages::get(AppMessages::OAUTH_INVALID_SIGNATURE)->message);
         }
     }
 

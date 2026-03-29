@@ -4,9 +4,10 @@ namespace App\Entity\Extra;
 
 use ApiPlatform\Metadata\ApiProperty;
 use App\Entity\Ticket\Ticket;
-use App\Entity\Trait\CreatedAtTrait;
-use App\Entity\Trait\TypeTrait;
-use App\Entity\Trait\UpdatedAtTrait;
+use App\Entity\Trait\Readable\CreatedAtTrait;
+use App\Entity\Trait\Readable\G;
+use App\Entity\Trait\Readable\TypeTrait;
+use App\Entity\Trait\Readable\UpdatedAtTrait;
 use App\Entity\User;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
@@ -26,7 +27,7 @@ abstract class AbstractCollectionEntry
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['blackLists:read', 'favorites:read'])]
+    #[Groups([G::BLACK_LISTS, G::FAVORITES])]
     protected ?int $id = null;
 
     /** The user who owns this entry (set from Bearer token, not exposed in output) */
@@ -38,13 +39,13 @@ abstract class AbstractCollectionEntry
     /** Blacklisted / favorited user (client or master) */
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(name: 'target_user_id', nullable: true, onDelete: 'CASCADE')]
-    #[Groups(['blackLists:read', 'favorites:read'])]
+    #[Groups([G::BLACK_LISTS, G::FAVORITES])]
     protected ?User $user = null;
 
     /** Blacklisted / favorited ticket */
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(name: 'target_ticket_id', nullable: true, onDelete: 'CASCADE')]
-    #[Groups(['blackLists:read', 'favorites:read'])]
+    #[Groups([G::BLACK_LISTS, G::FAVORITES])]
     protected ?Ticket $ticket = null;
 
     public function getId(): ?int

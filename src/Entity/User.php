@@ -14,22 +14,26 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
-use App\Controller\Api\CRUD\GET\User\PersonalUserFilterController;
-use App\Controller\Api\CRUD\GET\User\SocialNetworkController;
-use App\Controller\Api\CRUD\POST\Image\UniversalImageUploadController;
-use App\Controller\Api\CRUD\POST\User\User\ConfirmAccountController;
-use App\Controller\Api\CRUD\POST\User\User\ConfirmAccountTokenlessController;
-use App\Controller\Api\CRUD\POST\User\User\GrantRoleController;
-use App\Controller\Api\CRUD\POST\User\User\MarkOfflineController;
-use App\Controller\Api\CRUD\POST\User\User\PingController;
+use App\Controller\Api\CRUD\GET\User\User\ApiGetMyProfileController;
+use App\Controller\Api\CRUD\GET\User\User\SocialNetworkController;
+use App\Controller\Api\CRUD\POST\Image\Image\ApiPostUniversalImageController;
+use App\Controller\Api\CRUD\POST\User\User\ApiPostChangePasswordController;
+use App\Controller\Api\CRUD\POST\User\User\ApiPostChangePasswordSendOtpController;
+use App\Controller\Api\CRUD\POST\User\User\ApiPostConfirmAccountController;
+use App\Controller\Api\CRUD\POST\User\User\ApiPostConfirmAccountTokenlessController;
+use App\Controller\Api\CRUD\POST\User\User\ApiPostGrantRoleController;
+use App\Controller\Api\CRUD\POST\User\User\ApiPostMarkOfflineController;
+use App\Controller\Api\CRUD\POST\User\User\ApiPostPingController;
 use App\Controller\Api\Filter\Address\AddressFilter;
 use App\Controller\Api\Filter\User\RolesFilter;
 use App\Dto\Image\ImageInput;
 use App\Dto\User\AccountConfirmInput;
 use App\Dto\User\AccountConfirmOutput;
-use App\Dto\User\RoleOutput;
+use App\Dto\User\ChangePasswordInput;
+use App\Dto\User\ChangePasswordSendOtpInput;
+use App\Dto\User\RoleInput;
 use App\Dto\User\SocialNetworkOutput;
-use App\Entity\Appeal\Appeal;
+use App\Entity\Appeal\Appeal\Appeal;
 use App\Entity\Chat\Chat;
 use App\Entity\Chat\ChatMessage;
 use App\Entity\Extra\MultipleImage;
@@ -40,10 +44,11 @@ use App\Entity\Review\Review;
 use App\Entity\TechSupport\TechSupport;
 use App\Entity\TechSupport\TechSupportMessage;
 use App\Entity\Ticket\Ticket;
-use App\Entity\Trait\CreatedAtTrait;
-use App\Entity\Trait\DescriptionTrait;
-use App\Entity\Trait\SingleImageTrait;
-use App\Entity\Trait\UpdatedAtTrait;
+use App\Entity\Trait\Readable\CreatedAtTrait;
+use App\Entity\Trait\Readable\DescriptionTrait;
+use App\Entity\Trait\Readable\G;
+use App\Entity\Trait\Readable\SingleImageTrait;
+use App\Entity\Trait\Readable\UpdatedAtTrait;
 use App\Entity\User\Education;
 use App\Entity\User\Occupation;
 use App\Entity\User\Phone;
@@ -80,17 +85,14 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
         ),
         new Get(
             uriTemplate: '/users/me',
-            controller: PersonalUserFilterController::class,
-            normalizationContext: [
-                'groups' => ['masters:read', 'clients:read', 'users:me:read'],
-                'skip_null_values' => false,
-            ],
+            controller: ApiGetMyProfileController::class,
+            normalizationContext: ['groups' => G::OPS_USERS_ME],
         ),
         new Get(
             uriTemplate: '/users/{id}',
             requirements: ['id' => '\d+'],
             normalizationContext: [
-                'groups' => ['clients:read', 'masters:read', 'user:public:read'],
+                'groups' => G::OPS_USERS_PUBLIC,
                 'skip_null_values' => false,
             ],
             provider: UserGeographyLocalizationProvider::class,
@@ -98,7 +100,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
         new GetCollection(
             uriTemplate: '/users',
             normalizationContext: [
-                'groups' => ['clients:read', 'masters:read', 'user:public:read'],
+                'groups' => G::OPS_USERS_PUBLIC,
                 'skip_null_values' => false,
             ],
             provider: UserGeographyLocalizationProvider::class,
@@ -109,18 +111,18 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
         ),
         new Post(
             uriTemplate: '/users/grant-role',
-            controller: GrantRoleController::class,
-            input: RoleOutput::class,
+            controller: ApiPostGrantRoleController::class,
+            input: RoleInput::class,
         ),
         new Post(
             uriTemplate: '/confirm-account/',
-            controller: ConfirmAccountController::class,
+            controller: ApiPostConfirmAccountController::class,
             input: AccountConfirmInput::class,
             output: AccountConfirmOutput::class,
         ),
         new Post(
             uriTemplate: '/confirm-account-tokenless/',
-            controller: ConfirmAccountTokenlessController::class,
+            controller: ApiPostConfirmAccountTokenlessController::class,
             input: false,
             output: AccountConfirmOutput::class,
         ),
@@ -128,17 +130,17 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
             uriTemplate: '/users/{id}/upload-images',
             inputFormats: ['multipart' => ['multipart/form-data']],
             requirements: ['id' => '\d+'],
-            controller: UniversalImageUploadController::class,
+            controller: ApiPostUniversalImageController::class,
             input: ImageInput::class,
         ),
         new Patch(
             uriTemplate: '/users/{id}',
             requirements: ['id' => '\d+'],
             denormalizationContext: ['groups' => [
-                'users:phones:write',
-                'clients:read',
-                'masters:read',
-                'user:public:read'
+                G::PHONES_WRITE,
+                G::CLIENTS,
+                G::MASTERS,
+                G::USER_PUBLIC
             ]],
             security:
                 "is_granted('ROLE_ADMIN') or
@@ -157,17 +159,31 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
         ),
         new Post(
             uriTemplate: '/users/ping',
-            controller: PingController::class,
+            controller: ApiPostPingController::class,
             input: false,
             output: false,
             name: 'users_ping',
         ),
         new Post(
             uriTemplate: '/users/offline',
-            controller: MarkOfflineController::class,
+            controller: ApiPostMarkOfflineController::class,
             input: false,
             output: false,
             name: 'users_offline',
+        ),
+        new Post(
+            uriTemplate: '/change-password/send-otp/',
+            controller: ApiPostChangePasswordSendOtpController::class,
+            input: ChangePasswordSendOtpInput::class,
+            output: false,
+            name: 'change_password_send_otp',
+        ),
+        new Post(
+            uriTemplate: '/change-password/',
+            controller: ApiPostChangePasswordController::class,
+            input: ChangePasswordInput::class,
+            output: false,
+            name: 'change_password',
         ),
     ],
     paginationClientItemsPerPage: true,
@@ -233,122 +249,173 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\GeneratedValue]
     #[ORM\Column]
     #[Groups([
-        'masters:read',
-        'clients:read',
-        'reviews:read',
-        'reviewsClient:read',
-        'galleries:read',
-        'masterTickets:read',
-        'clientTickets:read',
-        'chats:read',
-        'chatMessages:read',
-        'appeal:ticket:read',
-        'favorites:read',
-        'techSupport:read',
-        'blackLists:read',
+        G::USER_PUBLIC,
+        G::MASTERS,
+        G::CLIENTS,
 
-        'user:public:read',
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private ?int $id = null;
 
     #[ORM\Column(length: 180, unique: true, nullable: true)]
     #[Groups([
-        'masters:read',
-        'clients:read',
-        'reviews:read',
-        'reviewsClient:read',
-        'galleries:read',
-        'masterTickets:read',
-        'clientTickets:read',
-        'chats:read',
-        'chatMessages:read',
-        'appeal:ticket:read',
-        'favorites:read',
-        'techSupport:read',
-        'blackLists:read',
+        G::MASTERS,
+        G::CLIENTS,
 
-//        'user:public:read',
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private ?string $email = null;
 
     #[ORM\Column(length: 64, nullable: true)]
     #[Groups([
-        'masters:read',
-        'clients:read',
-        'reviews:read',
-        'reviewsClient:read',
-        'galleries:read',
-        'masterTickets:read',
-        'clientTickets:read',
-        'chats:read',
-        'chatMessages:read',
-        'appeal:ticket:read',
-        'favorites:read',
-        'techSupport:read',
-        'blackLists:read',
+        G::USER_PUBLIC,
+        G::MASTERS,
+        G::CLIENTS,
 
-        'user:public:read',
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private ?string $login = null;
 
     #[ORM\Column(length: 32, nullable: true)]
     #[Groups([
-        'masters:read',
-        'clients:read',
-        'reviews:read',
-        'reviewsClient:read',
-        'galleries:read',
-        'masterTickets:read',
-        'clientTickets:read',
-        'chats:read',
-        'chatMessages:read',
-        'appeal:ticket:read',
-        'favorites:read',
-        'techSupport:read',
-        'blackLists:read',
+        G::USER_PUBLIC,
+        G::MASTERS,
+        G::CLIENTS,
 
-        'user:public:read',
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private ?string $name = null;
 
     #[ORM\Column(length: 32, nullable: true)]
     #[Groups([
-        'masters:read',
-        'clients:read',
-        'reviews:read',
-        'reviewsClient:read',
-        'galleries:read',
-        'masterTickets:read',
-        'clientTickets:read',
-        'chats:read',
-        'chatMessages:read',
-        'appeal:ticket:read',
-        'favorites:read',
-        'techSupport:read',
-        'blackLists:read',
+        G::USER_PUBLIC,
+        G::MASTERS,
+        G::CLIENTS,
 
-        'user:public:read',
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private ?string $surname = null;
 
     #[ORM\Column(length: 32, nullable: true)]
     #[Groups([
-        'masters:read',
-        'clients:read',
+        G::MASTERS,
+        G::CLIENTS,
+        G::USER_PUBLIC,
 
-        'user:public:read'
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private ?string $patronymic = null;
 
     #[ORM\Column(type: 'float', nullable: true)]
     #[Groups([
-        'masters:read',
-        'clients:read',
-        'masterTickets:read',
-        'clientTickets:read',
-        'favorites:read',
+        G::USER_PUBLIC,
+        G::MASTERS,
+        G::CLIENTS,
 
-        'user:public:read'
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     #[Assert\PositiveOrZero(message: 'Field cannot be less than zero')]
     #[Assert\LessThanOrEqual(value: 5, message: 'Field cannot be greater than 5')]
@@ -356,41 +423,65 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     #[ORM\Column(length: 16, nullable: true)]
     #[Groups([
-        'masters:read',
-        'clients:read',
-        'blackLists:read',
-        'favorites:read',
+        G::USER_PUBLIC,
+        G::MASTERS,
+        G::CLIENTS,
 
-        'user:public:read',
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private ?string $gender = null;
 
     #[ORM\Column(type: Types::DATE_MUTABLE, nullable: true)]
     #[Groups([
-        'masters:read',
-        'clients:read',
+        G::MASTERS,
+        G::CLIENTS,
 
-//        'user:public:read',
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private ?DateTime $dateOfBirth = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups([
-        'masters:read',
-        'clients:read',
-        'reviews:read',
-        'reviewsClient:read',
-        'galleries:read',
-        'masterTickets:read',
-        'clientTickets:read',
-        'chats:read',
-        'chatMessages:read',
-        'appeal:ticket:read',
-        'favorites:read',
-        'techSupport:read',
-        'blackLists:read',
+        G::USER_PUBLIC,
+        G::MASTERS,
+        G::CLIENTS,
 
-        'user:public:read',
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     #[ApiProperty(writable: false)]
     private ?string $imageExternalUrl = null;
@@ -400,19 +491,39 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     #[ORM\OneToMany(targetEntity: Phone::class, mappedBy: 'owner', cascade: ['persist', 'remove'], orphanRemoval: true)]
     #[Groups([
-        'masters:read',
-        'clients:read',
-        'users:me:read',
-        'users:phones:write',
+        G::MASTERS,
+        G::CLIENTS,
+        G::USERS_ME,
+        G::PHONES_WRITE,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private Collection $phones;
 
     #[ORM\Column(type: 'boolean', nullable: true)]
     #[Groups([
-        'masters:read',
-        'clients:read',
+        G::MASTERS,
+        G::CLIENTS,
 
-//        'user:public:read',
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private ?bool $atHome = null;
 
@@ -422,31 +533,84 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     #[ORM\Column(type: 'boolean', nullable: false)]
     #[Groups([
-        'masters:read',
-        'clients:read',
+        G::USER_PUBLIC,
+        G::MASTERS,
+        G::CLIENTS,
 
-        'user:public:read'
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     #[ApiProperty(writable: false)]
     private bool $active = false;
 
     #[ORM\Column(type: 'boolean', nullable: false)]
     #[Groups([
-        'masters:read',
-        'clients:read',
+        G::USER_PUBLIC,
+        G::MASTERS,
+        G::CLIENTS,
 
-        'user:public:read'
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     #[ApiProperty(writable: false)]
     private bool $approved = false;
 
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     #[Groups([
-        'masters:read',
-        'clients:read',
-        'chats:read',
-        'chatMessages:read',
-        'user:public:read',
+        G::USER_PUBLIC,
+        G::MASTERS,
+        G::CLIENTS,
+
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     #[ApiProperty(writable: false)]
     private ?DateTimeImmutable $lastSeen = null;
@@ -456,21 +620,28 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     #[ORM\Column]
     #[Groups([
-        'masters:read',
-        'clients:read',
-        'reviews:read',
-        'reviewsClient:read',
-        'galleries:read',
-        'masterTickets:read',
-        'clientTickets:read',
-        'chats:read',
-        'chatMessages:read',
-        'appeal:ticket:read',
-        'favorites:read',
-        'techSupport:read',
-        'blackLists:read',
+        G::USER_PUBLIC,
+        G::MASTERS,
+        G::CLIENTS,
 
-        'user:public:read',
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     #[ApiProperty(writable: false)]
     private array $roles = [];
@@ -496,10 +667,28 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     #[ORM\OneToMany(targetEntity: SocialNetwork::class, mappedBy: 'user', cascade: ['all'])]
     #[Groups([
-        'masters:read',
-        'clients:read',
+        G::USER_PUBLIC,
+        G::MASTERS,
+        G::CLIENTS,
 
-        'user:public:read',
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private Collection $socialNetworks;
 
@@ -529,10 +718,27 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     #[ORM\OneToMany(targetEntity: Education::class, mappedBy: 'user', cascade: ['all'])]
     #[Groups([
-        'masters:read',
-        'masterTickets:read',
+        G::MASTERS,
+        G::CLIENTS,
 
-//        'user:public:read',
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private Collection $education;
 
@@ -583,10 +789,28 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     #[ORM\ManyToMany(targetEntity: Occupation::class, mappedBy: 'master')]
     #[Groups([
-        'masters:read',
-        'favorites:read',
+        G::USER_PUBLIC,
+        G::MASTERS,
+        G::CLIENTS,
 
-        'user:public:read',
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private Collection $occupation;
 
@@ -630,16 +854,34 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     #[ORM\ManyToMany(targetEntity: Address::class, mappedBy: 'users', cascade: ['persist'])]
     #[Groups([
-        'masters:read',
-        'clients:read',
+        G::USER_PUBLIC,
+        G::MASTERS,
+        G::CLIENTS,
 
-        'user:public:read',
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
+        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_MESSAGES,
     ])]
     private Collection $addresses;
 
     #[ORM\OneToMany(targetEntity: OAuthProvider::class, mappedBy: 'user', cascade: ['persist', 'remove'])]
     #[Groups([
-        'users:me:read'
+        G::USERS_ME
     ])]
     #[ApiProperty(writable: false)]
     private Collection $oauthProviders;
@@ -1354,11 +1596,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     #[Groups([
-        'masters:read',
-        'clients:read',
-        'chats:read',
-        'chatMessages:read',
-        'user:public:read',
+        G::MASTERS,
+        G::CLIENTS,
+        G::CHATS,
+        G::CHAT_MESSAGES,
+        G::USER_PUBLIC,
     ])]
     #[ApiProperty(writable: false)]
     public function getIsOnline(): bool
@@ -1368,22 +1610,20 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     #[Groups([
-        'masters:read',
-        'clients:read',
-        'reviews:read',
-        'reviewsClient:read',
-        'galleries:read',
-        'masterTickets:read',
-        'clientTickets:read',
-        'chats:read',
-        'chatMessages:read',
-        'appeal:ticket:read',
-        'favorites:read',
-        'techSupport:read',
-        'blackLists:read',
-        'favorites:read',
-
-        'user:public:read',
+        G::MASTERS,
+        G::CLIENTS,
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+        G::GALLERIES,
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+        G::CHATS,
+        G::CHAT_MESSAGES,
+        G::APPEAL_TICKET,
+        G::FAVORITES,
+        G::BLACK_LISTS,
+        G::TECH_SUPPORT,
+        G::USER_PUBLIC,
     ])]
     #[ApiProperty(writable: false)]
     public function getReviewsCount(): int

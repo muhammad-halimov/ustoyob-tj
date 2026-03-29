@@ -2,7 +2,7 @@
 
 namespace App\Service\OAuth\Meta\Instagram;
 
-use App\ApiResource\AppError;
+use App\ApiResource\AppMessages;
 use App\Entity\Extra\OAuthProvider;
 use App\Entity\User;
 use App\Service\OAuth\AbstractOAuthService;
@@ -58,7 +58,7 @@ class InstagramOAuthService extends AbstractOAuthService implements OAuthService
             ])->toArray();
         } catch (ClientExceptionInterface $e) {
             throw new BadRequestHttpException(
-                AppError::get(AppError::OAUTH_CODE_EXCHANGE_FAILED)->message
+                AppMessages::get(AppMessages::OAUTH_CODE_EXCHANGE_FAILED)->message
             );
         }
     }
@@ -82,7 +82,7 @@ class InstagramOAuthService extends AbstractOAuthService implements OAuthService
             ])->toArray();
         } catch (ClientExceptionInterface $e) {
             throw new BadRequestHttpException(
-                AppError::get(AppError::OAUTH_CODE_EXCHANGE_FAILED)->message
+                AppMessages::get(AppMessages::OAUTH_CODE_EXCHANGE_FAILED)->message
             );
         }
     }

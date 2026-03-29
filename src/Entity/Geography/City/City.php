@@ -10,6 +10,7 @@ use ApiPlatform\Metadata\GetCollection;
 use App\Controller\Api\Filter\Translation\TranslationSearchFilter;
 use App\Entity\Geography\Abstract\AddressComponent;
 use App\Entity\Geography\Province\Province;
+use App\Entity\Trait\Readable\G;
 use App\Repository\Geography\City\CityRepository;
 use App\State\Localization\Geography\CityLocalizationProvider;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -32,10 +33,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
             provider: CityLocalizationProvider::class,
         ),
     ],
-    normalizationContext: [
-        'groups' => ['cities:read'],
-        'skip_null_values' => false,
-    ],
+    normalizationContext: ['groups' => G::OPS_CITIES, 'skip_null_values' => false],
     paginationClientItemsPerPage: true,
     paginationEnabled: true,
     paginationItemsPerPage: 25,
@@ -61,8 +59,8 @@ class City extends AddressComponent
     #[ORM\ManyToOne(inversedBy: 'cities')]
     #[ORM\JoinColumn(name: 'province_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
-        'cities:read',
-        'districts:read',
+        G::CITIES,
+        G::DISTRICTS,
     ])]
     private ?Province $province = null;
 
@@ -71,9 +69,9 @@ class City extends AddressComponent
      */
     #[ORM\OneToMany(targetEntity: Suburb::class, mappedBy: 'cities', cascade: ['all'])]
     #[Groups([
-        'cities:read',
-        'provinces:read',
-        'districts:read',
+        G::CITIES,
+        G::PROVINCES,
+        G::DISTRICTS,
     ])]
     private Collection $suburbs;
 

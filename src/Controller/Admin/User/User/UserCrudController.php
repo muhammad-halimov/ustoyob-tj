@@ -27,7 +27,6 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\EmailField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
@@ -41,9 +40,15 @@ use Psr\Container\NotFoundExceptionInterface;
 use Random\RandomException;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
+use App\Controller\Admin\Traits\TimestampFieldsTrait;
+use App\Controller\Admin\Traits\VichImageHelpTrait;
 
 class UserCrudController extends AbstractCrudController
 {
+    use VichImageHelpTrait;
+
+    use TimestampFieldsTrait;
+
     public function __construct(
         private readonly AccountConfirmationService  $accountConfirmationService,
     ){}
@@ -235,7 +240,7 @@ class UserCrudController extends AbstractCrudController
             ->setColumns(2)
             ->hideOnIndex();
 
-        yield TextEditorField::new('bio', 'О себе')
+        yield TextEditorField::new('description', 'О себе')
             ->hideOnIndex()
             ->setColumns(12)
             ->setRequired(false);
@@ -253,15 +258,7 @@ class UserCrudController extends AbstractCrudController
             ->setRequired(false);
 
         yield VichImageField::new('imageFile', 'Фото профиля')
-            ->setHelp('
-                <div class="mt-3">
-                    <span class="badge badge-info">*.jpg</span>
-                    <span class="badge badge-info">*.jpeg</span>
-                    <span class="badge badge-info">*.png</span>
-                    <span class="badge badge-info">*.jiff</span>
-                    <span class="badge badge-info">*.webp</span>
-                </div>
-            ')
+            ->setHelp($this->vichImageBadgeHelp())
             ->onlyOnForms()
             ->setColumns(6);
 
@@ -276,10 +273,6 @@ class UserCrudController extends AbstractCrudController
             ->hideOnIndex()
             ->setRequired(false);
 
-        yield DateTimeField::new('updatedAt', 'Обновлено')
-            ->hideOnForm();
-
-        yield DateTimeField::new('createdAt', 'Создано')
-            ->hideOnForm();
+        yield from $this->timestampFields();
     }
 }

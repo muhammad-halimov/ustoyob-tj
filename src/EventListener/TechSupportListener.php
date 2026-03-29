@@ -33,8 +33,8 @@ use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 readonly class TechSupportListener
 {
     public function __construct(
-        private NotifyTechSupportTelegramBotService $notifyTechSupportTelegramBotService,
-        private NotifyTechSupportEmailService       $notifyTechSupportEmailService,
+        private NotifyTechSupportTelegramBotService $telegramNotifier,
+        private NotifyTechSupportEmailService       $emailNotifier,
         private TechSupportRepository               $techSupportRepository,
         private UserRepository                      $userRepository,
     ){}
@@ -59,8 +59,8 @@ readonly class TechSupportListener
     {
         if (!in_array('ROLE_ADMIN', $techSupport->getAdministrant()->getRoles())) return;
 
-        $this->notifyTechSupportTelegramBotService->sendTechSupportNotification(user: $techSupport->getAdministrant(), techSupport: $techSupport);
-        $this->notifyTechSupportEmailService->sendTechSupportEmail(user: $techSupport->getAdministrant(), techSupport: $techSupport);
+        $this->telegramNotifier->sendTechSupportNotification(user: $techSupport->getAdministrant(), techSupport: $techSupport);
+        $this->emailNotifier->sendTechSupportNotification(user: $techSupport->getAdministrant(), techSupport: $techSupport);
     }
 
     /**
@@ -71,8 +71,8 @@ readonly class TechSupportListener
     {
         if (!in_array('ROLE_ADMIN', $techSupport->getAdministrant()->getRoles())) return;
 
-        $this->notifyTechSupportTelegramBotService->sendTechSupportNotification(user: $techSupport->getAdministrant(), techSupport: $techSupport);
-        $this->notifyTechSupportEmailService->sendTechSupportEmail(user: $techSupport->getAdministrant(), techSupport: $techSupport);
+        $this->telegramNotifier->sendTechSupportNotification(user: $techSupport->getAdministrant(), techSupport: $techSupport);
+        $this->emailNotifier->sendTechSupportNotification(user: $techSupport->getAdministrant(), techSupport: $techSupport);
     }
 
     /**

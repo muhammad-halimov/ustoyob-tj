@@ -2,7 +2,7 @@
 
 namespace App\State\Localization\Title;
 
-use App\Entity\Appeal\AppealReason;
+use App\Entity\Appeal\Reason\AppealReason;
 use App\State\Localization\AbstractLocalizationProvider;
 
 readonly class AppealReasonLocalizationProvider extends AbstractLocalizationProvider

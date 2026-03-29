@@ -8,11 +8,12 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use App\Entity\Extra\Translation;
-use App\Entity\Trait\CreatedAtTrait;
-use App\Entity\Trait\DescriptionTrait;
-use App\Entity\Trait\TitleTrait;
-use App\Entity\Trait\TypeTrait;
-use App\Entity\Trait\UpdatedAtTrait;
+use App\Entity\Trait\Readable\CreatedAtTrait;
+use App\Entity\Trait\Readable\DescriptionTrait;
+use App\Entity\Trait\Readable\G;
+use App\Entity\Trait\Readable\TitleTrait;
+use App\Entity\Trait\Readable\TypeTrait;
+use App\Entity\Trait\Readable\UpdatedAtTrait;
 use App\Repository\Legal\LegalRepository;
 use App\State\Localization\Title\LegalLocalizationProvider;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -27,18 +28,12 @@ use Symfony\Component\Serializer\Attribute\Ignore;
     operations: [
         new GetCollection(
             uriTemplate: '/legals',
-            normalizationContext: [
-                'groups' => ['legals:read'],
-                'skip_null_values' => false,
-            ],
+            normalizationContext: ['groups' => G::OPS_LEGALS, 'skip_null_values' => false],
             provider: LegalLocalizationProvider::class,
         ),
         new Get(
             uriTemplate: '/legals/{id}',
-            normalizationContext: [
-                'groups' => ['legals:read'],
-                'skip_null_values' => false,
-            ],
+            normalizationContext: ['groups' => G::OPS_LEGALS, 'skip_null_values' => false],
             provider: LegalLocalizationProvider::class,
         ),
     ],
@@ -66,7 +61,7 @@ class Legal
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['legals:read'])]
+    #[Groups([G::LEGALS])]
     private ?int $id = null;
 
     /**
