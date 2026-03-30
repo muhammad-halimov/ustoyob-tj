@@ -28,6 +28,7 @@ readonly class AccessService
     // Роли, которые считаются "полнымии участниками" (см. grade='triple'/'double')
     private const array TRIPLE_ALLOWED_ROLES = ['ROLE_ADMIN', 'ROLE_CLIENT', 'ROLE_MASTER'];
     private const array DOUBLE_ALLOWED_ROLES = ['ROLE_CLIENT', 'ROLE_MASTER'];
+    private const array SINGLE_ALLOWED_ROLES = ['ROLE_USER', 'ROLE_ADMIN', 'ROLE_CLIENT', 'ROLE_MASTER'];
 
     public function __construct(
         private Security            $security,
@@ -66,6 +67,10 @@ readonly class AccessService
                 break;
             case 'double':
                 if (!array_intersect(self::DOUBLE_ALLOWED_ROLES, $user->getRoles()))
+                    throw new AccessDeniedHttpException(AppMessages::get(AppMessages::EXTRA_DENIED)->message);
+                break;
+            case 'single':
+                if (!array_intersect(self::SINGLE_ALLOWED_ROLES, $user->getRoles()))
                     throw new AccessDeniedHttpException(AppMessages::get(AppMessages::EXTRA_DENIED)->message);
                 break;
             case 'client':

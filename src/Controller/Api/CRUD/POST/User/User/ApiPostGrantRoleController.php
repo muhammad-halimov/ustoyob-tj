@@ -11,6 +11,8 @@ class ApiPostGrantRoleController extends AbstractApiPostController
 {
     protected function getInputClass(): string { return RoleInput::class; }
 
+    protected function getUserGrade(): string { return 'single'; }
+
     protected function isActiveAndApprovedRequired(): bool { return false; }
 
     protected function handle(User $bearer, object $dto): object

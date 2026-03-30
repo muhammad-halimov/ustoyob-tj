@@ -32,7 +32,7 @@ abstract class AbstractApiPostController extends AbstractApiHelperController
 
     final public function __invoke(): JsonResponse
     {
-        $bearer = $this->checkedUser($this->getUserGrade());
+        $bearer = $this->checkedUser($this->getUserGrade(), $this->isActiveAndApprovedRequired());
 
         $dto = new stdClass();
 
