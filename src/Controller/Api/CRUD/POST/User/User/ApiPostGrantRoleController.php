@@ -11,6 +11,8 @@ class ApiPostGrantRoleController extends AbstractApiPostController
 {
     protected function getInputClass(): string { return RoleInput::class; }
 
+    protected function isActiveAndApprovedRequired(): bool { return false; }
+
     protected function handle(User $bearer, object $dto): object
     {
         /** @var RoleInput $dto */
