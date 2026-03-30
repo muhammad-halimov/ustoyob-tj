@@ -2,6 +2,7 @@
 
 namespace App\Controller\Api\CRUD\Abstract;
 
+use App\ApiResource\AppMessages;
 use App\Entity\User;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
@@ -28,7 +29,7 @@ abstract class AbstractApiGetSelfController extends AbstractApiHelperController
         $bearer = $this->checkedUser($this->getUserGrade(), $this->isActiveAndApprovedRequired());
         $entity = $this->fetchSelf($bearer);
 
-        if ($entity === null) return $this->errorJson($this->getNotFoundError());
+        if ($entity === null) return $this->errorJson(AppMessages::RESOURCE_NOT_FOUND);
 
         $this->afterFetch($entity, $bearer);
 

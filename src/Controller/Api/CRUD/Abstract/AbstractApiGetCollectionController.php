@@ -2,11 +2,13 @@
 
 namespace App\Controller\Api\CRUD\Abstract;
 
+use App\ApiResource\AppMessages;
 use App\Entity\User;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\ORM\Tools\Pagination\Paginator as DoctrinePaginator;
 use Exception;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 
 /**
  * Шаблонный контроллер для коллекционных GET-фильтров текущего пользователя.
@@ -30,17 +32,28 @@ abstract class AbstractApiGetCollectionController extends AbstractApiHelperContr
     /**
      * @throws Exception
      */
-    final public function __invoke(): JsonResponse
+    final public function __invoke(Request $request): JsonResponse
     {
-        $bearer  = $this->checkedUser($this->getUserGrade());
-        $request = $this->requestStack->getCurrentRequest();
+        $bearer = $this->checkedUser($this->getUserGrade(), $this->isActiveAndApprovedRequired());
 
         $page         = max(1, (int) ($request->query->get('page', 1)));
         $itemsPerPage = max(1, min(100, (int) ($request->query->get('itemsPerPage', 25))));
 
-        $qb = $this->fetchQuery($bearer);
+        $results = $this->buildPaginator($page, $itemsPerPage, $bearer);
 
-        if ($qb === null) return $this->errorJson($this->getNotFoundError());
+        $this->afterFetch($results, $bearer);
+
+        return $this->buildResponse($results);
+    }
+
+    /**
+     * @throws Exception
+     */
+    private function buildPaginator(mixed $page, mixed $itemsPerPage, User $user): array|JsonResponse
+    {
+        $qb = $this->fetchQuery($user);
+
+        if ($qb === null) return $this->errorJson(AppMessages::RESOURCE_NOT_FOUND);
 
         $offset = ($page - 1) * $itemsPerPage;
 
@@ -48,29 +61,8 @@ abstract class AbstractApiGetCollectionController extends AbstractApiHelperContr
         $paginator = new DoctrinePaginator($query, false);
         $total     = count($paginator);
 
-        if ($total === 0) return $this->errorJson($this->getNotFoundError());
+        if ($total === 0) return $this->errorJson(404);
 
-        $results = iterator_to_array($paginator->getIterator());
-
-        $this->afterFetch($results, $bearer);
-
-        return $this->buildHydraResponse($results, $total, $page, $itemsPerPage);
-    }
-
-    private function buildHydraResponse(array $results, int $total, int $page, int $itemsPerPage): JsonResponse
-    {
-        $path       = $this->getPath();
-        $totalPages = max(1, (int) ceil($total / $itemsPerPage));
-
-        $view = [
-            '@type'       => 'hydra:PartialCollectionView',
-            'hydra:first' => $path . '?page=1',
-            'hydra:last'  => $path . '?page=' . $totalPages,
-        ];
-
-        if ($page > 1)           $view['hydra:previous'] = $path . '?page=' . ($page - 1);
-        if ($page < $totalPages) $view['hydra:next']     = $path . '?page=' . ($page + 1);
-
-        return $this->buildResponse(['hydra:member' => $results, 'hydra:totalItems' => $total, 'hydra:view' => $view]);
+        return iterator_to_array($paginator->getIterator());
     }
 }
