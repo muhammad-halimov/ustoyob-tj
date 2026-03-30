@@ -13,6 +13,8 @@ class ApiGetMyProfileController extends AbstractApiGetSelfController
 
     protected function setSerializationGroups(): array { return G::OPS_USERS_ME; }
 
+    protected function getUserGrade(): string { return 'triple'; }
+
     protected function isActiveAndApprovedRequired(): bool { return false; }
 
     protected function fetchSelf(User $user): object|array|null { return $user; }
