@@ -3,14 +3,13 @@
 namespace App\Controller\Admin\User\Education;
 
 use App\Entity\User\Education;
-use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
-use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\TextEditorField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use App\Controller\Admin\Traits\AdminActionsTrait;
 use App\Controller\Admin\Traits\TimestampFieldsTrait;
@@ -44,19 +43,19 @@ class EducationCrudController extends AbstractCrudController
         yield IdField::new('id')
             ->hideOnForm();
 
-        yield TextField::new('uniTitle', 'Название ВУЗа')
-            ->setColumns(12)
-            ->setRequired(true);
+        yield TextField::new('title', 'Название ВУЗа')
+            ->setColumns(12);
 
         yield AssociationField::new('occupation', 'Специальность')
-            ->setColumns(12)
-            ->setRequired(true);
+            ->setColumns(12);
 
         yield IntegerField::new('beginning', 'Начало')
-            ->setColumns(12)
-            ->setRequired(true);
+            ->setColumns(12);
 
         yield IntegerField::new('ending', 'Окончание')
+            ->setColumns(12);
+
+        yield TextEditorField::new('description', 'Описание')
             ->setColumns(12);
 
         yield BooleanField::new('graduated', 'Окончено')
