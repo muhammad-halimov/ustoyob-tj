@@ -660,6 +660,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         message: "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (!@#$%^&*)",
         groups: ['registration', 'password_change']
     )]
+    #[ApiProperty(readable: false)]
     private ?string $password = null;
 
     /**
