@@ -9,6 +9,8 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
+use ApiPlatform\OpenApi\Model\Operation as OpenApiOperation;
+use ApiPlatform\OpenApi\Model\Parameter as OpenApiParameter;
 use App\Controller\Api\CRUD\DELETE\Chat\Chat\ApiDeleteChatController;
 use App\Controller\Api\CRUD\GET\Chat\Chat\ApiGetChatController;
 use App\Controller\Api\CRUD\GET\Chat\Chat\ApiGetChatSubscribeTokenController;
@@ -54,6 +56,12 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             uriTemplate: '/chats/me',
             controller: ApiGetMyChatsController::class,
             normalizationContext: ['groups' => G::OPS_CHATS],
+            openapi: new OpenApiOperation(
+                parameters: [
+                    new OpenApiParameter(name: 'ticket', in: 'query', required: false, schema: ['type' => 'integer'], description: 'Filter by ticket ID'),
+                    new OpenApiParameter(name: 'active', in: 'query', required: false, schema: ['type' => 'boolean'], description: 'Filter by active status (true/false or 1/0)'),
+                ],
+            ),
         ),
         new Post(
             uriTemplate: '/chats',

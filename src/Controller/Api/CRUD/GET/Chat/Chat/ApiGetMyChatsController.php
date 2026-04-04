@@ -13,13 +13,21 @@ use Doctrine\ORM\QueryBuilder;
 class ApiGetMyChatsController extends AbstractApiGetCollectionController
 {
     public function __construct(
-        private readonly ChatRepository $chatRepository,
-        private readonly LocalizationService $localizationService,
+        private readonly ChatRepository       $chatRepository,
+        private readonly LocalizationService  $localizationService,
     ) {}
 
     protected function setSerializationGroups(): array { return G::OPS_CHATS; }
 
-    protected function fetchQuery(User $user): QueryBuilder { return $this->chatRepository->findUserChats($user); }
+    protected function fetchQuery(User $user): QueryBuilder
+    {
+        $query = $this->requestStack->getCurrentRequest()?->query;
+
+        $ticketId = ($v = $query?->get('ticket')) !== null && is_numeric($v) ? (int) $v : null;
+        $active   = ($v = $query?->get('active'))  !== null ? filter_var($v, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) : null;
+
+        return $this->chatRepository->findUserChats($user, $ticketId, $active);
+    }
 
     protected function afterFetch(array|object $entity, User $user): void
     {

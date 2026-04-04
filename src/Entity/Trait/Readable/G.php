@@ -29,6 +29,7 @@ final class G
 
     const string PHONES_WRITE = 'users:phones:write';
     const string PHONE_WRITE  = 'phone:write';
+    const string PHONES_READ  = 'users:phones:read';
 
     // ─── Catalogue contexts ────────────────────────────────────────────────
 

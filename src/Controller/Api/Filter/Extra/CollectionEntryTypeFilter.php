@@ -22,16 +22,34 @@ final class CollectionEntryTypeFilter extends AbstractFilter
         ?Operation                  $operation = null,
         array                       $context   = [],
     ): void {
-        if ($property !== 'type' || !in_array($value, ['user', 'ticket'], true)) {
+        $alias = $queryBuilder->getRootAliases()[0];
+
+        if ($property === 'type') {
+            if (!in_array($value, ['user', 'ticket'], true)) return;
+
+            $param = $queryNameGenerator->generateParameterName('type');
+            $queryBuilder
+                ->andWhere("$alias.type = :$param")
+                ->setParameter($param, $value);
+
             return;
         }
 
-        $alias = $queryBuilder->getRootAliases()[0];
-        $param = $queryNameGenerator->generateParameterName('type');
+        if ($property === 'user' && is_numeric($value)) {
+            $param = $queryNameGenerator->generateParameterName('user');
+            $queryBuilder
+                ->andWhere("IDENTITY($alias.user) = :$param")
+                ->setParameter($param, (int) $value);
 
-        $queryBuilder
-            ->andWhere("$alias.type = :$param")
-            ->setParameter($param, $value);
+            return;
+        }
+
+        if ($property === 'ticket' && is_numeric($value)) {
+            $param = $queryNameGenerator->generateParameterName('ticket');
+            $queryBuilder
+                ->andWhere("IDENTITY($alias.ticket) = :$param")
+                ->setParameter($param, (int) $value);
+        }
     }
 
     public function getDescription(string $resourceClass): array
@@ -42,6 +60,18 @@ final class CollectionEntryTypeFilter extends AbstractFilter
                 'type'     => 'string',
                 'required' => false,
                 'openapi'  => ['description' => 'Filter by entry type: user or ticket'],
+            ],
+            'user' => [
+                'property' => 'user',
+                'type'     => 'integer',
+                'required' => false,
+                'openapi'  => ['description' => 'Filter by target user ID'],
+            ],
+            'ticket' => [
+                'property' => 'ticket',
+                'type'     => 'integer',
+                'required' => false,
+                'openapi'  => ['description' => 'Filter by target ticket ID'],
             ],
         ];
     }

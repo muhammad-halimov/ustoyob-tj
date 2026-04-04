@@ -43,159 +43,32 @@ class Phone
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups([
-        G::MASTERS,
-        G::CLIENTS,
-
-        G::REVIEWS,
-        G::REVIEWS_CLIENT,
-
-        G::GALLERIES,
-
-        G::MASTER_TICKETS,
-        G::CLIENT_TICKETS,
-
-        G::CHATS,
-        G::CHAT_MESSAGES,
-
-        G::APPEAL_TICKET,
-
-        G::FAVORITES,
-        G::BLACK_LISTS,
-
-        G::TECH_SUPPORT,
-        G::TECH_SUPPORT_MESSAGES,
-
-        G::USERS_ME,
-        G::PHONES_WRITE
-    ])]
+    #[Groups([G::PHONES_READ, G::PHONES_WRITE])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'phones')]
     #[ORM\JoinColumn(nullable: false)]
-    #[Groups([
-        G::PHONE_WRITE
-    ])]
+    #[Groups([G::PHONE_WRITE])]
     #[ApiProperty(writable: false)]
     private ?User $owner = null;
 
     #[ORM\Column(length: 20, unique: true)]
-    #[Groups([
-        G::MASTERS,
-        G::CLIENTS,
-
-        G::REVIEWS,
-        G::REVIEWS_CLIENT,
-
-        G::GALLERIES,
-
-        G::MASTER_TICKETS,
-        G::CLIENT_TICKETS,
-
-        G::CHATS,
-        G::CHAT_MESSAGES,
-
-        G::APPEAL_TICKET,
-
-        G::FAVORITES,
-        G::BLACK_LISTS,
-
-        G::TECH_SUPPORT,
-        G::TECH_SUPPORT_MESSAGES,
-
-        G::USERS_ME,
-        G::PHONES_WRITE,
-        G::PHONE_WRITE
-    ])]
+    #[Groups([G::PHONES_READ, G::PHONES_WRITE, G::PHONE_WRITE])]
     #[AppAssert\PhoneConstraint]
     #[Assert\NotBlank(message: 'Phone number is required')]
     #[Assert\Length(max: 20, maxMessage: 'Phone number cannot be longer than {{ limit }} characters')]
     private ?string $phone = null;
 
     #[ORM\Column(length: 5, nullable: true)]
-    #[Groups([
-        G::MASTERS,
-        G::CLIENTS,
-
-        G::REVIEWS,
-        G::REVIEWS_CLIENT,
-
-        G::GALLERIES,
-
-        G::MASTER_TICKETS,
-        G::CLIENT_TICKETS,
-
-        G::CHATS,
-        G::CHAT_MESSAGES,
-
-        G::APPEAL_TICKET,
-
-        G::FAVORITES,
-        G::BLACK_LISTS,
-
-        G::TECH_SUPPORT,
-        G::TECH_SUPPORT_MESSAGES,
-
-        G::USERS_ME,
-        G::PHONES_WRITE
-    ])]
+    #[Groups([G::PHONES_READ, G::PHONES_WRITE])]
     private ?string $countryCode = '+992';
 
     #[ORM\Column]
-    #[Groups([
-        G::MASTERS,
-        G::CLIENTS,
-
-        G::REVIEWS,
-        G::REVIEWS_CLIENT,
-
-        G::GALLERIES,
-
-        G::MASTER_TICKETS,
-        G::CLIENT_TICKETS,
-
-        G::CHATS,
-        G::CHAT_MESSAGES,
-
-        G::APPEAL_TICKET,
-
-        G::FAVORITES,
-        G::BLACK_LISTS,
-
-        G::TECH_SUPPORT,
-        G::TECH_SUPPORT_MESSAGES,
-
-        G::USERS_ME,
-        G::PHONE_WRITE,
-        G::PHONES_WRITE
-    ])]
+    #[Groups([G::PHONES_READ, G::PHONES_WRITE, G::PHONE_WRITE])]
     private bool $main = false;
 
     #[ORM\Column]
-    #[Groups([
-        G::MASTERS,
-        G::CLIENTS,
-
-        G::REVIEWS,
-        G::REVIEWS_CLIENT,
-
-        G::GALLERIES,
-
-        G::MASTER_TICKETS,
-        G::CLIENT_TICKETS,
-
-        G::CHATS,
-        G::CHAT_MESSAGES,
-
-        G::APPEAL_TICKET,
-
-        G::FAVORITES,
-        G::BLACK_LISTS,
-
-        G::TECH_SUPPORT,
-        G::TECH_SUPPORT_MESSAGES,
-        G::USERS_ME
-    ])]
+    #[Groups([G::PHONES_READ])]
     #[ApiProperty(writable: false)]
     private bool $verified = false;
 

@@ -4,6 +4,7 @@ namespace App\Serializer;
 
 use ApiPlatform\State\SerializerContextBuilderInterface;
 use App\Entity\User;
+use App\Entity\Trait\Readable\G;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Bundle\SecurityBundle\Security;
 
@@ -20,13 +21,16 @@ final readonly class UserContextBuilder implements SerializerContextBuilderInter
 
         $resourceClass = $context['resource_class'] ?? null;
 
-        // Применяем только для User и только при чтении (normalization)
-        if ($resourceClass === User::class && $normalization) {
-            // Если пользователь НЕ авторизован - оставляем только публичную группу
-            if (!$this->security->isGranted('IS_AUTHENTICATED')) {
+        if ($normalization) {
+            // Если пользователь авторизован — добавляем группу телефонов
+            if ($this->security->isGranted('IS_AUTHENTICATED')) {
+                $context['groups'][] = G::PHONES_READ;
+            }
+
+            // Если пользователь НЕ авторизован и запрашивает User — только публичная группа
+            if ($resourceClass === User::class && !$this->security->isGranted('IS_AUTHENTICATED')) {
                 $context['groups'] = ['user:public:read'];
             }
-            // Если авторизован - группы уже установлены из операции (masters:read, clients:read)
         }
 
         return $context;
