@@ -48,7 +48,7 @@ class TechSupportMessageCrudController extends AbstractCrudController
             ->setRequired(true)
             ->setColumns(12);
 
-        yield TextField::new('text', 'Сообщение')
+        yield TextField::new('description', 'Сообщение')
             ->setRequired(true)
             ->setColumns(12);
 

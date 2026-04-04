@@ -493,8 +493,22 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups([
         G::MASTERS,
         G::CLIENTS,
-        G::USERS_ME,
-        G::PHONES_WRITE,
+
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+
+        G::FAVORITES,
+        G::BLACK_LISTS,
 
         G::TECH_SUPPORT,
         G::TECH_SUPPORT_MESSAGES,

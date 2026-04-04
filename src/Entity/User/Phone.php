@@ -46,8 +46,26 @@ class Phone
     #[Groups([
         G::MASTERS,
         G::CLIENTS,
+
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
         G::TECH_SUPPORT,
         G::TECH_SUPPORT_MESSAGES,
+
         G::USERS_ME,
         G::PHONES_WRITE
     ])]
@@ -65,8 +83,26 @@ class Phone
     #[Groups([
         G::MASTERS,
         G::CLIENTS,
+
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
         G::TECH_SUPPORT,
         G::TECH_SUPPORT_MESSAGES,
+
         G::USERS_ME,
         G::PHONES_WRITE,
         G::PHONE_WRITE
@@ -80,8 +116,26 @@ class Phone
     #[Groups([
         G::MASTERS,
         G::CLIENTS,
+
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
         G::TECH_SUPPORT,
         G::TECH_SUPPORT_MESSAGES,
+
         G::USERS_ME,
         G::PHONES_WRITE
     ])]
@@ -91,8 +145,26 @@ class Phone
     #[Groups([
         G::MASTERS,
         G::CLIENTS,
+
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
         G::TECH_SUPPORT,
         G::TECH_SUPPORT_MESSAGES,
+
         G::USERS_ME,
         G::PHONE_WRITE,
         G::PHONES_WRITE
@@ -103,6 +175,23 @@ class Phone
     #[Groups([
         G::MASTERS,
         G::CLIENTS,
+
+        G::REVIEWS,
+        G::REVIEWS_CLIENT,
+
+        G::GALLERIES,
+
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+
+        G::CHATS,
+        G::CHAT_MESSAGES,
+
+        G::APPEAL_TICKET,
+
+        G::FAVORITES,
+        G::BLACK_LISTS,
+
         G::TECH_SUPPORT,
         G::TECH_SUPPORT_MESSAGES,
         G::USERS_ME
