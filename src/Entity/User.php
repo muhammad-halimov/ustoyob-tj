@@ -490,7 +490,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      * @var Collection<int, Phone>
      */
     #[ORM\OneToMany(targetEntity: Phone::class, mappedBy: 'owner', cascade: ['persist', 'remove'], orphanRemoval: true)]
-    #[Groups([G::PHONES_READ])]
+    #[Groups([G::PHONES_READ, G::PHONES_WRITE, G::PHONE_WRITE])]
     private Collection $phones;
 
     #[ORM\Column(type: 'boolean', nullable: true)]
