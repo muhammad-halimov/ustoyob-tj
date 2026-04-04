@@ -62,6 +62,12 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
                 ],
             ),
             normalizationContext: ['groups' => G::OPS_CHATS],
+            openapi: new OpenApiOperation(
+                parameters: [
+                    new OpenApiParameter(name: 'ticket', in: 'query', required: false, schema: ['type' => 'integer'], description: 'Filter by ticket ID'),
+                    new OpenApiParameter(name: 'active', in: 'query', required: false, schema: ['type' => 'boolean'], description: 'Filter by active status (true/false or 1/0)'),
+                ],
+            ),
         ),
         new Post(
             uriTemplate: '/chats',
