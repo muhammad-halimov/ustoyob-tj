@@ -98,7 +98,7 @@ final class G
     //     PHP 8.1+ constant arrays work in attributes.
     //     When operations differ, define BASE + FULL variants.
 
-    const array OPS_USERS_ME     = [self::MASTERS, self::CLIENTS, self::USERS_ME];
+    const array OPS_USERS_ME     = [self::MASTERS, self::CLIENTS, self::USERS_ME, self::PHONES_READ];
     const array OPS_USERS_PUBLIC = [self::MASTERS, self::CLIENTS, self::USER_PUBLIC];
 
     const array OPS_TICKETS      = [self::MASTER_TICKETS, self::CLIENT_TICKETS];
