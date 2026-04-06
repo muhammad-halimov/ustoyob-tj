@@ -125,7 +125,7 @@ class ChatMessage
     /**
      * @var Collection<int, MultipleImage>
      */
-    #[ORM\OneToMany(targetEntity: MultipleImage::class, mappedBy: 'chatMessage')]
+    #[ORM\OneToMany(targetEntity: MultipleImage::class, mappedBy: 'chatMessage', cascade: ['all'])]
     #[ORM\OrderBy(['priority' => 'ASC'])]
     #[Groups([
         G::CHATS,
