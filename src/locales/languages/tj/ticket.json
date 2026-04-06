@@ -35,5 +35,11 @@
   "activateError": "Фаъол кардани эълон имконпазир набуд",
   "deactivateError": "Ғайрифаъол кардани эълон имконпазир набуд",
   "ownTicketError": "Шумо наметавонед ба эълони худ посух диҳед",
-  "inactiveError": "Ин эълон ғайрифаъол аст"
+  "inactiveError": "Ин эълон ғайрифаъол аст",
+  "responsesOne": "посух",
+  "responsesFew": "посух",
+  "responsesMany": "посух",
+  "viewsOne": "боздид",
+  "viewsFew": "боздид",
+  "viewsMany": "боздид"
 }

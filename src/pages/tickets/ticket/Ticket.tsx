@@ -19,10 +19,11 @@ import {useFavorites} from '../../../shared/ui/useFavorites';
 import {ROUTES} from '../../../app/routers/routes';
 import {ReviewsSection} from '../../profile/shared/ui/ReviewsSection';
 import {SocialNetworksSection} from '../../profile/shared/ui/SocialNetworksSection';
+import {PhonesSection} from '../../profile/shared/ui/PhonesSection';
 import {SOCIAL_NETWORK_CONFIG, renderSocialIcon} from '../../profile/shared/config/socialNetworkConfig';
 import type {Review as ReviewType} from '../../../entities';
 import {PageLoader} from '../../../widgets/PageLoader';
-import {IoWarningOutline, IoStar, IoHeart, IoHeartOutline, IoChevronForward, IoCompass} from 'react-icons/io5';
+import {IoWarningOutline, IoStar, IoHeart, IoHeartOutline, IoChevronForward, IoCompass, IoChatbubbleOutline, IoCheckmarkCircleOutline, IoBanOutline} from 'react-icons/io5';
 import { ActionsDropdown } from '../../../widgets/ActionsDropdown';
 
 interface ApiTicket {
@@ -72,6 +73,8 @@ interface ApiTicket {
         surname?: string; 
         image?: string; 
         rating?: number;
+        phones?: { id: number; phone: string; countryCode?: string; main?: boolean }[];
+        socialNetworks?: { id: number; network: string; handle?: string }[];
         education?: {
             id: number;
             title: string;
@@ -94,6 +97,8 @@ interface ApiTicket {
     active: boolean;
     service: boolean;
     reviewsCount?: number;
+    responsesCount?: number;
+    viewsCount?: number;
     negotiableBudget?: boolean;
 }
 
@@ -162,6 +167,8 @@ export function Ticket() {
     const [visibleReviewCount, setVisibleReviewCount] = useState(2);
 
     const [reviewCount, setReviewCount] = useState<number>(0);
+    const [responsesCount, setResponsesCount] = useState<number>(0);
+    const [viewsCount, setViewsCount] = useState<number>(0);
 
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [showErrorModal, setShowErrorModal] = useState(false);
@@ -182,6 +189,8 @@ export function Ticket() {
 
     // Social networks of the ticket author
     const [authorSocialNetworks, setAuthorSocialNetworks] = useState<{ id: string; network: string; handle: string }[]>([]);
+    // Phones of the ticket author
+    const [authorPhones, setAuthorPhones] = useState<{ id: string; number: string; type: 'tj' | 'international'; main?: boolean }[]>([]);
 
     useEffect(() => {
         console.log('Ticket useEffect triggered with id:', id);
@@ -221,28 +230,9 @@ export function Ticket() {
         }
     });
 
-    const fetchAuthorSocialNetworks = async (authorId: number) => {
-        try {
-            const userInfo = await getUserInfoWithoutAuth(authorId);
-            if (userInfo?.socialNetworks && Array.isArray(userInfo.socialNetworks)) {
-                const networks = userInfo.socialNetworks
-                    .filter((sn: { network?: string; handle?: string; id?: unknown }) => sn.network)
-                    .map((sn: { network: string; handle?: string; id?: unknown }) => ({
-                        id: sn.id?.toString() || `${sn.network}-${Date.now()}`,
-                        network: sn.network.toLowerCase(),
-                        handle: sn.handle || '',
-                    }));
-                setAuthorSocialNetworks(networks);
-            }
-        } catch {
-            // silently ignore
-        }
-    };
-
     useEffect(() => {
         if (order) {
             favorites.checkFavoriteStatus();
-            fetchAuthorSocialNetworks(order.authorId);
             // Проверяем существующие чаты если пользователь авторизован
             if (currentUserId) {
                 checkExistingChats();
@@ -460,9 +450,11 @@ export function Ticket() {
                 userRating
             });
 
-            // Используем reviewsCount из API тикета если есть
+            // Используем reviewsCount, responsesCount и viewsCount из API тикета если есть
             const reviewCountForUser = ticketData.reviewsCount || 0;
             setReviewCount(reviewCountForUser);
+            setResponsesCount(ticketData.responsesCount || 0);
+            setViewsCount(ticketData.viewsCount || 0);
 
             // Используем рейтинг из данных тикета (БЕЗ дополнительного API запроса)
             setRating(userRating);
@@ -519,6 +511,34 @@ export function Ticket() {
             setIsTicketActive(ticketData.active);
             isServiceRef.current = ticketData.service;
 
+            // Извлекаем контакты из данных тикета — без лишнего API-запроса
+            const contactSource = ticketData.master;
+            if (contactSource) {
+                if (contactSource.socialNetworks?.length) {
+                    setAuthorSocialNetworks(
+                        contactSource.socialNetworks
+                            .filter(sn => sn.network)
+                            .map(sn => ({
+                                id: String(sn.id),
+                                network: sn.network.toLowerCase(),
+                                handle: sn.handle || '',
+                            }))
+                    );
+                }
+                if (contactSource.phones?.length) {
+                    setAuthorPhones(
+                        contactSource.phones
+                            .filter(p => p.phone)
+                            .map(p => ({
+                                id: String(p.id),
+                                number: p.phone,
+                                type: (p.countryCode && p.countryCode !== '+992' ? 'international' : 'tj') as 'tj' | 'international',
+                                main: p.main ?? false,
+                            }))
+                            .sort((a, b) => (b.main ? 1 : 0) - (a.main ? 1 : 0))
+                    );
+                }
+            }
         } catch (error) {
             const fetchTime = Date.now();
             console.error(`[${fetchTime}] fetchOrder ERROR for ticket:`, error);
@@ -810,6 +830,24 @@ export function Ticket() {
             [t('components:time.reviewsOne'), t('components:time.reviewsFew'), t('components:time.reviewsMany')] :
             ['отзыв', 'отзыва', 'отзывов'];
         return getRussianWord(count, reviewWords as [string, string, string]);
+    };
+
+    const getResponseWord = (count: number) => {
+        const words = [
+            t('ticket:responsesOne', 'отклик'),
+            t('ticket:responsesFew', 'отклика'),
+            t('ticket:responsesMany', 'откликов'),
+        ];
+        return getRussianWord(count, words as [string, string, string]);
+    };
+
+    const getViewWord = (count: number) => {
+        const words = [
+            t('ticket:viewsOne', 'просмотр'),
+            t('ticket:viewsFew', 'просмотра'),
+            t('ticket:viewsMany', 'просмотров'),
+        ];
+        return getRussianWord(count, words as [string, string, string]);
     };
 
     // ===== Функции для работы с отзывами =====
@@ -1173,6 +1211,23 @@ export function Ticket() {
                             className={styles.social_networks_override}
                         />
                     )}
+                    {(authorPhones.length > 0 || !getAuthToken()) && order.displayedUserRole === 'master' && (
+                        <PhonesSection
+                            className={styles.phones_override}
+                            phones={authorPhones}
+                            editingPhone={null}
+                            phoneForm={{ number: '', type: 'tj' }}
+                            readOnly={true}
+                            onLoginClick={() => setShowAuthModal(true)}
+                            onAddPhone={() => {}}
+                            onEditPhoneStart={() => {}}
+                            onEditPhoneSave={async () => {}}
+                            onEditPhoneCancel={() => {}}
+                            onDeletePhone={async () => {}}
+                            onCopyPhone={async () => {}}
+                            setPhoneForm={() => {}}
+                        />
+                    )}
                 </section>
 
                 <section className={styles.rate}>
@@ -1215,6 +1270,24 @@ export function Ticket() {
                             </svg>
                             <p>{reviewCount} {getReviewWord(reviewCount)}</p>
                         </div>
+                        <div className={styles.rate_item}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                 xmlns="http://www.w3.org/2000/svg">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                <circle cx="9" cy="7" r="4" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                            <p>{responsesCount} {getResponseWord(responsesCount)}</p>
+                        </div>
+                        <div className={styles.rate_item}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                 xmlns="http://www.w3.org/2000/svg">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                <circle cx="12" cy="12" r="3" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                            <p>{viewsCount} {getViewWord(viewsCount)}</p>
+                        </div>
                         {order.hasEducation && (
                             <div className={styles.rate_item}>
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -1248,19 +1321,20 @@ export function Ticket() {
                     {isResponding && <PageLoader overlay />}
                     {!(order?.isService && getUserRole() === 'master') && !(getUserRole() === 'client' && order?.displayedUserRole === 'client') && (
                         <button
-                            className={`${styles.respondButton} ${
-                                (!isTicketActive || isCheckingChats || isResponding) ? styles.respondButtonDisabled :
-                                existingChatId ? styles.respondButtonDone :
-                                ''
-                            }`}
+                            className={`${styles.favoriteButton} ${existingChatId ? styles.responded : ''} ${(!isTicketActive || isCheckingChats || isResponding) ? styles.loading : ''}`}
+                            style={existingChatId && !(isCheckingChats || isResponding) ? { borderColor: '#22c55e', color: '#16a34a' } : undefined}
                             onClick={() => order?.authorId && handleRespondClick(order.authorId)}
                             disabled={!isTicketActive || isCheckingChats || isResponding}
+                            title={isCheckingChats || isResponding ? t('ticket:checking') : existingChatId ? t('ticket:done') : !isTicketActive ? t('ticket:inactive') : t('ticket:respond')}
                         >
-                            {isCheckingChats ? t('ticket:checking') :
-                             isResponding ? t('ticket:checking') :
-                             existingChatId ? t('ticket:done') :
-                             !isTicketActive ? t('ticket:inactive') :
-                             t('ticket:respond')}
+                            {(isCheckingChats || isResponding)
+                                ? <PageLoader fullPage={false} compact />
+                                : existingChatId
+                                ? <IoCheckmarkCircleOutline />
+                                : !isTicketActive
+                                ? <IoBanOutline />
+                                : <IoChatbubbleOutline />
+                            }
                         </button>
                     )}
                     <button

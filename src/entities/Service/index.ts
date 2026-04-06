@@ -16,7 +16,6 @@ export interface Service {
     createdAt?: string;
     active?: boolean;
     images?: ServiceImage[];
-    position?: number;
 }
 
 export interface ServiceApiData extends Service {

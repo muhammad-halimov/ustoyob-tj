@@ -35,5 +35,11 @@
   "activateError": "Не удалось активировать объявление",
   "deactivateError": "Не удалось деактивировать объявление",
   "ownTicketError": "Вы не можете откликнуться на своё объявление",
-  "inactiveError": "Это объявление неактивно"
+  "inactiveError": "Это объявление неактивно",
+  "responsesOne": "отклик",
+  "responsesFew": "отклика",
+  "responsesMany": "откликов",
+  "viewsOne": "просмотр",
+  "viewsFew": "просмотра",
+  "viewsMany": "просмотров"
 }

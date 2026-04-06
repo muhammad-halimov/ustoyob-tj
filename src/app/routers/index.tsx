@@ -12,6 +12,7 @@ import OAuthCallbackPage from "../../pages/OAuth/OAuthCallbackPage.tsx";
 import OAuthRedirectPage from "../../pages/OAuth/OAuthRedirectPage.tsx";
 import TelegramCallbackPage from "../../pages/OAuth/TelegramCallbackPage.tsx";
 import { Legal } from "../../pages/legal";
+import ConfirmAccountPage from "../../pages/auth/ConfirmAccountPage.tsx";
 import { ROUTE_PATTERNS } from './routes';
 
 const router = createBrowserRouter([
@@ -37,7 +38,7 @@ const router = createBrowserRouter([
 
             // Legal pages
             { path: ROUTE_PATTERNS.PRIVACY_POLICY, element: <Legal /> },
-            { path: ROUTE_PATTERNS.TERMS_OF_SERVICE, element: <Legal /> },
+            { path: ROUTE_PATTERNS.TERMS_OF_USE, element: <Legal /> },
             { path: ROUTE_PATTERNS.PUBLIC_OFFER, element: <Legal /> },
         ],
     },
@@ -68,6 +69,10 @@ const router = createBrowserRouter([
     {
         path: ROUTE_PATTERNS.AUTH_TELEGRAM_CALLBACK,
         element: <TelegramCallbackPage />,
+    },
+    {
+        path: ROUTE_PATTERNS.CONFIRM_ACCOUNT,
+        element: <ConfirmAccountPage />,
     },
 ]);
 

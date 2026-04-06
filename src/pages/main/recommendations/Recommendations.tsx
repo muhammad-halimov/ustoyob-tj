@@ -64,6 +64,8 @@ interface Announcement {
         imageExternalUrl?: string | null;
     };
     reviewsCount?: number;
+    responsesCount?: number;
+    viewsCount?: number;
     images?: { id: number; image: string }[];
     negotiableBudget?: boolean;
 }
@@ -348,6 +350,8 @@ function Recommendations() {
                                 userRole={userRole}
                                 userRating={getUserRating(announcement)}
                                 userReviewCount={getUserReviewCount(announcement)}
+                                responsesCount={announcement.responsesCount}
+                                viewsCount={announcement.viewsCount}
                                 photos={announcement.images?.map(img => formatTicketImageUrl(img.image))}
                                 authorImage={(() => {
                                     const person = announcement.service ? announcement.master : announcement.author;

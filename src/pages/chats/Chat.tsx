@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from 'react-i18next';
-import { getAuthToken } from "../../utils/auth";
+import { getAuthToken, fetchCurrentUser } from "../../utils/auth";
 import { ROUTES } from '../../app/routers/routes';
 import { smartNameTranslator } from '../../utils/textHelper';
 import AuthModal from '../../features/auth/AuthModal';
@@ -16,6 +16,7 @@ import { Back } from '../../shared/ui/Button/Back/Back.tsx';
 import { ActionsDropdown } from '../../widgets/ActionsDropdown';
 import { uploadPhotos } from '../../utils/imageHelper';
 import { Tabs } from '../../shared/ui/Tabs';
+import PhotoGrid, { PhotoItem } from '../../shared/ui/Photo/PhotoGrid/PhotoGrid';
 
 interface Message {
     id: number;
@@ -109,7 +110,7 @@ function Chat() {
     const [error, setError] = useState<string | null>(null);
     const [currentUser, setCurrentUser] = useState<ApiUser | null>(null);
     const [isMobileChatActive, setIsMobileChatActive] = useState(false);
-    const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+    const [selectedPhotoItems, setSelectedPhotoItems] = useState<PhotoItem[]>([]);
     const [isUploading, setIsUploading] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [isPhotoSidebarOpen, setIsPhotoSidebarOpen] = useState(false);
@@ -122,12 +123,10 @@ function Chat() {
     // Состояния для ответа и редактирования
     const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
     const [editingMessage, setEditingMessage] = useState<Message | null>(null);
-    const [editingImages, setEditingImages] = useState<{ id: number; url: string; name: string }[]>([]);
-    const [editingNewFiles, setEditingNewFiles] = useState<File[]>([]);
+    const [editingPhotoItems, setEditingPhotoItems] = useState<PhotoItem[]>([]);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const editFileInputRef = useRef<HTMLInputElement>(null);
     const eventSourceRef = useRef<EventSource | null>(null);
     const currentUserRef = useRef<ApiUser | null>(null);
     const tokenRefreshRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -148,19 +147,12 @@ function Chat() {
     const galleryImages = useMemo(() => chatImages.map(img => img.imageUrl), [chatImages]);
     const photoGallery = usePreview({ images: galleryImages });
 
-    // Object URL previews for selected (new-message) files
-    const selectedFilePreviews = useMemo(() => selectedFiles.map(f => URL.createObjectURL(f)), [selectedFiles]);
-    useEffect(() => () => { selectedFilePreviews.forEach(u => URL.revokeObjectURL(u)); }, [selectedFilePreviews]);
-    const selectedFilesGallery = usePreview({ images: selectedFilePreviews });
-
-    // Object URL previews for files added during edit
-    const editingNewFilePreviews = useMemo(() => editingNewFiles.map(f => URL.createObjectURL(f)), [editingNewFiles]);
-    useEffect(() => () => { editingNewFilePreviews.forEach(u => URL.revokeObjectURL(u)); }, [editingNewFilePreviews]);
-    const editingAllPreviews = useMemo(() => [
-        ...editingImages.map(i => i.url),
-        ...editingNewFilePreviews,
-    ], [editingImages, editingNewFilePreviews]);
-    const editingGallery = usePreview({ images: editingAllPreviews });
+    // Gallery for selected (new-message) photos
+    const selectedPhotoUrls = useMemo(
+        () => selectedPhotoItems.map(p => p.type === 'new' ? p.previewUrl : ''),
+        [selectedPhotoItems]
+    );
+    const selectedFilesGallery = usePreview({ images: selectedPhotoUrls });
     
     // Вспомогательная функция для транслитерации полного имени (с автоопределением)
     const getTranslatedFullName = useCallback((user: ApiUser): string => {
@@ -264,6 +256,13 @@ function Chat() {
 
         return `${API_BASE_URL}/uploads/chat_messages/${imagePath}`;
     }, [API_BASE_URL]);
+
+    // Gallery for editing mode photos (needs getImageUrl for existing items)
+    const editingAllPreviews = useMemo(
+        () => editingPhotoItems.map(p => p.type === 'existing' ? getImageUrl(p.image) : p.previewUrl),
+        [editingPhotoItems, getImageUrl]
+    );
+    const editingGallery = usePreview({ images: editingAllPreviews });
 
     const fetchChatMessages = useCallback(async (chatId: number) => {
         try {
@@ -671,9 +670,10 @@ function Chat() {
     const editMessageOnServer = useCallback(async (
         messageId: number,
         newText: string,
-        keepImages: { id: number; url: string; name: string }[],
-        newFiles: File[]
+        photoItems: PhotoItem[]
     ): Promise<boolean> => {
+        const keepImages = photoItems.filter(p => p.type === 'existing') as Array<{ type: 'existing'; id: number; image: string }>;
+        const newFiles = (photoItems.filter(p => p.type === 'new') as Array<{ type: 'new'; file: File; previewUrl: string }>).map(p => p.file);
         try {
             const token = getAuthToken();
             if (!token || !selectedChat) return false;
@@ -686,7 +686,7 @@ function Chat() {
                 body: JSON.stringify({
                     description: newText,
                     chat: `/api/chats/${selectedChat}`,
-                    images: keepImages.map(img => ({ image: img.name }))
+                    images: keepImages.map(img => ({ image: img.image }))
                 })
             });
             if (response.ok) {
@@ -702,15 +702,6 @@ function Chat() {
         }
     }, [API_BASE_URL, selectedChat, uploadImageToMessage]);
 
-    const handleEditFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-        const files = event.target.files;
-        if (files && files.length > 0) {
-            const validFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
-            setEditingNewFiles(prev => [...prev, ...validFiles]);
-        }
-        if (event.target) event.target.value = '';
-    }, []);
-
     // Загрузка файлов к конкретному сообщению
     const uploadFilesToMessage = useCallback(async (messageId: number, files: File[]): Promise<void> => {
         for (const file of files) {
@@ -721,8 +712,8 @@ function Chat() {
     const sendMessage = useCallback(async () => {
         const isEditMode = !!editingMessage;
         const hasContent = isEditMode
-            ? (newMessage.trim().length > 0 || editingImages.length > 0 || editingNewFiles.length > 0)
-            : (newMessage.trim().length > 0 || selectedFiles.length > 0);
+            ? (newMessage.trim().length > 0 || editingPhotoItems.length > 0)
+            : (newMessage.trim().length > 0 || selectedPhotoItems.length > 0);
         if (!hasContent || !selectedChat || !currentUser) {
             console.log('Cannot send message');
             return;
@@ -747,12 +738,11 @@ function Chat() {
         if (editingMessage) {
             setIsUploading(true);
             try {
-                const success = await editMessageOnServer(editingMessage.id, newMessage, editingImages, editingNewFiles);
+                const success = await editMessageOnServer(editingMessage.id, newMessage, editingPhotoItems);
                 if (success) {
                     // SSE updated-событие обновит сообщение, нам нужно только сбросить UI
                     setEditingMessage(null);
-                    setEditingImages([]);
-                    setEditingNewFiles([]);
+                    setEditingPhotoItems([]);
                     setNewMessage("");
                 }
             } finally {
@@ -763,7 +753,9 @@ function Chat() {
 
         const text = newMessage.trim();
         const capturedReplyId = replyToMessage?.id;
-        const filesToUpload = [...selectedFiles];
+        const filesToUpload = selectedPhotoItems
+            .filter(p => p.type === 'new')
+            .map(p => (p as { type: 'new'; file: File; previewUrl: string }).file);
 
         // Добавляем временное сообщение в UI
         const tempMessageId = Date.now();
@@ -783,7 +775,7 @@ function Chat() {
         setMessages(prev => [...prev, tempMessage]);
         setNewMessage("");
         setReplyToMessage(null);
-        setSelectedFiles([]);
+        setSelectedPhotoItems([]);
 
         // Отправляем сообщение на сервер (даже если текст пустой — для файлов нужен ID)
         const messageId = await sendMessageToServer(selectedChat, text, capturedReplyId);
@@ -807,7 +799,7 @@ function Chat() {
             }
         }
         // SSE created-событие доставит итоговое сообщение (текст без файлов)
-    }, [newMessage, selectedFiles, selectedChat, currentUser, sendMessageToServer, editingMessage, editMessageOnServer, editingImages, editingNewFiles, replyToMessage, getTranslatedFullName, uploadFilesToMessage, fetchChatMessages, chats, API_BASE_URL]);
+    }, [newMessage, selectedPhotoItems, selectedChat, currentUser, sendMessageToServer, editingMessage, editMessageOnServer, editingPhotoItems, replyToMessage, getTranslatedFullName, uploadFilesToMessage, fetchChatMessages, chats, API_BASE_URL]);
 
 
 
@@ -924,39 +916,13 @@ function Chat() {
     }, [chats, searchQuery, activeTab, getInterlocutorFromChat]);
 
     const getCurrentUser = useCallback(async (): Promise<ApiUser | null> => {
-        try {
-            const token = getAuthToken();
-            if (!token) {
-                console.log('No auth token available');
-                setIsLoading(false);
-                return null;
-            }
-
-            const response = await fetch(`${API_BASE_URL}/api/users/me`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                },
-            });
-
-            if (response.ok) {
-                const userData = await response.json();
-                console.log('Current user loaded successfully:', {
-                    id: userData.id,
-                    name: userData.name
-                });
-                setCurrentUser(userData);
-                return userData;
-            } else {
-                console.error('Failed to fetch current user:', response.status);
-                setIsLoading(false);
-                return null;
-            }
-        } catch (err) {
-            console.error('Error fetching current user:', err);
+        const userData = await fetchCurrentUser();
+        if (!userData) {
             setIsLoading(false);
             return null;
         }
+        setCurrentUser(userData as unknown as ApiUser);
+        return userData as unknown as ApiUser;
     }, [API_BASE_URL, t]);
 
     const fetchChats = useCallback(async (silent = false) => {
@@ -1134,7 +1100,12 @@ function Chat() {
                 return isValid;
             });
 
-            setSelectedFiles(prev => [...prev, ...validFiles]);
+            const newItems: PhotoItem[] = validFiles.map(file => ({
+                type: 'new' as const,
+                file,
+                previewUrl: URL.createObjectURL(file),
+            }));
+            setSelectedPhotoItems(prev => [...prev, ...newItems]);
         }
 
         if (fileInputRef.current) {
@@ -1178,7 +1149,7 @@ function Chat() {
     const handleBackToChatList = useCallback(() => {
         setIsMobileChatActive(false);
         setSelectedChat(null);
-        setSelectedFiles([]);
+        setSelectedPhotoItems([]);
         setChatImages([]);
     }, []);
 
@@ -1215,14 +1186,6 @@ function Chat() {
                 ref={fileInputRef}
                 style={{ display: 'none' }}
                 onChange={handleFileSelect}
-                multiple
-                accept="image/*"
-            />
-            <input
-                type="file"
-                ref={editFileInputRef}
-                style={{ display: 'none' }}
-                onChange={handleEditFileSelect}
                 multiple
                 accept="image/*"
             />
@@ -1509,7 +1472,7 @@ function Chat() {
                                                         </button>
                                                         {msg.sender === "me" && !msg.isLocal && (
                                                             <>
-                                                                <button className={styles.actionBtn} onClick={() => { setEditingMessage(msg); setNewMessage(msg.text); setEditingImages(msg.images || []); setEditingNewFiles([]); messageInputRef.current?.focus(); }} title="Редактировать">
+                                                                <button className={styles.actionBtn} onClick={() => { setEditingMessage(msg); setNewMessage(msg.text); setEditingPhotoItems((msg.images || []).map(img => ({ type: 'existing' as const, id: img.id, image: img.name }))); messageInputRef.current?.focus(); }} title="Редактировать">
                                                                     <IoPencilSharp />
                                                                 </button>
                                                                 <button className={`${styles.actionBtn} ${styles.deleteMsgBtn}`} onClick={() => deleteMessage(msg.id)} title="Удалить">
@@ -1596,61 +1559,22 @@ function Chat() {
                                                         <span className={styles.replyBarMessage}>{editingMessage.text}</span>
                                                     )}
                                                 </div>
-                                                {(editingImages.length > 0 || editingNewFiles.length > 0) && (
-                                                    <div className={styles.editingPhotos}>
-                                                        {editingImages.map((img, idx) => (
-                                                            <div key={img.id} className={styles.editingPhotoItem}>
-                                                                <img
-                                                                    src={img.url}
-                                                                    alt=""
-                                                                    className={styles.editingPhotoThumb}
-                                                                    onClick={() => editingGallery.openGallery(idx)}
-                                                                    style={{ cursor: 'pointer' }}
-                                                                />
-                                                                <button
-                                                                    className={styles.editingPhotoRemove}
-                                                                    onClick={() => setEditingImages(prev => prev.filter(i => i.id !== img.id))}
-                                                                    title="Удалить фото"
-                                                                ><IoClose /></button>
-                                                            </div>
-                                                        ))}
-                                                        {editingNewFilePreviews.map((url, idx) => (
-                                                            <div key={idx} className={styles.editingPhotoItem}>
-                                                                <img
-                                                                    src={url}
-                                                                    alt=""
-                                                                    className={styles.editingPhotoThumb}
-                                                                    onClick={() => editingGallery.openGallery(editingImages.length + idx)}
-                                                                    style={{ cursor: 'pointer' }}
-                                                                />
-                                                                <button
-                                                                    className={styles.editingPhotoRemove}
-                                                                    onClick={() => setEditingNewFiles(prev => prev.filter((_, i) => i !== idx))}
-                                                                    title="Убрать"
-                                                                ><IoClose /></button>
-                                                            </div>
-                                                        ))}
-                                                        <button
-                                                            className={styles.editingPhotoAdd}
-                                                            onClick={() => editFileInputRef.current?.click()}
-                                                            title="Добавить фото"
-                                                        ><IoAttach /></button>
-                                                    </div>
-                                                )}
-                                                {editingImages.length === 0 && editingNewFiles.length === 0 && (
-                                                    <button
-                                                        className={styles.editingPhotoAddInline}
-                                                        onClick={() => editFileInputRef.current?.click()}
-                                                        title="Добавить фото"
-                                                    ><IoAttach /> фото</button>
-                                                )}
+                                                <PhotoGrid
+                                                    photos={editingPhotoItems}
+                                                    onChange={setEditingPhotoItems}
+                                                    getImageUrl={getImageUrl}
+                                                    onClickPhoto={(idx) => editingGallery.openGallery(idx)}
+                                                    inputId="chat-edit-photo-upload"
+                                                    photoAlt="Photo"
+                                                    disabled={isUploading}
+                                                />
                                             </div>
                                         </>
                                     )}
                                 </div>
                                 <button
                                     className={styles.replyBarClose}
-                                    onClick={() => { setReplyToMessage(null); setEditingMessage(null); setEditingImages([]); setEditingNewFiles([]); setNewMessage(""); }}
+                                    onClick={() => { setReplyToMessage(null); setEditingMessage(null); setEditingPhotoItems([]); setNewMessage(""); }}
                                     aria-label="Отменить"
                                 >
                                     <IoClose />
@@ -1693,40 +1617,24 @@ function Chat() {
                                 className={styles.sendButton}
                                 onClick={sendMessage}
                                 disabled={(editingMessage
-                                    ? (!newMessage.trim() && editingImages.length === 0 && editingNewFiles.length === 0)
-                                    : (!newMessage.trim() && selectedFiles.length === 0)) || isUploading}
+                                    ? (!newMessage.trim() && editingPhotoItems.length === 0)
+                                    : (!newMessage.trim() && selectedPhotoItems.length === 0)) || isUploading}
                                 aria-label={t('chat.sendMessage')}
                             >
                                 <IoSend />
                             </button>
                         </div>
 
-                        {selectedFiles.length > 0 && (
-                            <div className={styles.selectedFilesPreview}>
-                                <div className={styles.selectedFilesThumbList}>
-                                    {selectedFilePreviews.map((url, idx) => (
-                                        <div key={idx} className={styles.selectedFileThumb}>
-                                            <img
-                                                src={url}
-                                                alt=""
-                                                className={styles.selectedFileThumbImage}
-                                                onClick={() => selectedFilesGallery.openGallery(idx)}
-                                            />
-                                            <button
-                                                className={styles.selectedFileThumbRemove}
-                                                onClick={() => setSelectedFiles(prev => prev.filter((_, i) => i !== idx))}
-                                                title={t('chat.clearFiles')}
-                                            ><IoClose /></button>
-                                        </div>
-                                    ))}
-                                </div>
-                                <button
-                                    className={styles.clearAllFilesButton}
-                                    onClick={() => setSelectedFiles([])}
-                                    aria-label={t('chat.clearFiles')}
-                                    title={t('chat.clearFiles')}
-                                ><IoClose /></button>
-                            </div>
+                        {selectedPhotoItems.length > 0 && (
+                            <PhotoGrid
+                                photos={selectedPhotoItems}
+                                onChange={setSelectedPhotoItems}
+                                getImageUrl={(path) => path}
+                                onClickPhoto={(idx) => selectedFilesGallery.openGallery(idx)}
+                                inputId="chat-photo-upload"
+                                photoAlt="Photo"
+                                disabled={isUploading}
+                            />
                         )}
 
                         {isUploading && (
@@ -1764,7 +1672,7 @@ function Chat() {
             />
             <Preview
                 isOpen={selectedFilesGallery.isOpen}
-                images={selectedFilePreviews}
+                images={selectedPhotoUrls}
                 currentIndex={selectedFilesGallery.currentIndex}
                 onClose={selectedFilesGallery.closeGallery}
                 onNext={selectedFilesGallery.goToNext}

@@ -37,7 +37,7 @@
     "defaultClient": "Заказчик",
     "negotiablePrice": "Цена договорная",
     "respond": "Откликнуться",
-    "responded": "Откликнулся ✅"
+    "responded": "Откликнулся"
   },
   "validation": {
     "required": "Это поле обязательно",

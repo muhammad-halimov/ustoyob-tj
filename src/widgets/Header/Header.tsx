@@ -2,12 +2,15 @@ import React, { useEffect, useState } from 'react';
 import styles from "./Header.module.scss";
 import { ROUTES } from '../../app/routers/routes';
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import {getAuthToken, handleUnauthorized} from "../../utils/auth";
+import {getAuthToken, fetchCurrentUser, invalidateCurrentUserCache} from "../../utils/auth";
 import { useTranslation } from 'react-i18next';
 import { changeLanguage, Language } from '../../locales/i18n.ts';
 import { useLanguageChange } from '../../hooks';
 import { ThemeToggle } from '../ThemeToggle';
 import { getCities } from '../../utils/dataCache.ts';
+import Status from '../../shared/ui/Modal/Status';
+import { PageLoader } from '../PageLoader';
+import { EmptyState } from '../EmptyState';
 
 interface HeaderProps {
     onOpenAuthModal?: () => void;
@@ -65,6 +68,8 @@ function Header({ onOpenAuthModal }: HeaderProps) {
         const savedCity = localStorage.getItem('selectedCity');
         return savedCity || t('header:location');
     });
+    const [isCitiesLoading, setIsCitiesLoading] = useState(false);
+    const [citiesError, setCitiesError] = useState(false);
     const [showCityModal, setShowCityModal] = useState(false);
     const [showLangDropdown, setShowLangDropdown] = useState(false);
     const [showConfirmationBanner, setShowConfirmationBanner] = useState<boolean>(() => {
@@ -84,6 +89,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
     });
     const [isLoading, setIsLoading] = useState(false);
     const [showLogo, setShowLogo] = useState(false);
+    const [headerStatus, setHeaderStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string; isOpen: boolean }>({ type: 'success', message: '', isOpen: false });
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     const languages = [
@@ -94,38 +100,11 @@ function Header({ onOpenAuthModal }: HeaderProps) {
 
     const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[1];
 
-    useEffect(() => {
-        const loadCities = async () => {
-            try {
-                const data = await getCities();
-                console.log('Cities from cache:', data.map(city => city.title));
-                // Преобразуем к локальному типу City
-                const mappedCities: City[] = data.map(city => ({
-                    id: city.id,
-                    title: city.title,
-                    description: city.description || '',
-                    image: city.image || '',
-                    districts: (city.districts || []).map(d => ({
-                        id: d.id,
-                        title: '',
-                        image: ''
-                    })),
-                    province: city.province || { id: 0, title: '' }
-                }));
-                setCities(mappedCities);
-            } catch (error) {
-                console.error('Error loading cities:', error);
-            }
-        };
-
-        loadCities();
-    }, []);
-
-    // При смене языка переполучаем города
-    useLanguageChange(async () => {
+    const fetchCities = async () => {
+        setIsCitiesLoading(true);
+        setCitiesError(false);
         try {
             const data = await getCities();
-            // Преобразуем к локальному типу City
             const mappedCities: City[] = data.map(city => ({
                 id: city.id,
                 title: city.title,
@@ -140,8 +119,20 @@ function Header({ onOpenAuthModal }: HeaderProps) {
             }));
             setCities(mappedCities);
         } catch (error) {
-            console.error('Error loading cities on language change:', error);
+            console.error('Error loading cities:', error);
+            setCitiesError(true);
+        } finally {
+            setIsCitiesLoading(false);
         }
+    };
+
+    useEffect(() => {
+        fetchCities();
+    }, []);
+
+    // При смене языка переполучаем города
+    useLanguageChange(async () => {
+        await fetchCities();
     });
 
     // Обновляем отображаемое название города при изменении cities (смена языка)
@@ -185,26 +176,12 @@ function Header({ onOpenAuthModal }: HeaderProps) {
         }
 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/users/me`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token.trim()}`,
-                    'Accept': 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                if (response.status === 401) {
-                    const refreshed = await handleUnauthorized();
-                    if (refreshed) fetchAndHandleUserData(opts);
-                    else setShowConfirmationBanner(false);
-                } else {
-                    setShowConfirmationBanner(false);
-                }
+            const userData = await fetchCurrentUser();
+            if (!userData) {
+                setShowConfirmationBanner(false);
                 return;
             }
 
-            const userData: UserData = await response.json();
             localStorage.setItem('userData', JSON.stringify(userData));
 
             // Баннер подтверждения аккаунта
@@ -242,7 +219,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
         setIsLoading(true);
         const token = getAuthToken();
         if (!token) {
-            alert(t('header:confirmationBanner.tokenError'));
+            setHeaderStatus({ type: 'error', message: t('header:confirmationBanner.tokenError'), isOpen: true });
             setIsLoading(false);
             return;
         }
@@ -260,7 +237,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
             console.log('Resend confirmation response status:', response.status);
 
             if (response.ok) {
-                alert(t('header:confirmationBanner.emailSent'));
+                setHeaderStatus({ type: 'success', message: t('header:confirmationBanner.emailSent'), isOpen: true });
             } else if (response.status === 409) {
                 const errorText = await response.text();
                 let errorMessage = t('header:confirmationBanner.sendError');
@@ -272,21 +249,11 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                     errorMessage = errorText || `${t('common:error')} ${response.status}`;
                 }
 
-                alert(`${t('header:confirmationBanner.warning')}: ${errorMessage}`);
+                setHeaderStatus({ type: 'info', message: `${t('header:confirmationBanner.warning')}: ${errorMessage}`, isOpen: true });
 
-                const refreshResponse = await fetch(`${API_BASE_URL}/api/users/me`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Accept': 'application/json',
-                    },
-                });
-
-                if (refreshResponse.ok) {
-                    const userData: UserData = await refreshResponse.json();
-                    localStorage.setItem('userData', JSON.stringify(userData));
-                    setShowConfirmationBanner(userData.approved === false);
-                }
+                invalidateCurrentUserCache();
+                const freshUserData = await fetchCurrentUser();
+                if (freshUserData) setShowConfirmationBanner(freshUserData.approved === false);
             } else {
                 const errorText = await response.text();
                 let errorMessage = t('header:confirmationBanner.sendErrorRetry');
@@ -298,11 +265,11 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                     errorMessage = `${t('common:error')} ${response.status}: ${errorText}`;
                 }
 
-                alert(errorMessage);
+                setHeaderStatus({ type: 'error', message: errorMessage, isOpen: true });
             }
         } catch (error) {
             console.error('Error resending confirmation:', error);
-            alert(t('header:confirmationBanner.networkError'));
+            setHeaderStatus({ type: 'error', message: t('header:confirmationBanner.networkError'), isOpen: true });
         } finally {
             setIsLoading(false);
         }
@@ -434,7 +401,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                             className={styles.confirmationBannerButton}
                             disabled={isLoading}
                         >
-                            {isLoading ? t('header:confirmationBanner.sending') : t('header:confirmationBanner.resend')}
+                            {isLoading ? <PageLoader fullPage={false} compact /> : t('header:confirmationBanner.resend')}
                         </button>
                         <button
                             onClick={() => setShowConfirmationBanner(false)}
@@ -773,20 +740,35 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                             </button>
                         </div>
                         <div className={styles.cityList}>
-                            {cities.map(city => (
-                                <div
-                                    key={city.id}
-                                    className={`${styles.cityItem} ${selectedCity === city.title ? styles.selected : ''}`}
-                                    onClick={() => handleCitySelect(city.title, city.id)}
-                                >
-                                    {t(`cities:${city.title}`, { defaultValue: city.title })}
-                                </div>
-                            ))}
+                            {isCitiesLoading ? (
+                                <PageLoader fullPage={false} />
+                            ) : citiesError || cities.length === 0 ? (
+                                <EmptyState
+                                    title={t('header:citiesError', 'Не удалось загрузить города')}
+                                    onRefresh={fetchCities}
+                                />
+                            ) : (
+                                cities.map(city => (
+                                    <div
+                                        key={city.id}
+                                        className={`${styles.cityItem} ${selectedCity === city.title ? styles.selected : ''}`}
+                                        onClick={() => handleCitySelect(city.title, city.id)}
+                                    >
+                                        {t(`cities:${city.title}`, { defaultValue: city.title })}
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </div>
                 </div>
             )}
         </header>
+        <Status
+            type={headerStatus.type}
+            isOpen={headerStatus.isOpen}
+            onClose={() => setHeaderStatus(prev => ({ ...prev, isOpen: false }))}
+            message={headerStatus.message}
+        />
         </>
     );
 }

@@ -1,6 +1,313 @@
 @use '../../../../../app/styles/variables' as vars;
 @use 'sass:map';
 
+// Row wrapper used inside renderViewItem / renderEditItem — controls gap between icon and field
+.network_row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+}
+
+// (unused tile classes below, kept for dead-code safety — safe to delete)
+.social_networks_grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+
+// Each social network is a square icon tile
+.network_tile {
+  width: 48px;
+  height: 48px;
+  position: relative;
+  border-radius: 12px;
+  border: 1px solid var(--color-stroke);
+  background: var(--color-background-primary);
+  overflow: hidden;
+  cursor: grab;
+  transition: border-color 0.15s, opacity 0.2s;
+
+  &:hover .tile_actions {
+    opacity: 1;
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.tile_editing {
+  border-color: var(--color-actual-blue);
+  box-shadow: 0 0 0 2px rgba(58, 84, 218, 0.18);
+}
+
+.tile_dragging {
+  opacity: 0.35;
+  border-style: dashed;
+  border-color: var(--color-actual-blue);
+}
+
+.tile_drag_over {
+  border-color: var(--color-actual-blue);
+  box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.18);
+}
+
+// Icon inside the tile — 40×40
+.tile_icon {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  svg {
+    width: 40px;
+    height: 40px;
+  }
+
+  img {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+  }
+
+  span {
+    font-size: 28px;
+  }
+}
+
+// Dark overlay with copy / edit / delete buttons, fades in on hover
+.tile_actions {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transition: opacity 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.tile_action_btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  line-height: 0;
+  opacity: 0.85;
+  transition: opacity 0.1s, transform 0.1s;
+
+  &:hover {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+// Add-new tile — same size, dashed border, inline with the other tiles
+.add_tile {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  border: 2px dashed var(--color-stroke);
+  background: none;
+  cursor: pointer;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--color-actual-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, background 0.15s;
+
+  &:hover {
+    border-color: var(--color-actual-blue);
+    background: rgba(58, 84, 218, 0.06);
+  }
+}
+
+// ── INLINE EDIT STRIP (shown below the grid when editing an existing item) ──
+
+.inline_edit {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  width: 100%;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.inline_edit_icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  svg {
+    width: 40px;
+    height: 40px;
+  }
+
+  img {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+  }
+
+  span {
+    font-size: 28px;
+  }
+}
+
+.inline_edit_fields {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+// ── SHARED FORM ELEMENTS ────────────────────────────────────────────────────
+
+.social_input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 2px solid var(--color-stroke);
+  border-radius: 10px;
+  font-size: 15px;
+  background-color: var(--color-background-primary);
+  color: var(--color-text-primary);
+  transition: all 0.3s ease;
+  outline: none;
+
+  &:focus {
+    border-color: var(--color-actual-blue);
+    box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.1);
+    background-color: var(--color-background-secondary);
+  }
+
+  &::placeholder {
+    color: var(--color-text-placeholder);
+    font-style: italic;
+  }
+}
+
+.validation_error {
+  width: 100%;
+  color: #dc3545;
+  font-size: 12px;
+  padding: 3px 0;
+}
+
+// ── ADD-NETWORK FORM (dropdown + EditActions) ───────────────────────────────
+
+.social_network_select {
+  margin-bottom: 12px;
+
+  label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--color-text-primary);
+    font-weight: 500;
+    font-size: 15px;
+  }
+
+  select {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid var(--color-stroke);
+    border-radius: 10px;
+    font-size: 15px;
+    background-color: var(--color-background-primary);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    outline: none;
+
+    &:focus {
+      border-color: var(--color-actual-blue);
+      box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.1);
+      background-color: var(--color-background-secondary);
+    }
+
+    &:hover {
+      border-color: var(--color-actual-blue);
+    }
+  }
+}
+
+// ── FOOTER CONTROLS ─────────────────────────────────────────────────────────
+
+.add_education_container {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 16px 0;
+  width: 100%;
+  gap: 8px;
+}
+
+.reset_social_btn {
+  background: #ff3b30;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: #e5362b;
+  }
+}
+
+// ── DARK THEME ──────────────────────────────────────────────────────────────
+
+:global(html[data-theme="dark"]) {
+  .network_tile {
+    background: var(--color-background-primary);
+    border-color: var(--color-stroke);
+  }
+
+  .add_tile {
+    border-color: var(--color-stroke);
+    color: var(--color-actual-blue);
+  }
+
+  .social_input {
+    background: var(--color-background-primary);
+    border-color: var(--color-stroke);
+    color: var(--color-text-primary);
+  }
+
+  .social_network_select {
+    label {
+      color: var(--color-text-primary);
+    }
+
+    select {
+      background: var(--color-background-primary);
+      border-color: var(--color-stroke);
+      color: var(--color-text-primary);
+
+      option {
+        background: var(--color-background-primary);
+      }
+    }
+  }
+}
+
 .section_item {
   width: 100%;
   display: flex;
@@ -90,14 +397,12 @@
 }
 
 .social_network_icon {
-  width: 64px;
-  height: 60px;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--color-background-primary);
-  border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
 
   svg {
@@ -112,7 +417,7 @@
   }
 
   span {
-    font-size: 20px;
+    font-size: 28px;
   }
 }
 
@@ -134,7 +439,7 @@
 .social_network_display {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   width: 100%;
 }
 
@@ -354,6 +659,24 @@
   }
 }
 
+.add_btn {
+  background: #3A54DA;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: #2a44ca;
+  }
+}
+
 .add_social_network_form {
   background-color: var(--color-background-secondary);
   border: 2px solid var(--color-stroke);
@@ -458,16 +781,6 @@
     gap: 12px;
   }
 
-  .social_network_icon {
-    width: 64px;
-    height: 60px;
-
-    svg {
-      width: 24px;
-      height: 24px;
-    }
-  }
-
   .social_network_name {
     font-size: 16px;
   }
@@ -482,16 +795,6 @@
   .social_network_item {
     padding: 12px 10px;
     gap: 8px;
-  }
-
-  .social_network_icon {
-    width: 56px;
-    height: 60px;
-
-    svg {
-      width: 22px;
-      height: 22px;
-    }
   }
 
   .social_network_name {
@@ -528,17 +831,6 @@
 
   .drag_handle {
     padding: 2px 3px;
-  }
-
-  .social_network_icon {
-    width: 56px;
-    height: 60px;
-    flex-shrink: 0;
-
-    svg {
-      width: 20px;
-      height: 20px;
-    }
   }
 
   .social_network_handle {

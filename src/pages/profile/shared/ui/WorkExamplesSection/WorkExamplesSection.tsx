@@ -1,9 +1,9 @@
 import React, { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Preview } from '../../../../../shared/ui/Photo/Preview';
-import { EmptyState } from '../../../../../widgets/EmptyState';
 import { PageLoader } from '../../../../../widgets/PageLoader';
 import { useDragReorder, DragHandle } from '../../../../../widgets/DragReorder';
+import { ProfileSection } from '../ProfileSection';
 import styles from './WorkExamplesSection.module.scss';
 
 interface WorkExample {
@@ -65,67 +65,68 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
     const { t } = useTranslation(['profile']);
     const workDrag = useDragReorder(workExamples, onReorder ?? (() => {}));
 
+    // Single synthetic item to hold the gallery grid inside ProfileSection
+    const galleryItems = workExamples.length > 0 ? [{ id: 'gallery' as const }] : [];
+
     return (
-        <div className={styles.section_item}>
-            {isGalleryOperating && <PageLoader overlay />}
-            <h3>{t('profile:workExamplesTitle')}</h3>
-            <div className={styles.section_content}>
-                <div className={styles.work_examples}>
-                    {workExamples.length > 0 ? (
-                        <>
-                            <div className={styles.work_examples_grid}>
-                                {workExamples
-                                    .slice(0, showAllWorkExamples ? undefined : (isMobile ? 6 : 8))
-                                    .map((work, index) => (
-                                        <div
-                                            key={work.id}
-                                            className={`${styles.work_example} ${!readOnly && onReorder && workDrag.draggingIndex === index ? styles.dragging : ''} ${!readOnly && onReorder && workDrag.dragOverIndex === index ? styles.drag_over : ''}`}
-                                            onDragEnter={!readOnly && onReorder ? () => workDrag.handleDragEnter(index) : undefined}
-                                            onDragEnd={!readOnly && onReorder ? () => workDrag.handleDragEnd() : undefined}
-                                            onDragOver={!readOnly && onReorder ? (e) => e.preventDefault() : undefined}
-                                        >
-                                            {!readOnly && onReorder && (
-                                                <DragHandle
-                                                    className={styles.drag_handle_overlay}
-                                                    draggable
-                                                    onDragStart={() => workDrag.handleDragStart(index)}
-                                                />
-                                            )}
-                                            <img
-                                                src={getImageUrlWithCacheBust(work.image)}
-                                                alt={work.title}
-                                                onClick={() => onOpenGallery(index)}
-                                                style={{ cursor: 'pointer' }}
-                                                onError={(e) => {
-                                                    const img = e.currentTarget;
-                                                    const alternativePaths = [
-                                                        `${API_BASE_URL}/uploads/gallery_images/${work.image.split('/').pop() || work.image}`,
-                                                        "./fonTest6.png"
-                                                    ];
-
-                                                    let currentIndex = 0;
-                                                    const tryNextSource = () => {
-                                                        if (currentIndex < alternativePaths.length) {
-                                                            const nextSource = alternativePaths[currentIndex];
-                                                            currentIndex++;
-
-                                                            const testImg = new Image();
-                                                            testImg.onload = () => {
-                                                                img.src = nextSource;
-                                                            };
-                                                            testImg.onerror = () => {
-                                                                tryNextSource();
-                                                            };
-                                                            testImg.src = nextSource;
-                                                        } else {
-                                                            img.src = "./fonTest6.png";
-                                                        }
-                                                    };
-
-                                                    tryNextSource();
-                                                }}
+        <>
+            <ProfileSection<{ id: string }>
+                title={t('profile:workExamplesTitle')}
+                items={galleryItems}
+                editingId={null}
+                readOnly={true}
+                isLoading={isLoading}
+                emptyTitle={readOnly ? t('profile:noWorkExamples') : t('profile:addWorkExamples')}
+                onRefresh={onRefresh}
+                renderViewItem={() => (
+                    <div style={{ width: '100%' }}>
+                        <div className={styles.work_examples_grid}>
+                            {workExamples
+                                .slice(0, showAllWorkExamples ? undefined : (isMobile ? 6 : 8))
+                                .map((work, index) => (
+                                    <div
+                                        key={work.id}
+                                        className={`${styles.work_example} ${!readOnly && onReorder && workDrag.draggingIndex === index ? styles.dragging : ''} ${!readOnly && onReorder && workDrag.dragOverIndex === index ? styles.drag_over : ''}`}
+                                        onDragEnter={!readOnly && onReorder ? () => workDrag.handleDragEnter(index) : undefined}
+                                        onDragEnd={!readOnly && onReorder ? () => workDrag.handleDragEnd() : undefined}
+                                        onDragOver={!readOnly && onReorder ? (e) => e.preventDefault() : undefined}
+                                    >
+                                        {!readOnly && onReorder && (
+                                            <DragHandle
+                                                className={styles.drag_handle_overlay}
+                                                draggable
+                                                onDragStart={() => workDrag.handleDragStart(index)}
                                             />
-                                            {!readOnly && <button
+                                        )}
+                                        <img
+                                            src={getImageUrlWithCacheBust(work.image)}
+                                            alt={work.title}
+                                            onClick={() => onOpenGallery(index)}
+                                            style={{ cursor: 'pointer' }}
+                                            onError={(e) => {
+                                                const img = e.currentTarget;
+                                                const alternativePaths = [
+                                                    `${API_BASE_URL}/uploads/gallery_images/${work.image.split('/').pop() || work.image}`,
+                                                    './fonTest6.png'
+                                                ];
+                                                let currentIndex = 0;
+                                                const tryNextSource = () => {
+                                                    if (currentIndex < alternativePaths.length) {
+                                                        const nextSource = alternativePaths[currentIndex];
+                                                        currentIndex++;
+                                                        const testImg = new Image();
+                                                        testImg.onload = () => { img.src = nextSource; };
+                                                        testImg.onerror = () => { tryNextSource(); };
+                                                        testImg.src = nextSource;
+                                                    } else {
+                                                        img.src = './fonTest6.png';
+                                                    }
+                                                };
+                                                tryNextSource();
+                                            }}
+                                        />
+                                        {!readOnly && (
+                                            <button
                                                 className={styles.delete_work_button}
                                                 onClick={(e) => {
                                                     e.stopPropagation();
@@ -134,45 +135,44 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
                                                 title={t('profile:deletePhotoTitle')}
                                             >
                                                 ×
-                                            </button>}
-                                        </div>
-                                    ))}
-                            </div>
-                            {workExamples.length > (isMobile ? 6 : 8) && (
-                                <button
-                                    className={styles.show_more_work_button}
-                                    onClick={() => setShowAllWorkExamples(!showAllWorkExamples)}
-                                >
-                                    {showAllWorkExamples ? t('profile:hideAll') : t('profile:showAll', { count: workExamples.length })}
-                                </button>
-                            )}
-                        </>
-                    ) : (
-                        <EmptyState isLoading={isLoading} title={readOnly ? t('profile:noWorkExamples') : t('profile:addWorkExamples')} onRefresh={onRefresh} />
-                    )}
-                </div>
-
-                {/* Кнопки управления портфолио */}
-                {!readOnly && <div className={styles.add_education_container}>
-                    {workExamples.length > 0 && (
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                        </div>
+                        {workExamples.length > (isMobile ? 6 : 8) && (
+                            <button
+                                className={styles.show_more_work_button}
+                                onClick={() => setShowAllWorkExamples(!showAllWorkExamples)}
+                            >
+                                {showAllWorkExamples ? t('profile:hideAll') : t('profile:showAll', { count: workExamples.length })}
+                            </button>
+                        )}
+                    </div>
+                )}
+                footerSlot={!readOnly ? (
+                    <div className={styles.add_education_container}>
+                        {workExamples.length > 0 && (
+                            <button
+                                className={styles.reset_social_btn}
+                                onClick={onDeleteAllWorkExamples}
+                                disabled={isGalleryOperating}
+                                title={t('profile:deleteAllPhotosTitle')}
+                            >
+                                {t('profile:deleteAllPhotos')}
+                            </button>
+                        )}
                         <button
-                            className={styles.reset_social_btn}
-                            onClick={onDeleteAllWorkExamples}
+                            className={styles.add_button}
+                            onClick={() => !isGalleryOperating && workExampleInputRef.current?.click()}
+                            title={t('profile:addPhotosTitle')}
                             disabled={isGalleryOperating}
-                            title={t('profile:deleteAllPhotosTitle')}
                         >
-                            {t('profile:deleteAllPhotos')}
+                            {isGalleryOperating ? <PageLoader compact /> : '+'}
                         </button>
-                    )}
-                    <button
-                        className={styles.add_button}
-                        onClick={() => workExampleInputRef.current?.click()}
-                        title={t('profile:addPhotosTitle')}
-                    >
-                        +
-                    </button>
-                </div>}
-            </div>
+                    </div>
+                ) : undefined}
+            />
             <input
                 type="file"
                 ref={workExampleInputRef}
@@ -181,8 +181,6 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
                 multiple
                 style={{ display: 'none' }}
             />
-
-            {/* Preview для примеров работ */}
             <Preview
                 isOpen={isGalleryOpen}
                 images={galleryImages}
@@ -192,6 +190,6 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
                 onPrevious={onGalleryPrevious}
                 onSelectImage={onSelectGalleryImage}
             />
-        </div>
+        </>
     );
 };

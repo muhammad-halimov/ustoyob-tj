@@ -62,6 +62,8 @@ interface ApiTicketInEntry {
     service: boolean;
     createdAt?: string;
     reviewsCount?: number;
+    responsesCount?: number;
+    viewsCount?: number;
     images?: { id: number; image: string }[];
     negotiableBudget?: boolean;
     category?: { title: string };
@@ -104,6 +106,8 @@ interface FavoriteTicket {
     service: boolean;
     userRating?: number;
     userReviewCount?: number;
+    responsesCount?: number;
+    viewsCount?: number;
     photos?: string[];
     negotiableBudget?: boolean;
 }
@@ -158,6 +162,8 @@ interface ApiTicket {
     notice?: string;
     service: boolean;
     reviewsCount?: number;
+    responsesCount?: number;
+    viewsCount?: number;
     images?: { id: number; image: string }[];
 }
 
@@ -265,7 +271,7 @@ function Favorites() {
     
     // Хук для реактивного обновления при смене языка
     useLanguageChange(() => {
-        fetchFavorites();
+        fetchFavoritesRef.current();
     });
 
     // Состояния для модального окна отзыва
@@ -280,6 +286,8 @@ function Favorites() {
 
     const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const API_BASE_URL_REF = useRef(import.meta.env.VITE_API_BASE_URL);
+    const fetchFavoritesRef = useRef<() => Promise<void>>(null!);
+    const isInitialLoadRef = useRef(true);
 
     // Ping current user presence + refresh online status every 30s
     useEffect(() => {
@@ -305,30 +313,6 @@ function Favorites() {
         };
     }, []);
 
-    // Fetch each user's full profile (isOnline, lastSeen, occupations)
-    const fetchUserOnlineStatus = async (users: FavoriteUser[]) => {
-        const token = getAuthToken();
-        if (!users.length) return;
-        const updated = await Promise.all(users.map(async (user) => {
-            try {
-                const response = await fetch(
-                    `${API_BASE_URL_REF.current}/api/users/${user.id}`,
-                    { headers: { 'Accept': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) } }
-                );
-                if (!response.ok) return user;
-                const data = await response.json();
-                return {
-                    ...user,
-                    isOnline: data.isOnline ?? user.isOnline,
-                    lastSeen: data.lastSeen ?? user.lastSeen,
-                };
-            } catch {
-                return user;
-            }
-        }));
-        setFavoriteUsers(updated);
-    };
-
     // Загрузка избранного из localStorage для неавторизованных пользователей
     const loadLocalStorageFavorites = (): LocalStorageFavorites => {
         try {
@@ -350,7 +334,7 @@ function Favorites() {
     useEffect(() => {
         const handleFavoritesUpdate = () => {
             console.log('Favorites updated, refreshing...');
-            fetchFavorites();
+            fetchFavoritesRef.current();
         };
 
         window.addEventListener('favoritesUpdated', handleFavoritesUpdate);
@@ -454,7 +438,9 @@ function Favorites() {
                 active: ticket.active,
                 service: ticket.service,
                 userRating: isMasterTicket ? (ticket.master?.rating || 0) : (ticket.author?.rating || 0),
-                userReviewCount: ticket.reviewsCount || 0
+                userReviewCount: ticket.reviewsCount || 0,
+                responsesCount: ticket.responsesCount,
+                viewsCount: ticket.viewsCount
             };
 
         } catch (error) {
@@ -469,8 +455,10 @@ function Favorites() {
     const fetchFavorites = async () => {
         try {
             setIsFavoritesRefreshing(true);
+            if (isInitialLoadRef.current) {
+                setIsLoading(true);
+            }
             const token = getAuthToken();
-            console.log('Fetching favorites, token exists:', !!token);
 
             // Для неавторизованных пользователей
             if (!token) {
@@ -483,6 +471,7 @@ function Favorites() {
                     const ticketDetails = await fetchTicketDetailsForUnauthorized(ticketId);
                     if (ticketDetails) tickets.push(ticketDetails);
                 }
+                
                 setFavoriteTickets(tickets);
                 setIsLoading(false);
                 return;
@@ -532,6 +521,8 @@ function Favorites() {
                             authorImage: authorImageSrc ? formatProfileImageUrl(authorImageSrc) : undefined,
                             userRating: person?.rating || 0,
                             userReviewCount: ticket.reviewsCount || 0,
+                            responsesCount: ticket.responsesCount,
+                            viewsCount: ticket.viewsCount,
                             photos: ticket.images?.map(img => formatTicketImageUrl(img.image)),
                             negotiableBudget: ticket.negotiableBudget,
                         });
@@ -559,7 +550,6 @@ function Favorites() {
                 setFavoriteTickets(tickets);
                 setFavoriteUsers(users);
                 setLikedTickets(tickets.map(t => t.id));
-                fetchUserOnlineStatus(users);
             } else {
                 setFavoriteTickets([]);
                 setFavoriteUsers([]);
@@ -571,10 +561,14 @@ function Favorites() {
             setFavoriteUsers([]);
             setLikedTickets([]);
         } finally {
+            isInitialLoadRef.current = false;
             setIsLoading(false);
             setIsFavoritesRefreshing(false);
         }
     };
+
+    // Всегда держим ref актуальным, чтобы event listener не имел stale closure
+    fetchFavoritesRef.current = fetchFavorites;
 
     // Удалить пользователя из избранного — DELETE /api/favorites/{entryId}
     const handleLikeUser = async (userId: number) => {
@@ -784,7 +778,13 @@ function Favorites() {
     };
 
     if (isLoading) {
-        return <PageLoader text={t('components:favorites.loading', 'Загрузка избранного...')} />;
+        return (
+            <div className={styles.recommendation}>
+                <div className={styles.recommendation_empty}>
+                    <PageLoader text={t('components:favorites.loading', 'Загрузка избранного...')} fullPage={false} />
+                </div>
+            </div>
+        );
     }
 
     const token = getAuthToken();
@@ -861,6 +861,7 @@ function Favorites() {
                     <EmptyState
                         title={t('messages.authRequired')}
                         subtitle={t('pages.favorites.noFavoritesHint')}
+                        isLoading={isFavoritesRefreshing}
                         onRefresh={fetchFavorites}
                     />
                 </div>
@@ -958,6 +959,8 @@ function Favorites() {
                         userRole={userRole}
                         userRating={ticket.userRating}
                         userReviewCount={ticket.userReviewCount}
+                        responsesCount={ticket.responsesCount}
+                        viewsCount={ticket.viewsCount}
                         isFavorite={favoriteTickets.some(favTicket => favTicket.id === ticket.id)}
                         onFavoriteClick={(e) => {
                             e.stopPropagation();

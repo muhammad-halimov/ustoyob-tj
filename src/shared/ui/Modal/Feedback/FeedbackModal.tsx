@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getAuthToken, getUserRole } from '../../../../utils/auth.ts';
+import { getAuthToken, getUserRole, getUserData } from '../../../../utils/auth.ts';
 import { getStorageItem } from '../../../../utils/storageHelper.ts';
 import AuthModal from '../../../../features/auth/AuthModal.tsx';
 import Status from '../Status';
@@ -161,19 +161,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({
         }
     };
 
-    const getCurrentUserId = async (): Promise<number | null> => {
-        try {
-            const token = getAuthToken();
-            if (!token) return null;
-            const response = await fetch(`${API_BASE_URL}/api/users/me`, {
-                headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
-            });
-            if (response.ok) return (await response.json()).id;
-            return null;
-        } catch {
-            return null;
-        }
-    };
+    const getCurrentUserId = (): number | null => getUserData()?.id ?? null;
 
     const fetchReviewCount = async (userId: number): Promise<number> => {
         try {
@@ -227,7 +215,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({
         try {
             const token = getAuthToken()!;
             const userRole = getUserRole();
-            const currentUserId = await getCurrentUserId();
+            const currentUserId = getCurrentUserId();
             if (!currentUserId) { showStatus('error', t('reviewModal.errorUserNotFound')); return; }
             if (currentUserId === targetUserId) { showStatus('error', t('reviewModal.errorSelfReview')); return; }
 

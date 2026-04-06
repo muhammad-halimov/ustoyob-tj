@@ -1,4 +1,4 @@
-import { getAuthToken, handleUnauthorized } from './auth';
+import { getAuthToken, handleUnauthorized, getUserData } from './auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -56,11 +56,4 @@ export const makeApiRequest = async (endpoint: string, options: ApiRequestOption
     return response.json();
 };
 
-export const getCurrentUserId = async (): Promise<number | null> => {
-    try {
-        const userData = await makeApiRequest('/api/users/me', { requiresAuth: true });
-        return userData.id;
-    } catch {
-        return null;
-    }
-};
+export const getCurrentUserId = (): number | null => getUserData()?.id ?? null;

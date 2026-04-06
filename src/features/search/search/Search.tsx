@@ -86,6 +86,8 @@ interface ApiTicket {
         title: string;
     } | null;
     reviewsCount: number;
+    responsesCount?: number;
+    viewsCount?: number;
     service: boolean;
     active: boolean;
     negotiableBudget?: boolean;
@@ -120,6 +122,8 @@ interface SearchResult {
     isInSelectedCity?: boolean;
     userRating?: number;
     userReviewCount?: number;
+    responsesCount?: number;
+    viewsCount?: number;
     photos?: string[];
     authorImage?: string;
     negotiableBudget?: boolean;
@@ -865,6 +869,8 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                         isInSelectedCity: priority > 0,
                         userRating: ticket.userRating,
                         userReviewCount: ticket.reviewsCount || 0,  // Для отображения используем reviewsCount из API
+                        responsesCount: ticket.responsesCount,
+                        viewsCount: ticket.viewsCount,
                         photos: ticket.images?.map(img => formatTicketImageUrl(img.image)),
                         authorImage: (() => {
                             const person = ticket.type === 'master' ? ticket.master : ticket.author;
@@ -1293,6 +1299,8 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     userRole={userRole}
                     userRating={result.userRating}
                     userReviewCount={result.userReviewCount}
+                    responsesCount={result.responsesCount}
+                    viewsCount={result.viewsCount}
                     photos={result.photos}
                     authorImage={result.authorImage}
                     negotiableBudget={result.negotiableBudget}

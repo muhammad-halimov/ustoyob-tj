@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ROUTES } from '../../../app/routers/routes.ts';
 import styles from './CreateEdit.module.scss';
-import { getAuthToken, getUserRole } from '../../../utils/auth.ts';
+import { getAuthToken, getUserRole, getUserData } from '../../../utils/auth.ts';
 import Address, { AddressValue, buildAddressData } from '../../../shared/ui/Address/Selector';
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 import Status from '../../../shared/ui/Modal/Status';
@@ -15,6 +15,7 @@ import { Back } from '../../../shared/ui/Button/Back/Back.tsx';
 import { Toggle } from '../../../shared/ui/Button/Toggle/Toggle';
 import PhotoGrid from '../../../shared/ui/Photo/PhotoGrid';
 import { uploadPhotos } from '../../../utils/imageHelper';
+import { EditActions } from '../../profile/shared/ui/EditActions/EditActions';
 
 interface ServiceData {
     id?: number;
@@ -117,6 +118,7 @@ const CreateEdit = () => {
     const [selectedUnit, setSelectedUnit] = useState<number | null>(null);
     const [negotiableBudget, setNegotiableBudget] = useState(false);
 
+    const formRef = useRef<HTMLFormElement>(null);
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
     const token = getAuthToken();
 
@@ -390,18 +392,11 @@ const CreateEdit = () => {
 
             if (!isEditMode) {
                 // Режим создания
-                const userResponse = await fetch(`${API_BASE_URL}/api/users/me`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Accept': 'application/json',
-                    },
-                });
-
-                if (!userResponse.ok) {
+                const userId = getUserData()?.id;
+                if (!userId) {
                     throw new Error(t('createEdit:genericError'));
                 }
 
-                const userData = await userResponse.json();
                 const role = getUserRole();
 
                 if (!role) {
@@ -420,9 +415,9 @@ const CreateEdit = () => {
                     subcategory: selectedSubcategory ? `/api/occupations/${selectedSubcategory}` : null,
                     unit: selectedUnit ? `/api/units/${selectedUnit}` : null,
                     address: addressData,
-                    author: `/api/users/${userData.id}`,
+                    author: `/api/users/${userId}`,
                     service: role === 'master',
-                    master: role === 'master' ? `/api/users/${userData.id}` : null
+                    master: role === 'master' ? `/api/users/${userId}` : null
                 };
 
                 const response = await fetch(`${API_BASE_URL}/api/tickets`, {
@@ -569,7 +564,7 @@ const CreateEdit = () => {
             </div>
 
             <div className={styles.formWrapper}>
-            <form onSubmit={handleSubmit} className={styles.form}>
+            <form ref={formRef} onSubmit={handleSubmit} className={styles.form}>
                 {/* Название услуги */}
                 <div className={styles.section}>
                     <h2>{t('createEdit:serviceNameLabel')}</h2>
@@ -736,26 +731,12 @@ const CreateEdit = () => {
                 {/* Кнопки */}
                 <div className={styles.submitSection} style={{ position: 'relative' }}>
                     {isSubmitting && <PageLoader overlay />}
-                    {isEditMode && (
-                        <button
-                            type="button"
-                            className={styles.cancelButton}
-                            onClick={() => navigate(ROUTES.MY_TICKETS)}
-                            disabled={isSubmitting}
-                        >
-                            {t('createEdit:cancel')}
-                        </button>
-                    )}
-                    <button
-                        type="submit"
-                        className={styles.submitButton}
-                        disabled={isSubmitting}
-                    >
-                        {isSubmitting 
-                            ? (isEditMode ? t('createEdit:saving') : t('createEdit:publishing'))
-                            : (isEditMode ? t('createEdit:saveChanges') : t('createEdit:placeAd'))
-                        }
-                    </button>
+                    <EditActions
+                        onSave={() => formRef.current?.requestSubmit()}
+                        onCancel={() => navigate(ROUTES.MY_TICKETS)}
+                        saveDisabled={isSubmitting}
+                        className={styles.editActionsLarge}
+                    />
                 </div>
             </form>
             </div>

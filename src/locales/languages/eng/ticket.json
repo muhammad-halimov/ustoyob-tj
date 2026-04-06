@@ -35,5 +35,11 @@
   "activateError": "Failed to activate listing",
   "deactivateError": "Failed to deactivate listing",
   "ownTicketError": "You cannot respond to your own listing",
-  "inactiveError": "This listing is inactive"
+  "inactiveError": "This listing is inactive",
+  "responsesOne": "response",
+  "responsesFew": "responses",
+  "responsesMany": "responses",
+  "viewsOne": "view",
+  "viewsFew": "views",
+  "viewsMany": "views"
 }

@@ -14,6 +14,8 @@ import {
 import { getOccupations } from '../../utils/dataCache.ts';
 import { DateWidget } from '../../widgets/DateWidget/DateWidget.tsx';
 import { Marquee } from '../../shared/ui/Text/Marquee';
+import Status from '../../shared/ui/Modal/Status';
+import { PageLoader } from '../../widgets/PageLoader';
 
 const AuthModalState = {
     WELCOME: 'welcome',
@@ -1179,8 +1181,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     <p>Пожалуйста, выберите тип аккаунта:</p>
                 </div>
 
-                {error && <div className={styles.error}>{error}</div>}
-
                 <div className={styles.roleSelector}>
                     <button
                         type="button"
@@ -1226,7 +1226,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     className={styles.primaryButton}
                     disabled={isLoading || isCheckingProfile}
                 >
-                    {isLoading ? 'Завершение...' : 'Завершить регистрацию'}
+                    {isLoading ? <PageLoader fullPage={false} compact /> : 'Завершить регистрацию'}
                 </button>
 
                 <div className={styles.links}>
@@ -1241,6 +1241,188 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                         disabled={isLoading}
                     >
                         {t('auth.backToLogin')}
+                    </button>
+                </div>
+            </form>
+        );
+    };
+
+    // ===== Password recovery handlers =====
+
+    const handleForgotPassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError('');
+        try {
+            await fetch(`${API_BASE_URL}/api/change-password/send-otp/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: formData.email }),
+            });
+            // Always move to next step (don't reveal if email exists)
+            setCurrentState(AuthModalState.VERIFY_CODE);
+        } catch {
+            setError(t('auth.errorOccurred'));
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleVerifyCode = (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        setCurrentState(AuthModalState.NEW_PASSWORD);
+    };
+
+    const handleNewPassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (formData.newPassword !== formData.confirmPassword) {
+            setError(t('auth.passwordMismatch'));
+            return;
+        }
+        setIsLoading(true);
+        setError('');
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/change-password/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: formData.email,
+                    code: formData.code,
+                    newPassword: formData.newPassword,
+                }),
+            });
+            if (!response.ok) {
+                const data = await response.json();
+                setError(data?.message ?? t('auth.otpInvalidOrExpired'));
+                return;
+            }
+            setCurrentState(AuthModalState.LOGIN);
+        } catch {
+            setError(t('auth.errorOccurred'));
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // ===== Password recovery screens =====
+
+    const renderForgotPasswordScreen = () => {
+        return (
+            <form onSubmit={handleForgotPassword} className={styles.form}>
+                <h2>{t('auth.forgotPasswordTitle')}</h2>
+
+                <div className={styles.inputGroup}>
+                    <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        required
+                        disabled={isLoading}
+                        placeholder={t('auth.enterEmail')}
+                    />
+                </div>
+
+                <button type="submit" className={styles.primaryButton} disabled={isLoading}>
+                    {isLoading ? <PageLoader fullPage={false} compact /> : t('auth.sendCode')}
+                </button>
+
+                <div className={styles.links}>
+                    <button
+                        type="button"
+                        className={styles.linkButton}
+                        onClick={() => setCurrentState(AuthModalState.LOGIN)}
+                        disabled={isLoading}
+                    >
+                        {t('auth.backToLogin')}
+                    </button>
+                </div>
+            </form>
+        );
+    };
+
+    const renderVerifyCodeScreen = () => {
+        return (
+            <form onSubmit={handleVerifyCode} className={styles.form}>
+                <h2>{t('auth.enterCode')}</h2>
+
+                <p className={styles.infoText}>{t('auth.codeSentTo')} <strong>{formData.email}</strong></p>
+
+                <div className={styles.inputGroup}>
+                    <input
+                        type="text"
+                        name="code"
+                        value={formData.code}
+                        onChange={handleInputChange}
+                        required
+                        maxLength={6}
+                        disabled={isLoading}
+                        placeholder={t('auth.enterOtpCode')}
+                    />
+                </div>
+
+                <button type="submit" className={styles.primaryButton} disabled={isLoading}>
+                    {t('auth.continue')}
+                </button>
+
+                <div className={styles.links}>
+                    <button
+                        type="button"
+                        className={styles.linkButton}
+                        onClick={() => setCurrentState(AuthModalState.FORGOT_PASSWORD)}
+                        disabled={isLoading}
+                    >
+                        {t('auth.back')}
+                    </button>
+                </div>
+            </form>
+        );
+    };
+
+    const renderNewPasswordScreen = () => {
+        return (
+            <form onSubmit={handleNewPassword} className={styles.form}>
+                <h2>{t('auth.newPasswordTitle')}</h2>
+
+                <div className={styles.inputGroup}>
+                    <input
+                        type="password"
+                        name="newPassword"
+                        value={formData.newPassword}
+                        onChange={handleInputChange}
+                        required
+                        minLength={8}
+                        disabled={isLoading}
+                        placeholder={t('auth.enterNewPassword')}
+                    />
+                </div>
+
+                <div className={styles.inputGroup}>
+                    <input
+                        type="password"
+                        name="confirmPassword"
+                        value={formData.confirmPassword}
+                        onChange={handleInputChange}
+                        required
+                        minLength={8}
+                        disabled={isLoading}
+                        placeholder={t('auth.confirmPassword')}
+                    />
+                </div>
+
+                <button type="submit" className={styles.primaryButton} disabled={isLoading}>
+                    {isLoading ? <PageLoader fullPage={false} compact /> : t('auth.savePassword')}
+                </button>
+
+                <div className={styles.links}>
+                    <button
+                        type="button"
+                        className={styles.linkButton}
+                        onClick={() => setCurrentState(AuthModalState.VERIFY_CODE)}
+                        disabled={isLoading}
+                    >
+                        {t('auth.back')}
                     </button>
                 </div>
             </form>
@@ -1282,8 +1464,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         return (
             <form onSubmit={handleLogin} className={styles.form}>
                 <h2>{t('auth.entrance')}</h2>
-
-                {error && <div className={styles.error}>{error}</div>}
                 <div className={styles.roleSelector}>
                     <button
                         type="button"
@@ -1331,7 +1511,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     className={styles.primaryButton}
                     disabled={isLoading}
                 >
-                    {isLoading ? t('auth.loginButton') : t('auth.login')}
+                    {isLoading ? <PageLoader fullPage={false} compact /> : t('auth.login')}
                 </button>
 
                 <div className={styles.socialTitle}>{t('auth.loginWith')}</div>
@@ -1408,8 +1588,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
         return (
             <form onSubmit={handleRegister} className={styles.form}>
                 <h2>{t('auth.register')}</h2>
-
-                {error && <div className={styles.error}>{error}</div>}
 
                 <div className={styles.roleSelector}>
                     <button
@@ -1557,7 +1735,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     className={styles.primaryButton}
                     disabled={isLoading || !passwordValidation.isValid}
                 >
-                    {isLoading ? t('auth.registeringButton') : t('auth.registerButton')}
+                    {isLoading ? <PageLoader fullPage={false} compact /> : t('auth.registerButton')}
                 </button>
 
                 <div className={styles.socialTitle}>{t('auth.orRegisterWith')}</div>
@@ -1726,8 +1904,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                     </button>
                 </div>
 
-                {error && <div className={styles.error}>{error}</div>}
-
                 <div className={styles.links}>
                     <button
                         type="button"
@@ -1754,6 +1930,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 return renderConfirmEmailScreen();
             case AuthModalState.TELEGRAM_ROLE_SELECT:
                 return renderTelegramRoleSelectScreen();
+            case AuthModalState.FORGOT_PASSWORD:
+                return renderForgotPasswordScreen();
+            case AuthModalState.VERIFY_CODE:
+                return renderVerifyCodeScreen();
+            case AuthModalState.NEW_PASSWORD:
+                return renderNewPasswordScreen();
             default:
                 return renderWelcomeScreen();
         }
@@ -1774,6 +1956,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 </button>
                 {renderContent()}
             </div>
+            <Status
+                type="error"
+                isOpen={!!error}
+                onClose={() => setError('')}
+                message={error}
+            />
         </div>
     );
 };

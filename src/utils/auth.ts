@@ -33,7 +33,20 @@ export interface UserData {
     occupation?: UserOccupation[];
     createdAt?: string;
     updatedAt?: string;
+    oauthType?: {
+        id?: number;
+        googleId?: string;
+        telegramId?: string;
+        vkId?: string;
+        facebookId?: string;
+        instagramId?: string;
+    };
 }
+
+// ============ Кэш запроса /api/users/me ============
+let _mePromise: Promise<UserData | null> | null = null;
+let _meCachedAt = 0;
+const ME_CACHE_TTL_MS = 30_000 as const;
 
 // ============ Утилиты для работы с localStorage ============
 const isClientSide = (): boolean => typeof window !== 'undefined';
@@ -84,6 +97,8 @@ export const removeAuthToken = (): void => {
         STORAGE_KEYS.USER_OCCUPATION,
         STORAGE_KEYS.SELECTED_CITY
     );
+    _mePromise = null;
+    _meCachedAt = 0;
 };
 
 // ============ Logout ============
@@ -171,6 +186,8 @@ export const clearAuthData = (): void => {
         STORAGE_KEYS.USER_ROLE,
         STORAGE_KEYS.USER_OCCUPATION
     );
+    _mePromise = null;
+    _meCachedAt = 0;
 };
 
 // ============ Работа с ролью пользователя ============
@@ -364,4 +381,65 @@ export const setupTokenRefresh = async (
             }
         }
     }, 60000); // Проверяем каждую минуту
+};
+
+// ============ Единый закэшированный запрос /api/users/me ============
+export const invalidateCurrentUserCache = (): void => {
+    _meCachedAt = 0;
+};
+
+export const fetchCurrentUser = async (): Promise<UserData | null> => {
+    const token = getAuthToken();
+    if (!token) return null;
+
+    // Return from localStorage if data is fresh enough
+    const cached = getUserData();
+    if (cached && Date.now() - _meCachedAt < ME_CACHE_TTL_MS) return cached;
+
+    // Deduplicate concurrent in-flight requests
+    if (_mePromise) return _mePromise;
+
+    _mePromise = (async () => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/users/me`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Accept: 'application/json',
+                },
+            });
+
+            if (response.ok) {
+                const userData: UserData = await response.json();
+                setUserData(userData);
+                _meCachedAt = Date.now();
+                return userData;
+            }
+
+            if (response.status === 401) {
+                const refreshed = await refreshToken();
+                if (!refreshed) return null;
+                const newToken = getAuthToken();
+                if (!newToken) return null;
+                const retryResp = await fetch(`${API_BASE_URL}/api/users/me`, {
+                    headers: {
+                        Authorization: `Bearer ${newToken}`,
+                        Accept: 'application/json',
+                    },
+                });
+                if (!retryResp.ok) return null;
+                const userData: UserData = await retryResp.json();
+                setUserData(userData);
+                _meCachedAt = Date.now();
+                return userData;
+            }
+
+            return null;
+        } catch {
+            return null;
+        } finally {
+            _mePromise = null;
+        }
+    })();
+
+    return _mePromise;
 };

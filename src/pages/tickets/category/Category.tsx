@@ -99,6 +99,8 @@ interface Ticket {
     createdAt: string;
     updatedAt: string;
     reviewsCount?: number;
+    responsesCount?: number;
+    viewsCount?: number;
     negotiableBudget?: boolean;
 }
 
@@ -121,6 +123,8 @@ interface FormattedTicket {
     authorImage?: string;
     userRating?: number;
     userReviewCount?: number;
+    responsesCount?: number;
+    viewsCount?: number;
     photos?: string[];
     negotiableBudget?: boolean;
 }
@@ -613,6 +617,8 @@ function Category() {
                     authorImage: author ? (author.image || author.imageExternalUrl ? formatProfileImageUrl(author.image || author.imageExternalUrl!) : undefined) : undefined,
                     userRating: author?.rating || 0,
                     userReviewCount: ticket.reviewsCount || 0,
+                    responsesCount: ticket.responsesCount,
+                    viewsCount: ticket.viewsCount,
                     photos: ticket.images?.map((img: { id: number; image: string }) => formatTicketImageUrl(img.image)),
                     negotiableBudget: ticket.negotiableBudget
                 };
@@ -992,6 +998,8 @@ function Category() {
                             userRole={userRole}
                             userRating={ticket.userRating}
                             userReviewCount={ticket.userReviewCount}
+                            responsesCount={ticket.responsesCount}
+                            viewsCount={ticket.viewsCount}
                             photos={ticket.photos}
                             authorImage={ticket.authorImage}
                             negotiableBudget={ticket.negotiableBudget}

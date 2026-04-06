@@ -48,7 +48,6 @@ import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/Cooki
 import Status from '../../shared/ui/Modal/Status';
 import FeedbackModal from '../../shared/ui/Modal/Feedback';
 import AuthModal from '../../features/auth/AuthModal';
-import AuthBanner from '../../widgets/Banners/AuthBanner/AuthBanner';
 import { getAuthorAvatar } from '../../utils/imageHelper.ts';
 import { Back } from '../../shared/ui/Button/Back/Back.tsx';
 
@@ -321,40 +320,18 @@ function Profile() {
             return true;
         }
 
-        try {
-            const token = getAuthToken();
-            if (!token) {
-                console.log('No auth token available');
-                setIsLoading(false);
-                return false;
-            }
-
-            const response = await fetch(`${API_BASE_URL}/api/users/me`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                },
-            });
-
-            if (response.ok) {
-                const userData = await response.json();
-                console.log('Current user loaded successfully:', {
-                    id: userData.id,
-                    name: userData.name
-                });
-                setCurrentUser(userData);
-                return true;
-            } else {
-                console.error('Failed to fetch current user:', response.status);
-                setIsLoading(false);
-                return false;
-            }
-        } catch (err) {
-            console.error('Error fetching current user:', err);
+        // Для приватного профиля — проверяем токен локально, без лишнего API-запроса.
+        // fetchUserData() уже вызывает /api/users/me?locale=... и там установит currentUser.
+        const token = getAuthToken();
+        if (!token) {
+            console.log('No auth token available');
             setIsLoading(false);
             return false;
         }
-    }, [API_BASE_URL, readOnly]);
+        // Токен есть — разрешаем рендер, реальные данные придут из fetchUserData
+        setCurrentUser({ id: 0, email: '', name: '', surname: '' });
+        return true;
+    }, [readOnly]);
     
     // Определение размера экрана
     useEffect(() => {
@@ -773,14 +750,12 @@ function Profile() {
 
         // Проверяем, что выбрана область
         if (!addressForm.provinceId) {
-            alert(t('profile:selectProvince'));
-            return;
+            throw new Error(t('profile:selectProvince'));
         }
 
         // Проверяем, что выбран город или район
         if (!addressForm.cityId && addressForm.districtIds.length === 0) {
-            alert(t('profile:selectCity'));
-            return;
+            throw new Error(t('profile:selectCity'));
         }
 
         try {
@@ -809,8 +784,7 @@ function Profile() {
             // Преобразуем AddressValue в формат API
             const addressData = buildAddressData(addressForm);
             if (!addressData) {
-                alert(t('profile:addrError'));
-                return;
+                throw new Error(t('profile:addrError'));
             }
 
             // Определяем, обновляем существующий или создаем новый
@@ -904,12 +878,13 @@ function Profile() {
             } else {
                 const errorText = await updateResponse.text();
                 console.error('Error updating address:', errorText);
-                alert(t('profile:addrSaveError'));
+                throw new Error(t('profile:addrSaveError'));
             }
 
         } catch (error) {
             console.error('Error saving address:', error);
-            alert(t('profile:addrSaveError'));
+            if (error instanceof Error) throw error;
+            throw new Error(t('profile:addrSaveError'));
         }
     };
 
@@ -971,12 +946,13 @@ function Profile() {
             } else {
                 const errorText = await updateResponse.text();
                 console.error('Error deleting address:', errorText);
-                alert(t('profile:addrDeleteError'));
+                throw new Error(t('profile:addrDeleteError'));
             }
 
         } catch (error) {
             console.error('Error deleting address:', error);
-            alert(t('profile:addrDeleteError'));
+            if (error instanceof Error) throw error;
+            throw new Error(t('profile:addrDeleteError'));
         }
     };
 
@@ -997,7 +973,8 @@ function Profile() {
         if (!profileData) return;
 
         if (profileData.phones.length >= 2) {
-            alert('Максимум 2 телефона');
+            setModalMessage(t('profile:phoneMaxError'));
+            setShowErrorModal(true);
             return;
         }
 
@@ -1022,12 +999,9 @@ function Profile() {
         const trimmedNumber = phoneForm.number.trim();
         
         if (!validatePhone(trimmedNumber, phoneForm.type)) {
-            if (phoneForm.type === 'tj') {
-                alert('Неверный формат. Введите номер в формате +992XXXXXXXXX');
-            } else {
-                alert('Неверный формат. Введите международный номер в формате +XXXXXXXXXXX');
-            }
-            return;
+            throw new Error(phoneForm.type === 'tj'
+                ? t('profile:phoneTjFormatError')
+                : t('profile:phoneIntFormatError'));
         }
 
         try {
@@ -1076,15 +1050,16 @@ function Profile() {
             } else if (response.status === 422) {
                 const errorData = await response.json();
                 const violation = errorData?.violations?.[0]?.message;
-                alert(violation || 'Этот номер телефона уже занят');
+                throw new Error(violation || t('profile:phoneBusy'));
             } else {
                 const errorText = await response.text();
                 console.error('Error saving phone:', errorText);
-                alert('Ошибка при сохранении телефона');
+                throw new Error(t('profile:phoneSaveError'));
             }
         } catch (error) {
             console.error('Error saving phone:', error);
-            alert('Ошибка при сохранении телефона');
+            if (error instanceof Error) throw error;
+            throw new Error(t('profile:phoneSaveError'));
         }
     };
 
@@ -1129,31 +1104,28 @@ function Profile() {
             } else {
                 const errorText = await response.text();
                 console.error('Error deleting phone:', errorText);
-                alert('Ошибка при удалении телефона');
+                throw new Error(t('profile:phoneDeleteError'));
             }
         } catch (error) {
             console.error('Error deleting phone:', error);
-            alert('Ошибка при удалении телефона');
+            if (error instanceof Error) throw error;
+            throw new Error(t('profile:phoneDeleteError'));
         }
     };
 
     const handleCopyPhone = async (phoneNumber: string) => {
-        try {
-            await navigator.clipboard.writeText(phoneNumber);
-            alert('Номер телефона скопирован в буфер обмена');
-        } catch (error) {
-            console.error('Failed to copy phone number:', error);
-            alert('Ошибка при копировании');
-        }
+        await navigator.clipboard.writeText(phoneNumber);
     };
 
     const handleCopySocialNetwork = async (handle: string) => {
         try {
             await navigator.clipboard.writeText(handle);
-            alert('Скопировано в буфер обмена');
+            setModalMessage(t('profile:socialCopied'));
+            setShowSuccessModal(true);
         } catch (error) {
             console.error('Failed to copy social network handle:', error);
-            alert('Ошибка при копировании');
+            setModalMessage(t('profile:socialCopyError'));
+            setShowErrorModal(true);
         }
     };
 
@@ -1188,11 +1160,13 @@ function Profile() {
                 });
             } else {
                 console.error('Failed to update remote work setting');
-                alert('Не удалось сохранить настройку удаленной работы');
+                setModalMessage(t('profile:remoteWorkSaveError'));
+                setShowErrorModal(true);
             }
         } catch (error) {
             console.error('Error updating remote work setting:', error);
-            alert('Ошибка при сохранении настройки удаленной работы');
+            setModalMessage(t('profile:remoteWorkSaveError'));
+            setShowErrorModal(true);
         }
     };
 
@@ -1282,6 +1256,11 @@ function Profile() {
 
             const userData: UserApiData = await response.json();
             console.log('User data received:', userData);
+
+            // Обновляем текущего пользователя из ответа (только для приватного профиля)
+            if (!readOnly) {
+                setCurrentUser({ id: userData.id, email: userData.email ?? '', name: userData.name ?? '', surname: userData.surname ?? '' });
+            }
 
             // Строим lookup maps из переведённых географических данных
             const [pRaw, cRaw, dRaw] = await Promise.all([
@@ -1406,7 +1385,7 @@ function Profile() {
                 number: p.phone,
                 type: (p.countryCode === '+992' ? 'tj' : 'international') as 'tj' | 'international',
                 main: p.main ?? false,
-            }));
+            })).sort((a: LocalPhone, b: LocalPhone) => (b.main ? 1 : 0) - (a.main ? 1 : 0));
 
             // localizedOccupations уже получены выше через Promise.all
             setOccupations(localizedOccupations);
@@ -1880,9 +1859,8 @@ function Profile() {
                     createdAt: service.createdAt,
                     active: service.active !== false,
                     images: serviceImages,
-                    position: service.position ?? 0,
                 };
-            }).sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+            });
 
             console.log('Transformed services:', transformedServices);
             
@@ -1924,12 +1902,14 @@ function Profile() {
                 const file = files[i];
 
                 if (!file.type.startsWith('image/')) {
-                    alert(`Файл ${file.name} не является изображением`);
+                    setModalMessage(t('profile:workExampleNotImage', { name: file.name }));
+                    setShowErrorModal(true);
                     continue;
                 }
 
                 if (file.size > 5 * 1024 * 1024) {
-                    alert(`Размер файла ${file.name} превышает 5MB`);
+                    setModalMessage(t('profile:workExampleTooLarge', { name: file.name }));
+                    setShowErrorModal(true);
                     continue;
                 }
 
@@ -1937,7 +1917,8 @@ function Profile() {
             }
 
             if (validFiles.length === 0) {
-                alert("Нет валидных файлов для загрузки");
+                setModalMessage(t('profile:workExampleNoFiles'));
+                setShowErrorModal(true);
                 setIsGalleryOperating(false);
                 return;
             }
@@ -1952,7 +1933,8 @@ function Profile() {
                 galleryId = await createUserGallery(token);
                 
                 if (!galleryId) {
-                    alert('Не удалось создать галерею. Попробуйте еще раз или обратитесь в поддержку.');
+                    setModalMessage(t('profile:galleryCreateError'));
+                    setShowErrorModal(true);
                     setIsGalleryOperating(false);
                     return;
                 }
@@ -1967,11 +1949,13 @@ function Profile() {
 
             // Обновляем галерею
             await fetchUserGallery();
-            alert(`${validFiles.length} фото успешно добавлены в портфолио!`);
+            setModalMessage(t('profile:workExamplesAdded', { count: validFiles.length }));
+            setShowSuccessModal(true);
 
         } catch (error) {
             console.error("Ошибка при загрузке фото в портфолио:", error);
-            alert("Ошибка при загрузке фото в портфолио");
+            setModalMessage(t('profile:workExamplesAddError'));
+            setShowErrorModal(true);
         } finally {
             setIsGalleryOperating(false);
             if (workExampleInputRef.current) workExampleInputRef.current.value = "";
@@ -2046,7 +2030,8 @@ function Profile() {
 
             if (!gallery || !gallery.id) {
                 console.log('No gallery found for user');
-                alert('Галерея не найдена');
+                setModalMessage(t('profile:galleryNotFound'));
+                setShowErrorModal(true);
                 setIsGalleryOperating(false);
                 return;
             }
@@ -2067,7 +2052,8 @@ function Profile() {
                         workExamples: prev.workExamples.filter(work => work.id !== workExampleId)
                     };
                 });
-                alert('Изображение не найдено в галерее');
+                setModalMessage(t('profile:photoNotFound'));
+                setShowErrorModal(true);
                 setIsGalleryOperating(false);
                 return;
             }
@@ -2095,7 +2081,8 @@ function Profile() {
             if (!updateResponse.ok) {
                 const errorText = await updateResponse.text();
                 console.error('PATCH failed:', errorText);
-                alert('Не удалось удалить фото. Попробуйте еще раз.');
+                setModalMessage(t('profile:photoDeleteError'));
+                setShowErrorModal(true);
                 setIsGalleryOperating(false);
                 return;
             }
@@ -2111,11 +2098,13 @@ function Profile() {
                 };
             });
             
-            alert('Фото успешно удалено из портфолио!');
+            setModalMessage(t('profile:photoDeleted'));
+            setShowSuccessModal(true);
 
         } catch (error) {
             console.error('Error deleting work example:', error);
-            alert('Ошибка при удалении фото. Пожалуйста, попробуйте еще раз.');
+            setModalMessage(t('profile:photoDeleteErrorRetry'));
+            setShowErrorModal(true);
         } finally {
             setIsGalleryOperating(false);
         }
@@ -2142,7 +2131,8 @@ function Profile() {
 
             if (!gallery || !gallery.id) {
                 console.log('No gallery found for user');
-                alert('Галерея не найдена');
+                setModalMessage(t('profile:galleryNotFound'));
+                setShowErrorModal(true);
                 setIsGalleryOperating(false);
                 return;
             }
@@ -2164,7 +2154,8 @@ function Profile() {
             if (!updateResponse.ok) {
                 const errorText = await updateResponse.text();
                 console.error('PATCH failed:', errorText);
-                alert('Не удалось удалить все фото. Попробуйте еще раз.');
+                setModalMessage(t('profile:allPhotosDeleteError'));
+                setShowErrorModal(true);
                 setIsGalleryOperating(false);
                 return;
             }
@@ -2180,11 +2171,13 @@ function Profile() {
                 };
             });
             
-            alert('Все фото успешно удалены из портфолио!');
+            setModalMessage(t('profile:allPhotosDeleted'));
+            setShowSuccessModal(true);
 
         } catch (error) {
             console.error('Error deleting all work examples:', error);
-            alert('Ошибка при удалении всех фото. Пожалуйста, попробуйте еще раз.');
+            setModalMessage(t('profile:allPhotosDeleteErrorRetry'));
+            setShowErrorModal(true);
         } finally {
             setIsGalleryOperating(false);
         }
@@ -2670,12 +2663,6 @@ function Profile() {
         });
 
         if (updateResponse.ok) {
-            const updatedUser = await updateResponse.json();
-            setProfileData(prev => prev ? {
-                ...prev,
-                education: transformEducation(updatedUser.education || [])
-            } : null);
-
             setEditingEducation(null);
             setEducationForm({
                 institution: '',
@@ -2685,16 +2672,17 @@ function Profile() {
                 currentlyStudying: false
             });
 
-            console.log('Education updated successfully');
+            await fetchUserData(true);
         } else {
             const errorText = await updateResponse.text();
             console.error('Failed to update education:', errorText);
-            throw new Error('Failed to update education');
+            throw new Error(t('profile:eduSaveError') || 'Failed to update education');
         }
 
     } catch (error) {
         console.error('Error updating education:', error);
-        // Тихо обрабатываем ошибку обновления образования
+        if (error instanceof Error) throw error;
+        throw new Error(t('profile:eduSaveError') || 'Failed to update education');
     }
 };
 
@@ -2756,7 +2744,8 @@ function Profile() {
 
         } catch (error) {
             console.error('Error deleting education:', error);
-            // Тихо обрабатываем ошибку без алертов
+            if (error instanceof Error) throw error;
+            throw new Error('Failed to delete education');
         }
     };
 
@@ -2793,6 +2782,7 @@ function Profile() {
                     };
                 });
             }
+            throw error;
         }
     };
 
@@ -2870,7 +2860,32 @@ function Profile() {
     };
 
     const handleReorderPhones = async (newPhones: LocalPhone[]) => {
-        setProfileData(prev => prev ? { ...prev, phones: newPhones } : null);
+        // Top phone is always main:true, rest are main:false
+        const phonesWithMain = newPhones.map((p, i) => ({ ...p, main: i === 0 }));
+        setProfileData(prev => prev ? { ...prev, phones: phonesWithMain } : null);
+
+        const token = getAuthToken();
+        if (!token || !profileData?.id) return;
+
+        try {
+            const phonesPayload = phonesWithMain.map(p => ({
+                id: parseInt(p.id, 10),
+                phone: p.number,
+                main: p.main,
+            }));
+
+            await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/merge-patch+json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ phones: phonesPayload }),
+            });
+        } catch (error) {
+            console.error('Error reordering phones:', error);
+        }
     };
 
     const handleReorderWorkExamples = async (newWorkExamples: { id: string; image: string; title: string }[]) => {
@@ -2914,7 +2929,7 @@ function Profile() {
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${token}`,
                         },
-                        body: JSON.stringify({ position: index }),
+                        body: JSON.stringify({ priority: index }),
                     })
                 )
             );
@@ -3080,8 +3095,20 @@ function Profile() {
 
     const handleEditEducationSave = async () => {
         if (!editingEducation || !educationForm.institution || !educationForm.startYear) {
-            alert(t('profile:fillRequiredFields'));
-            return;
+            throw new Error(t('profile:fillRequiredFields'));
+        }
+
+        const currentYear = new Date().getFullYear();
+        const startYearNum = parseInt(educationForm.startYear, 10);
+        if (isNaN(startYearNum) || startYearNum < 1900 || startYearNum > currentYear) {
+            throw new Error(t('profile:invalidStartYear'));
+        }
+
+        if (!educationForm.currentlyStudying) {
+            const endYearNum = parseInt(educationForm.endYear, 10);
+            if (isNaN(endYearNum) || endYearNum < startYearNum) {
+                throw new Error(t('profile:invalidEndYear'));
+            }
         }
 
         // Формируем данные для сохранения (occupation обрабатывается внутри updateEducation)
@@ -3108,10 +3135,14 @@ function Profile() {
     };
 
     const handleEducationFormChange = (field: keyof Omit<Education, 'id'>, value: string | boolean) => {
-        setEducationForm(prev => ({
-            ...prev,
-            [field]: value
-        }));
+        setEducationForm(prev => {
+            const updated = { ...prev, [field]: value };
+            // When currentlyStudying is toggled ON, clear endYear
+            if (field === 'currentlyStudying' && value === true) {
+                updated.endYear = '';
+            }
+            return updated;
+        });
     };
 
     const handleAvatarClick = () => {
@@ -3123,12 +3154,14 @@ function Profile() {
         if (!file || !profileData?.id) return;
 
         if (!file.type.startsWith("image/")) {
-            alert(t('profile:notImageFile'));
+            setModalMessage(t('profile:notImageFile'));
+            setShowErrorModal(true);
             return;
         }
 
         if (file.size > 2 * 1024 * 1024) {
-            alert(t('profile:fileTooLarge'));
+            setModalMessage(t('profile:fileTooLarge'));
+            setShowErrorModal(true);
             return;
         }
 
@@ -3450,11 +3483,6 @@ function Profile() {
                         isLikeLoading: isProfileLikeLoading,
                     })}
                 />
-
-                {/* Баннер для неавторизованных пользователей */}
-                {readOnly && !getAuthToken() && (
-                    <AuthBanner onLoginClick={() => setShowAuthModal(true)} />
-                )}
 
                 {/* Секция "О себе" */}
                 <div className={styles.about_section}>

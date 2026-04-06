@@ -2,7 +2,7 @@ import {useState, useEffect, useCallback} from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../app/routers/routes';
-import { getAuthToken } from '../../../utils/auth.ts';
+import { getAuthToken, fetchCurrentUser } from '../../../utils/auth.ts';
 import { getStorageItem } from '../../../utils/storageHelper';
 import { useLanguageChange } from '../../../hooks';
 import styles from './MyTickets.module.scss';
@@ -186,41 +186,15 @@ function MyTickets() {
         setDisplayedTickets(filtered);
     }, [activeTab, allTickets]);
 
-    // ТОЧНО КАК В Chat.tsx - загрузка текущего пользователя
+    // Загрузка текущего пользователя через централизованный кэш (auth.ts)
     const getCurrentUser = useCallback(async (): Promise<ApiUser | null> => {
-        try {
-            const token = getAuthToken();
-            if (!token) {
-                console.log('No auth token available');
-                setIsLoading(false);
-                return null;
-            }
-
-            const response = await fetch(`${API_BASE_URL}/api/users/me`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                },
-            });
-
-            if (response.ok) {
-                const userData = await response.json();
-                console.log('Current user loaded successfully:', {
-                    id: userData.id,
-                    name: userData.name
-                });
-                setCurrentUser(userData);
-                return userData;
-            } else {
-                console.error('Failed to fetch current user:', response.status);
-                setIsLoading(false);
-                return null;
-            }
-        } catch (err) {
-            console.error('Error fetching current user:', err);
+        const userData = await fetchCurrentUser();
+        if (!userData) {
             setIsLoading(false);
             return null;
         }
+        setCurrentUser(userData as unknown as ApiUser);
+        return userData as unknown as ApiUser;
     }, []);
 
     const fetchMyTickets = async () => {

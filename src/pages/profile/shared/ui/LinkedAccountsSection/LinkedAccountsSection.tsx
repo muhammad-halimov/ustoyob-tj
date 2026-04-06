@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { ProfileSection } from '../ProfileSection';
 import styles from './LinkedAccountsSection.module.scss';
 
 export interface LinkedProvider {
@@ -16,6 +17,12 @@ interface LinkedAccountsSectionProps {
 }
 
 const ALL_PROVIDERS: LinkedProvider['provider'][] = ['google', 'facebook', 'instagram', 'telegram'];
+
+interface ProviderItem {
+    id: string;
+}
+
+const PROVIDER_ITEMS: ProviderItem[] = ALL_PROVIDERS.map(p => ({ id: p }));
 
 const ProviderIcon: React.FC<{ provider: LinkedProvider['provider'] }> = ({ provider }) => {
     if (provider === 'google') {
@@ -84,63 +91,62 @@ export const LinkedAccountsSection: React.FC<LinkedAccountsSectionProps> = ({
     };
 
     return (
-        <div className={styles.section_item}>
-            <h3>{t('oauth.sectionTitle')}</h3>
-            {loading ? (
-                <div className={styles.loading_overlay}>{t('oauth.loading')}</div>
-            ) : (
-                <div className={styles.providers_list}>
-                    {ALL_PROVIDERS.map(provider => {
-                        const linkedEntry = providers.find(p => p.provider === provider);
-                        const isLinked = linkedSet.has(provider);
-                        const isLastLinked = isOnlyOneLinked && isLinked;
-
-                        return (
-                            <div key={provider} className={styles.provider_row}>
-                                <div className={styles.provider_icon}>
-                                    <ProviderIcon provider={provider} />
-                                </div>
-                                <div className={styles.provider_info}>
-                                    <div className={styles.provider_name}>
-                                        {t(`oauth.provider.${provider}`)}
-                                    </div>
-                                    <div className={`${styles.provider_status} ${isLinked ? styles.linked : styles.unlinked}`}>
-                                        {isLinked
-                                            ? `${t('oauth.linked')} ${formatDate(linkedEntry!.linkedAt)}`
-                                            : t('oauth.notLinked')}
-                                    </div>
-                                </div>
-                                {isLinked ? (
-                                    <div className={isLastLinked ? styles.tooltip_wrapper : undefined}>
-                                        <button
-                                            className={`${styles.action_btn} ${styles.unlink_btn}`}
-                                            onClick={() => {
-                                                const name = t(`oauth.provider.${provider}`);
-                                                if (window.confirm(t('oauth.unlinkConfirm', { provider: name }))) {
-                                                    onUnlink(provider);
-                                                }
-                                            }}
-                                            disabled={isLastLinked}
-                                        >
-                                            {t('oauth.unlinkBtn')}
-                                        </button>
-                                        {isLastLinked && (
-                                            <span className={styles.tooltip}>{t('oauth.lastAuthMethod')}</span>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <button
-                                        className={`${styles.action_btn} ${styles.link_btn}`}
-                                        onClick={() => onLink(provider)}
-                                    >
-                                        {t('oauth.linkBtn')}
-                                    </button>
+        <ProfileSection<ProviderItem>
+            title={t('oauth.sectionTitle')}
+            items={loading ? [] : PROVIDER_ITEMS}
+            editingId={null}
+            readOnly={true}
+            isLoading={loading}
+            emptyTitle=""
+            renderViewItem={(providerItem) => {
+                const provider = providerItem.id as LinkedProvider['provider'];
+                const linkedEntry = providers.find(p => p.provider === provider);
+                const isLinked = linkedSet.has(provider);
+                const isLastLinked = isOnlyOneLinked && isLinked;
+                return (
+                    <>
+                        <div className={styles.provider_icon}>
+                            <ProviderIcon provider={provider} />
+                        </div>
+                        <div className={styles.provider_info}>
+                            <div className={styles.provider_name}>
+                                {t(`oauth.provider.${provider}`)}
+                            </div>
+                            <div className={`${styles.provider_status} ${isLinked ? styles.linked : styles.unlinked}`}>
+                                {isLinked
+                                    ? `${t('oauth.linked')} ${formatDate(linkedEntry!.linkedAt)}`
+                                    : t('oauth.notLinked')}
+                            </div>
+                        </div>
+                        {isLinked ? (
+                            <div className={isLastLinked ? styles.tooltip_wrapper : undefined}>
+                                <button
+                                    className={`${styles.action_btn} ${styles.unlink_btn}`}
+                                    onClick={() => {
+                                        const name = t(`oauth.provider.${provider}`);
+                                        if (window.confirm(t('oauth.unlinkConfirm', { provider: name }))) {
+                                            onUnlink(provider);
+                                        }
+                                    }}
+                                    disabled={isLastLinked}
+                                >
+                                    {t('oauth.unlinkBtn')}
+                                </button>
+                                {isLastLinked && (
+                                    <span className={styles.tooltip}>{t('oauth.lastAuthMethod')}</span>
                                 )}
                             </div>
-                        );
-                    })}
-                </div>
-            )}
-        </div>
+                        ) : (
+                            <button
+                                className={`${styles.action_btn} ${styles.link_btn}`}
+                                onClick={() => onLink(provider)}
+                            >
+                                {t('oauth.linkBtn')}
+                            </button>
+                        )}
+                    </>
+                );
+            }}
+        />
     );
 };

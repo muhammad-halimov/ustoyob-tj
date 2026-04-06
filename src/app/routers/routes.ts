@@ -23,9 +23,12 @@ export const ROUTES = {
     
     // Юридические документы
     PRIVACY_POLICY: '/legal/privacy-policy',
-    TERMS_OF_SERVICE: '/legal/terms-of-service',
+    TERMS_OF_USE: '/legal/terms-of-use',
     PUBLIC_OFFER: '/legal/public-offer',
     
+    // Auth
+    CONFIRM_ACCOUNT: (token: string) => `/confirm-account/${token}`,
+
     // OAuth
     AUTH_GOOGLE: '/auth/google',
     AUTH_GOOGLE_CALLBACK: '/auth/google/callback',
@@ -49,9 +52,12 @@ export const ROUTE_PATTERNS = {
     EDIT_TICKET: 'ticket/:id/edit',
     CATEGORY_TICKETS_BY_ID: 'ticket/category/:id',
     PRIVACY_POLICY: 'legal/privacy-policy',
-    TERMS_OF_SERVICE: 'legal/terms-of-service',
+    TERMS_OF_USE: 'legal/terms-of-use',
     PUBLIC_OFFER: 'legal/public-offer',
-    
+
+    // Auth
+    CONFIRM_ACCOUNT: '/confirm-account/:token',
+
     // OAuth
     AUTH_GOOGLE: '/auth/google',
     AUTH_GOOGLE_CALLBACK: '/auth/google/callback',

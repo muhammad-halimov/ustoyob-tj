@@ -385,6 +385,15 @@
   border-radius: 0;
 }
 
+.phones_override {
+  padding: 0;
+  background: none;
+  margin-top: 16px;
+  margin-bottom: 0;
+  min-height: unset;
+  border-radius: 0;
+}
+
 .authorInfo {
   display: flex;
   flex-direction: column;
@@ -439,6 +448,7 @@
   gap: 10px;
   width: 100%;
   align-items: stretch;
+  justify-content: center;
   padding-bottom: 8px;
 }
 
@@ -520,6 +530,12 @@
     background: #fff0f0;
     border-color: #e53935;
     color: #e53935;
+  }
+
+  &.responded {
+    background: #f0fff4;
+    border-color: #22c55e;
+    color: #16a34a;
   }
 
   &.loading {
@@ -1345,6 +1361,12 @@
       background: rgba(229, 57, 53, 0.12);
       border-color: #e53935;
       color: #e53935;
+    }
+
+    &.responded {
+      background: rgba(34, 197, 94, 0.12);
+      border-color: #22c55e;
+      color: #22c55e;
     }
   }
 }

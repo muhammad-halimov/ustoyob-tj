@@ -13,6 +13,7 @@ import { Carousel } from '../../Photo/Carousel';
 import { Toggle } from '../../Button/Toggle/Toggle.tsx';
 import { ActionsDropdown } from '../../../../widgets/ActionsDropdown';
 import Status from '../../Modal/Status';
+import { IoChatbubbleEllipsesOutline, IoCheckmarkCircle } from 'react-icons/io5';
 // Re-export for backward compatibility (other files import truncateText from Card)
 export default truncateText
 
@@ -55,6 +56,8 @@ interface AnnouncementCardProps {
   isRespondLoading?: boolean;
   onComplaintClick?: () => void;
   onReviewClick?: () => void;
+  viewsCount?: number;
+  responsesCount?: number;
 }
 
 // truncateText moved to src/utils/textHelper.ts
@@ -192,8 +195,10 @@ export function Card({
   isRespondLoading = false,
   onComplaintClick,
   onReviewClick,
+  viewsCount,
+  responsesCount,
 }: AnnouncementCardProps) {
-  const { t, i18n } = useTranslation('components');
+  const { t, i18n } = useTranslation(['components', 'ticket']);
   const [, forceUpdate] = useState({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
@@ -311,30 +316,32 @@ export function Card({
                 title="Редактировать"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M7.2302 20.59L2.4502 21.59L3.4502 16.81L17.8902 2.29001C18.1407 2.03889 18.4385 1.83982 18.7663 1.70424C19.0941 1.56865 19.4455 1.49925 19.8002 1.50001C20.5163 1.50001 21.203 1.78447 21.7094 2.29082C22.2157 2.79717 22.5002 3.48392 22.5002 4.20001C22.501 4.55474 22.4315 4.90611 22.296 5.23391C22.1604 5.56171 21.9613 5.85945 21.7102 6.11001L7.2302 20.59Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                  <path d="M0.549805 22.5H23.4498" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
-                  <path d="M19.6403 8.17986L15.8203 4.35986" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
+                  <path d="M7.2302 20.59L2.4502 21.59L3.4502 16.81L17.8902 2.29001C18.1407 2.03889 18.4385 1.83982 18.7663 1.70424C19.0941 1.56865 19.4455 1.49925 19.8002 1.50001C20.5163 1.50001 21.203 1.78447 21.7094 2.29082C22.2157 2.79717 22.5002 3.48392 22.5002 4.20001C22.501 4.55474 22.4315 4.90611 22.296 5.23391C22.1604 5.56171 21.9613 5.85945 21.7102 6.11001L7.2302 20.59Z" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10"/>
+                  <path d="M0.549805 22.5H23.4498" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10"/>
+                  <path d="M19.6403 8.17986L15.8203 4.35986" stroke="currentColor" strokeWidth="2" strokeMiterlimit="10"/>
                 </svg>
               </button>
             )}
-            <button
-              className={styles.card_favorite_button}
-              onClick={onFavoriteClick}
-              onTouchStart={(e) => e.stopPropagation()}
-              onTouchEnd={onFavoriteClick}
-              disabled={isLikeLoading}
-              title={isFavorite ? t('removeFavorite') : t('addFavorite')}
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M16.77 2.45C15.7961 2.47092 14.8444 2.74461 14.0081 3.24424C13.1719 3.74388 12.4799 4.45229 12 5.3C11.5201 4.45229 10.8281 3.74388 9.99186 3.24424C9.15563 2.74461 8.2039 2.47092 7.23 2.45C4.06 2.45 1.5 5.3 1.5 8.82C1.5 15.18 12 21.55 12 21.55C12 21.55 22.5 15.18 22.5 8.82C22.5 5.3 19.94 2.45 16.77 2.45Z"
-                  fill={isFavorite ? "#3A54DA" : "none"}
-                  stroke="#3A54DA"
-                  strokeWidth="2"
-                  strokeMiterlimit="10"
-                />
-              </svg>
-            </button>
+            {!showEditButton && (
+              <button
+                className={styles.card_favorite_button}
+                onClick={onFavoriteClick}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={onFavoriteClick}
+                disabled={isLikeLoading}
+                title={isFavorite ? t('removeFavorite') : t('addFavorite')}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    d="M16.77 2.45C15.7961 2.47092 14.8444 2.74461 14.0081 3.24424C13.1719 3.74388 12.4799 4.45229 12 5.3C11.5201 4.45229 10.8281 3.74388 9.99186 3.24424C9.15563 2.74461 8.2039 2.47092 7.23 2.45C4.06 2.45 1.5 5.3 1.5 8.82C1.5 15.18 12 21.55 12 21.55C12 21.55 22.5 15.18 22.5 8.82C22.5 5.3 19.94 2.45 16.77 2.45Z"
+                    fill={isFavorite ? "#e53935" : "none"}
+                    stroke={isFavorite ? "#e53935" : "currentColor"}
+                    strokeWidth="2"
+                    strokeMiterlimit="10"
+                  />
+                </svg>
+              </button>
+            )}
             {(onComplaintClick || onReviewClick) && (
               <div
                 className={styles.card_dropdown_wrapper}
@@ -383,10 +390,12 @@ export function Card({
             onTouchEnd={(e) => e.stopPropagation()}
             disabled={isResponded || isRespondLoading}
           >
-            <span style={{ visibility: isRespondLoading ? 'hidden' : 'visible' }}>
-              {isResponded ? t('app.responded') : t('app.respond')}
-            </span>
-            {isRespondLoading && <span className={styles.card_respond_spinner} />}
+            {isRespondLoading
+              ? <span className={styles.card_respond_spinner} />
+              : isResponded
+              ? <><IoCheckmarkCircle className={styles.card_respond_icon} />{t('app.responded')}</>
+              : <><IoChatbubbleEllipsesOutline className={styles.card_respond_icon} />{t('app.respond')}</>
+            }
           </button>
         )}
         <span className={styles.card_price}>{(negotiableBudget && !price) ? t('app.negotiablePrice') : `${price != null ? price.toLocaleString('ru-RU') : '—'} TJS, ${unit || 'N/A'}`}</span>
@@ -418,97 +427,128 @@ export function Card({
       </div>
 
       <div className={styles.card_footer}>
-        <div className={styles.card_author_section}>
-          {authorId ? (
-            <Link
-              to={ROUTES.PROFILE_BY_ID(authorId)}
-              className={styles.card_author}
-              onClick={(e) => e.stopPropagation()}
-              onTouchStart={(e) => e.stopPropagation()}
-              onTouchEnd={(e) => e.stopPropagation()}
-            >
-              {authorImage ? (
-                <img src={authorImage} className={styles.card_author_avatar} alt="" />
-              ) : (
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <g clipPath="url(#clip0_auth)">
-                    <g clipPath="url(#clip1_auth)">
-                      <path d="M11.9995 12.9795C15.1641 12.9795 17.7295 10.4141 17.7295 7.24953C17.7295 4.08494 15.1641 1.51953 11.9995 1.51953C8.83494 1.51953 6.26953 4.08494 6.26953 7.24953C6.26953 10.4141 8.83494 12.9795 11.9995 12.9795Z" stroke="#5D5D5D" strokeWidth="2" strokeMiterlimit="10"/>
-                      <path d="M1.5 23.48L1.87 21.43C2.3071 19.0625 3.55974 16.9229 5.41031 15.3828C7.26088 13.8428 9.59246 12.9997 12 13C14.4104 13.0006 16.7443 13.8465 18.5952 15.3905C20.4462 16.9345 21.6971 19.0788 22.13 21.45L22.5 23.5" stroke="#5D5D5D" strokeWidth="2" strokeMiterlimit="10"/>
+        {(userRating !== undefined || userReviewCount !== undefined || responsesCount !== undefined || viewsCount !== undefined) && (
+          <div className={styles.card_stats}>
+            {(userRating !== undefined) && (
+              <div className={styles.card_rating}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <g clipPath="url(#clip0_card_rating)">
+                    <g clipPath="url(#clip1_card_rating)">
+                      <path d="M12 2.49023L15.51 8.17023L22 9.76023L17.68 14.8502L18.18 21.5102L12 18.9802L5.82 21.5102L6.32 14.8502L2 9.76023L8.49 8.17023L12 2.49023Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
                     </g>
                   </g>
                   <defs>
-                    <clipPath id="clip0_auth"><rect width="24" height="24" fill="white"/></clipPath>
-                    <clipPath id="clip1_auth"><rect width="24" height="24" fill="white"/></clipPath>
+                    <clipPath id="clip0_card_rating"><rect width="24" height="24" fill="white"/></clipPath>
+                    <clipPath id="clip1_card_rating"><rect width="24" height="24" fill="white"/></clipPath>
                   </defs>
                 </svg>
-              )}
-              {translatedAuthor}
-            </Link>
-          ) : (
-            <span className={styles.card_author}>
-              {authorImage ? (
-                <img src={authorImage} className={styles.card_author_avatar} alt="" />
-              ) : (
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <g clipPath="url(#clip0_auth)">
-                    <g clipPath="url(#clip1_auth)">
-                      <path d="M11.9995 12.9795C15.1641 12.9795 17.7295 10.4141 17.7295 7.24953C17.7295 4.08494 15.1641 1.51953 11.9995 1.51953C8.83494 1.51953 6.26953 4.08494 6.26953 7.24953C6.26953 10.4141 8.83494 12.9795 11.9995 12.9795Z" stroke="#5D5D5D" strokeWidth="2" strokeMiterlimit="10"/>
-                      <path d="M1.5 23.48L1.87 21.43C2.3071 19.0625 3.55974 16.9229 5.41031 15.3828C7.26088 13.8428 9.59246 12.9997 12 13C14.4104 13.0006 16.7443 13.8465 18.5952 15.3905C20.4462 16.9345 21.6971 19.0788 22.13 21.45L22.5 23.5" stroke="#5D5D5D" strokeWidth="2" strokeMiterlimit="10"/>
-                    </g>
+                <span className={styles.rating_value}>{(userRating || 0).toFixed(1)}</span>
+              </div>
+            )}
+            {(userReviewCount !== undefined) && (
+              <div className={styles.card_reviews}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <g clipPath="url(#clip0_card_reviews)">
+                    <path d="M12 1.48047C6.2 1.48047 1.5 5.75047 1.5 11.0005C1.52866 13.0157 2.23294 14.9631 3.5 16.5305L2.5 21.5305L9.16 20.2005C10.1031 20.4504 11.0744 20.5781 12.05 20.5805C17.85 20.5805 22.55 16.3005 22.55 11.0305C22.55 5.76047 17.8 1.48047 12 1.48047Z" stroke="#3A54DA" strokeWidth="2" strokeMiterlimit="10"/>
                   </g>
                   <defs>
-                    <clipPath id="clip0_auth"><rect width="24" height="24" fill="white"/></clipPath>
-                    <clipPath id="clip1_auth"><rect width="24" height="24" fill="white"/></clipPath>
+                    <clipPath id="clip0_card_reviews"><rect width="24" height="24" fill="white"/></clipPath>
                   </defs>
                 </svg>
-              )}
-              {translatedAuthor}
-            </span>
-          )}
-          {(userRating !== undefined) && (
-            <div className={styles.card_rating}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="#FFD700" stroke="#FFD700" strokeWidth="1"/>
-              </svg>
-              <span className={styles.rating_value}>{(userRating || 0).toFixed(1)}</span>
-            </div>
-          )}
-          {(userReviewCount !== undefined) && (
-            <div className={styles.card_reviews}>
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M7 9C7 7.89543 7.89543 7 9 7H15C16.1046 7 17 7.89543 17 9V13C17 14.1046 16.1046 15 15 15H12.4142L9.70711 17.7071C9.31658 18.0976 8.68342 18.0976 8.29289 17.7071C8.10536 17.5196 8 17.2652 8 17V15H9C7.89543 15 7 14.1046 7 13V9Z" stroke="#3A54DA" strokeWidth="2"/>
-              </svg>
-              <span className={styles.reviews_count}>
-                {userReviewCount || 0} {
-                  i18n.language === 'ru' 
-                    ? getRussianPlural(userReviewCount || 0, [t('time.reviewsOne'), t('time.reviewsFew'), t('time.reviewsMany')])
-                    : (userReviewCount || 0) === 1 ? t('time.reviewsOne') : t('time.reviewsMany')
-                }
-              </span>
-            </div>
-          )}
-        </div>
-        <div className={styles.card_footer_right}>
-          <div className={styles.card_categories}>
-            {category && <span className={styles.card_category}>{truncateText(category, 30)}</span>}
-            {subcategory && <span className={styles.card_subcategory}>{truncateText(subcategory, 30)}</span>}
+                <span className={styles.reviews_count}>
+                  {userReviewCount || 0} {
+                    i18n.language === 'ru' 
+                      ? getRussianPlural(userReviewCount || 0, [t('time.reviewsOne'), t('time.reviewsFew'), t('time.reviewsMany')])
+                      : (userReviewCount || 0) === 1 ? t('time.reviewsOne') : t('time.reviewsMany')
+                  }
+                </span>
+              </div>
+            )}
+            {(responsesCount !== undefined) && (
+              <div className={styles.card_responses}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <circle cx="9" cy="7" r="4" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <span className={styles.responses_count}>
+                  {responsesCount} {
+                    i18n.language === 'ru'
+                      ? getRussianPlural(responsesCount, [t('ticket:responsesOne', 'отклик'), t('ticket:responsesFew', 'отклика'), t('ticket:responsesMany', 'откликов')])
+                      : responsesCount === 1 ? t('ticket:responsesOne', 'отклик') : t('ticket:responsesMany', 'откликов')
+                  }
+                </span>
+              </div>
+            )}
+            {(viewsCount !== undefined) && (
+              <div className={styles.card_views}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <circle cx="12" cy="12" r="3" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <span className={styles.views_count}>
+                  {viewsCount} {
+                    i18n.language === 'ru'
+                      ? getRussianPlural(viewsCount, [t('ticket:viewsOne', 'просмотр'), t('ticket:viewsFew', 'просмотра'), t('ticket:viewsMany', 'просмотров')])
+                      : viewsCount === 1 ? t('ticket:viewsOne', 'просмотр') : t('ticket:viewsMany', 'просмотров')
+                  }
+                </span>
+              </div>
+            )}
           </div>
-          {onRespondClick && (
-            <button
-              className={`${styles.card_respond_button} ${styles.card_respond_mobile} ${isResponded ? styles.card_respond_done : ''}`}
-              onClick={(e) => { e.stopPropagation(); if (!isResponded && !isRespondLoading) onRespondClick(e); }}
-              onTouchStart={(e) => e.stopPropagation()}
-              onTouchEnd={(e) => e.stopPropagation()}
-              disabled={isResponded || isRespondLoading}
-            >
-              <span style={{ visibility: isRespondLoading ? 'hidden' : 'visible' }}>
-                {isResponded ? t('app.responded') : t('app.respond')}
+        )}
+        <div className={styles.card_bottom_row}>
+          <div className={styles.card_author_section}>
+            {authorId ? (
+              <Link
+                to={ROUTES.PROFILE_BY_ID(authorId)}
+                className={styles.card_author}
+                onClick={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
+              >
+                {authorImage ? (
+                  <img src={authorImage} className={styles.card_author_avatar} alt="" />
+                ) : (
+                  <img src="/default_user.png" className={styles.card_author_avatar} alt="" />
+                )}
+                {translatedAuthor}
+              </Link>
+            ) : (
+              <span className={styles.card_author}>
+                {authorImage ? (
+                  <img src={authorImage} className={styles.card_author_avatar} alt="" />
+                ) : (
+                  <img src="/default_user.png" className={styles.card_author_avatar} alt="" />
+                )}
+                {translatedAuthor}
               </span>
-              {isRespondLoading && <span className={styles.card_respond_spinner} />}
-            </button>
-          )}
-          {formattedTimeAgo && <span className={styles.card_timeAgo}>{formattedTimeAgo}</span>}
+            )}
+          </div>
+          <div className={styles.card_footer_right}>
+            <div className={styles.card_categories}>
+              {category && <span className={styles.card_category}>{truncateText(category, 30)}</span>}
+              {subcategory && <span className={styles.card_subcategory}>{truncateText(subcategory, 30)}</span>}
+            </div>
+            {onRespondClick && (
+              <button
+                className={`${styles.card_respond_button} ${styles.card_respond_mobile} ${isResponded ? styles.card_respond_done : ''}`}
+                onClick={(e) => { e.stopPropagation(); if (!isResponded && !isRespondLoading) onRespondClick(e); }}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
+                disabled={isResponded || isRespondLoading}
+              >
+                {isRespondLoading
+                  ? <span className={styles.card_respond_spinner} />
+                  : isResponded
+                  ? <><IoCheckmarkCircle className={styles.card_respond_icon} />{t('app.responded')}</>
+                  : <><IoChatbubbleEllipsesOutline className={styles.card_respond_icon} />{t('app.respond')}</>
+                }
+              </button>
+            )}
+            {formattedTimeAgo && <span className={styles.card_timeAgo}>{formattedTimeAgo}</span>}
+          </div>
         </div>
       </div>
     </div>

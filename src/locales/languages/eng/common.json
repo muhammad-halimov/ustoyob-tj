@@ -79,5 +79,13 @@
     "linkEmailSkip": "Skip",
     "invalidToken": "Authorization session is invalid. Please try again.",
     "success": "Authorization successful!"
+  },
+  "confirmAccount": {
+    "loading": "Verifying link...",
+    "success": "Account successfully activated!",
+    "redirecting": "Redirecting to home...",
+    "invalidLink": "Invalid link",
+    "linkExpired": "Link has expired or is invalid",
+    "error": "An error occurred during activation"
   }
 }

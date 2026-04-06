@@ -61,6 +61,13 @@
   line-height: 1.6;
 }
 
+.loading_wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40vh;
+}
+
 .title {
   font-size: 36px;
   font-weight: 600;
