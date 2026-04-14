@@ -5,6 +5,7 @@ namespace App\Entity\Appeal\Reason;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use App\Entity\Extra\Translation;
 use App\Entity\Trait\Readable\CreatedAtTrait;
@@ -22,6 +23,11 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
     operations: [
+        new Get(
+            uriTemplate: '/appeal-reasons/{id}',
+            requirements: ['id' => '\d+'],
+            provider: AppealReasonLocalizationProvider::class,
+        ),
         new GetCollection(
             uriTemplate: '/appeal-reasons',
             provider: AppealReasonLocalizationProvider::class,

@@ -35,9 +35,10 @@ class ApiPostChatMessageController extends AbstractApiPostController
         $chat    = $dto->chat;
         $replyTo = $dto->replyTo;
 
-        if ($error = $this->checkOwnership($chat, $bearer)) return $error;
-
         if ($chat->getAuthor() !== $bearer && $chat->getReplyAuthor() !== $bearer)
+            return $this->errorJson(AppMessages::OWNERSHIP_MISMATCH);
+
+        if ($replyTo && $replyTo->getChat() !== $chat)
             return $this->errorJson(AppMessages::OWNERSHIP_MISMATCH);
 
         $this->accessService->check($chat->getReplyAuthor());
@@ -60,13 +61,6 @@ class ApiPostChatMessageController extends AbstractApiPostController
 
     protected function checkOwnership(object $entity, User $bearer): ?JsonResponse
     {
-        /** @var ChatMessage $replyTo */
-        $replyTo = $entity->getMessages()->first()->getReplyTo();
-
-        /** @var Chat $entity */
-        if ($replyTo && $replyTo->getChat() !== $entity)
-            return $this->errorJson(AppMessages::OWNERSHIP_MISMATCH);
-
         return null;
     }
 }
