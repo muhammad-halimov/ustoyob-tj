@@ -16,7 +16,8 @@ use App\Service\Extra\ExtractIriService;
 use App\Service\Extra\LocalizationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
+use Symfony\Component\HttpFoundation\Request;
+use Throwable;
 
 class ApiPatchTicketController extends AbstractApiHelperController
 {
@@ -33,9 +34,16 @@ class ApiPatchTicketController extends AbstractApiHelperController
 
     protected function setSerializationGroups(): array { return G::OPS_TICKETS_FULL; }
 
-    public function __invoke(int $id, #[MapRequestPayload] TicketPatchInput $dto): JsonResponse
+    public function __invoke(int $id, Request $request): JsonResponse
     {
         $bearerUser = $this->checkedUser();
+
+        try {
+            $raw = $request->getContent() ?: '{}';
+            $dto = $this->serializer->deserialize($raw, TicketPatchInput::class, 'json');
+        } catch (Throwable) {
+            return $this->errorJson(AppMessages::INVALID_JSON);
+        }
 
         $ticket = $this->ticketRepository->find($id);
 
