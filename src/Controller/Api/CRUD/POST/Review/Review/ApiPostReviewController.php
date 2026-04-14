@@ -50,7 +50,7 @@ class ApiPostReviewController extends AbstractApiPostController
         )
             return $this->errorJson(AppMessages::NO_INTERACTIONS);
 
-        if ($this->reviewRepository->findExistingReviewByAuthorAndTicket($bearer, $ticket, $dto->type))
+        if ($this->reviewRepository->findExistingReviewByAuthorAndTicket($bearer, $ticket))
             return $this->errorJson(AppMessages::REVIEW_ALREADY_EXISTS);
 
         $review = new Review();

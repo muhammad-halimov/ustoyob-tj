@@ -18,15 +18,11 @@ class ReviewRepository extends ServiceEntityRepository
         parent::__construct($registry, Review::class);
     }
 
-    public function findExistingReviewByAuthorAndTicket(User $author, \App\Entity\Ticket\Ticket $ticket, string $type): ?Review
+    public function findExistingReviewByAuthorAndTicket(User $author, \App\Entity\Ticket\Ticket $ticket): ?Review
     {
-        $authorField = $type === 'client' ? 'master' : 'client';
-
         return $this->createQueryBuilder('r')
-            ->where('r.type = :type')
-            ->andWhere('r.ticket = :ticket')
-            ->andWhere("r.{$authorField} = :author")
-            ->setParameter('type', $type)
+            ->where('r.ticket = :ticket')
+            ->andWhere('r.master = :author OR r.client = :author')
             ->setParameter('ticket', $ticket)
             ->setParameter('author', $author)
             ->setMaxResults(1)
