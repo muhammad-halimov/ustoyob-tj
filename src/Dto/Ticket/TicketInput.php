@@ -13,7 +13,7 @@ class TicketInput
     public ?string     $notice           = null;
     public ?bool       $active           = null;
     public ?float      $budget           = null;
-    public ?string     $negotiableBudget = null;
+    public ?bool       $negotiableBudget = null;
     public ?Category   $category         = null;
     public ?Occupation $subcategory      = null;
     public ?Unit       $unit             = null;
