@@ -45,8 +45,11 @@ class ApiPatchReviewController extends AbstractApiPatchController
         $entity->setDescription($dto->description)->setRating($dto->rating);
 
         foreach ($dto->images as $image) {
-            if (!empty($image->image) && $image->image !== 'string')
-                $entity->addImage((new MultipleImage())->setImage($image->image));
+            if (!empty($image->image) && $image->image !== 'string') {
+                $newImage = (new MultipleImage())->setImage($image->image);
+                $this->persist($newImage);
+                $entity->addImage($newImage);
+            }
         }
 
         return null;
