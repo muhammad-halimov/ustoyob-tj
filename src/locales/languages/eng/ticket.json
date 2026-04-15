@@ -41,5 +41,13 @@
   "responsesMany": "responses",
   "viewsOne": "view",
   "viewsFew": "views",
-  "viewsMany": "views"
+  "viewsMany": "views",
+  "similarAnnouncements": "Similar announcements",
+  "loadingSimilar": "Loading...",
+  "respondSuccess": "You have successfully responded!",
+  "respondError": "Failed to respond. Please try again.",
+  "noAddress": "Address not specified",
+  "specialist": "Specialist",
+  "customer": "Customer",
+  "author": "Author"
 }

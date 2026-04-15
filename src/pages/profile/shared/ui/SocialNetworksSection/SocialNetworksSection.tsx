@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getAuthToken } from '../../../../../utils/auth';
 import { Marquee } from '../../../../../shared/ui/Text/Marquee';
+import { SectionActions } from '../../../../../shared/ui/SectionActions';
 import { AuthBanner } from '../../../../../widgets/Banners/AuthBanner/AuthBanner';
 import { ProfileSection } from '../ProfileSection';
 import { EditActions } from '../EditActions/EditActions';
@@ -305,26 +306,14 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
                 </div>
             )}
             footerSlot={!readOnly && !showAuthBanner && !editingSocialNetwork && !showAddSocialNetwork && (socialNetworks.length > 0 || canAddNetwork) ? (
-                <div className={styles.add_education_container}>
-                    {socialNetworks.length > 0 && (
-                        <button
-                            onClick={onResetSocialNetworks}
-                            className={styles.reset_social_btn}
-                            title={t('profile:deleteAllNetworksTitle')}
-                        >
-                            {t('profile:deleteAllPhotos')}
-                        </button>
-                    )}
-                    {canAddNetwork && (
-                        <button
-                            className={styles.add_btn}
-                            onClick={() => setShowAddSocialNetwork(true)}
-                            title={t('profile:addSocialNetworks')}
-                        >
-                            +
-                        </button>
-                    )}
-                </div>
+                <SectionActions
+                    onAdd={() => setShowAddSocialNetwork(true)}
+                    onDeleteAll={onResetSocialNetworks}
+                    showDeleteAll={socialNetworks.length > 0}
+                    addTitle={t('profile:addSocialNetworks')}
+                    deleteAllTitle={t('profile:deleteAllNetworksTitle')}
+                    deleteAllText={t('profile:deleteAllPhotos')}
+                />
             ) : undefined}
         />
     );

@@ -1,0 +1,91 @@
+@use '../../../app/styles/variables' as vars;
+
+.actions_container {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 16px 0;
+  gap: 8px;
+}
+
+.delete_all_btn {
+  background: #ff3b30;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+
+  &:hover:not(:disabled) {
+    background: #e5362b;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.add_btn {
+  background: #3A54DA;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+
+  &:hover:not(:disabled) {
+    background: #2a44ca;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &_lg {
+    width: 48px;
+    height: 48px;
+    font-size: 28px;
+    border-radius: 50%;
+  }
+}
+
+.delete_all_btn_lg {
+  height: 48px;
+  padding: 0 24px;
+  font-size: 15px;
+  border-radius: 10px;
+}
+
+:global(html[data-theme="dark"]) {
+  .delete_all_btn {
+    background: #ff453a;
+
+    &:hover:not(:disabled) {
+      background: #ff3b30;
+    }
+  }
+
+  .add_btn {
+    background: #0A84FF;
+
+    &:hover:not(:disabled) {
+      background: #0077ED;
+    }
+  }
+}

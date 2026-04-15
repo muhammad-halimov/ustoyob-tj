@@ -22,6 +22,11 @@ export interface FeedbackModalProps {
     // Review-specific
     onReviewSubmitted?: (reviewCount: number) => void;
     showServiceSelector?: boolean;
+    /** Edit mode: PATCH an existing review instead of creating a new one */
+    editReviewId?: number;
+    initialRating?: number;
+    initialText?: string;
+    initialImages?: Array<{ id: number; image: string }>;
     // Complaint-specific
     targetUserRole?: 'client' | 'master';
     chatId?: number;
@@ -62,6 +67,10 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({
     reviewId,
     complaintType = 'ticket',
     showUserComplaintToggle = false,
+    editReviewId,
+    initialRating,
+    initialText,
+    initialImages,
 }) => {
     const { t } = useTranslation('components');
     const isReview = mode === 'review';
@@ -93,10 +102,13 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({
 
     const effectiveComplaintType = isUserComplaint ? 'user' : complaintType;
 
-    const photoPreviewUrls = photos
-        .filter((p): p is Extract<PhotoItem, { type: 'new' }> => p.type === 'new')
-        .map(p => p.previewUrl);
-    const photoGallery = usePreview({ images: photoPreviewUrls });
+    const getReviewImageUrl = (path: string) =>
+        path.startsWith('http') ? path : `${API_BASE_URL}/uploads/reviews/${path}`;
+
+    const allPhotoUrls = photos.map(p =>
+        p.type === 'existing' ? getReviewImageUrl(p.image) : p.previewUrl
+    );
+    const photoGallery = usePreview({ images: allPhotoUrls });
 
     const showStatus = (type: 'success' | 'error', message: string) => {
         setStatusType(type);
@@ -110,6 +122,18 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({
             setIsAuthenticated(!!getAuthToken());
         }
     }, [isOpen, isReview]);
+
+    React.useEffect(() => {
+        if (isOpen && isReview && editReviewId) {
+            if (initialText !== undefined) setReviewText(initialText);
+            if (initialRating !== undefined) setSelectedStars(initialRating);
+            if (initialImages && initialImages.length > 0) {
+                setPhotos(initialImages.map(img => ({ type: 'existing' as const, id: img.id, image: img.image })));
+            } else {
+                setPhotos([]);
+            }
+        }
+    }, [isOpen, editReviewId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     React.useEffect(() => {
         if (isOpen && isReview && isAuthenticated && showServiceSelector && targetUserId) {
@@ -209,11 +233,69 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({
     const handleSubmitReview = async () => {
         if (!reviewText.trim()) { showStatus('error', t('reviewModal.errorCommentRequired')); return; }
         if (selectedStars === 0) { showStatus('error', t('reviewModal.errorRatingRequired')); return; }
-        if (showServiceSelector && !selectedServiceId) { showStatus('error', t('reviewModal.errorServiceRequired')); return; }
+        if (!editReviewId && showServiceSelector && !selectedServiceId) { showStatus('error', t('reviewModal.errorServiceRequired')); return; }
 
         setIsSubmitting(true);
         try {
             const token = getAuthToken()!;
+
+            // --- Edit mode: PATCH existing review (same pattern as CreateEdit) ---
+            if (editReviewId) {
+                // 1. Remember existing image IDs before upload
+                const existingImageIds = new Set(
+                    photos
+                        .filter((p): p is Extract<PhotoItem, { type: 'existing' }> => p.type === 'existing')
+                        .map(p => p.id)
+                );
+
+                // 2. Upload new photos one by one (same as CreateEdit)
+                const newPhotoEntries = photos
+                    .map((p, i) => ({ photo: p, index: i }))
+                    .filter((e): e is { photo: Extract<PhotoItem, { type: 'new' }>; index: number } => e.photo.type === 'new');
+
+                for (const { photo } of newPhotoEntries) {
+                    try {
+                        await uploadPhotos('reviews', editReviewId, [photo.file], token);
+                    } catch (e) {
+                        console.error('Error uploading review photo:', e);
+                    }
+                }
+
+                // 3. Re-fetch review to get updated image list (old + newly uploaded)
+                const freshReviewResp = await fetch(`${API_BASE_URL}/api/reviews/${editReviewId}`, {
+                    headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+                });
+                const freshReview = freshReviewResp.ok ? await freshReviewResp.json() : null;
+                const allCurrentImages: Array<{ id: number; image: string }> = freshReview?.images || [];
+
+                // 4. Build sorted final images list preserving user order
+                const uploadedInOrder = allCurrentImages.filter(img => !existingImageIds.has(img.id));
+                let uploadedIdx = 0;
+                const finalImages = photos
+                    .map(p => {
+                        if (p.type === 'existing') {
+                            return allCurrentImages.find(img => img.id === p.id) ?? null;
+                        } else {
+                            return uploadedInOrder[uploadedIdx++] ?? null;
+                        }
+                    })
+                    .filter((x): x is { id: number; image: string } => x !== null);
+
+                // 5. PATCH with rating, description and sorted images list
+                const response = await fetch(`${API_BASE_URL}/api/reviews/${editReviewId}`, {
+                    method: 'PATCH',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/merge-patch+json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ rating: selectedStars, description: reviewText, images: finalImages }),
+                });
+                if (response.ok) {
+                    showStatus('success', t('reviewModal.successEditMessage'));
+                } else {
+                    showStatus('error', t('reviewModal.errorDefault'));
+                }
+                return;
+            }
+
+            // --- Create mode ---
             const userRole = getUserRole();
             const currentUserId = getCurrentUserId();
             if (!currentUserId) { showStatus('error', t('reviewModal.errorUserNotFound')); return; }
@@ -269,7 +351,8 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({
                         else if (errData.message?.includes('no interaction')) errorMessage = t('reviewModal.errorNoInteraction');
                         else if (errData.message) errorMessage = errData.message;
                     } catch { errorMessage = t('reviewModal.errorValidation'); }
-                } else if (response.status === 400) errorMessage = t('reviewModal.errorInvalidData');
+                } else if (response.status === 409) errorMessage = t('reviewModal.errorAlreadyReviewed');
+                else if (response.status === 400) errorMessage = t('reviewModal.errorInvalidData');
                 else if (response.status === 404) errorMessage = t('reviewModal.errorNotFound');
                 else if (response.status === 403) errorMessage = t('reviewModal.errorNoAccess');
                 showStatus('error', errorMessage);
@@ -290,7 +373,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({
 
         setIsSubmitting(true);
         try {
-            const token = getAuthToken();
+            const token = getAuthToken()!
             const complaintData: Record<string, any> = {
                 type: effectiveComplaintType,
                 title,
@@ -316,8 +399,8 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({
                 const complaintResponse = await response.json();
                 if (photos.length > 0 && complaintResponse.id) {
                     const filesToUpload = photos.flatMap(p => p.type === 'new' ? [p.file] : []);
-                    uploadPhotos('appeals', complaintResponse.id, filesToUpload, token)
-                        .catch(err => console.warn('Failed to upload complaint photos:', err));
+                    try { await uploadPhotos('appeals', complaintResponse.id, filesToUpload, token); }
+                    catch (e) { console.error('Error uploading complaint photos:', e); }
                 }
                 showStatus('success', t('complaintModal.successMessage'));
             } else {
@@ -515,7 +598,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({
                         </label>
                         <Preview
                             isOpen={photoGallery.isOpen}
-                            images={photoPreviewUrls}
+                            images={allPhotoUrls}
                             currentIndex={photoGallery.currentIndex}
                             onClose={photoGallery.closeGallery}
                             onNext={photoGallery.goToNext}
@@ -525,7 +608,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({
                         <PhotoGrid
                             photos={photos}
                             onChange={setPhotos}
-                            getImageUrl={() => ''}
+                            getImageUrl={getReviewImageUrl}
                             onClickPhoto={photoGallery.openGallery}
                             disabled={isSubmitting}
                             inputId={isReview ? 'review-photos' : 'complaint-photos'}

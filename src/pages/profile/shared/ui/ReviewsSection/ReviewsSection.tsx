@@ -9,7 +9,7 @@ import { Review } from '../../../../../entities';
 import styles from './ReviewsSection.module.scss';
 import { getAuthorAvatar } from '../../../../../utils/imageHelper';
 import { ActionsDropdown } from '../../../../../widgets/ActionsDropdown';
-import { IoWarningOutline } from 'react-icons/io5';
+import { IoWarningOutline, IoCreateOutline } from 'react-icons/io5';
 
 // Экспорт для обратной совместимости
 export type { Review } from '../../../../../entities';
@@ -34,6 +34,8 @@ interface ReviewsSectionProps {
     getReviewImageIndex: (reviewIndex: number, imageIndex: number) => number;
     onComplaintClick?: (reviewId: number, authorId: number) => void;
     onRefresh?: () => void;
+    currentUserId?: number;
+    onEditClick?: (review: Review) => void;
 }
 
 export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
@@ -53,6 +55,8 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
     getReviewImageIndex,
     onComplaintClick,
     onRefresh,
+    currentUserId,
+    onEditClick,
 }) => {
     const { t } = useTranslation(['profile']);
     // ЛОГИКА ОТЗЫВОВ (зависит от типа профиля):
@@ -122,6 +126,9 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
             }
         }
     };
+
+    const getReviewAuthorId = (review: Review): number | undefined =>
+        userRole === 'master' ? review.reviewer?.id : review.user?.id;
 
     const isWorkerClickable = () => {
         return true;
@@ -277,15 +284,13 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                             })}
                                         </div>
                                     )}
-                                    {onComplaintClick && (
+                                    {(onComplaintClick || onEditClick) && (
                                         <ActionsDropdown
                                             style={{ position: 'absolute', top: '2px', right: '0', zIndex: 2 }}
-                                            items={[{
-                                                icon: <IoWarningOutline />,
-                                                label: t('profile:complaint'),
-                                                onClick: () => onComplaintClick(review.id, review.reviewer.id),
-                                                danger: true,
-                                            }]}
+                                            items={[
+                                                ...(onEditClick ? [{ icon: <IoCreateOutline />, label: t('profile:editBtn'), onClick: () => onEditClick!(review), hidden: !currentUserId || getReviewAuthorId(review) !== currentUserId }] : []),
+                                                ...(onComplaintClick ? [{ icon: <IoWarningOutline />, label: t('profile:complaint'), onClick: () => onComplaintClick!(review.id, getReviewAuthorId(review) ?? 0), danger: true as const, hidden: !!currentUserId && getReviewAuthorId(review) === currentUserId }] : []),
+                                            ]}
                                         />
                                     )}
                                 </div>
@@ -403,15 +408,13 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                         })}
                                                     </div>
                                                 )}
-                                                {onComplaintClick && (
+                                                {(onComplaintClick || onEditClick) && (
                                                     <ActionsDropdown
                                                         style={{ position: 'absolute', top: '2px', right: '0', zIndex: 2 }}
-                                                        items={[{
-                                                            icon: <IoWarningOutline />,
-                                                            label: t('profile:complaint'),
-                                                            onClick: () => onComplaintClick(review.id, review.reviewer.id),
-                                                            danger: true,
-                                                        }]}
+                                                        items={[
+                                                            ...(onEditClick ? [{ icon: <IoCreateOutline />, label: t('profile:editBtn'), onClick: () => onEditClick!(review), hidden: !currentUserId || getReviewAuthorId(review) !== currentUserId }] : []),
+                                                            ...(onComplaintClick ? [{ icon: <IoWarningOutline />, label: t('profile:complaint'), onClick: () => onComplaintClick!(review.id, getReviewAuthorId(review) ?? 0), danger: true as const, hidden: !!currentUserId && getReviewAuthorId(review) === currentUserId }] : []),
+                                                        ]}
                                                     />
                                                 )}
                                             </div>
@@ -522,15 +525,13 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                     })}
                                                 </div>
                                             )}
-                                            {onComplaintClick && (
+                                            {(onComplaintClick || onEditClick) && (
                                                 <ActionsDropdown
                                                     style={{ position: 'absolute', top: '2px', right: '0', zIndex: 2 }}
-                                                    items={[{
-                                                        icon: <IoWarningOutline />,
-                                                        label: t('profile:complaint'),
-                                                        onClick: () => onComplaintClick(review.id, review.reviewer.id),
-                                                        danger: true,
-                                                    }]}
+                                                    items={[
+                                                        ...(onEditClick ? [{ icon: <IoCreateOutline />, label: t('profile:editBtn'), onClick: () => onEditClick!(review), hidden: !currentUserId || getReviewAuthorId(review) !== currentUserId }] : []),
+                                                        ...(onComplaintClick ? [{ icon: <IoWarningOutline />, label: t('profile:complaint'), onClick: () => onComplaintClick!(review.id, getReviewAuthorId(review) ?? 0), danger: true as const, hidden: !!currentUserId && getReviewAuthorId(review) === currentUserId }] : []),
+                                                    ]}
                                                 />
                                             )}
                                         </div>

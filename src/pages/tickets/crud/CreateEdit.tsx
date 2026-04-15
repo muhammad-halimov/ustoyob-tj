@@ -94,6 +94,15 @@ const CreateEdit = () => {
     const [pendingSubcategoryId, setPendingSubcategoryId] = useState<number | null>(null);
     const [photos, setPhotos] = useState<PhotoItem[]>([]);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [showErrorModal, setShowErrorModal] = useState(false);
+    const [errorModalMessage, setErrorModalMessage] = useState('');
+    const [errorOnClosed, setErrorOnClosed] = useState<(() => void) | null>(null);
+
+    const showError = (message: string, onClose?: () => void) => {
+        setErrorModalMessage(message);
+        setErrorOnClosed(onClose ? () => onClose : null);
+        setShowErrorModal(true);
+    };
 
     // Данные для формы
     const [categories, setCategories] = useState<Category[]>([]);
@@ -348,8 +357,7 @@ const CreateEdit = () => {
             }
         } catch (error) {
             console.error('Error fetching ticket:', error);
-            alert(t('createEdit:ticketLoadError'));
-            navigate(ROUTES.TICKET_ME);
+            showError(t('createEdit:ticketLoadError'), () => navigate(ROUTES.TICKET_ME));
         } finally {
             setIsLoading(false);
         }
@@ -360,18 +368,18 @@ const CreateEdit = () => {
 
         // Валидация
         if (!serviceData.title.trim() || !serviceData.description.trim() || (!negotiableBudget && !serviceData.budget)) {
-            alert(t('createEdit:fillRequired'));
+            showError(t('createEdit:fillRequired'));
             return;
         }
         
         if (!addressValue.provinceId) {
-            alert(t('createEdit:selectRegionRequired'));
+            showError(t('createEdit:selectRegionRequired'));
             return;
         }
 
         const budgetValue = negotiableBudget ? 0 : parseInt(serviceData.budget, 10);
         if (!negotiableBudget && (isNaN(budgetValue) || budgetValue <= 0)) {
-            alert(t('createEdit:invalidBudget'));
+            showError(t('createEdit:invalidBudget'));
             return;
         }
 
@@ -379,14 +387,14 @@ const CreateEdit = () => {
             setIsSubmitting(true);
 
             if (!token) {
-                alert(t('createEdit:authRequired'));
+                showError(t('createEdit:authRequired'));
                 return;
             }
 
             // Создаем данные адреса
             const addressData = buildAddressData(addressValue);
             if (!addressData) {
-                alert(t('createEdit:addressError'));
+                showError(t('createEdit:addressError'));
                 return;
             }
 
@@ -400,7 +408,7 @@ const CreateEdit = () => {
                 const role = getUserRole();
 
                 if (!role) {
-                    alert(t('createEdit:genericError'));
+                    showError(t('createEdit:genericError'));
                     return;
                 }
 
@@ -455,7 +463,7 @@ const CreateEdit = () => {
             } else {
                 // Режим редактирования
                 if (!serviceData?.id) {
-                    alert(t('createEdit:genericError'));
+                    showError(t('createEdit:genericError'));
                     return;
                 }
 
@@ -537,7 +545,7 @@ const CreateEdit = () => {
             }
         } catch (error) {
             console.error('Error:', error);
-            alert(error instanceof Error ? error.message : t('createEdit:genericError'));
+            showError(error instanceof Error ? error.message : t('createEdit:genericError'));
         } finally {
             setIsSubmitting(false);
         }
@@ -746,6 +754,15 @@ const CreateEdit = () => {
                 isOpen={showSuccessModal}
                 onClose={handleSuccessClose}
                 message={isEditMode ? t('createEdit:successEdit') : t('createEdit:successCreate')}
+            />
+            <Status
+                type="error"
+                isOpen={showErrorModal}
+                onClose={() => {
+                    setShowErrorModal(false);
+                    if (errorOnClosed) { errorOnClosed(); setErrorOnClosed(null); }
+                }}
+                message={errorModalMessage}
             />
 
             {/* Preview для просмотра существующих фото */}

@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Preview } from '../../../../../shared/ui/Photo/Preview';
-import { PageLoader } from '../../../../../widgets/PageLoader';
+import { SectionActions } from '../../../../../shared/ui/SectionActions';
 import { useDragReorder, DragHandle } from '../../../../../widgets/DragReorder';
 import { ProfileSection } from '../ProfileSection';
 import styles from './WorkExamplesSection.module.scss';
@@ -151,26 +151,16 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
                     </div>
                 )}
                 footerSlot={!readOnly ? (
-                    <div className={styles.add_education_container}>
-                        {workExamples.length > 0 && (
-                            <button
-                                className={styles.reset_social_btn}
-                                onClick={onDeleteAllWorkExamples}
-                                disabled={isGalleryOperating}
-                                title={t('profile:deleteAllPhotosTitle')}
-                            >
-                                {t('profile:deleteAllPhotos')}
-                            </button>
-                        )}
-                        <button
-                            className={styles.add_button}
-                            onClick={() => !isGalleryOperating && workExampleInputRef.current?.click()}
-                            title={t('profile:addPhotosTitle')}
-                            disabled={isGalleryOperating}
-                        >
-                            {isGalleryOperating ? <PageLoader compact /> : '+'}
-                        </button>
-                    </div>
+                    <SectionActions
+                        onAdd={() => !isGalleryOperating && workExampleInputRef.current?.click()}
+                        onDeleteAll={onDeleteAllWorkExamples}
+                        showDeleteAll={workExamples.length > 0}
+                        addTitle={t('profile:addPhotosTitle')}
+                        deleteAllTitle={t('profile:deleteAllPhotosTitle')}
+                        deleteAllText={t('profile:deleteAllPhotos')}
+                        disabled={isGalleryOperating}
+                        isLoading={isGalleryOperating}
+                    />
                 ) : undefined}
             />
             <input

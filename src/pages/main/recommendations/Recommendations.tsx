@@ -13,7 +13,7 @@ import FeedbackModal from '../../../shared/ui/Modal/Feedback';
 import { EmptyState } from '../../../widgets/EmptyState';
 import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore.tsx';
 
-interface Announcement {
+export interface Announcement {
     id: number;
     title: string;
     description: string;
@@ -72,20 +72,34 @@ interface Announcement {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-const formatTicketImageUrl = (imagePath: string): string => {
+export const formatTicketImageUrl = (imagePath: string): string => {
     if (!imagePath) return '';
     if (imagePath.startsWith('http')) return imagePath;
     if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) return `${API_BASE_URL}${imagePath}`;
     return `${API_BASE_URL}/uploads/tickets/${imagePath}`;
 };
 
-const formatProfileImageUrl = (imagePath: string): string => {
+export const formatProfileImageUrl = (imagePath: string): string => {
     if (!imagePath) return '';
     if (imagePath.startsWith('http')) return imagePath;
     return `${API_BASE_URL}/uploads/users/${imagePath}`;
 };
 
-function Recommendations() {
+interface RecommendationsProps {
+    customData?: Announcement[];
+    customLoading?: boolean;
+    showMoreButton?: boolean;
+    initialLimit?: number;
+    onItemClick?: (id: number) => void;
+}
+
+function Recommendations({ 
+    customData, 
+    customLoading = false,
+    showMoreButton = true,
+    initialLimit = 3,
+    onItemClick
+}: RecommendationsProps = {}) {
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [showAll, setShowAll] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -93,6 +107,11 @@ function Recommendations() {
     const navigate = useNavigate();
     const { t, i18n } = useTranslation('components');
     const locale = i18n.language;
+    
+    // Use custom data if provided
+    const displayData = customData || announcements;
+    const displayLoading = customData ? customLoading : isLoading;
+    
     // Respond state
     const [respondedTickets, setRespondedTickets] = useState<Set<number>>(new Set());
     const [respondingTicketId, setRespondingTicketId] = useState<number | null>(null);
@@ -225,6 +244,12 @@ function Recommendations() {
 
     // Перезагружаем данные при изменении роли или языка
     useEffect(() => {
+        // Skip fetch if custom data is provided
+        if (customData) {
+            setIsLoading(false);
+            return;
+        }
+        
         const token = getAuthToken();
         
         // Загружаем данные если:
@@ -246,7 +271,7 @@ function Recommendations() {
             console.log('⏳ Recommendations - Waiting for userRole to load...');
             setIsLoading(false);
         }
-    }, [userRole, locale, fetchRecentAnnouncements]);
+    }, [userRole, locale, fetchRecentAnnouncements, customData]);
 
     const getFullAddress = (announcement: Announcement): string => {
         if (!announcement.addresses || announcement.addresses.length === 0) {
@@ -319,19 +344,22 @@ function Recommendations() {
     };
 
     const handleCardClick = (announcementId: number) => {
-        navigate(ROUTES.TICKET_BY_ID(announcementId));
+        if (onItemClick) {
+            onItemClick(announcementId);
+        } else {
+            navigate(ROUTES.TICKET_BY_ID(announcementId));
+        }
     };
 
     return (
     <>
         <div className={styles.recommendation}>
             <div className={styles.recommendation__wrap}>
-                <h3 className={styles.recommendation__title}>{t('pages.recommendations.title')}</h3>
-                {isLoading ? (
+                {displayLoading ? (
                     <EmptyState isLoading />
-                ) : announcements.length > 0 ? (
+                ) : displayData.length > 0 ? (
                     <div className={styles.recommendation__list}>
-                        {announcements.slice(0, showAll ? announcements.length : 3).map((announcement) => (
+                        {displayData.slice(0, showAll ? displayData.length : initialLimit).map((announcement) => (
                             <Card
                                 key={announcement.id}
                                 ticketId={announcement.id}
@@ -369,9 +397,9 @@ function Recommendations() {
                         ))}
                     </div>
                 ) : (
-                    <EmptyState onRefresh={fetchRecentAnnouncements} />
+                    <EmptyState onRefresh={customData ? undefined : fetchRecentAnnouncements} />
                 )}
-                {!isLoading && announcements.length > 3 && (
+                {!displayLoading && displayData.length > initialLimit && showMoreButton && (
                     <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
                         <ShowMore
                             expanded={showAll}

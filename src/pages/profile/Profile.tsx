@@ -118,6 +118,8 @@ function Profile() {
     const [complaintReviewId, setComplaintReviewId] = useState<number | null>(null);
     const [complaintReviewAuthorId, setComplaintReviewAuthorId] = useState<number | null>(null);
     const [isReviewComplaintOpen, setIsReviewComplaintOpen] = useState(false);
+    const [showEditReviewModal, setShowEditReviewModal] = useState(false);
+    const [editingReview, setEditingReview] = useState<ReviewType | null>(null);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [authModalAction, setAuthModalAction] = useState<'review' | 'complaint' | null>(null);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -3642,6 +3644,8 @@ function Profile() {
                     onServiceClick={handleServiceClick}
                     getReviewImageIndex={getReviewImageIndex}
                     onRefresh={fetchReviews}
+                    currentUserId={getUserData()?.id}
+                    onEditClick={(review) => { setEditingReview(review); setShowEditReviewModal(true); }}
                     onComplaintClick={(reviewId, authorId) => {
                         setComplaintReviewId(reviewId);
                         setComplaintReviewAuthorId(authorId);
@@ -3708,6 +3712,21 @@ function Profile() {
                 reviewId={complaintReviewId ?? undefined}
                 complaintType="review"
             />
+
+            {editingReview && (
+                <FeedbackModal
+                    mode="review"
+                    isOpen={showEditReviewModal}
+                    onClose={() => { setShowEditReviewModal(false); setEditingReview(null); }}
+                    onSuccess={() => fetchReviews()}
+                    targetUserId={editingReview.user?.id ?? 0}
+                    ticketId={editingReview.ticket?.id}
+                    editReviewId={editingReview.id}
+                    initialRating={editingReview.rating}
+                    initialText={editingReview.description}
+                    initialImages={editingReview.images}
+                />
+            )}
 
             <AuthModal
                 isOpen={showAuthModal}

@@ -14,6 +14,7 @@ import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/Co
 import Status from '../../../shared/ui/Modal/Status';
 import { Back } from '../../../shared/ui/Button/Back/Back.tsx';
 import { Tabs } from '../../../shared/ui/Tabs';
+import { SectionActions } from '../../../shared/ui/SectionActions';
 import { IoCheckmarkCircleOutline, IoCloseCircleOutline } from 'react-icons/io5';
 
 interface ApiUser {
@@ -468,14 +469,12 @@ function MyTickets() {
             <Back className={styles.backButtonSpacing} />
             <div className={styles.header}>
                 <h1>{t('myTickets:myAds')}</h1>
-                <div className={styles.headerActions}>
-                    <button className={styles.createButton} onClick={handleCreateNew}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M12 5v14M5 12h14" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-                        </svg>
-                        {t('myTickets:createNew')}
-                    </button>
-                </div>
+                <SectionActions
+                    onAdd={handleCreateNew}
+                    showDeleteAll={false}
+                    addTitle={t('myTickets:createNew')}
+                    size="lg"
+                />
             </div>
 
             {/* Табы для фильтрации */}

@@ -372,3 +372,39 @@
   }
 }
 
+.recommendationsWrapper {
+  @include vars.Container;
+  margin: 60px auto 30px;
+
+  @media (max-width: 1200px) {
+    padding: 0 20px;
+  }
+
+  :global(.recommendation) {
+    margin: 0 !important;
+  }
+
+  @media (max-width: 768px) {
+    margin: 40px auto 30px;
+  }
+}
+
+.recommendationsTitle {
+  font-size: 36px;
+  font-weight: 400;
+  color: #000;
+  margin-bottom: 40px;
+
+  @media (max-width: 768px) {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 20px;
+  }
+}
+
+:global(html[data-theme="dark"]) {
+  .recommendationsTitle {
+    color: var(--color-text-black);
+  }
+}
+

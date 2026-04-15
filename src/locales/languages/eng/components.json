@@ -239,7 +239,9 @@
     "errorDefault": "Error submitting review",
     "errorUnexpected": "An unexpected error occurred while submitting the review",
     "successMessage": "Review submitted successfully!",
-    "errorUnknownRole": "Unknown user role"
+    "successEditMessage": "Review updated successfully!",
+    "errorUnknownRole": "Unknown user role",
+    "errorAlreadyReviewed": "You have already left a review for this user"
   },
   "complaintModal": {
     "title": "Submit complaint",

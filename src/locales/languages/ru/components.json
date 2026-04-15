@@ -239,7 +239,9 @@
     "errorDefault": "Ошибка при отправке отзыва",
     "errorUnexpected": "Произошла непредвиденная ошибка при отправке отзыва",
     "successMessage": "Отзыв успешно отправлен!",
-    "errorUnknownRole": "Неизвестная роль пользователя"
+    "successEditMessage": "Отзыв успешно обновлён!",
+    "errorUnknownRole": "Неизвестная роль пользователя",
+    "errorAlreadyReviewed": "Вы уже оставили отзыв этому пользователю"
   },
   "complaintModal": {
     "title": "Отправить жалобу",

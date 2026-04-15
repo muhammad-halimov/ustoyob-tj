@@ -38,7 +38,7 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
     const [modalMessage, setModalMessage] = useState<string | null>(null);
     const [showAuthModal, setShowAuthModal] = useState(false);
     
-    const { t } = useTranslation('components');
+    const { t } = useTranslation(['components', 'pages']);
 
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -268,7 +268,10 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
                     </div>
 
                     {/*<About />*/}
-                    <Recommendations />
+                    <div className={styles.recommendationsWrapper}>
+                        <h3 className={styles.recommendationsTitle}>{t('pages.recommendations.title')}</h3>
+                        <Recommendations />
+                    </div>
                     <MainReviewsSection />
                 </>
             )}

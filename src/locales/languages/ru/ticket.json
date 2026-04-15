@@ -41,5 +41,13 @@
   "responsesMany": "откликов",
   "viewsOne": "просмотр",
   "viewsFew": "просмотра",
-  "viewsMany": "просмотров"
+  "viewsMany": "просмотров",
+  "similarAnnouncements": "Похожие объявления",
+  "loadingSimilar": "Загрузка...",
+  "respondSuccess": "Вы успешно откликнулись!",
+  "respondError": "Не удалось откликнуться. Попробуйте ещё раз.",
+  "noAddress": "Адрес не указан",
+  "specialist": "Специалист",
+  "customer": "Заказчик",
+  "author": "Автор"
 }

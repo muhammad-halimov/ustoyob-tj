@@ -41,5 +41,13 @@
   "responsesMany": "посух",
   "viewsOne": "боздид",
   "viewsFew": "боздид",
-  "viewsMany": "боздид"
+  "viewsMany": "боздид",
+  "similarAnnouncements": "Эълонҳои монанд",
+  "loadingSimilar": "Бор шуда истодааст...",
+  "respondSuccess": "Шумо бо муваффақият ҷавоб додед!",
+  "respondError": "Ҷавоб дода нашуд. Лутфан дубора кӯшиш кунед.",
+  "noAddress": "Суроға нишон дода нашудааст",
+  "specialist": "Мутахассис", 
+  "customer": "Муштарӣ",
+  "author": "Муаллиф"
 }

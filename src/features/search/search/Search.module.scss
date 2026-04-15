@@ -399,6 +399,28 @@
   cursor: pointer;
 }
 
+.filter_controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.clear_filters_control_btn {
+  // Inherits base styles from ClearButton, just adjust positioning
+  flex-shrink: 0;
+}
+
+.clear_input_btn {
+  flex-shrink: 0;
+  color: #fff;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.15) !important;
+    color: #fff !important;
+  }
+}
+
 .resultCard {
   position: relative;
   border: 1px solid var(--color-border-light);

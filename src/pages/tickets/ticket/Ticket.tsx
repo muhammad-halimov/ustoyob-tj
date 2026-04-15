@@ -25,6 +25,7 @@ import type {Review as ReviewType} from '../../../entities';
 import {PageLoader} from '../../../widgets/PageLoader';
 import {IoWarningOutline, IoStar, IoHeart, IoHeartOutline, IoChevronForward, IoCompass, IoChatbubbleOutline, IoCheckmarkCircleOutline, IoBanOutline} from 'react-icons/io5';
 import { ActionsDropdown } from '../../../widgets/ActionsDropdown';
+import Recommendations, { type Announcement } from '../../main/recommendations/Recommendations.tsx';
 
 interface ApiTicket {
     id: number;
@@ -161,6 +162,10 @@ export function Ticket() {
     const [reviewComplaintAuthorId, setReviewComplaintAuthorId] = useState<number | null>(null);
     const [showReviewComplaintModal, setShowReviewComplaintModal] = useState(false);
 
+    // States for review editing
+    const [showEditReviewModal, setShowEditReviewModal] = useState(false);
+    const [editingReview, setEditingReview] = useState<ReviewType | null>(null);
+
     // States for reviews
     const [reviews, setReviews] = useState<ReviewType[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(false);
@@ -191,6 +196,10 @@ export function Ticket() {
     const [authorSocialNetworks, setAuthorSocialNetworks] = useState<{ id: string; network: string; handle: string }[]>([]);
     // Phones of the ticket author
     const [authorPhones, setAuthorPhones] = useState<{ id: string; number: string; type: 'tj' | 'international'; main?: boolean }[]>([]);
+
+    // States for similar tickets
+    const [similarTickets, setSimilarTickets] = useState<ApiTicket[]>([]);
+    const [similarTicketsLoading, setSimilarTicketsLoading] = useState(false);
 
     useEffect(() => {
         console.log('Ticket useEffect triggered with id:', id);
@@ -239,6 +248,8 @@ export function Ticket() {
             }
             // Загружаем отзывы
             fetchReviews();
+            // Загружаем похожие объявления
+            fetchSimilarTickets();
         }
     }, [order, favorites.checkFavoriteStatus, currentUserId]);
 
@@ -1017,6 +1028,102 @@ export function Ticket() {
         return totalIndex + imageIndex;
     };
 
+    // ===== Функции для работы с похожими объявлениями =====
+    
+    const fetchSimilarTickets = async () => {
+        if (!order) return;
+        
+        setSimilarTicketsLoading(true);
+        
+        try {
+            const token = getAuthToken();
+            const locale = i18n.language || 'ru';
+            
+            // Строим параметры фильтрации: та же категория, но не этот тикет, активные и исключаем свои тикеты
+            const params = new URLSearchParams({
+                locale,
+                active: 'true',
+                'category.id': String(order.categoryId),
+                'id[ne]': String(order.id),
+            });
+            
+            // Исключаем тикеты текущего пользователя
+            if (currentUserId) {
+                params.append('author.id[ne]', String(currentUserId));
+                params.append('master.id[ne]', String(currentUserId));
+            }
+            
+            const headers: HeadersInit = {
+                'Accept': 'application/json',
+                ...(token && { 'Authorization': `Bearer ${token}` })
+            };
+            
+            const response = await fetch(`${API_BASE_URL}/api/tickets?${params.toString()}`, { headers });
+            
+            if (response.ok) {
+                let data: ApiTicket[] = await response.json();
+                
+                // Если вернул Hydra формат
+                if (!Array.isArray(data) && (data as any)['hydra:member']) {
+                    data = (data as any)['hydra:member'];
+                }
+                
+                // Сортируем: сначала тикеты из того же города, затем по дате
+                const selectedCity = getStorageItem('selectedCity') || '';
+                data = data.sort((a, b) => {
+                    const aMatchesCity = selectedCity
+                        ? a.addresses?.some(addr => addr.city?.title === selectedCity) ?? false
+                        : false;
+                    const bMatchesCity = selectedCity
+                        ? b.addresses?.some(addr => addr.city?.title === selectedCity) ?? false
+                        : false;
+                    if (aMatchesCity !== bMatchesCity) return aMatchesCity ? -1 : 1;
+                    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                });
+                
+                // Ограничиваем до 6 похожих объявлений
+                setSimilarTickets(data.slice(0, 6));
+            }
+        } catch (error) {
+            console.error('Error fetching similar tickets:', error);
+            setSimilarTickets([]);
+        } finally {
+            setSimilarTicketsLoading(false);
+        }
+    };
+
+    // Convert ApiTicket[] to Announcement[] for Recommendations component
+    const similarAnnouncements: Announcement[] = similarTickets.map(ticket => ({
+        id: ticket.id,
+        title: ticket.title,
+        description: ticket.description,
+        budget: ticket.budget,
+        unit: ticket.unit,
+        service: ticket.service,
+        category: ticket.category,
+        subcategory: ticket.subcategory,
+        addresses: ticket.addresses.map(addr => ({
+            title: addr.title,
+            city: addr.city,
+            district: addr.district,
+            province: addr.province
+        })),
+        createdAt: ticket.createdAt,
+        author: ticket.author,
+        master: ticket.master ? {
+            id: ticket.master.id,
+            name: ticket.master.name,
+            surname: ticket.master.surname,
+            rating: ticket.master.rating,
+            image: ticket.master.image,
+        } : undefined,
+        reviewsCount: ticket.reviewsCount,
+        responsesCount: ticket.responsesCount,
+        viewsCount: ticket.viewsCount,
+        images: ticket.images,
+        negotiableBudget: ticket.negotiableBudget
+    }));
+
     if (isLoading) return <PageLoader text={t('ticket:loading')} />;
     if (error) return (
         <div className={styles.error}>
@@ -1350,27 +1457,45 @@ export function Ticket() {
             
             {/* Секция отзывов - независимая от основного контейнера */}
             {reviews.length > 0 && (
-                <ReviewsSection
-                    reviews={reviews}
-                    reviewsLoading={reviewsLoading}
-                    visibleCount={visibleReviewCount}
-                    API_BASE_URL={API_BASE_URL}
-                    userRole="master"
-                    onShowMore={handleShowMoreReviews}
-                    onShowLess={handleShowLessReviews}
-                    maxLength={200}
-                    getClientName={getClientName}
-                    getMasterName={getMasterName}
-                    onClientProfileClick={handleProfileClick}
-                    onMasterProfileClick={handleProfileClick}
-                    onServiceClick={(ticketId) => navigate(ROUTES.TICKET_BY_ID(ticketId))}
-                    getReviewImageIndex={getReviewImageIndex}
-                    onComplaintClick={(reviewId, authorId) => {
-                        setReviewComplaintReviewId(reviewId);
-                        setReviewComplaintAuthorId(authorId);
-                        setShowReviewComplaintModal(true);
-                    }}
-                />
+                <div className={styles.ticketReviewsWrapper}>
+                    <ReviewsSection
+                        reviews={reviews}
+                        reviewsLoading={reviewsLoading}
+                        visibleCount={visibleReviewCount}
+                        API_BASE_URL={API_BASE_URL}
+                        userRole={order?.isService ? 'master' : 'client'}
+                        onShowMore={handleShowMoreReviews}
+                        onShowLess={handleShowLessReviews}
+                        maxLength={200}
+                        getClientName={getClientName}
+                        getMasterName={getMasterName}
+                        onClientProfileClick={handleProfileClick}
+                        onMasterProfileClick={handleProfileClick}
+                        onServiceClick={(ticketId) => navigate(ROUTES.TICKET_BY_ID(ticketId))}
+                        getReviewImageIndex={getReviewImageIndex}
+                        currentUserId={getUserData()?.id}
+                        onEditClick={(review) => { setEditingReview(review); setShowEditReviewModal(true); }}
+                        onComplaintClick={(reviewId, authorId) => {
+                            setReviewComplaintReviewId(reviewId);
+                            setReviewComplaintAuthorId(authorId);
+                            setShowReviewComplaintModal(true);
+                        }}
+                    />
+                </div>
+            )}
+
+            {/* Секция похожих объявлений */}
+            {similarTickets.length > 0 && (
+                <div className={styles.similarTicketsWrapper}>
+                    <h3 className={styles.similarTicketsTitle}>{t('ticket:similarAnnouncements', 'Похожие объявления')}</h3>
+                    <Recommendations 
+                        customData={similarAnnouncements}
+                        customLoading={similarTicketsLoading}
+                        showMoreButton={false}
+                        initialLimit={6}
+                        onItemClick={(id) => navigate(ROUTES.TICKET_BY_ID(id))}
+                    />
+                </div>
             )}
 
             <FeedbackModal
@@ -1419,6 +1544,21 @@ export function Ticket() {
                 reviewId={reviewComplaintReviewId ?? undefined}
                 complaintType="review"
             />
+
+            {editingReview && (
+                <FeedbackModal
+                    mode="review"
+                    isOpen={showEditReviewModal}
+                    onClose={() => { setShowEditReviewModal(false); setEditingReview(null); }}
+                    onSuccess={() => fetchReviews()}
+                    targetUserId={editingReview.user?.id ?? 0}
+                    ticketId={editingReview.ticket?.id}
+                    editReviewId={editingReview.id}
+                    initialRating={editingReview.rating}
+                    initialText={editingReview.description}
+                    initialImages={editingReview.images}
+                />
+            )}
 
             <Status
                 type="error"

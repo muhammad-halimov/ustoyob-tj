@@ -2,19 +2,12 @@
 @use 'sass:map';
 
 .recommendation {
-  @include vars.Container;
-  margin-bottom: 30px !important;
+  max-width: 1150px;
+  width: 100%;
+  margin: 0 auto;
 
   &__wrap {
     width: 100%;
-  }
-
-  &__title {
-    font-size: 36px;
-    font-weight: 400;
-    color: map.get(vars.$colors, text-black);
-    margin-bottom: 40px;
-    margin-top: 40px;
   }
 
   &__list {
@@ -31,29 +24,8 @@
   }
 }
 
-@media (max-width: 1200px) {
-  .recommendation {
-    padding: 0 20px;
-  }
-}
-
-// Адаптивность
-@media (max-width: 768px) {
-  .recommendation {
-    margin-top: 40px !important;
-
-    &__title {
-      font-size: 24px;
-      font-weight: 600;
-      margin-bottom: 20px;
-    }
-  }
-}
-
 :global(html[data-theme="dark"]) {
   .recommendation {
-    &__title {
-      color: var(--color-text-black);
-    }
+    // Темная тема для компонента
   }
 }

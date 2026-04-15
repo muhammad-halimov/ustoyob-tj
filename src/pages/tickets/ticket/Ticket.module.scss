@@ -33,7 +33,7 @@
 
 .orderCard {
   background: white;
-  border-radius: 12px;
+  border-radius: 20px;
   padding: 20px;
   margin-top: 20px;
 }
@@ -856,11 +856,11 @@
   }
 }
 
-.successIcon {
-  //img {
-  //  filter: invert(58%) sepia(67%) saturate(394%) hue-rotate(91deg) brightness(91%) contrast(87%);
-  //}
-}
+// .successIcon {
+//   //img {
+//   //  filter: invert(58%) sepia(67%) saturate(394%) hue-rotate(91deg) brightness(91%) contrast(87%);
+//   //}
+// }
 
 .errorIcon {
   img {
@@ -1210,9 +1210,107 @@
   }
 }
 
+.similarTicketsWrapper {
+  background: white;
+  border-radius: 20px;
+  padding: 20px;
+  max-width: 1150px;
+  width: 100%;
+  margin: 50px auto 30px;
+
+  :global(.recommendation) {
+    margin: 0 !important;
+  }
+
+  @media (max-width: 768px) {
+    margin: 40px auto 30px;
+    padding: 16px;
+    max-width: 100%;
+  }
+}
+
+.similarTicketsTitle {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  margin-top: 0;
+
+  @media (max-width: 768px) {
+    font-size: 18px;
+  }
+}
+
+/* ===== СЕКЦИЯ ОТЗЫВОВ В ТИКЕТЕ ===== */
+.ticketReviewsWrapper {
+  // Переопределяем размеры шрифтов для ReviewsSection в тикете
+  // Используем максимально специфичные селекторы
+  
+  // Имена пользователей
+  div[class*="reviewer_name"],
+  div[class*="reviewer_name"] > div {
+    font-size: 24px !important;
+  }
+
+  // Сервисы, работники, даты
+  div[class*="review_service"],
+  div[class*="review_service"] div[class*="service_title"],
+  div[class*="review_worker"],
+  div[class*="review_date"],
+  span[class*="review_date"] {
+    font-size: 24px !important;
+  }
+
+  // Текст отзыва
+  div[class*="review_text"],
+  p[class*="review_text"] {
+    font-size: 24px !important;
+  }
+
+  // Рейтинг
+  div[class*="review_rating_main"],
+  div[class*="review_rating_main"] span,
+  span[class*="rating_value"] {
+    font-size: 24px !important;
+  }
+
+  @media (max-width: 768px) {
+    div[class*="reviewer_name"],
+    div[class*="reviewer_name"] > div {
+      font-size: 18px !important;
+    }
+
+    div[class*="review_service"],
+    div[class*="review_service"] div[class*="service_title"],
+    div[class*="review_worker"],
+    div[class*="review_date"],
+    span[class*="review_date"] {
+      font-size: 18px !important;
+    }
+
+    div[class*="review_text"],
+    p[class*="review_text"] {
+      font-size: 18px !important;
+    }
+
+    div[class*="review_rating_main"],
+    div[class*="review_rating_main"] span,
+    span[class*="rating_value"] {
+      font-size: 18px !important;
+    }
+  }
+}
+
 :global(html[data-theme="dark"]) {
   .orderCard {
     background: var(--color-background-primary);
+  }
+
+  .similarTicketsWrapper {
+    background: var(--color-background-primary);
+  }
+
+  .similarTicketsTitle {
+    color: var(--color-text-black);
   }
 
   .orderTitle {
@@ -1370,3 +1468,5 @@
     }
   }
 }
+
+/* ===== СЕКЦИЯ ПОХОЖИХ ОБЪЯВЛЕНИЙ ===== */

@@ -239,7 +239,9 @@
     "errorDefault": "Хатогӣ ҳангоми ирсоли таърӯф",
     "errorUnexpected": "Хатогии ногаҳонӣ ҳангоми ирсоли таърӯф рух дод",
     "successMessage": "Таърӯф бомуваффақият ирсол шуд!",
-    "errorUnknownRole": "Нақши номаълуми истифодаранда"
+    "successEditMessage": "Таърӯф бомуваффақият навсозӣ шуд!",
+    "errorUnknownRole": "Нақши номаълуми истифодаранда",
+    "errorAlreadyReviewed": "Шумо аллакай ба ин корбар баррасӣ гузоштаед"
   },
   "complaintModal": {
     "title": "Шикоят фиристодан",
