@@ -187,7 +187,7 @@ class Review
     /**
      * @var Collection<int, MultipleImage>
      */
-    #[ORM\OneToMany(targetEntity: MultipleImage::class, mappedBy: 'review')]
+    #[ORM\OneToMany(targetEntity: MultipleImage::class, mappedBy: 'review', cascade: ['persist', 'remove'], orphanRemoval: true)]
     #[ORM\OrderBy(['priority' => 'ASC'])]
     #[Groups([
         G::REVIEWS,

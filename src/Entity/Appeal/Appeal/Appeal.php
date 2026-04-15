@@ -135,7 +135,7 @@ abstract class Appeal
     /**
      * @var Collection<int, MultipleImage>
      */
-    #[ORM\OneToMany(targetEntity: MultipleImage::class, mappedBy: 'appeal')]
+    #[ORM\OneToMany(targetEntity: MultipleImage::class, mappedBy: 'appeal', cascade: ['persist', 'remove'], orphanRemoval: true)]
     #[ORM\OrderBy(['priority' => 'ASC'])]
     #[Groups([
         G::APPEAL,

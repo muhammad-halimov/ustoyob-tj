@@ -100,7 +100,7 @@ class TechSupportMessage
     /**
      * @var Collection<int, MultipleImage>
      */
-    #[ORM\OneToMany(targetEntity: MultipleImage::class, mappedBy: 'techSupportMessage')]
+    #[ORM\OneToMany(targetEntity: MultipleImage::class, mappedBy: 'techSupportMessage', cascade: ['persist', 'remove'], orphanRemoval: true)]
     #[ORM\OrderBy(['priority' => 'ASC'])]
     #[ApiProperty(writable: false)]
     #[Groups([

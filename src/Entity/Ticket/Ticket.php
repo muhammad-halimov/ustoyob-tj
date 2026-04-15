@@ -357,7 +357,7 @@ class Ticket
     /**
      * @var Collection<int, MultipleImage>
      */
-    #[ORM\OneToMany(targetEntity: MultipleImage::class, mappedBy: 'ticket')]
+    #[ORM\OneToMany(targetEntity: MultipleImage::class, mappedBy: 'ticket', cascade: ['persist', 'remove'], orphanRemoval: true)]
     #[ORM\OrderBy(['priority' => 'ASC'])]
     #[Groups([
         G::MASTER_TICKETS,
