@@ -71,7 +71,7 @@ class MultipleImage
      * Автор загрузки — проставляется при загрузке через чат или техподдержку.
      * Nullable: изображения к тикетам/галереям автора не требуют.
      */
-    #[ORM\ManyToOne(inversedBy: 'imageAuthors')]
+    #[ORM\ManyToOne(cascade: ['all'], inversedBy: 'imageAuthors')]
     #[ORM\JoinColumn(name: 'author_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
         G::CATEGORIES,
@@ -103,42 +103,42 @@ class MultipleImage
     /**
      * Изображение галереи работ мастера.
      */
-    #[ORM\ManyToOne(inversedBy: 'images')]
+    #[ORM\ManyToOne(cascade: ['all'], inversedBy: 'images')]
     #[ApiProperty(writable: false)]
     private ?Gallery $gallery = null;
 
     /**
      * Изображение тикета (услуги/объявления).
      */
-    #[ORM\ManyToOne(inversedBy: 'images')]
+    #[ORM\ManyToOne(cascade: ['all'], inversedBy: 'images')]
     #[ApiProperty(writable: false)]
     private ?Ticket $ticket = null;
 
     /**
      * Изображение прикреплённое к сообщению техподдержки.
      */
-    #[ORM\ManyToOne(inversedBy: 'image')]
+    #[ORM\ManyToOne(cascade: ['all'], inversedBy: 'image')]
     #[ApiProperty(writable: false)]
     private ?TechSupportMessage $techSupportMessage = null;
 
     /**
      * Изображение прикреплённое к отзыву.
      */
-    #[ORM\ManyToOne(inversedBy: 'images')]
+    #[ORM\ManyToOne(cascade: ['all'], inversedBy: 'images')]
     #[ApiProperty(writable: false)]
     private ?Review $review = null;
 
     /**
      * Изображение прикреплённое к сообщению чата.
      */
-    #[ORM\ManyToOne(inversedBy: 'images')]
+    #[ORM\ManyToOne(cascade: ['all'], inversedBy: 'images')]
     #[ApiProperty(writable: false)]
     private ?ChatMessage $chatMessage = null;
 
     /**
      * Изображение прикреплённое к обращению (жалобе).
      */
-    #[ORM\ManyToOne(inversedBy: 'images')]
+    #[ORM\ManyToOne(cascade: ['all'], inversedBy: 'images')]
     #[ApiProperty(writable: false)]
     private ?Appeal $appeal = null;
 
