@@ -12,6 +12,7 @@ use App\Entity\Appeal\Types\AppealUser;
 use App\Entity\User;
 use App\Repository\Chat\ChatRepository;
 use App\Service\Extra\LocalizationService;
+use App\Entity\Trait\Readable\G;
 
 class ApiPostAppealConntroller extends AbstractApiPostController
 {
@@ -21,6 +22,8 @@ class ApiPostAppealConntroller extends AbstractApiPostController
     ) {}
 
     protected function getInputClass(): string { return AppealInput::class; }
+
+    protected function setSerializationGroups(): array { return G::OPS_APPEALS; }
 
     protected function afterFetch(object|array $entity, User $user): void
     {
