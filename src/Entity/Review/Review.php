@@ -9,6 +9,7 @@ use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
@@ -44,6 +45,11 @@ use Symfony\Component\Validator\Constraints as Assert;
             uriTemplate: '/reviews/me',
             controller: ApiGetMyReviewsController::class,
             normalizationContext: ['groups' => G::OPS_REVIEWS],
+        ),
+        new Get(
+            uriTemplate: '/reviews/{id}',
+            requirements: ['id' => '\d+'],
+            normalizationContext: ['groups' => G::OPS_REVIEWS, 'skip_null_values' => false],
         ),
         new GetCollection(
             uriTemplate: '/reviews',
