@@ -66,7 +66,7 @@ class ApiPatchChatMessageController extends AbstractApiPatchController
 
         if (!empty($imagesParam)) {
             $imageStrings = array_filter(array_map(
-                fn($item) => is_array($item) && isset($item['image']) ? (string) $item['image'] : null,
+                fn($item) => isset($item->image) ? (string) $item->image : null,
                 $imagesParam
             ));
 

@@ -65,7 +65,7 @@ class ApiPatchGalleryController extends AbstractApiPatchController
         }
 
         foreach ($images as $position => $imageData) {
-            $imagePath = $imageData['image'] ?? null;
+            $imagePath = $imageData->image ?? null;
             if (!$imagePath) continue;
 
             if (isset($existingByName[$imagePath])) {

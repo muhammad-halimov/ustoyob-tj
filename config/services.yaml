@@ -56,6 +56,14 @@ services:
         tags:
             - { name: 'api_platform.state_provider' }
 
+    App\State\Localization\Review\ReviewLocalizationProvider:
+        autoconfigure: false
+        arguments:
+            $itemProvider: '@api_platform.doctrine.orm.state.item_provider'
+            $collectionProvider: '@api_platform.doctrine.orm.state.collection_provider'
+        tags:
+            - { name: 'api_platform.state_provider' }
+
     App\State\Localization\Geography\CityLocalizationProvider:
         autoconfigure: false
         arguments:

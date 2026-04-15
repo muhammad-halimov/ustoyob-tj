@@ -14,6 +14,7 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\GET\Review\Review\ApiGetMyReviewsController;
+use App\State\Localization\Review\ReviewLocalizationProvider;
 use App\Controller\Api\CRUD\PATCH\Review\Review\ApiPatchReviewController;
 use App\Controller\Api\CRUD\POST\Image\Image\ApiPostUniversalImageController;
 use App\Controller\Api\CRUD\POST\Review\Review\ApiPostReviewController;
@@ -50,10 +51,12 @@ use Symfony\Component\Validator\Constraints as Assert;
             uriTemplate: '/reviews/{id}',
             requirements: ['id' => '\d+'],
             normalizationContext: ['groups' => G::OPS_REVIEWS, 'skip_null_values' => false],
+            provider: ReviewLocalizationProvider::class,
         ),
         new GetCollection(
             uriTemplate: '/reviews',
             normalizationContext: ['groups' => G::OPS_REVIEWS, 'skip_null_values' => false],
+            provider: ReviewLocalizationProvider::class,
         ),
         new Post(
             uriTemplate: '/reviews/{id}/upload-images',
