@@ -278,6 +278,11 @@ function Profile() {
                 setShowErrorModal(true);
                 return;
             }
+            if (data.error) {
+                setModalMessage(data.message || t('profile:oauth.unlinkError', 'Ошибка при отвязке аккаунта'));
+                setShowErrorModal(true);
+                return;
+            }
             if (data.providers) {
                 setLinkedProviders(data.providers);
             } else if (Array.isArray(data)) {

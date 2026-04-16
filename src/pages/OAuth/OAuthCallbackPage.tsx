@@ -53,6 +53,7 @@ const OAuthCallbackPage = () => {
     const [loading, setLoading] = useState(true);
     const [success, setSuccess] = useState(false);
     const [provider, setProvider] = useState<OAuthProvider | null>(null);
+    const [isLinkMode, setIsLinkMode] = useState(false);
     const { t } = useTranslation('common');
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -102,6 +103,7 @@ const OAuthCallbackPage = () => {
                 if (oauthMode === 'link') {
                     sessionStorage.removeItem('oauthMode');
                     if (state) localStorage.removeItem(`oauth_mode_${state}`);
+                    setIsLinkMode(true);
                     const jwtToken = getAuthToken();
                     if (!jwtToken) {
                         setError(t('oauth.notAuthenticated') || 'Not authenticated');
@@ -118,13 +120,18 @@ const OAuthCallbackPage = () => {
                         body: JSON.stringify({ provider: detectedProvider, code, state }),
                     });
                     const linkData = await linkRes.json();
-                    if (linkData.error === 'provider_taken') {
-                        setError(t('oauth.providerTaken') || 'This account is already linked to another user');
+                    if (linkData.error === 'provider_taken' || linkData.error === 'oauth_provider_taken') {
+                        setError(linkData.message || t('oauth.providerTaken') || 'This account is already linked to another user');
                         setLoading(false);
                         return;
                     }
                     if (linkData.error === 'already_linked') {
-                        setError(t('oauth.alreadyLinked') || 'This provider is already linked to your account');
+                        setError(linkData.message || t('oauth.alreadyLinked') || 'This provider is already linked to your account');
+                        setLoading(false);
+                        return;
+                    }
+                    if (linkData.error) {
+                        setError(linkData.message || t('oauth.tryLater'));
                         setLoading(false);
                         return;
                     }
@@ -268,8 +275,8 @@ const OAuthCallbackPage = () => {
         <Status
             type="error"
             isOpen={!!error}
-            onClose={() => navigate(ROUTES.HOME)}
-            message={t('oauth.tryLater')}
+            onClose={() => navigate(isLinkMode ? ROUTES.PROFILE : ROUTES.HOME)}
+            message={error}
         />
     );
 };
