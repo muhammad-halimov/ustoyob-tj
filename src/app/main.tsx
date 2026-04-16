@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client'
 import './styles/index.scss'
+import '../locales/i18n';
 import {AppRouter} from "./routers";
 import {store} from "./store";
 import {Provider} from "react-redux";

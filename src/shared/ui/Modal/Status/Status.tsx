@@ -37,11 +37,12 @@ const Status: React.FC<StatusModalProps> = ({
     };
 
     const getIconSrc = () => {
+        const base = import.meta.env.BASE_URL;
         switch (type) {
             case 'success':
-                return '/uspeh.png';
+                return `${base}uspeh.png`;
             case 'error':
-                return '/error.png';
+                return `${base}error.png`;
             default:
                 return null;
         }
