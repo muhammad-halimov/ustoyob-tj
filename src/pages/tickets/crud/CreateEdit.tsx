@@ -11,7 +11,6 @@ import { useTranslation } from 'react-i18next';
 import { useLanguageChange } from '../../../hooks';
 import { getStorageItem } from '../../../utils/storageHelper.ts';
 import { PageLoader } from '../../../widgets/PageLoader';
-import { Back } from '../../../shared/ui/Button/Back/Back.tsx';
 import { Toggle } from '../../../shared/ui/Button/Toggle/Toggle';
 import PhotoGrid from '../../../shared/ui/Photo/PhotoGrid';
 import { uploadPhotos } from '../../../utils/imageHelper';
@@ -566,7 +565,6 @@ const CreateEdit = () => {
 
     return (
         <div className={styles.container}>
-            <Back className={styles.backButtonSpacing} />
             <div className={styles.header}>
                 <h1>{isEditMode ? t('createEdit:editTitle') : t('createEdit:createTitle')}</h1>
             </div>

@@ -4,7 +4,12 @@
 
 .container {
   max-width: 1150px; // Оптимизировано для 60% ширины на больших экранах
-  margin: 40px auto;
+  margin: 0 auto;
+  padding: 40px 0;
+
+  @media screen and (max-width: 1200px) {
+    padding: 40px 20px;
+  }
 
   &_wrap {
     padding: 40px;
@@ -702,19 +707,8 @@
   color: #d32f2f;
 }
 
-@media screen and (max-width: 1200px) {
-  .container {
-    padding: 0 20px;
-  }
-}
-
 /* Адаптивность */
 @media screen and (max-width: 768px) {
-  .container {
-    margin: 20px auto;
-    padding: 0 20px;
-  }
-
   .header h1 {
     font-size: 24px;
   }
@@ -765,10 +759,6 @@
 }
 
 @media screen and (max-width: 480px) {
-  .container {
-    padding: 0 15px;
-  }
-
   .form {
     h3 {
       font-size: 18px;

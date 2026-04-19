@@ -12,7 +12,6 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { IoSend, IoAttach, IoClose, IoImages, IoArchiveOutline, IoArrowUpCircleOutline, IoWarningOutline, IoPencilSharp, IoTrashSharp, IoArrowUndoSharp, IoEye, IoChatbubblesOutline } from "react-icons/io5";
 import { Preview, usePreview } from '../../shared/ui/Photo/Preview';
 import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
-import { Back } from '../../shared/ui/Button/Back/Back.tsx';
 import { ActionsDropdown } from '../../widgets/ActionsDropdown';
 import { uploadPhotos } from '../../utils/imageHelper';
 import { Tabs } from '../../shared/ui/Tabs';
@@ -1179,7 +1178,6 @@ function Chat() {
 
     return (
         <div className={styles.chatPageWrapper}>
-        <Back className={styles.backButtonSpacing} />
         <div className={`${styles.chat} ${isMobileChatActive ? styles.chatAreaActive : ''}`}>
             <input
                 type="file"

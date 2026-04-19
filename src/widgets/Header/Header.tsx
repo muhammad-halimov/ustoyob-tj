@@ -11,6 +11,7 @@ import { getCities } from '../../utils/dataCache.ts';
 import Status from '../../shared/ui/Modal/Status';
 import { PageLoader } from '../PageLoader';
 import { EmptyState } from '../EmptyState';
+import { Back } from '../../shared/ui/Button/Back/Back.tsx';
 
 interface HeaderProps {
     onOpenAuthModal?: () => void;
@@ -364,6 +365,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
     return (
         <>
             <div className={styles.mobile_super_header}>
+                {location.pathname !== '/' && <Back className={styles.header_back_btn} />}
                 <Link to={ROUTES.HOME} onClick={handleLogoClick}>
                     <svg width="301" height="50" viewBox="0 0 301 50" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M28.929 20.9145C28.392 21.5877 28.5758 22.1222 29.5472 23.2972C30.8578 24.4875 31.5488 24.8045 32.6957 24.9859L44.5009 20.1881C45.344 19.9571 44.7288 19.1333 43.7295 17.9892C42.7298 16.8457 41.5773 15.8856 40.7341 16.1167L28.929 20.9145Z" fill="#A5A5A5" stroke="#A5A5A5"/>
@@ -425,6 +427,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                                 <path d="M19.5 25.2985C19.5183 27.0982 20.0016 27.7107 21.5 28.2985C23.2689 28.4569 24.0026 28.0415 25 26.7985L31 3.29854C31.5 1.79936 30.5 1.29936 29 0.798539C27.5 0.299316 26 0.299335 25.5 1.79854L19.5 25.2985Z" fill="#3A54DA" stroke="#3A54DA"/>
                             </svg>
                         </Link>
+                        {location.pathname !== '/' && <Back className={styles.header_back_desktop} />}
                         <div className={styles.locate} onClick={() => setShowCityModal(true)}>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <g clipPath="url(#clip0_324_1115)">

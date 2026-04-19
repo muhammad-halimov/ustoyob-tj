@@ -12,7 +12,6 @@ import AuthModal from '../../../features/auth/AuthModal.tsx';
 import { Card } from '../../../shared/ui/Ticket/Card/Card.tsx';
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 import Status from '../../../shared/ui/Modal/Status';
-import { Back } from '../../../shared/ui/Button/Back/Back.tsx';
 import { Tabs } from '../../../shared/ui/Tabs';
 import { SectionActions } from '../../../shared/ui/SectionActions';
 import { IoCheckmarkCircleOutline, IoCloseCircleOutline } from 'react-icons/io5';
@@ -466,7 +465,6 @@ function MyTickets() {
 
     return (
         <div className={styles.container}>
-            <Back className={styles.backButtonSpacing} />
             <div className={styles.header}>
                 <h1>{t('myTickets:myAds')}</h1>
                 <SectionActions

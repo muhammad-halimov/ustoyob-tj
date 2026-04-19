@@ -2,7 +2,6 @@ import {useState, useEffect, useCallback} from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { getAuthToken, getUserRole, getUserData } from '../../../utils/auth.ts';
 import { getStorageItem } from '../../../utils/storageHelper.ts';
-import { Back } from '../../../shared/ui/Button/Back/Back.tsx';
 import { useLanguageChange } from '../../../hooks';
 import { createChatWithAuthor } from '../../../utils/chatUtils';
 import Status from '../../../shared/ui/Modal/Status';
@@ -807,7 +806,6 @@ function Category() {
     if (!id) {
         return (
             <div className={styles.container}>
-                <Back className={styles.backButtonSpacing} />
                 <div className={styles.header}>
                     <h1>{t('category:errorTitle')}</h1>
                 </div>
@@ -820,7 +818,6 @@ function Category() {
 
     return (
         <div className={styles.container}>
-            <Back className={styles.backButtonSpacing} />
             <div className={styles.header}>
                 <h1>{getPageTitle()}</h1>
             </div>

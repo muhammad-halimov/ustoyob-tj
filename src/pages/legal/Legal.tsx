@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getAuthToken } from '../../utils/auth';
 import { ROUTES } from '../../app/routers/routes';
-import { Back } from '../../shared/ui/Button/Back/Back.tsx';
 import { Tabs } from '../../shared/ui/Tabs';
 import PageLoader from '../../widgets/PageLoader/PageLoader';
 import { IoDocumentTextOutline, IoShieldCheckmarkOutline, IoReceiptOutline } from 'react-icons/io5';
@@ -106,7 +105,6 @@ function Legal() {
 
     return (
         <div className={styles.container}>
-            <Back className={styles.backButtonSpacing} />
             <div className={styles.header}>
                 <Tabs
                     tabs={navTabs}

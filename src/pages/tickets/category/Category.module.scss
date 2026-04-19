@@ -7,10 +7,13 @@
 
 .container {
   position: relative;
-  max-width: 1150px; // Оптимизировано для 60% ширины на больших экранах
-  margin: 40.45px auto;
-  flex: 1;
-  //padding: 20px;
+  max-width: 1150px;
+  margin: 0 auto;
+  padding: 40px 0;
+
+  @media screen and (max-width: 1200px) {
+    padding: 40px 20px;
+  }
 }
 
 .header {
@@ -79,11 +82,6 @@
 }
 
 @media (max-width: 1200px) {
-  .container {
-    margin: 20px auto;
-    padding: 15px;
-  }
-
   .header {
     h1 {
       font-size: 28px;

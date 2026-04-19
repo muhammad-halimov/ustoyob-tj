@@ -115,12 +115,6 @@
   }
 }
 
-@media (max-width: 1200px) {
-  .recommendation {
-    padding: 0 20px;
-  }
-}
-
 // Адаптивность для мобильных устройств
 @media (max-width: 768px) {
   .userCard {
@@ -134,14 +128,18 @@
   }
 
   .recommendation {
-    padding: 20px;
     margin: 20px auto;
   }
 }
 
 .recommendation {
   max-width: 1150px;
-  margin: 40px auto;
+  margin: 0 auto;
+  padding: 40px 0;
+
+  @media screen and (max-width: 1200px) {
+    padding: 40px 20px;
+  }
   
   &_wrap {
     display: flex;

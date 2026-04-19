@@ -780,6 +780,19 @@
   }
 }
 
+.header_back_btn {
+  position: absolute;
+  left: 8px;
+}
+
+.header_back_desktop {
+  display: none !important;
+
+  @media (min-width: 960px) {
+    display: inline-flex !important;
+  }
+}
+
 :global(html[data-theme="dark"]) {
   .header {
     background-color: var(--color-background-primary);

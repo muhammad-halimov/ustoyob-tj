@@ -14,7 +14,6 @@ import Status from '../../../shared/ui/Modal/Status';
 import FeedbackModal from '../../../shared/ui/Modal/Feedback';
 import { Carousel } from '../../../shared/ui/Photo/Carousel';
 import { Marquee } from '../../../shared/ui/Text/Marquee';
-import { Back } from '../../../shared/ui/Button/Back/Back.tsx';
 import {useFavorites} from '../../../shared/ui/useFavorites';
 import {ROUTES} from '../../../app/routers/routes';
 import {ReviewsSection} from '../../profile/shared/ui/ReviewsSection';
@@ -1127,20 +1126,17 @@ export function Ticket() {
     if (isLoading) return <PageLoader text={t('ticket:loading')} />;
     if (error) return (
         <div className={styles.error}>
-            <Back />
             <p>{error}</p>
         </div>
     );
     if (!order) return (
         <div className={styles.error}>
-            <Back />
             <p>{t('ticket:notFound')}</p>
         </div>
     );
 
     return (
         <div className={styles.container}>
-            <Back />
             <div className={styles.orderCard}>
                 {/* ── Title row: title + controls side-by-side ── */}
                 <div className={styles.titleControlRow}>

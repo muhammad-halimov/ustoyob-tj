@@ -5,16 +5,18 @@
 .container {
   position: relative;
   max-width: 1150px;
-  margin: 40px auto;
-  flex: 1;
-  padding: 20px 0;
+  margin: 0 auto;
+  padding: 40px 0;
+
+  @media (max-width: 1200px) {
+    padding: 40px 20px;
+  }
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
   padding-bottom: 20px;
   //border-bottom: 1px solid #e0e0e0;
 
@@ -399,24 +401,17 @@
   }
 }
 
-@media (max-width: 1200px) {
-  .container {
-    padding: 20px 20px;
-  }
-}
+// @media screen and (max-width: 480px) {
+//   .header {
+//     flex-direction: column;
+//     gap: 16px;
+//     align-items: flex-start;
+//   }
+// }
 
 // Адаптивность
 @media (max-width: 768px) {
-  .container {
-    margin: 20px auto;
-    padding: 20px;
-  }
-
   .header {
-    flex-direction: column;
-    gap: 16px;
-    align-items: flex-start;
-
     h1 {
       font-size: 28px;
     }

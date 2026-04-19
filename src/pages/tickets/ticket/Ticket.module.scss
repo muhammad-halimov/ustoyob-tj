@@ -4,13 +4,18 @@
 .container {
   max-width: 1150px; // Оптимизировано для 60% ширины на больших экранах
   width: 100%;
-  margin: 40px auto;
+  margin: 0 auto;
+  padding: 40px 0;
+
+  @media (max-width: 1200px) {
+    padding: 40px 20px;
+  }
 }
 
 .back_section {
   display: flex;
   justify-content: flex-start;
-  padding: 0 0 12px;
+  margin-bottom: 12px;
 }
 
 .backBtn {
@@ -35,7 +40,6 @@
   background: white;
   border-radius: 20px;
   padding: 20px;
-  margin-top: 20px;
 }
 
 // ── Title row: title + controls ─────────────────────────────────────────────
@@ -954,12 +958,6 @@
   max-width: 40%;
 }
 
-@media (max-width: 1200px) {
-  .container {
-    padding: 0 20px;
-  }
-}
-
 /* Адаптивность */
 @media (max-width: 768px) {
   .descriptionPhotoRow {
@@ -970,11 +968,6 @@
     flex: none;
     max-width: 100%;
     width: 100%;
-  }
-
-  .container {
-    margin: 20px auto;
-    padding: 0 16px;
   }
 
   // On mobile: title row stays as-is (flex row with title + controls).

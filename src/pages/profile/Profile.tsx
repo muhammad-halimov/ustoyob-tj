@@ -49,7 +49,6 @@ import Status from '../../shared/ui/Modal/Status';
 import FeedbackModal from '../../shared/ui/Modal/Feedback';
 import AuthModal from '../../features/auth/AuthModal';
 import { getAuthorAvatar } from '../../utils/imageHelper.ts';
-import { Back } from '../../shared/ui/Button/Back/Back.tsx';
 
 // Интерфейс для социальных сетей с API
 interface LocalAvailableSocialNetwork {
@@ -3433,7 +3432,6 @@ function Profile() {
         <div className={styles.profile}>
             <div className={styles.profile_wrap}>
                 <div className={styles.top_nav_row}>
-                    <Back />
                     {!readOnly && (
                         <button className={styles.logoutBtn} onClick={handleLogout}>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

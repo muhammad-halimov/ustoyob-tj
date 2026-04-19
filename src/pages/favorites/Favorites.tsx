@@ -16,7 +16,6 @@ import { EmptyState } from '../../widgets/EmptyState';
 import { ProfileHeader } from '../profile/shared/ui/ProfileHeader';
 import FeedbackModal from '../../shared/ui/Modal/Feedback';
 import Status from '../../shared/ui/Modal/Status';
-import { Back } from '../../shared/ui/Button/Back/Back.tsx';
 import { Tabs } from '../../shared/ui/Tabs';
 import { IoListOutline, IoPeopleOutline } from 'react-icons/io5';
 
@@ -886,7 +885,6 @@ function Favorites() {
 
     return (
         <div className={styles.recommendation}>
-            <Back className={styles.backButtonSpacing} />
             {/* Переключатель вкладок: Объявления / Пользователи */}
             {showTabs && (
                 <Tabs

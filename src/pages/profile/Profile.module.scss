@@ -7,6 +7,7 @@
 
 .profile_wrap {
   position: relative;
+  padding: 40px 0;
 }
 
 // Исправление для z-index
@@ -2494,10 +2495,10 @@
 
 }
 
-// Tablet adaptation
+
 @media screen and (max-width: 1200px) {
   .profile_wrap {
-    padding: 0 20px;
+    padding: 40px 20px;
   }
 }
 
@@ -2520,10 +2521,6 @@
   .avatar_container {
     width: 200px;
     height: 200px;
-  }
-
-  .profile_wrap {
-    padding: 20px;
   }
 
   .profile_content {
@@ -4484,7 +4481,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 0;
+  margin-bottom: 12px;
 }
 
 .back_section {
