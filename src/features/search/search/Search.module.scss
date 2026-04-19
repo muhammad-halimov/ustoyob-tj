@@ -51,18 +51,35 @@
     border-radius: map.get(vars.$border-radius, lg);
     overflow: hidden;
 
-    .input {
+    .input_wrap {
       flex: 1;
-      border: none;
-      border-radius: map.get(vars.$border-radius, base);
-      outline: none;
-      padding: map.get(vars.$spacing, 3) map.get(vars.$spacing, 2);
-      font-size: map.get(vars.$font-sizes, 'base');
-      color: map.get(vars.$colors, text-placeholder);
+      position: relative;
+      display: flex;
+      align-items: center;
 
-      &::placeholder {
+      .input {
+        width: 100%;
+        border: none;
+        border-radius: map.get(vars.$border-radius, base);
+        outline: none;
+        padding: map.get(vars.$spacing, 3) 36px map.get(vars.$spacing, 3) map.get(vars.$spacing, 2);
+        font-size: map.get(vars.$font-sizes, 'base');
         color: map.get(vars.$colors, text-placeholder);
-        letter-spacing: 0.02em;
+
+        &::placeholder {
+          color: map.get(vars.$colors, text-placeholder);
+          letter-spacing: 0.02em;
+        }
+      }
+
+      .clear_input_btn {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: map.get(vars.$colors, text-placeholder);
+        width: 32px;
+        height: 32px;
       }
     }
 
@@ -340,6 +357,12 @@
         width: 16px;
       }
     }
+
+    .clear_filters_control_btn {
+      flex-shrink: 0;
+      width: auto !important;
+      height: 36px !important;
+    }
     .search_with_filters {
       flex-direction: column;
     }
@@ -404,21 +427,31 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
+  margin-top: map.get(vars.$spacing, 5);
+
+  .filters_btn {
+    margin: 0;
+  }
 }
 
 .clear_filters_control_btn {
-  // Inherits base styles from ClearButton, just adjust positioning
   flex-shrink: 0;
+  width: auto !important;
+  height: 46px !important;
+  padding: 0 12px;
+  border-radius: map.get(vars.$border-radius, lg);
+  border: 2px solid map.get(vars.$colors, actual-blue);
+  color: map.get(vars.$colors, actual-blue);
+
+  svg {
+    display: block;
+    width: 16px;
+    height: 16px;
+  }
 }
 
 .clear_input_btn {
   flex-shrink: 0;
-  color: #fff;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.15) !important;
-    color: #fff !important;
-  }
 }
 
 .resultCard {

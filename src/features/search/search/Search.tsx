@@ -16,6 +16,7 @@ import { PageLoader } from '../../../widgets/PageLoader';
 import { EmptyState } from '../../../widgets/EmptyState';
 import Status from '../../../shared/ui/Modal/Status';
 import FeedbackModal from '../../../shared/ui/Modal/Feedback';
+import { ClearButton } from '../../../shared/ui/Button/Clear/ClearButton';
 
 // Интерфейсы
 interface ApiTicket {
@@ -1102,6 +1103,48 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         };
     }, [searchQuery, userRole, onSearchResults, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter]);
 
+    const handleClearAll = useCallback(() => {
+        setSearchQuery('');
+        handleFilterToggle(false);
+        setFilters({
+            minPrice: '',
+            maxPrice: '',
+            category: '',
+            subcategory: '',
+            rating: '',
+            reviewCount: '',
+            sortBy: '',
+            city: ''
+        });
+        setShowOnlyServices(false);
+        setShowOnlyAnnouncements(false);
+        setSortBy('newest');
+        setSecondarySortBy('none');
+        setTimeFilter('all');
+        setShowResults(false);
+        setSearchResults([]);
+        onSearchResults([]);
+        previousSearchRef.current = {
+            query: '',
+            filters: {
+                minPrice: '',
+                maxPrice: '',
+                category: '',
+                subcategory: '',
+                rating: '',
+                reviewCount: '',
+                sortBy: '',
+                city: ''
+            },
+            userRole,
+            showOnlyServices: false,
+            showOnlyAnnouncements: false,
+            sortBy: 'newest',
+            secondarySortBy: 'none',
+            timeFilter: 'all'
+        };
+    }, [userRole, onSearchResults, handleFilterToggle]);
+
     const handleFilterChange = useCallback((newFilters: FilterState) => {
         setFilters(newFilters);
     }, []);
@@ -1362,19 +1405,28 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                         )}
 
                         <div className={styles.search_wrap}>
-                            <input
-                                type="text"
-                                placeholder={getSearchPlaceholder}
-                                className={styles.input}
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                            />
+                            <div className={styles.input_wrap}>
+                                <input
+                                    type="text"
+                                    placeholder={getSearchPlaceholder}
+                                    className={styles.input}
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                                />
+                                {searchQuery && (
+                                    <ClearButton
+                                        className={styles.clear_input_btn}
+                                        onClick={() => setSearchQuery('')}
+                                    />
+                                )}
+                            </div>
                             <button className={styles.button} onClick={handleSearch} disabled={isLoading}>
                                 {isLoading ? t('app.loading') : t('search.find')}
                             </button>
                         </div>
 
+                        <div className={styles.filter_controls}>
                         <button className={styles.filters_btn} onClick={() => handleFilterToggle(!showFilters)}>
                             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <g clipPath="url(#clip0_710_4461)">
@@ -1401,6 +1453,13 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                             </svg>
                             <p>{t('search.filters')}</p>
                         </button>
+                        {showFilters && (
+                            <ClearButton
+                                className={styles.clear_filters_control_btn}
+                                onClick={handleClearAll}
+                            />
+                        )}
+                        </div>
                     </div>
 
                     {showResults && (
