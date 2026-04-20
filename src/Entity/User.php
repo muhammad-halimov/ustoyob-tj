@@ -136,6 +136,10 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
         new Patch(
             uriTemplate: '/users/{id}',
             requirements: ['id' => '\d+'],
+            normalizationContext: [
+                'groups' => G::OPS_USERS_ME,
+                'skip_null_values' => false,
+            ],
             denormalizationContext: ['groups' => [
                 G::PHONES_WRITE,
                 G::CLIENTS,
