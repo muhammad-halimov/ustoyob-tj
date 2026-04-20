@@ -152,6 +152,20 @@
   "deletePhoneConfirm": "Вы уверены, что хотите удалить этот телефон?",
   "deleteWorkPhotoConfirm": "Вы уверены, что хотите удалить это фото из портфолио?",
   "deleteAllWorkPhotosConfirm": "Вы уверены, что хотите удалить все фото из портфолио?",
+  "reviewSorting": {
+    "sort": "Сортировка",
+    "timePeriod": "Период",
+    "withPhotos": "Только с фото",
+    "newest": "По новизне",
+    "oldest": "По старизне",
+    "ratingHigh": "Рейтинг (высокий)",
+    "ratingLow": "Рейтинг (низкий)",
+    "all": "Все время",
+    "today": "Сегодня",
+    "yesterday": "Вчера",
+    "week": "Неделя",
+    "month": "Месяц"
+  },
   "oauth": {
     "sectionTitle": "Привязанные аккаунты",
     "loading": "Загрузка...",

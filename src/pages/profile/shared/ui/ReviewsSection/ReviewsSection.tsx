@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Preview, usePreview } from '../../../../../shared/ui/Photo/Preview';
@@ -10,6 +10,7 @@ import styles from './ReviewsSection.module.scss';
 import { getAuthorAvatar } from '../../../../../utils/imageHelper';
 import { ActionsDropdown } from '../../../../../widgets/ActionsDropdown';
 import { IoWarningOutline, IoCreateOutline } from 'react-icons/io5';
+import { ReviewSortingFilter, ReviewSortByType, ReviewTimeFilterType } from '../../../../../widgets/Sorting/ReviewCriteriaFilter';
 
 // Экспорт для обратной совместимости
 export type { Review } from '../../../../../entities';
@@ -31,8 +32,7 @@ interface ReviewsSectionProps {
     onClientProfileClick: (clientId: number) => void;
     onMasterProfileClick?: (masterId: number) => void;
     onServiceClick?: (ticketId: number) => void;
-    getReviewImageIndex: (reviewIndex: number, imageIndex: number) => number;
-    onComplaintClick?: (reviewId: number, authorId: number) => void;
+    getReviewImageIndex: (reviewIndex: number, imageIndex: number) => number;    onComplaintClick?: (reviewId: number, authorId: number) => void;
     onRefresh?: () => void;
     currentUserId?: number;
     onEditClick?: (review: Review) => void;
@@ -52,13 +52,76 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
     onClientProfileClick,
     onMasterProfileClick,
     onServiceClick,
-    getReviewImageIndex,
+    getReviewImageIndex: _getReviewImageIndex,
     onComplaintClick,
     onRefresh,
     currentUserId,
     onEditClick,
 }) => {
     const { t } = useTranslation(['profile']);
+
+    // ── Internal sort / filter state ────────────────────────────────────────────
+    const [sortBy, setSortBy] = useState<ReviewSortByType>('newest');
+    const [timeFilter, setTimeFilter] = useState<ReviewTimeFilterType>('all');
+    const [withPhotosOnly, setWithPhotosOnly] = useState(false);
+
+    /** Returns midnight of the given date */
+    const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+    const sortedReviews = useMemo(() => {
+        const now = new Date();
+        const todayStart = startOfDay(now);
+        const yesterdayStart = new Date(todayStart); yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+        const weekStart = new Date(todayStart); weekStart.setDate(weekStart.getDate() - 6);
+        const monthStart = new Date(todayStart); monthStart.setDate(monthStart.getDate() - 29);
+
+        const parseReviewDate = (review: Review): Date => {
+            if (review.createdAt) return new Date(review.createdAt);
+            // Fallback: parse 'dd.mm.yyyy' display format
+            if (review.date) {
+                const parts = review.date.split('.');
+                if (parts.length === 3) return new Date(+parts[2], +parts[1] - 1, +parts[0]);
+            }
+            return new Date(0);
+        };
+
+        let filtered = [...reviews];
+
+        // Time filter
+        if (timeFilter !== 'all') {
+            filtered = filtered.filter(r => {
+                const d = parseReviewDate(r);
+                if (timeFilter === 'today') return d >= todayStart;
+                if (timeFilter === 'yesterday') return d >= yesterdayStart && d < todayStart;
+                if (timeFilter === 'week') return d >= weekStart;
+                if (timeFilter === 'month') return d >= monthStart;
+                return true;
+            });
+        }
+
+        // With photos filter
+        if (withPhotosOnly) {
+            filtered = filtered.filter(r => r.images && r.images.length > 0);
+        }
+
+        // Sort
+        filtered.sort((a, b) => {
+            if (sortBy === 'newest') return parseReviewDate(b).getTime() - parseReviewDate(a).getTime();
+            if (sortBy === 'oldest') return parseReviewDate(a).getTime() - parseReviewDate(b).getTime();
+            if (sortBy === 'rating-high') return b.rating - a.rating;
+            if (sortBy === 'rating-low') return a.rating - b.rating;
+            return 0;
+        });
+
+        return filtered;
+    }, [reviews, sortBy, timeFilter, withPhotosOnly]);
+
+    /** Compute the global image index within sortedReviews for the gallery */
+    const getSortedReviewImageIndex = (reviewIndex: number, imageIndex: number): number => {
+        let total = 0;
+        for (let i = 0; i < reviewIndex; i++) total += sortedReviews[i].images?.length || 0;
+        return total + imageIndex;
+    };
     // ЛОГИКА ОТЗЫВОВ (зависит от типа профиля):
     // Профиль СПЕЦИАЛИСТА:
     //   - reviewer (верхнее с аватаркой) = ЗАКАЗЧИК (автор отзыва)
@@ -137,12 +200,12 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
         review.ticket?.title
             ? String(review.ticket.title)
             : t('profile:serviceDefault');
-    // Собираем все изображения из отзывов для галереи
+    // Собираем все изображения из отзывов для галереи (из отсортированного/отфильтрованного списка)
     const reviewGalleryImages = useMemo(() => {
-        if (!reviews || reviews.length === 0) return [];
+        if (!sortedReviews || sortedReviews.length === 0) return [];
         
         const images: string[] = [];
-        reviews.forEach(review => {
+        sortedReviews.forEach(review => {
             if (review.images && review.images.length > 0) {
                 review.images.forEach(image => {
                     if (image.image) {
@@ -152,7 +215,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
             }
         });
         return images;
-    }, [reviews.length, API_BASE_URL]);
+    }, [sortedReviews, API_BASE_URL]);
 
     // Preview hook для отзывов
     const photoGallery = usePreview({ images: reviewGalleryImages });
@@ -176,13 +239,23 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
     return (
         <div className={styles.reviews_section}>
             <h3>{t('profile:reviewsTitle')} ({reviews.length})</h3>
+            {reviews.length > 0 && (
+                <ReviewSortingFilter
+                    sortBy={sortBy}
+                    timeFilter={timeFilter}
+                    withPhotosOnly={withPhotosOnly}
+                    onSortChange={setSortBy}
+                    onTimeFilterChange={setTimeFilter}
+                    onWithPhotosToggle={() => setWithPhotosOnly(p => !p)}
+                />
+            )}
             <div className={styles.reviews_list}>
                 {reviewsLoading ? (
                     <EmptyState isLoading />
-                ) : reviews.length > 0 ? (
+                ) : sortedReviews.length > 0 ? (
                     <>
                         <div className={styles.reviews_desktop}>
-                            {reviews.slice(0, visibleCount).map((review, reviewIndex) => (
+                            {sortedReviews.slice(0, visibleCount).map((review, reviewIndex) => (
                                 <div key={review.id} className={styles.review_item}>
                                     <div className={styles.review_header}>
                                         <div className={styles.reviewer_info}>
@@ -268,7 +341,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                 <div
                                                     key={uniqueKey}
                                                     className={styles.review_image}
-                                                    onClick={() => photoGallery.openGallery(getReviewImageIndex(reviewIndex, imageIndex))}
+                                                    onClick={() => photoGallery.openGallery(getSortedReviewImageIndex(reviewIndex, imageIndex))}
                                                 >
                                                     <img
                                                         src={`${API_BASE_URL}/uploads/reviews/${image.image}`}
@@ -304,7 +377,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                     slidesPerView={1}
                                     className={styles.reviews_slider}
                                 >
-                                    {reviews.slice(0, visibleCount).map((review, reviewIndex) => (
+                                    {sortedReviews.slice(0, visibleCount).map((review, reviewIndex) => (
                                         <SwiperSlide key={review.id}>
                                             <div className={styles.review_item}>
                                                 {/* копия контента выше */}
@@ -392,7 +465,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                             <div
                                                                 key={uniqueKey}
                                                                 className={styles.review_image}
-                                                                onClick={() => photoGallery.openGallery(getReviewImageIndex(reviewIndex, imageIndex))}
+                                                                onClick={() => photoGallery.openGallery(getSortedReviewImageIndex(reviewIndex, imageIndex))}
                                                             >
                                                                 <img
                                                                     src={`${API_BASE_URL}/uploads/reviews/${image.image}`}
@@ -423,7 +496,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                 </Swiper>
                             ) : (
                                 <>
-                                    {reviews.slice(0, visibleCount).map((review, reviewIndex) => (
+                                    {sortedReviews.slice(0, visibleCount).map((review, reviewIndex) => (
                                         <div key={review.id} className={styles.review_item}>
                                             <div className={styles.review_header}>
                                                 <div className={styles.reviewer_info}>
@@ -509,7 +582,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                         <div
                                                             key={uniqueKey}
                                                             className={styles.review_image}
-                                                            onClick={() => photoGallery.openGallery(getReviewImageIndex(reviewIndex, imageIndex))}
+                                                            onClick={() => photoGallery.openGallery(getSortedReviewImageIndex(reviewIndex, imageIndex))}
                                                         >
                                                             <img
                                                                 src={`${API_BASE_URL}/uploads/reviews/${image.image}`}
@@ -547,7 +620,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
 
             {/* Кнопки управления отзывами */}
             <div className={styles.reviews_actions}>
-                {reviews.length >= 2 && visibleCount < reviews.length && (
+                {sortedReviews.length >= 2 && visibleCount < sortedReviews.length && (
                     <button
                         className={styles.show_all_reviews_btn}
                         onClick={onShowMore}
@@ -555,7 +628,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                         {t('profile:showAllReviews')}
                     </button>
                 )}
-                {visibleCount > 2 && visibleCount >= reviews.length && (
+                {visibleCount > 2 && visibleCount >= sortedReviews.length && (
                     <button
                         className={styles.show_all_reviews_btn}
                         onClick={onShowLess}
@@ -563,7 +636,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                         {t('profile:hideReviews')}
                     </button>
                 )}
-                {reviews.length >= 2 && visibleCount <= 2 && (
+                {sortedReviews.length >= 2 && visibleCount <= 2 && (
                     <div className={styles.swipe_hint}>
                         {t('profile:swipeHint')}
                     </div>

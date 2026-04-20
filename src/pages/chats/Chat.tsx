@@ -689,8 +689,9 @@ function Chat() {
                 })
             });
             if (response.ok) {
-                for (const file of newFiles) {
-                    await uploadImageToMessage(messageId, file);
+                if (newFiles.length > 0) {
+                    const token2 = getAuthToken();
+                    if (token2) await uploadPhotos('chat-messages', messageId, newFiles, token2);
                 }
                 return true;
             }
@@ -703,10 +704,11 @@ function Chat() {
 
     // Загрузка файлов к конкретному сообщению
     const uploadFilesToMessage = useCallback(async (messageId: number, files: File[]): Promise<void> => {
-        for (const file of files) {
-            await uploadImageToMessage(messageId, file);
-        }
-    }, [uploadImageToMessage]);
+        if (files.length === 0) return;
+        const token = getAuthToken();
+        if (!token) return;
+        await uploadPhotos('chat-messages', messageId, files, token);
+    }, []);
 
     const sendMessage = useCallback(async () => {
         const isEditMode = !!editingMessage;
@@ -739,10 +741,11 @@ function Chat() {
             try {
                 const success = await editMessageOnServer(editingMessage.id, newMessage, editingPhotoItems);
                 if (success) {
-                    // SSE updated-событие обновит сообщение, нам нужно только сбросить UI
                     setEditingMessage(null);
                     setEditingPhotoItems([]);
                     setNewMessage("");
+                    // Обновляем сообщение принудительно (SSE может не успеть с фото)
+                    await fetchChatMessages(selectedChat);
                 }
             } finally {
                 setIsUploading(false);
@@ -1222,7 +1225,7 @@ function Chat() {
                 />
 
                 <div className={styles.chatList}>
-                    {isChatListRefreshing ? (
+                    {isChatListRefreshing && filteredChats.length === 0 ? (
                         <EmptyState isLoading />
                     ) : filteredChats.length === 0 ? (
                         <EmptyState

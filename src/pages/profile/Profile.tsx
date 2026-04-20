@@ -134,6 +134,11 @@ function Profile() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const workExampleInputRef = useRef<HTMLInputElement>(null);
     const specialtyInputRef = useRef<HTMLSelectElement>(null);
+    // Refs that mirror server-side array state to avoid redundant GET requests before PATCH
+    // and prevent read-modify-write race conditions on rapid mutations.
+    const rawEducationRef = useRef<EducationApiData[]>([]);
+    const rawPhonesRef = useRef<{ id: number; phone: string; main: boolean }[]>([]);
+    const rawAddressesRef = useRef<UserAddressApiData[]>([]);
     const [editingSocialNetwork, setEditingSocialNetwork] = useState<string | null>(null);
     const [socialNetworks, setSocialNetworks] = useState<LocalSocialNetwork[]>([]);
     const [socialNetworkEditValue, setSocialNetworkEditValue] = useState('');
@@ -908,25 +913,16 @@ function Profile() {
                 return;
             }
 
-            const userResponse = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
+            // Use the cached server-state ref — avoids a redundant GET and race conditions
+            const currentAddresses = rawAddressesRef.current;
 
-            if (!userResponse.ok) {
-                throw new Error('Failed to fetch current user data');
-            }
-
-            const userData: UserApiData = await userResponse.json();
-            const currentAddresses = userData.addresses || [];
-            
             // Фильтруем адрес с указанным ID и преобразуем в IRI формат
             const updatedAddresses = currentAddresses
                 .filter((addr: UserAddressApiData) => addr.id?.toString() !== addressId)
                 .map((addr: UserAddressApiData) => convertAddressToIRI(addr));
+
+            // Update ref synchronously before PATCH
+            rawAddressesRef.current = currentAddresses.filter((addr: UserAddressApiData) => addr.id?.toString() !== addressId);
 
             // Отправляем на сервер
             const updateResponse = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
@@ -950,6 +946,8 @@ function Profile() {
                     };
                 });
             } else {
+                // Roll back ref on failure
+                rawAddressesRef.current = currentAddresses;
                 const errorText = await updateResponse.text();
                 console.error('Error deleting address:', errorText);
                 throw new Error(t('profile:addrDeleteError'));
@@ -1083,17 +1081,14 @@ function Profile() {
                 return;
             }
 
-            // GET actual server-side phones to avoid stale state
-            const getRes = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
-                headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
-            });
-            if (!getRes.ok) throw new Error('Failed to fetch current phones');
-            const userData = await getRes.json();
-            const serverPhones: { id: number; phone: string; main: boolean }[] = userData.phones || [];
-
+            // Use the cached server-state ref — avoids a redundant GET and race conditions
+            const serverPhones = rawPhonesRef.current;
             const phonesPayload = serverPhones
                 .filter(p => String(p.id) !== phoneId)
                 .map(p => ({ id: p.id, phone: p.phone, main: p.main }));
+
+            // Update ref synchronously before PATCH
+            rawPhonesRef.current = serverPhones.filter(p => String(p.id) !== phoneId);
 
             const response = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
                 method: 'PATCH',
@@ -1108,6 +1103,8 @@ function Profile() {
             if (response.ok) {
                 await fetchUserData(true);
             } else {
+                // Roll back ref on failure
+                rawPhonesRef.current = serverPhones;
                 const errorText = await response.text();
                 console.error('Error deleting phone:', errorText);
                 throw new Error(t('profile:phoneDeleteError'));
@@ -1262,6 +1259,11 @@ function Profile() {
 
             const userData: UserApiData = await response.json();
             console.log('User data received:', userData);
+
+            // Sync server-state refs so subsequent mutations don't need a redundant GET
+            rawEducationRef.current = userData.education || [];
+            rawPhonesRef.current = (userData.phones as { id: number; phone: string; main: boolean }[]) || [];
+            rawAddressesRef.current = (userData.addresses as UserAddressApiData[]) || [];
 
             // Обновляем текущего пользователя из ответа (только для приватного профиля)
             if (!readOnly) {
@@ -1714,7 +1716,8 @@ function Profile() {
                                 smartNameTranslator('Заказчик', i18n.language as 'ru' | 'tj' | 'eng'),
                             date: review.createdAt ?
                                 new Date(review.createdAt).toLocaleDateString('ru-RU') :
-                                getFormattedDate()
+                                getFormattedDate(),
+                            createdAt: review.createdAt || undefined
                         };
 
                         console.log('Transformed review:', transformedReview);
@@ -2603,20 +2606,8 @@ function Profile() {
             return;
         }
 
-        const userResponse = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-        });
-
-        if (!userResponse.ok) {
-            throw new Error('Failed to fetch user data');
-        }
-
-        const userData: UserApiData = await userResponse.json();
-        const currentEducation = userData.education || [];
+        // Use the cached server-state ref — no extra GET needed
+        const currentEducation = rawEducationRef.current;
         
         // Нормализуем ВСЕ элементы массива образования
         const normalizedEducation = normalizeEducationArray(currentEducation);
@@ -2656,6 +2647,9 @@ function Profile() {
         }
 
         console.log('Final normalized education array to send:', normalizedEducation);
+
+        // Update the ref synchronously before PATCH so concurrent ops see the new state
+        rawEducationRef.current = normalizedEducation;
 
         const updateResponse = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
             method: 'PATCH',
@@ -2702,20 +2696,9 @@ function Profile() {
                 return;
             }
 
-            const userResponse = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (!userResponse.ok) {
-                throw new Error('Failed to fetch user data');
-            }
-
-            const userData: UserApiData = await userResponse.json();
-            const currentEducation = userData.education || [];
+            // Use the cached server-state ref — avoids a redundant GET and race conditions
+            // when multiple deletes fire before the previous PATCH response arrives.
+            const currentEducation = rawEducationRef.current;
 
             // Нормализуем ВСЕ элементы массива образования перед фильтрацией
             const normalizedEducation = normalizeEducationArray(currentEducation);
@@ -2724,6 +2707,10 @@ function Profile() {
             const updatedEducationArray = normalizedEducation.filter(edu =>
                 edu.id?.toString() !== educationId
             );
+
+            // Update the ref synchronously so that any concurrent delete/reorder
+            // immediately sees the post-deletion state (JS is single-threaded).
+            rawEducationRef.current = updatedEducationArray;
 
             console.log(`Deleting education ${educationId}. Before: ${normalizedEducation.length}, after: ${updatedEducationArray.length}`);
             console.log('Sending normalized education array:', updatedEducationArray);
@@ -2743,6 +2730,8 @@ function Profile() {
                 console.log('Education deleted successfully on server');
                 // Не обновляем profileData здесь, т.к Это уже сделано оптимистически
             } else {
+                // Roll back the ref on failure
+                rawEducationRef.current = currentEducation;
                 const errorText = await updateResponse.text();
                 console.error('Failed to delete education:', errorText);
                 throw new Error('Failed to delete education');
@@ -2819,16 +2808,12 @@ function Profile() {
         const token = getAuthToken();
         if (!token) return;
         try {
-            const userResponse = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
-                headers: { 'Authorization': `Bearer ${token}` },
-            });
-            if (!userResponse.ok) return;
-            const userData: UserApiData = await userResponse.json();
-            const serverEducation: EducationApiData[] = userData.education || [];
+            const serverEducation: EducationApiData[] = rawEducationRef.current;
             const reordered = newEducation
                 .map(localEdu => serverEducation.find((se: EducationApiData) => se.id?.toString() === localEdu.id))
                 .filter(Boolean) as EducationApiData[];
             const normalized = normalizeEducationArray(reordered);
+            rawEducationRef.current = normalized;
             await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
                 method: 'PATCH',
                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/merge-patch+json' },
@@ -2845,16 +2830,14 @@ function Profile() {
         const token = getAuthToken();
         if (!token) return;
         try {
-            const userResponse = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
-                headers: { 'Authorization': `Bearer ${token}` },
-            });
-            if (!userResponse.ok) return;
-            const userData: UserApiData = await userResponse.json();
-            const serverAddresses: UserAddressApiData[] = userData.addresses || [];
+            const serverAddresses: UserAddressApiData[] = rawAddressesRef.current;
             const reordered = newAddresses
                 .map(localAddr => serverAddresses.find((sa: UserAddressApiData) => sa.id?.toString() === localAddr.id))
                 .filter(Boolean)
                 .map(addr => convertAddressToIRI(addr as UserAddressApiData));
+            rawAddressesRef.current = newAddresses
+                .map(localAddr => serverAddresses.find((sa: UserAddressApiData) => sa.id?.toString() === localAddr.id))
+                .filter((a): a is UserAddressApiData => !!a);
             await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
                 method: 'PATCH',
                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/merge-patch+json' },

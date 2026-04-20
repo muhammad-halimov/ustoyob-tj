@@ -40,6 +40,7 @@ export interface Review {
     vacation?: string;
     worker?: string;
     date?: string;
+    createdAt?: string;
 }
 
 export interface ReviewData {

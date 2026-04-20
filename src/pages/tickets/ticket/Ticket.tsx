@@ -1452,7 +1452,7 @@ export function Ticket() {
             </div>
             
             {/* Секция отзывов - независимая от основного контейнера */}
-            {reviews.length > 0 && (
+            {(reviews.length > 0 || reviewsLoading || !isLoading) && (
                 <div className={styles.ticketReviewsWrapper}>
                     <ReviewsSection
                         reviews={reviews}
@@ -1470,6 +1470,7 @@ export function Ticket() {
                         onServiceClick={(ticketId) => navigate(ROUTES.TICKET_BY_ID(ticketId))}
                         getReviewImageIndex={getReviewImageIndex}
                         currentUserId={getUserData()?.id}
+                        onRefresh={fetchReviews}
                         onEditClick={(review) => { setEditingReview(review); setShowEditReviewModal(true); }}
                         onComplaintClick={(reviewId, authorId) => {
                             setReviewComplaintReviewId(reviewId);

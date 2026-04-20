@@ -152,6 +152,20 @@
   "deletePhoneConfirm": "Are you sure you want to delete this phone?",
   "deleteWorkPhotoConfirm": "Are you sure you want to delete this photo from the portfolio?",
   "deleteAllWorkPhotosConfirm": "Are you sure you want to delete all photos from the portfolio?",
+  "reviewSorting": {
+    "sort": "Sort",
+    "timePeriod": "Period",
+    "withPhotos": "With photos only",
+    "newest": "Newest first",
+    "oldest": "Oldest first",
+    "ratingHigh": "Rating (highest)",
+    "ratingLow": "Rating (lowest)",
+    "all": "All time",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "week": "Week",
+    "month": "Month"
+  },
   "oauth": {
     "sectionTitle": "Linked accounts",
     "loading": "Loading...",
