@@ -1,6 +1,6 @@
 import React from 'react';
 import { useDragReorder, DragHandle } from '../../../../widgets/DragReorder';
-import styles from './PhotoGrid.module.scss';
+import styles from './Grid.module.scss';
 
 export type PhotoItem =
     | { type: 'existing'; id: number; image: string }
@@ -17,7 +17,7 @@ interface PhotoGridProps {
     disabled?: boolean;
 }
 
-const PhotoGrid: React.FC<PhotoGridProps> = ({
+const Grid: React.FC<PhotoGridProps> = ({
     photos,
     onChange,
     getImageUrl,
@@ -103,4 +103,4 @@ const PhotoGrid: React.FC<PhotoGridProps> = ({
     );
 };
 
-export default PhotoGrid;
+export default Grid;

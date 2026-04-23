@@ -12,7 +12,7 @@ import { useLanguageChange } from '../../../hooks';
 import { getStorageItem } from '../../../utils/storageHelper.ts';
 import { PageLoader } from '../../../widgets/PageLoader';
 import { Toggle } from '../../../shared/ui/Button/Toggle/Toggle';
-import PhotoGrid from '../../../shared/ui/Photo/PhotoGrid';
+import Grid from '../../../shared/ui/Photo/Grid';
 import { uploadPhotos } from '../../../utils/imageHelper';
 import { EditActions } from '../../profile/shared/ui/EditActions/EditActions';
 
@@ -683,7 +683,7 @@ const CreateEdit = () => {
                 {/* Фотографии */}
                 <div className={styles.section}>
                     <h2>{t('createEdit:attachPhotos')}</h2>
-                    <PhotoGrid
+                    <Grid
                         photos={photos}
                         onChange={setPhotos}
                         getImageUrl={getImageUrl}

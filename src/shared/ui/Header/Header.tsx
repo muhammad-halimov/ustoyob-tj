@@ -1,17 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import styles from "./Header.module.scss";
-import { ROUTES } from '../../app/routers/routes';
+import { ROUTES } from '../../../app/routers/routes.ts';
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import {getAuthToken, fetchCurrentUser, invalidateCurrentUserCache} from "../../utils/auth";
+import {getAuthToken, fetchCurrentUser, invalidateCurrentUserCache} from "../../../utils/auth.ts";
 import { useTranslation } from 'react-i18next';
-import { changeLanguage, Language } from '../../locales/i18n.ts';
-import { useLanguageChange } from '../../hooks';
-import { ThemeToggle } from '../ThemeToggle';
-import { getCities } from '../../utils/dataCache.ts';
-import Status from '../../shared/ui/Modal/Status';
-import { PageLoader } from '../PageLoader';
-import { EmptyState } from '../EmptyState';
-import { Back } from '../../shared/ui/Button/Back/Back.tsx';
+import { changeLanguage, Language } from '../../../locales/i18n.ts';
+import { useLanguageChange } from '../../../hooks';
+import { ThemeToggle } from '../../../widgets/ThemeToggle';
+import { getCities } from '../../../utils/dataCache.ts';
+import Status from '../Modal/Status';
+import { PageLoader } from '../../../widgets/PageLoader';
+import { EmptyState } from '../../../widgets/EmptyState';
+import { Back } from '../Button/Back/Back.tsx';
+import { ShowMore } from '../Button/ShowMore/ShowMore.tsx';
+import { Clear } from '../Button/Clear/Clear.tsx';
+import { getPageSize } from '../../../utils/pageSize.ts';
 
 interface HeaderProps {
     onOpenAuthModal?: () => void;
@@ -72,6 +75,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
     const [isCitiesLoading, setIsCitiesLoading] = useState(false);
     const [citiesError, setCitiesError] = useState(false);
     const [showCityModal, setShowCityModal] = useState(false);
+    const [showAllCities, setShowAllCities] = useState(false);
     const [showLangDropdown, setShowLangDropdown] = useState(false);
     const [showConfirmationBanner, setShowConfirmationBanner] = useState<boolean>(() => {
         const token = getAuthToken();
@@ -428,7 +432,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                             </svg>
                         </Link>
                         {location.pathname !== '/' && <Back className={styles.header_back_desktop} />}
-                        <div className={styles.locate} onClick={() => setShowCityModal(true)}>
+                        <div className={styles.locate} onClick={() => { setShowCityModal(true); setShowAllCities(false); }}>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <g clipPath="url(#clip0_324_1115)">
                                 <g clipPath="url(#clip1_324_1115)">
@@ -736,11 +740,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                     <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
                         <div className={styles.modalHeader}>
                             <h2>{t('header:selectCity')}</h2>
-                            <button className={styles.closeButton} onClick={() => setShowCityModal(false)}>
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                                </svg>
-                            </button>
+                            <Clear onClick={() => setShowCityModal(false)} />
                         </div>
                         <div className={styles.cityList}>
                             {isCitiesLoading ? (
@@ -751,15 +751,28 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                                     onRefresh={fetchCities}
                                 />
                             ) : (
-                                cities.map(city => (
-                                    <div
-                                        key={city.id}
-                                        className={`${styles.cityItem} ${selectedCity === city.title ? styles.selected : ''}`}
-                                        onClick={() => handleCitySelect(city.title, city.id)}
-                                    >
-                                        {t(`cities:${city.title}`, { defaultValue: city.title })}
-                                    </div>
-                                ))
+                                <>
+                                    {(showAllCities ? cities : cities.slice(0, getPageSize())).map(city => (
+                                        <div
+                                            key={city.id}
+                                            className={`${styles.cityItem} ${selectedCity === city.title ? styles.selected : ''}`}
+                                            onClick={() => handleCitySelect(city.title, city.id)}
+                                        >
+                                            {t(`cities:${city.title}`, { defaultValue: city.title })}
+                                        </div>
+                                    ))}
+                                    {cities.length > getPageSize() && (
+                                        <ShowMore
+                                            expanded={showAllCities}
+                                            canLoadMore={!showAllCities}
+                                            onShowMore={() => setShowAllCities(true)}
+                                            onShowLess={() => setShowAllCities(false)}
+                                            onClear={() => setShowAllCities(false)}
+                                            showMoreText={t('common:app.showMore')}
+                                            showLessText={t('common:app.showLess')}
+                                        />
+                                    )}
+                                </>
                             )}
                         </div>
                     </div>

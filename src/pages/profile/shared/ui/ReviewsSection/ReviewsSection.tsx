@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ShowMore } from '../../../../../shared/ui/Button/ShowMore/ShowMore';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Preview, usePreview } from '../../../../../shared/ui/Photo/Preview';
 import { ReadMore } from '../../../../../widgets/ReadMore';
@@ -22,8 +23,8 @@ interface ReviewsSectionProps {
 
     API_BASE_URL: string;
     userRole?: 'master' | 'client'; // Добавляем тип профиля
-    onShowMore: () => void;
-    onShowLess: () => void;
+    onShowMore?: () => void;
+    onShowLess?: () => void;
     /** Max characters before "Читать дальше" button appears. Default: 150 */
     maxLength?: number;
     getReviewerAvatarUrl?: (review: Review) => string;
@@ -58,7 +59,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
     currentUserId,
     onEditClick,
 }) => {
-    const { t } = useTranslation(['profile']);
+    const { t } = useTranslation(['profile', 'common']);
 
     // ── Internal sort / filter state ────────────────────────────────────────────
     const [sortBy, setSortBy] = useState<ReviewSortByType>('newest');
@@ -620,26 +621,16 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
 
             {/* Кнопки управления отзывами */}
             <div className={styles.reviews_actions}>
-                {sortedReviews.length >= 2 && visibleCount < sortedReviews.length && (
-                    <button
-                        className={styles.show_all_reviews_btn}
-                        onClick={onShowMore}
-                    >
-                        {t('profile:showAllReviews')}
-                    </button>
-                )}
-                {visibleCount > 2 && visibleCount >= sortedReviews.length && (
-                    <button
-                        className={styles.show_all_reviews_btn}
-                        onClick={onShowLess}
-                    >
-                        {t('profile:hideReviews')}
-                    </button>
-                )}
-                {sortedReviews.length >= 2 && visibleCount <= 2 && (
-                    <div className={styles.swipe_hint}>
-                        {t('profile:swipeHint')}
-                    </div>
+                {sortedReviews.length >= 2 && onShowMore && onShowLess && (
+                    <ShowMore
+                        expanded={visibleCount > 2}
+                        canLoadMore={visibleCount < sortedReviews.length}
+                        onShowMore={onShowMore}
+                        onShowLess={onShowLess}
+                        onClear={onShowLess}
+                        showMoreText={t('common:app.showMore')}
+                        showLessText={t('common:app.showLess')}
+                    />
                 )}
             </div>
 

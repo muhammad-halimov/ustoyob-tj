@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef } from "react";
 import { useTranslation } from 'react-i18next';
 import { getAuthToken, logout } from '../../../../../utils/auth.ts';
-import AuthModal from "../../../../../features/auth/AuthModal.tsx";
-import styles from './EnterBtn.module.scss';
+import Auth from "../../../Modal/Auth/Auth.tsx";
+import styles from './Enter.module.scss';
 
 type EnterBtnProps = {
     onClick?: () => void;
@@ -11,7 +11,7 @@ type EnterBtnProps = {
     onLoginSuccess?: () => void;
 };
 
-export function EnterBtn({ onClick, isModalOpen, onModalClose, onLoginSuccess }: EnterBtnProps) {
+export function Enter({ onClick, isModalOpen, onModalClose, onLoginSuccess }: EnterBtnProps) {
     const [internalModalOpen, setInternalModalOpen] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [userName, setUserName] = useState<string>('');
@@ -138,7 +138,7 @@ export function EnterBtn({ onClick, isModalOpen, onModalClose, onLoginSuccess }:
             </button>
 
             {!isLoggedIn && (
-                <AuthModal
+                <Auth
                     isOpen={modalOpen}
                     onClose={closeModal}
                     onLoginSuccess={handleLoginSuccess}

@@ -1,4 +1,4 @@
-@use '../../app/styles/variables' as vars;
+@use '../../../../app/styles/variables' as vars;
 @use 'sass:map';
 
 .modalOverlay {
@@ -35,8 +35,8 @@
   font-size: 24px;
   cursor: pointer;
   color: map.get(vars.$colors, color-icons);
-  min-width: 44px;
-  min-height: 44px;
+  min-width: 30px;
+  min-height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -1,11 +1,11 @@
-import styles from './ClearButton.module.scss';
+import styles from './Clear.module.scss';
 
 interface ClearButtonProps {
     className?: string;
     onClick: () => void;
 }
 
-export function ClearButton({ className, onClick }: ClearButtonProps) {
+export function Clear({ className, onClick }: ClearButtonProps) {
     return (
         <button
             type="button"

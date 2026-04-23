@@ -1,6 +1,19 @@
 @use '../../../../app/styles/variables' as vars;
 @use 'sass:map';
 
+.wrapper {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 16px 0;
+}
+
+.row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .btn {
   font-family: vars.$font-family;
   background-color: map.get(vars.$colors, background-btn);
@@ -19,15 +32,53 @@
   border-radius: 10px;
   cursor: pointer;
   user-select: none;
+  position: relative;
 
   &:hover {
     background: map.get(vars.$colors, actual-blue);
   }
 
-  &:active {
-    background: map.get(vars.$colors, actual-blue);
-    transform: scale(0.97);
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+    transition: none;
   }
+}
+
+.btnInner {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btnText {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btnLoader {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .icon {

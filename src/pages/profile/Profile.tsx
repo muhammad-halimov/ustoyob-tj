@@ -46,9 +46,11 @@ import {LinkedAccountsSection} from './shared/ui/LinkedAccountsSection';
 import type {LinkedProvider} from './shared/ui/LinkedAccountsSection';
 import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 import Status from '../../shared/ui/Modal/Status';
-import FeedbackModal from '../../shared/ui/Modal/Feedback';
-import AuthModal from '../../features/auth/AuthModal';
+import Feedback from '../../shared/ui/Modal/Feedback';
+import Auth from '../../shared/ui/Modal/Auth/Auth.tsx';
 import { getAuthorAvatar } from '../../utils/imageHelper.ts';
+import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore.tsx';
+import { getPageSize } from '../../utils/pageSize.ts';
 
 // Интерфейс для социальных сетей с API
 interface LocalAvailableSocialNetwork {
@@ -78,7 +80,7 @@ interface LocalPhone {
 function Profile() {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>(); // Получаем id из URL
-    const { t, i18n } = useTranslation(['profile', 'components']);
+    const { t, i18n } = useTranslation(['profile', 'components', 'common']);
     const { theme } = useTheme();
     
     // Определяем, это публичный профиль или приватный
@@ -108,8 +110,15 @@ function Profile() {
     });
     const [reviews, setReviews] = useState<ReviewType[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(false);
+    const [reviewsPage, setReviewsPage] = useState(1);
+    const [reviewsTotalPages, setReviewsTotalPages] = useState(1);
+    const appendReviewsRef = useRef(false);
+    const skipReviewsFetchRef = useRef(false);
+    const [servicesPage, setServicesPage] = useState(1);
+    const [servicesTotalPages, setServicesTotalPages] = useState(1);
     const [servicesLoading, setServicesLoading] = useState(false);
-    const [visibleCount, setVisibleCount] = useState(2);
+    const appendServicesRef = useRef(false);
+    const skipServicesFetchRef = useRef(false);
     const [showAllWorkExamples, setShowAllWorkExamples] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     const [showReviewModal, setShowReviewModal] = useState(false);
@@ -208,7 +217,7 @@ function Profile() {
 
     const handleLinkProvider = (provider: string) => {
         if (provider === 'telegram') {
-            // Показываем всплывающий виджет Telegram (как в AuthModal)
+            // Показываем всплывающий виджет Telegram (как в Auth)
             sessionStorage.setItem('oauthMode', 'link');
             // На мобильных нативное приложение открывает callback в новой вкладке,
             // где sessionStorage пустой — дублируем в localStorage
@@ -500,6 +509,70 @@ function Profile() {
             fetchOccupationsList(); // Загружаем специальности сразу при загрузке профиля
         }
     }, [profileData?.id, userRole]);
+
+    // Перезагружаем отзывы при смене страницы
+    useEffect(() => {
+        if (skipReviewsFetchRef.current) {
+            skipReviewsFetchRef.current = false;
+            return;
+        }
+        if (profileData?.id) {
+            fetchReviews();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [reviewsPage]);
+
+    // Перезагружаем услуги при смене страницы
+    useEffect(() => {
+        if (skipServicesFetchRef.current) {
+            skipServicesFetchRef.current = false;
+            return;
+        }
+        if (profileData?.id) {
+            fetchServices();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [servicesPage]);
+
+    const handleLoadMoreReviews = () => {
+        appendReviewsRef.current = true;
+        setReviewsPage(p => p + 1);
+    };
+
+    const handleLoadLessReviews = () => {
+        const pageSize = getPageSize();
+        const prevPage = reviewsPage - 1;
+        skipReviewsFetchRef.current = true;
+        setReviewsPage(prevPage);
+        setReviews(prev => prev.slice(0, prevPage * pageSize));
+    };
+
+    const handleClearReviews = () => {
+        const pageSize = getPageSize();
+        skipReviewsFetchRef.current = true;
+        setReviewsPage(1);
+        setReviews(prev => prev.slice(0, pageSize));
+    };
+
+    const handleLoadMoreServices = () => {
+        appendServicesRef.current = true;
+        setServicesPage(p => p + 1);
+    };
+
+    const handleLoadLessServices = () => {
+        const pageSize = getPageSize();
+        const prevPage = servicesPage - 1;
+        skipServicesFetchRef.current = true;
+        setServicesPage(prevPage);
+        setProfileData(prev => prev ? { ...prev, services: (prev.services || []).slice(0, prevPage * pageSize) } : null);
+    };
+
+    const handleClearServices = () => {
+        const pageSize = getPageSize();
+        skipServicesFetchRef.current = true;
+        setServicesPage(1);
+        setProfileData(prev => prev ? { ...prev, services: (prev.services || []).slice(0, pageSize) } : null);
+    };
 
     useEffect(() => {
         console.log('editingField useEffect triggered:', editingField);
@@ -1195,14 +1268,6 @@ function Profile() {
         }
     };
 
-    const handleShowMore = () => {
-        setVisibleCount(reviews.length);
-    };
-
-    const handleShowLess = () => {
-        setVisibleCount(2);
-    };
-
     const checkImageExists = (url: string): Promise<boolean> => {
         return new Promise((resolve) => {
             const img = new Image();
@@ -1574,9 +1639,11 @@ function Profile() {
             const endpoint = userRole === 'client' 
                 ? `/api/reviews?exists[ticket]=true&exists[master]=true&exists[client]=true&type=client&client=${profileData.id}`
                 : `/api/reviews?exists[ticket]=true&exists[master]=true&exists[client]=true&type=master&master=${profileData.id}`;
-            console.log(`Trying endpoint: ${endpoint}`);
+            const pageSize = getPageSize();
+            const paginatedEndpoint = `${endpoint}&page=${reviewsPage}&itemsPerPage=${pageSize}`;
+            console.log(`Trying endpoint: ${paginatedEndpoint}`);
 
-            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+            const response = await fetch(`${API_BASE_URL}${paginatedEndpoint}`, {
                 method: 'GET',
                 headers: {
                     ...(token && { 'Authorization': `Bearer ${token}` }),
@@ -1620,6 +1687,10 @@ function Profile() {
                 const apiResponse = reviewsData as ApiResponse<ReviewApiData>;
                 if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
                     reviewsArray = apiResponse['hydra:member'];
+                    if (apiResponse['hydra:totalItems'] !== undefined) {
+                        const pageSize = getPageSize();
+                        setReviewsTotalPages(Math.max(1, Math.ceil((apiResponse['hydra:totalItems'] as number) / pageSize)));
+                    }
                 } else if ((reviewsData as ReviewApiData).id) {
                     reviewsArray = [reviewsData as ReviewApiData];
                 }
@@ -1726,7 +1797,12 @@ function Profile() {
                 );
 
                 console.log('All transformed reviews:', transformedReviews);
-                setReviews(transformedReviews);
+                if (appendReviewsRef.current) {
+                    appendReviewsRef.current = false;
+                    setReviews(prev => [...prev, ...transformedReviews]);
+                } else {
+                    setReviews(transformedReviews);
+                }
 
                 // Для специалистов фильтруем по user.id (получатели отзывов)
                 // Для заказчиков фильтруем по reviewer.id (оставляющие отзывы) 
@@ -1784,9 +1860,10 @@ function Profile() {
             }
 
             console.log(`Fetching services for ${userRole} ID:`, profileData.id);
+            const pageSize = getPageSize();
             const endpoint = userRole === 'client' 
-                ? `/api/tickets?locale=${getStorageItem('i18nextLng') || 'ru'}&service=false&active=true&exists[master]=false&exists[author]=true&author=${profileData.id}`
-                : `/api/tickets?locale=${getStorageItem('i18nextLng') || 'ru'}&service=true&active=true&exists[author]=false&exists[master]=true&master=${profileData.id}`;
+                ? `/api/tickets?locale=${getStorageItem('i18nextLng') || 'ru'}&service=false&active=true&exists[master]=false&exists[author]=true&author=${profileData.id}&page=${servicesPage}&itemsPerPage=${pageSize}`
+                : `/api/tickets?locale=${getStorageItem('i18nextLng') || 'ru'}&service=true&active=true&exists[author]=false&exists[master]=true&master=${profileData.id}&page=${servicesPage}&itemsPerPage=${pageSize}`;
             console.log(`Trying endpoint: ${endpoint}`);
 
             const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -1839,6 +1916,9 @@ function Profile() {
                 const apiResponse = servicesData as ApiResponse<any>;
                 if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
                     servicesArray = apiResponse['hydra:member'];
+                    if (typeof apiResponse['hydra:totalItems'] === 'number') {
+                        setServicesTotalPages(Math.max(1, Math.ceil(apiResponse['hydra:totalItems'] / pageSize)));
+                    }
                 }
             }
 
@@ -1873,10 +1953,18 @@ function Profile() {
 
             console.log('Transformed services:', transformedServices);
             
-            setProfileData(prev => prev ? {
-                ...prev,
-                services: transformedServices
-            } : null);
+            if (appendServicesRef.current) {
+                appendServicesRef.current = false;
+                setProfileData(prev => prev ? {
+                    ...prev,
+                    services: [...(prev.services || []), ...transformedServices]
+                } : null);
+            } else {
+                setProfileData(prev => prev ? {
+                    ...prev,
+                    services: transformedServices
+                } : null);
+            }
 
         } catch (error) {
             console.error('Error fetching services:', error);
@@ -3396,10 +3484,10 @@ function Profile() {
         return <PageLoader text={t('profile:loading')} />;
     }
 
-    // Если это приватный профиль и нет currentUser - показать AuthModal
+    // Если это приватный профиль и нет currentUser - показать Auth
     if (!readOnly && !currentUser) {
         return (
-            <AuthModal
+            <Auth
                 isOpen={true}
                 onClose={() => navigate(ROUTES.HOME)}
                 onLoginSuccess={() => window.location.reload()}
@@ -3583,6 +3671,16 @@ function Profile() {
                         onReorder={!readOnly ? handleReorderServices : undefined}
                         onRefresh={fetchServices}
                     />
+                    <ShowMore
+                        expanded={servicesPage > 1}
+                        canLoadMore={servicesPage < servicesTotalPages}
+                        onShowMore={handleLoadMoreServices}
+                        onShowLess={handleLoadLessServices}
+                        onClear={handleClearServices}
+                        showMoreText={t('common:app.showMore')}
+                        showLessText={t('common:app.showLess')}
+                        loading={servicesLoading}
+                    />
 
                     {/* WorkAreasSection Component */}
                     <WorkAreasSection
@@ -3609,11 +3707,9 @@ function Profile() {
                 <ReviewsSection
                     reviews={reviews}
                     reviewsLoading={reviewsLoading}
-                    visibleCount={visibleCount}
+                    visibleCount={reviews.length}
                     API_BASE_URL={API_BASE_URL}
                     userRole={userRole || 'master'}
-                    onShowMore={handleShowMore}
-                    onShowLess={handleShowLess}
                     getClientName={getClientName}
                     getMasterName={getMasterName}
                     onClientProfileClick={handleClientProfileClick}
@@ -3628,6 +3724,16 @@ function Profile() {
                         setComplaintReviewAuthorId(authorId);
                         setIsReviewComplaintOpen(true);
                     }}
+                />
+                <ShowMore
+                    expanded={reviewsPage > 1}
+                    canLoadMore={reviewsPage < reviewsTotalPages}
+                    onShowMore={handleLoadMoreReviews}
+                    onShowLess={handleLoadLessReviews}
+                    onClear={handleClearReviews}
+                    showMoreText={t('common:app.showMore')}
+                    showLessText={t('common:app.showLess')}
+                    loading={reviewsLoading}
                 />
             </div>
 
@@ -3656,7 +3762,7 @@ function Profile() {
                 </div>
             )}
 
-            <FeedbackModal
+            <Feedback
                 mode="review"
                 isOpen={showReviewModal}
                 onClose={handleCloseReviewModal}
@@ -3668,7 +3774,7 @@ function Profile() {
                 showServiceSelector={true}
             />
 
-            <FeedbackModal
+            <Feedback
                 mode="complaint"
                 isOpen={showComplaintModal}
                 onClose={handleCloseComplaintModal}
@@ -3679,7 +3785,7 @@ function Profile() {
                 showUserComplaintToggle
             />
 
-            <FeedbackModal
+            <Feedback
                 mode="complaint"
                 isOpen={isReviewComplaintOpen}
                 onClose={() => setIsReviewComplaintOpen(false)}
@@ -3691,7 +3797,7 @@ function Profile() {
             />
 
             {editingReview && (
-                <FeedbackModal
+                <Feedback
                     mode="review"
                     isOpen={showEditReviewModal}
                     onClose={() => { setShowEditReviewModal(false); setEditingReview(null); }}
@@ -3705,7 +3811,7 @@ function Profile() {
                 />
             )}
 
-            <AuthModal
+            <Auth
                 isOpen={showAuthModal}
                 onClose={() => setShowAuthModal(false)}
                 onLoginSuccess={handleAuthSuccess}

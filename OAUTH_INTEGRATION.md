@@ -10,7 +10,7 @@
 
 ### Файлы компонентов
 
-1. **`src/features/auth/AuthModal.tsx`** — модалка с кнопками социальной авторизации
+1. **`src/features/auth/Auth.tsx`** — модалка с кнопками социальной авторизации
    - Функция `handleOAuthStart(provider)` — инициирует OAuth поток
    - Поддерживает: `google`, `facebook`, `instagram`, `telegram`
    - Сохраняет роль и специальность в `sessionStorage` перед редиректом
@@ -42,7 +42,7 @@ GET /auth/instagram/callback    → OAuthCallbackPage → POST /api/auth/instagr
 
 ## Поток авторизации
 
-### 1. Инициирование (в AuthModal)
+### 1. Инициирование (в Auth)
 
 ```typescript
 const handleOAuthStart = (provider: 'google' | 'facebook' | 'instagram') => {
@@ -259,7 +259,7 @@ selectedCity           // Выбранный город
 
 ## Стили
 
-`src/features/auth/AuthModal.module.scss`:
+`src/features/auth/Auth.module.scss`:
 ```scss
 .googleButton   // Google кнопка
 .facebookButton // Facebook кнопка
@@ -286,7 +286,7 @@ selectedCity           // Выбранный город
 
 ## Готовые компоненты и функции
 
-✅ `AuthModal` — полностью готов для всех трех провайдеров  
+✅ `Auth` — полностью готов для всех трех провайдеров  
 ✅ `GoogleOAuthPage` — полностью готов  
 ✅ `OAuthCallbackPage` — полностью готов для Facebook и Instagram  
 ✅ Роуты в `router/index.tsx` — готовы  

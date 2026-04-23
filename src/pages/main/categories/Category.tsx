@@ -1,12 +1,13 @@
 import styles from "./Category.module.scss";
 import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore.tsx';
-import { useEffect, useState } from "react";
+import { Clear } from '../../../shared/ui/Button/Clear/Clear.tsx';
+import { EmptyState } from '../../../widgets/EmptyState';
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from '../../../app/routers/routes.ts';
 import { useTranslation } from 'react-i18next';
 import { useLanguageChange } from '../../../hooks';
 import { PageLoader } from '../../../widgets/PageLoader';
-import { EmptyState } from '../../../widgets/EmptyState';
+import { useEffect, useState } from "react";
 
 interface CategoryItem {
     id: number;
@@ -127,7 +128,10 @@ export default function Category() {
         return (
             <div className={styles.category}>
                 <h3 className={styles.category_title}>{t('category:title', 'Категории')}</h3>
-                <EmptyState title={t('category:noCategories', 'Нет доступных категорий')} onRefresh={fetchCategories} />
+                <EmptyState
+                    title={t('category:noCategories', 'Нет доступных категорий')}
+                    onRefresh={fetchCategories}
+                />
             </div>
         );
     }
@@ -203,15 +207,7 @@ export default function Category() {
                         onChange={(e) => handleSearch(e.target.value)}
                     />
                     {searchQuery && (
-                        <button
-                            className={styles.clear_search}
-                            onClick={() => handleSearch('')}
-                            aria-label="Очистить поиск"
-                        >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
-                        </button>
+                        <Clear onClick={() => handleSearch('')} />
                     )}
                 </div>
             </div>
@@ -245,9 +241,10 @@ export default function Category() {
                         </div>
                     ))
                 ) : searchQuery.trim() ? (
-                    <div className={styles.no_results}>
-                        <p>{t('category:noResults', 'Категории не найдены')}</p>
-                    </div>
+                    <EmptyState
+                        title={t('category:noResults', 'Категории не найдены')}
+                        onRefresh={fetchCategories}
+                    />
                 ) : null}
             </div>
 
@@ -256,9 +253,12 @@ export default function Category() {
                 <div className={styles.category_btn_center}>
                     <ShowMore
                         expanded={showAll}
-                        onToggle={() => setShowAll(!showAll)}
-                        showMoreText={t('category:viewAll', 'Посмотреть все')}
-                        showLessText={t('category:showLess', 'Свернуть')}
+                        canLoadMore={!showAll}
+                        onShowMore={() => setShowAll(true)}
+                        onShowLess={() => setShowAll(false)}
+                        onClear={() => setShowAll(false)}
+                        showMoreText={t('common:app.showMore')}
+                        showLessText={t('common:app.showLess')}
                     />
                 </div>
             )}

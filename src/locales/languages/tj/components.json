@@ -441,7 +441,19 @@
     "registerViaGoogle": "Тавассути Google сабт шавед",
     "registerViaFacebook": "Тавассути Facebook сабт шавед", 
     "registerViaInstagram": "Тавассути Instagram сабт шавед",
-    "registerViaTelegram": "Тавассути Telegram сабт шавед"
+    "registerViaTelegram": "Тавассути Telegram сабт шавед",
+    "forgotPasswordTitle": "Барқарорсозии рамз",
+    "sendCode": "Рамзро фиристед",
+    "enterCode": "Рамзро ворид кунед",
+    "codeSentTo": "Рамз ба",
+    "enterOtpCode": "Рамзи мактубро ворид кунед",
+    "continue": "Идома додан",
+    "newPasswordTitle": "Рамзи нав",
+    "enterNewPassword": "Рамзи навро ворид кунед",
+    "savePassword": "Рамзро захира кунед",
+    "passwordMismatch": "Рамзҳо мувофиқат намекунанд",
+    "errorOccurred": "Хатогӣ рух дод. Лутфан дубора кӯшиш кунед.",
+    "otpInvalidOrExpired": "Рамзи нодуруст ё мӯҳлати гузашта"
   },
   "statusModal": {
     "successTitle": "Муваффақият!",

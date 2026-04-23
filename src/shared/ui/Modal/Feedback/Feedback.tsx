@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getAuthToken, getUserRole, getUserData } from '../../../../utils/auth.ts';
 import { getStorageItem } from '../../../../utils/storageHelper.ts';
-import AuthModal from '../../../../features/auth/AuthModal.tsx';
+import Auth from '../Auth/Auth.tsx';
 import Status from '../Status';
 import { Toggle } from '../../Button/Toggle/Toggle';
-import PhotoGrid, { PhotoItem } from '../../Photo/PhotoGrid';
+import Grid, { PhotoItem } from '../../Photo/Grid';
 import { Preview, usePreview } from '../../Photo/Preview';
 import { uploadPhotos } from '../../../../utils/imageHelper';
-import styles from './FeedbackModal.module.scss';
+import styles from './Feedback.module.scss';
 
 export interface FeedbackModalProps {
     mode: 'review' | 'complaint';
@@ -53,7 +53,7 @@ interface AppealReason {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-const FeedbackModal: React.FC<FeedbackModalProps> = ({
+const Feedback: React.FC<FeedbackModalProps> = ({
     mode,
     isOpen,
     onClose,
@@ -447,10 +447,10 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({
         onClose();
     };
 
-    // Review: show AuthModal if not authenticated
+    // Review: show Auth if not authenticated
     if (isReview && !isAuthenticated) {
         return (
-            <AuthModal
+            <Auth
                 isOpen={true}
                 onClose={handleCloseModal}
                 onLoginSuccess={(_token: string) => setIsAuthenticated(true)}
@@ -605,7 +605,7 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({
                             onPrevious={photoGallery.goToPrevious}
                             onSelectImage={photoGallery.selectImage}
                         />
-                        <PhotoGrid
+                        <Grid
                             photos={photos}
                             onChange={setPhotos}
                             getImageUrl={getReviewImageUrl}
@@ -709,4 +709,4 @@ const FeedbackModal: React.FC<FeedbackModalProps> = ({
     );
 };
 
-export default FeedbackModal;
+export default Feedback;

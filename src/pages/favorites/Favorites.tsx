@@ -14,10 +14,12 @@ import { SortingFilter } from '../../widgets/Sorting/CriteriaFilter';
 import { PageLoader } from '../../widgets/PageLoader';
 import { EmptyState } from '../../widgets/EmptyState';
 import { ProfileHeader } from '../profile/shared/ui/ProfileHeader';
-import FeedbackModal from '../../shared/ui/Modal/Feedback';
+import Feedback from '../../shared/ui/Modal/Feedback';
 import Status from '../../shared/ui/Modal/Status';
 import { Tabs } from '../../shared/ui/Tabs';
 import { IoListOutline, IoPeopleOutline } from 'react-icons/io5';
+import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore.tsx';
+import { getPageSize } from '../../utils/pageSize.ts';
 
 // ── New flat-entry shape from the API ──────────────────────────────────────────
 // GET /api/favorites/me  →  array of FavoriteEntry (hydra:member)
@@ -187,6 +189,15 @@ function Favorites() {
     const [activeTab, setActiveTab] = useState<'orders' | 'masters'>('orders');
     const [_likedTickets, setLikedTickets] = useState<number[]>([]);
     const [isLikeLoading, setIsLikeLoading] = useState<number | null>(null);
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const appendFavRef = useRef(false);
+    // Skip initial useEffect([page]) run — mount effect handles the first fetch
+    const skipFavFetchRef = useRef(true);
+    const ticketsPerPageRef = useRef<number[]>([]);
+    const usersPerPageRef = useRef<number[]>([]);
+    const pageRef = useRef(1);
+    useEffect(() => { pageRef.current = page; }, [page]);
 
     // Фильтры — восстанавливаем из sessionStorage
     const [_favSession] = useState(() => getFavSession());
@@ -195,10 +206,27 @@ function Favorites() {
     const [sortBy, setSortBy] = useState<SortByType>(() => ((_favSession?.sortBy as string) || 'newest') as SortByType);
     const [secondarySortBy, setSecondarySortBy] = useState<SecondarySortByType>(() => ((_favSession?.secondarySortBy as string) || 'none') as SecondarySortByType);
     const [timeFilter, setTimeFilter] = useState<TimeFilterType>(() => ((_favSession?.timeFilter as string) || 'all') as TimeFilterType);
+    // Восстанавливаем позицию прокрутки и страницу при возврате
+    const savedPageRef = useRef<number>(Math.max(1, (_favSession?._savedPage as number) || 1));
+    const restoreScrollRef = useRef<number>((_favSession?._savedScrollY as number) || 0);
     // Персистенция фильтров
     useEffect(() => {
         try { sessionStorage.setItem(FAV_FILTERS_KEY, JSON.stringify({ showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter })); } catch { /* ignore */ }
     }, [showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter]);
+    // Сохраняем позицию и страницу при уходе со страницы
+    useEffect(() => {
+        return () => {
+            try {
+                const existing = sessionStorage.getItem(FAV_FILTERS_KEY);
+                const cur = existing ? JSON.parse(existing) : {};
+                sessionStorage.setItem(FAV_FILTERS_KEY, JSON.stringify({
+                    ...cur,
+                    _savedPage: pageRef.current,
+                    _savedScrollY: window.scrollY,
+                }));
+            } catch { /* ignore */ }
+        };
+    }, []);
     // Состояния отклика
     const [respondedTickets, setRespondedTickets] = useState<Set<number>>(new Set());
     const [respondingTicketId, setRespondingTicketId] = useState<number | null>(null);
@@ -219,9 +247,36 @@ function Favorites() {
     const { t } = useTranslation(['components', 'common']);
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-    // Загрузка избранного при монтировании
+    // Загрузка избранного при монтировании (с восстановлением страниц и скролла)
     useEffect(() => {
-        fetchFavorites();
+        const doRestore = async () => {
+            const targetPage = savedPageRef.current;
+            if (targetPage > 1) {
+                await fetchFavoritesRef.current(1);
+                for (let p = 2; p <= targetPage; p++) {
+                    appendFavRef.current = true;
+                    await fetchFavoritesRef.current(p);
+                }
+                skipFavFetchRef.current = true;
+                setPage(targetPage);
+                if (restoreScrollRef.current > 0) {
+                    requestAnimationFrame(() => {
+                        window.scrollTo({ top: restoreScrollRef.current, behavior: 'instant' });
+                    });
+                }
+            } else {
+                await fetchFavoritesRef.current(1);
+            }
+            // Сбрасываем сохранённые значения, чтобы F5 не восстанавливал старое состояние
+            try {
+                const existing = sessionStorage.getItem(FAV_FILTERS_KEY);
+                const cur = existing ? JSON.parse(existing) : {};
+                delete cur._savedPage;
+                delete cur._savedScrollY;
+                sessionStorage.setItem(FAV_FILTERS_KEY, JSON.stringify(cur));
+            } catch { /* ignore */ }
+        };
+        doRestore();
         const token = getAuthToken();
         if (token) {
             (async () => {
@@ -285,8 +340,52 @@ function Favorites() {
 
     const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const API_BASE_URL_REF = useRef(import.meta.env.VITE_API_BASE_URL);
-    const fetchFavoritesRef = useRef<() => Promise<void>>(null!);
+    const fetchFavoritesRef = useRef<(pageOverride?: number) => Promise<void>>(null!);
     const isInitialLoadRef = useRef(true);
+
+    // При смене страницы перезагружаем избранное
+    useEffect(() => {
+        if (skipFavFetchRef.current) {
+            skipFavFetchRef.current = false;
+            return;
+        }
+        fetchFavoritesRef.current?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [page]);
+
+    const handleLoadMoreFavorites = () => {
+        appendFavRef.current = true;
+        setPage(p => p + 1);
+    };
+
+    const handleLoadLessFavorites = () => {
+        const lastTickets = ticketsPerPageRef.current[ticketsPerPageRef.current.length - 1] ?? 0;
+        const lastUsers = usersPerPageRef.current[usersPerPageRef.current.length - 1] ?? 0;
+        ticketsPerPageRef.current = ticketsPerPageRef.current.slice(0, -1);
+        usersPerPageRef.current = usersPerPageRef.current.slice(0, -1);
+        skipFavFetchRef.current = true;
+        setPage(p => p - 1);
+        setFavoriteTickets(prev => prev.slice(0, prev.length - lastTickets));
+        setFavoriteUsers(prev => prev.slice(0, prev.length - lastUsers));
+    };
+
+    const handleClearFavorites = () => {
+        const firstTickets = ticketsPerPageRef.current[0] ?? 0;
+        const firstUsers = usersPerPageRef.current[0] ?? 0;
+        ticketsPerPageRef.current = [firstTickets];
+        usersPerPageRef.current = [firstUsers];
+        skipFavFetchRef.current = true;
+        setPage(1);
+        setFavoriteTickets(prev => prev.slice(0, firstTickets));
+        setFavoriteUsers(prev => prev.slice(0, firstUsers));
+    };
+
+    // Сбрасываем страницу при смене вкладки
+    useEffect(() => {
+        ticketsPerPageRef.current = [];
+        usersPerPageRef.current = [];
+        setPage(1);
+    }, [activeTab]);
 
     // Ping current user presence + refresh online status every 30s
     useEffect(() => {
@@ -451,7 +550,7 @@ function Favorites() {
     // Алиас для обратной совместимости с вызовами для неавторизованных
     const fetchTicketDetailsForUnauthorized = fetchTicketDetails;
 
-    const fetchFavorites = async () => {
+    const fetchFavorites = async (pageOverride?: number) => {
         try {
             setIsFavoritesRefreshing(true);
             if (isInitialLoadRef.current) {
@@ -478,13 +577,27 @@ function Favorites() {
 
             // Авторизованные — новый flat-list API
             const locale = localStorage.getItem('i18nextLng') || 'ru';
-            const response = await fetch(`${API_BASE_URL}/api/favorites/me?locale=${locale}`, {
+            const pageSize = getPageSize();
+            const currentPage = pageOverride ?? page;
+            const response = await fetch(`${API_BASE_URL}/api/favorites/me?locale=${locale}&page=${currentPage}&itemsPerPage=${pageSize}`, {
                 headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
             });
 
             if (response.ok) {
                 const data = await response.json();
                 const entries: FavoriteEntry[] = data['hydra:member'] ?? (Array.isArray(data) ? data : []);
+                if (data['hydra:totalItems'] !== undefined) {
+                    const pageSize = getPageSize();
+                    setTotalPages(Math.max(1, Math.ceil((data['hydra:totalItems'] as number) / pageSize)));
+                } else {
+                    // API returns plain array without hydra:totalItems — infer pagination from result count
+                    const pageSize = getPageSize();
+                    if (entries.length >= pageSize) {
+                        setTotalPages(prev => Math.max(prev, currentPage + 1));
+                    } else {
+                        setTotalPages(currentPage);
+                    }
+                }
 
                 const tickets: FavoriteTicket[] = [];
                 const users: FavoriteUser[] = [];
@@ -546,9 +659,20 @@ function Favorites() {
                     }
                 }
 
-                setFavoriteTickets(tickets);
-                setFavoriteUsers(users);
-                setLikedTickets(tickets.map(t => t.id));
+                if (appendFavRef.current) {
+                    appendFavRef.current = false;
+                    setFavoriteTickets(prev => [...prev, ...tickets]);
+                    setFavoriteUsers(prev => [...prev, ...users]);
+                    ticketsPerPageRef.current = [...ticketsPerPageRef.current, tickets.length];
+                    usersPerPageRef.current = [...usersPerPageRef.current, users.length];
+                    setLikedTickets(prev => [...prev, ...tickets.map(t => t.id)]);
+                } else {
+                    setFavoriteTickets(tickets);
+                    setFavoriteUsers(users);
+                    ticketsPerPageRef.current = [tickets.length];
+                    usersPerPageRef.current = [users.length];
+                    setLikedTickets(tickets.map(t => t.id));
+                }
             } else {
                 setFavoriteTickets([]);
                 setFavoriteUsers([]);
@@ -567,7 +691,7 @@ function Favorites() {
     };
 
     // Всегда держим ref актуальным, чтобы event listener не имел stale closure
-    fetchFavoritesRef.current = fetchFavorites;
+    fetchFavoritesRef.current = fetchFavorites as () => Promise<void>;
 
     // Удалить пользователя из избранного — DELETE /api/favorites/{entryId}
     const handleLikeUser = async (userId: number) => {
@@ -1021,7 +1145,20 @@ function Favorites() {
                 ))}
             </div>
 
-            <FeedbackModal
+            {((activeTab === 'orders' || !showTabs) ? hasOrders : hasSecondTabItems) && (
+                <ShowMore
+                    expanded={page > 1}
+                    canLoadMore={page < totalPages}
+                    onShowMore={handleLoadMoreFavorites}
+                    onShowLess={handleLoadLessFavorites}
+                    onClear={handleClearFavorites}
+                    showMoreText={t('common:app.showMore')}
+                    showLessText={t('common:app.showLess')}
+                    loading={isFavoritesRefreshing}
+                />
+            )}
+
+            <Feedback
                 mode="review"
                 isOpen={showReviewModal}
                 onClose={handleCloseModal}
@@ -1033,7 +1170,7 @@ function Favorites() {
             />
             <CookieConsentBanner/>
             {showComplaintModal && complaintUserId !== null && (
-                <FeedbackModal
+                <Feedback
                     mode="complaint"
                     isOpen={showComplaintModal}
                     onClose={handleCloseComplaintModal}

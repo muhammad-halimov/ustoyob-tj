@@ -443,7 +443,19 @@
     "registerViaGoogle": "Register with Google",
     "registerViaFacebook": "Register with Facebook",
     "registerViaInstagram": "Register with Instagram", 
-    "registerViaTelegram": "Register with Telegram"
+    "registerViaTelegram": "Register with Telegram",
+    "forgotPasswordTitle": "Password recovery",
+    "sendCode": "Send code",
+    "enterCode": "Enter code",
+    "codeSentTo": "Code sent to",
+    "enterOtpCode": "Enter the code from your email",
+    "continue": "Continue",
+    "newPasswordTitle": "New password",
+    "enterNewPassword": "Enter new password",
+    "savePassword": "Save password",
+    "passwordMismatch": "Passwords do not match",
+    "errorOccurred": "An error occurred. Please try again.",
+    "otpInvalidOrExpired": "Invalid or expired code"
   },
   "statusModal": {
     "successTitle": "Success!",

@@ -1,5 +1,5 @@
 import React from 'react';
-import styles from './AdBtn.module.scss';
+import styles from './Add.module.scss';
 import { getAuthToken, getUserRole } from "../../../../../utils/auth.ts";
 import { useTranslation } from 'react-i18next';
 
@@ -10,7 +10,7 @@ interface AdBtnProps {
     icon?: React.ReactNode;
 }
 
-export const AdBtn = ({onClick, text, icon}: AdBtnProps) => {
+export const Add = ({onClick, text, icon}: AdBtnProps) => {
     const { t } = useTranslation(['header', 'common']);
     const isAuthenticated = !!getAuthToken();
     const userRole = getUserRole();

@@ -4,14 +4,14 @@ import {getAuthToken, getUserData, getUserRole} from '../../../utils/auth.ts';
 import { getAuthorAvatar } from '../../../utils/imageHelper';
 import styles from './Ticket.module.scss';
 import {createChatWithAuthor, initChatModals} from "../../../utils/chatUtils.ts";
-import AuthModal from "../../../features/auth/AuthModal.tsx";
+import Auth from "../../../shared/ui/Modal/Auth/Auth.tsx";
 import {smartNameTranslator, textHelper} from "../../../utils/textHelper.ts";
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 import {useTranslation} from 'react-i18next';
 import {useLanguageChange} from '../../../hooks';
 import {getStorageItem} from '../../../utils/storageHelper.ts';
 import Status from '../../../shared/ui/Modal/Status';
-import FeedbackModal from '../../../shared/ui/Modal/Feedback';
+import Feedback from '../../../shared/ui/Modal/Feedback';
 import { Carousel } from '../../../shared/ui/Photo/Carousel';
 import { Marquee } from '../../../shared/ui/Text/Marquee';
 import {useFavorites} from '../../../shared/ui/useFavorites';
@@ -25,6 +25,8 @@ import {PageLoader} from '../../../widgets/PageLoader';
 import {IoWarningOutline, IoStar, IoHeart, IoHeartOutline, IoChevronForward, IoCompass, IoChatbubbleOutline, IoCheckmarkCircleOutline, IoBanOutline} from 'react-icons/io5';
 import { ActionsDropdown } from '../../../widgets/ActionsDropdown';
 import Recommendations, { type Announcement } from '../../main/recommendations/Recommendations.tsx';
+import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore.tsx';
+import { getPageSize } from '../../../utils/pageSize.ts';
 
 interface ApiTicket {
     id: number;
@@ -133,7 +135,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 export function Ticket() {
     const {id} = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { t, i18n } = useTranslation(['ticket', 'components']);
+    const { t, i18n } = useTranslation(['ticket', 'components', 'common']);
     const [order, setOrder] = useState<Order | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -168,7 +170,10 @@ export function Ticket() {
     // States for reviews
     const [reviews, setReviews] = useState<ReviewType[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(false);
-    const [visibleReviewCount, setVisibleReviewCount] = useState(2);
+    const [reviewsPage, setReviewsPage] = useState(1);
+    const [reviewsTotalPages, setReviewsTotalPages] = useState(1);
+    const appendReviewsRef = useRef(false);
+    const skipReviewsFetchRef = useRef(false);
 
     const [reviewCount, setReviewCount] = useState<number>(0);
     const [responsesCount, setResponsesCount] = useState<number>(0);
@@ -251,6 +256,38 @@ export function Ticket() {
             fetchSimilarTickets();
         }
     }, [order, favorites.checkFavoriteStatus, currentUserId]);
+
+    // Перезагружаем отзывы при смене страницы
+    useEffect(() => {
+        if (skipReviewsFetchRef.current) {
+            skipReviewsFetchRef.current = false;
+            return;
+        }
+        if (order) {
+            fetchReviews();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [reviewsPage]);
+
+    const handleLoadMoreTicketReviews = () => {
+        appendReviewsRef.current = true;
+        setReviewsPage(p => p + 1);
+    };
+
+    const handleLoadLessTicketReviews = () => {
+        const pageSize = getPageSize();
+        const prevPage = reviewsPage - 1;
+        skipReviewsFetchRef.current = true;
+        setReviewsPage(prevPage);
+        setReviews(prev => prev.slice(0, prevPage * pageSize));
+    };
+
+    const handleClearTicketReviews = () => {
+        const pageSize = getPageSize();
+        skipReviewsFetchRef.current = true;
+        setReviewsPage(1);
+        setReviews(prev => prev.slice(0, pageSize));
+    };
 
     const handleCloseSuccessModal = () => {
         setShowSuccessModal(false);
@@ -875,7 +912,8 @@ export function Ticket() {
             
             // Формируем правильный эндпоинт
             const serviceParam = isService ? 'true' : 'false';
-            const url = `${API_BASE_URL}/api/reviews?ticket.service=${serviceParam}&exists[ticket]=true&exists[master]=true&exists[client]=true&ticket=${order.id}`;
+            const pageSize = getPageSize();
+            const url = `${API_BASE_URL}/api/reviews?ticket.service=${serviceParam}&exists[ticket]=true&exists[master]=true&exists[client]=true&ticket=${order.id}&page=${reviewsPage}&itemsPerPage=${pageSize}`;
             
             const headers: HeadersInit = {
                 'Content-Type': 'application/json',
@@ -900,6 +938,10 @@ export function Ticket() {
             
             // API может вернуть объект с 'hydra:member' или массив
             const reviewsData = data['hydra:member'] || data || [];
+            if (data['hydra:totalItems'] !== undefined) {
+                const pageSize = getPageSize();
+                setReviewsTotalPages(Math.max(1, Math.ceil((data['hydra:totalItems'] as number) / pageSize)));
+            }
             
             console.log('=== Ticket Reviews Debug ===');
             console.log('Total reviews:', reviewsData.length);
@@ -968,7 +1010,10 @@ export function Ticket() {
             });
             
             console.log('Transformed reviews:', transformedReviews);
-            setReviews(transformedReviews);
+            setReviews(prev => appendReviewsRef.current
+                ? [...prev, ...transformedReviews]
+                : transformedReviews);
+            appendReviewsRef.current = false;
             
         } catch (error) {
             console.error('Error fetching reviews:', error);
@@ -1008,14 +1053,6 @@ export function Ticket() {
         const translatedLastName = smartNameTranslator(lastName, currentLang);
         
         return `${translatedLastName} ${translatedFirstName}`.trim() || t('components:app.defaultClient');
-    };
-    
-    const handleShowMoreReviews = () => {
-        setVisibleReviewCount(reviews.length);
-    };
-    
-    const handleShowLessReviews = () => {
-        setVisibleReviewCount(2);
     };
     
     // Вспомогательная функция для получения индекса фото в галерее отзывов
@@ -1457,11 +1494,9 @@ export function Ticket() {
                     <ReviewsSection
                         reviews={reviews}
                         reviewsLoading={reviewsLoading}
-                        visibleCount={visibleReviewCount}
+                        visibleCount={reviews.length}
                         API_BASE_URL={API_BASE_URL}
                         userRole={order?.isService ? 'master' : 'client'}
-                        onShowMore={handleShowMoreReviews}
-                        onShowLess={handleShowLessReviews}
                         maxLength={200}
                         getClientName={getClientName}
                         getMasterName={getMasterName}
@@ -1477,6 +1512,15 @@ export function Ticket() {
                             setReviewComplaintAuthorId(authorId);
                             setShowReviewComplaintModal(true);
                         }}
+                    />
+                    <ShowMore
+                        expanded={reviewsPage > 1}
+                        canLoadMore={reviewsPage < reviewsTotalPages}
+                        onShowMore={handleLoadMoreTicketReviews}
+                        onShowLess={handleLoadLessTicketReviews}
+                        onClear={handleClearTicketReviews}
+                        showMoreText={t('common:app.showMore')}
+                        showLessText={t('common:app.showLess')}
                     />
                 </div>
             )}
@@ -1495,7 +1539,7 @@ export function Ticket() {
                 </div>
             )}
 
-            <FeedbackModal
+            <Feedback
                 mode="review"
                 isOpen={showReviewModal}
                 onClose={handleCloseReviewModal}
@@ -1507,14 +1551,14 @@ export function Ticket() {
             />
 
             {showAuthModal && (
-                <AuthModal
+                <Auth
                     isOpen={showAuthModal}
                     onClose={() => setShowAuthModal(false)}
                     onLoginSuccess={handleLoginSuccess}
                 />
             )}
 
-            <FeedbackModal
+            <Feedback
                 mode="complaint"
                 isOpen={showComplaintModal}
                 onClose={handleCloseComplaintModal}
@@ -1531,7 +1575,7 @@ export function Ticket() {
                 message={modalMessage}
             />
 
-            <FeedbackModal
+            <Feedback
                 mode="complaint"
                 isOpen={showReviewComplaintModal}
                 onClose={() => setShowReviewComplaintModal(false)}
@@ -1543,7 +1587,7 @@ export function Ticket() {
             />
 
             {editingReview && (
-                <FeedbackModal
+                <Feedback
                     mode="review"
                     isOpen={showEditReviewModal}
                     onClose={() => { setShowEditReviewModal(false); setEditingReview(null); }}

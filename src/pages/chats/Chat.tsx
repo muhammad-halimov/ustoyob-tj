@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { getAuthToken, fetchCurrentUser } from "../../utils/auth";
 import { ROUTES } from '../../app/routers/routes';
 import { smartNameTranslator } from '../../utils/textHelper';
-import AuthModal from '../../features/auth/AuthModal';
-import FeedbackModal from '../../shared/ui/Modal/Feedback';
+import Auth from '../../shared/ui/Modal/Auth/Auth.tsx';
+import Feedback from '../../shared/ui/Modal/Feedback';
 import { PageLoader } from '../../widgets/PageLoader';
 import { EmptyState } from '../../widgets/EmptyState';
 import styles from "./Chat.module.scss";
@@ -15,7 +15,9 @@ import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/Cooki
 import { ActionsDropdown } from '../../widgets/ActionsDropdown';
 import { uploadPhotos } from '../../utils/imageHelper';
 import { Tabs } from '../../shared/ui/Tabs';
-import PhotoGrid, { PhotoItem } from '../../shared/ui/Photo/PhotoGrid/PhotoGrid';
+import Grid, { PhotoItem } from '../../shared/ui/Photo/Grid/Grid.tsx';
+import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore.tsx';
+import { getPageSize } from '../../utils/pageSize.ts';
 
 interface Message {
     id: number;
@@ -98,10 +100,14 @@ interface ChatImageThumbnail {
 }
 
 function Chat() {
-    const { t, i18n } = useTranslation('components');
+    const { t, i18n } = useTranslation(['components', 'common']);
     const [activeTab, setActiveTab] = useState<"active" | "archive">("active");
     const [selectedChat, setSelectedChat] = useState<number | null>(null);
     const [chats, setChats] = useState<ApiChat[]>([]);
+    const [chatPage, setChatPage] = useState(1);
+    const [chatTotalPages, setChatTotalPages] = useState(1);
+    const appendChatsRef = useRef(false);
+    const skipChatFetchRef = useRef(false);
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState("");
     const [isLoading, setIsLoading] = useState(true);
@@ -941,7 +947,8 @@ function Chat() {
             }
 
             console.log('Fetching chats with token...');
-            const response = await fetch(`${API_BASE_URL}/api/chats/me`, {
+            const pageSize = getPageSize();
+            const response = await fetch(`${API_BASE_URL}/api/chats/me?page=${chatPage}&itemsPerPage=${pageSize}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Accept': 'application/json'
@@ -966,6 +973,10 @@ function Chat() {
                             ...chat,
                             isArchived: chat.active === false
                         }));
+                        if (responseData['hydra:totalItems'] !== undefined) {
+                            const pageSize = getPageSize();
+                            setChatTotalPages(Math.max(1, Math.ceil((responseData['hydra:totalItems'] as number) / pageSize)));
+                        }
                     } else if (responseData.id) {
                         chatsData = [{
                             ...responseData,
@@ -1002,6 +1013,13 @@ function Chat() {
                     });
                     return changed ? merged : prev;
                 });
+            } else if (appendChatsRef.current) {
+                appendChatsRef.current = false;
+                setChats(prev => {
+                    const existingIds = new Set(prev.map(c => c.id));
+                    const newChats = chatsData.filter(c => !existingIds.has(c.id));
+                    return [...prev, ...newChats];
+                });
             } else {
                 // Preserve the URL-specific chat if it's not in the new response (race condition with newly created chats)
                 if (chatIdFromUrl) {
@@ -1035,7 +1053,37 @@ function Chat() {
             if (!silent) setIsLoading(false);
             else setIsChatListRefreshing(false);
         }
-    }, [API_BASE_URL, chatIdFromUrl, t, fetchChatMessages]);
+    }, [API_BASE_URL, chatIdFromUrl, t, fetchChatMessages, chatPage]);
+
+    // Перезагружаем чаты при смене страницы
+    useEffect(() => {
+        if (skipChatFetchRef.current) {
+            skipChatFetchRef.current = false;
+            return;
+        }
+        fetchChats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [chatPage]);
+
+    const handleLoadMoreChats = () => {
+        appendChatsRef.current = true;
+        setChatPage(p => p + 1);
+    };
+
+    const handleLoadLessChats = () => {
+        const pageSize = getPageSize();
+        const prevPage = chatPage - 1;
+        skipChatFetchRef.current = true;
+        setChatPage(prevPage);
+        setChats(prev => prev.slice(0, prevPage * pageSize));
+    };
+
+    const handleClearChats = () => {
+        const pageSize = getPageSize();
+        skipChatFetchRef.current = true;
+        setChatPage(1);
+        setChats(prev => prev.slice(0, pageSize));
+    };
 
     // ===== ФУНКЦИИ ДЛЯ АРХИВАЦИИ ЧАТОВ =====
     const archiveChat = useCallback(async (chatId: number, archive: boolean = true) => {
@@ -1168,10 +1216,10 @@ function Chat() {
         return <PageLoader text={t('chat.loadingChats')} />;
     }
 
-    // Если нет currentUser после загрузки - показать AuthModal
+    // Если нет currentUser после загрузки - показать Auth
     if (!currentUser) {
         return (
-            <AuthModal
+            <Auth
                 isOpen={true}
                 onClose={() => navigate(ROUTES.HOME)}
                 onLoginSuccess={() => window.location.reload()}
@@ -1295,6 +1343,15 @@ function Chat() {
                         })
                     )}
                 </div>
+                <ShowMore
+                    expanded={chatPage > 1}
+                    canLoadMore={chatPage < chatTotalPages}
+                    onShowMore={handleLoadMoreChats}
+                    onShowLess={handleLoadLessChats}
+                    onClear={handleClearChats}
+                    showMoreText={t('common:app.showMore', { defaultValue: 'Показать больше' })}
+                    showLessText={t('common:app.showLess', { defaultValue: 'Показать меньше' })}
+                />
             </div>
 
             {/* Chat area */}
@@ -1560,7 +1617,7 @@ function Chat() {
                                                         <span className={styles.replyBarMessage}>{editingMessage.text}</span>
                                                     )}
                                                 </div>
-                                                <PhotoGrid
+                                                <Grid
                                                     photos={editingPhotoItems}
                                                     onChange={setEditingPhotoItems}
                                                     getImageUrl={getImageUrl}
@@ -1627,7 +1684,7 @@ function Chat() {
                         </div>
 
                         {selectedPhotoItems.length > 0 && (
-                            <PhotoGrid
+                            <Grid
                                 photos={selectedPhotoItems}
                                 onChange={setSelectedPhotoItems}
                                 getImageUrl={(path) => path}
@@ -1692,7 +1749,7 @@ function Chat() {
                 fallbackImage="../fonTest5.png"
             />
             {showComplaintModal && currentInterlocutor && (
-                <FeedbackModal
+                <Feedback
                     mode="complaint"
                     isOpen={showComplaintModal}
                     onClose={() => setShowComplaintModal(false)}
@@ -1705,7 +1762,7 @@ function Chat() {
                 />
             )}
             {sidebarComplaintTarget && (
-                <FeedbackModal
+                <Feedback
                     mode="complaint"
                     isOpen={true}
                     onClose={() => setSidebarComplaintTarget(null)}

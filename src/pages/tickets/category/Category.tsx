@@ -1,11 +1,11 @@
-import {useState, useEffect, useCallback} from 'react';
+import {useState, useEffect, useCallback, useRef} from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { getAuthToken, getUserRole, getUserData } from '../../../utils/auth.ts';
 import { getStorageItem } from '../../../utils/storageHelper.ts';
 import { useLanguageChange } from '../../../hooks';
 import { createChatWithAuthor } from '../../../utils/chatUtils';
 import Status from '../../../shared/ui/Modal/Status';
-import FeedbackModal from '../../../shared/ui/Modal/Feedback';
+import Feedback from '../../../shared/ui/Modal/Feedback';
 
 import { EmptyState } from '../../../widgets/EmptyState';
 import { ROUTES } from '../../../app/routers/routes';
@@ -17,6 +17,8 @@ import { useTranslation } from 'react-i18next';
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 import { getOccupations } from '../../../utils/dataCache.ts';
 import { truncateText } from '../../../utils/textHelper.ts';
+import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore.tsx';
+import { getPageSize } from '../../../utils/pageSize.ts';
 
 interface Occupation {
     id: number;
@@ -143,7 +145,12 @@ function Category() {
     const { id } = useParams<{ id: string }>();
     const location = useLocation();
     const [tickets, setTickets] = useState<FormattedTicket[]>([]);
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const appendTicketsRef = useRef(false);
+    const skipTicketsFetchRef = useRef(false);
     const [categoryName, setCategoryName] = useState<string>(() => {
         const fromState = (location.state as any)?.categoryName;
         if (fromState) return fromState;
@@ -230,7 +237,7 @@ function Category() {
             setRespondingTicketId(null);
         }
     }, [respondedTickets, respondingTicketId]);
-    const { t, i18n } = useTranslation(['components', 'category', 'ticket']);
+    const { t, i18n } = useTranslation(['components', 'category', 'ticket', 'common']);
     const locale = i18n.language;
 
     const setAndCacheCategoryName = (name: string) => {
@@ -280,6 +287,10 @@ function Category() {
 
     // Перезагружаем данные при изменении роли или языка
     useEffect(() => {
+        if (skipTicketsFetchRef.current) {
+            skipTicketsFetchRef.current = false;
+            return;
+        }
         if (id) {
             const token = getAuthToken();
             
@@ -304,7 +315,7 @@ function Category() {
                 console.log('⏳ Category - Waiting for userRole to load from localStorage...');
             }
         }
-    }, [userRole, id, locale, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter]);
+    }, [userRole, id, locale, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter, page]);
 
     const formatProfileImageUrl = (imagePath: string): string => {
         if (!imagePath) return '';
@@ -529,7 +540,11 @@ function Category() {
 
     const fetchTicketsByCategory = async () => {
         try {
-            setIsLoading(true);
+            if (appendTicketsRef.current) {
+                setIsLoadingMore(true);
+            } else {
+                setIsLoading(true);
+            }
             const token = getAuthToken();
             const userData = getUserData();
             const currentUserId = userData?.id;
@@ -566,7 +581,8 @@ function Category() {
             } else if (showOnlyAnnouncements) {
                 serviceParam = '&service=false';
             }
-            const endpoint = `/api/tickets?locale=${locale}&active=true&category=${id}${serviceParam}${selectedSubcategory ? `&subcategory=${selectedSubcategory}` : ''}${currentUserId ? `&author.id[ne]=${currentUserId}&master.id[ne]=${currentUserId}` : ''}`;
+            const pageSize = getPageSize();
+            const endpoint = `/api/tickets?locale=${locale}&active=true&category=${id}&page=${page}&itemsPerPage=${pageSize}${serviceParam}${selectedSubcategory ? `&subcategory=${selectedSubcategory}` : ''}${currentUserId ? `&author.id[ne]=${currentUserId}&master.id[ne]=${currentUserId}` : ''}`;
 
             console.log('✅ Category - Selected endpoint:', `${API_BASE_URL}${endpoint}`);
 
@@ -580,7 +596,13 @@ function Category() {
             let ticketsData: Ticket[] = [];
             if (response.ok) {
                 const data = await response.json();
-                ticketsData = Array.isArray(data) ? data : [];
+                if (Array.isArray(data)) {
+                    ticketsData = data;
+                } else if (data && 'hydra:member' in data) {
+                    ticketsData = data['hydra:member'];
+                    const totalItems: number = data['hydra:totalItems'] ?? ticketsData.length;
+                    setTotalPages(Math.max(1, Math.ceil(totalItems / pageSize)));
+                }
             } else {
                 console.error('Category - Error fetching tickets:', response.status, response.statusText);
             }
@@ -690,7 +712,12 @@ function Category() {
                 return primaryDiff;
             });
 
-            setTickets(sortedTickets);
+            if (appendTicketsRef.current) {
+                appendTicketsRef.current = false;
+                setTickets(prev => [...prev, ...sortedTickets]);
+            } else {
+                setTickets(sortedTickets);
+            }
 
             // Fallback: if fetchCategoryName didn't populate the name yet, grab it from tickets
             if (ticketsData.length > 0) {
@@ -708,7 +735,28 @@ function Category() {
             setTickets([]);
         } finally {
             setIsLoading(false);
+            setIsLoadingMore(false);
         }
+    };
+
+    const handleLoadMoreTickets = () => {
+        appendTicketsRef.current = true;
+        setPage(p => p + 1);
+    };
+
+    const handleLoadLessTickets = () => {
+        const pageSize = getPageSize();
+        const prevPage = page - 1;
+        skipTicketsFetchRef.current = true;
+        setPage(prevPage);
+        setTickets(prev => prev.slice(0, prevPage * pageSize));
+    };
+
+    const handleClearTickets = () => {
+        const pageSize = getPageSize();
+        skipTicketsFetchRef.current = true;
+        setPage(1);
+        setTickets(prev => prev.slice(0, pageSize));
     };
 
     // Обработчики подкатегорий
@@ -739,6 +787,8 @@ function Category() {
         } else {
             setShowOnlyServices(false);
         }
+        setPage(1);
+        appendTicketsRef.current = false;
     };
 
     const handleAnnouncementsToggle = () => {
@@ -748,6 +798,8 @@ function Category() {
         } else {
             setShowOnlyAnnouncements(false);
         }
+        setPage(1);
+        appendTicketsRef.current = false;
     };
 
     // Определяем какие подкатегории показывать
@@ -785,7 +837,8 @@ function Category() {
             
             if (shouldFetch) {
                 console.log('Category - Reloading due to subcategory change:', selectedSubcategory);
-                fetchTicketsByCategory();
+                appendTicketsRef.current = false;
+                setPage(1);
             } else {
                 console.log('⏳ Category - Waiting for userRole before reloading subcategory...');
             }
@@ -916,27 +969,18 @@ function Category() {
                         ))}
                     </div>
 
-                    {/* Кнопка "Посмотреть все" */}
-                    {shouldShowViewAllOccupations && (
+                    {/* Кнопка показать больше/меньше для подкатегорий */}
+                    {(shouldShowViewAllOccupations || shouldShowShowLessOccupations) && (
                         <div className={styles.subcategory_btn_center}>
-                            <button
-                                className={styles.viewAllButton}
-                                onClick={handleViewAllOccupations}
-                            >
-                                {t('category:viewAll', 'Посмотреть все')}
-                            </button>
-                        </div>
-                    )}
-
-                    {/* Кнопка "Свернуть" */}
-                    {shouldShowShowLessOccupations && (
-                        <div className={styles.subcategory_btn_center}>
-                            <button
-                                className={styles.viewAllButton}
-                                onClick={handleShowLessOccupations}
-                            >
-                                {t('category:showLess', 'Свернуть')}
-                            </button>
+                            <ShowMore
+                                expanded={showAllOccupations}
+                                canLoadMore={!showAllOccupations}
+                                onShowMore={handleViewAllOccupations}
+                                onShowLess={handleShowLessOccupations}
+                                onClear={handleShowLessOccupations}
+                                showMoreText={t('common:app.showMore')}
+                                showLessText={t('common:app.showLess')}
+                            />
                         </div>
                     )}
                 </div>
@@ -1010,6 +1054,16 @@ function Category() {
                     ))
                 )}
             </div>
+            <ShowMore
+                expanded={page > 1}
+                canLoadMore={page < totalPages}
+                onShowMore={handleLoadMoreTickets}
+                onShowLess={handleLoadLessTickets}
+                onClear={handleClearTickets}
+                showMoreText={t('common:app.showMore')}
+                showLessText={t('common:app.showLess')}
+                loading={isLoadingMore}
+            />
             <CookieConsentBanner/>
             <Status
                 type={respondModal.type}
@@ -1018,7 +1072,7 @@ function Category() {
                 message={respondModal.message}
             />
             {cardReviewTarget && (
-                <FeedbackModal
+                <Feedback
                     mode="review"
                     isOpen={!!cardReviewTarget}
                     onClose={() => setCardReviewTarget(null)}
@@ -1030,7 +1084,7 @@ function Category() {
                 />
             )}
             {cardComplaintTarget && (
-                <FeedbackModal
+                <Feedback
                     mode="complaint"
                     isOpen={!!cardComplaintTarget}
                     onClose={() => setCardComplaintTarget(null)}

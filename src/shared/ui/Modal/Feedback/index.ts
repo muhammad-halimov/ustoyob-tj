@@ -1,2 +1,2 @@
-export { default } from './FeedbackModal';
-export type { FeedbackModalProps } from './FeedbackModal';
+export { default } from './Feedback.tsx';
+export type { FeedbackModalProps } from './Feedback.tsx';

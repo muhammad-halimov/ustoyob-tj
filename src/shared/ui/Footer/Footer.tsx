@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ROUTES } from '../../app/routers/routes';
+import { ROUTES } from '../../../app/routers/routes.ts';
 import styles from "./Footer.module.scss";
 
 function Footer() {

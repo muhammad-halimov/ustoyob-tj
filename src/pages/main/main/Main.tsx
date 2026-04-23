@@ -1,6 +1,6 @@
 import styles from "./Main.module.scss";
-import Search from "../../../features/search/search/Search.tsx";
-import { AdBtn } from "../../../shared/ui/Button/Header/Add/AdBtn.tsx";
+import Search from "../search/search/Search.tsx";
+import { Add } from "../../../shared/ui/Button/Header/Add/Add.tsx";
 import Category from "../categories/Category.tsx";
 import { MainReviewsSection } from "../reviews";
 import Recommendations from "../recommendations/Recommendations.tsx";
@@ -9,7 +9,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { ROUTES } from '../../../app/routers/routes';
 import { getUserRole } from "../../../utils/auth.ts";
 import { useTranslation } from "react-i18next";
-import AuthModal from "../../../features/auth/AuthModal.tsx";
+import Auth from "../../../shared/ui/Modal/Auth/Auth.tsx";
 
 import "swiper/css";
 import "swiper/css/pagination";
@@ -191,7 +191,7 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
                                         <h2 className={styles.performers_orders_title}>{work.name}</h2>
                                         {work.title}
                                     </div>
-                                    <AdBtn
+                                    <Add
                                         alwaysVisible
                                         text={work.id === 1 ? t('pages.main.postTicket') : t('pages.main.postService')}
                                         onClick={() =>
@@ -221,7 +221,7 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
                                                 <h2 className={styles.performers_orders_title}>{work.name}</h2>
                                                 {work.title}
                                             </div>
-                                            <AdBtn
+                                            <Add
                                                 alwaysVisible
                                                 text={work.id === 1 ? t('pages.main.postTicket') : t('pages.main.postService')}
                                                 onClick={() =>
@@ -303,7 +303,7 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
                 </div>
             )}
 
-            <AuthModal
+            <Auth
                 isOpen={showAuthModal}
                 onClose={() => setShowAuthModal(false)}
             />

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getUserRole, getAuthToken, getUserData } from '../../../utils/auth.ts';
 import { useLanguageChange } from '../../../hooks';
@@ -8,10 +8,11 @@ import { useTranslation } from 'react-i18next';
 import { ROUTES } from '../../../app/routers/routes.ts';
 import { createChatWithAuthor } from '../../../utils/chatUtils';
 import Status from '../../../shared/ui/Modal/Status';
-import FeedbackModal from '../../../shared/ui/Modal/Feedback';
+import Feedback from '../../../shared/ui/Modal/Feedback';
 
 import { EmptyState } from '../../../widgets/EmptyState';
 import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore.tsx';
+import { getPageSize } from '../../../utils/pageSize.ts';
 
 export interface Announcement {
     id: number;
@@ -101,11 +102,15 @@ function Recommendations({
     onItemClick
 }: RecommendationsProps = {}) {
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const appendAnnouncementsRef = useRef(false);
+    const skipAnnouncementsFetchRef = useRef(false);
     const [showAll, setShowAll] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [userRole, setUserRole] = useState<'client' | 'master' | null>(getUserRole());
     const navigate = useNavigate();
-    const { t, i18n } = useTranslation('components');
+    const { t, i18n } = useTranslation(['components', 'common']);
     const locale = i18n.language;
     
     // Use custom data if provided
@@ -183,7 +188,8 @@ function Recommendations({
             console.log('Recommendations - Current user ID:', currentUserId);
             console.log('Recommendations - Token exists:', !!token);
             
-            const endpoint = `/api/tickets?locale=${locale}&active=true${currentUserId ? `&author.id[ne]=${currentUserId}&master.id[ne]=${currentUserId}` : ''}`;
+            const pageSize = getPageSize();
+            const endpoint = `/api/tickets?locale=${locale}&active=true&page=${page}&itemsPerPage=${pageSize}${currentUserId ? `&author.id[ne]=${currentUserId}&master.id[ne]=${currentUserId}` : ''}`;
             
             console.log('Recommendations - Endpoint:', `${API_BASE_URL}${endpoint}`);
             console.log('============================================');
@@ -196,30 +202,63 @@ function Recommendations({
             const response = await fetch(`${API_BASE_URL}${endpoint}`, { headers });
 
             if (response.ok) {
-                let data: Announcement[] = await response.json();
+                const responseData = await response.json();
+                let data: Announcement[];
 
-                // Сортируем: сначала тикеты из выбранного города, затем по дате (новые первыми)
+                if (Array.isArray(responseData)) {
+                    data = responseData;
+                } else if (responseData && 'hydra:member' in responseData) {
+                    data = responseData['hydra:member'];
+                    const totalItems: number = responseData['hydra:totalItems'] ?? data.length;
+                    setTotalPages(Math.max(1, Math.ceil(totalItems / pageSize)));
+                } else {
+                    data = [];
+                }
+
+                // Сортируем: сначала тикеты из выбранного города
                 const selectedCity = localStorage.getItem('selectedCity') || '';
-                data = data.sort((a, b) => {
-                    const aMatchesCity = selectedCity
-                        ? a.addresses?.some(addr => addr.city?.title === selectedCity) ?? false
-                        : false;
-                    const bMatchesCity = selectedCity
-                        ? b.addresses?.some(addr => addr.city?.title === selectedCity) ?? false
-                        : false;
-                    if (aMatchesCity !== bMatchesCity) return aMatchesCity ? -1 : 1;
-                    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-                });
+                if (selectedCity) {
+                    data = data.sort((a, b) => {
+                        const aMatchesCity = a.addresses?.some(addr => addr.city?.title === selectedCity) ?? false;
+                        const bMatchesCity = b.addresses?.some(addr => addr.city?.title === selectedCity) ?? false;
+                        if (aMatchesCity !== bMatchesCity) return aMatchesCity ? -1 : 1;
+                        return 0;
+                    });
+                }
 
-                setAnnouncements(data);
-                setShowAll(false);
+                if (appendAnnouncementsRef.current) {
+                    appendAnnouncementsRef.current = false;
+                    setAnnouncements(prev => [...prev, ...data]);
+                } else {
+                    setAnnouncements(data);
+                }
             }
         } catch (error) {
             console.error('Error fetching announcements:', error);
         } finally {
             setIsLoading(false);
         }
-    }, [locale, userRole]);
+    }, [locale, userRole, page]);
+
+    const handleLoadMoreAnnouncements = () => {
+        appendAnnouncementsRef.current = true;
+        setPage(p => p + 1);
+    };
+
+    const handleLoadLessAnnouncements = () => {
+        const pageSize = getPageSize();
+        const prevPage = page - 1;
+        skipAnnouncementsFetchRef.current = true;
+        setPage(prevPage);
+        setAnnouncements(prev => prev.slice(0, prevPage * pageSize));
+    };
+
+    const handleClearAnnouncements = () => {
+        const pageSize = getPageSize();
+        skipAnnouncementsFetchRef.current = true;
+        setPage(1);
+        setAnnouncements(prev => prev.slice(0, pageSize));
+    };
 
     useLanguageChange(() => {
         // Обновление данных при смене языка происходит через useEffect ниже
@@ -272,6 +311,15 @@ function Recommendations({
             setIsLoading(false);
         }
     }, [userRole, locale, fetchRecentAnnouncements, customData]);
+
+    useEffect(() => {
+        if (skipAnnouncementsFetchRef.current) {
+            skipAnnouncementsFetchRef.current = false;
+            return;
+        }
+        if (customData) return;
+        fetchRecentAnnouncements();
+    }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const getFullAddress = (announcement: Announcement): string => {
         if (!announcement.addresses || announcement.addresses.length === 0) {
@@ -359,7 +407,7 @@ function Recommendations({
                     <EmptyState isLoading />
                 ) : displayData.length > 0 ? (
                     <div className={styles.recommendation__list}>
-                        {displayData.slice(0, showAll ? displayData.length : initialLimit).map((announcement) => (
+                        {(customData ? displayData.slice(0, showAll ? displayData.length : initialLimit) : displayData).map((announcement) => (
                             <Card
                                 key={announcement.id}
                                 ticketId={announcement.id}
@@ -399,15 +447,32 @@ function Recommendations({
                 ) : (
                     <EmptyState onRefresh={customData ? undefined : fetchRecentAnnouncements} />
                 )}
-                {!displayLoading && displayData.length > initialLimit && showMoreButton && (
-                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+                {customData ? (
+                    !displayLoading && displayData.length > initialLimit && showMoreButton && (
+                        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+                            <ShowMore
+                                expanded={showAll}
+                                canLoadMore={!showAll}
+                                onShowMore={() => setShowAll(true)}
+                                onShowLess={() => setShowAll(false)}
+                                onClear={() => setShowAll(false)}
+                                showMoreText={t('common:app.showMore')}
+                                showLessText={t('common:app.showLess')}
+                            />
+                        </div>
+                    )
+                ) : (
+                    !customData && (
                         <ShowMore
-                            expanded={showAll}
-                            onToggle={() => setShowAll(prev => !prev)}
-                            showMoreText={t('pages.recommendations.showMore', 'Показать еще')}
-                            showLessText={t('pages.recommendations.showLess', 'Свернуть')}
+                            expanded={page > 1}
+                            canLoadMore={page < totalPages}
+                            onShowMore={handleLoadMoreAnnouncements}
+                            onShowLess={handleLoadLessAnnouncements}
+                            onClear={handleClearAnnouncements}
+                            showMoreText={t('common:app.showMore')}
+                            showLessText={t('common:app.showLess')}
                         />
-                    </div>
+                    )
                 )}
             </div>
         </div>
@@ -418,7 +483,7 @@ function Recommendations({
             message={respondModal.message}
         />
         {cardReviewTarget && (
-            <FeedbackModal
+            <Feedback
                 mode="review"
                 isOpen={!!cardReviewTarget}
                 onClose={() => setCardReviewTarget(null)}
@@ -430,7 +495,7 @@ function Recommendations({
             />
         )}
         {cardComplaintTarget && (
-            <FeedbackModal
+            <Feedback
                 mode="complaint"
                 isOpen={!!cardComplaintTarget}
                 onClose={() => setCardComplaintTarget(null)}

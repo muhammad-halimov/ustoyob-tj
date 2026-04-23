@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLanguageChange } from '../../hooks';
-import styles from './AuthModal.module.scss';
+import { useLanguageChange } from '../../../../hooks';
+import styles from './Auth.module.scss';
 import {
     getUserRole,
     setAuthToken,
@@ -10,12 +10,13 @@ import {
     setUserEmail,
     setUserRole,
     setUserOccupation,
-} from '../../utils/auth';
-import { getOccupations } from '../../utils/dataCache.ts';
-import { DateWidget } from '../../widgets/DateWidget/DateWidget.tsx';
-import { Marquee } from '../../shared/ui/Text/Marquee';
-import Status from '../../shared/ui/Modal/Status';
-import { PageLoader } from '../../widgets/PageLoader';
+} from '../../../../utils/auth.ts';
+import { getOccupations } from '../../../../utils/dataCache.ts';
+import { DateWidget } from '../../../../widgets/DateWidget/DateWidget.tsx';
+import { Marquee } from '../../Text/Marquee';
+import Status from '../Status';
+import { PageLoader } from '../../../../widgets/PageLoader';
+import { Clear } from '../../Button/Clear/Clear';
 
 const AuthModalState = {
     WELCOME: 'welcome',
@@ -148,7 +149,7 @@ const validatePassword = (password: string, t: any): { isValid: boolean; message
     };
 };
 
-const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => {
+const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => {
     const { t } = useTranslation('components');
     useLanguageChange(); // Для обновления категорий при смене языка
     const [currentState, setCurrentState] = useState<AuthModalStateType>(AuthModalState.WELCOME);
@@ -1951,9 +1952,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
                 className={`${styles.modalContent} ${styles[`modal_${currentState}`]}`}
                 onClick={(e) => e.stopPropagation()}
             >
-                <button className={styles.closeButton} onClick={handleClose} type="button">
-                    ×
-                </button>
+                <Clear className={styles.closeButton} onClick={handleClose} />
                 {renderContent()}
             </div>
             <Status
@@ -1966,5 +1965,5 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }
     );
 };
 
-export default AuthModal;
+export default Auth;
 export { AuthModalState };

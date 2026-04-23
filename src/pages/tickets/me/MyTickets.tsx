@@ -1,4 +1,4 @@
-import {useState, useEffect, useCallback} from 'react';
+import {useState, useEffect, useCallback, useRef} from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../app/routers/routes';
@@ -8,13 +8,15 @@ import { useLanguageChange } from '../../../hooks';
 import styles from './MyTickets.module.scss';
 import { PageLoader } from '../../../widgets/PageLoader';
 import { EmptyState } from '../../../widgets/EmptyState';
-import AuthModal from '../../../features/auth/AuthModal.tsx';
+import Auth from '../../../shared/ui/Modal/Auth/Auth.tsx';
 import { Card } from '../../../shared/ui/Ticket/Card/Card.tsx';
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 import Status from '../../../shared/ui/Modal/Status';
 import { Tabs } from '../../../shared/ui/Tabs';
 import { SectionActions } from '../../../shared/ui/SectionActions';
 import { IoCheckmarkCircleOutline, IoCloseCircleOutline } from 'react-icons/io5';
+import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore.tsx';
+import { getPageSize } from '../../../utils/pageSize.ts';
 
 interface ApiUser {
     id: number;
@@ -138,7 +140,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 function MyTickets() {
     const navigate = useNavigate();
-    const { t } = useTranslation(['myTickets']);
+    const { t } = useTranslation(['myTickets', 'common']);
     
     const [currentUser, setCurrentUser] = useState<ApiUser | null>(null);
     const [allTickets, setAllTickets] = useState<FormattedTicket[]>([]);
@@ -146,6 +148,12 @@ function MyTickets() {
     const [isLoading, setIsLoading] = useState(true);
     const [isContentLoading, setIsContentLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<'active' | 'inactive'>('active');
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const appendTicketsRef = useRef(false);
+    const skipTicketsFetchRef = useRef(false);
+    const [activeTabTotal, setActiveTabTotal] = useState(0);
+    const [inactiveTabTotal, setInactiveTabTotal] = useState(0);
 
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [showErrorModal, setShowErrorModal] = useState(false);
@@ -180,11 +188,47 @@ function MyTickets() {
     }, [currentUser]);
 
     useEffect(() => {
+        if (skipTicketsFetchRef.current) {
+            skipTicketsFetchRef.current = false;
+            return;
+        }
+        if (currentUser) fetchMyTickets();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [page]);
+
+    const handleLoadMoreTickets = () => {
+        appendTicketsRef.current = true;
+        setPage(p => p + 1);
+    };
+
+    const handleLoadLessTickets = () => {
+        const pageSize = getPageSize();
+        const prevPage = page - 1;
+        skipTicketsFetchRef.current = true;
+        setPage(prevPage);
+        setAllTickets(prev => prev.slice(0, prevPage * pageSize));
+    };
+
+    const handleClearTickets = () => {
+        const pageSize = getPageSize();
+        skipTicketsFetchRef.current = true;
+        setPage(1);
+        setAllTickets(prev => prev.slice(0, pageSize));
+    };
+
+    useEffect(() => {
         const filtered = activeTab === 'active' 
             ? allTickets.filter(t => t.active)
             : allTickets.filter(t => !t.active);
         setDisplayedTickets(filtered);
     }, [activeTab, allTickets]);
+
+    // Сбрасываем страницу при смене вкладки
+    useEffect(() => {
+        appendTicketsRef.current = false;
+        skipTicketsFetchRef.current = false;
+        setPage(1);
+    }, [activeTab]);
 
     // Загрузка текущего пользователя через централизованный кэш (auth.ts)
     const getCurrentUser = useCallback(async (): Promise<ApiUser | null> => {
@@ -214,8 +258,10 @@ function MyTickets() {
                 return;
             }
 
-            // Получаем все тикеты
-            const url = `${API_BASE_URL}/api/tickets/me?locale=${getStorageItem('i18nextLng') || 'ru'}`;
+            // Получаем тикеты с пагинацией и фильтром по active
+            const pageSize = getPageSize();
+            const activeParam = `&active=${activeTab === 'active' ? 'true' : 'false'}`;
+            const url = `${API_BASE_URL}/api/tickets/me?locale=${getStorageItem('i18nextLng') || 'ru'}${activeParam}&page=${page}&itemsPerPage=${pageSize}`;
             console.log('Fetching tickets from:', url);
 
             const response = await fetch(url, {
@@ -226,10 +272,27 @@ function MyTickets() {
             });
 
             if (response.ok) {
-                const ticketsData: Ticket[] = await response.json();
+                const responseData = await response.json();
+                let ticketsData: Ticket[];
+
+                if (Array.isArray(responseData)) {
+                    ticketsData = responseData;
+                } else if (responseData && 'hydra:member' in responseData) {
+                    ticketsData = responseData['hydra:member'];
+                    const totalItems: number = responseData['hydra:totalItems'] ?? ticketsData.length;
+                    const pageSize = getPageSize();
+                    setTotalPages(Math.max(1, Math.ceil(totalItems / pageSize)));
+                    if (activeTab === 'active') {
+                        setActiveTabTotal(totalItems);
+                    } else {
+                        setInactiveTabTotal(totalItems);
+                    }
+                } else {
+                    ticketsData = [];
+                }
                 console.log('Received tickets:', ticketsData);
 
-                // Фильтруем тикеты текущего пользователя
+                // Фильтруем тикеты текущего пользователя (на сервере /me уже фильтрует, но дополнительная проверка)
                 const myTickets = ticketsData.filter(ticket =>
                     ticket.author?.id === currentUser.id ||
                     ticket.master?.id === currentUser.id
@@ -284,7 +347,12 @@ function MyTickets() {
                     return new Date(b.timeAgo).getTime() - new Date(a.timeAgo).getTime();
                 });
 
-                setAllTickets(formattedTickets);
+                if (appendTicketsRef.current) {
+                    appendTicketsRef.current = false;
+                    setAllTickets(prev => [...prev, ...formattedTickets]);
+                } else {
+                    setAllTickets(formattedTickets);
+                }
             } else {
                 console.error('Error fetching tickets, status:', response.status);
                 setAllTickets([]);
@@ -452,10 +520,10 @@ function MyTickets() {
         return <PageLoader text={t('myTickets:loading')} />;
     }
 
-    // Если нет currentUser после загрузки - показать AuthModal
+    // Если нет currentUser после загрузки - показать Auth
     if (!currentUser) {
         return (
-            <AuthModal
+            <Auth
                 isOpen={true}
                 onClose={() => navigate(ROUTES.HOME)}
                 onLoginSuccess={() => window.location.reload()}
@@ -478,8 +546,8 @@ function MyTickets() {
             {/* Табы для фильтрации */}
             <Tabs
                 tabs={[
-                    { key: 'active' as const, label: <><IoCheckmarkCircleOutline />{t('myTickets:activeTab', { count: allTickets.filter(ticket => ticket.active).length })}</> },
-                    { key: 'inactive' as const, label: <><IoCloseCircleOutline />{t('myTickets:inactiveTab', { count: allTickets.filter(ticket => !ticket.active).length })}</> },
+                    { key: 'active' as const, label: <><IoCheckmarkCircleOutline />{t('myTickets:activeTab', { count: activeTabTotal })}</> },
+                    { key: 'inactive' as const, label: <><IoCloseCircleOutline />{t('myTickets:inactiveTab', { count: inactiveTabTotal })}</> },
                 ]}
                 activeTab={activeTab}
                 onChange={setActiveTab}
@@ -529,6 +597,16 @@ function MyTickets() {
                     ))
                 )}
             </div>
+            <ShowMore
+                expanded={page > 1}
+                canLoadMore={page < totalPages}
+                onShowMore={handleLoadMoreTickets}
+                onShowLess={handleLoadLessTickets}
+                onClear={handleClearTickets}
+                showMoreText={t('common:app.showMore', { defaultValue: 'Показать больше' })}
+                showLessText={t('common:app.showLess', { defaultValue: 'Показать меньше' })}
+                loading={isContentLoading}
+            />
 
             <Status
                 type="success"

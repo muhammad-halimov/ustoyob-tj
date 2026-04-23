@@ -443,7 +443,19 @@
     "registerViaGoogle": "Зарегистрироваться через Google",
     "registerViaFacebook": "Зарегистрироваться через Facebook",
     "registerViaInstagram": "Зарегистрироваться через Instagram",
-    "registerViaTelegram": "Зарегистрироваться через Telegram"
+    "registerViaTelegram": "Зарегистрироваться через Telegram",
+    "forgotPasswordTitle": "Восстановление пароля",
+    "sendCode": "Отправить код",
+    "enterCode": "Введите код",
+    "codeSentTo": "Код отправлен на",
+    "enterOtpCode": "Введите код из письма",
+    "continue": "Продолжить",
+    "newPasswordTitle": "Новый пароль",
+    "enterNewPassword": "Введите новый пароль",
+    "savePassword": "Сохранить пароль",
+    "passwordMismatch": "Пароли не совпадают",
+    "errorOccurred": "Произошла ошибка. Попробуйте ещё раз.",
+    "otpInvalidOrExpired": "Неверный или истёкший код"
   },
   "statusModal": {
     "successTitle": "Успешно!",

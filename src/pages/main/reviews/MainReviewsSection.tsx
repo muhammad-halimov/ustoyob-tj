@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ROUTES } from '../../../app/routers/routes.ts';
@@ -13,7 +13,9 @@ import { EmptyState } from '../../../widgets/EmptyState';
 import { getAuthorAvatar } from '../../../utils/imageHelper.ts';
 import { ActionsDropdown } from '../../../widgets/ActionsDropdown';
 import { IoWarningOutline } from 'react-icons/io5';
-import FeedbackModal from '../../../shared/ui/Modal/Feedback';
+import Feedback from '../../../shared/ui/Modal/Feedback';
+import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore.tsx';
+import { getPageSize } from '../../../utils/pageSize.ts';
 
 interface MainReviewsSectionProps {
     className?: string;
@@ -22,41 +24,40 @@ interface MainReviewsSectionProps {
 export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ className }) => {
     const [reviews, setReviews] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [visibleCount, setVisibleCount] = useState(6);
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const appendReviewsRef = useRef(false);
+    const skipReviewsFetchRef = useRef(false);
     const [complaintReviewId, setComplaintReviewId] = useState<number | null>(null);
     const [complaintAuthorId, setComplaintAuthorId] = useState<number | null>(null);
     const [isComplaintOpen, setIsComplaintOpen] = useState(false);
     const navigate = useNavigate();
-    const { t, i18n } = useTranslation(['profile', 'components']);
+    const { t, i18n } = useTranslation(['profile', 'components', 'common']);
     
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     // Загружаем отзывы с API
-    const fetchReviews = async () => {
+    const fetchReviews = async (currentPage: number) => {
         try {
             setLoading(true);
-            const url = `${API_BASE_URL}/api/reviews?limit=20`;
+            const pageSize = getPageSize();
+            const url = `${API_BASE_URL}/api/reviews?page=${currentPage}&itemsPerPage=${pageSize}`;
             console.log('Fetching reviews from:', url);
             
             const response = await fetch(url);
-            console.log('Response status:', response.status);
-            console.log('Response ok:', response.ok);
             
             if (response.ok) {
                 const data = await response.json();
-                console.log('Reviews data received:', data);
                 
-                // Проверяем разные возможные структуры данных
                 let reviewsData: any[];
                 if (data['hydra:member']) {
-                    console.log('Found hydra:member, reviews count:', data['hydra:member'].length);
                     reviewsData = data['hydra:member'];
+                    const totalItems: number = data['hydra:totalItems'] ?? reviewsData.length;
+                    setTotalPages(Math.max(1, Math.ceil(totalItems / pageSize)));
                 } else if (Array.isArray(data)) {
-                    console.log('Found array data, reviews count:', data.length);
                     reviewsData = data;
                 } else {
-                    console.log('No reviews found in response');
                     reviewsData = [];
                 }
                 
@@ -64,10 +65,15 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                 const sortedReviews = reviewsData.sort((a, b) => {
                     const dateA = new Date(a.createdAt || 0).getTime();
                     const dateB = new Date(b.createdAt || 0).getTime();
-                    return dateB - dateA; // Обратная сортировка (новые сначала)
+                    return dateB - dateA;
                 });
                 
-                setReviews(sortedReviews);
+                if (appendReviewsRef.current) {
+                    appendReviewsRef.current = false;
+                    setReviews(prev => [...prev, ...sortedReviews]);
+                } else {
+                    setReviews(sortedReviews);
+                }
             } else {
                 console.error('Response not ok:', response.status, response.statusText);
             }
@@ -79,8 +85,32 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
     };
 
     useEffect(() => {
-        fetchReviews();
-    }, [API_BASE_URL]);
+        if (skipReviewsFetchRef.current) {
+            skipReviewsFetchRef.current = false;
+            return;
+        }
+        fetchReviews(page);
+    }, [API_BASE_URL, page]);
+
+    const handleLoadMoreReviews = () => {
+        appendReviewsRef.current = true;
+        setPage(p => p + 1);
+    };
+
+    const handleLoadLessReviews = () => {
+        const pageSize = getPageSize();
+        const prevPage = page - 1;
+        skipReviewsFetchRef.current = true;
+        setPage(prevPage);
+        setReviews(prev => prev.slice(0, prevPage * pageSize));
+    };
+
+    const handleClearReviews = () => {
+        const pageSize = getPageSize();
+        skipReviewsFetchRef.current = true;
+        setPage(1);
+        setReviews(prev => prev.slice(0, pageSize));
+    };
 
     // Функция для получения имени заказчика
     const getClientName = (review: any): string => {
@@ -163,16 +193,9 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
         return totalIndex + imageIndex;
     };
 
-    // Функции для управления видимыми отзывами
-    const handleShowMore = () => {
-        setVisibleCount(reviews.length);
-    };
-
-    const handleShowLess = () => {
-        setVisibleCount(6);
-    };
-
-    // Функция для получения URL изображения отзыва
+    // Функция для обновления
+    const handleRefresh = () => fetchReviews(page);
+    // для получения URL изображения отзыва
     const getReviewImageUrl = (imagePath: string): string => {
         if (!imagePath) return './default_user.png';
         if (imagePath.startsWith('http')) return imagePath;
@@ -197,12 +220,12 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
 
     const photoGallery = usePreview({ images: galleryImages });
 
-    if (loading || reviews.length === 0) {
+    if (loading && reviews.length === 0) {
         return (
             <div className={`${styles.main_reviews} ${className || ''}`}>
                 <div className={styles.container}>
                     <h3>{t('profile:reviewsTitle')}</h3>
-                    <EmptyState isLoading={loading} title={t('profile:noReviews')} onRefresh={fetchReviews} />
+                    <EmptyState isLoading={loading} title={t('profile:noReviews')} onRefresh={handleRefresh} />
                 </div>
             </div>
         );
@@ -215,7 +238,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                 
                 {/* Desktop карточный вид */}
                 <div className={styles.reviews_wrap}>
-                    {reviews.slice(0, visibleCount).map((review, reviewIndex) => (
+                    {reviews.map((review, reviewIndex) => (
                         <div key={review.id} className={styles.reviews_item}>
                             <ActionsDropdown
                                 style={{ position: 'absolute', top: '0px', right: '10px', zIndex: 2 }}
@@ -320,7 +343,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                             },
                         }}
                     >
-                        {reviews.slice(0, visibleCount).map((review, reviewIndex) => (
+                        {reviews.map((review, reviewIndex) => (
                             <SwiperSlide key={review.id}>
                                 <div className={styles.reviews_item}>
                                     <ActionsDropdown
@@ -417,17 +440,16 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                     </Swiper>
                 </div>
 
-                {/* Кнопки управления отзывами */}
-                {reviews.length > 6 && (
-                    <div className={styles.reviews_actions}>
-                        <button
-                            className={styles.show_all_reviews_btn}
-                            onClick={visibleCount === reviews.length ? handleShowLess : handleShowMore}
-                        >
-                            {visibleCount === reviews.length ? t('profile:hideReviews') : t('profile:showAllReviews')}
-                        </button>
-                    </div>
-                )}
+                <ShowMore
+                    expanded={page > 1}
+                    canLoadMore={page < totalPages}
+                    onShowMore={handleLoadMoreReviews}
+                    onShowLess={handleLoadLessReviews}
+                    onClear={handleClearReviews}
+                    showMoreText={t('common:app.showMore')}
+                    showLessText={t('common:app.showLess')}
+                    loading={loading}
+                />
             </div>
 
             {/* Preview для просмотра фото */}
@@ -441,7 +463,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                 onSelectImage={photoGallery.selectImage}
                 fallbackImage="./default_user.png"
             />
-            <FeedbackModal
+            <Feedback
                 mode="complaint"
                 isOpen={isComplaintOpen}
                 onClose={() => setIsComplaintOpen(false)}

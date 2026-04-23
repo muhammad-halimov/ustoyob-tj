@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ShowMore } from '../../../../../shared/ui/Button/ShowMore/ShowMore';
 import { Preview } from '../../../../../shared/ui/Photo/Preview';
 import { SectionActions } from '../../../../../shared/ui/SectionActions';
 import { useDragReorder, DragHandle } from '../../../../../widgets/DragReorder';
@@ -62,7 +63,7 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
     isLoading = false,
 }) => {
     const workExampleInputRef = useRef<HTMLInputElement>(null);
-    const { t } = useTranslation(['profile']);
+    const { t } = useTranslation(['profile', 'common']);
     const workDrag = useDragReorder(workExamples, onReorder ?? (() => {}));
 
     // Single synthetic item to hold the gallery grid inside ProfileSection
@@ -141,12 +142,15 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
                                 ))}
                         </div>
                         {workExamples.length > (isMobile ? 6 : 8) && (
-                            <button
-                                className={styles.show_more_work_button}
-                                onClick={() => setShowAllWorkExamples(!showAllWorkExamples)}
-                            >
-                                {showAllWorkExamples ? t('profile:hideAll') : t('profile:showAll', { count: workExamples.length })}
-                            </button>
+                            <ShowMore
+                                expanded={showAllWorkExamples}
+                                canLoadMore={!showAllWorkExamples}
+                                onShowMore={() => setShowAllWorkExamples(true)}
+                                onShowLess={() => setShowAllWorkExamples(false)}
+                                onClear={() => setShowAllWorkExamples(false)}
+                                showMoreText={t('common:app.showMore')}
+                                showLessText={t('common:app.showLess')}
+                            />
                         )}
                     </div>
                 )}

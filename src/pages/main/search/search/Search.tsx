@@ -1,22 +1,24 @@
 import styles from './Search.module.scss';
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import FilterPanel, { FilterState } from "../filters/FilterPanel.tsx";
-import { getAuthToken, getUserRole, getUserData } from "../../../utils/auth.ts";
+import { getAuthToken, getUserRole, getUserData } from "../../../../utils/auth.ts";
 import { useNavigate } from "react-router-dom";
-import { ROUTES } from '../../../app/routers/routes.ts';
-import {textHelper} from "../../../utils/textHelper.ts";
+import { ROUTES } from '../../../../app/routers/routes.ts';
+import {textHelper} from "../../../../utils/textHelper.ts";
 import { useTranslation } from 'react-i18next';
-import { useLanguageChange } from "../../../hooks";
-import { Card } from "../../../shared/ui/Ticket/Card/Card.tsx";
-import { ServiceTypeFilter } from "../../../widgets/Sorting/TypeFilter";
-import { SortingFilter } from "../../../widgets/Sorting/CriteriaFilter";
-import { createChatWithAuthor } from '../../../utils/chatUtils';
-import { getCities, getOccupations } from "../../../utils/dataCache.ts";
-import { PageLoader } from '../../../widgets/PageLoader';
-import { EmptyState } from '../../../widgets/EmptyState';
-import Status from '../../../shared/ui/Modal/Status';
-import FeedbackModal from '../../../shared/ui/Modal/Feedback';
-import { ClearButton } from '../../../shared/ui/Button/Clear/ClearButton';
+import { useLanguageChange } from "../../../../hooks";
+import { Card } from "../../../../shared/ui/Ticket/Card/Card.tsx";
+import { ServiceTypeFilter } from "../../../../widgets/Sorting/TypeFilter";
+import { SortingFilter } from "../../../../widgets/Sorting/CriteriaFilter";
+import { createChatWithAuthor } from '../../../../utils/chatUtils.ts';
+import { getCities, getOccupations } from "../../../../utils/dataCache.ts";
+import { PageLoader } from '../../../../widgets/PageLoader';
+import { EmptyState } from '../../../../widgets/EmptyState';
+import Status from '../../../../shared/ui/Modal/Status';
+import Feedback from '../../../../shared/ui/Modal/Feedback';
+import { Clear } from '../../../../shared/ui/Button/Clear/Clear.tsx';
+import { ShowMore } from '../../../../shared/ui/Button/ShowMore/ShowMore.tsx';
+import { getPageSize } from '../../../../utils/pageSize.ts';
 
 // Интерфейсы
 interface ApiTicket {
@@ -174,7 +176,7 @@ function getSearchSession(): Record<string, unknown> | null {
 }
 
 export default function Search({ onSearchResults, onFilterToggle }: SearchProps) {
-    const { t } = useTranslation('components');
+    const { t } = useTranslation(['components', 'common']);
     // Restore from session on mount (survives back-navigation)
     const initSessionRef = useRef(getSearchSession());
     const [showFilters, setShowFilters] = useState<boolean>(() => (initSessionRef.current?.showFilters as boolean) ?? false);
@@ -198,6 +200,10 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         };
     });
     const [isLoading, setIsLoading] = useState(false);
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const appendSearchRef = useRef(false);
+    const skipSearchFetchRef = useRef(false);
     const [categories, setCategories] = useState<Category[]>([]);
     const [occupations, setOccupations] = useState<Occupation[]>([]);
     const [cities, setCities] = useState<City[]>([]);
@@ -709,6 +715,10 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             // Город из хедера учитывается через приоритет сортировки (sortTicketsWithPriority),
             // а не через серверный фильтр — все тикеты показываются, городские идут первыми.
 
+            const pageSize = getPageSize();
+            params.append('page', String(page));
+            params.append('itemsPerPage', String(pageSize));
+
             console.log('Loading tickets with params:', params.toString());
 
             const response = await fetch(`${API_BASE_URL}/api/tickets?${params.toString()}`, {
@@ -730,9 +740,12 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             if (Array.isArray(responseData)) {
                 ticketsData = responseData;
             } else if (responseData && typeof responseData === 'object' && 'hydra:member' in responseData) {
-                const hydraMember = (responseData as { 'hydra:member': ApiTicket[] })['hydra:member'];
+                const hydraMember = (responseData as { 'hydra:member': ApiTicket[]; 'hydra:totalItems'?: number })['hydra:member'];
                 if (Array.isArray(hydraMember)) {
                     ticketsData = hydraMember;
+                    const totalItems = (responseData as { 'hydra:totalItems'?: number })['hydra:totalItems'] ?? ticketsData.length;
+                    const pageSize = getPageSize();
+                    setTotalPages(Math.max(1, Math.ceil(totalItems / pageSize)));
                 }
             }
 
@@ -891,7 +904,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         } finally {
             setIsLoading(false);
         }
-    }, [userRole, filterByCity, selectedCity, sortTicketsWithPriority, getUserName, getAddressInfo, getTicketPriority, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter]);
+    }, [userRole, filterByCity, selectedCity, sortTicketsWithPriority, getUserName, getAddressInfo, getTicketPriority, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter, page]);
 
     // Флаг для предотвращения дублирующих запросов
     const isSearchInProgressRef = useRef(false);
@@ -978,9 +991,18 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         isSearchInProgressRef.current = true;
         try {
             const results = await fetchAllTickets(searchQuery, filters);
-            setSearchResults(results);
-            setShowResults(true);
-            onSearchResults(results);
+            if (appendSearchRef.current) {
+                appendSearchRef.current = false;
+                setSearchResults(prev => {
+                    const merged = [...prev, ...results];
+                    onSearchResults(merged);
+                    return merged;
+                });
+            } else {
+                setSearchResults(results);
+                setShowResults(true);
+                onSearchResults(results);
+            }
             previousSearchRef.current = {
                 query: searchQuery.trim(),
                 filters,
@@ -1081,6 +1103,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         setTimeFilter('all');
         setShowResults(false);
         setSearchResults([]);
+        setPage(1);
         onSearchResults([]);
         previousSearchRef.current = {
             query: searchQuery,
@@ -1123,6 +1146,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         setTimeFilter('all');
         setShowResults(false);
         setSearchResults([]);
+        setPage(1);
         onSearchResults([]);
         previousSearchRef.current = {
             query: '',
@@ -1148,6 +1172,44 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     const handleFilterChange = useCallback((newFilters: FilterState) => {
         setFilters(newFilters);
     }, []);
+
+    // При смене страницы перезагружаем результаты
+    useEffect(() => {
+        if (skipSearchFetchRef.current) {
+            skipSearchFetchRef.current = false;
+            return;
+        }
+        if (showResults) {
+            handleForceRefresh();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [page]);
+
+    const handleLoadMoreSearch = () => {
+        appendSearchRef.current = true;
+        setPage(p => p + 1);
+    };
+
+    const handleLoadLessSearch = () => {
+        const pageSize = getPageSize();
+        const prevPage = page - 1;
+        skipSearchFetchRef.current = true;
+        setPage(prevPage);
+        setSearchResults(prev => prev.slice(0, prevPage * pageSize));
+    };
+
+    const handleClearSearch = () => {
+        const pageSize = getPageSize();
+        skipSearchFetchRef.current = true;
+        setPage(1);
+        setSearchResults(prev => prev.slice(0, pageSize));
+    };
+
+    // Сбрасываем страницу при изменении поисковых параметров
+    useEffect(() => {
+        appendSearchRef.current = false;
+        setPage(1);
+    }, [searchQuery, filters.minPrice, filters.maxPrice, filters.category, filters.rating, filters.city, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter]);
 
     // Эффекты
     useEffect(() => {
@@ -1415,7 +1477,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                                     onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                                 />
                                 {searchQuery && (
-                                    <ClearButton
+                                    <Clear
                                         className={styles.clear_input_btn}
                                         onClick={() => setSearchQuery('')}
                                     />
@@ -1454,7 +1516,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                             <p>{t('search.filters')}</p>
                         </button>
                         {showFilters && (
-                            <ClearButton
+                            <Clear
                                 className={styles.clear_filters_control_btn}
                                 onClick={handleClearAll}
                             />
@@ -1492,6 +1554,18 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
                     <div className={`${styles.searchResults} ${!showResults ? styles.hidden : ''}`}>
                         {renderedResults}
+                        {showResults && (
+                            <ShowMore
+                                expanded={page > 1}
+                                canLoadMore={page < totalPages}
+                                onShowMore={handleLoadMoreSearch}
+                                onShowLess={handleLoadLessSearch}
+                                onClear={handleClearSearch}
+                                showMoreText={t('common:app.showMore')}
+                                showLessText={t('common:app.showLess')}
+                                loading={isLoading}
+                            />
+                        )}
                     </div>
                 </div>
             </div>
@@ -1502,7 +1576,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 message={respondModal.message}
             />
             {cardReviewTarget && (
-                <FeedbackModal
+                <Feedback
                     mode="review"
                     isOpen={!!cardReviewTarget}
                     onClose={() => setCardReviewTarget(null)}
@@ -1514,7 +1588,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 />
             )}
             {cardComplaintTarget && (
-                <FeedbackModal
+                <Feedback
                     mode="complaint"
                     isOpen={!!cardComplaintTarget}
                     onClose={() => setCardComplaintTarget(null)}
