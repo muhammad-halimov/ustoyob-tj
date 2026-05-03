@@ -121,7 +121,7 @@ class Occupation
     /**
      * @var Collection<int, Category>
      */
-    #[ORM\OneToMany(targetEntity: Category::class, mappedBy: 'occupation')]
+    #[ORM\ManyToMany(targetEntity: Category::class, mappedBy: 'occupations')]
     #[Groups([
         G::OCCUPATIONS,
     ])]
@@ -211,7 +211,7 @@ class Occupation
     {
         if (!$this->categories->contains($category)) {
             $this->categories->add($category);
-            $category->setOccupation($this);
+            $category->addOccupation($this);
         }
 
         return $this;
@@ -220,10 +220,7 @@ class Occupation
     public function removeCategory(Category $category): static
     {
         if ($this->categories->removeElement($category)) {
-            // set the owning side to null (unless already changed)
-            if ($category->getOccupation() === $this) {
-                $category->setOccupation(null);
-            }
+            $category->removeOccupation($this);
         }
 
         return $this;

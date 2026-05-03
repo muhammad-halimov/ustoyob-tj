@@ -53,7 +53,7 @@ class ApiPostTicketController extends AbstractApiPostController
         $category    = $dto->category;
         $unit        = $dto->unit;
 
-        if ($subcategory && $subcategory !== $category->getOccupation())
+        if ($subcategory && !$category->getOccupations()->contains($subcategory))
             return $this->errorJson(AppMessages::SUBCATEGORY_NOT_IN_CATEGORY);
 
         $ticket = new Ticket();

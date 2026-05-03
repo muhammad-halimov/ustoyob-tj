@@ -17,8 +17,8 @@ readonly class CategoryTitleLocalizationProvider extends AbstractLocalizationPro
         /** @var Category $entity */
         $this->localizationService->localizeEntity($entity, $locale);
 
-        if ($entity->getOccupation() !== null) {
-            $this->localizationService->localizeEntity($entity->getOccupation(), $locale);
+        foreach ($entity->getOccupations() as $occupation) {
+            $this->localizationService->localizeEntity($occupation, $locale);
         }
     }
 }

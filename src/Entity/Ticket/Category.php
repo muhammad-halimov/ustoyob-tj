@@ -70,6 +70,7 @@ class Category
     {
         $this->userTickets = new ArrayCollection();
         $this->translations = new ArrayCollection();
+        $this->occupations = new ArrayCollection();
     }
 
     #[ORM\Id]
@@ -100,11 +101,11 @@ class Category
     #[Ignore]
     private Collection $userTickets;
 
-    #[ORM\ManyToOne(inversedBy: 'categories')]
+    #[ORM\ManyToMany(targetEntity: Occupation::class, inversedBy: 'categories')]
     #[Groups([
         G::CATEGORIES,
     ])]
-    private ?Occupation $occupation = null;
+    private Collection $occupations;
 
     /**
      * @var Collection<int, Translation>
@@ -147,14 +148,26 @@ class Category
         return $this;
     }
 
-    public function getOccupation(): ?Occupation
+    public function getOccupations(): Collection
     {
-        return $this->occupation;
+        return $this->occupations;
     }
 
-    public function setOccupation(?Occupation $occupations): static
+    public function addOccupation(Occupation $occupation): static
     {
-        $this->occupation = $occupations;
+        if (!$this->occupations->contains($occupation)) {
+            $this->occupations->add($occupation);
+            $occupation->addCategory($this);
+        }
+
+        return $this;
+    }
+
+    public function removeOccupation(Occupation $occupation): static
+    {
+        if ($this->occupations->removeElement($occupation)) {
+            $occupation->removeCategory($this);
+        }
 
         return $this;
     }

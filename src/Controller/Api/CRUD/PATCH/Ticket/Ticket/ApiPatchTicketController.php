@@ -59,7 +59,7 @@ class ApiPatchTicketController extends AbstractApiHelperController
         $unit        = $dto->unit        ?? $ticket->getUnit();
         $subcategory = $dto->subcategory;
 
-        if ($subcategory && $subcategory !== $category->getOccupation()) {
+        if ($subcategory && !$category->getOccupations()->contains($subcategory)) {
             return $this->errorJson(AppMessages::SUBCATEGORY_NOT_IN_CATEGORY);
         }
 
