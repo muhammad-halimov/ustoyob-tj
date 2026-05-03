@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getUserRole, getAuthToken, getUserData } from '../../../utils/auth.ts';
 import { useLanguageChange } from '../../../hooks';
@@ -12,7 +12,9 @@ import Feedback from '../../../shared/ui/Modal/Feedback';
 
 import { EmptyState } from '../../../widgets/EmptyState';
 import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore.tsx';
-import { getPageSize } from '../../../utils/pageSize.ts';
+
+const RECS_INITIAL_SIZE = 6;
+const RECS_PAGE_SIZE = 12;
 
 export interface Announcement {
     id: number;
@@ -102,17 +104,18 @@ function Recommendations({
     onItemClick
 }: RecommendationsProps = {}) {
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-    const [page, setPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const appendAnnouncementsRef = useRef(false);
-    const skipAnnouncementsFetchRef = useRef(false);
-    const [showAll, setShowAll] = useState(false);
+    const [visibleCount, setVisibleCount] = useState(customData ? initialLimit : RECS_INITIAL_SIZE);
     const [isLoading, setIsLoading] = useState(true);
     const [userRole, setUserRole] = useState<'client' | 'master' | null>(getUserRole());
     const navigate = useNavigate();
     const { t, i18n } = useTranslation(['components', 'common']);
     const locale = i18n.language;
     
+    // Reset visibleCount when initialLimit or customData changes
+    useEffect(() => {
+        setVisibleCount(initialLimit);
+    }, [initialLimit, customData]);
+
     // Use custom data if provided
     const displayData = customData || announcements;
     const displayLoading = customData ? customLoading : isLoading;
@@ -188,8 +191,7 @@ function Recommendations({
             console.log('Recommendations - Current user ID:', currentUserId);
             console.log('Recommendations - Token exists:', !!token);
             
-            const pageSize = getPageSize();
-            const endpoint = `/api/tickets?locale=${locale}&active=true&page=${page}&itemsPerPage=${pageSize}${currentUserId ? `&author.id[ne]=${currentUserId}&master.id[ne]=${currentUserId}` : ''}`;
+            const endpoint = `/api/tickets?locale=${locale}&active=true&page=1&itemsPerPage=${RECS_PAGE_SIZE}${currentUserId ? `&author.id[ne]=${currentUserId}&master.id[ne]=${currentUserId}` : ''}`;
             
             console.log('Recommendations - Endpoint:', `${API_BASE_URL}${endpoint}`);
             console.log('============================================');
@@ -205,15 +207,8 @@ function Recommendations({
                 const responseData = await response.json();
                 let data: Announcement[];
 
-                if (Array.isArray(responseData)) {
-                    data = responseData;
-                } else if (responseData && 'hydra:member' in responseData) {
-                    data = responseData['hydra:member'];
-                    const totalItems: number = responseData['hydra:totalItems'] ?? data.length;
-                    setTotalPages(Math.max(1, Math.ceil(totalItems / pageSize)));
-                } else {
-                    data = [];
-                }
+                data = Array.isArray(responseData) ? responseData as Announcement[]
+                    : (responseData?.['hydra:member'] as Announcement[] | undefined) ?? [];
 
                 // Сортируем: сначала тикеты из выбранного города
                 const selectedCity = localStorage.getItem('selectedCity') || '';
@@ -226,39 +221,17 @@ function Recommendations({
                     });
                 }
 
-                if (appendAnnouncementsRef.current) {
-                    appendAnnouncementsRef.current = false;
-                    setAnnouncements(prev => [...prev, ...data]);
-                } else {
-                    setAnnouncements(data);
-                }
+                setAnnouncements(data);
+                setVisibleCount(RECS_INITIAL_SIZE);
             }
         } catch (error) {
             console.error('Error fetching announcements:', error);
         } finally {
             setIsLoading(false);
         }
-    }, [locale, userRole, page]);
+    }, [locale, userRole]);
 
-    const handleLoadMoreAnnouncements = () => {
-        appendAnnouncementsRef.current = true;
-        setPage(p => p + 1);
-    };
 
-    const handleLoadLessAnnouncements = () => {
-        const pageSize = getPageSize();
-        const prevPage = page - 1;
-        skipAnnouncementsFetchRef.current = true;
-        setPage(prevPage);
-        setAnnouncements(prev => prev.slice(0, prevPage * pageSize));
-    };
-
-    const handleClearAnnouncements = () => {
-        const pageSize = getPageSize();
-        skipAnnouncementsFetchRef.current = true;
-        setPage(1);
-        setAnnouncements(prev => prev.slice(0, pageSize));
-    };
 
     useLanguageChange(() => {
         // Обновление данных при смене языка происходит через useEffect ниже
@@ -311,15 +284,6 @@ function Recommendations({
             setIsLoading(false);
         }
     }, [userRole, locale, fetchRecentAnnouncements, customData]);
-
-    useEffect(() => {
-        if (skipAnnouncementsFetchRef.current) {
-            skipAnnouncementsFetchRef.current = false;
-            return;
-        }
-        if (customData) return;
-        fetchRecentAnnouncements();
-    }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const getFullAddress = (announcement: Announcement): string => {
         if (!announcement.addresses || announcement.addresses.length === 0) {
@@ -407,7 +371,7 @@ function Recommendations({
                     <EmptyState isLoading />
                 ) : displayData.length > 0 ? (
                     <div className={styles.recommendation__list}>
-                        {(customData ? displayData.slice(0, showAll ? displayData.length : initialLimit) : displayData).map((announcement) => (
+                        {displayData.slice(0, visibleCount).map((announcement) => (
                             <Card
                                 key={announcement.id}
                                 ticketId={announcement.id}
@@ -451,27 +415,29 @@ function Recommendations({
                     !displayLoading && displayData.length > initialLimit && showMoreButton && (
                         <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
                             <ShowMore
-                                expanded={showAll}
-                                canLoadMore={!showAll}
-                                onShowMore={() => setShowAll(true)}
-                                onShowLess={() => setShowAll(false)}
-                                onClear={() => setShowAll(false)}
+                                expanded={visibleCount > initialLimit}
+                                canLoadMore={visibleCount < displayData.length}
+                                onShowMore={() => setVisibleCount(c => Math.min(c + initialLimit, displayData.length))}
+                                onShowLess={() => setVisibleCount(c => Math.max(c - initialLimit, initialLimit))}
+                                onClear={() => setVisibleCount(initialLimit)}
                                 showMoreText={t('common:app.showMore')}
                                 showLessText={t('common:app.showLess')}
                             />
                         </div>
                     )
                 ) : (
-                    !customData && (
-                        <ShowMore
-                            expanded={page > 1}
-                            canLoadMore={page < totalPages}
-                            onShowMore={handleLoadMoreAnnouncements}
-                            onShowLess={handleLoadLessAnnouncements}
-                            onClear={handleClearAnnouncements}
-                            showMoreText={t('common:app.showMore')}
-                            showLessText={t('common:app.showLess')}
-                        />
+                    !displayLoading && displayData.length > RECS_INITIAL_SIZE && (
+                        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+                            <ShowMore
+                                expanded={visibleCount > RECS_INITIAL_SIZE}
+                                canLoadMore={visibleCount < displayData.length}
+                                onShowMore={() => setVisibleCount(v => Math.min(v + RECS_PAGE_SIZE, displayData.length))}
+                                onShowLess={() => setVisibleCount(RECS_INITIAL_SIZE)}
+                                onClear={() => setVisibleCount(RECS_INITIAL_SIZE)}
+                                showMoreText={t('common:app.showMore')}
+                                showLessText={t('common:app.showLess')}
+                            />
+                        </div>
                     )
                 )}
             </div>

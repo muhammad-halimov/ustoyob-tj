@@ -21,7 +21,7 @@ export default function Category() {
     const [categories, setCategories] = useState<CategoryItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
-    const [showAll, setShowAll] = useState(false);
+    const [visibleCount, setVisibleCount] = useState(() => window.innerWidth <= 480 ? 6 : 8);
     const [searchQuery, setSearchQuery] = useState<string>('');
     const navigate = useNavigate();
     const { t } = useTranslation(['common', 'category']); // Добавьте перевод
@@ -94,10 +94,15 @@ export default function Category() {
         navigate(ROUTES.CATEGORY_TICKETS_BY_ID(categoryId), { state: { categoryName: categoryTitle } });
     };
 
+    // Reset visibleCount when screen size changes
+    useEffect(() => {
+        setVisibleCount(isMobile ? 6 : 8);
+    }, [isMobile]);
+
     const handleSearch = (query: string) => {
         setSearchQuery(query);
         if (query.trim()) {
-            setShowAll(false); // При поиске сбрасываем "показать все"
+            setVisibleCount(isMobile ? 6 : 8); // При поиске сбрасываем
         }
     };
 
@@ -137,37 +142,11 @@ export default function Category() {
     }
 
     // Определяем какие категории показывать
-    const getVisibleCategories = () => {
-        const filteredCategories = getFilteredCategories();
-
-        // Если есть поиск, показываем все результаты
-        if (searchQuery.trim()) {
-            return filteredCategories;
-        }
-
-        if (showAll) {
-            return filteredCategories;
-        }
-
-        if (isMobile) {
-            // На мобильных показываем 4 или 6 категорий (если меньше - все)
-            return filteredCategories.slice(0, Math.min(6, filteredCategories.length));
-        } else {
-            // На десктопе показываем 8 категорий (если меньше - все)
-            return filteredCategories.slice(0, Math.min(8, filteredCategories.length));
-        }
-    };
-
-    const visibleItems = getVisibleCategories();
-
-    // Проверяем нужно ли показывать кнопку "Посмотреть все"
-    const shouldShowViewAll = !showAll && !searchQuery.trim() && (
-        (isMobile && categories.length > 6) ||
-        (!isMobile && categories.length > 8)
-    );
-
-    // Проверяем нужно ли показывать кнопку "Свернуть"
-    const shouldShowShowLess = showAll && !searchQuery.trim() && categories.length > 0;
+    const filteredCategories = getFilteredCategories();
+    const initialCount = isMobile ? 6 : 8;
+    const visibleItems = searchQuery.trim()
+        ? filteredCategories
+        : filteredCategories.slice(0, visibleCount);
 
     // Форматирование URL изображения
     const getImageUrl = (imagePath?: string) => {
@@ -248,15 +227,15 @@ export default function Category() {
                 ) : null}
             </div>
 
-            {/* Кнопка "Посмотреть все" / "Свернуть" */}
-            {(shouldShowViewAll || shouldShowShowLess) && (
+            {/* Кнопка "Показать ещё" / "Свернуть" */}
+            {!searchQuery.trim() && filteredCategories.length > initialCount && (
                 <div className={styles.category_btn_center}>
                     <ShowMore
-                        expanded={showAll}
-                        canLoadMore={!showAll}
-                        onShowMore={() => setShowAll(true)}
-                        onShowLess={() => setShowAll(false)}
-                        onClear={() => setShowAll(false)}
+                        expanded={visibleCount > initialCount}
+                        canLoadMore={visibleCount < filteredCategories.length}
+                        onShowMore={() => setVisibleCount(c => Math.min(c + initialCount, filteredCategories.length))}
+                        onShowLess={() => setVisibleCount(c => Math.max(c - initialCount, initialCount))}
+                        onClear={() => setVisibleCount(initialCount)}
                         showMoreText={t('common:app.showMore')}
                         showLessText={t('common:app.showLess')}
                     />

@@ -19,6 +19,8 @@ import Feedback from '../../../../shared/ui/Modal/Feedback';
 import { Clear } from '../../../../shared/ui/Button/Clear/Clear.tsx';
 import { ShowMore } from '../../../../shared/ui/Button/ShowMore/ShowMore.tsx';
 import { getPageSize } from '../../../../utils/pageSize.ts';
+import { parsePagedResponse } from '../../../../utils/apiHelper';
+import { useShowMore } from '../../../../hooks';
 
 // Интерфейсы
 interface ApiTicket {
@@ -200,10 +202,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         };
     });
     const [isLoading, setIsLoading] = useState(false);
-    const [page, setPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const appendSearchRef = useRef(false);
-    const skipSearchFetchRef = useRef(false);
+    const { page, setPage, appendRef: appendSearchRef, skipFetchRef: skipSearchFetchRef, setHasMore, showMoreProps: searchShowMoreProps } = useShowMore<SearchResult>(setSearchResults);
     const [categories, setCategories] = useState<Category[]>([]);
     const [occupations, setOccupations] = useState<Occupation[]>([]);
     const [cities, setCities] = useState<City[]>([]);
@@ -668,9 +667,9 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
 
     // Функция получения тикетов с API
-    const fetchAllTickets = useCallback(async (query: string = '', filterParams: FilterState) => {
+    const fetchAllTickets = useCallback(async (query: string = '', filterParams: FilterState, silent = false, pageOverride?: number) => {
         try {
-            setIsLoading(true);
+            if (!silent) setIsLoading(true);
             const token = getAuthToken();
 
             const params = new URLSearchParams();
@@ -716,7 +715,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             // а не через серверный фильтр — все тикеты показываются, городские идут первыми.
 
             const pageSize = getPageSize();
-            params.append('page', String(page));
+            params.append('page', String(pageOverride ?? page));
             params.append('itemsPerPage', String(pageSize));
 
             console.log('Loading tickets with params:', params.toString());
@@ -737,18 +736,9 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             const responseData = await response.json();
             let ticketsData: ApiTicket[] = [];
 
-            if (Array.isArray(responseData)) {
-                ticketsData = responseData;
-            } else if (responseData && typeof responseData === 'object' && 'hydra:member' in responseData) {
-                const hydraMember = (responseData as { 'hydra:member': ApiTicket[]; 'hydra:totalItems'?: number })['hydra:member'];
-                if (Array.isArray(hydraMember)) {
-                    ticketsData = hydraMember;
-                    const totalItems = (responseData as { 'hydra:totalItems'?: number })['hydra:totalItems'] ?? ticketsData.length;
-                    const pageSize = getPageSize();
-                    setTotalPages(Math.max(1, Math.ceil(totalItems / pageSize)));
-                }
-            }
-
+            const { items: parsedTickets, hasMore: fetchedHasMore } = parsePagedResponse<ApiTicket>(responseData, pageOverride ?? page, pageSize);
+            ticketsData = parsedTickets;
+            setHasMore(fetchedHasMore);
             console.log(`Loaded ${ticketsData.length} tickets from API`);
 
             // Фильтрация по поисковому запросу
@@ -900,9 +890,10 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             return ticketsWithUsers;
         } catch (error) {
             console.error('Error fetching tickets:', error);
+            setHasMore(false);
             return [];
         } finally {
-            setIsLoading(false);
+            if (!silent) setIsLoading(false);
         }
     }, [userRole, filterByCity, selectedCity, sortTicketsWithPriority, getUserName, getAddressInfo, getTicketPriority, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter, page]);
 
@@ -933,6 +924,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             currentSearch.filters.minPrice !== previousSearch.filters.minPrice ||
             currentSearch.filters.maxPrice !== previousSearch.filters.maxPrice ||
             currentSearch.filters.category !== previousSearch.filters.category ||
+            currentSearch.filters.subcategory !== previousSearch.filters.subcategory ||
             currentSearch.filters.rating !== previousSearch.filters.rating ||
             currentSearch.filters.reviewCount !== previousSearch.filters.reviewCount ||
             currentSearch.filters.sortBy !== previousSearch.filters.sortBy ||
@@ -986,12 +978,43 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         }
     }, [searchQuery, filters, userRole, fetchAllTickets, onSearchResults]);
 
-    const handleForceRefresh = useCallback(async () => {
+    const handleApply = useCallback(async (newFilters: FilterState) => {
+        setFilters(newFilters);
+        skipSearchFetchRef.current = true;
+        setPage(1);
+        appendSearchRef.current = false;
         if (isSearchInProgressRef.current) return;
         isSearchInProgressRef.current = true;
         try {
-            const results = await fetchAllTickets(searchQuery, filters);
-            if (appendSearchRef.current) {
+            const results = await fetchAllTickets(searchQuery, newFilters, false, 1);
+            setSearchResults(results);
+            setShowResults(true);
+            onSearchResults(results);
+            previousSearchRef.current = {
+                query: searchQuery.trim(),
+                filters: newFilters,
+                userRole,
+                showOnlyServices,
+                showOnlyAnnouncements,
+                sortBy,
+                secondarySortBy,
+                timeFilter
+            };
+        } catch (error) {
+            console.error('Apply error:', error);
+        } finally {
+            isSearchInProgressRef.current = false;
+            skipSearchFetchRef.current = false;
+        }
+    }, [searchQuery, fetchAllTickets, onSearchResults, userRole, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter]);
+
+    const handleForceRefresh = useCallback(async () => {
+        if (isSearchInProgressRef.current) return;
+        isSearchInProgressRef.current = true;
+        const isAppending = appendSearchRef.current;
+        try {
+            const results = await fetchAllTickets(searchQuery, filters, isAppending);
+            if (isAppending) {
                 appendSearchRef.current = false;
                 setSearchResults(prev => {
                     const merged = [...prev, ...results];
@@ -1169,10 +1192,6 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         };
     }, [userRole, onSearchResults, handleFilterToggle]);
 
-    const handleFilterChange = useCallback((newFilters: FilterState) => {
-        setFilters(newFilters);
-    }, []);
-
     // При смене страницы перезагружаем результаты
     useEffect(() => {
         if (skipSearchFetchRef.current) {
@@ -1185,25 +1204,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [page]);
 
-    const handleLoadMoreSearch = () => {
-        appendSearchRef.current = true;
-        setPage(p => p + 1);
-    };
 
-    const handleLoadLessSearch = () => {
-        const pageSize = getPageSize();
-        const prevPage = page - 1;
-        skipSearchFetchRef.current = true;
-        setPage(prevPage);
-        setSearchResults(prev => prev.slice(0, prevPage * pageSize));
-    };
-
-    const handleClearSearch = () => {
-        const pageSize = getPageSize();
-        skipSearchFetchRef.current = true;
-        setPage(1);
-        setSearchResults(prev => prev.slice(0, pageSize));
-    };
 
     // Сбрасываем страницу при изменении поисковых параметров
     useEffect(() => {
@@ -1286,6 +1287,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         filters.reviewCount,
         filters.sortBy,
         filters.city,
+        filters.subcategory,
         userRole,
         selectedCity,
         showOnlyServices,
@@ -1370,7 +1372,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         const currentUserId = getUserData()?.id;
 
         if (isLoading) {
-            return <PageLoader fullPage={false} />;
+            return <div style={{ display: 'flex', justifyContent: 'center', width: '100%', paddingTop: '2rem' }}><PageLoader fullPage={false} /></div>;
         }
 
         if (searchResults.length === 0) {
@@ -1426,7 +1428,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 <FilterPanel
                     showFilters={showFilters}
                     setShowFilters={setShowFilters}
-                    onFilterChange={handleFilterChange}
+                    onApply={handleApply}
                     filters={filters}
                     onResetFilters={handleResetFilters}
                     categories={categories}
@@ -1554,13 +1556,9 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
                     <div className={`${styles.searchResults} ${!showResults ? styles.hidden : ''}`}>
                         {renderedResults}
-                        {showResults && (
+                        {showResults && !isLoading && (
                             <ShowMore
-                                expanded={page > 1}
-                                canLoadMore={page < totalPages}
-                                onShowMore={handleLoadMoreSearch}
-                                onShowLess={handleLoadLessSearch}
-                                onClear={handleClearSearch}
+                                {...searchShowMoreProps}
                                 showMoreText={t('common:app.showMore')}
                                 showLessText={t('common:app.showLess')}
                                 loading={isLoading}

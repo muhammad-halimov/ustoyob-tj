@@ -6,10 +6,11 @@ interface PageLoaderProps {
     overlay?: boolean;
     compact?: boolean;
     asSpan?: boolean;
+    primary?: boolean;
 }
 
-const PageLoader = ({ text, fullPage = true, overlay = false, compact = false, asSpan = false }: PageLoaderProps) => {
-    const className = `${styles.container} ${!fullPage ? styles.inline : ''} ${overlay ? styles.overlay : ''} ${compact ? styles.compact : ''}`;
+const PageLoader = ({ text, fullPage = true, overlay = false, compact = false, asSpan = false, primary = true }: PageLoaderProps) => {
+    const className = `${styles.container} ${primary ? styles.primary : ''} ${!fullPage ? styles.inline : ''} ${overlay ? styles.overlay : ''} ${compact ? styles.compact : ''}`;
     const spinnerClassName = `${styles.spinner} ${compact ? styles.spinnerCompact : ''}`;
 
     if (asSpan) {

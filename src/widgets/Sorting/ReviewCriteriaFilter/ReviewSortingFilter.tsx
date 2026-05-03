@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import styles from '../CriteriaFilter/SortingFilter.module.scss';
-import toggleStyles from '../TypeFilter/ServiceTypeFilter.module.scss';
+import { Toggle } from '../../../shared/ui/Button/Toggle/Toggle';
 
 export type ReviewSortByType = 'newest' | 'oldest' | 'rating-high' | 'rating-low';
 export type ReviewTimeFilterType = 'all' | 'today' | 'yesterday' | 'week' | 'month';
@@ -23,10 +24,17 @@ export const ReviewSortingFilter = ({
     onWithPhotosToggle,
 }: ReviewSortingFilterProps) => {
     const { t } = useTranslation('profile');
+    const [open, setOpen] = useState(false);
 
     return (
         <div className={styles.sort_filter_block}>
-            <div className={styles.sort_filter_item}>
+            <button className={styles.toggle_btn} onClick={() => setOpen(v => !v)} type="button">
+                <span>{t('reviewSorting.title')}</span>
+                <span className={styles.toggle_icon}>{open ? '▽' : '▷'}</span>
+            </button>
+            {open && (
+                <div className={styles.sort_filter_items}>
+            <div className={styles.sort_filter_item} style={{ flex: '45 1 0' }}>
                 <label htmlFor="reviewSortBy">{t('reviewSorting.sort')}</label>
                 <select
                     id="reviewSortBy"
@@ -41,7 +49,7 @@ export const ReviewSortingFilter = ({
                 </select>
             </div>
 
-            <div className={styles.sort_filter_item}>
+            <div className={styles.sort_filter_item} style={{ flex: '45 1 0' }}>
                 <label htmlFor="reviewTimeFilter">{t('reviewSorting.timePeriod')}</label>
                 <select
                     id="reviewTimeFilter"
@@ -57,17 +65,14 @@ export const ReviewSortingFilter = ({
                 </select>
             </div>
 
-            <div className={styles.sort_filter_item} style={{ justifyContent: 'flex-end' }}>
+            <div className={styles.sort_filter_item} style={{ flex: '10 1 0', minWidth: 'unset' }}>
                 <label>{t('reviewSorting.withPhotos')}</label>
-                <label className={toggleStyles.switch}>
-                    <input
-                        type="checkbox"
-                        checked={withPhotosOnly}
-                        onChange={onWithPhotosToggle}
-                    />
-                    <span className={toggleStyles.slider}></span>
-                </label>
+                <div style={{ display: 'flex', alignItems: 'center', height: '40px' }}>
+                    <Toggle checked={withPhotosOnly} onChange={onWithPhotosToggle} />
+                </div>
             </div>
+            </div>
+            )}
         </div>
     );
 };

@@ -15,6 +15,7 @@ interface ServicesSectionProps {
     API_BASE_URL?: string;
     onReorder?: (services: Service[]) => void;
     onRefresh?: () => void;
+    footerSlot?: React.ReactNode;
 }
 
 export const ServicesSection: React.FC<ServicesSectionProps> = ({
@@ -25,6 +26,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
     API_BASE_URL = import.meta.env.VITE_API_BASE_URL,
     onReorder,
     onRefresh,
+    footerSlot,
 }) => {
     const navigate = useNavigate();
     const { t } = useTranslation(['profile', 'components']);
@@ -86,6 +88,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
             onAdd={!readOnly ? () => navigate(ROUTES.TICKET_CREATE) : undefined}
             onReorder={onReorder}
             onRefresh={onRefresh}
+            footerSlot={footerSlot}
             renderViewItem={(service) => {
                 const titleText = typeof service.title === 'string'
                     ? service.title

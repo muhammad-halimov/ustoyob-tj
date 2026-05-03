@@ -57,3 +57,40 @@ export const makeApiRequest = async (endpoint: string, options: ApiRequestOption
 };
 
 export const getCurrentUserId = (): number | null => getUserData()?.id ?? null;
+
+/**
+ * Parses a paged API response into items and a `hasMore` flag.
+ *
+ * @param rawData       Raw JSON value returned by the API
+ * @param page          Current 1-based page number
+ * @param pageSize      Number of items per page
+ * @param hydraResponse Set to `true` when the endpoint returns a Hydra LD+JSON collection
+ *                      (`hydra:member` + `hydra:totalItems`) for exact totals.
+ *                      Defaults to `false` — treats response as a plain array.
+ * @returns             `{ items, hasMore }` — parsed item array and whether more pages exist
+ */
+export function parsePagedResponse<T = unknown>(
+    rawData: unknown,
+    page: number,
+    pageSize: number,
+    hydraResponse = false,
+): { items: T[]; hasMore: boolean } {
+    const isHydraShape = (v: unknown): v is { 'hydra:member': unknown[]; 'hydra:totalItems'?: number } =>
+        v !== null && typeof v === 'object' && 'hydra:member' in (v as object);
+
+    let items: T[];
+    let total: number | null = null;
+
+    if (hydraResponse && isHydraShape(rawData)) {
+        items = (rawData['hydra:member'] as T[]) ?? [];
+        if (rawData['hydra:totalItems'] != null) total = Number(rawData['hydra:totalItems']);
+    } else if (Array.isArray(rawData)) {
+        items = rawData as T[];
+    } else if (isHydraShape(rawData)) {
+        items = (rawData['hydra:member'] as T[]) ?? [];
+    } else {
+        items = [];
+    }
+
+    return { items, hasMore: total != null ? page * pageSize < total : items.length >= pageSize };
+}

@@ -5,3 +5,5 @@ export { useTranslatedText, useTranslatedTexts } from './useTranslatedText';
 export { useComplaints } from './useComplaints';
 export { useReviews } from './useReviews';
 export { useUserData } from './useUserData';
+export { useShowMore } from './useShowMore';
+export type { ShowMoreBindings } from './useShowMore';

@@ -37,6 +37,7 @@ interface ReviewsSectionProps {
     onRefresh?: () => void;
     currentUserId?: number;
     onEditClick?: (review: Review) => void;
+    footerSlot?: React.ReactNode;
 }
 
 export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
@@ -58,6 +59,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
     onRefresh,
     currentUserId,
     onEditClick,
+    footerSlot,
 }) => {
     const { t } = useTranslation(['profile', 'common']);
 
@@ -239,7 +241,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
     
     return (
         <div className={styles.reviews_section}>
-            <h3>{t('profile:reviewsTitle')} ({reviews.length})</h3>
+            <h3>{t('profile:reviewsTitle')}</h3>
             {reviews.length > 0 && (
                 <ReviewSortingFilter
                     sortBy={sortBy}
@@ -251,7 +253,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                 />
             )}
             <div className={styles.reviews_list}>
-                {reviewsLoading ? (
+                {reviewsLoading && sortedReviews.length === 0 ? (
                     <EmptyState isLoading />
                 ) : sortedReviews.length > 0 ? (
                     <>
@@ -621,6 +623,9 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
 
             {/* Кнопки управления отзывами */}
             <div className={styles.reviews_actions}>
+                {visibleCount === 2 && sortedReviews.length >= 2 && (
+                    <p className={styles.swipe_hint}>{t('profile:swipeHint')}</p>
+                )}
                 {sortedReviews.length >= 2 && onShowMore && onShowLess && (
                     <ShowMore
                         expanded={visibleCount > 2}
@@ -632,6 +637,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                         showLessText={t('common:app.showLess')}
                     />
                 )}
+                {footerSlot}
             </div>
 
             {/* Preview для просмотра фото отзывов */}

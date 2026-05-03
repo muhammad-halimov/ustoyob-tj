@@ -1,11 +1,11 @@
-import {type ChangeEvent, useCallback, useEffect, useRef, useState} from 'react';
+import {type ChangeEvent, useCallback, useEffect, useRef, useState, Dispatch, SetStateAction} from 'react';
 import {Navigate, useNavigate, useParams} from 'react-router-dom';
 import {getAuthToken, getUserData, getUserRole, handleUnauthorized, logout} from '../../utils/auth.ts';
 import {ROUTES} from '../../app/routers/routes';
 import styles from './Profile.module.scss';
 import {useTranslation} from 'react-i18next';
 import {useTheme} from '../../contexts';
-import {useLanguageChange} from '../../hooks';
+import {useLanguageChange, useShowMore} from '../../hooks';
 import {getStorageItem} from '../../utils/storageHelper.ts';
 import {createChatWithAuthor} from '../../utils/chatUtils';
 import { uploadPhotos } from '../../utils/imageHelper';
@@ -51,6 +51,7 @@ import Auth from '../../shared/ui/Modal/Auth/Auth.tsx';
 import { getAuthorAvatar } from '../../utils/imageHelper.ts';
 import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore.tsx';
 import { getPageSize } from '../../utils/pageSize.ts';
+import { parsePagedResponse } from '../../utils/apiHelper';
 
 // Интерфейс для социальных сетей с API
 interface LocalAvailableSocialNetwork {
@@ -110,16 +111,16 @@ function Profile() {
     });
     const [reviews, setReviews] = useState<ReviewType[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(false);
-    const [reviewsPage, setReviewsPage] = useState(1);
-    const [reviewsTotalPages, setReviewsTotalPages] = useState(1);
-    const appendReviewsRef = useRef(false);
-    const skipReviewsFetchRef = useRef(false);
-    const [servicesPage, setServicesPage] = useState(1);
-    const [servicesTotalPages, setServicesTotalPages] = useState(1);
+    const { page: reviewsPage, skipFetchRef: skipReviewsFetchRef, applyFetch: applyReviewsFetch, showMoreProps: reviewsShowMoreProps } = useShowMore<ReviewType>(setReviews);
     const [servicesLoading, setServicesLoading] = useState(false);
-    const appendServicesRef = useRef(false);
-    const skipServicesFetchRef = useRef(false);
-    const [showAllWorkExamples, setShowAllWorkExamples] = useState(false);
+    const setServicesState = useCallback<Dispatch<SetStateAction<any[]>>>(
+        (updater) => setProfileData(prev => {
+            if (!prev) return prev;
+            const cur = prev.services || [];
+            return { ...prev, services: typeof updater === 'function' ? updater(cur) : updater };
+        }), []);
+    const { page: servicesPage, skipFetchRef: skipServicesFetchRef, applyFetch: applyServicesFetch, showMoreProps: servicesShowMoreProps } = useShowMore<any>(setServicesState);
+    const [visibleWorkExamplesCount, setVisibleWorkExamplesCount] = useState(() => window.innerWidth <= 768 ? 6 : 8);
     const [isMobile, setIsMobile] = useState(false);
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [showComplaintModal, setShowComplaintModal] = useState(false);
@@ -365,6 +366,10 @@ function Profile() {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    useEffect(() => {
+        setVisibleWorkExamplesCount(isMobile ? 6 : 8);
+    }, [isMobile]);
+
 
     
     // Preview hook для примеров работ
@@ -534,45 +539,7 @@ function Profile() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [servicesPage]);
 
-    const handleLoadMoreReviews = () => {
-        appendReviewsRef.current = true;
-        setReviewsPage(p => p + 1);
-    };
 
-    const handleLoadLessReviews = () => {
-        const pageSize = getPageSize();
-        const prevPage = reviewsPage - 1;
-        skipReviewsFetchRef.current = true;
-        setReviewsPage(prevPage);
-        setReviews(prev => prev.slice(0, prevPage * pageSize));
-    };
-
-    const handleClearReviews = () => {
-        const pageSize = getPageSize();
-        skipReviewsFetchRef.current = true;
-        setReviewsPage(1);
-        setReviews(prev => prev.slice(0, pageSize));
-    };
-
-    const handleLoadMoreServices = () => {
-        appendServicesRef.current = true;
-        setServicesPage(p => p + 1);
-    };
-
-    const handleLoadLessServices = () => {
-        const pageSize = getPageSize();
-        const prevPage = servicesPage - 1;
-        skipServicesFetchRef.current = true;
-        setServicesPage(prevPage);
-        setProfileData(prev => prev ? { ...prev, services: (prev.services || []).slice(0, prevPage * pageSize) } : null);
-    };
-
-    const handleClearServices = () => {
-        const pageSize = getPageSize();
-        skipServicesFetchRef.current = true;
-        setServicesPage(1);
-        setProfileData(prev => prev ? { ...prev, services: (prev.services || []).slice(0, pageSize) } : null);
-    };
 
     useEffect(() => {
         console.log('editingField useEffect triggered:', editingField);
@@ -1667,34 +1634,22 @@ function Profile() {
 
             if (response.status === 404) {
                 console.log('No reviews found for this master');
-                setReviews([]);
+                applyReviewsFetch([], false);
                 return;
             }
 
             if (!response.ok) {
                 console.error(`Failed to fetch reviews: ${response.status} ${response.statusText}`);
-                setReviews([]);
+                applyReviewsFetch([], false);
                 return;
             }
 
-            const reviewsData = await response.json();
-            console.log('Raw reviews data:', reviewsData);
-            let reviewsArray: ReviewApiData[] = [];
-
-            if (Array.isArray(reviewsData)) {
-                reviewsArray = reviewsData;
-            } else if (reviewsData && typeof reviewsData === 'object') {
-                const apiResponse = reviewsData as ApiResponse<ReviewApiData>;
-                if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
-                    reviewsArray = apiResponse['hydra:member'];
-                    if (apiResponse['hydra:totalItems'] !== undefined) {
-                        const pageSize = getPageSize();
-                        setReviewsTotalPages(Math.max(1, Math.ceil((apiResponse['hydra:totalItems'] as number) / pageSize)));
-                    }
-                } else if ((reviewsData as ReviewApiData).id) {
-                    reviewsArray = [reviewsData as ReviewApiData];
-                }
-            }
+            const reviewsRaw = await response.json();
+            console.log('Raw reviews data:', reviewsRaw);
+            const reviewsArray: ReviewApiData[] = Array.isArray(reviewsRaw)
+                ? reviewsRaw
+                : (reviewsRaw?.['hydra:member'] ?? (reviewsRaw?.id ? [reviewsRaw] : []));
+            const { hasMore: reviewsHasMoreFlag } = parsePagedResponse<ReviewApiData>(reviewsArray, reviewsPage, pageSize);
 
             console.log(`Processing ${reviewsArray.length} reviews`);
             if (reviewsArray.length > 0) {
@@ -1797,12 +1752,7 @@ function Profile() {
                 );
 
                 console.log('All transformed reviews:', transformedReviews);
-                if (appendReviewsRef.current) {
-                    appendReviewsRef.current = false;
-                    setReviews(prev => [...prev, ...transformedReviews]);
-                } else {
-                    setReviews(transformedReviews);
-                }
+                applyReviewsFetch(transformedReviews, reviewsHasMoreFlag);
 
                 // Для специалистов фильтруем по user.id (получатели отзывов)
                 // Для заказчиков фильтруем по reviewer.id (оставляющие отзывы) 
@@ -1824,7 +1774,7 @@ function Profile() {
 
             } else {
                 console.log(`No reviews data found for this ${userRole}`);
-                setReviews([]);
+                applyReviewsFetch([], false);
                 setProfileData(prev => prev ? {
                     ...prev,
                     reviews: 0
@@ -1833,7 +1783,7 @@ function Profile() {
 
         } catch (error) {
             console.error('Error fetching reviews:', error);
-            setReviews([]);
+            applyReviewsFetch([], false);
             setProfileData(prev => prev ? {
                 ...prev,
                 reviews: 0
@@ -1894,6 +1844,7 @@ function Profile() {
                     ...prev,
                     services: []
                 } : null);
+                applyServicesFetch([], false);
                 return;
             }
 
@@ -1903,24 +1854,13 @@ function Profile() {
                     ...prev,
                     services: []
                 } : null);
+                applyServicesFetch([], false);
                 return;
             }
 
-            const servicesData = await response.json();
-            console.log('Raw services data:', servicesData);
-            let servicesArray: any[] = [];
-
-            if (Array.isArray(servicesData)) {
-                servicesArray = servicesData;
-            } else if (servicesData && typeof servicesData === 'object') {
-                const apiResponse = servicesData as ApiResponse<any>;
-                if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
-                    servicesArray = apiResponse['hydra:member'];
-                    if (typeof apiResponse['hydra:totalItems'] === 'number') {
-                        setServicesTotalPages(Math.max(1, Math.ceil(apiResponse['hydra:totalItems'] / pageSize)));
-                    }
-                }
-            }
+            const servicesRaw = await response.json();
+            console.log('Raw services data:', servicesRaw);
+            const { items: servicesArray, hasMore: servicesHasMoreFlag } = parsePagedResponse<any>(servicesRaw, servicesPage, pageSize);
 
             console.log(`Processing ${servicesArray.length} services`);
             
@@ -1953,18 +1893,7 @@ function Profile() {
 
             console.log('Transformed services:', transformedServices);
             
-            if (appendServicesRef.current) {
-                appendServicesRef.current = false;
-                setProfileData(prev => prev ? {
-                    ...prev,
-                    services: [...(prev.services || []), ...transformedServices]
-                } : null);
-            } else {
-                setProfileData(prev => prev ? {
-                    ...prev,
-                    services: transformedServices
-                } : null);
-            }
+            applyServicesFetch(transformedServices, servicesHasMoreFlag);
 
         } catch (error) {
             console.error('Error fetching services:', error);
@@ -3637,7 +3566,7 @@ function Profile() {
                     {userRole === 'master' && (
                         <WorkExamplesSection
                             workExamples={profileData.workExamples}
-                            showAllWorkExamples={showAllWorkExamples}
+                            visibleWorkExamples={visibleWorkExamplesCount}
                             isMobile={isMobile}
                             isGalleryOperating={isGalleryOperating}
                             galleryImages={galleryImages}
@@ -3652,7 +3581,9 @@ function Profile() {
                             onDeleteWorkExample={handleDeleteWorkExample}
                             onDeleteAllWorkExamples={handleDeleteAllWorkExamples}
                             onWorkExampleUpload={handleWorkExampleUpload}
-                            setShowAllWorkExamples={setShowAllWorkExamples}
+                            onShowMoreWorkExamples={() => setVisibleWorkExamplesCount(c => Math.min(c + (isMobile ? 6 : 8), profileData.workExamples.length))}
+                            onShowLessWorkExamples={() => setVisibleWorkExamplesCount(c => Math.max(c - (isMobile ? 6 : 8), isMobile ? 6 : 8))}
+                            onClearWorkExamples={() => setVisibleWorkExamplesCount(isMobile ? 6 : 8)}
                             getImageUrlWithCacheBust={getImageUrlWithCacheBust}
                             API_BASE_URL={API_BASE_URL}
                             onReorder={!readOnly ? handleReorderWorkExamples : undefined}
@@ -3670,16 +3601,14 @@ function Profile() {
                         API_BASE_URL={API_BASE_URL}
                         onReorder={!readOnly ? handleReorderServices : undefined}
                         onRefresh={fetchServices}
-                    />
-                    <ShowMore
-                        expanded={servicesPage > 1}
-                        canLoadMore={servicesPage < servicesTotalPages}
-                        onShowMore={handleLoadMoreServices}
-                        onShowLess={handleLoadLessServices}
-                        onClear={handleClearServices}
-                        showMoreText={t('common:app.showMore')}
-                        showLessText={t('common:app.showLess')}
-                        loading={servicesLoading}
+                        footerSlot={
+                            <ShowMore
+                                {...servicesShowMoreProps}
+                                showMoreText={t('common:app.showMore')}
+                                showLessText={t('common:app.showLess')}
+                                loading={servicesLoading}
+                            />
+                        }
                     />
 
                     {/* WorkAreasSection Component */}
@@ -3724,16 +3653,14 @@ function Profile() {
                         setComplaintReviewAuthorId(authorId);
                         setIsReviewComplaintOpen(true);
                     }}
-                />
-                <ShowMore
-                    expanded={reviewsPage > 1}
-                    canLoadMore={reviewsPage < reviewsTotalPages}
-                    onShowMore={handleLoadMoreReviews}
-                    onShowLess={handleLoadLessReviews}
-                    onClear={handleClearReviews}
-                    showMoreText={t('common:app.showMore')}
-                    showLessText={t('common:app.showLess')}
-                    loading={reviewsLoading}
+                    footerSlot={
+                        <ShowMore
+                            {...reviewsShowMoreProps}
+                            showMoreText={t('common:app.showMore')}
+                            showLessText={t('common:app.showLess')}
+                            loading={reviewsLoading}
+                        />
+                    }
                 />
             </div>
 

@@ -22,23 +22,23 @@ export interface FilterState {
 interface FilterPanelProps {
     showFilters: boolean;
     setShowFilters: (show: boolean) => void;
-    onFilterChange: (filters: FilterState) => void;
+    onApply: (filters: FilterState) => void;
     filters: FilterState;
     onResetFilters: () => void;
     categories: { id: number; name: string }[];
-    cities: { id: number; name: string }[]; // Добавляем города
-    occupations: Occupation[]; // Добавляем профессии
+    cities: { id: number; name: string }[];
+    occupations: Occupation[];
 }
 
 function FilterPanel({
                          showFilters,
                          setShowFilters,
-                         onFilterChange,
+                         onApply,
                          filters,
                          onResetFilters,
                          categories,
-                         cities, // Добавляем пропс для городов
-                         occupations // Добавляем пропс для профессий
+                         cities,
+                         occupations
                      }: FilterPanelProps) {
     const [localFilters, setLocalFilters] = useState<FilterState>(filters);
     const { t } = useTranslation('components');
@@ -85,7 +85,7 @@ function FilterPanel({
     };
 
     const handleApplyFilters = () => {
-        onFilterChange(localFilters);
+        onApply(localFilters);
     };
 
     const handleCancel = () => {

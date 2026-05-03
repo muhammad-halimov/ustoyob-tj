@@ -15,7 +15,7 @@ interface WorkExample {
 
 interface WorkExamplesSectionProps {
     workExamples: WorkExample[];
-    showAllWorkExamples: boolean;
+    visibleWorkExamples: number;
     isMobile: boolean;
     isGalleryOperating: boolean;
     isGalleryOpen: boolean;
@@ -30,7 +30,9 @@ interface WorkExamplesSectionProps {
     onDeleteWorkExample: (id: string) => Promise<void>;
     onDeleteAllWorkExamples: () => Promise<void>;
     onWorkExampleUpload: (event: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
-    setShowAllWorkExamples: (show: boolean) => void;
+    onShowMoreWorkExamples: () => void;
+    onShowLessWorkExamples: () => void;
+    onClearWorkExamples: () => void;
     getImageUrlWithCacheBust: (url: string) => string;
     API_BASE_URL: string;
     onReorder?: (workExamples: WorkExample[]) => void;
@@ -40,7 +42,7 @@ interface WorkExamplesSectionProps {
 
 export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
     workExamples,
-    showAllWorkExamples,
+    visibleWorkExamples,
     isMobile,
     isGalleryOperating,
     isGalleryOpen,
@@ -55,7 +57,9 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
     onDeleteWorkExample,
     onDeleteAllWorkExamples,
     onWorkExampleUpload,
-    setShowAllWorkExamples,
+    onShowMoreWorkExamples,
+    onShowLessWorkExamples,
+    onClearWorkExamples,
     getImageUrlWithCacheBust,
     API_BASE_URL,
     onReorder,
@@ -83,7 +87,7 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
                     <div style={{ width: '100%' }}>
                         <div className={styles.work_examples_grid}>
                             {workExamples
-                                .slice(0, showAllWorkExamples ? undefined : (isMobile ? 6 : 8))
+                                .slice(0, visibleWorkExamples)
                                 .map((work, index) => (
                                     <div
                                         key={work.id}
@@ -143,11 +147,11 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
                         </div>
                         {workExamples.length > (isMobile ? 6 : 8) && (
                             <ShowMore
-                                expanded={showAllWorkExamples}
-                                canLoadMore={!showAllWorkExamples}
-                                onShowMore={() => setShowAllWorkExamples(true)}
-                                onShowLess={() => setShowAllWorkExamples(false)}
-                                onClear={() => setShowAllWorkExamples(false)}
+                                expanded={visibleWorkExamples > (isMobile ? 6 : 8)}
+                                canLoadMore={visibleWorkExamples < workExamples.length}
+                                onShowMore={onShowMoreWorkExamples}
+                                onShowLess={onShowLessWorkExamples}
+                                onClear={onClearWorkExamples}
                                 showMoreText={t('common:app.showMore')}
                                 showLessText={t('common:app.showLess')}
                             />

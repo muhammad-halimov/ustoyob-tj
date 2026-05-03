@@ -2,10 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import styles from './ShowMore.module.scss';
 import { Clear } from '../Clear/Clear';
 import { PageLoader } from '../../../../widgets/PageLoader';
+import { Marquee } from '../../Text/Marquee/Marquee';
 
 interface ShowMoreProps {
     expanded: boolean;
-    canLoadMore: boolean;
+    canLoadMore?: boolean;
+    hasMore?: boolean;
     onShowMore: () => void;
     onShowLess: () => void;
     onClear: () => void;
@@ -13,17 +15,22 @@ interface ShowMoreProps {
     showLessText: string;
     clearBtn?: boolean;
     loading?: boolean;
+    column?: boolean;
 }
 
-export const ShowMore = ({ expanded, canLoadMore, onShowMore, onShowLess, onClear, showMoreText, showLessText, clearBtn = true, loading = false }: ShowMoreProps) => {
+export const ShowMore = ({ expanded, canLoadMore, hasMore, onShowMore, onShowLess, onClear, showMoreText, showLessText, clearBtn = true, loading = false, column = false }: ShowMoreProps) => {
     const [clicked, setClicked] = useState<'more' | 'less' | null>(null);
     const wrapperRef = useRef<HTMLDivElement>(null);
+
+    const resolvedCanLoadMore = canLoadMore !== undefined
+        ? canLoadMore
+        : (hasMore ?? false);
 
     useEffect(() => {
         if (!loading) setClicked(null);
     }, [loading]);
 
-    if (!canLoadMore && !expanded && !loading) return null;
+    if (!resolvedCanLoadMore && !expanded) return null;
 
     const handleShowMore = () => {
         setClicked('more');
@@ -48,48 +55,42 @@ export const ShowMore = ({ expanded, canLoadMore, onShowMore, onShowLess, onClea
 
     return (
         <div className={styles.wrapper} ref={wrapperRef}>
-            <div className={styles.row}>
-                {(canLoadMore || moreLoading) && (
-                    <button className={styles.btn} onClick={handleShowMore} disabled={loading}>
-                        <span className={styles.btnInner}>
-                            <span className={styles.btnText} style={{ visibility: moreLoading ? 'hidden' : 'visible' }}>
-                                {showMoreText}
-                                <span className={styles.icon}>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                                        <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                    </svg>
-                                </span>
-                            </span>
-                            {moreLoading && (
-                                <span className={styles.btnLoader}>
-                                    <PageLoader fullPage={false} compact asSpan />
+            <div className={styles.outer}>
+                <div className={`${styles.row}${column ? ` ${styles.rowColumn}` : ''}`}>
+                    {resolvedCanLoadMore && (
+                        <button className={styles.btn} onClick={handleShowMore} disabled={loading}>
+                            {moreLoading ? <PageLoader fullPage={false} compact primary={false} /> : (
+                                <span className={styles.btnText}>
+                                    <span className={styles.btnLabel}>
+                                        <Marquee text={showMoreText} />
+                                    </span>
+                                    <span className={styles.icon}>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                            <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                        </svg>
+                                    </span>
                                 </span>
                             )}
-                        </span>
-                    </button>
-                )}
-                {(expanded || lessLoading) && (
-                    <>
+                        </button>
+                    )}
+                    {(expanded || lessLoading) && (
                         <button className={styles.btn} onClick={handleShowLess} disabled={loading}>
-                            <span className={styles.btnInner}>
-                                <span className={styles.btnText} style={{ visibility: lessLoading ? 'hidden' : 'visible' }}>
-                                    {showLessText}
+                            {lessLoading ? <PageLoader fullPage={false} compact primary={false} /> : (
+                                <span className={styles.btnText}>
+                                    <span className={styles.btnLabel}>
+                                        <Marquee text={showLessText} />
+                                    </span>
                                     <span className={styles.icon}>
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                                             <path d="M18 15l-6-6-6 6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                                         </svg>
                                     </span>
                                 </span>
-                                {lessLoading && (
-                                    <span className={styles.btnLoader}>
-                                        <PageLoader fullPage={false} compact asSpan />
-                                    </span>
-                                )}
-                            </span>
+                            )}
                         </button>
-                        {clearBtn && <Clear onClick={onClear} />}
-                    </>
-                )}
+                    )}
+                </div>
+                {clearBtn && expanded && <Clear onClick={onClear} />}
             </div>
         </div>
     );

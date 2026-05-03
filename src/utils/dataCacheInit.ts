@@ -35,6 +35,8 @@ export const useDataCacheInit = () => {
  */
 export const initDataCache = () => {
     console.log('Initializing data cache...');
+    // Сбрасываем кеш профессий чтобы перезагрузить с актуальным itemsPerPage
+    clearCache('occupations');
     
     // Слушаем события смены языка на уровне окна
     window.addEventListener('languageChanged', () => {

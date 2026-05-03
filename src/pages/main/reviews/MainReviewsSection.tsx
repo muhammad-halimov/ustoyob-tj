@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ROUTES } from '../../../app/routers/routes.ts';
 import { smartNameTranslator } from '../../../utils/textHelper';
 import { Swiper, SwiperSlide } from "swiper/react";
-import "swiper/css";
 import styles from './MainReviewsSection.module.scss';
 import { Preview, usePreview } from '../../../shared/ui/Photo/Preview';
 import { ReadMore } from '../../../widgets/ReadMore';
@@ -16,6 +15,8 @@ import { IoWarningOutline } from 'react-icons/io5';
 import Feedback from '../../../shared/ui/Modal/Feedback';
 import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore.tsx';
 import { getPageSize } from '../../../utils/pageSize.ts';
+import { parsePagedResponse } from '../../../utils/apiHelper';
+import { useShowMore } from '../../../hooks';
 
 interface MainReviewsSectionProps {
     className?: string;
@@ -24,10 +25,7 @@ interface MainReviewsSectionProps {
 export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ className }) => {
     const [reviews, setReviews] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [page, setPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const appendReviewsRef = useRef(false);
-    const skipReviewsFetchRef = useRef(false);
+    const { page, skipFetchRef: skipReviewsFetchRef, applyFetch: applyReviewsFetch, showMoreProps: reviewsShowMoreProps } = useShowMore<any>(setReviews);
     const [complaintReviewId, setComplaintReviewId] = useState<number | null>(null);
     const [complaintAuthorId, setComplaintAuthorId] = useState<number | null>(null);
     const [isComplaintOpen, setIsComplaintOpen] = useState(false);
@@ -50,16 +48,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
             if (response.ok) {
                 const data = await response.json();
                 
-                let reviewsData: any[];
-                if (data['hydra:member']) {
-                    reviewsData = data['hydra:member'];
-                    const totalItems: number = data['hydra:totalItems'] ?? reviewsData.length;
-                    setTotalPages(Math.max(1, Math.ceil(totalItems / pageSize)));
-                } else if (Array.isArray(data)) {
-                    reviewsData = data;
-                } else {
-                    reviewsData = [];
-                }
+                const { items: reviewsData, hasMore: fetchedHasMore } = parsePagedResponse<any>(data, currentPage, pageSize);
                 
                 // Сортируем по дате создания (самые новые сначала)
                 const sortedReviews = reviewsData.sort((a, b) => {
@@ -68,12 +57,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                     return dateB - dateA;
                 });
                 
-                if (appendReviewsRef.current) {
-                    appendReviewsRef.current = false;
-                    setReviews(prev => [...prev, ...sortedReviews]);
-                } else {
-                    setReviews(sortedReviews);
-                }
+                applyReviewsFetch(sortedReviews, fetchedHasMore);
             } else {
                 console.error('Response not ok:', response.status, response.statusText);
             }
@@ -92,25 +76,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
         fetchReviews(page);
     }, [API_BASE_URL, page]);
 
-    const handleLoadMoreReviews = () => {
-        appendReviewsRef.current = true;
-        setPage(p => p + 1);
-    };
 
-    const handleLoadLessReviews = () => {
-        const pageSize = getPageSize();
-        const prevPage = page - 1;
-        skipReviewsFetchRef.current = true;
-        setPage(prevPage);
-        setReviews(prev => prev.slice(0, prevPage * pageSize));
-    };
-
-    const handleClearReviews = () => {
-        const pageSize = getPageSize();
-        skipReviewsFetchRef.current = true;
-        setPage(1);
-        setReviews(prev => prev.slice(0, pageSize));
-    };
 
     // Функция для получения имени заказчика
     const getClientName = (review: any): string => {
@@ -238,6 +204,9 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                 
                 {/* Desktop карточный вид */}
                 <div className={styles.reviews_wrap}>
+                    {!loading && reviews.length === 0 && (
+                        <EmptyState title={t('profile:noReviews')} onRefresh={handleRefresh} />
+                    )}
                     {reviews.map((review, reviewIndex) => (
                         <div key={review.id} className={styles.reviews_item}>
                             <ActionsDropdown
@@ -441,11 +410,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                 </div>
 
                 <ShowMore
-                    expanded={page > 1}
-                    canLoadMore={page < totalPages}
-                    onShowMore={handleLoadMoreReviews}
-                    onShowLess={handleLoadLessReviews}
-                    onClear={handleClearReviews}
+                    {...reviewsShowMoreProps}
                     showMoreText={t('common:app.showMore')}
                     showLessText={t('common:app.showLess')}
                     loading={loading}

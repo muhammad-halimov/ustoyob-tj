@@ -75,7 +75,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
     const [isCitiesLoading, setIsCitiesLoading] = useState(false);
     const [citiesError, setCitiesError] = useState(false);
     const [showCityModal, setShowCityModal] = useState(false);
-    const [showAllCities, setShowAllCities] = useState(false);
+    const [visibleCities, setVisibleCities] = useState(() => getPageSize());
     const [showLangDropdown, setShowLangDropdown] = useState(false);
     const [showConfirmationBanner, setShowConfirmationBanner] = useState<boolean>(() => {
         const token = getAuthToken();
@@ -432,7 +432,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                             </svg>
                         </Link>
                         {location.pathname !== '/' && <Back className={styles.header_back_desktop} />}
-                        <div className={styles.locate} onClick={() => { setShowCityModal(true); setShowAllCities(false); }}>
+                        <div className={styles.locate} onClick={() => { setShowCityModal(true); setVisibleCities(getPageSize()); }}>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <g clipPath="url(#clip0_324_1115)">
                                 <g clipPath="url(#clip1_324_1115)">
@@ -752,7 +752,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                                 />
                             ) : (
                                 <>
-                                    {(showAllCities ? cities : cities.slice(0, getPageSize())).map(city => (
+                                    {cities.slice(0, visibleCities).map(city => (
                                         <div
                                             key={city.id}
                                             className={`${styles.cityItem} ${selectedCity === city.title ? styles.selected : ''}`}
@@ -763,13 +763,14 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                                     ))}
                                     {cities.length > getPageSize() && (
                                         <ShowMore
-                                            expanded={showAllCities}
-                                            canLoadMore={!showAllCities}
-                                            onShowMore={() => setShowAllCities(true)}
-                                            onShowLess={() => setShowAllCities(false)}
-                                            onClear={() => setShowAllCities(false)}
+                                            expanded={visibleCities > getPageSize()}
+                                            canLoadMore={visibleCities < cities.length}
+                                            onShowMore={() => setVisibleCities(v => Math.min(v + getPageSize(), cities.length))}
+                                            onShowLess={() => setVisibleCities(v => Math.max(v - getPageSize(), getPageSize()))}
+                                            onClear={() => setVisibleCities(getPageSize())}
                                             showMoreText={t('common:app.showMore')}
                                             showLessText={t('common:app.showLess')}
+                                            column
                                         />
                                     )}
                                 </>

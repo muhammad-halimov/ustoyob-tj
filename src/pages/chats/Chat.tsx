@@ -18,6 +18,8 @@ import { Tabs } from '../../shared/ui/Tabs';
 import Grid, { PhotoItem } from '../../shared/ui/Photo/Grid/Grid.tsx';
 import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore.tsx';
 import { getPageSize } from '../../utils/pageSize.ts';
+import { parsePagedResponse } from '../../utils/apiHelper';
+import { useShowMore } from '../../hooks';
 
 interface Message {
     id: number;
@@ -104,10 +106,7 @@ function Chat() {
     const [activeTab, setActiveTab] = useState<"active" | "archive">("active");
     const [selectedChat, setSelectedChat] = useState<number | null>(null);
     const [chats, setChats] = useState<ApiChat[]>([]);
-    const [chatPage, setChatPage] = useState(1);
-    const [chatTotalPages, setChatTotalPages] = useState(1);
-    const appendChatsRef = useRef(false);
-    const skipChatFetchRef = useRef(false);
+    const { page: chatPage, appendRef: appendChatsRef, skipFetchRef: skipChatFetchRef, setHasMore: setChatHasMore, showMoreProps: chatsShowMoreProps } = useShowMore<ApiChat>(setChats);
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState("");
     const [isLoading, setIsLoading] = useState(true);
@@ -935,9 +934,12 @@ function Chat() {
 
     const fetchChats = useCallback(async (silent = false) => {
         try {
-            if (!silent) setIsLoading(true);
-            else setIsChatListRefreshing(true);
-            if (!silent) setError(null);
+            if (!silent) {
+                if (!appendChatsRef.current) setIsLoading(true);
+                setError(null);
+            } else {
+                setIsChatListRefreshing(true);
+            }
 
             const token = getAuthToken();
             if (!token) {
@@ -956,15 +958,16 @@ function Chat() {
             });
 
             let chatsData: ApiChat[] = [];
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            let responseData: any = null;
 
             if (response.ok) {
-                const responseData = await response.json();
+                responseData = await response.json();
                 console.log('Chats API response:', responseData);
 
                 if (Array.isArray(responseData)) {
                     chatsData = responseData.map(chat => ({
                         ...chat,
-                        // Вычисляем isArchived на основе поля active
                         isArchived: chat.active === false
                     }));
                 } else if (responseData && typeof responseData === 'object') {
@@ -973,10 +976,6 @@ function Chat() {
                             ...chat,
                             isArchived: chat.active === false
                         }));
-                        if (responseData['hydra:totalItems'] !== undefined) {
-                            const pageSize = getPageSize();
-                            setChatTotalPages(Math.max(1, Math.ceil((responseData['hydra:totalItems'] as number) / pageSize)));
-                        }
                     } else if (responseData.id) {
                         chatsData = [{
                             ...responseData,
@@ -989,8 +988,11 @@ function Chat() {
             } else {
                 console.warn(`Failed to fetch chats (status: ${response.status})`);
                 // Any failure (404, 5xx, etc.) — just leave the list as-is, EmptyState handles it
+                setChatHasMore(false);
                 return;
             }
+
+            const { hasMore: fetchedHasMore } = parsePagedResponse(responseData, chatPage, pageSize);
 
             if (silent) {
                 // Background refresh: merge by id to preserve object identity for unchanged chats,
@@ -1036,6 +1038,8 @@ function Chat() {
                 }
             }
 
+            setChatHasMore(fetchedHasMore);
+
             if (chatIdFromUrl) {
                 const chatId = parseInt(chatIdFromUrl);
                 const chatExists = chatsData.some(chat => chat.id === chatId);
@@ -1065,25 +1069,6 @@ function Chat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [chatPage]);
 
-    const handleLoadMoreChats = () => {
-        appendChatsRef.current = true;
-        setChatPage(p => p + 1);
-    };
-
-    const handleLoadLessChats = () => {
-        const pageSize = getPageSize();
-        const prevPage = chatPage - 1;
-        skipChatFetchRef.current = true;
-        setChatPage(prevPage);
-        setChats(prev => prev.slice(0, prevPage * pageSize));
-    };
-
-    const handleClearChats = () => {
-        const pageSize = getPageSize();
-        skipChatFetchRef.current = true;
-        setChatPage(1);
-        setChats(prev => prev.slice(0, pageSize));
-    };
 
     // ===== ФУНКЦИИ ДЛЯ АРХИВАЦИИ ЧАТОВ =====
     const archiveChat = useCallback(async (chatId: number, archive: boolean = true) => {
@@ -1343,15 +1328,14 @@ function Chat() {
                         })
                     )}
                 </div>
-                <ShowMore
-                    expanded={chatPage > 1}
-                    canLoadMore={chatPage < chatTotalPages}
-                    onShowMore={handleLoadMoreChats}
-                    onShowLess={handleLoadLessChats}
-                    onClear={handleClearChats}
-                    showMoreText={t('common:app.showMore', { defaultValue: 'Показать больше' })}
-                    showLessText={t('common:app.showLess', { defaultValue: 'Показать меньше' })}
-                />
+                {filteredChats.length > 0 && (
+                    <ShowMore
+                        {...chatsShowMoreProps}
+                        showMoreText={t('common:app.showMore', { defaultValue: 'Показать больше' })}
+                        showLessText={t('common:app.showLess', { defaultValue: 'Показать меньше' })}
+                        column={true}
+                    />
+                )}
             </div>
 
             {/* Chat area */}

@@ -41,6 +41,7 @@
     "today": "Today",
     "yesterday": "Yesterday",
     "week": "Week",
-    "month": "Month"
+    "month": "Month",
+    "title": "Sorting"
   }
 }

@@ -1,4 +1,4 @@
-import {useState, useEffect, useCallback, useRef} from 'react';
+import {useState, useEffect, useCallback} from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../app/routers/routes';
@@ -17,6 +17,8 @@ import { SectionActions } from '../../../shared/ui/SectionActions';
 import { IoCheckmarkCircleOutline, IoCloseCircleOutline } from 'react-icons/io5';
 import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore.tsx';
 import { getPageSize } from '../../../utils/pageSize.ts';
+import { parsePagedResponse } from '../../../utils/apiHelper';
+import { useShowMore } from '../../../hooks';
 
 interface ApiUser {
     id: number;
@@ -148,10 +150,7 @@ function MyTickets() {
     const [isLoading, setIsLoading] = useState(true);
     const [isContentLoading, setIsContentLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<'active' | 'inactive'>('active');
-    const [page, setPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const appendTicketsRef = useRef(false);
-    const skipTicketsFetchRef = useRef(false);
+    const { page, setPage, appendRef: appendTicketsRef, skipFetchRef: skipTicketsFetchRef, applyFetch: applyTicketsFetch, showMoreProps: ticketsShowMoreProps } = useShowMore<FormattedTicket>(setAllTickets);
     const [activeTabTotal, setActiveTabTotal] = useState(0);
     const [inactiveTabTotal, setInactiveTabTotal] = useState(0);
 
@@ -196,25 +195,7 @@ function MyTickets() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [page]);
 
-    const handleLoadMoreTickets = () => {
-        appendTicketsRef.current = true;
-        setPage(p => p + 1);
-    };
 
-    const handleLoadLessTickets = () => {
-        const pageSize = getPageSize();
-        const prevPage = page - 1;
-        skipTicketsFetchRef.current = true;
-        setPage(prevPage);
-        setAllTickets(prev => prev.slice(0, prevPage * pageSize));
-    };
-
-    const handleClearTickets = () => {
-        const pageSize = getPageSize();
-        skipTicketsFetchRef.current = true;
-        setPage(1);
-        setAllTickets(prev => prev.slice(0, pageSize));
-    };
 
     useEffect(() => {
         const filtered = activeTab === 'active' 
@@ -280,8 +261,6 @@ function MyTickets() {
                 } else if (responseData && 'hydra:member' in responseData) {
                     ticketsData = responseData['hydra:member'];
                     const totalItems: number = responseData['hydra:totalItems'] ?? ticketsData.length;
-                    const pageSize = getPageSize();
-                    setTotalPages(Math.max(1, Math.ceil(totalItems / pageSize)));
                     if (activeTab === 'active') {
                         setActiveTabTotal(totalItems);
                     } else {
@@ -290,6 +269,7 @@ function MyTickets() {
                 } else {
                     ticketsData = [];
                 }
+                const { hasMore: fetchedHasMore } = parsePagedResponse<Ticket>(responseData, page, pageSize);
                 console.log('Received tickets:', ticketsData);
 
                 // Фильтруем тикеты текущего пользователя (на сервере /me уже фильтрует, но дополнительная проверка)
@@ -347,12 +327,7 @@ function MyTickets() {
                     return new Date(b.timeAgo).getTime() - new Date(a.timeAgo).getTime();
                 });
 
-                if (appendTicketsRef.current) {
-                    appendTicketsRef.current = false;
-                    setAllTickets(prev => [...prev, ...formattedTickets]);
-                } else {
-                    setAllTickets(formattedTickets);
-                }
+                applyTicketsFetch(formattedTickets, fetchedHasMore);
             } else {
                 console.error('Error fetching tickets, status:', response.status);
                 setAllTickets([]);
@@ -555,7 +530,7 @@ function MyTickets() {
 
             {/* Список объявлений */}
             <div className={styles.ticketsList}>
-                {isContentLoading ? (
+                {isContentLoading && displayedTickets.length === 0 ? (
                     <EmptyState isLoading />
                 ) : displayedTickets.length === 0 ? (
                     <EmptyState
@@ -597,16 +572,14 @@ function MyTickets() {
                     ))
                 )}
             </div>
-            <ShowMore
-                expanded={page > 1}
-                canLoadMore={page < totalPages}
-                onShowMore={handleLoadMoreTickets}
-                onShowLess={handleLoadLessTickets}
-                onClear={handleClearTickets}
-                showMoreText={t('common:app.showMore', { defaultValue: 'Показать больше' })}
-                showLessText={t('common:app.showLess', { defaultValue: 'Показать меньше' })}
-                loading={isContentLoading}
-            />
+            {displayedTickets.length > 0 && (
+                <ShowMore
+                    {...ticketsShowMoreProps}
+                    showMoreText={t('common:app.showMore', { defaultValue: 'Показать больше' })}
+                    showLessText={t('common:app.showLess', { defaultValue: 'Показать меньше' })}
+                    loading={isContentLoading}
+                />
+            )}
 
             <Status
                 type="success"

@@ -8,10 +8,29 @@
   padding: 16px 0;
 }
 
-.row {
+// outer: кнопки-колонка слева + Clear справа по центру
+.outer {
   display: inline-flex;
+  flex-direction: row;
   align-items: center;
   gap: 8px;
+  // margin-left: 20px;
+}
+
+// колонка кнопок
+.row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+
+  @media screen and (max-width: 540px) {
+    flex-direction: column;
+  }
+}
+
+.rowColumn {
+  flex-direction: column;
 }
 
 .btn {
@@ -27,7 +46,8 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  white-space: nowrap;
+  overflow: hidden;
+  min-width: 0;
   padding: 10px 20px;
   border-radius: 10px;
   cursor: pointer;
@@ -46,39 +66,19 @@
   }
 }
 
-.btnInner {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .btnText {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  flex: 1 1 auto;
 }
 
-.btnLoader {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.spinner {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.4);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
+.btnLabel {
+  min-width: 0;
+  overflow: hidden;
+  flex: 1 1 0;
 }
 
 .icon {
@@ -91,5 +91,6 @@
     max-width: 164px;
     width: 100%;
     font-size: 12px;
+    padding: 8px 14px;
   }
 }

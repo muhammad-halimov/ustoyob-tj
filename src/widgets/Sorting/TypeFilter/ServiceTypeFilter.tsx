@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import styles from './ServiceTypeFilter.module.scss';
+import { Toggle } from '../../../shared/ui/Button/Toggle/Toggle';
 
 interface ServiceTypeFilterProps {
     showOnlyServices: boolean;
@@ -27,14 +28,7 @@ export const ServiceTypeFilter = ({
                         {t('filters.onlyServicesDesc')}
                     </span>
                 </div>
-                <label className={styles.switch}>
-                    <input
-                        type="checkbox"
-                        checked={showOnlyServices}
-                        onChange={onServiceToggle}
-                    />
-                    <span className={styles.slider}></span>
-                </label>
+                <Toggle checked={showOnlyServices} onChange={onServiceToggle} />
             </div>
 
             <div className={styles.switch_container_second}>
@@ -46,14 +40,7 @@ export const ServiceTypeFilter = ({
                         {t('filters.onlyAnnouncementsDesc')}
                     </span>
                 </div>
-                <label className={styles.switch}>
-                    <input
-                        type="checkbox"
-                        checked={showOnlyAnnouncements}
-                        onChange={onAnnouncementsToggle}
-                    />
-                    <span className={styles.slider}></span>
-                </label>
+                <Toggle checked={showOnlyAnnouncements} onChange={onAnnouncementsToggle} />
             </div>
         </div>
     );

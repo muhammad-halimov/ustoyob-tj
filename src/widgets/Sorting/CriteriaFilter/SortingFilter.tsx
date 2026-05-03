@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import styles from './SortingFilter.module.scss';
 
@@ -23,9 +24,16 @@ export const SortingFilter = ({
     onTimeFilterChange
 }: SortingFilterProps) => {
     const { t } = useTranslation('category');
+    const [open, setOpen] = useState(false);
 
     return (
         <div className={styles.sort_filter_block}>
+            <button className={styles.toggle_btn} onClick={() => setOpen(v => !v)} type="button">
+                <span>{t('sorting.title')}</span>
+                <span className={styles.toggle_icon}>{open ? '▽' : '▷'}</span>
+            </button>
+            {open && (
+                <div className={styles.sort_filter_items}>
             <div className={styles.sort_filter_item}>
                 <label htmlFor="sortBy">{t('sorting.primarySort')}</label>
                 <select
@@ -80,6 +88,8 @@ export const SortingFilter = ({
                     <option value="month">{t('sorting.month')}</option>
                 </select>
             </div>
+            </div>
+            )}
         </div>
     );
 };

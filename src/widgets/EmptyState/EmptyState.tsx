@@ -30,7 +30,7 @@ export function EmptyState({ title, subtitle, actionText, onAction, onRefresh, c
     if (isLoading || isRefreshing) {
         return (
             <div className={`${styles.container} ${className || ''}`}>
-                <PageLoader fullPage={false} />
+                <PageLoader fullPage={false} primary={false} />
             </div>
         );
     }

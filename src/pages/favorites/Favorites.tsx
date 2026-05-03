@@ -6,7 +6,7 @@ import { ROUTES } from '../../app/routers/routes';
 import { createChatWithAuthor } from "../../utils/chatUtils";
 import { textHelper } from '../../utils/textHelper.ts';
 import { useTranslation } from 'react-i18next';
-import { useLanguageChange } from '../../hooks';
+import { useLanguageChange, useShowMore } from '../../hooks';
 import { Card } from '../../shared/ui/Ticket/Card/Card.tsx';
 import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 import { ServiceTypeFilter } from '../../widgets/Sorting/TypeFilter';
@@ -20,6 +20,7 @@ import { Tabs } from '../../shared/ui/Tabs';
 import { IoListOutline, IoPeopleOutline } from 'react-icons/io5';
 import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore.tsx';
 import { getPageSize } from '../../utils/pageSize.ts';
+import { parsePagedResponse } from '../../utils/apiHelper';
 
 // ── New flat-entry shape from the API ──────────────────────────────────────────
 // GET /api/favorites/me  →  array of FavoriteEntry (hydra:member)
@@ -189,11 +190,7 @@ function Favorites() {
     const [activeTab, setActiveTab] = useState<'orders' | 'masters'>('orders');
     const [_likedTickets, setLikedTickets] = useState<number[]>([]);
     const [isLikeLoading, setIsLikeLoading] = useState<number | null>(null);
-    const [page, setPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const appendFavRef = useRef(false);
-    // Skip initial useEffect([page]) run — mount effect handles the first fetch
-    const skipFavFetchRef = useRef(true);
+    const { page, setPage, appendRef: appendFavRef, skipFetchRef: skipFavFetchRef, setHasMore, showMoreProps: favShowMoreProps } = useShowMore<any>(() => {}, { initialSkip: true });
     const ticketsPerPageRef = useRef<number[]>([]);
     const usersPerPageRef = useRef<number[]>([]);
     const pageRef = useRef(1);
@@ -353,11 +350,6 @@ function Favorites() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [page]);
 
-    const handleLoadMoreFavorites = () => {
-        appendFavRef.current = true;
-        setPage(p => p + 1);
-    };
-
     const handleLoadLessFavorites = () => {
         const lastTickets = ticketsPerPageRef.current[ticketsPerPageRef.current.length - 1] ?? 0;
         const lastUsers = usersPerPageRef.current[usersPerPageRef.current.length - 1] ?? 0;
@@ -367,6 +359,7 @@ function Favorites() {
         setPage(p => p - 1);
         setFavoriteTickets(prev => prev.slice(0, prev.length - lastTickets));
         setFavoriteUsers(prev => prev.slice(0, prev.length - lastUsers));
+        setHasMore(true);
     };
 
     const handleClearFavorites = () => {
@@ -378,6 +371,7 @@ function Favorites() {
         setPage(1);
         setFavoriteTickets(prev => prev.slice(0, firstTickets));
         setFavoriteUsers(prev => prev.slice(0, firstUsers));
+        setHasMore(true);
     };
 
     // Сбрасываем страницу при смене вкладки
@@ -584,20 +578,8 @@ function Favorites() {
             });
 
             if (response.ok) {
-                const data = await response.json();
-                const entries: FavoriteEntry[] = data['hydra:member'] ?? (Array.isArray(data) ? data : []);
-                if (data['hydra:totalItems'] !== undefined) {
-                    const pageSize = getPageSize();
-                    setTotalPages(Math.max(1, Math.ceil((data['hydra:totalItems'] as number) / pageSize)));
-                } else {
-                    // API returns plain array without hydra:totalItems — infer pagination from result count
-                    const pageSize = getPageSize();
-                    if (entries.length >= pageSize) {
-                        setTotalPages(prev => Math.max(prev, currentPage + 1));
-                    } else {
-                        setTotalPages(currentPage);
-                    }
-                }
+                const rawData = await response.json();
+                const { items: entries, hasMore: fetchedHasMore } = parsePagedResponse<FavoriteEntry>(rawData, currentPage, pageSize);
 
                 const tickets: FavoriteTicket[] = [];
                 const users: FavoriteUser[] = [];
@@ -673,7 +655,10 @@ function Favorites() {
                     usersPerPageRef.current = [users.length];
                     setLikedTickets(tickets.map(t => t.id));
                 }
+                setHasMore(fetchedHasMore);
             } else {
+                console.error('Favorites - Error fetching favorites:', response.status);
+                setHasMore(false);
                 setFavoriteTickets([]);
                 setFavoriteUsers([]);
                 setLikedTickets([]);
@@ -1147,9 +1132,7 @@ function Favorites() {
 
             {((activeTab === 'orders' || !showTabs) ? hasOrders : hasSecondTabItems) && (
                 <ShowMore
-                    expanded={page > 1}
-                    canLoadMore={page < totalPages}
-                    onShowMore={handleLoadMoreFavorites}
+                    {...favShowMoreProps}
                     onShowLess={handleLoadLessFavorites}
                     onClear={handleClearFavorites}
                     showMoreText={t('common:app.showMore')}

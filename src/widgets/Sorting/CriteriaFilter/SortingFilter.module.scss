@@ -3,12 +3,47 @@
 
 .sort_filter_block {
   display: flex;
-  gap: 20px;
-  padding: 20px;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
   background-color: #fff;
   border-radius: 12px;
   border: 1px solid map.get(vars.$colors, color-stroke);
+  overflow: hidden;
+}
+
+.toggle_btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 12px 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: map.get(vars.$colors, text-black);
+  text-align: left;
+
+  &:hover {
+    background-color: #f5f7ff;
+  }
+}
+
+.toggle_icon {
+  font-size: 16px;
+  line-height: 1;
+  color: #3A54DA;
+}
+
+.sort_filter_items {
+  display: flex;
+  gap: 20px;
+  padding: 0 20px 20px;
   flex-wrap: wrap;
+  border-top: 1px solid map.get(vars.$colors, color-stroke);
+  padding-top: 16px;
 }
 
 .sort_filter_item {
@@ -51,16 +86,20 @@
   }
 }
 
-// Адаптивные стили
 @media screen and (max-width: 768px) {
-  .sort_filter_block {
+  .sort_filter_items {
     flex-direction: column;
     gap: 16px;
-    padding: 16px;
+    padding: 0 16px 16px;
+    padding-top: 16px;
 
     .sort_filter_item {
       min-width: 100%;
     }
+  }
+
+  .toggle_btn {
+    padding: 12px 16px;
   }
 }
 
@@ -69,6 +108,18 @@
   .sort_filter_block {
     background-color: var(--color-background-primary);
     border-color: var(--color-stroke);
+  }
+
+  .toggle_btn {
+    color: var(--color-text-primary);
+
+    &:hover {
+      background-color: var(--color-background-all);
+    }
+  }
+
+  .sort_filter_items {
+    border-top-color: var(--color-stroke);
   }
 
   .sort_filter_item {

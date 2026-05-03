@@ -1,4 +1,4 @@
-import {useState, useEffect, useCallback, useRef} from 'react';
+import {useState, useEffect, useCallback} from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { getAuthToken, getUserRole, getUserData } from '../../../utils/auth.ts';
 import { getStorageItem } from '../../../utils/storageHelper.ts';
@@ -19,6 +19,8 @@ import { getOccupations } from '../../../utils/dataCache.ts';
 import { truncateText } from '../../../utils/textHelper.ts';
 import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore.tsx';
 import { getPageSize } from '../../../utils/pageSize.ts';
+import { parsePagedResponse } from '../../../utils/apiHelper';
+import { useShowMore } from '../../../hooks';
 
 interface Occupation {
     id: number;
@@ -145,12 +147,9 @@ function Category() {
     const { id } = useParams<{ id: string }>();
     const location = useLocation();
     const [tickets, setTickets] = useState<FormattedTicket[]>([]);
-    const [page, setPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
+    const { page, setPage, appendRef: appendTicketsRef, skipFetchRef: skipTicketsFetchRef, applyFetch: applyTicketsFetch, showMoreProps: ticketsShowMoreProps } = useShowMore<FormattedTicket>(setTickets);
     const [isLoading, setIsLoading] = useState(true);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
-    const appendTicketsRef = useRef(false);
-    const skipTicketsFetchRef = useRef(false);
     const [categoryName, setCategoryName] = useState<string>(() => {
         const fromState = (location.state as any)?.categoryName;
         if (fromState) return fromState;
@@ -594,15 +593,12 @@ function Category() {
             const response = await fetch(`${API_BASE_URL}${endpoint}`, { headers });
 
             let ticketsData: Ticket[] = [];
+            let fetchedHasMore = false;
             if (response.ok) {
                 const data = await response.json();
-                if (Array.isArray(data)) {
-                    ticketsData = data;
-                } else if (data && 'hydra:member' in data) {
-                    ticketsData = data['hydra:member'];
-                    const totalItems: number = data['hydra:totalItems'] ?? ticketsData.length;
-                    setTotalPages(Math.max(1, Math.ceil(totalItems / pageSize)));
-                }
+                const parsed = parsePagedResponse<Ticket>(data, page, pageSize);
+                ticketsData = parsed.items;
+                fetchedHasMore = parsed.hasMore;
             } else {
                 console.error('Category - Error fetching tickets:', response.status, response.statusText);
             }
@@ -712,12 +708,7 @@ function Category() {
                 return primaryDiff;
             });
 
-            if (appendTicketsRef.current) {
-                appendTicketsRef.current = false;
-                setTickets(prev => [...prev, ...sortedTickets]);
-            } else {
-                setTickets(sortedTickets);
-            }
+            applyTicketsFetch(sortedTickets, fetchedHasMore);
 
             // Fallback: if fetchCategoryName didn't populate the name yet, grab it from tickets
             if (ticketsData.length > 0) {
@@ -739,25 +730,7 @@ function Category() {
         }
     };
 
-    const handleLoadMoreTickets = () => {
-        appendTicketsRef.current = true;
-        setPage(p => p + 1);
-    };
 
-    const handleLoadLessTickets = () => {
-        const pageSize = getPageSize();
-        const prevPage = page - 1;
-        skipTicketsFetchRef.current = true;
-        setPage(prevPage);
-        setTickets(prev => prev.slice(0, prevPage * pageSize));
-    };
-
-    const handleClearTickets = () => {
-        const pageSize = getPageSize();
-        skipTicketsFetchRef.current = true;
-        setPage(1);
-        setTickets(prev => prev.slice(0, pageSize));
-    };
 
     // Обработчики подкатегорий
     const handleSubcategoryClick = (subcategoryId: number | null) => {
@@ -1009,7 +982,7 @@ function Category() {
             </div>
 
             <div className={styles.searchResults}>
-                {isLoading ? (
+                {isLoading && tickets.length === 0 ? (
                     <EmptyState isLoading />
                 ) : tickets.length === 0 ? (
                     <EmptyState
@@ -1055,11 +1028,7 @@ function Category() {
                 )}
             </div>
             <ShowMore
-                expanded={page > 1}
-                canLoadMore={page < totalPages}
-                onShowMore={handleLoadMoreTickets}
-                onShowLess={handleLoadLessTickets}
-                onClear={handleClearTickets}
+                {...ticketsShowMoreProps}
                 showMoreText={t('common:app.showMore')}
                 showLessText={t('common:app.showLess')}
                 loading={isLoadingMore}

@@ -170,7 +170,7 @@ export const getOccupations = async (locale?: string): Promise<Occupation[]> => 
                 headers['Authorization'] = `Bearer ${token}`;
             }
 
-            const response = await fetch(`${API_BASE_URL}/api/occupations?locale=${targetLocale}`, {
+            const response = await fetch(`${API_BASE_URL}/api/occupations?locale=${targetLocale}&itemsPerPage=500&pagination=false`, {
                 headers,
             });
 

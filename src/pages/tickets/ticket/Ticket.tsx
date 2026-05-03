@@ -27,6 +27,8 @@ import { ActionsDropdown } from '../../../widgets/ActionsDropdown';
 import Recommendations, { type Announcement } from '../../main/recommendations/Recommendations.tsx';
 import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore.tsx';
 import { getPageSize } from '../../../utils/pageSize.ts';
+import { parsePagedResponse } from '../../../utils/apiHelper';
+import { useShowMore } from '../../../hooks';
 
 interface ApiTicket {
     id: number;
@@ -170,10 +172,7 @@ export function Ticket() {
     // States for reviews
     const [reviews, setReviews] = useState<ReviewType[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(false);
-    const [reviewsPage, setReviewsPage] = useState(1);
-    const [reviewsTotalPages, setReviewsTotalPages] = useState(1);
-    const appendReviewsRef = useRef(false);
-    const skipReviewsFetchRef = useRef(false);
+    const { page: reviewsPage, skipFetchRef: skipReviewsFetchRef, applyFetch: applyReviewsFetch, setHasMore: setReviewsHasMore, showMoreProps: reviewsShowMoreProps } = useShowMore<ReviewType>(setReviews);
 
     const [reviewCount, setReviewCount] = useState<number>(0);
     const [responsesCount, setResponsesCount] = useState<number>(0);
@@ -269,25 +268,7 @@ export function Ticket() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [reviewsPage]);
 
-    const handleLoadMoreTicketReviews = () => {
-        appendReviewsRef.current = true;
-        setReviewsPage(p => p + 1);
-    };
 
-    const handleLoadLessTicketReviews = () => {
-        const pageSize = getPageSize();
-        const prevPage = reviewsPage - 1;
-        skipReviewsFetchRef.current = true;
-        setReviewsPage(prevPage);
-        setReviews(prev => prev.slice(0, prevPage * pageSize));
-    };
-
-    const handleClearTicketReviews = () => {
-        const pageSize = getPageSize();
-        skipReviewsFetchRef.current = true;
-        setReviewsPage(1);
-        setReviews(prev => prev.slice(0, pageSize));
-    };
 
     const handleCloseSuccessModal = () => {
         setShowSuccessModal(false);
@@ -931,26 +912,23 @@ export function Ticket() {
             if (!response.ok) {
                 console.error('Failed to fetch reviews:', response.statusText);
                 setReviews([]);
+                setReviewsHasMore(false);
                 return;
             }
             
             const data = await response.json();
             
             // API может вернуть объект с 'hydra:member' или массив
-            const reviewsData = data['hydra:member'] || data || [];
-            if (data['hydra:totalItems'] !== undefined) {
-                const pageSize = getPageSize();
-                setReviewsTotalPages(Math.max(1, Math.ceil((data['hydra:totalItems'] as number) / pageSize)));
-            }
+            const { items: reviewsData, hasMore: fetchedHasMore } = parsePagedResponse(data, reviewsPage, pageSize);
             
             console.log('=== Ticket Reviews Debug ===');
             console.log('Total reviews:', reviewsData.length);
             if (reviewsData.length > 0) {
                 console.log('First review sample:', reviewsData[0]);
-                console.log('Review master:', reviewsData[0].master);
-                console.log('Review client:', reviewsData[0].client);
-                console.log('Review services:', reviewsData[0].services);
-                console.log('Review ticket:', reviewsData[0].ticket);
+                console.log('Review master:', (reviewsData[0] as any).master);
+                console.log('Review client:', (reviewsData[0] as any).client);
+                console.log('Review services:', (reviewsData[0] as any).services);
+                console.log('Review ticket:', (reviewsData[0] as any).ticket);
             }
             
             // Используем embedded данные из ответа API — без дополнительных запросов
@@ -1010,10 +988,7 @@ export function Ticket() {
             });
             
             console.log('Transformed reviews:', transformedReviews);
-            setReviews(prev => appendReviewsRef.current
-                ? [...prev, ...transformedReviews]
-                : transformedReviews);
-            appendReviewsRef.current = false;
+            applyReviewsFetch(transformedReviews, fetchedHasMore);
             
         } catch (error) {
             console.error('Error fetching reviews:', error);
@@ -1512,15 +1487,13 @@ export function Ticket() {
                             setReviewComplaintAuthorId(authorId);
                             setShowReviewComplaintModal(true);
                         }}
-                    />
-                    <ShowMore
-                        expanded={reviewsPage > 1}
-                        canLoadMore={reviewsPage < reviewsTotalPages}
-                        onShowMore={handleLoadMoreTicketReviews}
-                        onShowLess={handleLoadLessTicketReviews}
-                        onClear={handleClearTicketReviews}
-                        showMoreText={t('common:app.showMore')}
-                        showLessText={t('common:app.showLess')}
+                        footerSlot={
+                            <ShowMore
+                                {...reviewsShowMoreProps}
+                                showMoreText={t('common:app.showMore')}
+                                showLessText={t('common:app.showLess')}
+                            />
+                        }
                     />
                 </div>
             )}
