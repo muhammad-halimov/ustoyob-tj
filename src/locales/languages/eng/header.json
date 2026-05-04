@@ -31,5 +31,6 @@
     "warning": "Warning",
     "sendErrorRetry": "Error sending confirmation. Please try again",
     "networkError": "Network error. Please check your connection"
-  }
+  },
+  "searchCity": "Search city..."
 }

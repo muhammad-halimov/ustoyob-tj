@@ -318,7 +318,10 @@
     "tenReviews": "10+ reviews",
     "fiveReviews": "5+ reviews",
     "threeReviews": "3+ reviews",
-    "withReviews": "With reviews"
+    "withReviews": "With reviews",
+    "searchCity": "Search city...",
+    "searchCategory": "Search category...",
+    "searchSubcategory": "Search occupation..."
   },
   "languages": {
     "tj": "Tajik",

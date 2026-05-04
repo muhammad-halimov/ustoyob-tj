@@ -18,6 +18,7 @@ import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/Co
 import { getOccupations } from '../../../utils/dataCache.ts';
 import { truncateText } from '../../../utils/textHelper.ts';
 import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore.tsx';
+import { SelectSearch } from '../../../shared/ui/SelectSearch';
 import { getPageSize } from '../../../utils/pageSize.ts';
 import { parsePagedResponse } from '../../../utils/apiHelper';
 import { useShowMore } from '../../../hooks';
@@ -314,7 +315,7 @@ function Category() {
                 console.log('⏳ Category - Waiting for userRole to load from localStorage...');
             }
         }
-    }, [userRole, id, locale, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter, page]);
+    }, [userRole, id, locale, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter, page, selectedSubcategory]);
 
     const formatProfileImageUrl = (imagePath: string): string => {
         if (!imagePath) return '';
@@ -734,6 +735,8 @@ function Category() {
 
     // Обработчики подкатегорий
     const handleSubcategoryClick = (subcategoryId: number | null) => {
+        appendTicketsRef.current = false;
+        setPage(1);
         setSelectedSubcategory(subcategoryId);
     };
 
@@ -802,22 +805,6 @@ function Category() {
     const shouldShowViewAllOccupations = !showAllOccupations && !subcategorySearchQuery.trim() && occupations.length > 8;
     const shouldShowShowLessOccupations = showAllOccupations && occupations.length > 0;
 
-    // Обновляем тикеты при изменении выбранной подкатегории
-    useEffect(() => {
-        if (id) {
-            const token = getAuthToken();
-            const shouldFetch = userRole !== null || !token;
-            
-            if (shouldFetch) {
-                console.log('Category - Reloading due to subcategory change:', selectedSubcategory);
-                appendTicketsRef.current = false;
-                setPage(1);
-            } else {
-                console.log('⏳ Category - Waiting for userRole before reloading subcategory...');
-            }
-        }
-    }, [selectedSubcategory]);
-
     const handleCardClick = (ticketId: number) => {
         navigate(ROUTES.TICKET_BY_ID(ticketId));
     };
@@ -854,29 +841,14 @@ function Category() {
                     <div className={styles.subcategories_header}>
                         {/* Поле поиска подкатегорий */}
                         <div className={styles.subcategory_search}>
-                            <div className={styles.search_input_wrapper}>
-                                <svg className={styles.search_icon} width="20" height="20" viewBox="0 0 24 24" fill="none">
-                                    <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                </svg>
-                                <input
-                                    type="text"
-                                    className={styles.search_input}
-                                    placeholder={t('category:searchSubcategories', 'Поиск по профессиям...')}
-                                    value={subcategorySearchQuery}
-                                    onChange={(e) => handleSubcategorySearch(e.target.value)}
-                                />
-                                {subcategorySearchQuery && (
-                                    <button 
-                                        className={styles.clear_search}
-                                        onClick={() => handleSubcategorySearch('')}
-                                        aria-label="Очистить поиск"
-                                    >
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                        </svg>
-                                    </button>
-                                )}
-                            </div>
+                            <SelectSearch
+                                altMode
+                                options={[]}
+                                value={subcategorySearchQuery}
+                                onChange={(val) => handleSubcategorySearch(val)}
+                                placeholder={t('category:searchSubcategories')}
+                                className={styles.search_input_wrapper}
+                            />
                         </div>
                     </div>
 

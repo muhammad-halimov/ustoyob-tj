@@ -1,6 +1,8 @@
 import styles from './FilterPanel.module.scss';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { SelectSearch, SelectOption } from '../../../../shared/ui/SelectSearch';
+import PageLoader from '../../../../widgets/PageLoader/PageLoader';
 
 interface Occupation {
     id: number;
@@ -22,7 +24,7 @@ export interface FilterState {
 interface FilterPanelProps {
     showFilters: boolean;
     setShowFilters: (show: boolean) => void;
-    onApply: (filters: FilterState) => void;
+    onApply: (filters: FilterState) => Promise<void> | void;
     filters: FilterState;
     onResetFilters: () => void;
     categories: { id: number; name: string }[];
@@ -32,7 +34,6 @@ interface FilterPanelProps {
 
 function FilterPanel({
                          showFilters,
-                         setShowFilters,
                          onApply,
                          filters,
                          onResetFilters,
@@ -41,6 +42,7 @@ function FilterPanel({
                          occupations
                      }: FilterPanelProps) {
     const [localFilters, setLocalFilters] = useState<FilterState>(filters);
+    const [isApplying, setIsApplying] = useState(false);
     const { t } = useTranslation('components');
 
     // Синхронизация с внешними фильтрами
@@ -84,8 +86,51 @@ function FilterPanel({
         setLocalFilters(prev => ({ ...prev, city: value }));
     };
 
-    const handleApplyFilters = () => {
-        onApply(localFilters);
+    const cityOptions = useMemo<SelectOption[]>(
+        () => cities.map(c => ({ value: c.name.toLowerCase(), label: c.name })),
+        [cities],
+    );
+
+    const categoryOptions = useMemo<SelectOption[]>(
+        () => categories.map(c => ({ value: c.id.toString(), label: c.name })),
+        [categories],
+    );
+
+    const subcategoryOptions = useMemo<SelectOption[]>(
+        () => getFilteredOccupations().map(o => ({ value: o.id.toString(), label: o.title })),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [localFilters.category, occupations],
+    );
+
+    const ratingOptions = useMemo<SelectOption[]>(() => [
+        { value: '5',   label: t('filters.fiveStars') },
+        { value: '4.5', label: t('filters.fourHalfStars') },
+        { value: '4',   label: t('filters.fourStars') },
+        { value: '3.5', label: t('filters.threeHalfStars') },
+        { value: '3',   label: t('filters.threeStars') },
+        { value: '2.5', label: t('filters.twoHalfStars') },
+        { value: '2',   label: t('filters.twoStars') },
+        { value: '1.5', label: t('filters.oneHalfStars') },
+        { value: '1',   label: t('filters.oneStar') },
+    ], [t]);
+
+    const reviewCountOptions = useMemo<SelectOption[]>(() => [
+        { value: '100', label: t('filters.hundredReviews') },
+        { value: '50',  label: t('filters.fiftyReviews') },
+        { value: '20',  label: t('filters.twentyReviews') },
+        { value: '10',  label: t('filters.tenReviews') },
+        { value: '5',   label: t('filters.fiveReviews') },
+        { value: '3',   label: t('filters.threeReviews') },
+        { value: '1',   label: t('filters.withReviews') },
+    ], [t]);
+
+    const handleApplyFilters = async () => {
+        setIsApplying(true);
+        try {
+            await onApply(localFilters);
+        } finally {
+            setIsApplying(false);
+        }
     };
 
     const handleCancel = () => {
@@ -97,11 +142,10 @@ function FilterPanel({
             rating: '',
             reviewCount: '',
             sortBy: '',
-            city: '' // Сбрасываем город
+            city: '',
         };
         setLocalFilters(resetFilters);
         onResetFilters();
-        setShowFilters(false);
     };
 
     return (
@@ -139,19 +183,13 @@ function FilterPanel({
                     {cities.length > 0 && (
                         <div className={styles.filter_section}>
                             <h3>{t('filters.city')}</h3>
-                            <div className={styles.category_select}>
-                                <select
-                                    value={localFilters.city}
-                                    onChange={e => handleCityChange(e.target.value)}
-                                >
-                                    <option value="">{t('filters.allCities')}</option>
-                                    {cities.map(city => (
-                                        <option key={city.id} value={city.name.toLowerCase()}>
-                                            {city.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
+                            <SelectSearch
+                                options={cityOptions}
+                                value={localFilters.city}
+                                onChange={handleCityChange}
+                                placeholder={t('filters.allCities')}
+                                searchPlaceholder={t('filters.searchCity')}
+                            />
                         </div>
                     )}
 
@@ -159,90 +197,61 @@ function FilterPanel({
                     {categories.length > 0 && (
                         <div className={styles.filter_section}>
                             <h3>{t('filters.category')}</h3>
-                            <div className={styles.category_select}>
-                                <select
-                                    value={localFilters.category}
-                                    onChange={e => handleCategoryChange(e.target.value)}
-                                >
-                                    <option value="">{t('filters.allCategories')}</option>
-                                    {categories.map(cat => (
-                                        <option key={cat.id} value={cat.id.toString()}>
-                                            {cat.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
+                            <SelectSearch
+                                options={categoryOptions}
+                                value={localFilters.category}
+                                onChange={handleCategoryChange}
+                                placeholder={t('filters.allCategories')}
+                                searchPlaceholder={t('filters.searchCategory')}
+                            />
                         </div>
                     )}
 
                     {/* Подкатегория */}
-                    {localFilters.category && getFilteredOccupations().length > 0 && (
+                    {localFilters.category && subcategoryOptions.length > 0 && (
                         <div className={styles.filter_section}>
                             <h3>{t('filters.subcategory')}</h3>
-                            <div className={styles.category_select}>
-                                <select
-                                    value={localFilters.subcategory}
-                                    onChange={e => handleSubcategoryChange(e.target.value)}
-                                >
-                                    <option value="">{t('filters.allSubcategories')}</option>
-                                    {getFilteredOccupations().map(occ => (
-                                        <option key={occ.id} value={occ.id.toString()}>
-                                            {occ.title}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
+                            <SelectSearch
+                                options={subcategoryOptions}
+                                value={localFilters.subcategory}
+                                onChange={handleSubcategoryChange}
+                                placeholder={t('filters.allSubcategories')}
+                                searchPlaceholder={t('filters.searchSubcategory')}
+                            />
                         </div>
                     )}
 
                     {/* Рейтинг */}
                     <div className={styles.filter_section}>
                         <h3>{t('filters.rating')}</h3>
-                        <div className={styles.category_select}>
-                            <select
-                                value={localFilters.rating}
-                                onChange={e => handleRatingChange(e.target.value)}
-                            >
-                                <option value="">{t('filters.selectRating')}</option>
-                                <option value="5">{t('filters.fiveStars')}</option>
-                                <option value="4.5">{t('filters.fourHalfStars')}</option>
-                                <option value="4">{t('filters.fourStars')}</option>
-                                <option value="3.5">{t('filters.threeHalfStars')}</option>
-                                <option value="3">{t('filters.threeStars')}</option>
-                                <option value="2.5">{t('filters.twoHalfStars')}</option>
-                                <option value="2">{t('filters.twoStars')}</option>
-                                <option value="1.5">{t('filters.oneHalfStars')}</option>
-                                <option value="1">{t('filters.oneStar')}</option>
-                            </select>
-                        </div>
+                        <SelectSearch
+                            options={ratingOptions}
+                            value={localFilters.rating}
+                            onChange={handleRatingChange}
+                            placeholder={t('filters.selectRating')}
+                        />
                     </div>
 
                     {/* Количество отзывов */}
                     <div className={styles.filter_section}>
                         <h3>{t('filters.reviewCount')}</h3>
-                        <div className={styles.category_select}>
-                            <select
-                                value={localFilters.reviewCount}
-                                onChange={e => handleReviewCountChange(e.target.value)}
-                            >
-                                <option value="">{t('filters.selectReviewCount')}</option>
-                                <option value="100">{t('filters.hundredReviews')}</option>
-                                <option value="50">{t('filters.fiftyReviews')}</option>
-                                <option value="20">{t('filters.twentyReviews')}</option>
-                                <option value="10">{t('filters.tenReviews')}</option>
-                                <option value="5">{t('filters.fiveReviews')}</option>
-                                <option value="3">{t('filters.threeReviews')}</option>
-                                <option value="1">{t('filters.withReviews')}</option>
-                            </select>
-                        </div>
+                        <SelectSearch
+                            options={reviewCountOptions}
+                            value={localFilters.reviewCount}
+                            onChange={handleReviewCountChange}
+                            placeholder={t('filters.selectReviewCount')}
+                        />
                     </div>
 
                     <div className={styles.filter_actions}>
                         <button className={styles.cancel_btn} onClick={handleCancel}>
                             {t('filters.cancel')}
                         </button>
-                        <button className={styles.apply_btn} onClick={handleApplyFilters}>
-                            {t('filters.apply')}
+                        <button className={styles.apply_btn} onClick={handleApplyFilters} disabled={isApplying}>
+                            {isApplying
+                                ? <PageLoader fullPage={false} compact primary asSpan />
+                                : t('filters.apply')
+                            }
                         </button>
                     </div>
                 </div>

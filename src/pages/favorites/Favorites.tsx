@@ -19,6 +19,7 @@ import Status from '../../shared/ui/Modal/Status';
 import { Tabs } from '../../shared/ui/Tabs';
 import { IoListOutline, IoPeopleOutline } from 'react-icons/io5';
 import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore.tsx';
+import { SelectSearch } from '../../shared/ui/SelectSearch';
 import { getPageSize } from '../../utils/pageSize.ts';
 import { parsePagedResponse } from '../../utils/apiHelper';
 
@@ -171,6 +172,7 @@ interface ApiTicket {
 
 interface LocalStorageFavorites {
     tickets: number[];
+    users: number[];
 }
 
 type SortByType = 'newest' | 'oldest' | 'price-asc' | 'price-desc' | 'reviews-asc' | 'reviews-desc' | 'rating-asc' | 'rating-desc';
@@ -228,6 +230,7 @@ function Favorites() {
     const [respondedTickets, setRespondedTickets] = useState<Set<number>>(new Set());
     const [respondingTicketId, setRespondingTicketId] = useState<number | null>(null);
     const [respondModal, setRespondModal] = useState<{ open: boolean; type: 'success' | 'error'; message: string }>({ open: false, type: 'success', message: '' });
+    const [searchQuery, setSearchQuery] = useState('');
 
     const handleServiceToggle = () => {
         setShowOnlyServices(prev => !prev);
@@ -411,10 +414,13 @@ function Favorites() {
             const stored = localStorage.getItem('favorites');
             if (stored) {
                 const parsed = JSON.parse(stored);
-                return { tickets: Array.isArray(parsed.tickets) ? parsed.tickets : [] };
+                return {
+                    tickets: Array.isArray(parsed.tickets) ? parsed.tickets : [],
+                    users: Array.isArray(parsed.users) ? parsed.users : [],
+                };
             }
         } catch { /* ignore */ }
-        return { tickets: [] };
+        return { tickets: [], users: [] };
     };
 
     const saveLocalStorageFavorites = (favorites: LocalStorageFavorites) => {
@@ -544,6 +550,35 @@ function Favorites() {
     // Алиас для обратной совместимости с вызовами для неавторизованных
     const fetchTicketDetailsForUnauthorized = fetchTicketDetails;
 
+    const fetchUserProfile = async (userId: number): Promise<FavoriteUser | null> => {
+        try {
+            const locale = localStorage.getItem('i18nextLng') || 'ru';
+            const response = await fetch(`${API_BASE_URL}/api/users/${userId}?locale=${locale}`, {
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
+            });
+            if (!response.ok) return null;
+            const u: ApiUser = await response.json();
+            const isMaster = u.roles?.includes('ROLE_MASTER') ?? false;
+            return {
+                entryId: 0,
+                id: u.id,
+                email: u.email || '',
+                name: u.name || '',
+                surname: u.surname || '',
+                rating: u.rating || 0,
+                image: u.image ? formatProfileImageUrl(u.image) : (u.imageExternalUrl || null),
+                role: isMaster ? 'master' : 'client',
+                specialties: (u.occupation || []).map(o => o.title),
+                reviewsCount: u.reviewsCount || 0,
+                gender: u.gender,
+                isOnline: u.isOnline,
+                lastSeen: u.lastSeen,
+            };
+        } catch {
+            return null;
+        }
+    };
+
     const fetchFavorites = async (pageOverride?: number) => {
         try {
             setIsFavoritesRefreshing(true);
@@ -563,8 +598,15 @@ function Favorites() {
                     const ticketDetails = await fetchTicketDetailsForUnauthorized(ticketId);
                     if (ticketDetails) tickets.push(ticketDetails);
                 }
-                
+
+                const users: FavoriteUser[] = [];
+                for (const userId of localFavorites.users) {
+                    const userProfile = await fetchUserProfile(userId);
+                    if (userProfile) users.push(userProfile);
+                }
+
                 setFavoriteTickets(tickets);
+                setFavoriteUsers(users);
                 setIsLoading(false);
                 return;
             }
@@ -678,10 +720,24 @@ function Favorites() {
     // Всегда держим ref актуальным, чтобы event listener не имел stale closure
     fetchFavoritesRef.current = fetchFavorites as () => Promise<void>;
 
-    // Удалить пользователя из избранного — DELETE /api/favorites/{entryId}
+    // Удалить / добавить пользователя в избранное
     const handleLikeUser = async (userId: number) => {
         const token = getAuthToken();
-        if (!token) return;
+
+        // Неавторизованный: сохраняем в localStorage
+        if (!token) {
+            const localFavorites = loadLocalStorageFavorites();
+            const isLiked = localFavorites.users.includes(userId);
+            const updatedUsers = isLiked
+                ? localFavorites.users.filter(id => id !== userId)
+                : [...localFavorites.users, userId];
+            saveLocalStorageFavorites({ ...localFavorites, users: updatedUsers });
+            if (isLiked) {
+                setFavoriteUsers(prev => prev.filter(u => u.id !== userId));
+            }
+            window.dispatchEvent(new Event('favoritesUpdated'));
+            return;
+        }
 
         const entry = favoriteUsers.find(u => u.id === userId);
         if (!entry) return;
@@ -815,7 +871,7 @@ function Favorites() {
             if (ticketDetails) setFavoriteTickets(prev => [...prev, ticketDetails]);
         }
 
-        saveLocalStorageFavorites({ tickets: updatedTickets });
+        saveLocalStorageFavorites({ ...localFavorites, tickets: updatedTickets });
         window.dispatchEvent(new Event('favoritesUpdated'));
     };
 
@@ -896,12 +952,11 @@ function Favorites() {
     }
 
     const token = getAuthToken();
-    const showTabs = !!token;
+    const showTabs = favoriteTickets.length > 0 || favoriteUsers.length > 0;
     const hasOrders = favoriteTickets.length > 0;
     const hasUsers = favoriteUsers.length > 0;
     const hasNoFavorites = !hasOrders && !hasUsers;
     const secondTabLabel = t('pages.favorites.users');
-    const secondTabItems = favoriteUsers;
     const hasSecondTabItems = hasUsers;
 
     // Применяем фильтры и сортировку к тикетам
@@ -958,8 +1013,30 @@ function Favorites() {
             result = applySort(primary, secondarySortBy);
         }
 
+        // Поиск
+        if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase();
+            result = result.filter(t =>
+                t.title?.toLowerCase().includes(q) ||
+                t.description?.toLowerCase().includes(q) ||
+                t.category?.toLowerCase().includes(q) ||
+                t.author?.toLowerCase().includes(q)
+            );
+        }
+
         return result;
     })();
+
+    const filteredUsers = searchQuery.trim()
+        ? favoriteUsers.filter(u => {
+            const q = searchQuery.toLowerCase();
+            return (
+                u.name?.toLowerCase().includes(q) ||
+                u.surname?.toLowerCase().includes(q) ||
+                u.specialties?.some(s => s.toLowerCase().includes(q))
+            );
+          })
+        : favoriteUsers;
 
     // Для неавторизованных пользователей показываем сообщение о необходимости авторизации
     if (!token && hasNoFavorites) {
@@ -1006,6 +1083,17 @@ function Favorites() {
                 />
             )}
 
+            {/* Поиск */}
+            <div className={styles.searchWrapper}>
+                <SelectSearch
+                    altMode
+                    options={[]}
+                    value={searchQuery}
+                    onChange={setSearchQuery}
+                    placeholder={t('common:search')}
+                />
+            </div>
+
             {/* Фильтры для вкладки заказов */}
             {(activeTab === 'orders' || !showTabs) && hasOrders && (
                 <div className={styles.filtersWrapper}>
@@ -1043,7 +1131,7 @@ function Favorites() {
                 )}
 
                 {/* Пустая вкладка пользователей */}
-                {activeTab === 'masters' && showTabs && !hasSecondTabItems && (
+                {activeTab === 'masters' && !hasSecondTabItems && (
                     <EmptyState isLoading={isFavoritesRefreshing} onRefresh={fetchFavorites} />
                 )}
 
@@ -1087,7 +1175,7 @@ function Favorites() {
                 ))}
 
                 {/* Отображение пользователей (специалисты + заказчики объединены) */}
-                {activeTab === 'masters' && showTabs && hasSecondTabItems && secondTabItems.map((user) => (
+                {activeTab === 'masters' && filteredUsers.length > 0 && filteredUsers.map((user) => (
                     <div
                         key={user.id}
                         onClick={() => navigate(ROUTES.PROFILE_BY_ID(user.id))}
@@ -1119,12 +1207,12 @@ function Favorites() {
                             gender={user.gender}
                             isOnline={user.isOnline}
                             lastSeen={user.lastSeen ?? undefined}
-                            isLiked
+                            isLiked={token ? true : loadLocalStorageFavorites().users.includes(user.id)}
                             isLikeLoading={isLikeLoading === user.id}
                             onLike={() => handleLikeUser(user.id)}
-                            onChat={() => handleMasterChat(user.id)}
-                            onReview={() => handleMasterReview(user.id)}
-                            onComplaint={() => handleComplaintUser(user.id)}
+                            onChat={token ? () => handleMasterChat(user.id) : undefined}
+                            onReview={token ? () => handleMasterReview(user.id) : undefined}
+                            onComplaint={token ? () => handleComplaintUser(user.id) : undefined}
                         />
                     </div>
                 ))}

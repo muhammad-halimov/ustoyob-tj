@@ -12,9 +12,10 @@ import Status from '../Modal/Status';
 import { PageLoader } from '../../../widgets/PageLoader';
 import { EmptyState } from '../../../widgets/EmptyState';
 import { Back } from '../Button/Back/Back.tsx';
-import { ShowMore } from '../Button/ShowMore/ShowMore.tsx';
 import { Clear } from '../Button/Clear/Clear.tsx';
+import { ShowMore } from '../Button/ShowMore/ShowMore.tsx';
 import { getPageSize } from '../../../utils/pageSize.ts';
+import { SelectSearch } from '../SelectSearch';
 
 interface HeaderProps {
     onOpenAuthModal?: () => void;
@@ -76,6 +77,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
     const [citiesError, setCitiesError] = useState(false);
     const [showCityModal, setShowCityModal] = useState(false);
     const [visibleCities, setVisibleCities] = useState(() => getPageSize());
+    const [citySearch, setCitySearch] = useState('');
     const [showLangDropdown, setShowLangDropdown] = useState(false);
     const [showConfirmationBanner, setShowConfirmationBanner] = useState<boolean>(() => {
         const token = getAuthToken();
@@ -432,7 +434,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                             </svg>
                         </Link>
                         {location.pathname !== '/' && <Back className={styles.header_back_desktop} />}
-                        <div className={styles.locate} onClick={() => { setShowCityModal(true); setVisibleCities(getPageSize()); }}>
+                        <div className={styles.locate} onClick={() => { setShowCityModal(true); setVisibleCities(getPageSize()); setCitySearch(''); }}>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <g clipPath="url(#clip0_324_1115)">
                                 <g clipPath="url(#clip1_324_1115)">
@@ -750,31 +752,44 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                                     title={t('header:citiesError', 'Не удалось загрузить города')}
                                     onRefresh={fetchCities}
                                 />
-                            ) : (
-                                <>
-                                    {cities.slice(0, visibleCities).map(city => (
-                                        <div
-                                            key={city.id}
-                                            className={`${styles.cityItem} ${selectedCity === city.title ? styles.selected : ''}`}
-                                            onClick={() => handleCitySelect(city.title, city.id)}
-                                        >
-                                            {t(`cities:${city.title}`, { defaultValue: city.title })}
-                                        </div>
-                                    ))}
-                                    {cities.length > getPageSize() && (
-                                        <ShowMore
-                                            expanded={visibleCities > getPageSize()}
-                                            canLoadMore={visibleCities < cities.length}
-                                            onShowMore={() => setVisibleCities(v => Math.min(v + getPageSize(), cities.length))}
-                                            onShowLess={() => setVisibleCities(v => Math.max(v - getPageSize(), getPageSize()))}
-                                            onClear={() => setVisibleCities(getPageSize())}
-                                            showMoreText={t('common:app.showMore')}
-                                            showLessText={t('common:app.showLess')}
-                                            column
+                            ) : (() => {
+                                const filteredCities = citySearch.trim()
+                                    ? cities.filter(c => t(`cities:${c.title}`, { defaultValue: c.title }).toLowerCase().includes(citySearch.toLowerCase()))
+                                    : cities;
+                                return (
+                                    <>
+                                        <SelectSearch
+                                            altMode
+                                            options={[]}
+                                            value={citySearch}
+                                            onChange={setCitySearch}
+                                            placeholder={t('header:searchCity')}
+                                            className={styles.citySearch}
                                         />
-                                    )}
-                                </>
-                            )}
+                                        {filteredCities.slice(0, visibleCities).map(city => (
+                                            <div
+                                                key={city.id}
+                                                className={`${styles.cityItem} ${selectedCity === city.title ? styles.selected : ''}`}
+                                                onClick={() => handleCitySelect(city.title, city.id)}
+                                            >
+                                                {t(`cities:${city.title}`, { defaultValue: city.title })}
+                                            </div>
+                                        ))}
+                                        {filteredCities.length > getPageSize() && (
+                                            <ShowMore
+                                                expanded={visibleCities > getPageSize()}
+                                                canLoadMore={visibleCities < filteredCities.length}
+                                                onShowMore={() => setVisibleCities(v => Math.min(v + getPageSize(), filteredCities.length))}
+                                                onShowLess={() => setVisibleCities(v => Math.max(v - getPageSize(), getPageSize()))}
+                                                onClear={() => setVisibleCities(getPageSize())}
+                                                showMoreText={t('common:app.showMore')}
+                                                showLessText={t('common:app.showLess')}
+                                                column
+                                            />
+                                        )}
+                                    </>
+                                );
+                            })()}
                         </div>
                     </div>
                 </div>

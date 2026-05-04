@@ -132,6 +132,14 @@
   gap: map.get(vars.$spacing, 5);
   padding-top: map.get(vars.$spacing, 5);
 
+  .emptyStateWrap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding-top: map.get(vars.$spacing, 10);
+    width: 100%;
+  }
+
   &.hidden {
     display: none;
   }

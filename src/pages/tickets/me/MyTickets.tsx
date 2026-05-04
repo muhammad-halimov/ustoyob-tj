@@ -16,6 +16,7 @@ import { Tabs } from '../../../shared/ui/Tabs';
 import { SectionActions } from '../../../shared/ui/SectionActions';
 import { IoCheckmarkCircleOutline, IoCloseCircleOutline } from 'react-icons/io5';
 import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore.tsx';
+import { SelectSearch } from '../../../shared/ui/SelectSearch';
 import { getPageSize } from '../../../utils/pageSize.ts';
 import { parsePagedResponse } from '../../../utils/apiHelper';
 import { useShowMore } from '../../../hooks';
@@ -157,6 +158,7 @@ function MyTickets() {
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [showErrorModal, setShowErrorModal] = useState(false);
     const [modalMessage, setModalMessage] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
 
     const handleCloseSuccessModal = () => {
         setShowSuccessModal(false);
@@ -506,6 +508,17 @@ function MyTickets() {
         );
     }
 
+    const searchedTickets = searchQuery.trim()
+        ? displayedTickets.filter(ticket => {
+            const q = searchQuery.toLowerCase();
+            return (
+                ticket.title?.toLowerCase().includes(q) ||
+                ticket.description?.toLowerCase().includes(q) ||
+                ticket.category?.toLowerCase().includes(q)
+            );
+          })
+        : displayedTickets;
+
     return (
         <div className={styles.container}>
             <div className={styles.header}>
@@ -528,11 +541,22 @@ function MyTickets() {
                 onChange={setActiveTab}
             />
 
+            {/* Поиск */}
+            <div className={styles.searchWrapper}>
+                <SelectSearch
+                    altMode
+                    options={[]}
+                    value={searchQuery}
+                    onChange={setSearchQuery}
+                    placeholder={t('common:search')}
+                />
+            </div>
+
             {/* Список объявлений */}
             <div className={styles.ticketsList}>
-                {isContentLoading && displayedTickets.length === 0 ? (
+                {isContentLoading && searchedTickets.length === 0 ? (
                     <EmptyState isLoading />
-                ) : displayedTickets.length === 0 ? (
+                ) : searchedTickets.length === 0 ? (
                     <EmptyState
                         title={activeTab === 'active'
                             ? t('myTickets:noActiveAds')
@@ -543,7 +567,7 @@ function MyTickets() {
                         onRefresh={fetchMyTickets}
                     />
                 ) : (
-                    displayedTickets.map((ticket) => (
+                    searchedTickets.map((ticket) => (
                         <Card
                             key={ticket.id}
                             ticketId={ticket.id}
@@ -572,7 +596,7 @@ function MyTickets() {
                     ))
                 )}
             </div>
-            {displayedTickets.length > 0 && (
+            {searchedTickets.length > 0 && (
                 <ShowMore
                     {...ticketsShowMoreProps}
                     showMoreText={t('common:app.showMore', { defaultValue: 'Показать больше' })}

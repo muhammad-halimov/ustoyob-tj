@@ -17,6 +17,7 @@ import { uploadPhotos } from '../../utils/imageHelper';
 import { Tabs } from '../../shared/ui/Tabs';
 import Grid, { PhotoItem } from '../../shared/ui/Photo/Grid/Grid.tsx';
 import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore.tsx';
+import { SelectSearch } from '../../shared/ui/SelectSearch';
 import { getPageSize } from '../../utils/pageSize.ts';
 import { parsePagedResponse } from '../../utils/apiHelper';
 import { useShowMore } from '../../hooks';
@@ -138,7 +139,6 @@ function Chat() {
     const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const heartbeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const chatsRef = useRef<ApiChat[]>([]);
-    const searchInputRef = useRef<HTMLInputElement>(null);
     const messageInputRef = useRef<HTMLInputElement>(null);
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
     const MERCURE_HUB_URL = import.meta.env.VITE_MERCURE_HUB_URL;
@@ -816,17 +816,6 @@ function Chat() {
         fileInputRef.current?.click();
     }, []);
 
-    const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        setSearchQuery(e.target.value);
-    }, []);
-
-    const clearSearch = useCallback(() => {
-        setSearchQuery("");
-        if (searchInputRef.current) {
-            searchInputRef.current.focus();
-        }
-    }, []);
-
     const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
@@ -1227,25 +1216,13 @@ function Chat() {
             {/* Sidebar */}
             <div className={styles.sidebar}>
                 <div className={styles.searchBar}>
-                    <div className={styles.searchInputContainer}>
-                        <input
-                            type="text"
-                            placeholder={t('chat.searchPlaceholder')}
-                            className={styles.searchInput}
-                            value={searchQuery}
-                            onChange={handleSearchChange}
-                            ref={searchInputRef}
-                        />
-                        {searchQuery && (
-                            <button
-                                className={styles.clearSearchButton}
-                                onClick={clearSearch}
-                                aria-label={t('chat.clearSearch')}
-                            >
-                                ×
-                            </button>
-                        )}
-                    </div>
+                    <SelectSearch
+                        altMode
+                        options={[]}
+                        value={searchQuery}
+                        onChange={setSearchQuery}
+                        placeholder={t('chat.searchPlaceholder')}
+                    />
                 </div>
 
                 <Tabs

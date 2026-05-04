@@ -1,0 +1,264 @@
+@use 'sass:map';
+@use '../../../app/styles/variables' as vars;
+
+.wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+
+  &.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+}
+
+// ── Триггер ──────────────────────────────────────────────────────────────────
+.trigger {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--color-background-primary);
+  border: 1px solid var(--color-stroke);
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  text-align: left;
+  transition: border-color 0.18s, box-shadow 0.18s;
+
+  &:hover {
+    border-color: var(--color-actual-blue);
+  }
+
+  .open & {
+    border-color: var(--color-actual-blue);
+    box-shadow: 0 0 0 2px rgba(58, 84, 218, 0.12);
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+}
+
+.triggerLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &.placeholder {
+    color: var(--color-text-placeholder);
+  }
+}
+
+.searchIcon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: var(--color-icons);
+}
+
+.chevron {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--color-icons);
+  transition: transform 0.18s;
+
+  &.chevronUp {
+    transform: rotate(180deg);
+  }
+}
+
+// ── Alt mode (plain input) ────────────────────────────────────────────────────
+.altWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--color-background-primary);
+  border: 1px solid var(--color-stroke);
+  border-radius: 12px;
+  transition: border-color 0.18s, box-shadow 0.18s;
+
+  &:focus-within {
+    border-color: var(--color-actual-blue);
+    box-shadow: 0 0 0 2px rgba(58, 84, 218, 0.12);
+  }
+}
+
+.altSearchIcon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: var(--color-icons);
+}
+
+.altInput {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--color-text-primary);
+
+  &::placeholder {
+    color: var(--color-text-placeholder);
+  }
+}
+
+// ── Крестик внутри триггера ───────────────────────────────────────────────────
+.clearBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  margin: -8px -4px -8px 0;
+  color: var(--color-icons);
+  cursor: pointer;
+
+  svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  &:hover {
+    color: var(--color-text-primary);
+  }
+}
+
+// ── Дропдаун ─────────────────────────────────────────────────────────────────
+.dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: var(--color-background-primary);
+  border: 1px solid var(--color-actual-blue);
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  box-shadow: 0 8px 24px var(--color-shadow-light);
+  overflow: hidden;
+}
+
+// ── Поиск внутри дропдауна ───────────────────────────────────────────────────
+.searchWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-stroke);
+}
+
+.searchIconInner {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--color-icons);
+}
+
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--color-text-primary);
+
+  &::placeholder {
+    color: var(--color-text-placeholder);
+  }
+}
+
+.searchClear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--color-icons);
+  flex-shrink: 0;
+
+  svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  &:hover {
+    color: var(--color-text-primary);
+  }
+}
+
+// ── Список ───────────────────────────────────────────────────────────────────
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  max-height: 240px;
+  overflow-y: auto;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--color-stroke);
+    border-radius: 4px;
+  }
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 14px;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s;
+
+  &:hover {
+    background: var(--color-background-all);
+  }
+
+  &.itemActive {
+    color: var(--color-actual-blue);
+    font-weight: 500;
+  }
+}
+
+.checkIcon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--color-actual-blue);
+}
+
+.empty {
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--color-text-placeholder);
+  text-align: center;
+}

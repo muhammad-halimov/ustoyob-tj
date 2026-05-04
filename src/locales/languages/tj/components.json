@@ -318,7 +318,10 @@
     "tenReviews": "10+ ниҳод",
     "fiveReviews": "5+ ниҳод",
     "threeReviews": "3+ ниҳод",
-    "withReviews": "Бо ниҳодҳо"
+    "withReviews": "Бо ниҳодҳо",
+    "searchCity": "Ҷустуҷӯi шаҳр...",
+    "searchCategory": "Ҷустуҷӯi категория...",
+    "searchSubcategory": "Ҷустуҷӯi касб..."
   },
   "languages": {
     "tj": "Тоҷикӣ",

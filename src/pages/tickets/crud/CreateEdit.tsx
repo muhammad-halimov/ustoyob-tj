@@ -15,6 +15,7 @@ import { Toggle } from '../../../shared/ui/Button/Toggle/Toggle';
 import Grid from '../../../shared/ui/Photo/Grid';
 import { uploadPhotos } from '../../../utils/imageHelper';
 import { EditActions } from '../../profile/shared/ui/EditActions/EditActions';
+import { SelectSearch } from '../../../shared/ui/SelectSearch';
 
 interface ServiceData {
     id?: number;
@@ -591,18 +592,12 @@ const CreateEdit = () => {
                 <div className={styles.section}>
                     <h2>{t('createEdit:categoryLabel')}</h2>
                     <div className={styles.categorySection}>
-                        <select
-                            value={selectedCategory || ''}
-                            onChange={(e) => setSelectedCategory(Number(e.target.value))}
-                            className={styles.categorySelect}
-                        >
-                            <option value="">{t('createEdit:selectCategory')}</option>
-                            {categories.map(category => (
-                                <option key={category.id} value={category.id}>
-                                    {category.title}
-                                </option>
-                            ))}
-                        </select>
+                        <SelectSearch
+                            options={categories.map(c => ({ value: String(c.id), label: c.title }))}
+                            value={selectedCategory ? String(selectedCategory) : ''}
+                            onChange={(val) => setSelectedCategory(val ? Number(val) : null)}
+                            placeholder={t('createEdit:selectCategory')}
+                        />
                     </div>
                 </div>
 
@@ -611,18 +606,12 @@ const CreateEdit = () => {
                     <div className={styles.section}>
                         <h2>{t('createEdit:subcategoryLabel')}</h2>
                         <div className={styles.categorySection}>
-                            <select
-                                value={selectedSubcategory || ''}
-                                onChange={(e) => setSelectedSubcategory(Number(e.target.value))}
-                                className={styles.categorySelect}
-                            >
-                                <option value="">{t('createEdit:selectSubcategory')}</option>
-                                {filteredOccupations.map(occupation => (
-                                    <option key={occupation.id} value={occupation.id}>
-                                        {occupation.title}
-                                    </option>
-                                ))}
-                            </select>
+                            <SelectSearch
+                                options={filteredOccupations.map(o => ({ value: String(o.id), label: o.title }))}
+                                value={selectedSubcategory ? String(selectedSubcategory) : ''}
+                                onChange={(val) => setSelectedSubcategory(val ? Number(val) : null)}
+                                placeholder={t('createEdit:selectSubcategory')}
+                            />
                         </div>
                     </div>
                 )}

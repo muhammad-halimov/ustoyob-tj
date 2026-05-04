@@ -318,7 +318,10 @@
     "tenReviews": "10+ отзывов",
     "fiveReviews": "5+ отзывов",
     "threeReviews": "3+ отзыва",
-    "withReviews": "С отзывами"
+    "withReviews": "С отзывами",
+    "searchCity": "Поиск города...",
+    "searchCategory": "Поиск категории...",
+    "searchSubcategory": "Поиск профессии..."
   },
   "languages": {
     "tj": "Таджикский",

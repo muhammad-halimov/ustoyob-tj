@@ -13,6 +13,7 @@ import { SortingFilter } from "../../../../widgets/Sorting/CriteriaFilter";
 import { createChatWithAuthor } from '../../../../utils/chatUtils.ts';
 import { getCities, getOccupations } from "../../../../utils/dataCache.ts";
 import { PageLoader } from '../../../../widgets/PageLoader';
+import { SelectSearch } from '../../../../shared/ui/SelectSearch';
 import { EmptyState } from '../../../../widgets/EmptyState';
 import Status from '../../../../shared/ui/Modal/Status';
 import Feedback from '../../../../shared/ui/Modal/Feedback';
@@ -188,6 +189,8 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     });
     const [searchResults, setSearchResults] = useState<SearchResult[]>(() => (initSessionRef.current?.searchResults as SearchResult[]) ?? []);
     const [showResults, setShowResults] = useState<boolean>(() => (initSessionRef.current?.showResults as boolean) ?? false);
+    const showResultsRef = useRef<boolean>((initSessionRef.current?.showResults as boolean) ?? false);
+    useEffect(() => { showResultsRef.current = showResults; }, [showResults]);
     const [filters, setFilters] = useState<FilterState>(() => {
         const saved = initSessionRef.current?.filters as FilterState | undefined;
         return saved ?? {
@@ -202,6 +205,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         };
     });
     const [isLoading, setIsLoading] = useState(false);
+    const [filterResetCount, setFilterResetCount] = useState(0);
     const { page, setPage, appendRef: appendSearchRef, skipFetchRef: skipSearchFetchRef, setHasMore, showMoreProps: searchShowMoreProps } = useShowMore<SearchResult>(setSearchResults);
     const [categories, setCategories] = useState<Category[]>([]);
     const [occupations, setOccupations] = useState<Occupation[]>([]);
@@ -947,7 +951,8 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             !filters.category &&
             !filters.rating &&
             !filters.reviewCount &&
-            !filters.city) { // Добавляем город в проверку
+            !filters.city &&
+            !showResultsRef.current) { // Если уже есть результаты — не сбрасываем при смене сортировки
             console.log('Clearing results - no search criteria');
             setShowResults(false);
             setSearchResults([]);
@@ -960,7 +965,10 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             isSearchInProgressRef.current = true;
             console.log('Starting search with:', currentSearch);
 
-            const results = await fetchAllTickets(searchQuery, filters);
+            setIsLoading(true);
+            setShowResults(true);
+
+            const results = await fetchAllTickets(searchQuery, filters, true);
             console.log('Search completed. Results:', results.length);
 
             setSearchResults(results);
@@ -975,6 +983,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             onSearchResults([]);
         } finally {
             isSearchInProgressRef.current = false;
+            setIsLoading(false);
         }
     }, [searchQuery, filters, userRole, fetchAllTickets, onSearchResults]);
 
@@ -985,6 +994,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         appendSearchRef.current = false;
         if (isSearchInProgressRef.current) return;
         isSearchInProgressRef.current = true;
+        setShowResults(true); // показываем PageLoader сразу, до окончания запроса
         try {
             const results = await fetchAllTickets(searchQuery, newFilters, false, 1);
             setSearchResults(results);
@@ -1127,6 +1137,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         setShowResults(false);
         setSearchResults([]);
         setPage(1);
+        setFilterResetCount(c => c + 1);
         onSearchResults([]);
         previousSearchRef.current = {
             query: searchQuery,
@@ -1149,48 +1160,6 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         };
     }, [searchQuery, userRole, onSearchResults, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter]);
 
-    const handleClearAll = useCallback(() => {
-        setSearchQuery('');
-        handleFilterToggle(false);
-        setFilters({
-            minPrice: '',
-            maxPrice: '',
-            category: '',
-            subcategory: '',
-            rating: '',
-            reviewCount: '',
-            sortBy: '',
-            city: ''
-        });
-        setShowOnlyServices(false);
-        setShowOnlyAnnouncements(false);
-        setSortBy('newest');
-        setSecondarySortBy('none');
-        setTimeFilter('all');
-        setShowResults(false);
-        setSearchResults([]);
-        setPage(1);
-        onSearchResults([]);
-        previousSearchRef.current = {
-            query: '',
-            filters: {
-                minPrice: '',
-                maxPrice: '',
-                category: '',
-                subcategory: '',
-                rating: '',
-                reviewCount: '',
-                sortBy: '',
-                city: ''
-            },
-            userRole,
-            showOnlyServices: false,
-            showOnlyAnnouncements: false,
-            sortBy: 'newest',
-            secondarySortBy: 'none',
-            timeFilter: 'all'
-        };
-    }, [userRole, onSearchResults, handleFilterToggle]);
 
     // При смене страницы перезагружаем результаты
     useEffect(() => {
@@ -1371,6 +1340,10 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     const renderedResults = useMemo(() => {
         const currentUserId = getUserData()?.id;
 
+        if (showFilters && !showResults && !isLoading) {
+            return <div className={styles.emptyStateWrap}><EmptyState /></div>;
+        }
+
         if (isLoading) {
             return <div style={{ display: 'flex', justifyContent: 'center', width: '100%', paddingTop: '2rem' }}><PageLoader fullPage={false} /></div>;
         }
@@ -1420,12 +1393,13 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 />
             );
         });
-    }, [isLoading, searchResults, userRole, handleCardClick, textHelper, t, handleForceRefresh, handleRespondCard, respondedTickets, respondingTicketId]);
+    }, [isLoading, showResults, searchResults, userRole, handleCardClick, textHelper, t, handleForceRefresh, handleRespondCard, respondedTickets, respondingTicketId]);
 
     return (
         <div className={`${styles.container} ${showFilters ? styles.containerExpanded : ''}`}>
             <div className={styles.search_with_filters}>
                 <FilterPanel
+                    key={filterResetCount}
                     showFilters={showFilters}
                     setShowFilters={setShowFilters}
                     onApply={handleApply}
@@ -1469,24 +1443,20 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                         )}
 
                         <div className={styles.search_wrap}>
-                            <div className={styles.input_wrap}>
-                                <input
-                                    type="text"
-                                    placeholder={getSearchPlaceholder}
-                                    className={styles.input}
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                                />
-                                {searchQuery && (
-                                    <Clear
-                                        className={styles.clear_input_btn}
-                                        onClick={() => setSearchQuery('')}
-                                    />
-                                )}
-                            </div>
+                            <SelectSearch
+                                altMode
+                                options={[]}
+                                value={searchQuery}
+                                onChange={setSearchQuery}
+                                placeholder={getSearchPlaceholder}
+                                className={styles.input_wrap}
+                                onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                            />
                             <button className={styles.button} onClick={handleSearch} disabled={isLoading}>
-                                {isLoading ? t('app.loading') : t('search.find')}
+                                {isLoading
+                                    ? <PageLoader fullPage={false} compact primary asSpan />
+                                    : t('search.find')
+                                }
                             </button>
                         </div>
 
@@ -1520,7 +1490,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                         {showFilters && (
                             <Clear
                                 className={styles.clear_filters_control_btn}
-                                onClick={handleClearAll}
+                                onClick={() => { handleResetFilters(); handleFilterToggle(false); }}
                             />
                         )}
                         </div>
@@ -1554,7 +1524,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                         </>
                     )}
 
-                    <div className={`${styles.searchResults} ${!showResults ? styles.hidden : ''}`}>
+                    <div className={`${styles.searchResults} ${!showResults && !showFilters ? styles.hidden : ''}`}>
                         {renderedResults}
                         {showResults && !isLoading && (
                             <ShowMore

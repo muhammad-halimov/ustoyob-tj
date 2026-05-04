@@ -309,7 +309,18 @@ function Profile() {
     useEffect(() => {
         if (!readOnly || !profileData?.id) return;
         const token = getAuthToken();
-        if (!token) return;
+        if (!token) {
+            // Проверяем localStorage для неавторизованных пользователей
+            try {
+                const stored = localStorage.getItem('favorites');
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    const users: number[] = Array.isArray(parsed.users) ? parsed.users : [];
+                    setIsProfileLiked(users.includes(Number(profileData.id)));
+                }
+            } catch { /* silent */ }
+            return;
+        }
 
         (async () => {
             try {
@@ -3352,8 +3363,25 @@ function Profile() {
     // Лайк / снятие лайка (публичный профиль)
     const handleProfileLike = async () => {
         const token = getAuthToken();
-        if (!token) return;
         if (!profileData?.id) return;
+
+        // Неавторизованный пользователь — сохраняем в localStorage
+        if (!token) {
+            try {
+                const stored = localStorage.getItem('favorites');
+                const parsed = stored ? JSON.parse(stored) : {};
+                const users: number[] = Array.isArray(parsed.users) ? parsed.users : [];
+                const userId = Number(profileData.id);
+                const nowLiked = users.includes(userId);
+                const updatedUsers = nowLiked
+                    ? users.filter(id => id !== userId)
+                    : [...users, userId];
+                localStorage.setItem('favorites', JSON.stringify({ ...parsed, users: updatedUsers }));
+                setIsProfileLiked(!nowLiked);
+                window.dispatchEvent(new Event('favoritesUpdated'));
+            } catch { /* silent */ }
+            return;
+        }
 
         setIsProfileLikeLoading(true);
         try {

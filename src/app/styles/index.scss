@@ -42,6 +42,9 @@ html {
   // Инициализация темы по умолчанию
   --color-scheme: light;
   color-scheme: var(--color-scheme);
+  // Резервируем место под скроллбар чтобы не было горизонтального прыжка
+  // при появлении/исчезновении вертикального скроллбара
+  scrollbar-gutter: stable;
 }
 
 html[data-theme="dark"] {

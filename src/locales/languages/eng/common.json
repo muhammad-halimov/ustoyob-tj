@@ -89,5 +89,10 @@
     "invalidLink": "Invalid link",
     "linkExpired": "Link has expired or is invalid",
     "error": "An error occurred during activation"
-  }
+  },
+  "select": "Select...",
+  "search": "Search...",
+  "clear": "Clear",
+  "clearSearch": "Clear search",
+  "noResults": "Nothing found"
 }

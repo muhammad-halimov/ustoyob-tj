@@ -4,6 +4,7 @@ import { getAuthToken, handleUnauthorized } from '../../../../utils/auth.ts';
 import { getStorageItem } from '../../../../utils/storageHelper.ts';
 import { AddressValue, AddressData } from '../../../../entities';
 import { PageLoader } from '../../../../widgets/PageLoader';
+import { SelectSearch } from '../../SelectSearch/SelectSearch';
 import styles from './Address.module.scss';
 
 // Локальные интерфейсы для Address (расширенные версии)
@@ -57,11 +58,17 @@ interface AddressSelectorProps {
 }
 
 const Address = ({ value, onChange }: AddressSelectorProps) => {
-    const { t } = useTranslation(['address']);
+    const { t } = useTranslation(['address', 'common']);
     const [provinces, setProvinces] = useState<Province[]>([]);
     const [cities, setCities] = useState<City[]>([]);
     const [districts, setDistricts] = useState<District[]>([]);
     const [isLocationLoading, setIsLocationLoading] = useState(true);
+    const [cityQuery, setCityQuery] = useState('');
+    const [districtQuery, setDistrictQuery] = useState('');
+    const [suburbQuery, setSuburbQuery] = useState('');
+    const [communityQuery, setCommunityQuery] = useState('');
+    const [settlementQuery, setSettlementQuery] = useState('');
+    const [villageQuery, setVillageQuery] = useState('');
 
     const selectedProvinceId = value?.provinceId ?? null;
     const selectedCityId = value?.cityId ?? null;
@@ -155,6 +162,30 @@ const Address = ({ value, onChange }: AddressSelectorProps) => {
         ? selectedSettlement.village || []
         : [];
 
+    const filteredCities = cityQuery
+        ? citiesInSelectedProvince.filter(c => c.title.toLowerCase().includes(cityQuery.toLowerCase()))
+        : citiesInSelectedProvince;
+
+    const filteredDistricts = districtQuery
+        ? districtsInSelectedProvince.filter(d => d.title.toLowerCase().includes(districtQuery.toLowerCase()))
+        : districtsInSelectedProvince;
+
+    const filteredSuburbs = suburbQuery
+        ? suburbsInSelectedCity.filter(s => s.title.toLowerCase().includes(suburbQuery.toLowerCase()))
+        : suburbsInSelectedCity;
+
+    const filteredCommunities = communityQuery
+        ? communitiesInSelectedDistrict.filter(c => c.title.toLowerCase().includes(communityQuery.toLowerCase()))
+        : communitiesInSelectedDistrict;
+
+    const filteredSettlements = settlementQuery
+        ? settlementsInSelectedDistrict.filter(s => s.title.toLowerCase().includes(settlementQuery.toLowerCase()))
+        : settlementsInSelectedDistrict;
+
+    const filteredVillages = villageQuery
+        ? villagesInSelectedSettlement.filter(v => v.title.toLowerCase().includes(villageQuery.toLowerCase()))
+        : villagesInSelectedSettlement;
+
     // Обработчики выбора
     const handleProvinceSelect = (provinceId: number) => {
         onChange({
@@ -166,6 +197,12 @@ const Address = ({ value, onChange }: AddressSelectorProps) => {
             communityId: null,
             villageId: null
         });
+        setCityQuery('');
+        setDistrictQuery('');
+        setSuburbQuery('');
+        setCommunityQuery('');
+        setSettlementQuery('');
+        setVillageQuery('');
     };
 
     const handleCitySelect = (cityId: number) => {
@@ -199,6 +236,10 @@ const Address = ({ value, onChange }: AddressSelectorProps) => {
             communityId: null,
             villageId: null
         });
+        setSuburbQuery('');
+        setCommunityQuery('');
+        setSettlementQuery('');
+        setVillageQuery('');
     };
 
     const handleSettlementSelect = (settlementId: number) => {
@@ -265,8 +306,16 @@ const Address = ({ value, onChange }: AddressSelectorProps) => {
                         {citiesInSelectedProvince.length > 0 && (
                             <div className={styles.cities_container}>
                                 <h4>{t('address:cities')}</h4>
+                                <SelectSearch
+                                    altMode
+                                    options={[]}
+                                    value={cityQuery}
+                                    onChange={(val) => setCityQuery(val)}
+                                    placeholder={t('common:search')}
+                                    className={styles.searchInput}
+                                />
                                 <div className={styles.city_grid}>
-                                    {citiesInSelectedProvince.map((city) => (
+                                    {filteredCities.map((city) => (
                                         <button
                                             type="button"
                                             key={city.id}
@@ -291,8 +340,16 @@ const Address = ({ value, onChange }: AddressSelectorProps) => {
                         {districtsInSelectedProvince.length > 0 && (
                             <div className={styles.districts_container}>
                                 <h4>{t('address:districts')}</h4>
+                                <SelectSearch
+                                    altMode
+                                    options={[]}
+                                    value={districtQuery}
+                                    onChange={(val) => setDistrictQuery(val)}
+                                    placeholder={t('common:search')}
+                                    className={styles.searchInput}
+                                />
                                 <div className={styles.district_grid}>
-                                    {districtsInSelectedProvince.map((district) => (
+                                    {filteredDistricts.map((district) => (
                                         <button
                                             type="button"
                                             key={district.id}
@@ -326,8 +383,16 @@ const Address = ({ value, onChange }: AddressSelectorProps) => {
                         <h4>{t('address:suburbs')}</h4>
                         <p className={styles.subtitle}>{t('address:suburbsSubtitle')}</p>
                     </div>
+                    <SelectSearch
+                        altMode
+                        options={[]}
+                        value={suburbQuery}
+                        onChange={(val) => setSuburbQuery(val)}
+                        placeholder={t('common:search')}
+                        className={styles.searchInput}
+                    />
                     <div className={styles.district_grid}>
-                        {suburbsInSelectedCity.map((suburb) => (
+                        {filteredSuburbs.map((suburb) => (
                             <button
                                 type="button"
                                 key={suburb.id}
@@ -354,8 +419,16 @@ const Address = ({ value, onChange }: AddressSelectorProps) => {
                         {communitiesInSelectedDistrict.length > 0 && (
                             <div className={styles.communities_container}>
                                 <h4>{t('address:communities')}</h4>
+                                <SelectSearch
+                                    altMode
+                                    options={[]}
+                                    value={communityQuery}
+                                    onChange={(val) => setCommunityQuery(val)}
+                                    placeholder={t('common:search')}
+                                    className={styles.searchInput}
+                                />
                                 <div className={styles.district_grid}>
-                                    {communitiesInSelectedDistrict.map((community) => (
+                                    {filteredCommunities.map((community) => (
                                         <button
                                             type="button"
                                             key={community.id}
@@ -375,8 +448,16 @@ const Address = ({ value, onChange }: AddressSelectorProps) => {
                         {settlementsInSelectedDistrict.length > 0 && (
                             <div className={styles.settlements_container}>
                                 <h4>{t('address:settlements')}</h4>
+                                <SelectSearch
+                                    altMode
+                                    options={[]}
+                                    value={settlementQuery}
+                                    onChange={(val) => setSettlementQuery(val)}
+                                    placeholder={t('common:search')}
+                                    className={styles.searchInput}
+                                />
                                 <div className={styles.district_grid}>
-                                    {settlementsInSelectedDistrict.map((settlement) => (
+                                    {filteredSettlements.map((settlement) => (
                                         <button
                                             type="button"
                                             key={settlement.id}
@@ -402,8 +483,16 @@ const Address = ({ value, onChange }: AddressSelectorProps) => {
                     {selectedSettlement && villagesInSelectedSettlement.length > 0 && (
                         <div className={styles.villages_section}>
                             <h4>{t('address:villagesIn')} {selectedSettlement.title}</h4>
+                            <SelectSearch
+                                altMode
+                                options={[]}
+                                value={villageQuery}
+                                onChange={(val) => setVillageQuery(val)}
+                                placeholder={t('common:search')}
+                                className={styles.searchInput}
+                            />
                             <div className={styles.district_grid}>
-                                {villagesInSelectedSettlement.map((village) => (
+                                {filteredVillages.map((village) => (
                                     <button
                                         type="button"
                                         key={village.id}

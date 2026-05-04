@@ -4,7 +4,7 @@ import { Add } from "../../../shared/ui/Button/Header/Add/Add.tsx";
 import Category from "../categories/Category.tsx";
 import { MainReviewsSection } from "../reviews";
 import Recommendations from "../recommendations/Recommendations.tsx";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ROUTES } from '../../../app/routers/routes';
 import { getUserRole } from "../../../utils/auth.ts";
@@ -156,13 +156,13 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
         { id: 2, name: t('roles.masters'), title: t('roles.mastersDesc'), img: "./master.jpg" }
     ];
 
-    const handleSearchResults = (results: SearchResult[]) => {
+    const handleSearchResults = useCallback((results: SearchResult[]) => {
         setShowResults(results.length > 0);
-    };
+    }, []);
 
-    const handleFilterToggle = (isVisible: boolean) => {
+    const handleFilterToggle = useCallback((isVisible: boolean) => {
         console.log(isVisible);
-    };
+    }, []);
 
     const handleAdBtnClick = (workerType: "client" | "master") => {
         if (workerType === "master" && userRole === "master") {
