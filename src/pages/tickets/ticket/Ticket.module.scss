@@ -67,6 +67,22 @@
   padding-top: 4px;
 }
 
+.nonOwnerControls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ticketTypeBadge {
+  background: var(--color-background-btn);
+  color: var(--color-primary-text-white);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 .ownerControls {
   display: flex;
   align-items: center;
@@ -970,10 +986,28 @@
     width: 100%;
   }
 
-  // On mobile: title row stays as-is (flex row with title + controls).
-  // Meta row: price + category stay horizontal, wrap if needed.
+  // On mobile: controls go above the title, badge left / dropdown right.
   .titleControlRow {
-    align-items: center;   // vertically center title & controls
+    flex-direction: column-reverse;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .controlsGroup {
+    width: 100%;
+  }
+
+  .nonOwnerControls {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .orderCard {
+    padding: 10px 20px 10px 20px;
+  }
+
+  .orderTitle {
+    width: 100%;
   }
 
   .orderTitle {

@@ -11,7 +11,7 @@ import { Card } from "../../../../shared/ui/Ticket/Card/Card.tsx";
 import { ServiceTypeFilter } from "../../../../widgets/Sorting/TypeFilter";
 import { SortingFilter } from "../../../../widgets/Sorting/CriteriaFilter";
 import { createChatWithAuthor } from '../../../../utils/chatUtils.ts';
-import { getCities, getOccupations } from "../../../../utils/dataCache.ts";
+import { getProvinces, getCities, getOccupations } from "../../../../utils/dataCache.ts";
 import { PageLoader } from '../../../../widgets/PageLoader';
 import { SelectSearch } from '../../../../shared/ui/SelectSearch';
 import { EmptyState } from '../../../../widgets/EmptyState';
@@ -196,11 +196,13 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         return saved ?? {
             minPrice: '',
             maxPrice: '',
+            negotiablePrice: false,
             category: '',
             subcategory: '',
             rating: '',
             reviewCount: '',
             sortBy: '',
+            province: '',
             city: ''
         };
     });
@@ -209,6 +211,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     const { page, setPage, appendRef: appendSearchRef, skipFetchRef: skipSearchFetchRef, setHasMore, showMoreProps: searchShowMoreProps } = useShowMore<SearchResult>(setSearchResults);
     const [categories, setCategories] = useState<Category[]>([]);
     const [occupations, setOccupations] = useState<Occupation[]>([]);
+    const [provinces, setProvinces] = useState<{ id: number; name: string }[]>([]);
     const [cities, setCities] = useState<City[]>([]);
     const [userRole, setUserRole] = useState<'client' | 'master' | null>(null);
     const [showOnlyServices, setShowOnlyServices] = useState<boolean>(() => (initSessionRef.current?.showOnlyServices as boolean) ?? false);
@@ -232,11 +235,13 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         filters: (initSessionRef.current?.filters as FilterState) ?? {
             minPrice: '',
             maxPrice: '',
+            negotiablePrice: false,
             category: '',
             subcategory: '',
             rating: '',
             reviewCount: '',
             sortBy: '',
+            province: '',
             city: ''
         },
         userRole: null,
@@ -246,6 +251,21 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         secondarySortBy: (initSessionRef.current?.secondarySortBy as string) ?? 'none',
         timeFilter: (initSessionRef.current?.timeFilter as string) ?? 'all',
     });
+
+    // Функция для загрузки провинций из API
+    const fetchProvinces = useCallback(async () => {
+        try {
+            const data = await getProvinces();
+            const formatted = data.map((p: { id: number; title: string }) => ({
+                id: p.id,
+                name: p.title,
+            }));
+            formatted.sort((a, b) => a.name.localeCompare(b.name));
+            setProvinces(formatted);
+        } catch (error) {
+            console.error('Error fetching provinces:', error);
+        }
+    }, []);
 
     // Функция для загрузки городов из API
     const fetchCities = useCallback(async () => {
@@ -661,15 +681,6 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     }, []);
 
     // Функция для фильтрации по количеству отзывов
-    const filterByReviewCount = useCallback((tickets: TypedTicket[], minReviews: number): TypedTicket[] => {
-        return tickets.filter(ticket => {
-            // Используем reviewsCount из самого тикета - это более надежно и эффективно
-            const reviewCount = ticket.reviewsCount || 0;
-            return reviewCount >= minReviews;
-        });
-    }, []);
-
-
     // Функция получения тикетов с API
     const fetchAllTickets = useCallback(async (query: string = '', filterParams: FilterState, silent = false, pageOverride?: number) => {
         try {
@@ -712,6 +723,26 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     params.append('author.rating[gte]', filterParams.rating);
                 } else {
                     params.append('author.rating[gte]', filterParams.rating);
+                }
+            }
+
+            if (filterParams.reviewCount) {
+                params.append('reviewsCount[gte]', filterParams.reviewCount);
+            }
+
+            if (filterParams.negotiablePrice) {
+                params.append('negotiableBudget', 'true');
+            }
+
+            if (filterParams.province) {
+                params.append('province', filterParams.province);
+            }
+
+            if (filterParams.city) {
+                if (filterParams.city.startsWith('city_')) {
+                    params.append('city', filterParams.city.replace('city_', ''));
+                } else if (filterParams.city.startsWith('district_')) {
+                    params.append('district', filterParams.city.replace('district_', ''));
                 }
             }
 
@@ -829,18 +860,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 console.log(`After time filtering (${timeFilter}): ${filteredData.length} tickets`);
             }
 
-            // Фильтрация по городу
-            if (filterParams.city) {
-                filteredData = await filterByCity(filteredData, filterParams.city);
-                console.log(`After city filtering: ${filteredData.length} tickets`);
-            }
-
-            // Фильтрация по количеству отзывов
-            if (filterParams.reviewCount) {
-                const minReviews = parseInt(filterParams.reviewCount);
-                filteredData = filterByReviewCount(filteredData, minReviews);
-                console.log(`After review count filtering: ${filteredData.length} tickets`);
-            }
+            // Фильтрация по городу и количеству отзывов выполняется на сервере (параметры выше)
 
             // Сортировка с учетом приоритета города и множественной сортировки
             if (sortBy || selectedCity) {
@@ -927,11 +947,13 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         const hasFiltersChanged =
             currentSearch.filters.minPrice !== previousSearch.filters.minPrice ||
             currentSearch.filters.maxPrice !== previousSearch.filters.maxPrice ||
+            currentSearch.filters.negotiablePrice !== previousSearch.filters.negotiablePrice ||
             currentSearch.filters.category !== previousSearch.filters.category ||
             currentSearch.filters.subcategory !== previousSearch.filters.subcategory ||
             currentSearch.filters.rating !== previousSearch.filters.rating ||
             currentSearch.filters.reviewCount !== previousSearch.filters.reviewCount ||
             currentSearch.filters.sortBy !== previousSearch.filters.sortBy ||
+            currentSearch.filters.province !== previousSearch.filters.province ||
             currentSearch.filters.city !== previousSearch.filters.city ||
             currentSearch.showOnlyServices !== previousSearch.showOnlyServices ||
             currentSearch.showOnlyAnnouncements !== previousSearch.showOnlyAnnouncements ||
@@ -1122,11 +1144,13 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         setFilters({
             minPrice: '',
             maxPrice: '',
+            negotiablePrice: false,
             category: '',
             subcategory: '',
             rating: '',
             reviewCount: '',
             sortBy: '',
+            province: '',
             city: ''
         });
         setShowOnlyServices(false);
@@ -1144,11 +1168,13 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             filters: {
                 minPrice: '',
                 maxPrice: '',
+                negotiablePrice: false,
                 category: '',
                 subcategory: '',
                 rating: '',
                 reviewCount: '',
                 sortBy: '',
+                province: '',
                 city: ''
             },
             userRole,
@@ -1186,13 +1212,15 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         const role = getUserRole();
         setUserRole(role);
         fetchCategories();
+        fetchProvinces(); // Загружаем провинции
         fetchCities(); // Загружаем города
         fetchOccupations(); // Загружаем профессии
-    }, [fetchCategories, fetchCities, fetchOccupations]);
+    }, [fetchCategories, fetchProvinces, fetchCities, fetchOccupations]);
 
-    // При смене языка переполучаем категории, города и результаты поиска
+    // При смене языка переполучаем категории, провинции, города и результаты поиска
     useLanguageChange(() => {
         fetchCategories();
+        fetchProvinces();
         fetchCities();
         fetchOccupations();
         // Переполучаем результаты поиска с локализованным контентом
@@ -1203,10 +1231,12 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 filters: {
                     minPrice: '',
                     maxPrice: '',
+                    negotiablePrice: false,
                     category: '',
                     rating: '',
                     reviewCount: '',
                     sortBy: '',
+                    province: '',
                     city: '',
                     subcategory: ''
                 },
@@ -1278,11 +1308,13 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             setFilters({
                 minPrice: '',
                 maxPrice: '',
+                negotiablePrice: false,
                 category: '',
                 subcategory: '',
                 rating: '',
                 reviewCount: '',
                 sortBy: '',
+                province: '',
                 city: ''
             });
             setShowOnlyServices(false);
@@ -1297,11 +1329,13 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 filters: {
                     minPrice: '',
                     maxPrice: '',
+                    negotiablePrice: false,
                     category: '',
                     subcategory: '',
                     rating: '',
                     reviewCount: '',
                     sortBy: '',
+                    province: '',
                     city: ''
                 },
                 userRole: null,
@@ -1406,6 +1440,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     filters={filters}
                     onResetFilters={handleResetFilters}
                     categories={categories}
+                    provinces={provinces} // Передаем провинции в FilterPanel
                     cities={cities} // Передаем города в FilterPanel
                     occupations={occupations} // Передаем профессии в FilterPanel
                 />
@@ -1416,11 +1451,22 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                             {getSearchTitle}
                         </h2>
 
-                        {(filters.minPrice || filters.maxPrice || filters.category || filters.rating || filters.reviewCount || filters.city) && (
+                        {(filters.minPrice || filters.maxPrice || filters.negotiablePrice || filters.province || filters.category || filters.rating || filters.reviewCount || filters.city) && (
                             <div className={styles.active_filters}>
                                 <span>{t('search.activeFilters')}</span>
                                 {filters.minPrice && <span className={styles.filter_tag}>От {filters.minPrice} TJS</span>}
                                 {filters.maxPrice && <span className={styles.filter_tag}>До {filters.maxPrice} TJS</span>}
+                                {filters.negotiablePrice && <span className={styles.filter_tag}>Договорная</span>}
+                                {filters.province && (
+                                    <span className={styles.filter_tag}>
+                                        {provinces.find(p => p.id.toString() === filters.province)?.name || filters.province}
+                                    </span>
+                                )}
+                                {filters.city && (
+                                    <span className={styles.filter_tag}>
+                                        {filters.city}
+                                    </span>
+                                )}
                                 {filters.category && (
                                     <span className={styles.filter_tag}>
                                         {categories.find(cat => cat.id.toString() === filters.category)?.name}
@@ -1428,11 +1474,6 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                                 )}
                                 {filters.rating && <span className={styles.filter_tag}>{filters.rating}+ звезд</span>}
                                 {filters.reviewCount && <span className={styles.filter_tag}>{filters.reviewCount}+ отзывов</span>}
-                                {filters.city && (
-                                    <span className={styles.filter_tag}>
-                                        {cities.find(city => city.name.toLowerCase() === filters.city)?.name || filters.city}
-                                    </span>
-                                )}
                                 <button
                                     className={styles.clear_filters_btn}
                                     onClick={handleResetFilters}

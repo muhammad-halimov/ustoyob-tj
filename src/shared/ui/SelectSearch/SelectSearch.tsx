@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Marquee } from '../Text/Marquee';
 import styles from './SelectSearch.module.scss';
 
 export interface SelectOption<T = unknown> {
@@ -49,6 +50,7 @@ export function SelectSearch<T = unknown>({
     const resolvedSearchPlaceholder = searchPlaceholder ?? t('search');
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
+    const [altFocused, setAltFocused] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const searchRef = useRef<HTMLInputElement>(null);
 
@@ -123,15 +125,24 @@ export function SelectSearch<T = unknown>({
                         <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.4"/>
                         <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
                     </svg>
-                    <input
-                        type="text"
-                        className={styles.altInput}
-                        placeholder={resolvedPlaceholder}
-                        value={value}
-                        disabled={disabled}
-                        onChange={e => onChange(e.target.value)}
-                        onKeyDown={onKeyDown}
-                    />
+                    <div className={styles.altInputWrap}>
+                        <input
+                            type="text"
+                            className={`${styles.altInput} ${value && !altFocused ? styles.altInputBlurred : ''}`}
+                            placeholder=""
+                            value={value}
+                            disabled={disabled}
+                            onChange={e => onChange(e.target.value)}
+                            onKeyDown={onKeyDown}
+                            onFocus={() => setAltFocused(true)}
+                            onBlur={() => setAltFocused(false)}
+                        />
+                        {!altFocused && (
+                            <div className={styles.altPlaceholder}>
+                                <Marquee text={value || resolvedPlaceholder} alwaysScroll={!!value} />
+                            </div>
+                        )}
+                    </div>
                     {value && !disabled && (
                         <span
                             role="button"
@@ -170,9 +181,12 @@ export function SelectSearch<T = unknown>({
                         <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
                     </svg>
                 )}
-                <span className={`${styles.triggerLabel} ${!selectedOption ? styles.placeholder : ''}`}>
-                    {selectedOption ? selectedOption.label : resolvedPlaceholder}
-                </span>
+                <div className={`${styles.triggerLabel} ${!selectedOption ? styles.placeholder : ''}`}>
+                    {selectedOption
+                        ? <Marquee text={selectedOption.label} alwaysScroll/>
+                        : resolvedPlaceholder
+                    }
+                </div>
                 {value && !disabled && (
                     <span
                         role="button"
@@ -241,7 +255,7 @@ export function SelectSearch<T = unknown>({
                                     className={`${styles.item} ${option.value === value ? styles.itemActive : ''}`}
                                     onMouseDown={() => handleSelect(option)}
                                 >
-                                    {option.label}
+                                    <Marquee text={option.label} alwaysScroll/>
                                     {option.value === value && (
                                         <svg className={styles.checkIcon} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <path d="M3 8L6.5 11.5L13 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>

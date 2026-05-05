@@ -47,8 +47,6 @@
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 
   &.placeholder {
     color: var(--color-text-placeholder);
@@ -108,10 +106,36 @@
   font-family: inherit;
   font-size: 14px;
   color: var(--color-text-primary);
+  position: relative;
+  z-index: 1;
 
   &::placeholder {
     color: var(--color-text-placeholder);
   }
+}
+
+.altInputBlurred {
+  color: transparent;
+  caret-color: transparent;
+}
+
+.altInputWrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.altPlaceholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  color: var(--color-text-placeholder);
+  font-size: 14px;
+  overflow: hidden;
 }
 
 // ── Крестик внутри триггера ───────────────────────────────────────────────────

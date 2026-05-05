@@ -21,6 +21,7 @@ import { SelectSearch } from '../../shared/ui/SelectSearch';
 import { getPageSize } from '../../utils/pageSize.ts';
 import { parsePagedResponse } from '../../utils/apiHelper';
 import { useShowMore } from '../../hooks';
+import { Marquee } from '../../shared/ui/Text/Marquee/Marquee';
 
 interface Message {
     id: number;
@@ -1267,12 +1268,12 @@ function Chat() {
                                     </div>
                                     <div className={styles.chatInfo}>
                                         <div className={styles.name}>
-                                            {getTranslatedFullName(interlocutor)}
+                                            <Marquee text={getTranslatedFullName(interlocutor)} />
                                         </div>
                                         <div className={styles.specialty}>
-                                            {chat.ticket?.title || interlocutor.email}
+                                            <Marquee text={chat.ticket?.title || interlocutor.email} />
                                         </div>
-                                        <div className={styles.lastMessage}>{getLastMessageText(chat)}</div>
+                                        <div className={styles.lastMessage}><Marquee text={getLastMessageText(chat)} /></div>
                                     </div>
                                     <div className={styles.chatMeta}>
                                         <div className={styles.time}>{getLastMessageTime(chat)}</div>
@@ -1349,14 +1350,14 @@ function Chat() {
                                 </Link>
                                 <div className={styles.headerInfo}>
                                     <div className={styles.name}>
-                                        <Link to={ROUTES.PROFILE_BY_ID(currentInterlocutor.id)} style={{ textDecoration: 'none', color: 'inherit' }}>
-                                            {getTranslatedFullName(currentInterlocutor)}
+                                        <Link to={ROUTES.PROFILE_BY_ID(currentInterlocutor.id)} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+                                            <Marquee text={getTranslatedFullName(currentInterlocutor)} />
                                         </Link>
 
                                     </div>
                                     {currentChat?.ticket?.title && (
                                         <a href={`/ticket/${currentChat.ticket.id}`} className={styles.serviceTitle}>
-                                            {currentChat.ticket.title}
+                                            <Marquee text={currentChat.ticket.title} />
                                         </a>
                                     )}
                                     {!currentChat?.isArchived && (

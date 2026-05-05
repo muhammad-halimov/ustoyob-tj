@@ -1185,7 +1185,13 @@ export function Ticket() {
                                 </div>
                             </div>
                         ) : (
-                            <ActionsDropdown
+                            <div className={styles.nonOwnerControls}>
+                                {order.isService !== undefined && (
+                                    <span className={styles.ticketTypeBadge}>
+                                        {order.isService ? t('components:ticketTypes.serviceFromMaster') : t('components:ticketTypes.orderFromClient')}
+                                    </span>
+                                )}
+                                <ActionsDropdown
                                 className={styles.ticketMenuWrapper}
                                 items={[
                                     {
@@ -1202,6 +1208,7 @@ export function Ticket() {
                                     },
                                 ]}
                             />
+                            </div>
                         )}
                     </div>
                 </div>

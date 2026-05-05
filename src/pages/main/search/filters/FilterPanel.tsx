@@ -3,6 +3,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SelectSearch, SelectOption } from '../../../../shared/ui/SelectSearch';
 import PageLoader from '../../../../widgets/PageLoader/PageLoader';
+import { Toggle } from '../../../../shared/ui/Button/Toggle/Toggle';
+import { getAuthToken } from '../../../../utils/auth';
+import { getStorageItem } from '../../../../utils/storageHelper';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 interface Occupation {
     id: number;
@@ -13,12 +18,14 @@ interface Occupation {
 export interface FilterState {
     minPrice: string;
     maxPrice: string;
+    negotiablePrice: boolean;
     category: string;
     subcategory: string; // Добавляем подкатегорию
     rating: string;
     reviewCount: string;
     sortBy: string;
-    city: string; // Добавляем город
+    province: string; // Провинция
+    city: string; // Город/Район
 }
 
 interface FilterPanelProps {
@@ -28,6 +35,7 @@ interface FilterPanelProps {
     filters: FilterState;
     onResetFilters: () => void;
     categories: { id: number; name: string }[];
+    provinces: { id: number; name: string }[];
     cities: { id: number; name: string }[];
     occupations: Occupation[];
 }
@@ -37,12 +45,15 @@ function FilterPanel({
                          onApply,
                          filters,
                          onResetFilters,
-                         categories,
-                         cities,
-                         occupations
+                         categories = [],
+                         provinces = [],
+                         cities: _cities = [],
+                         occupations = []
                      }: FilterPanelProps) {
     const [localFilters, setLocalFilters] = useState<FilterState>(filters);
     const [isApplying, setIsApplying] = useState(false);
+    const [cityDistrictOptions, setCityDistrictOptions] = useState<SelectOption[]>([]);
+    const [isCityDistrictLoading, setIsCityDistrictLoading] = useState(false);
     const { t } = useTranslation('components');
 
     // Синхронизация с внешними фильтрами
@@ -60,6 +71,10 @@ function FilterPanel({
 
     const handlePriceChange = (field: 'minPrice' | 'maxPrice', value: string) => {
         setLocalFilters(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleNegotiablePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setLocalFilters(prev => ({ ...prev, negotiablePrice: e.target.checked }));
     };
 
     const handleCategoryChange = (value: string) => {
@@ -82,13 +97,64 @@ function FilterPanel({
         );
     };
 
+    const handleProvinceChange = (value: string) => {
+        setLocalFilters(prev => ({ ...prev, province: value }));
+    };
+
     const handleCityChange = (value: string) => {
         setLocalFilters(prev => ({ ...prev, city: value }));
     };
 
-    const cityOptions = useMemo<SelectOption[]>(
-        () => cities.map(c => ({ value: c.name.toLowerCase(), label: c.name })),
-        [cities],
+    useEffect(() => {
+        const fetchCityDistricts = async () => {
+            setIsCityDistrictLoading(true);
+            try {
+                const token = getAuthToken();
+                const headers: HeadersInit = {};
+                if (token) headers['Authorization'] = `Bearer ${token}`;
+                const lang = getStorageItem('i18nextLng') || 'ru';
+
+                const provinceParam = localFilters.province ? `&province.id=${localFilters.province}` : '';
+
+                const [citiesRes, districtsRes] = await Promise.all([
+                    fetch(`${API_BASE_URL}/api/cities?locale=${lang}${provinceParam}`, { headers }),
+                    fetch(`${API_BASE_URL}/api/districts?locale=${lang}${provinceParam}`, { headers }),
+                ]);
+
+                const toArr = async (res: Response) => {
+                    if (!res.ok) return [];
+                    const data = await res.json();
+                    return Array.isArray(data) ? data : (data['hydra:member'] ?? []);
+                };
+
+                const [citiesData, districtsData] = await Promise.all([toArr(citiesRes), toArr(districtsRes)]);
+
+                const combined: SelectOption[] = [
+                    ...citiesData.map((c: { id: number; title: string }) => ({ value: `city_${c.id}`, label: c.title })),
+                    ...districtsData.map((d: { id: number; title: string }) => ({ value: `district_${d.id}`, label: d.title })),
+                ].sort((a, b) => a.label.localeCompare(b.label));
+
+                setCityDistrictOptions(combined);
+
+                // Если выбранный город/район не входит в новый список — сбрасываем
+                if (localFilters.city && !combined.some(o => o.value === localFilters.city)) {
+                    setLocalFilters(prev => ({ ...prev, city: '' }));
+                }
+            } catch (err) {
+                console.error('Error fetching cities/districts:', err);
+                setCityDistrictOptions([]);
+            } finally {
+                setIsCityDistrictLoading(false);
+            }
+        };
+
+        fetchCityDistricts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [localFilters.province]);
+
+    const provinceOptions = useMemo<SelectOption[]>(
+        () => provinces.map(p => ({ value: p.id.toString(), label: p.name })),
+        [provinces],
     );
 
     const categoryOptions = useMemo<SelectOption[]>(
@@ -137,11 +203,13 @@ function FilterPanel({
         const resetFilters: FilterState = {
             minPrice: '',
             maxPrice: '',
+            negotiablePrice: false,
             category: '',
             subcategory: '',
             rating: '',
             reviewCount: '',
             sortBy: '',
+            province: '',
             city: '',
         };
         setLocalFilters(resetFilters);
@@ -166,6 +234,7 @@ function FilterPanel({
                                     placeholder={t('filters.priceFrom')}
                                     value={localFilters.minPrice}
                                     onChange={e => handlePriceChange('minPrice', e.target.value)}
+                                    disabled={localFilters.negotiablePrice}
                                 />
                             </div>
                             <div className={styles.price_input}>
@@ -174,24 +243,41 @@ function FilterPanel({
                                     placeholder={t('filters.priceTo')}
                                     value={localFilters.maxPrice}
                                     onChange={e => handlePriceChange('maxPrice', e.target.value)}
+                                    disabled={localFilters.negotiablePrice}
                                 />
                             </div>
                         </div>
                     </div>
 
-                    {/* Город */}
-                    {cities.length > 0 && (
+                    {/* Провинция */}
+                    {provinces.length > 0 && (
                         <div className={styles.filter_section}>
-                            <h3>{t('filters.city')}</h3>
+                            <h3>{t('filters.province')}</h3>
                             <SelectSearch
-                                options={cityOptions}
+                                options={provinceOptions}
+                                value={localFilters.province}
+                                onChange={handleProvinceChange}
+                                placeholder={t('filters.allProvinces')}
+                                searchPlaceholder={t('filters.searchProvince')}
+                            />
+                        </div>
+                    )}
+
+                    {/* Город/Район */}
+                    <div className={styles.filter_section}>
+                        <h3>{t('filters.cityDistrict')}</h3>
+                        {isCityDistrictLoading ? (
+                            <PageLoader fullPage={false} compact asSpan />
+                        ) : (
+                            <SelectSearch
+                                options={cityDistrictOptions}
                                 value={localFilters.city}
                                 onChange={handleCityChange}
                                 placeholder={t('filters.allCities')}
                                 searchPlaceholder={t('filters.searchCity')}
                             />
-                        </div>
-                    )}
+                        )}
+                    </div>
 
                     {/* Категория */}
                     {categories.length > 0 && (
@@ -240,6 +326,15 @@ function FilterPanel({
                             value={localFilters.reviewCount}
                             onChange={handleReviewCountChange}
                             placeholder={t('filters.selectReviewCount')}
+                        />
+                    </div>
+
+                    {/* Договорная цена */}
+                    <div className={styles.filter_section}>
+                        <Toggle
+                            checked={localFilters.negotiablePrice}
+                            onChange={handleNegotiablePriceChange}
+                            label={t('filters.negotiablePrice')}
                         />
                     </div>
 

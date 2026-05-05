@@ -21,11 +21,12 @@
 .row {
   display: flex;
   align-items: stretch;
+  flex-direction: row-reverse;
   gap: 8px;
   min-width: 0;
 
   @media screen and (max-width: 540px) {
-    flex-direction: column;
+    flex-direction: column-reverse;
   }
 }
 

@@ -50,12 +50,7 @@
 }
 
 .searchBar {
-  padding: 10px 20px;
   margin-bottom: 10px;
-
-  @media (max-width: 480px) {
-    padding: 8px 16px;
-  }
 }
 
 .tabs {
@@ -237,9 +232,7 @@
         font-size: 16px;
         color: var(--color-text-primary);
         margin-bottom: 4px;
-        white-space: nowrap;
         overflow: hidden;
-        text-overflow: ellipsis;
         padding-right: 36px;
 
         @media (max-width: 480px) {
@@ -251,9 +244,7 @@
         font-size: 14px;
         color: var(--color-text-secondary);
         margin-bottom: 4px;
-        white-space: nowrap;
         overflow: hidden;
-        text-overflow: ellipsis;
 
         @media (max-width: 480px) {
           font-size: 13px;
@@ -263,9 +254,7 @@
       .lastMessage {
         font-size: 14px;
         color: var(--color-text-secondary);
-        white-space: nowrap;
         overflow: hidden;
-        text-overflow: ellipsis;
         padding-right: 55px;
 
         @media (max-width: 480px) {
@@ -430,9 +419,7 @@
         font-size: 18px;
         color: #333;
         margin-bottom: 4px;
-        white-space: nowrap;
         overflow: hidden;
-        text-overflow: ellipsis;
 
         @media (max-width: 480px) {
           font-size: 16px;
@@ -440,12 +427,11 @@
       }
 
       .serviceTitle {
+        display: block;
         font-size: 14px;
         color: #3A54DA;
         margin-bottom: 2px;
-        white-space: nowrap;
         overflow: hidden;
-        text-overflow: ellipsis;
         max-width: 100%;
 
         @media (max-width: 480px) {
