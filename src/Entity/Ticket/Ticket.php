@@ -40,7 +40,6 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Serializer\Attribute\Ignore;
-use Symfony\Component\Serializer\Attribute\SerializedName;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: TicketRepository::class)]
@@ -93,7 +92,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiFilter(ExistsFilter::class, properties: ['master', 'author'])]
 #[ApiFilter(SearchFilter::class, properties: ['category', 'subcategory', 'master', 'author', 'description' => 'partial'])]
 #[ApiFilter(AddressFilter::class)]
-#[ApiFilter(RangeFilter::class, properties: ['budget', 'master.rating', 'author.rating'])]
+#[ApiFilter(RangeFilter::class, properties: ['budget', 'master.rating', 'author.rating', 'reviewsCount'])]
 class Ticket
 {
     use CreatedAtTrait, UpdatedAtTrait, TitleTrait, DescriptionTrait;
@@ -300,28 +299,26 @@ class Ticket
     ])]
     private ?Unit $unit = null;
 
-    /**
-     * @var Collection<int, Review>
-     */
-    #[ORM\OneToMany(targetEntity: Review::class, mappedBy: 'ticket')]
-    #[Ignore]
-    private Collection $reviews;
-
+    #[ORM\Column(options: ['default' => 0])]
     #[Groups([
         G::MASTER_TICKETS,
         G::CLIENT_TICKETS,
         G::REVIEWS,
+        G::REVIEWS_CLIENT,
         G::FAVORITES,
         G::APPEAL_TICKET,
         G::APPEAL_CHAT,
         G::BLACK_LISTS,
         G::CHATS,
     ])]
-    #[SerializedName('reviewsCount')]
-    public function getTicketReviewsCount(): ?int
-    {
-        return $this->reviews->count() ?? 0;
-    }
+    private int $reviewsCount = 0;
+
+    /**
+     * @var Collection<int, Review>
+     */
+    #[ORM\OneToMany(targetEntity: Review::class, mappedBy: 'ticket')]
+    #[Ignore]
+    private Collection $reviews;
 
     /**
      * @var Collection<int, Appeal>
@@ -670,6 +667,29 @@ class Ticket
             }
         }
 
+        return $this;
+    }
+
+    public function getReviewsCount(): int
+    {
+        return $this->reviewsCount;
+    }
+
+    public function setReviewsCount(int $reviewsCount): static
+    {
+        $this->reviewsCount = $reviewsCount;
+        return $this;
+    }
+
+    public function incrementReviewsCount(): static
+    {
+        $this->reviewsCount++;
+        return $this;
+    }
+
+    public function decrementReviewsCount(): static
+    {
+        if ($this->reviewsCount > 0) $this->reviewsCount--;
         return $this;
     }
 

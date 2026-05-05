@@ -43,6 +43,7 @@ class ReviewListener
     public function postPersist(Review $review): void
     {
         $this->recalculateUserRating($review);
+        $this->updateTicketReviewsCount($review, +1);
     }
 
     /**
@@ -69,6 +70,7 @@ class ReviewListener
     {
         if ($this->removedReview) {
             $this->recalculateUserRating($this->removedReview);
+            $this->updateTicketReviewsCount($this->removedReview, -1);
             $this->removedReview = null;
         }
     }
@@ -131,6 +133,16 @@ class ReviewListener
         // persist() нужен, потому что $targetUser может быть detached-объектом
         // (особенно в случае postRemove, где UoW уже мог его отцепить)
         $this->entityManager->persist($targetUser);
+        $this->entityManager->flush();
+    }
+
+    private function updateTicketReviewsCount(Review $review, int $delta): void
+    {
+        $ticket = $review->getTicket();
+        if ($ticket === null) return;
+
+        $ticket->setReviewsCount(max(0, $ticket->getReviewsCount() + $delta));
+        $this->entityManager->persist($ticket);
         $this->entityManager->flush();
     }
 }
