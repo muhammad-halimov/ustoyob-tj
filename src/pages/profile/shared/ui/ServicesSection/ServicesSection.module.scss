@@ -1,6 +1,11 @@
 @use '../../../../../app/styles/variables' as vars;
 @use 'sass:map';
 
+.services_tabs {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
 .section_item {
   width: 100%;
   display: flex;

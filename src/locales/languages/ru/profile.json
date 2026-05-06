@@ -90,6 +90,8 @@
   "addWorkArea": "Добавьте географию работ",
   "servicesTitle": "Услуги",
   "servicesTitleClient": "Объявления",
+  "servicesActive": "Актуальные",
+  "servicesPast": "Прошлые",
   "loadingServices": "Загрузка услуг...",
   "noServicesMaster": "Услуги пока не добавлены",
   "noServicesClient": "Объявления пока не добавлены",

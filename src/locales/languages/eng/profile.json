@@ -90,6 +90,8 @@
   "addWorkArea": "Add service area",
   "servicesTitle": "Services",
   "servicesTitleClient": "Listings",
+  "servicesActive": "Current",
+  "servicesPast": "Past",
   "loadingServices": "Loading services...",
   "noServicesMaster": "No services added yet",
   "noServicesClient": "No listings added yet",

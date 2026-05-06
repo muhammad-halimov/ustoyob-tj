@@ -6,6 +6,24 @@ export type PhotoItem =
     | { type: 'existing'; id: number; image: string }
     | { type: 'new'; file: File; previewUrl: string };
 
+export function buildOrderedImagePayload(
+    photoItems: PhotoItem[],
+    currentImages: Array<{ id: number; image: string }>
+): Array<{ id: number; image: string }> {
+    const existingIds = new Set(photoItems.filter(p => p.type === 'existing').map(p => p.id));
+    const uploadedNewImages = currentImages.filter(img => !existingIds.has(img.id));
+    let uploadedIndex = 0;
+
+    return photoItems
+        .map(item => {
+            if (item.type === 'existing') {
+                return { id: item.id, image: item.image };
+            }
+            return uploadedNewImages[uploadedIndex++] ?? null;
+        })
+        .filter((img): img is { id: number; image: string } => img !== null);
+}
+
 interface PhotoGridProps {
     photos: PhotoItem[];
     onChange: (photos: PhotoItem[]) => void;

@@ -300,6 +300,7 @@
   background: var(--color-background-primary);
   border-radius: 20px;
   position: relative;
+  overflow: hidden;
 
   @media (max-width: 960px) {
     width: 100%;
@@ -332,14 +333,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
+  padding: 10px;
   border-bottom: 1px solid var(--color-border-light);
   background: var(--color-background-primary);
   border-top-left-radius: 20px;
   border-top-right-radius: 20px;
 
   @media (max-width: 480px) {
-    padding: 15px;
     border-top-left-radius: 16px;
     border-top-right-radius: 16px;
     border-bottom-left-radius: 0;
@@ -461,31 +461,13 @@
 }
 
 .chatMessages {
-  flex: 1;
-  padding: 20px;
+  flex: 1 1 auto;
+  padding: 20px 20px 90px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   background-color: #f8f9fa;
-
-  @media (max-width: 480px) {
-    padding: 50px 20px;
-    flex: 1 1 auto;
-    min-height: 0;
-    height: calc(100vh - 130px);
-  }
-
-  .noMessages {
-    text-align: center;
-    color: #666;
-    font-size: 16px;
-    padding: 40px;
-
-    @media (max-width: 480px) {
-      font-size: 14px;
-      padding: 30px 20px;
-    }
-  }
+  min-height: 0;
 
   .messagesContainer {
     display: flex;
@@ -684,10 +666,11 @@
 
 /* === REPLY / EDIT BAR над инпутом === */
 .replyBar {
+  position: relative;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 14px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 14px 14px 12px;
   background: #f0f3ff;
   border-top: 1px solid #d6dcf5;
   border-radius: 12px 12px 0 0;
@@ -695,10 +678,11 @@
 
   .replyBarContent {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
     min-width: 0;
     flex: 1;
+    margin-right: 44px;
   }
 
   .replyBarIcon {
@@ -709,7 +693,9 @@
 
   .replyBarText {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
     min-width: 0;
 
     .replyBarName {
@@ -731,19 +717,19 @@
   }
 
   .replyBarClose {
-    flex-shrink: 0;
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
-    border: none;
-    background: transparent;
     border-radius: 50%;
-    cursor: pointer;
     color: #888;
     padding: 0;
-    touch-action: manipulation;
+    background: transparent;
+    transition: background 0.2s ease;
 
     &:hover {
       background: #e0e4f5;
@@ -751,7 +737,7 @@
     }
 
     &:active {
-      transform: scale(0.9);
+      transform: scale(0.95);
     }
   }
 
@@ -847,35 +833,24 @@
 
 /* === CHAT INPUT === */
 .chatInput {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
   display: flex;
   align-items: center;
   background: #f7f8ff;
-  border-radius: 25px;
-  padding: 12px 20px;
-  margin: 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  border-radius: 0 0 16px 16px;
+  padding: 10px 15px;
+  margin: 0;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
   flex-shrink: 0;
-
-  @media (max-width: 480px) {
-    position: sticky;
-    bottom: 0;
-    margin: 0;
-    padding: 10px 15px;
-    padding-bottom: max(10px, env(safe-area-inset-bottom, 10px));
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
-    border-bottom-left-radius: 16px;
-    border-bottom-right-radius: 16px;
-    border-top: 1px solid #e0e0e0;
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
-    background: #f7f8ff;
-    z-index: 10;
-  }
-
-  &:focus-within {
-    background: #eef0ff;
-  }
+  border-top: 1px solid #e0e0e0;
+  background: #f7f8ff;
+  z-index: 10;
+  box-sizing: border-box;
 
   .attachmentIcon {
     flex-shrink: 0;
@@ -895,14 +870,9 @@
     border: none;
     outline: none;
     background: transparent;
-    font-size: 16px;
+    font-size: 14px;
     color: #333;
-    padding: 8px 10px;
-
-    @media (max-width: 480px) {
-      font-size: 14px;
-      padding: 6px 8px;
-    }
+    padding: 6px 8px;
 
     &::placeholder {
       color: #aaa;
@@ -914,19 +884,14 @@
     background: #3A54DA;
     border: none;
     color: #fff;
-    width: 48px;
-    height: 48px;
+    width: 42px;
+    height: 42px;
     border-radius: 50%;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: background 0.2s ease;
-
-    @media (max-width: 480px) {
-      width: 42px;
-      height: 42px;
-    }
 
     &:hover:not(:disabled) {
       background: #2a40b0;
@@ -1342,6 +1307,7 @@
   align-items: center;
   justify-content: center;
   z-index: 100;
+  border-radius: inherit;
 }
 
 .uploadingText {
@@ -2348,6 +2314,8 @@
 
     .noMessages {
       color: var(--color-text-secondary);
+      text-align: center;
+      width: 100%;
     }
 
     .date {

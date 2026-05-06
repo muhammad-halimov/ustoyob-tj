@@ -126,6 +126,7 @@
     "uploadError": "Ошибка при загрузке файлов",
     "fileNotImage": "Файл {{filename}} не является изображением",
     "authRequired": "Необходима авторизация",
+    "deleteConfirm": "Вы уверены, что хотите удалить сообщение?",
     "loadingChats": "Загрузка чатов...",
     "errorLoadingChats": "Ошибка загрузки чатов",
     "chatMovedToArchive": "Чат перемещен в архив",

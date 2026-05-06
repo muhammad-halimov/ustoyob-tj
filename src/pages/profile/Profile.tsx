@@ -1823,8 +1823,8 @@ function Profile() {
             console.log(`Fetching services for ${userRole} ID:`, profileData.id);
             const pageSize = getPageSize();
             const endpoint = userRole === 'client' 
-                ? `/api/tickets?locale=${getStorageItem('i18nextLng') || 'ru'}&service=false&active=true&exists[master]=false&exists[author]=true&author=${profileData.id}&page=${servicesPage}&itemsPerPage=${pageSize}`
-                : `/api/tickets?locale=${getStorageItem('i18nextLng') || 'ru'}&service=true&active=true&exists[author]=false&exists[master]=true&master=${profileData.id}&page=${servicesPage}&itemsPerPage=${pageSize}`;
+                ? `/api/tickets?locale=${getStorageItem('i18nextLng') || 'ru'}&service=false&exists[master]=false&exists[author]=true&author=${profileData.id}&page=${servicesPage}&itemsPerPage=${pageSize}`
+                : `/api/tickets?locale=${getStorageItem('i18nextLng') || 'ru'}&service=true&exists[author]=false&exists[master]=true&master=${profileData.id}&page=${servicesPage}&itemsPerPage=${pageSize}`;
             console.log(`Trying endpoint: ${endpoint}`);
 
             const response = await fetch(`${API_BASE_URL}${endpoint}`, {

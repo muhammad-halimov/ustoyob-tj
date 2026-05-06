@@ -126,6 +126,7 @@
     "uploadError": "Хатои боркунии файлҳо",
     "fileNotImage": "Файли {{filename}} акс нест",
     "authRequired": "Санҷиши ҳаққониӣ лозим аст",
+    "deleteConfirm": "Оё шумо мутмаин ҳастед, ки мехоҳед паёмро нест кунед?",
     "loadingChats": "Чатҳо бор мешаванд...",
     "errorLoadingChats": "Хатои боркунии чатҳо",
     "chatMovedToArchive": "Чат ба архив кӯчонда шуд",

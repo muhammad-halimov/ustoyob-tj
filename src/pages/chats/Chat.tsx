@@ -9,13 +9,14 @@ import { PageLoader } from '../../widgets/PageLoader';
 import { EmptyState } from '../../widgets/EmptyState';
 import styles from "./Chat.module.scss";
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { IoSend, IoAttach, IoClose, IoImages, IoArchiveOutline, IoArrowUpCircleOutline, IoWarningOutline, IoPencilSharp, IoTrashSharp, IoArrowUndoSharp, IoEye, IoChatbubblesOutline } from "react-icons/io5";
+import { IoSend, IoAttach, IoImages, IoArchiveOutline, IoArrowUpCircleOutline, IoWarningOutline, IoPencilSharp, IoTrashSharp, IoArrowUndoSharp, IoEye, IoChatbubblesOutline } from "react-icons/io5";
 import { Preview, usePreview } from '../../shared/ui/Photo/Preview';
 import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
 import { ActionsDropdown } from '../../widgets/ActionsDropdown';
 import { uploadPhotos } from '../../utils/imageHelper';
 import { Tabs } from '../../shared/ui/Tabs';
-import Grid, { PhotoItem } from '../../shared/ui/Photo/Grid/Grid.tsx';
+import Grid, { PhotoItem, buildOrderedImagePayload } from '../../shared/ui/Photo/Grid';
+import { Clear } from '../../shared/ui/Button/Clear/Clear';
 import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore.tsx';
 import { SelectSearch } from '../../shared/ui/SelectSearch';
 import { getPageSize } from '../../utils/pageSize.ts';
@@ -131,7 +132,7 @@ function Chat() {
     const [editingMessage, setEditingMessage] = useState<Message | null>(null);
     const [editingPhotoItems, setEditingPhotoItems] = useState<PhotoItem[]>([]);
 
-    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messagesContainerRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const eventSourceRef = useRef<EventSource | null>(null);
     const currentUserRef = useRef<ApiUser | null>(null);
@@ -228,7 +229,10 @@ function Chat() {
     }, [chatIdFromUrl]);
 
     const scrollToBottom = useCallback(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        const container = messagesContainerRef.current;
+        if (container) {
+            container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+        }
     }, []);
 
     // Прокрутка к последнему сообщению
@@ -370,21 +374,6 @@ function Chat() {
             console.error('Error fetching chat messages:', err);
         }
     }, [API_BASE_URL, currentUser, getImageUrl]);
-
-    const uploadImageToMessage = useCallback(async (messageId: number, file: File): Promise<boolean> => {
-        const token = getAuthToken();
-        if (!token) {
-            console.error('No token for uploading image');
-            return false;
-        }
-        try {
-            await uploadPhotos('chat-messages', messageId, [file], token);
-            return true;
-        } catch (error) {
-            console.error('Error uploading image:', error);
-            return false;
-        }
-    }, []);
 
     const stopSSE = useCallback(() => {
         if (tokenRefreshRef.current) {
@@ -655,6 +644,10 @@ function Chat() {
     }, [API_BASE_URL, t]);
 
     const deleteMessage = useCallback(async (messageId: number) => {
+        if (!window.confirm(t('chat.deleteConfirm'))) {
+            return;
+        }
+
         try {
             const token = getAuthToken();
             if (!token) return;
@@ -670,18 +663,40 @@ function Chat() {
         } catch (err) {
             console.error('Error deleting message:', err);
         }
-    }, [API_BASE_URL]);
+    }, [API_BASE_URL, t]);
 
     const editMessageOnServer = useCallback(async (
         messageId: number,
         newText: string,
         photoItems: PhotoItem[]
     ): Promise<boolean> => {
-        const keepImages = photoItems.filter(p => p.type === 'existing') as Array<{ type: 'existing'; id: number; image: string }>;
         const newFiles = (photoItems.filter(p => p.type === 'new') as Array<{ type: 'new'; file: File; previewUrl: string }>).map(p => p.file);
+
+        const fetchMessageImages = async (id: number, token: string): Promise<Array<{ id: number; image: string }>> => {
+            const response = await fetch(`${API_BASE_URL}/api/chat-messages/${id}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
+            if (!response.ok) return [];
+            const messageData = await response.json() as ApiMessage;
+            return (messageData.images || []).map(img => ({ id: img.id, image: img.image }));
+        };
+
         try {
             const token = getAuthToken();
             if (!token || !selectedChat) return false;
+
+            if (newFiles.length > 0) {
+                for (const file of newFiles) {
+                    await uploadPhotos('chat-messages', messageId, [file], token);
+                }
+            }
+
+            const currentImages = await fetchMessageImages(messageId, token);
+            const orderedImages = buildOrderedImagePayload(photoItems, currentImages);
+
             const response = await fetch(`${API_BASE_URL}/api/chat-messages/${messageId}`, {
                 method: 'PATCH',
                 headers: {
@@ -691,22 +706,16 @@ function Chat() {
                 body: JSON.stringify({
                     description: newText,
                     chat: `/api/chats/${selectedChat}`,
-                    images: keepImages.map(img => ({ image: img.image }))
+                    images: orderedImages
                 })
             });
-            if (response.ok) {
-                if (newFiles.length > 0) {
-                    const token2 = getAuthToken();
-                    if (token2) await uploadPhotos('chat-messages', messageId, newFiles, token2);
-                }
-                return true;
-            }
-            return false;
+
+            return response.ok;
         } catch (err) {
             console.error('Error editing message:', err);
             return false;
         }
-    }, [API_BASE_URL, selectedChat, uploadImageToMessage]);
+    }, [API_BASE_URL, selectedChat]);
 
     // Загрузка файлов к конкретному сообщению
     const uploadFilesToMessage = useCallback(async (messageId: number, files: File[]): Promise<void> => {
@@ -833,7 +842,7 @@ function Chat() {
             if (window.innerWidth <= 960 && selectedChat) {
                 // Небольшая задержка чтобы DOM успел обновиться
                 setTimeout(() => {
-                    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                    scrollToBottom();
                 }, 100);
             }
         };
@@ -1268,12 +1277,12 @@ function Chat() {
                                     </div>
                                     <div className={styles.chatInfo}>
                                         <div className={styles.name}>
-                                            <Marquee text={getTranslatedFullName(interlocutor)} />
+                                            <Marquee text={getTranslatedFullName(interlocutor)} alwaysScroll />
                                         </div>
                                         <div className={styles.specialty}>
-                                            <Marquee text={chat.ticket?.title || interlocutor.email} />
+                                            <Marquee text={chat.ticket?.title || interlocutor.email} alwaysScroll />
                                         </div>
-                                        <div className={styles.lastMessage}><Marquee text={getLastMessageText(chat)} /></div>
+                                        <div className={styles.lastMessage}><Marquee text={getLastMessageText(chat)} alwaysScroll /></div>
                                     </div>
                                     <div className={styles.chatMeta}>
                                         <div className={styles.time}>{getLastMessageTime(chat)}</div>
@@ -1351,13 +1360,13 @@ function Chat() {
                                 <div className={styles.headerInfo}>
                                     <div className={styles.name}>
                                         <Link to={ROUTES.PROFILE_BY_ID(currentInterlocutor.id)} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-                                            <Marquee text={getTranslatedFullName(currentInterlocutor)} />
+                                            <Marquee text={getTranslatedFullName(currentInterlocutor)} alwaysScroll />
                                         </Link>
 
                                     </div>
                                     {currentChat?.ticket?.title && (
                                         <a href={`/ticket/${currentChat.ticket.id}`} className={styles.serviceTitle}>
-                                            <Marquee text={currentChat.ticket.title} />
+                                            <Marquee text={currentChat.ticket.title} alwaysScroll />
                                         </a>
                                     )}
                                     {!currentChat?.isArchived && (
@@ -1400,7 +1409,7 @@ function Chat() {
                         </div>
 
                         <div className={styles.chatContent}>
-                            <div className={styles.chatMessages}>
+                            <div className={styles.chatMessages} ref={messagesContainerRef}>
                                 {messages.length === 0 ? (
                                     <div className={styles.noMessages}>
                                         {currentChat?.isArchived ?
@@ -1427,15 +1436,12 @@ function Chat() {
                                                                     />
                                                                 )}
                                                                 <div className={styles.uploadingOverlay}>
-                                                                    <div className={styles.uploadingProgress}>
-                                                                        <div
-                                                                            className={styles.uploadingProgressBar}
-                                                                            style={{ width: `${msg.progress || 0}%` }}
-                                                                        />
-                                                                    </div>
-                                                                    <div className={styles.uploadingText}>
-                                                                        {msg.status === 'pending' ? t('chat.waiting') : t('chat.uploading', { progress: msg.progress || 0 })}
-                                                                    </div>
+                                                                    <PageLoader
+                                                                        compact
+                                                                        asSpan
+                                                                        primary
+                                                                        text={msg.status === 'pending' ? t('chat.waiting') : t('chat.uploading', { progress: msg.progress || 0 })}
+                                                                    />
                                                                 </div>
                                                             </div>
                                                             <div className={styles.messageTime}>{msg.time}</div>
@@ -1506,7 +1512,6 @@ function Chat() {
                                         })}
                                     </div>
                                 )}
-                                <div ref={messagesEndRef} />
                             </div>
 
                             {/* Боковая панель с миниатюрами фото */}
@@ -1592,13 +1597,10 @@ function Chat() {
                                         </>
                                     )}
                                 </div>
-                                <button
+                                <Clear
                                     className={styles.replyBarClose}
                                     onClick={() => { setReplyToMessage(null); setEditingMessage(null); setEditingPhotoItems([]); setNewMessage(""); }}
-                                    aria-label="Отменить"
-                                >
-                                    <IoClose />
-                                </button>
+                                />
                             </div>
                         )}
                         <div className={styles.chatInput}>
@@ -1621,15 +1623,6 @@ function Chat() {
                                 value={newMessage}
                                 onChange={(e) => setNewMessage(e.target.value)}
                                 onKeyPress={handleKeyPress}
-                                onFocus={() => {
-                                    // Задержки для надежной прокрутки когда открывается клавиатура
-                                    setTimeout(() => {
-                                        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-                                    }, 100);
-                                    setTimeout(() => {
-                                        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-                                    }, 300);
-                                }}
                                 disabled={isUploading}
                             />
 
@@ -1659,7 +1652,12 @@ function Chat() {
 
                         {isUploading && (
                             <div className={styles.uploadingOverlay}>
-                                <div className={styles.uploadingText}>{t('chat.uploadingFiles')}</div>
+                                <PageLoader
+                                    compact
+                                    asSpan
+                                    primary
+                                    text={t('chat.uploadingFiles')}
+                                />
                             </div>
                         )}
                     </>

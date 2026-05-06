@@ -3,11 +3,11 @@ import styles from "./Header.module.scss";
 import { ROUTES } from '../../../app/routers/routes.ts';
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {getAuthToken, fetchCurrentUser, invalidateCurrentUserCache} from "../../../utils/auth.ts";
+import { getStorageItem } from '../../../utils/storageHelper';
 import { useTranslation } from 'react-i18next';
 import { changeLanguage, Language } from '../../../locales/i18n.ts';
 import { useLanguageChange } from '../../../hooks';
 import { ThemeToggle } from '../../../widgets/ThemeToggle';
-import { getCities } from '../../../utils/dataCache.ts';
 import Status from '../Modal/Status';
 import { PageLoader } from '../../../widgets/PageLoader';
 import { EmptyState } from '../../../widgets/EmptyState';
@@ -21,24 +21,11 @@ interface HeaderProps {
     onOpenAuthModal?: () => void;
 }
 
-interface City {
+interface LocationOption {
     id: number;
     title: string;
-    description: string;
-    image: string;
-    districts: District[];
-    province: Province;
-}
-
-interface District {
-    id: number;
-    title: string;
-    image: string;
-}
-
-interface Province {
-    id: number;
-    title: string;
+    value: string;
+    type: 'city' | 'district';
 }
 
 interface UserData {
@@ -64,14 +51,13 @@ function Header({ onOpenAuthModal }: HeaderProps) {
     const { t, i18n } = useTranslation(['header', 'common']);
     // const [needsRoleSelection, setNeedsRoleSelection] = useState(false);
 
-    const [cities, setCities] = useState<City[]>([]);
+    const [locations, setLocations] = useState<LocationOption[]>([]);
     const [displayCityName, setDisplayCityName] = useState<string>(() => {
         const savedCity = localStorage.getItem('selectedCity');
-        return savedCity || t('app.location');
+        return savedCity || t('header:geography');
     });
     const [selectedCity, setSelectedCity] = useState<string>(() => {
-        const savedCity = localStorage.getItem('selectedCity');
-        return savedCity || t('header:location');
+        return localStorage.getItem('selectedCityValue') || '';
     });
     const [isCitiesLoading, setIsCitiesLoading] = useState(false);
     const [citiesError, setCitiesError] = useState(false);
@@ -111,22 +97,42 @@ function Header({ onOpenAuthModal }: HeaderProps) {
         setIsCitiesLoading(true);
         setCitiesError(false);
         try {
-            const data = await getCities();
-            const mappedCities: City[] = data.map(city => ({
-                id: city.id,
-                title: city.title,
-                description: city.description || '',
-                image: city.image || '',
-                districts: (city.districts || []).map(d => ({
-                    id: d.id,
-                    title: '',
-                    image: ''
+            const token = getAuthToken();
+            const headers: HeadersInit = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            const lang = getStorageItem('i18nextLng') || 'ru';
+
+            const [citiesRes, districtsRes] = await Promise.all([
+                fetch(`${API_BASE_URL}/api/cities?locale=${lang}`, { headers }),
+                fetch(`${API_BASE_URL}/api/districts?locale=${lang}`, { headers }),
+            ]);
+
+            const toArr = async (res: Response) => {
+                if (!res.ok) return [];
+                const data = await res.json();
+                return Array.isArray(data) ? data : (data['hydra:member'] ?? []);
+            };
+
+            const [citiesData, districtsData] = await Promise.all([toArr(citiesRes), toArr(districtsRes)]);
+
+            const combinedLocations: LocationOption[] = [
+                ...citiesData.map((city: any) => ({
+                    id: city.id,
+                    title: city.title,
+                    value: `city_${city.id}`,
+                    type: 'city' as const,
                 })),
-                province: city.province || { id: 0, title: '' }
-            }));
-            setCities(mappedCities);
+                ...districtsData.map((district: any) => ({
+                    id: district.id,
+                    title: district.title,
+                    value: `district_${district.id}`,
+                    type: 'district' as const,
+                })),
+            ].sort((a, b) => a.title.localeCompare(b.title));
+
+            setLocations(combinedLocations);
         } catch (error) {
-            console.error('Error loading cities:', error);
+            console.error('Error loading cities/districts:', error);
             setCitiesError(true);
         } finally {
             setIsCitiesLoading(false);
@@ -142,19 +148,30 @@ function Header({ onOpenAuthModal }: HeaderProps) {
         await fetchCities();
     });
 
-    // Обновляем отображаемое название города при изменении cities (смена языка)
+    // Обновляем отображаемое название города при изменении списка городов/районов (смена языка)
     useEffect(() => {
-        if (cities.length === 0) return;
-        const savedCityId = localStorage.getItem('selectedCityId');
-        if (savedCityId) {
-            const found = cities.find(c => String(c.id) === savedCityId);
+        if (locations.length === 0) return;
+        const savedCityValue = localStorage.getItem('selectedCityValue');
+        const savedCityTitle = localStorage.getItem('selectedCity');
+
+        if (savedCityValue) {
+            const found = locations.find(c => c.value === savedCityValue);
             if (found) {
                 setDisplayCityName(found.title);
-                setSelectedCity(found.title);
+                setSelectedCity(found.value);
                 localStorage.setItem('selectedCity', found.title);
             }
+        } else if (savedCityTitle) {
+            const found = locations.find(c => c.title === savedCityTitle);
+            if (found) {
+                setDisplayCityName(found.title);
+                setSelectedCity(found.value);
+                localStorage.setItem('selectedCityValue', found.value);
+            } else {
+                setDisplayCityName(savedCityTitle);
+            }
         }
-    }, [cities]);
+    }, [locations]);
 
     // Устанавливаем плейсхолдер если город не выбран
     useEffect(() => {
@@ -298,11 +315,11 @@ function Header({ onOpenAuthModal }: HeaderProps) {
         navigate(ROUTES.HOME, { replace: true });
     };
 
-    const handleCitySelect = (cityTitle: string, cityId?: number) => {
-        const cityKey = cityTitle;
-        setSelectedCity(cityKey);
-        setDisplayCityName(cityKey);
-        localStorage.setItem('selectedCity', cityKey);
+    const handleCitySelect = (cityTitle: string, cityValue: string, cityId?: number) => {
+        setSelectedCity(cityValue);
+        setDisplayCityName(cityTitle);
+        localStorage.setItem('selectedCity', cityTitle);
+        localStorage.setItem('selectedCityValue', cityValue);
         if (cityId !== undefined) localStorage.setItem('selectedCityId', String(cityId));
         setShowCityModal(false);
         window.dispatchEvent(new Event('cityChanged'));
@@ -741,21 +758,21 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                 <div className={styles.modalOverlay} onClick={() => setShowCityModal(false)}>
                     <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
                         <div className={styles.modalHeader}>
-                            <h2>{t('header:selectCity')}</h2>
+                            <h2>{t('header:geography')}</h2>
                             <Clear onClick={() => setShowCityModal(false)} />
                         </div>
                         <div className={styles.cityList}>
                             {isCitiesLoading ? (
                                 <PageLoader fullPage={false} />
-                            ) : citiesError || cities.length === 0 ? (
+                            ) : citiesError || locations.length === 0 ? (
                                 <EmptyState
                                     title={t('header:citiesError', 'Не удалось загрузить города')}
                                     onRefresh={fetchCities}
                                 />
                             ) : (() => {
-                                const filteredCities = citySearch.trim()
-                                    ? cities.filter(c => t(`cities:${c.title}`, { defaultValue: c.title }).toLowerCase().includes(citySearch.toLowerCase()))
-                                    : cities;
+                                const filteredLocations = citySearch.trim()
+                                    ? locations.filter(c => t(`cities:${c.title}`, { defaultValue: c.title }).toLowerCase().includes(citySearch.toLowerCase()))
+                                    : locations;
                                 return (
                                     <>
                                         <SelectSearch
@@ -766,20 +783,20 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                                             placeholder={t('header:searchCity')}
                                             className={styles.citySearch}
                                         />
-                                        {filteredCities.slice(0, visibleCities).map(city => (
+                                        {filteredLocations.slice(0, visibleCities).map(location => (
                                             <div
-                                                key={city.id}
-                                                className={`${styles.cityItem} ${selectedCity === city.title ? styles.selected : ''}`}
-                                                onClick={() => handleCitySelect(city.title, city.id)}
+                                                key={location.value}
+                                                className={`${styles.cityItem} ${selectedCity === location.value ? styles.selected : ''}`}
+                                                onClick={() => handleCitySelect(location.title, location.value, location.id)}
                                             >
-                                                {t(`cities:${city.title}`, { defaultValue: city.title })}
+                                                {t(`cities:${location.title}`, { defaultValue: location.title })}
                                             </div>
                                         ))}
-                                        {filteredCities.length > getPageSize() && (
+                                        {filteredLocations.length > getPageSize() && (
                                             <ShowMore
                                                 expanded={visibleCities > getPageSize()}
-                                                canLoadMore={visibleCities < filteredCities.length}
-                                                onShowMore={() => setVisibleCities(v => Math.min(v + getPageSize(), filteredCities.length))}
+                                                canLoadMore={visibleCities < filteredLocations.length}
+                                                onShowMore={() => setVisibleCities(v => Math.min(v + getPageSize(), filteredLocations.length))}
                                                 onShowLess={() => setVisibleCities(v => Math.max(v - getPageSize(), getPageSize()))}
                                                 onClear={() => setVisibleCities(getPageSize())}
                                                 showMoreText={t('common:app.showMore')}

@@ -156,8 +156,6 @@
 
 // Стили для сетки подкатегорий
 .subcategories {
-  margin-bottom: 40px;
-
   .subcategories_header {
     display: flex;
     justify-content: space-between;
@@ -509,8 +507,6 @@
 
 @media screen and (max-width: 480px) {
   .subcategories {
-    padding: 0 20px;
-
     .subcategories_header {
       h3 {
         font-size: 20px;

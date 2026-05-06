@@ -90,6 +90,8 @@
   "addWorkArea": "Минтақаи кор илова кунед",
   "servicesTitle": "Хидматҳо",
   "servicesTitleClient": "Эълонҳо",
+  "servicesActive": "Актуалӣ",
+  "servicesPast": "Гузашта",
   "loadingServices": "Боркунии хидматҳо...",
   "noServicesMaster": "Хидматҳо ҳанӯз илова нашудаанд",
   "noServicesClient": "Эълонҳо ҳанӯз илова нашудаанд",

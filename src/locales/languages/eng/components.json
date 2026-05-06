@@ -126,6 +126,7 @@
     "uploadError": "Error uploading files",
     "fileNotImage": "File {{filename}} is not an image",
     "authRequired": "Authorization required",
+    "deleteConfirm": "Are you sure you want to delete this message?",
     "loadingChats": "Loading chats...",
     "errorLoadingChats": "Error loading chats",
     "chatMovedToArchive": "Chat moved to archive",

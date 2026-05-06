@@ -12,7 +12,7 @@ import { useLanguageChange } from '../../../hooks';
 import { getStorageItem } from '../../../utils/storageHelper.ts';
 import { PageLoader } from '../../../widgets/PageLoader';
 import { Toggle } from '../../../shared/ui/Button/Toggle/Toggle';
-import Grid from '../../../shared/ui/Photo/Grid';
+import Grid, { PhotoItem, buildOrderedImagePayload } from '../../../shared/ui/Photo/Grid';
 import { uploadPhotos } from '../../../utils/imageHelper';
 import { EditActions } from '../../profile/shared/ui/EditActions/EditActions';
 import { SelectSearch } from '../../../shared/ui/SelectSearch';
@@ -63,10 +63,6 @@ interface Occupation {
     priority?: number;
     categories?: Array<{ id: number; title: string; image?: string }>;
 }
-
-type PhotoItem =
-    | { type: 'existing'; id: number; image: string }
-    | { type: 'new'; file: File; previewUrl: string };
 
 const CreateEdit = () => {
     const navigate = useNavigate();
@@ -467,13 +463,6 @@ const CreateEdit = () => {
                     return;
                 }
 
-                // 1. Запоминаем ID существующих фото до загрузки
-                const existingImageIds = new Set(
-                    photos
-                        .filter((p): p is Extract<PhotoItem, { type: 'existing' }> => p.type === 'existing')
-                        .map(p => p.id)
-                );
-
                 // 2. Загружаем новые фото в том порядке, в котором они стоят в photos
                 const newPhotoEntries = photos
                     .map((p, i) => ({ photo: p, index: i }))
@@ -495,19 +484,7 @@ const CreateEdit = () => {
                 const allCurrentImages: ImageData[] = freshTicket?.images || [];
 
                 // Новые = те, которых не было раньше (в порядке вставки = порядок загрузки)
-                const uploadedInOrder = allCurrentImages.filter(img => !existingImageIds.has(img.id));
-                let uploadedIdx = 0;
-
-                // 4. Строим финальный упорядоченный список
-                const finalImages = photos
-                    .map(p => {
-                        if (p.type === 'existing') {
-                            return allCurrentImages.find(img => img.id === p.id) ?? null;
-                        } else {
-                            return uploadedInOrder[uploadedIdx++] ?? null;
-                        }
-                    })
-                    .filter((x): x is ImageData => x !== null);
+                const finalImages = buildOrderedImagePayload(photos, allCurrentImages);
 
                 // 5. PATCH с полным упорядоченным списком
                 const updateData = {
