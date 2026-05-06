@@ -6,7 +6,6 @@ use App\ApiResource\AppMessages;
 use App\Controller\Api\CRUD\Abstract\AbstractApiHelperController;
 use App\Controller\Api\CRUD\Abstract\AddressValidationTrait;
 use App\Dto\Ticket\TicketPatchInput;
-use App\Entity\Extra\MultipleImage;
 use App\Entity\Ticket\Category;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Trait\Readable\G;
@@ -74,10 +73,7 @@ class ApiPatchTicketController extends AbstractApiHelperController
         }
 
         if (!empty($dto->images)) {
-            $this->syncTicketImages($ticket, array_map(
-                fn($img) => ['image' => $img->image],
-                $dto->images
-            ), $bearerUser);
+            $this->syncImages($ticket, $dto->images, $bearerUser);
         }
 
         $ticket
@@ -110,42 +106,4 @@ class ApiPatchTicketController extends AbstractApiHelperController
         if ($entity->getMaster()) $this->localizationService->localizeUser($entity->getMaster(), $this->getLocale());
     }
 
-    /**
-     * Синхронизация изображений тикета: удаление отсутствующих,
-     * обновление позиций существующих, добавление новых.
-     */
-    private function syncTicketImages(Ticket $ticket, array $imagesParam, User $bearer): ?JsonResponse
-    {
-        $incomingNames = array_filter(array_column($imagesParam, 'image'));
-
-        foreach ($ticket->getImages()->toArray() as $oldImage) {
-            if (!in_array($oldImage->getImage(), $incomingNames, true)) {
-                $ticket->removeImage($oldImage);
-                $this->entityManager->remove($oldImage);
-            }
-        }
-
-        $existingByName = [];
-        foreach ($ticket->getImages()->toArray() as $img) {
-            $existingByName[$img->getImage()] = $img;
-        }
-
-        foreach ($imagesParam as $position => $imageData) {
-            if (empty($imageData['image'])) {
-                return $this->errorJson(AppMessages::IMAGE_FILENAME_REQUIRED);
-            }
-            if (isset($existingByName[$imageData['image']])) {
-                $existingByName[$imageData['image']]->setPriority($position);
-            } else {
-                $ticketImage = new MultipleImage();
-                $ticketImage->setImage($imageData['image']);
-                $ticketImage->setPriority($position);
-                $ticketImage->setAuthor($bearer);
-                $ticket->addImage($ticketImage);
-                $this->entityManager->persist($ticketImage);
-            }
-        }
-
-        return null;
-    }
 }

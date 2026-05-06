@@ -22,6 +22,7 @@ use App\Dto\Ticket\TicketInput;
 use App\Dto\Ticket\TicketPatchInput;
 use App\Entity\Appeal\Appeal\Appeal;
 use App\Entity\Chat\Chat;
+use App\Entity\Contract\HasImagesInterface;
 use App\Entity\Extra\MultipleImage;
 use App\Entity\Geography\Abstract\Address;
 use App\Entity\Review\Review;
@@ -93,7 +94,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiFilter(SearchFilter::class, properties: ['category', 'subcategory', 'master', 'author', 'description' => 'partial'])]
 #[ApiFilter(AddressFilter::class)]
 #[ApiFilter(RangeFilter::class, properties: ['budget', 'master.rating', 'author.rating', 'reviewsCount'])]
-class Ticket
+class Ticket implements HasImagesInterface
 {
     use CreatedAtTrait, UpdatedAtTrait, TitleTrait, DescriptionTrait;
 

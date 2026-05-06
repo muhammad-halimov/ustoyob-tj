@@ -5,7 +5,6 @@ namespace App\Controller\Api\CRUD\PATCH\Gallery\Gallery;
 use App\ApiResource\AppMessages;
 use App\Controller\Api\CRUD\Abstract\AbstractApiPatchController;
 use App\Dto\Gallery\GalleryPatchInput;
-use App\Entity\Extra\MultipleImage;
 use App\Entity\Gallery\Gallery;
 use App\Entity\Trait\Readable\G;
 use App\Entity\User;
@@ -47,38 +46,7 @@ class ApiPatchGalleryController extends AbstractApiPatchController
         if ($dto->images === null)
             return $this->errorJson(AppMessages::INVALID_JSON);
 
-        $images        = $dto->images;
-        $incomingNames = array_filter(array_column($images, 'image'));
-
-        foreach ($entity->getImages()->toArray() as $existingImage) {
-            if (!in_array($existingImage->getImage(), $incomingNames, true)) {
-                $entity->removeImage($existingImage);
-                $this->entityManager->remove($existingImage);
-            }
-        }
-
-        $existingByName = [];
-        foreach ($entity->getImages() as $existingImage) {
-            if ($existingImage->getImage()) {
-                $existingByName[$existingImage->getImage()] = $existingImage;
-            }
-        }
-
-        foreach ($images as $position => $imageData) {
-            $imagePath = $imageData->image ?? null;
-            if (!$imagePath) continue;
-
-            if (isset($existingByName[$imagePath])) {
-                $existingByName[$imagePath]->setPriority($position);
-            } else {
-                $galleryImage = (new MultipleImage())
-                    ->setImage($imagePath)
-                    ->setPriority($position)
-                    ->setAuthor($bearer);
-                $entity->addImage($galleryImage);
-                $this->entityManager->persist($galleryImage);
-            }
-        }
+        $this->syncImages($entity, $dto->images, $bearer);
 
         return null;
     }

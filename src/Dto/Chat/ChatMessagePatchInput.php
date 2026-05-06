@@ -11,5 +11,5 @@ class ChatMessagePatchInput
     public ?string $description = null;
 
     /** @var ImageObjectInput[] */
-    public array   $images = [];
+    public ?array  $images = null;
 }

@@ -13,7 +13,9 @@ use App\Controller\Api\CRUD\GET\Chat\Message\ApiGetChatMessageController;
 use App\Controller\Api\CRUD\PATCH\Chat\Message\ApiPatchChatMessageController;
 use App\Controller\Api\CRUD\POST\Chat\Message\ApiPostChatMessageController;
 use App\Controller\Api\CRUD\POST\Image\Image\ApiPostUniversalImageController;
+use App\Dto\Chat\ChatMessagePatchInput;
 use App\Dto\Image\ImageInput;
+use App\Entity\Contract\HasImagesInterface;
 use App\Entity\Extra\MultipleImage;
 use App\Entity\Trait\Readable\CreatedAtTrait;
 use App\Entity\Trait\Readable\DescriptionTrait;
@@ -56,6 +58,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
             requirements: ['id' => '\d+'],
             controller: ApiPatchChatMessageController::class,
             normalizationContext: ['groups' => G::OPS_CHAT_MSGS],
+            input: ChatMessagePatchInput::class,
         ),
         new Delete(
             uriTemplate: '/chat-messages/{id}',
@@ -68,7 +71,7 @@ use Vich\UploaderBundle\Mapping\Attribute as Vich;
     paginationItemsPerPage: 25,
     paginationMaximumItemsPerPage: 50,
 )]
-class ChatMessage
+class ChatMessage implements HasImagesInterface
 {
     use CreatedAtTrait, UpdatedAtTrait, DescriptionTrait;
 

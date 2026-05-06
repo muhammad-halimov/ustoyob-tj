@@ -16,6 +16,7 @@ use App\Dto\Image\ImageInput;
 use App\Entity\Appeal\Types\AppealChat;
 use App\Entity\Appeal\Types\AppealReview;
 use App\Entity\Chat\Chat;
+use App\Entity\Contract\HasImagesInterface;
 use App\Entity\Extra\MultipleImage;
 use App\Entity\Review\Review;
 use App\Entity\Ticket\Ticket;
@@ -84,7 +85,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
     'author',
     'respondent',
 ])]
-abstract class Appeal
+abstract class Appeal implements HasImagesInterface
 {
     use CreatedAtTrait, UpdatedAtTrait, TitleTrait, DescriptionTrait, TypeTrait, AppealReasonTrait;
 

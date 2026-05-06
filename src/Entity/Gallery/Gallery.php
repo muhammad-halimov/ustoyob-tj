@@ -16,6 +16,7 @@ use App\Controller\Api\CRUD\PATCH\Gallery\Gallery\ApiPatchGalleryController;
 use App\Controller\Api\CRUD\POST\Gallery\Gallery\ApiPostGalleryController;
 use App\Controller\Api\CRUD\POST\Image\Image\ApiPostUniversalImageController;
 use App\Dto\Image\ImageInput;
+use App\Entity\Contract\HasImagesInterface;
 use App\Entity\Extra\MultipleImage;
 use App\Entity\Trait\Readable\CreatedAtTrait;
 use App\Entity\Trait\Readable\G;
@@ -78,7 +79,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
     paginationMaximumItemsPerPage: 50,
 )]
 #[ApiFilter(SearchFilter::class, properties: ['user'])]
-class Gallery
+class Gallery implements HasImagesInterface
 {
     use UpdatedAtTrait, CreatedAtTrait;
 

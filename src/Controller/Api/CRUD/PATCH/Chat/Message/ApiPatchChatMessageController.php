@@ -7,7 +7,6 @@ use App\Controller\Api\CRUD\Abstract\AbstractApiPatchController;
 use App\Dto\Chat\ChatMessagePatchInput;
 use App\Entity\Chat\Chat;
 use App\Entity\Chat\ChatMessage;
-use App\Entity\Extra\MultipleImage;
 use App\Entity\Trait\Readable\G;
 use App\Entity\User;
 use App\Service\Extra\LocalizationService;
@@ -65,32 +64,7 @@ class ApiPatchChatMessageController extends AbstractApiPatchController
         }
 
         if (!empty($imagesParam)) {
-            $imageStrings = array_filter(array_map(
-                fn($item) => isset($item->image) ? (string) $item->image : null,
-                $imagesParam
-            ));
-
-            $existingImages = $entity->getImages();
-
-            foreach ($existingImages as $chatImage) {
-                if (!in_array($chatImage->getImage(), $imageStrings, true)) {
-                    $entity->removeImage($chatImage);
-                    $this->entityManager->remove($chatImage);
-                }
-            }
-
-            $existingImageStrings = array_map(
-                fn(MultipleImage $ci) => $ci->getImage(),
-                $existingImages->toArray()
-            );
-
-            foreach ($imageStrings as $imageString) {
-                if (!in_array($imageString, $existingImageStrings, true)) {
-                    $newImage = (new MultipleImage())->setImage($imageString)->setAuthor($bearer);
-                    $entity->addImage($newImage);
-                    $this->entityManager->persist($newImage);
-                }
-            }
+            $this->syncImages($entity, $imagesParam, $bearer);
         }
 
         $entity->setUpdatedAt();

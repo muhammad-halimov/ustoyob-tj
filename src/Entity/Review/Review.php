@@ -21,6 +21,7 @@ use App\Controller\Api\CRUD\POST\Review\Review\ApiPostReviewController;
 use App\Dto\Image\ImageInput;
 use App\Dto\Review\ReviewPatchInput;
 use App\Entity\Appeal\Types\AppealReview;
+use App\Entity\Contract\HasImagesInterface;
 use App\Entity\Extra\MultipleImage;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Trait\Readable\CreatedAtTrait;
@@ -110,7 +111,7 @@ use Symfony\Component\Validator\Constraints as Assert;
     'ticket.title',
 ])]
 #[ApiFilter(RangeFilter::class, properties: ['rating'])]
-class Review
+class Review implements HasImagesInterface
 {
     use CreatedAtTrait, UpdatedAtTrait, TitleTrait, DescriptionTrait, TypeTrait;
 

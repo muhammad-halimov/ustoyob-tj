@@ -3,6 +3,8 @@
 namespace App\Controller\Api\CRUD\Abstract;
 
 use App\ApiResource\AppMessages;
+use App\Entity\Contract\HasImagesInterface;
+use App\Entity\Extra\MultipleImage;
 use App\Entity\User;
 use App\Service\Extra\AccessService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -256,5 +258,52 @@ abstract class AbstractApiHelperController extends AbstractController
         $this->entityManager->flush();
 
         return $this->json(null, 204);
+    }
+
+    /**
+     * Синхронизирует коллекцию изображений сущности с входящим массивом.
+     * Удаляет изображения не вошедшие в список, обновляет приоритеты существующих,
+     * добавляет новые. Порядок элементов в массиве определяет priority.
+     *
+     * @param HasImagesInterface $entity      Сущность реализующая HasImagesInterface
+     * @param array              $imagesParam Массив объектов с публичным свойством ->image
+     * @param User               $bearer      Автор для новых изображений
+     */
+    protected function syncImages(HasImagesInterface $entity, array $imagesParam, User $bearer): void
+    {
+        $incomingNames = array_filter(array_map(
+            fn(object $item): ?string => isset($item->image) ? (string) $item->image : null,
+            $imagesParam
+        ));
+
+        foreach ($entity->getImages()->toArray() as $existing) {
+            if (!in_array($existing->getImage(), $incomingNames, true)) {
+                $entity->removeImage($existing);
+                $this->entityManager->remove($existing);
+            }
+        }
+
+        $existingByName = [];
+        foreach ($entity->getImages() as $existing) {
+            if ($existing->getImage()) {
+                $existingByName[$existing->getImage()] = $existing;
+            }
+        }
+
+        foreach ($imagesParam as $position => $imageData) {
+            $imagePath = isset($imageData->image) ? (string) $imageData->image : null;
+            if (!$imagePath) continue;
+
+            if (isset($existingByName[$imagePath])) {
+                $existingByName[$imagePath]->setPriority($position);
+            } else {
+                $newImage = (new MultipleImage())
+                    ->setImage($imagePath)
+                    ->setPriority($position)
+                    ->setAuthor($bearer);
+                $entity->addImage($newImage);
+                $this->entityManager->persist($newImage);
+            }
+        }
     }
 }
