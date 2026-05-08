@@ -1151,7 +1151,7 @@ export function Ticket() {
         <div className={styles.container}>
             <div className={styles.orderCard}>
                 {/* ── Title row: title + controls side-by-side ── */}
-                <div className={styles.titleControlRow}>
+                <div className={`${styles.titleControlRow} ${currentUserId === order.authorId ? styles.titleControlRowOwner : ''}`}>
                     <h1 className={styles.orderTitle}>
                         <Marquee text={order.title} alwaysScroll />
                     </h1>

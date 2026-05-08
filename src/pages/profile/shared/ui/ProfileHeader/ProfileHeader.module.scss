@@ -23,7 +23,7 @@
   right: 20px;
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 5px;
   z-index: 2;
 }
 
@@ -482,13 +482,14 @@
   .profile_content {
     flex-direction: column;
     padding: 16px;
+    padding-top: 46px;
     gap: 16px;
     align-items: center;
   }
 
   .badge_actions_row {
-    top: 12px;
-    right: 12px;
+    top: 10px;
+    right: 10px;
   }
 
   .logout_row {
@@ -509,6 +510,7 @@
   .avatar_section {
     display: flex;
     justify-content: center;
+    margin-top: 10px;
   }
 
   .avatar_container {
