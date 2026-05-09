@@ -69,14 +69,15 @@ const Grid: React.FC<PhotoGridProps> = ({
                 <div
                     key={photo.type === 'existing' ? `existing-${photo.id}` : `new-${index}`}
                     className={`${styles.photoItem} ${drag.draggingIndex === index ? styles.photoItemDragging : ''} ${drag.dragOverIndex === index ? styles.photoItemDragOver : ''}`}
+                    draggable={!disabled}
+                    onDragStart={() => drag.handleDragStart(index)}
+                    onDragEnd={() => drag.handleDragEnd()}
                     onDragEnter={() => drag.handleDragEnter(index)}
                     onDragOver={(e) => e.preventDefault()}
                 >
                     <DragHandle
                         className={styles.dragHandleOverlay}
-                        draggable
-                        onDragStart={() => drag.handleDragStart(index)}
-                        onDragEnd={() => drag.handleDragEnd()}
+                        draggable={false}
                     />
                     <img
                         src={photo.type === 'existing' ? getImageUrl(photo.image) : photo.previewUrl}
