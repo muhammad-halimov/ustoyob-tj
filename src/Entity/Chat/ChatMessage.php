@@ -23,6 +23,7 @@ use App\Entity\Trait\Readable\G;
 use App\Entity\Trait\Readable\UpdatedAtTrait;
 use App\Entity\User;
 use App\Repository\Chat\ChatMessageRepository;
+use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
@@ -124,6 +125,14 @@ class ChatMessage implements HasImagesInterface
     #[ORM\OneToMany(targetEntity: self::class, mappedBy: 'replyTo')]
     #[Ignore]
     private Collection $chatMessages;
+
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    #[Groups([
+        G::CHATS,
+        G::CHAT_MESSAGES,
+    ])]
+    #[ApiProperty(writable: false)]
+    private ?DateTimeImmutable $readAt = null;
 
     /**
      * @var Collection<int, MultipleImage>
@@ -234,6 +243,18 @@ class ChatMessage implements HasImagesInterface
                 $image->setChatMessage(null);
             }
         }
+
+        return $this;
+    }
+
+    public function getReadAt(): ?DateTimeImmutable
+    {
+        return $this->readAt;
+    }
+
+    public function setReadAt(?DateTimeImmutable $readAt): static
+    {
+        $this->readAt = $readAt;
 
         return $this;
     }

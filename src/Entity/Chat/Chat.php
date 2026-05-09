@@ -17,6 +17,7 @@ use App\Controller\Api\CRUD\GET\Chat\Chat\ApiGetChatSubscribeTokenController;
 use App\Controller\Api\CRUD\GET\Chat\Chat\ApiGetMyChatsController;
 use App\Controller\Api\CRUD\PATCH\Chat\Chat\ApiPatchChatController;
 use App\Controller\Api\CRUD\POST\Chat\Chat\ApiPostChatController;
+use App\Controller\Api\CRUD\POST\Chat\Chat\ApiPostMarkChatReadController;
 use App\Dto\Chat\ChatPatchInput;
 use App\Dto\Chat\ChatPostInput;
 use App\Entity\Appeal\Types\AppealChat;
@@ -68,6 +69,12 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             controller: ApiPostChatController::class,
             normalizationContext: ['groups' => G::OPS_CHATS],
             input: ChatPostInput::class,
+        ),
+        new Post(
+            uriTemplate: '/chats/{id}/read',
+            requirements: ['id' => '\d+'],
+            controller: ApiPostMarkChatReadController::class,
+            deserialize: false,
         ),
         new Patch(
             uriTemplate: '/chats/{id}',
