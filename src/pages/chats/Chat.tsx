@@ -61,6 +61,7 @@ interface ApiMessage {
     id: number;
     description: string;
     author: ApiUser;
+    chat?: { id: number } | null;
     createdAt?: string;
     updatedAt?: string;
     readAt?: string | null;
@@ -121,6 +122,7 @@ function Chat() {
     const [isMobileChatActive, setIsMobileChatActive] = useState(false);
     const [selectedPhotoItems, setSelectedPhotoItems] = useState<PhotoItem[]>([]);
     const [isUploading, setIsUploading] = useState(false);
+    const [isChatLoading, setIsChatLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [isPhotoSidebarOpen, setIsPhotoSidebarOpen] = useState(false);
     const [showComplaintModal, setShowComplaintModal] = useState(false);
@@ -138,6 +140,7 @@ function Chat() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const eventSourceRef = useRef<EventSource | null>(null);
     const presenceSourceRef = useRef<EventSource | null>(null);
+    const inboxSourceRef = useRef<EventSource | null>(null);
     const currentUserRef = useRef<ApiUser | null>(null);
     const tokenRefreshRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const startSSERef = useRef<((chatId: number) => Promise<void>) | null>(null);
@@ -228,6 +231,7 @@ function Chat() {
             setMessages([]);
             setChatImages([]);
             stopSSE();
+            setIsChatLoading(false);
             if (presenceSourceRef.current) {
                 presenceSourceRef.current.close();
                 presenceSourceRef.current = null;
@@ -430,10 +434,12 @@ function Chat() {
 
     const startSSE = useCallback(async (chatId: number) => {
         stopSSE();
+        setIsChatLoading(true);
 
         // 1. Начальная загрузка сообщений
         await fetchChatMessages(chatId);
         await markChatAsRead(chatId);
+        setIsChatLoading(false);
 
         // 2. Получаем Mercure JWT
         const token = getAuthToken();
@@ -585,7 +591,7 @@ function Chat() {
         } catch (err) {
             console.error('Error setting up SSE:', err);
         }
-    }, [stopSSE, fetchChatMessages, markChatAsRead, API_BASE_URL, MERCURE_HUB_URL, getTranslatedFullName, getImageUrl]);
+    }, [stopSSE, fetchChatMessages, markChatAsRead, setIsChatLoading, API_BASE_URL, MERCURE_HUB_URL, getTranslatedFullName, getImageUrl]);
 
     const startPresenceSSE = useCallback((interlocutorId: number) => {
         if (presenceSourceRef.current) {
@@ -633,6 +639,66 @@ function Chat() {
 
     useEffect(() => { startPresenceSSERef.current = startPresenceSSE; }, [startPresenceSSE]);
 
+    const startInboxSSE = useCallback(async () => {
+        if (inboxSourceRef.current) {
+            inboxSourceRef.current.close();
+            inboxSourceRef.current = null;
+        }
+        const token = getAuthToken();
+        if (!token) return;
+        try {
+            const resp = await fetch(`${API_BASE_URL}/api/chats/inbox-token`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            if (!resp.ok) return;
+            const { token: mercureToken, topics } = await resp.json() as { token: string | null; topics: string[] };
+            if (!mercureToken || !topics?.length) return;
+
+            const hubUrl = new URL(MERCURE_HUB_URL);
+            topics.forEach(t => hubUrl.searchParams.append('topic', t));
+            hubUrl.searchParams.append('authorization', mercureToken);
+
+            const es = new EventSource(hubUrl.toString());
+            inboxSourceRef.current = es;
+
+            es.onmessage = (event) => {
+                try {
+                    const { type, data } = JSON.parse(event.data) as {
+                        type: string;
+                        data: ApiMessage & { chat?: { id: number } };
+                    };
+                    if (type === 'created') {
+                        const chatId = data.chat?.id;
+                        if (!chatId) return;
+                        setChats(prev => prev.map(chat => {
+                            if (chat.id !== chatId) return chat;
+                            const msgs = chat.messages || [];
+                            if (msgs.some(m => m.id === data.id)) return chat;
+                            return { ...chat, messages: [...msgs, data] };
+                        }));
+                    } else if (type === 'updated') {
+                        const chatId = data.chat?.id;
+                        if (!chatId) return;
+                        setChats(prev => prev.map(chat => {
+                            if (chat.id !== chatId) return chat;
+                            const msgs = (chat.messages || []).map(m =>
+                                m.id === data.id ? { ...m, readAt: data.readAt } : m
+                            );
+                            return { ...chat, messages: msgs };
+                        }));
+                    } else if (type === 'deleted') {
+                        const del = data as unknown as { id: number; chatId: number };
+                        setChats(prev => prev.map(chat => {
+                            if (chat.id !== del.chatId) return chat;
+                            return { ...chat, messages: (chat.messages || []).filter(m => m.id !== del.id) };
+                        }));
+                    }
+                } catch { /* ignore parse errors */ }
+            };
+            es.onerror = () => { /* EventSource auto-reconnects */ };
+        } catch { /* ignore network errors */ }
+    }, [API_BASE_URL, MERCURE_HUB_URL]);
+
     // Синхронизируем ref чтобы setTimeout всегда вызывал актуальную версию startSSE
     useEffect(() => { startSSERef.current = startSSE; }, [startSSE]);
 
@@ -675,6 +741,23 @@ function Chat() {
             window.removeEventListener('beforeunload', markOffline);
             document.removeEventListener('visibilitychange', onVisibility);
             markOffline();
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentUser?.id]);
+
+    // Глобальный inbox SSE — подписывается на все чаты пользователя,
+    // обновляет бабл непрочитанных без перезагрузки страницы.
+    useEffect(() => {
+        if (!currentUser?.id) return;
+        startInboxSSE();
+        // Обновляем токен каждые 50 минут до его истечения (токен живёт 1 час)
+        const refreshInterval = setInterval(startInboxSSE, 50 * 60 * 1000);
+        return () => {
+            clearInterval(refreshInterval);
+            if (inboxSourceRef.current) {
+                inboxSourceRef.current.close();
+                inboxSourceRef.current = null;
+            }
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentUser?.id]);
@@ -1754,13 +1837,13 @@ function Chat() {
                             />
                         )}
 
-                        {isUploading && (
+                        {(isUploading || isChatLoading) && (
                             <div className={styles.uploadingOverlay}>
                                 <PageLoader
                                     compact
                                     asSpan
                                     primary
-                                    text={t('chat.uploadingFiles')}
+                                    text={isChatLoading ? t('chat.loadingMessages') : t('chat.uploadingFiles')}
                                 />
                             </div>
                         )}
