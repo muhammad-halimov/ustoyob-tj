@@ -22,7 +22,7 @@ import { SelectSearch } from '../../shared/ui/SelectSearch';
 import { getPageSize } from '../../utils/pageSize.ts';
 import { parsePagedResponse } from '../../utils/apiHelper';
 import { useShowMore } from '../../hooks';
-import { Marquee } from '../../shared/ui/Text/Marquee/Marquee';
+import { Marquee } from '../../shared/ui/Text/Marquee';
 
 interface Message {
     id: number;
@@ -39,6 +39,7 @@ interface Message {
     createdAt?: string;
     replyTo?: { id: number; text: string; name: string };
     edited?: boolean;
+    readAt?: string | null;
     images?: { id: number; url: string; name: string }[]; // вложенные фото сообщения
 }
 
@@ -62,6 +63,7 @@ interface ApiMessage {
     author: ApiUser;
     createdAt?: string;
     updatedAt?: string;
+    readAt?: string | null;
     replyTo?: { id: number; description: string; author: ApiUser } | null;
     images?: UploadedImage[];
 }
@@ -135,9 +137,11 @@ function Chat() {
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const eventSourceRef = useRef<EventSource | null>(null);
+    const presenceSourceRef = useRef<EventSource | null>(null);
     const currentUserRef = useRef<ApiUser | null>(null);
     const tokenRefreshRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const startSSERef = useRef<((chatId: number) => Promise<void>) | null>(null);
+    const startPresenceSSERef = useRef<((interlocutorId: number) => void) | null>(null);
     const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const heartbeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const chatsRef = useRef<ApiChat[]>([]);
@@ -208,6 +212,15 @@ function Chat() {
         if (selectedChat) {
             console.log('Starting SSE for chat:', selectedChat);
             startSSE(selectedChat);
+
+            const chat = chatsRef.current.find(c => c.id === selectedChat);
+            const interlocutor = chat
+                ? (chat.author?.id === currentUserRef.current?.id ? chat.replyAuthor : chat.author)
+                : null;
+            if (interlocutor) {
+                startPresenceSSERef.current?.(interlocutor.id);
+            }
+
             if (window.innerWidth <= 960) {
                 setIsMobileChatActive(true);
             }
@@ -215,8 +228,18 @@ function Chat() {
             setMessages([]);
             setChatImages([]);
             stopSSE();
+            if (presenceSourceRef.current) {
+                presenceSourceRef.current.close();
+                presenceSourceRef.current = null;
+            }
         }
-        return () => stopSSE();
+        return () => {
+            stopSSE();
+            if (presenceSourceRef.current) {
+                presenceSourceRef.current.close();
+                presenceSourceRef.current = null;
+            }
+        };
     }, [selectedChat]);
 
     // Обработка chatId из URL
@@ -328,6 +351,7 @@ function Chat() {
                             time: createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                             createdAt: createdAt.toISOString(),
                             edited: isEdited,
+                            readAt: msg.readAt ?? null,
                             replyTo: msg.replyTo ? {
                                 id: msg.replyTo.id,
                                 text: msg.replyTo.description,
@@ -375,6 +399,19 @@ function Chat() {
         }
     }, [API_BASE_URL, currentUser, getImageUrl]);
 
+    const markChatAsRead = useCallback(async (chatId: number) => {
+        const token = getAuthToken();
+        if (!token) return;
+        try {
+            await fetch(`${API_BASE_URL}/api/chats/${chatId}/read`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+        } catch {
+            // fire-and-forget — ошибка не критична
+        }
+    }, [API_BASE_URL]);
+
     const stopSSE = useCallback(() => {
         if (tokenRefreshRef.current) {
             clearTimeout(tokenRefreshRef.current);
@@ -396,6 +433,7 @@ function Chat() {
 
         // 1. Начальная загрузка сообщений
         await fetchChatMessages(chatId);
+        await markChatAsRead(chatId);
 
         // 2. Получаем Mercure JWT
         const token = getAuthToken();
@@ -454,6 +492,7 @@ function Chat() {
                         time: createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                         createdAt: createdAt.toISOString(),
                         edited: isEdited,
+                        readAt: apiMsg.readAt ?? null,
                         replyTo: apiMsg.replyTo ? {
                             id: apiMsg.replyTo.id,
                             text: apiMsg.replyTo.description,
@@ -478,6 +517,10 @@ function Chat() {
                                 (a, b) => new Date(a.createdAt!).getTime() - new Date(b.createdAt!).getTime()
                             );
                         });
+                        // Помечаем сообщения как прочитанные если сообщение от собеседника
+                        if (msg.sender === 'other') {
+                            markChatAsRead(chatId);
+                        }
                         // Обновляем миниатюры если есть фото
                         if (apiMsg.images && apiMsg.images.length > 0) {
                             const newThumbs: ChatImageThumbnail[] = apiMsg.images.map(img => ({
@@ -542,7 +585,53 @@ function Chat() {
         } catch (err) {
             console.error('Error setting up SSE:', err);
         }
-    }, [stopSSE, fetchChatMessages, API_BASE_URL, MERCURE_HUB_URL, getTranslatedFullName, getImageUrl]);
+    }, [stopSSE, fetchChatMessages, markChatAsRead, API_BASE_URL, MERCURE_HUB_URL, getTranslatedFullName, getImageUrl]);
+
+    const startPresenceSSE = useCallback((interlocutorId: number) => {
+        if (presenceSourceRef.current) {
+            presenceSourceRef.current.close();
+            presenceSourceRef.current = null;
+        }
+
+        const hubUrl = new URL(MERCURE_HUB_URL);
+        hubUrl.searchParams.append('topic', `user:${interlocutorId}`);
+
+        const es = new EventSource(hubUrl.toString());
+        presenceSourceRef.current = es;
+
+        es.onmessage = (event) => {
+            try {
+                const { isOnline, lastSeen } = JSON.parse(event.data) as {
+                    isOnline: boolean;
+                    lastSeen: string | null;
+                };
+
+                setChats(prev => prev.map(chat => {
+                    const isAuthor = chat.author?.id === interlocutorId;
+                    const isReply  = chat.replyAuthor?.id === interlocutorId;
+                    if (!isAuthor && !isReply) return chat;
+
+                    return {
+                        ...chat,
+                        author: isAuthor
+                            ? { ...chat.author, isOnline, lastSeen: lastSeen ?? undefined }
+                            : chat.author,
+                        replyAuthor: isReply
+                            ? { ...chat.replyAuthor, isOnline, lastSeen: lastSeen ?? undefined }
+                            : chat.replyAuthor,
+                    };
+                }));
+            } catch {
+                // ignore parse errors
+            }
+        };
+
+        es.onerror = () => {
+            // EventSource автоматически переподключается
+        };
+    }, [MERCURE_HUB_URL]);
+
+    useEffect(() => { startPresenceSSERef.current = startPresenceSSE; }, [startPresenceSSE]);
 
     // Синхронизируем ref чтобы setTimeout всегда вызывал актуальную версию startSSE
     useEffect(() => { startSSERef.current = startSSE; }, [startSSE]);
@@ -562,18 +651,14 @@ function Chat() {
             if (token) fetch(pingUrl, { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
         };
 
-        const pingAndRefresh = () => {
-            doPing();
-            fetchChats(true);
-        };
-
         const markOffline = () => {
             const token = getAuthToken();
             if (token) fetch(offlineUrl, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, keepalive: true }).catch(() => {});
         };
 
         doPing();
-        heartbeatIntervalRef.current = setInterval(pingAndRefresh, 30_000);
+        heartbeatIntervalRef.current = setInterval(doPing, 3_000);
+        const chatsRefreshInterval = setInterval(() => fetchChats(true), 60_000);
 
         const onVisibility = () => {
             if (document.visibilityState === 'hidden') markOffline();
@@ -586,6 +671,7 @@ function Chat() {
         return () => {
             clearInterval(heartbeatIntervalRef.current!);
             heartbeatIntervalRef.current = null;
+            clearInterval(chatsRefreshInterval);
             window.removeEventListener('beforeunload', markOffline);
             document.removeEventListener('visibilitychange', onVisibility);
             markOffline();
@@ -1009,7 +1095,12 @@ function Chat() {
                         const replyAuthorChanged =
                             existing.replyAuthor?.isOnline !== incoming.replyAuthor?.isOnline ||
                             existing.replyAuthor?.lastSeen !== incoming.replyAuthor?.lastSeen;
-                        if (authorChanged || replyAuthorChanged) { changed = true; return incoming; }
+                        const existingUnread = (existing.messages || []).filter(m => !m.readAt).length;
+                        const incomingUnread = (incoming.messages || []).filter(m => !m.readAt).length;
+                        const messagesChanged =
+                            (existing.messages?.length ?? 0) !== (incoming.messages?.length ?? 0) ||
+                            existingUnread !== incomingUnread;
+                        if (authorChanged || replyAuthorChanged || messagesChanged) { changed = true; return incoming; }
                         return existing;
                     });
                     return changed ? merged : prev;
@@ -1289,6 +1380,14 @@ function Chat() {
                                         {!interlocutor.isOnline && interlocutor.lastSeen && !chat.isArchived && (
                                             <div className={styles.lastSeen}>{getLastSeenTime(interlocutor)}</div>
                                         )}
+                                        {(() => {
+                                            const unread = (chat.messages || []).filter(
+                                                m => m.author?.id !== currentUser?.id && !m.readAt
+                                            ).length;
+                                            return unread > 0 ? (
+                                                <div className={styles.unreadBadge}>{unread > 99 ? '99+' : unread}</div>
+                                            ) : null;
+                                        })()}
                                     </div>
                                     <div
                                         className={styles.chatItemMenuWrapper}
@@ -1489,6 +1588,11 @@ function Chat() {
                                                             <div className={styles.messageTime}>
                                                                 {msg.time}
                                                                 {msg.edited && <span className={styles.editedBadge}> • изм.</span>}
+                                                                {msg.sender === 'me' && !msg.isLocal && (
+                                                                    <span className={msg.readAt ? styles.tickRead : styles.tickSent}>
+                                                                        {msg.readAt ? '✓✓' : '✓'}
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     </div>

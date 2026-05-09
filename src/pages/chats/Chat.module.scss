@@ -288,6 +288,22 @@
           margin-right: 5px;
         }
       }
+
+      .unreadBadge {
+        background: #3A54DA;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 700;
+        min-width: 18px;
+        height: 18px;
+        border-radius: 9px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 5px;
+        margin-top: 4px;
+        align-self: flex-end;
+      }
     }
   }
 }
@@ -583,6 +599,18 @@
     font-style: italic;
   }
 
+  .tickSent {
+    font-size: 11px;
+    margin-left: 3px;
+    color: #aaa;
+  }
+
+  .tickRead {
+    font-size: 11px;
+    margin-left: 3px;
+    color: #3A54DA;
+  }
+
   .date {
     align-self: center;
     background: #e8edff;
@@ -848,7 +876,6 @@
   transition: all 0.2s ease;
   flex-shrink: 0;
   border-top: 1px solid #e0e0e0;
-  background: #f7f8ff;
   z-index: 10;
   box-sizing: border-box;
 
