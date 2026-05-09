@@ -191,6 +191,19 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     const [showResults, setShowResults] = useState<boolean>(() => (initSessionRef.current?.showResults as boolean) ?? false);
     const showResultsRef = useRef<boolean>((initSessionRef.current?.showResults as boolean) ?? false);
     useEffect(() => { showResultsRef.current = showResults; }, [showResults]);
+
+    const handleSearchQueryChange = useCallback((value: string) => {
+        setSearchQuery(value);
+        if (!value.trim()) {
+            setSearchResults([]);
+            setShowResults(false);
+            onSearchResults([]);
+            previousSearchRef.current = {
+                ...previousSearchRef.current,
+                query: ''
+            };
+        }
+    }, [onSearchResults]);
     const [filters, setFilters] = useState<FilterState>(() => {
         const saved = initSessionRef.current?.filters as FilterState | undefined;
         return saved ?? {
@@ -1488,17 +1501,29 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                                 altMode
                                 options={[]}
                                 value={searchQuery}
-                                onChange={setSearchQuery}
+                                onChange={handleSearchQueryChange}
                                 placeholder={getSearchPlaceholder}
                                 className={styles.input_wrap}
                                 onKeyDown={e => e.key === 'Enter' && handleSearch()}
                             />
-                            <button className={styles.button} onClick={handleSearch} disabled={isLoading}>
-                                {isLoading
-                                    ? <PageLoader fullPage={false} compact primary asSpan />
-                                    : t('search.find')
-                                }
-                            </button>
+                            {false && (
+                                <button
+                                    className={styles.button}
+                                    onClick={handleSearch}
+                                    disabled={isLoading}
+                                    aria-label={t('search.find')}
+                                    title={t('search.find')}
+                                >
+                                    {isLoading ? (
+                                        <PageLoader fullPage={false} compact primary asSpan />
+                                    ) : (
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+                                            <line x1="16.65" y1="16.65" x2="21" y2="21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                        </svg>
+                                    )}
+                                </button>
+                            )}
                         </div>
 
                         <div className={styles.filter_controls}>

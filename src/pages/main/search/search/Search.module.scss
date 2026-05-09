@@ -83,20 +83,30 @@
       }
     }
 
-    .button {
+    /* .button {
       background: map.get(vars.$colors, actual-blue);
       color: map.get(vars.$colors, primary-text-white);
       border: none;
-      padding: 10px 45.5px;
-      font-weight: 400;
-      font-size: map.get(vars.$font-sizes, 'xl');
+      width: 48px;
+      min-width: 48px;
+      height: 48px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      border-radius: map.get(vars.$border-radius, base);
       cursor: pointer;
       transition: background 0.2s;
 
-      //&:hover {
-      //  background: map.get(vars.$colors, primary-hover);
-      //}
-    }
+      svg {
+        display: block;
+      }
+
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+    } */
   }
 
   .filters_btn {

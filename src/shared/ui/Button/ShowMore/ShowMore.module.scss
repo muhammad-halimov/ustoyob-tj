@@ -38,8 +38,8 @@
   font-family: vars.$font-family;
   background-color: map.get(vars.$colors, background-btn);
   display: inline-flex;
-  width: 235px;
-  min-width: 235px;
+  width: min(235px, 100%);
+  min-width: 0;
   max-width: 235px;
   color: map.get(vars.$colors, primary-text-white);
   font-size: map.get(vars.$font-sizes, 'lg');
@@ -53,10 +53,16 @@
   border-radius: 10px;
   cursor: pointer;
   user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   position: relative;
 
-  &:hover {
-    background: map.get(vars.$colors, actual-blue);
+  @media (hover: hover) and (pointer: fine) {
+    transition: background 0.2s;
+
+    &:hover {
+      background: map.get(vars.$colors, actual-blue);
+    }
   }
 
   &:disabled {
@@ -95,8 +101,8 @@
 
 @media screen and (max-width: 480px) {
   .btn {
-    width: 164px;
-    min-width: 164px;
+    width: min(164px, 100%);
+    min-width: 0;
     max-width: 164px;
     font-size: 12px;
     padding: 8px 14px;

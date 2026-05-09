@@ -2,6 +2,7 @@ import styles from "./Category.module.scss";
 import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore.tsx';
 import { SelectSearch } from '../../../shared/ui/SelectSearch';
 import { EmptyState } from '../../../widgets/EmptyState';
+import { Marquee } from '../../../shared/ui/Text/Marquee/Marquee';
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from '../../../app/routers/routes.ts';
 import { useTranslation } from 'react-i18next';
@@ -209,7 +210,9 @@ export default function Category() {
                                 }}
                                 loading="lazy"
                             />
-                            <p>{item.title}</p>
+                            <p>
+                                <Marquee text={item.title} alwaysScroll duration={20}/>
+                            </p>
                         </div>
                     ))
                 ) : searchQuery.trim() ? (
