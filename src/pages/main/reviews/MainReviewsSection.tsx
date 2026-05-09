@@ -6,7 +6,6 @@ import { smartNameTranslator } from '../../../utils/textHelper';
 import { Swiper, SwiperSlide } from "swiper/react";
 import styles from './MainReviewsSection.module.scss';
 import { Preview, usePreview } from '../../../shared/ui/Photo/Preview';
-import { ReadMore } from '../../../widgets/ReadMore';
 import { Marquee } from '../../../shared/ui/Text/Marquee';
 import { EmptyState } from '../../../widgets/EmptyState';
 import { getAuthorAvatar } from '../../../utils/imageHelper.ts';
@@ -25,6 +24,7 @@ interface MainReviewsSectionProps {
 export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ className }) => {
     const [reviews, setReviews] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [expandedReviews, setExpandedReviews] = useState<Record<number, boolean>>({});
     const { page, skipFetchRef: skipReviewsFetchRef, applyFetch: applyReviewsFetch, showMoreProps: reviewsShowMoreProps } = useShowMore<any>(setReviews);
     const [complaintReviewId, setComplaintReviewId] = useState<number | null>(null);
     const [complaintAuthorId, setComplaintAuthorId] = useState<number | null>(null);
@@ -173,6 +173,41 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
     const getReviewerAvatarUrl = (review: any): string =>
         getAuthorAvatar(review.client);
 
+    const getPlainReviewText = (review: any) =>
+        review.description ? review.description.replace(/<[^>]*>/g, '') : '';
+
+    const isReviewExpanded = (review: any) => !!expandedReviews[review.id];
+
+    const renderReviewDescription = (review: any, previewLength = 150) => {
+        if (!review.description) return null;
+
+        const plainText = getPlainReviewText(review);
+        const expanded = isReviewExpanded(review);
+        const canShowMore = plainText.length > previewLength;
+
+        return (
+            <div className={styles.reviews_about_title}>
+                <div>
+                    {expanded ? plainText : `${plainText.slice(0, previewLength)}...`}
+                </div>
+                {canShowMore && (
+                    <ShowMore
+                        expanded={expanded}
+                        canLoadMore={canShowMore}
+                        onShowMore={() => setExpandedReviews(prev => ({ ...prev, [review.id]: true }))}
+                        onShowLess={() => setExpandedReviews(prev => ({ ...prev, [review.id]: false }))}
+                        onClear={() => {}}
+                        showMoreText={t('common:app.showMore')}
+                        showLessText={t('common:app.showLess')}
+                        clearBtn={false}
+                        hideShowMoreWhenExpanded
+                        loading={false}
+                    />
+                )}
+            </div>
+        );
+    };
+
     // Собираем все изображения для галереи
     const galleryImages = useMemo(() => {
         const images: string[] = [];
@@ -249,7 +284,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                                 }
                                             }}
                                         >
-                                            {getServiceTitle(review)}
+                                            <Marquee text={getServiceTitle(review)} alwaysScroll />
                                         </span>
                                         <span className={styles.divider}>•</span>
                                         <span 
@@ -260,18 +295,14 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                                 }
                                             }}
                                         >
-                                            {getMasterName(review)}
+                                            <Marquee text={getMasterName(review)} alwaysScroll />
                                         </span>
                                     </div>
                                 </div>
                             </div>
                             
                             <div className={styles.reviews_about}>
-                                {review.description && (
-                                    <div className={styles.reviews_about_title}>
-                                        <ReadMore text={review.description} maxLength={150} />
-                                    </div>
-                                )}
+                                {renderReviewDescription(review, 150)}
                                 
                                 {review.images && review.images.length > 0 && (
                                     <div className={styles.review_images}>
@@ -355,9 +386,8 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                                         }
                                                     }}
                                                 >
-                                                    {getServiceTitle(review)}
+                                                    <Marquee text={getServiceTitle(review)} alwaysScroll />
                                                 </span>
-                                                <span className={styles.divider}>•</span>
                                                 <span 
                                                     className={styles.master_name}
                                                     onClick={() => {
@@ -366,18 +396,14 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                                         }
                                                     }}
                                                 >
-                                                    {getMasterName(review)}
+                                                    <Marquee text={getMasterName(review)} alwaysScroll />
                                                 </span>
                                             </div>
                                         </div>
                                     </div>
                                     
                                     <div className={styles.reviews_about}>
-                                        {review.description && (
-                                            <div className={styles.reviews_about_title}>
-                                                <ReadMore text={review.description} maxLength={100} />
-                                            </div>
-                                        )}
+                                        {renderReviewDescription(review, 100)}
                                         
                                         {review.images && review.images.length > 0 && (
                                             <div className={styles.review_images}>

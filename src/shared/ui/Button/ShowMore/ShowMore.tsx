@@ -30,13 +30,15 @@ interface ShowMoreProps {
     showLessText: string;
     /** Показывать ли кнопку очистки */
     clearBtn?: boolean;
+    /** Скрывать кнопку «показать больше» при развёрнутом состоянии */
+    hideShowMoreWhenExpanded?: boolean;
     /** Состояние загрузки для действий больше/меньше */
     loading?: boolean;
     /** Вертикальное расположение кнопок */
     column?: boolean;
 }
 
-export const ShowMore = ({ expanded, canLoadMore, hasMore, onShowMore, onShowLess, onClear, showMoreText, showLessText, clearBtn = true, loading = false, column = false }: ShowMoreProps) => {
+export const ShowMore = ({ expanded, canLoadMore, hasMore, onShowMore, onShowLess, onClear, showMoreText, showLessText, clearBtn = true, hideShowMoreWhenExpanded = false, loading = false, column = false }: ShowMoreProps) => {
     const [clicked, setClicked] = useState<'more' | 'less' | null>(null);
     const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -70,12 +72,13 @@ export const ShowMore = ({ expanded, canLoadMore, hasMore, onShowMore, onShowLes
 
     const moreLoading = loading && clicked === 'more';
     const lessLoading = loading && clicked === 'less';
+    const shouldShowMoreButton = resolvedCanLoadMore && !(hideShowMoreWhenExpanded && expanded);
 
     return (
         <div className={styles.wrapper} ref={wrapperRef}>
             <div className={styles.outer}>
                 <div className={`${styles.row}${column ? ` ${styles.rowColumn}` : ''}`}>
-                    {resolvedCanLoadMore && (
+                    {shouldShowMoreButton && (
                         <button className={styles.btn} onClick={handleShowMore} disabled={loading}>
                             {moreLoading ? <PageLoader fullPage={false} compact primary={false} /> : (
                                 <span className={styles.btnText}>

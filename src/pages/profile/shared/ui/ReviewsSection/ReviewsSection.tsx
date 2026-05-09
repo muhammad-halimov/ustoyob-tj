@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { ShowMore } from '../../../../../shared/ui/Button/ShowMore/ShowMore';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Preview, usePreview } from '../../../../../shared/ui/Photo/Preview';
-import { ReadMore } from '../../../../../widgets/ReadMore';
 import { EmptyState } from '../../../../../widgets/EmptyState';
 import { Marquee } from '../../../../../shared/ui/Text/Marquee';
 import { Review } from '../../../../../entities';
@@ -67,6 +66,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
     const [sortBy, setSortBy] = useState<ReviewSortByType>('newest');
     const [timeFilter, setTimeFilter] = useState<ReviewTimeFilterType>('all');
     const [withPhotosOnly, setWithPhotosOnly] = useState(false);
+    const [expandedReviews, setExpandedReviews] = useState<Record<number, boolean>>({});
 
     /** Returns midnight of the given date */
     const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -203,6 +203,42 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
         review.ticket?.title
             ? String(review.ticket.title)
             : t('profile:serviceDefault');
+
+    const getPlainReviewText = (review: Review) =>
+        review.description ? review.description.replace(/<[^>]*>/g, '') : '';
+
+    const isReviewExpanded = (review: Review) => !!expandedReviews[review.id];
+
+    const renderReviewDescription = (review: Review, previewLength = maxLength) => {
+        if (!review.description) return null;
+
+        const plainText = getPlainReviewText(review);
+        const expanded = isReviewExpanded(review);
+        const canShowMore = plainText.length > previewLength;
+
+        return (
+            <>
+                <div className={styles.review_text}>
+                    {expanded ? plainText : `${plainText.slice(0, previewLength)}...`}
+                </div>
+                {canShowMore && (
+                    <ShowMore
+                        expanded={expanded}
+                        canLoadMore={canShowMore}
+                        onShowMore={() => setExpandedReviews(prev => ({ ...prev, [review.id]: true }))}
+                        onShowLess={() => setExpandedReviews(prev => ({ ...prev, [review.id]: false }))}
+                        onClear={() => {} }
+                        showMoreText={t('common:app.showMore')}
+                        showLessText={t('common:app.showLess')}
+                        clearBtn={false}
+                        hideShowMoreWhenExpanded
+                        loading={false}
+                    />
+                )}
+            </>
+        );
+    };
+
     // Собираем все изображения из отзывов для галереи (из отсортированного/отфильтрованного списка)
     const reviewGalleryImages = useMemo(() => {
         if (!sortedReviews || sortedReviews.length === 0) return [];
@@ -334,7 +370,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                         </div>
                                     </div>
 
-                                    {review.description && <ReadMore text={review.description} maxLength={maxLength} textClassName={styles.review_text} buttonClassName={styles.review_more} />}
+                                    {renderReviewDescription(review, maxLength)}
 
                                     {review.images && review.images.length > 0 && (
                                         <div className={styles.review_images}>
@@ -458,7 +494,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                     </div>
                                                 </div>
 
-                                                {review.description && <ReadMore text={review.description} maxLength={maxLength} textClassName={styles.review_text} buttonClassName={styles.review_more} />}
+                                                {renderReviewDescription(review, maxLength)}
 
                                                 {review.images && review.images.length > 0 && (
                                                     <div className={styles.review_images}>
@@ -575,7 +611,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                 </div>
                                             </div>
 
-                                            {review.description && <ReadMore text={review.description} maxLength={maxLength} textClassName={styles.review_text} buttonClassName={styles.review_more} />}
+                                            {renderReviewDescription(review, maxLength)}
 
                                             {review.images && review.images.length > 0 && (
                                                 <div className={styles.review_images}>

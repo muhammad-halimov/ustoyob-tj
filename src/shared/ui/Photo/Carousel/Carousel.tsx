@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import styles from './Carousel.module.scss';
 import { Preview } from '../Preview';
 
 const THUMB_PER_PAGE = 4;
+const TOUCH_SCROLL_THRESHOLD = 10;
 
 interface PhotoCarouselProps {
   photos: string[];
@@ -14,6 +15,7 @@ export function Carousel({ photos, className }: PhotoCarouselProps) {
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [galleryStartIndex, setGalleryStartIndex] = useState(0);
   const [thumbOffset, setThumbOffset] = useState(0);
+  const touchState = useRef<{ x: number; y: number; scrolled: boolean } | null>(null);
 
   const visibleThumbs = photos.slice(thumbOffset, thumbOffset + THUMB_PER_PAGE);
   const canScrollLeft = thumbOffset > 0;
@@ -26,12 +28,58 @@ export function Carousel({ photos, className }: PhotoCarouselProps) {
     setIsGalleryOpen(true);
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return;
+    touchState.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+      scrolled: false,
+    };
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchState.current) return;
+    const dx = Math.abs(e.touches[0].clientX - touchState.current.x);
+    const dy = Math.abs(e.touches[0].clientY - touchState.current.y);
+    if (dx > TOUCH_SCROLL_THRESHOLD || dy > TOUCH_SCROLL_THRESHOLD) {
+      touchState.current.scrolled = true;
+    }
+  };
+
+  const handleTouchEndOpen = (index: number, e: React.TouchEvent) => {
+    if (touchState.current?.scrolled) {
+      touchState.current = null;
+      e.stopPropagation();
+      e.preventDefault();
+      return;
+    }
+
+    touchState.current = null;
+    openGallery(index, e);
+  };
+
+  const handleThumbTouchEnd = (realIdx: number, e: React.TouchEvent) => {
+    if (touchState.current?.scrolled) {
+      touchState.current = null;
+      e.stopPropagation();
+      e.preventDefault();
+      return;
+    }
+
+    touchState.current = null;
+    e.stopPropagation();
+    e.preventDefault();
+    setCurrentIndex(realIdx);
+  };
+
   return (
     <div className={`${styles.slider} ${className || ''}`}>
       <div
         className={styles.main_wrap}
         onClick={(e) => openGallery(currentIndex, e)}
-        onTouchEnd={(e) => openGallery(currentIndex, e)}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={(e) => handleTouchEndOpen(currentIndex, e)}
         style={{ cursor: 'pointer' }}
       >
         <img
@@ -86,7 +134,9 @@ export function Carousel({ photos, className }: PhotoCarouselProps) {
                   src={photo}
                   className={`${styles.thumbnail} ${realIdx === currentIndex ? styles.thumbnail_active : ''}`}
                   onClick={(e) => { e.stopPropagation(); setCurrentIndex(realIdx); }}
-                  onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); setCurrentIndex(realIdx); }}
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={(e) => handleThumbTouchEnd(realIdx, e)}
                   alt=""
                   draggable={false}
                 />

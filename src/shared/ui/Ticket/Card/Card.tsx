@@ -276,6 +276,7 @@ export function Card({
   };
 
   const displayTicketType = getTicketTypeDisplay();
+  const showActionsDropdown = !showEditButton && (onComplaintClick || onReviewClick);
 
   return (
     <div className={styles.card} onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default' }}>
@@ -322,9 +323,9 @@ export function Card({
                 </svg>
               </button>
             )}
-            {!showEditButton && (
+            {(ticketId || externalOnFavoriteClick) && (
               <button
-                className={styles.card_favorite_button}
+                className={`${styles.card_favorite_button} ${!showActionsDropdown ? styles.card_favorite_no_dropdown : ''}`}
                 onClick={onFavoriteClick}
                 onTouchStart={(e) => e.stopPropagation()}
                 onTouchEnd={onFavoriteClick}
@@ -342,7 +343,7 @@ export function Card({
                 </svg>
               </button>
             )}
-            {(onComplaintClick || onReviewClick) && (
+            {showActionsDropdown && (
               <div
                 className={styles.card_dropdown_wrapper}
                 onClick={(e) => e.stopPropagation()}

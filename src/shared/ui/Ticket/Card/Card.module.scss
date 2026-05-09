@@ -766,6 +766,13 @@
       right: 55px;
       z-index: 2;
     }
+
+    &_favorite_no_dropdown {
+      position: absolute;
+      top: 13px;
+      right: 15px;
+      z-index: 2;
+    }
   }
 }
 
