@@ -14,6 +14,7 @@ use ApiPlatform\OpenApi\Model\Parameter as OpenApiParameter;
 use App\Controller\Api\CRUD\DELETE\Chat\Chat\ApiDeleteChatController;
 use App\Controller\Api\CRUD\GET\Chat\Chat\ApiGetChatController;
 use App\Controller\Api\CRUD\GET\Chat\Chat\ApiGetChatSubscribeTokenController;
+use App\Controller\Api\CRUD\GET\Chat\Chat\ApiGetInboxTokenController;
 use App\Controller\Api\CRUD\GET\Chat\Chat\ApiGetMyChatsController;
 use App\Controller\Api\CRUD\PATCH\Chat\Chat\ApiPatchChatController;
 use App\Controller\Api\CRUD\POST\Chat\Chat\ApiPostChatController;
@@ -52,6 +53,13 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             requirements: ['id' => '\d+'],
             controller: ApiGetChatSubscribeTokenController::class,
             normalizationContext: ['groups' => G::OPS_CHATS],
+        ),
+        // [MERCURE] Токен для подписки на ВСЕ чаты пользователя одновременно.
+        // Используется для глобального inbox SSE — обновление бабла непрочитанных.
+        new Get(
+            uriTemplate: '/chats/inbox-token',
+            controller: ApiGetInboxTokenController::class,
+            read: false,
         ),
         new GetCollection(
             uriTemplate: '/chats/me',
