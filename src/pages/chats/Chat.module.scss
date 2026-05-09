@@ -323,7 +323,7 @@
     min-height: calc(100dvh - 160px);
     border-radius: 16px;
     display: none;
-    position: static;
+    position: relative;
 
     .chatAreaActive & {
       display: flex;

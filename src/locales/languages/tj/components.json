@@ -128,6 +128,7 @@
     "authRequired": "Санҷиши ҳаққониӣ лозим аст",
     "deleteConfirm": "Оё шумо мутмаин ҳастед, ки мехоҳед паёмро нест кунед?",
     "loadingChats": "Чатҳо бор мешаванд...",
+    "loadingMessages": "Паёмҳо бор мешаванд...",
     "errorLoadingChats": "Хатои боркунии чатҳо",
     "chatMovedToArchive": "Чат ба архив кӯчонда шуд",
     "chatRestored": "Чат аз архив барқарор шуд",
