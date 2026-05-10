@@ -20,7 +20,7 @@
 
   @media (max-width: 960px) {
     gap: 0;
-    height: calc(100dvh - 160px);
+    height: calc(100dvh - 200px);
     max-height: none;
     flex-direction: column;
   }
@@ -39,7 +39,7 @@
     width: 100%;
     border-radius: 16px;
     overflow-y: auto;
-    min-height: calc(100dvh - 160px);
+    min-height: calc(100dvh - 200px);
     position: static;
     height: auto;
 
@@ -320,9 +320,9 @@
 
   @media (max-width: 960px) {
     width: 100%;
-    height: calc(100dvh - 160px);
-    min-height: calc(100dvh - 160px);
-    max-height: calc(100dvh - 160px);
+    height: calc(100dvh - 185px);
+    min-height: calc(100dvh - 200px);
+    max-height: calc(100dvh - 200px);
     border-radius: 16px;
     display: none;
     position: relative;

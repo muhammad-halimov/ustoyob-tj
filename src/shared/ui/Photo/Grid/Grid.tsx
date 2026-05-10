@@ -80,6 +80,7 @@ const Grid: React.FC<PhotoGridProps> = ({
                         draggable={false}
                     />
                     <img
+                        draggable={false}
                         src={photo.type === 'existing' ? getImageUrl(photo.image) : photo.previewUrl}
                         alt={`${photoAlt} ${index + 1}`}
                         onClick={
