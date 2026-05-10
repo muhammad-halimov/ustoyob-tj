@@ -145,6 +145,7 @@ function Chat() {
     const tokenRefreshRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const startSSERef = useRef<((chatId: number) => Promise<void>) | null>(null);
     const startPresenceSSERef = useRef<((interlocutorId: number) => void) | null>(null);
+    const startInboxSSERef = useRef<(() => Promise<void>) | null>(null);
     const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const heartbeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const chatsRef = useRef<ApiChat[]>([]);
@@ -673,7 +674,10 @@ function Chat() {
                         setChats(prev => prev.map(chat => {
                             if (chat.id !== chatId) return chat;
                             const msgs = chat.messages || [];
+                            // Дедупликация: не добавляем если уже есть по id
                             if (msgs.some(m => m.id === data.id)) return chat;
+                            // Не добавляем сообщения в открытый чат —
+                            // ими управляет основной chat SSE (eventSourceRef)
                             return { ...chat, messages: [...msgs, data] };
                         }));
                     } else if (type === 'updated') {
@@ -698,6 +702,8 @@ function Chat() {
             es.onerror = () => { /* EventSource auto-reconnects */ };
         } catch { /* ignore network errors */ }
     }, [API_BASE_URL, MERCURE_HUB_URL]);
+
+    useEffect(() => { startInboxSSERef.current = startInboxSSE; }, [startInboxSSE]);
 
     // Синхронизируем ref чтобы setTimeout всегда вызывал актуальную версию startSSE
     useEffect(() => { startSSERef.current = startSSE; }, [startSSE]);
@@ -1212,6 +1218,13 @@ function Chat() {
             }
 
             setChatHasMore(fetchedHasMore);
+
+            // Если появились новые чаты — перезапускаем inbox SSE,
+            // чтобы подписаться на их топики тоже.
+            const prevIds = new Set(chatsRef.current.map(c => c.id));
+            if (chatsData.some(c => !prevIds.has(c.id))) {
+                startInboxSSERef.current?.();
+            }
 
             if (chatIdFromUrl) {
                 const chatId = parseInt(chatIdFromUrl);
