@@ -81,6 +81,7 @@ const Grid: React.FC<PhotoGridProps> = ({
                     />
                     <img
                         draggable={false}
+                        onContextMenu={(e) => e.preventDefault()}
                         src={photo.type === 'existing' ? getImageUrl(photo.image) : photo.previewUrl}
                         alt={`${photoAlt} ${index + 1}`}
                         onClick={

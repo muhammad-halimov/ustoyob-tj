@@ -106,6 +106,7 @@
     "online": "online",
     "offline": "offline",
     "archiveChat": "Archive chat",
+    "archiveConfirm": "Archive this chat?",
     "restoreFromArchive": "Restore from archive",
     "report": "Report",
     "viewAllPhotos": "View all photos",

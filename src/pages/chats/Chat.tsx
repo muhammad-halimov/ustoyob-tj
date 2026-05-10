@@ -1245,6 +1245,9 @@ function Chat() {
 
     // ===== ФУНКЦИИ ДЛЯ АРХИВАЦИИ ЧАТОВ =====
     const archiveChat = useCallback(async (chatId: number, archive: boolean = true) => {
+        if (archive) {
+            if (!window.confirm(t('chat.archiveConfirm'))) return;
+        }
         try {
             const token = getAuthToken();
             if (!token) {
@@ -1719,11 +1722,10 @@ function Chat() {
                                             onClick={() => photoGallery.openGallery(0)}
                                             title="Открыть галерею"
                                         >⤢</button>
-                                        <button
+                                        <Clear
                                             className={styles.photoSidebarCloseBtn}
                                             onClick={() => setIsPhotoSidebarOpen(false)}
-                                            title="Закрыть"
-                                        >✕</button>
+                                        />
                                     </div>
                                     <div className={styles.photoThumbnails}>
                                         {chatImages.map((image, index) => (

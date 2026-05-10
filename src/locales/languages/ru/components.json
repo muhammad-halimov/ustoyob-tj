@@ -106,6 +106,7 @@
     "online": "online",
     "offline": "offline",
     "archiveChat": "Архивировать чат",
+    "archiveConfirm": "Архивировать этот чат?",
     "restoreFromArchive": "Восстановить из архива",
     "report": "Пожаловаться",
     "viewAllPhotos": "Просмотреть все фото",
