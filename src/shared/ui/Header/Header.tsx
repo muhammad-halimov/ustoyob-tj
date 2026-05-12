@@ -335,20 +335,15 @@ function Header({ onOpenAuthModal }: HeaderProps) {
     };
 
     const getActivePage = () => {
-        switch (location.pathname) {
-            case ROUTES.HOME:
-                return "orders";
-            case ROUTES.TICKET_ME:
-                return "add";
-            case ROUTES.FAVORITES:
-                return "favorites";
-            case ROUTES.CHATS:
-                return "chats";
-            case ROUTES.PROFILE:
-                return "profile";
-            default:
-                return "orders";
-        }
+        const path = location.pathname;
+        if (path === ROUTES.HOME) return "orders";
+        if (path === ROUTES.TICKET_ME) return "add";
+        if (path === ROUTES.TICKET_CREATE) return "add";
+        if (/^\/ticket\/[^/]+\/edit$/.test(path)) return "add";
+        if (path === ROUTES.FAVORITES) return "favorites";
+        if (path === ROUTES.CHATS) return "chats";
+        if (path === ROUTES.PROFILE) return "profile";
+        return "orders";
     };
 
     const isActivePage = getActivePage();
@@ -367,7 +362,12 @@ function Header({ onOpenAuthModal }: HeaderProps) {
     };
 
     const handleProfileClick = (e: React.MouseEvent) => handleAuthCheck(e);
-    const handleChatsClick = (e: React.MouseEvent) => handleAuthCheck(e);
+    const handleChatsClick = (e: React.MouseEvent) => {
+        handleAuthCheck(e);
+        if (isActivePage === 'chats') {
+            window.dispatchEvent(new CustomEvent('chat:closeActive'));
+        }
+    };
     const handleFavoritesClick = () => {
         // Favorites доступны всем без авторизации
     };

@@ -1377,6 +1377,13 @@ function Chat() {
         setChatImages([]);
     }, []);
 
+    // Закрываем активный чат при нажатии на кнопку чатов в хедере
+    useEffect(() => {
+        const handler = () => handleBackToChatList();
+        window.addEventListener('chat:closeActive', handler);
+        return () => window.removeEventListener('chat:closeActive', handler);
+    }, [handleBackToChatList]);
+
     // const handleBackToHome = useCallback(() => {
     //     navigate(ROUTES.HOME);
     // }, [navigate]);
