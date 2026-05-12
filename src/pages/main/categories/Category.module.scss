@@ -84,6 +84,10 @@
     width: 100%;
     min-width: 0;
 
+    > *:only-child {
+      width: 100%;
+    }
+
     .category_item_step {
       padding: 16px 14px;
       text-align: center;
@@ -146,9 +150,10 @@
   }
 }
 
-@media screen and (max-width: 480px) {
+@media screen and (max-width: 768px) {
   .category {
     padding: 0 20px;
+    box-sizing: border-box;
     margin-top: 40px !important;
     margin-bottom: 30px !important;
 
@@ -181,6 +186,10 @@
       gap: 10px;
       width: 100%;
       min-width: 0;
+
+      > *:only-child {
+        grid-column: 1 / -1;
+      }
 
       .category_item_step {
         max-width: 100% !important;

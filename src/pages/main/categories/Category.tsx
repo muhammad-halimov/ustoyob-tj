@@ -31,7 +31,6 @@ export default function Category() {
 
     const fetchCategories = async () => {
         try {
-            setLoading(true);
             const locale = localStorage.getItem('i18nextLng') || 'ru';
             const response = await fetch(`${API_URL}/api/categories?locale=${locale}`);
             console.log('Categories response status:', response.status);

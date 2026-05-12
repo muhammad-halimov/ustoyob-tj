@@ -65,16 +65,27 @@ export function useDragReorder<T>(
         const startY = e.touches[0].clientY;
         let dragStarted = false;
 
-        const onMove = (ev: TouchEvent) => {
-            if (!dragStarted) {
-                const dx = ev.touches[0].clientX - startX;
-                const dy = ev.touches[0].clientY - startY;
-                if (Math.sqrt(dx * dx + dy * dy) < 8) return; // под порогом — не начинаем drag
-                dragStarted = true;
-                dragItemRef.current = index;
-                touchDragOverRef.current = null;
-                setDraggingIndex(index);
+        // Активируем drag только после 300ms удержания без движения
+        const longPressTimer = setTimeout(() => {
+            dragStarted = true;
+            dragItemRef.current = index;
+            touchDragOverRef.current = null;
+            setDraggingIndex(index);
+            // Только теперь вешаем non-passive listener для предотвращения скролла
+            document.addEventListener('touchmove', onDragMove, { passive: false });
+        }, 300);
+
+        // Passive listener — если палец двинулся до таймера, это скролл, отмена
+        const onScrollDetect = (ev: TouchEvent) => {
+            const dx = ev.touches[0].clientX - startX;
+            const dy = ev.touches[0].clientY - startY;
+            if (Math.sqrt(dx * dx + dy * dy) > 8) {
+                clearTimeout(longPressTimer);
+                document.removeEventListener('touchmove', onScrollDetect);
             }
+        };
+
+        const onDragMove = (ev: TouchEvent) => {
             ev.preventDefault();
             const touch = ev.touches[0];
             const el = document.elementFromPoint(touch.clientX, touch.clientY);
@@ -89,6 +100,11 @@ export function useDragReorder<T>(
         };
 
         const onEnd = () => {
+            clearTimeout(longPressTimer);
+            document.removeEventListener('touchmove', onScrollDetect);
+            document.removeEventListener('touchmove', onDragMove);
+            document.removeEventListener('touchend', onEnd);
+
             if (dragStarted) {
                 const from = dragItemRef.current;
                 const to = touchDragOverRef.current;
@@ -103,11 +119,9 @@ export function useDragReorder<T>(
                 setDraggingIndex(null);
                 setDragOverIndex(null);
             }
-            document.removeEventListener('touchmove', onMove);
-            document.removeEventListener('touchend', onEnd);
         };
 
-        document.addEventListener('touchmove', onMove, { passive: false });
+        document.addEventListener('touchmove', onScrollDetect, { passive: true });
         document.addEventListener('touchend', onEnd);
     };
 
