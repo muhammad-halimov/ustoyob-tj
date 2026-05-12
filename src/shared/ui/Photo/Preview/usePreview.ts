@@ -29,15 +29,19 @@ export const usePreview = ({
     };
 
     const goToNext = () => {
-        const nextIndex = currentIndex === images.length - 1 ? 0 : currentIndex + 1;
-        setCurrentIndex(nextIndex);
-        onImageChange?.(nextIndex);
+        setCurrentIndex(prev => {
+            const nextIndex = prev === images.length - 1 ? 0 : prev + 1;
+            onImageChange?.(nextIndex);
+            return nextIndex;
+        });
     };
 
     const goToPrevious = () => {
-        const prevIndex = currentIndex === 0 ? images.length - 1 : currentIndex - 1;
-        setCurrentIndex(prevIndex);
-        onImageChange?.(prevIndex);
+        setCurrentIndex(prev => {
+            const prevIndex = prev === 0 ? images.length - 1 : prev - 1;
+            onImageChange?.(prevIndex);
+            return prevIndex;
+        });
     };
 
     const selectImage = (index: number) => {

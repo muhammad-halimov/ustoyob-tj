@@ -96,6 +96,8 @@
   width: 100%;
   height: 100%;
   padding: 10px;
+  will-change: contents;
+  transform: translateZ(0);
 }
 
 .photo_modal_image {
@@ -105,6 +107,8 @@
   height: auto;
   object-fit: contain;
   border-radius: 8px;
+  will-change: auto;
+  transform: translateZ(0);
 }
 
 .photo_modal_counter {
@@ -194,21 +198,21 @@
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    width: 36px;
-    height: 36px;
+    width: 52px;
+    height: 52px;
 
     svg {
-      width: 20px;
-      height: 20px;
+      width: 28px;
+      height: 28px;
     }
   }
 
   .photo_modal_nav:first-of-type {
-    left: 10px;
+    left: 4px;
   }
 
   .photo_modal_nav:last-of-type {
-    right: 10px;
+    right: 4px;
   }
 
   .photo_modal_thumbnail {
@@ -228,12 +232,12 @@
   }
 
   .photo_modal_nav {
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
     
     svg {
-      width: 18px;
-      height: 18px;
+      width: 24px;
+      height: 24px;
     }
   }
 }

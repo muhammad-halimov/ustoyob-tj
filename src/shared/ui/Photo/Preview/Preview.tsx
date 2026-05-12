@@ -119,7 +119,9 @@ export const Preview: React.FC<PhotoGalleryProps> = ({
                 onClose();
             }}
         >
-            <div className={styles.photo_modal_content}>
+            <div className={styles.photo_modal_content}
+                onClick={(e) => e.stopPropagation()}
+            >
                 <Clear
                     className={styles.photo_modal_close}
                     onClick={onClose}
@@ -132,7 +134,9 @@ export const Preview: React.FC<PhotoGalleryProps> = ({
                     {images.length > 1 && (
                         <button
                             className={styles.photo_modal_nav}
-                            onClick={(e) => { e.stopPropagation(); onPrevious(); }}
+                            onClick={(e) => e.stopPropagation()}
+                            onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); onPrevious(); }}
+                            onMouseUp={() => onPrevious()}
                             aria-label="Предыдущее фото"
                         >
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -149,12 +153,18 @@ export const Preview: React.FC<PhotoGalleryProps> = ({
                             onClick={(e) => e.stopPropagation()}
                             onError={handleImageError}
                         />
+                        {/* Preload all images */}
+                        {images.map((src, i) => i !== currentIndex && (
+                            <img key={i} src={src} style={{ display: 'none' }} alt="" aria-hidden />
+                        ))}
                     </div>
 
                     {images.length > 1 && (
                         <button
                             className={styles.photo_modal_nav}
-                            onClick={(e) => { e.stopPropagation(); onNext(); }}
+                            onClick={(e) => e.stopPropagation()}
+                            onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); onNext(); }}
+                            onMouseUp={() => onNext()}
                             aria-label="Следующее фото"
                         >
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

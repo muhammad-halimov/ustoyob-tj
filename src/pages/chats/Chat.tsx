@@ -1829,6 +1829,9 @@ function Chat() {
                                 onFocus={() => {
                                     const meta = document.querySelector('meta[name="viewport"]');
                                     if (meta) meta.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1');
+                                    // Предотвращаем скролл страницы при фокусе на мобиле
+                                    const scrollY = window.scrollY;
+                                    requestAnimationFrame(() => window.scrollTo(0, scrollY));
                                 }}
                                 onBlur={() => {
                                     const meta = document.querySelector('meta[name="viewport"]');
