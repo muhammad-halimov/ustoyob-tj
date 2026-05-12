@@ -29,23 +29,9 @@
   position: absolute;
   top: 17px;
   right: 20px;
-  background: none;
-  border: none;
-  cursor: pointer;
   color: var(--color-text-inverse);
   z-index: 20001;
-  padding: 8px;
-  min-width: 40px;
-  min-height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   user-select: none;
-
-  svg {
-    width: 24px;
-    height: 24px;
-  }
 
   &:hover {
     opacity: 0.8;
@@ -186,14 +172,6 @@
     top: max(env(safe-area-inset-top, 0px) + 16px, 60px);
     right: 16px;
     z-index: 20002;
-    background: rgba(0, 0, 0, 0.5);
-    border-radius: 50%;
-    padding: 10px;
-    
-    svg {
-      width: 20px;
-      height: 20px;
-    }
   }
 
   .photo_modal_main {

@@ -1826,6 +1826,14 @@ function Chat() {
                                 onChange={(e) => setNewMessage(e.target.value)}
                                 onKeyPress={handleKeyPress}
                                 disabled={isUploading}
+                                onFocus={() => {
+                                    const meta = document.querySelector('meta[name="viewport"]');
+                                    if (meta) meta.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1');
+                                }}
+                                onBlur={() => {
+                                    const meta = document.querySelector('meta[name="viewport"]');
+                                    if (meta) meta.setAttribute('content', 'width=device-width, initial-scale=1');
+                                }}
                             />
 
                             <button

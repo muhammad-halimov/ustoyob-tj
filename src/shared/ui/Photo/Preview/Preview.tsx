@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { Clear } from '../../Button/Clear/Clear';
 import styles from './Preview.module.scss';
 
 interface PhotoGalleryProps {
@@ -63,6 +64,24 @@ export const Preview: React.FC<PhotoGalleryProps> = ({
     const thumbTouchStart = useRef<{ x: number; y: number } | null>(null);
     const thumbScrolled = useRef(false);
 
+    // Touch tracking для свайпа главного изображения
+    const swipeTouchStart = useRef<{ x: number; y: number } | null>(null);
+
+    const handleSwipeTouchStart = (e: React.TouchEvent) => {
+        swipeTouchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    };
+
+    const handleSwipeTouchEnd = (e: React.TouchEvent) => {
+        if (!swipeTouchStart.current) return;
+        const dx = e.changedTouches[0].clientX - swipeTouchStart.current.x;
+        const dy = Math.abs(e.changedTouches[0].clientY - swipeTouchStart.current.y);
+        swipeTouchStart.current = null;
+        // Минимум 50px по горизонтали и меньше 80px по вертикали
+        if (Math.abs(dx) < 50 || dy > 80) return;
+        if (dx < 0) onNext();
+        else onPrevious();
+    };
+
     const handleThumbTouchStart = (e: React.TouchEvent) => {
         thumbTouchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
         thumbScrolled.current = false;
@@ -101,18 +120,15 @@ export const Preview: React.FC<PhotoGalleryProps> = ({
             }}
         >
             <div className={styles.photo_modal_content}>
-                <button
+                <Clear
                     className={styles.photo_modal_close}
-                    onClick={(e) => { e.stopPropagation(); onClose(); }}
-                    aria-label="Закрыть"
-                >
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M18 6L6 18" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M6 6L18 18" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                </button>
+                    onClick={onClose}
+                />
 
-                <div className={styles.photo_modal_main}>
+                <div className={styles.photo_modal_main}
+                    onTouchStart={handleSwipeTouchStart}
+                    onTouchEnd={handleSwipeTouchEnd}
+                >
                     {images.length > 1 && (
                         <button
                             className={styles.photo_modal_nav}
