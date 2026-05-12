@@ -92,9 +92,15 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
                                     <div
                                         key={work.id}
                                         className={`${styles.work_example} ${!readOnly && onReorder && workDrag.draggingIndex === index ? styles.dragging : ''} ${!readOnly && onReorder && workDrag.dragOverIndex === index ? styles.drag_over : ''}`}
+                                        data-drag-index={index}
+                                        draggable={!readOnly && !!onReorder}
+                                        onDragStart={!readOnly && onReorder ? () => workDrag.handleDragStart(index) : undefined}
                                         onDragEnter={!readOnly && onReorder ? () => workDrag.handleDragEnter(index) : undefined}
                                         onDragEnd={!readOnly && onReorder ? () => workDrag.handleDragEnd() : undefined}
                                         onDragOver={!readOnly && onReorder ? (e) => e.preventDefault() : undefined}
+                                        onTouchStart={!readOnly && onReorder ? (e) => workDrag.handleTouchStart(index, e) : undefined}
+                                        onClick={() => onOpenGallery(index)}
+                                        style={{ cursor: 'pointer' }}
                                     >
                                         {!readOnly && onReorder && (
                                             <DragHandle
@@ -106,8 +112,7 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
                                         <img
                                             src={getImageUrlWithCacheBust(work.image)}
                                             alt={work.title}
-                                            onClick={() => onOpenGallery(index)}
-                                            style={{ cursor: 'pointer' }}
+                                            draggable={false}
                                             onError={(e) => {
                                                 const img = e.currentTarget;
                                                 const alternativePaths = [

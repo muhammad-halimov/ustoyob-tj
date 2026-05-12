@@ -69,11 +69,20 @@ const Grid: React.FC<PhotoGridProps> = ({
                 <div
                     key={photo.type === 'existing' ? `existing-${photo.id}` : `new-${index}`}
                     className={`${styles.photoItem} ${drag.draggingIndex === index ? styles.photoItemDragging : ''} ${drag.dragOverIndex === index ? styles.photoItemDragOver : ''}`}
+                    data-drag-index={index}
                     draggable={!disabled}
-                    onDragStart={() => drag.handleDragStart(index)}
-                    onDragEnd={() => drag.handleDragEnd()}
-                    onDragEnter={() => drag.handleDragEnter(index)}
-                    onDragOver={(e) => e.preventDefault()}
+                    onDragStart={!disabled ? () => drag.handleDragStart(index) : undefined}
+                    onDragEnter={!disabled ? () => drag.handleDragEnter(index) : undefined}
+                    onDragEnd={!disabled ? () => drag.handleDragEnd() : undefined}
+                    onDragOver={!disabled ? (e) => e.preventDefault() : undefined}
+                    onTouchStart={!disabled ? (e) => drag.handleTouchStart(index, e) : undefined}
+                    onClick={
+                        photo.type === 'existing' && onOpenGallery
+                            ? () => onOpenGallery(photos.slice(0, index).filter(p => p.type === 'existing').length)
+                            : onClickPhoto
+                                ? () => onClickPhoto(index)
+                                : undefined
+                    }
                 >
                     <DragHandle
                         className={styles.dragHandleOverlay}
@@ -84,16 +93,6 @@ const Grid: React.FC<PhotoGridProps> = ({
                         onContextMenu={(e) => e.preventDefault()}
                         src={photo.type === 'existing' ? getImageUrl(photo.image) : photo.previewUrl}
                         alt={`${photoAlt} ${index + 1}`}
-                        onClick={
-                            photo.type === 'existing' && onOpenGallery
-                                ? () => onOpenGallery(
-                                    photos.slice(0, index).filter(p => p.type === 'existing').length
-                                  )
-                                : onClickPhoto
-                                    ? () => onClickPhoto(index)
-                                    : undefined
-                        }
-                        style={(photo.type === 'existing' && onOpenGallery) || onClickPhoto ? { cursor: 'pointer' } : undefined}
                     />
                     <button
                         type="button"
