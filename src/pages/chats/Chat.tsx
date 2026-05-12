@@ -1836,13 +1836,21 @@ function Chat() {
                                 onFocus={() => {
                                     const meta = document.querySelector('meta[name="viewport"]');
                                     if (meta) meta.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1');
-                                    // Предотвращаем скролл страницы при фокусе на мобиле
+                                    // Блокируем скролл страницы пока открыта клавиатура
                                     const scrollY = window.scrollY;
-                                    requestAnimationFrame(() => window.scrollTo(0, scrollY));
+                                    document.body.style.position = 'fixed';
+                                    document.body.style.top = `-${scrollY}px`;
+                                    document.body.style.width = '100%';
                                 }}
                                 onBlur={() => {
                                     const meta = document.querySelector('meta[name="viewport"]');
                                     if (meta) meta.setAttribute('content', 'width=device-width, initial-scale=1');
+                                    // Восстанавливаем скролл
+                                    const scrollY = Math.abs(parseInt(document.body.style.top || '0', 10));
+                                    document.body.style.position = '';
+                                    document.body.style.top = '';
+                                    document.body.style.width = '';
+                                    window.scrollTo(0, scrollY);
                                 }}
                             />
 
