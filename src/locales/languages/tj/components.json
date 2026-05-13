@@ -469,6 +469,7 @@
   "statusModal": {
     "successTitle": "Муваффақият!",
     "errorTitle": "Хатогӣ",
+    "warningTitle": "Огоҳӣ",
     "infoTitle": "Маълумот",
     "button": "Фаҳмидам"
   }

@@ -92,10 +92,19 @@ const CreateEdit = () => {
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [showErrorModal, setShowErrorModal] = useState(false);
     const [errorModalMessage, setErrorModalMessage] = useState('');
+    const [errorModalType, setErrorModalType] = useState<'error' | 'warning'>('error');
     const [errorOnClosed, setErrorOnClosed] = useState<(() => void) | null>(null);
 
     const showError = (message: string, onClose?: () => void) => {
         setErrorModalMessage(message);
+        setErrorModalType('error');
+        setErrorOnClosed(onClose ? () => onClose : null);
+        setShowErrorModal(true);
+    };
+
+    const showWarning = (message: string, onClose?: () => void) => {
+        setErrorModalMessage(message);
+        setErrorModalType('warning');
         setErrorOnClosed(onClose ? () => onClose : null);
         setShowErrorModal(true);
     };
@@ -279,7 +288,8 @@ const CreateEdit = () => {
             setIsLoading(true);
             console.log('Fetching ticket data for ID:', ticketId);
             
-            const response = await fetch(`${API_BASE_URL}/api/tickets/${ticketId}`, {
+            const locale = getStorageItem('i18nextLng') || 'ru';
+            const response = await fetch(`${API_BASE_URL}/api/tickets/${ticketId}?locale=${locale}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                 }
@@ -364,18 +374,23 @@ const CreateEdit = () => {
 
         // Валидация
         if (!serviceData.title.trim() || !serviceData.description.trim() || (!negotiableBudget && !serviceData.budget)) {
-            showError(t('createEdit:fillRequired'));
+            showWarning(t('createEdit:fillRequired'));
+            return;
+        }
+
+        if (!selectedCategory) {
+            showWarning(t('createEdit:selectCategoryRequired'));
             return;
         }
         
         if (!addressValue.provinceId) {
-            showError(t('createEdit:selectRegionRequired'));
+            showWarning(t('createEdit:selectRegionRequired'));
             return;
         }
 
         const budgetValue = negotiableBudget ? 0 : parseInt(serviceData.budget, 10);
         if (!negotiableBudget && (isNaN(budgetValue) || budgetValue <= 0)) {
-            showError(t('createEdit:invalidBudget'));
+            showWarning(t('createEdit:invalidBudget'));
             return;
         }
 
@@ -383,14 +398,14 @@ const CreateEdit = () => {
             setIsSubmitting(true);
 
             if (!token) {
-                showError(t('createEdit:authRequired'));
+                showWarning(t('createEdit:authRequired'));
                 return;
             }
 
             // Создаем данные адреса
             const addressData = buildAddressData(addressValue);
             if (!addressData) {
-                showError(t('createEdit:addressError'));
+                showWarning(t('createEdit:addressError'));
                 return;
             }
 
@@ -404,7 +419,7 @@ const CreateEdit = () => {
                 const role = getUserRole();
 
                 if (!role) {
-                    showError(t('createEdit:genericError'));
+                    showWarning(t('createEdit:genericError'));
                     return;
                 }
 
@@ -424,7 +439,7 @@ const CreateEdit = () => {
                     master: role === 'master' ? `/api/users/${userId}` : null
                 };
 
-                const response = await fetch(`${API_BASE_URL}/api/tickets`, {
+                const response = await fetch(`${API_BASE_URL}/api/tickets?locale=${getStorageItem('i18nextLng') || 'ru'}`, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -436,7 +451,13 @@ const CreateEdit = () => {
 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    throw new Error(errorText || t('createEdit:genericError'));
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        throw new Error(errorJson.message || errorJson.detail || t('createEdit:genericError'));
+                    } catch (parseErr) {
+                        if (parseErr instanceof SyntaxError) throw new Error(t('createEdit:genericError'));
+                        throw parseErr;
+                    }
                 }
 
                 const ticketDataResponse = await response.json();
@@ -459,7 +480,7 @@ const CreateEdit = () => {
             } else {
                 // Режим редактирования
                 if (!serviceData?.id) {
-                    showError(t('createEdit:genericError'));
+                    showWarning(t('createEdit:genericError'));
                     return;
                 }
 
@@ -477,7 +498,7 @@ const CreateEdit = () => {
                 }
 
                 // 3. Перечитываем тикет, чтобы получить ID только что загруженных фото
-                const freshTicketResp = await fetch(`${API_BASE_URL}/api/tickets/${serviceData.id}`, {
+                const freshTicketResp = await fetch(`${API_BASE_URL}/api/tickets/${serviceData.id}?locale=${getStorageItem('i18nextLng') || 'ru'}`, {
                     headers: { 'Authorization': `Bearer ${token}` },
                 });
                 const freshTicket = freshTicketResp.ok ? await freshTicketResp.json() : null;
@@ -501,7 +522,7 @@ const CreateEdit = () => {
                     images: finalImages.map(img => ({ id: img.id, image: img.image })),
                 };
 
-                const response = await fetch(`${API_BASE_URL}/api/tickets/${serviceData.id}`, {
+                const response = await fetch(`${API_BASE_URL}/api/tickets/${serviceData.id}?locale=${getStorageItem('i18nextLng') || 'ru'}`, {
                     method: 'PATCH',
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -512,7 +533,13 @@ const CreateEdit = () => {
 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    throw new Error(errorText || t('createEdit:genericError'));
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        throw new Error(errorJson.message || errorJson.detail || t('createEdit:genericError'));
+                    } catch (parseErr) {
+                        if (parseErr instanceof SyntaxError) throw new Error(t('createEdit:genericError'));
+                        throw parseErr;
+                    }
                 }
 
                 // 6. Обновляем локальный стейт
@@ -720,7 +747,7 @@ const CreateEdit = () => {
                 message={isEditMode ? t('createEdit:successEdit') : t('createEdit:successCreate')}
             />
             <Status
-                type="error"
+                type={errorModalType}
                 isOpen={showErrorModal}
                 onClose={() => {
                     setShowErrorModal(false);

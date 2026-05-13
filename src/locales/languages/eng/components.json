@@ -471,6 +471,7 @@
   "statusModal": {
     "successTitle": "Success!",
     "errorTitle": "Error",
+    "warningTitle": "Warning",
     "infoTitle": "Information",
     "button": "OK"
   }

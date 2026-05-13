@@ -10,6 +10,7 @@ import { ROUTES } from '../../../app/routers/routes';
 import { getUserRole } from "../../../utils/auth.ts";
 import { useTranslation } from "react-i18next";
 import Auth from "../../../shared/ui/Modal/Auth/Auth.tsx";
+import Status from "../../../shared/ui/Modal/Status/Status.tsx";
 
 import "swiper/css";
 import "swiper/css/pagination";
@@ -277,30 +278,12 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
             )}
 
             {modalMessage && (
-                <div className={styles.modalOverlay} onClick={() => setModalMessage(null)}>
-                    <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
-                        <p>{modalMessage}</p>
-                        <button className={styles.btnClose} onClick={() => setModalMessage(null)}>
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <g clipPath="url(#clip0_551_2371)">
-                                    <g clipPath="url(#clip1_551_2371)">
-                                        <path d="M12 22.5C17.799 22.5 22.5 17.799 22.5 12C22.5 6.20101 17.799 1.5 12 1.5C6.20101 1.5 1.5 6.20101 1.5 12C1.5 17.799 6.20101 22.5 12 22.5Z" stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
-                                        <path d="M16.7705 7.22998L7.23047 16.77" stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
-                                        <path d="M7.23047 7.22998L16.7705 16.77" stroke="#101010" strokeWidth="2" strokeMiterlimit="10"/>
-                                    </g>
-                                </g>
-                                <defs>
-                                    <clipPath id="clip0_551_2371">
-                                        <rect width="24" height="24" fill="white"/>
-                                    </clipPath>
-                                    <clipPath id="clip1_551_2371">
-                                        <rect width="24" height="24" fill="white"/>
-                                    </clipPath>
-                                </defs>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
+                <Status
+                    type="warning"
+                    isOpen={!!modalMessage}
+                    onClose={() => setModalMessage(null)}
+                    message={modalMessage}
+                />
             )}
 
             <Auth

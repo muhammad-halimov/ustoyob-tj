@@ -729,7 +729,7 @@ function Chat() {
         };
 
         doPing();
-        heartbeatIntervalRef.current = setInterval(doPing, 3_000);
+        heartbeatIntervalRef.current = setInterval(doPing, 10_000);
         const chatsRefreshInterval = setInterval(() => fetchChats(true), 60_000);
 
         const onVisibility = () => {

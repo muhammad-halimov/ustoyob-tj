@@ -78,6 +78,12 @@
     }
   }
 
+  &.warning {
+    .title {
+      color: #e65100;
+    }
+  }
+
   &.info {
     .title {
       color: #0277bd;

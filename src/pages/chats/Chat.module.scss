@@ -550,12 +550,6 @@
     &:active {
       transform: scale(0.9);
     }
-
-    @media (max-width: 480px) {
-      width: 24px;
-      height: 24px;
-      font-size: 12px;
-    }
   }
 
   .deleteMsgBtn {

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import styles from './Status.module.scss';
 
 interface StatusModalProps {
-    type: 'success' | 'error' | 'info';
+    type: 'success' | 'error' | 'info' | 'warning';
     isOpen: boolean;
     onClose: () => void;
     title?: string;
@@ -29,6 +29,8 @@ const Status: React.FC<StatusModalProps> = ({
                 return t('statusModal.successTitle');
             case 'error':
                 return t('statusModal.errorTitle');
+            case 'warning':
+                return t('statusModal.warningTitle');
             case 'info':
                 return t('statusModal.infoTitle');
             default:
@@ -40,9 +42,11 @@ const Status: React.FC<StatusModalProps> = ({
         const base = import.meta.env.BASE_URL;
         switch (type) {
             case 'success':
-                return `${base}uspeh.png`;
+                return `${base}success.png`;
             case 'error':
                 return `${base}error.png`;
+            case 'warning':
+                return `${base}warning.png`;
             default:
                 return null;
         }

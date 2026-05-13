@@ -66,7 +66,7 @@ const [message, setMessage] = useState('');
 ## Иконки
 
 Компонент автоматически подставляет иконки:
-- Success: `/uspeh.png`
+- Success: `/success.png`
 - Error: `/error.png`
 - Info: без иконки
 
