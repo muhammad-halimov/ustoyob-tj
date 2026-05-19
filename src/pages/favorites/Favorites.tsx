@@ -21,7 +21,7 @@ import { IoListOutline, IoPeopleOutline } from 'react-icons/io5';
 import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore';
 import { SelectSearch } from '../../shared/ui/SelectSearch';
 import { getPageSize } from '../../utils/pageSize';
-import { parsePagedResponse, getTicketFullAddress } from '../../utils/apiHelper';
+import { parsePagedResponse, getTicketFullAddress, applyFavoriteSort } from '../../utils/apiHelper';
 import { formatTicketImageUrl, formatProfileImageUrl } from '../../utils/imageHelper';
 import type { User, Ticket, SortByType, SecondarySortByType, TimeFilterType, LocalStorageFavorites, FavoriteEntry, FavoriteTicketView, FavoriteUserView } from '../../entities';
 import { getSessionJSON } from '../../utils/storageHelper';
@@ -187,6 +187,7 @@ function Favorites() {
     const API_BASE_URL_REF = useRef(import.meta.env.VITE_API_BASE_URL);
     const fetchFavoritesRef = useRef<(pageOverride?: number) => Promise<void>>(null!);
     const isInitialLoadRef = useRef(true);
+    const isSortMountRef = useRef(false);
 
     // При смене страницы перезагружаем избранное
     useEffect(() => {
@@ -228,6 +229,20 @@ function Favorites() {
         usersPerPageRef.current = [];
         setPage(1);
     }, [activeTab]);
+
+    // При смене сортировки — сбрасываем на страницу 1 и перезагружаем
+    useEffect(() => {
+        if (!isSortMountRef.current) { isSortMountRef.current = true; return; }
+        ticketsPerPageRef.current = [];
+        usersPerPageRef.current = [];
+        appendFavRef.current = false;
+        if (pageRef.current !== 1) {
+            skipFavFetchRef.current = true;
+        }
+        setPage(1);
+        fetchFavoritesRef.current(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [sortBy, secondarySortBy]);
 
     // Ping current user presence + refresh online status every 30s
     useEffect(() => {
@@ -364,7 +379,9 @@ function Favorites() {
                 userRating: isMasterTicket ? (ticket.master?.rating || 0) : (ticket.author?.rating || 0),
                 userReviewCount: ticket.reviewsCount || 0,
                 responsesCount: ticket.responsesCount,
-                viewsCount: ticket.viewsCount
+                viewsCount: ticket.viewsCount,
+                photos: (ticket.images || ticket.ticketImages)?.map(img => formatTicketImageUrl(img.image)).filter(Boolean) as string[],
+                negotiableBudget: ticket.negotiableBudget,
             };
 
         } catch (error) {
@@ -431,7 +448,9 @@ function Favorites() {
                     if (userProfile) users.push(userProfile);
                 }
 
-                setFavoriteTicketViews(tickets);
+                const sortedUnauthTickets = applyFavoriteSort(tickets, sortBy);
+                const finalUnauthTickets = secondarySortBy !== 'none' ? applyFavoriteSort(sortedUnauthTickets, secondarySortBy) : sortedUnauthTickets;
+                setFavoriteTicketViews(finalUnauthTickets);
                 setFavoriteUserViews(users);
                 setIsLoading(false);
                 return;
@@ -485,7 +504,7 @@ function Favorites() {
                             userReviewCount: ticket.reviewsCount || 0,
                             responsesCount: ticket.responsesCount,
                             viewsCount: ticket.viewsCount,
-                            photos: ticket.images?.map(img => formatTicketImageUrl(img.image)),
+                            photos: (ticket.images || ticket.ticketImages)?.map(img => formatTicketImageUrl(img.image)).filter(Boolean) as string[],
                             negotiableBudget: ticket.negotiableBudget,
                         });
                     } else if (entry.type === 'user' && entry.user) {
@@ -509,19 +528,23 @@ function Favorites() {
                     }
                 }
 
+                // Sort per page so "Show More" appends sorted items at the end without re-mixing all pages
+                const sortedPage = applyFavoriteSort(tickets, sortBy);
+                const finalTickets = secondarySortBy !== 'none' ? applyFavoriteSort(sortedPage, secondarySortBy) : sortedPage;
+
                 if (appendFavRef.current) {
                     appendFavRef.current = false;
-                    setFavoriteTicketViews(prev => [...prev, ...tickets]);
+                    setFavoriteTicketViews(prev => [...prev, ...finalTickets]);
                     setFavoriteUserViews(prev => [...prev, ...users]);
-                    ticketsPerPageRef.current = [...ticketsPerPageRef.current, tickets.length];
+                    ticketsPerPageRef.current = [...ticketsPerPageRef.current, finalTickets.length];
                     usersPerPageRef.current = [...usersPerPageRef.current, users.length];
-                    setLikedTickets(prev => [...prev, ...tickets.map(t => t.id)]);
+                    setLikedTickets(prev => [...prev, ...finalTickets.map(t => t.id)]);
                 } else {
-                    setFavoriteTicketViews(tickets);
+                    setFavoriteTicketViews(finalTickets);
                     setFavoriteUserViews(users);
-                    ticketsPerPageRef.current = [tickets.length];
+                    ticketsPerPageRef.current = [finalTickets.length];
                     usersPerPageRef.current = [users.length];
-                    setLikedTickets(tickets.map(t => t.id));
+                    setLikedTickets(finalTickets.map(t => t.id));
                 }
                 setHasMore(fetchedHasMore);
             } else {
@@ -760,23 +783,6 @@ function Favorites() {
     const secondTabLabel = t('pages.favorites.users');
     const hasSecondTabItems = hasUsers;
 
-    // Применяем фильтры и сортировку к тикетам
-    const applySort = (tickets: FavoriteTicketView[], sort: SortByType): FavoriteTicketView[] => {
-        return [...tickets].sort((a, b) => {
-            switch (sort) {
-                case 'newest': return new Date(b.date).getTime() - new Date(a.date).getTime();
-                case 'oldest': return new Date(a.date).getTime() - new Date(b.date).getTime();
-                case 'price-asc': return (a.price || 0) - (b.price || 0);
-                case 'price-desc': return (b.price || 0) - (a.price || 0);
-                case 'reviews-asc': return (a.userReviewCount || 0) - (b.userReviewCount || 0);
-                case 'reviews-desc': return (b.userReviewCount || 0) - (a.userReviewCount || 0);
-                case 'rating-asc': return (a.userRating || 0) - (b.userRating || 0);
-                case 'rating-desc': return (b.userRating || 0) - (a.userRating || 0);
-                default: return 0;
-            }
-        });
-    };
-
     const filteredTickets = (() => {
         let result = [...favoriteTickets];
 
@@ -803,15 +809,6 @@ function Favorites() {
                 }
                 return true;
             });
-        }
-
-        // Основная сортировка
-        result = applySort(result, sortBy);
-
-        // Вторичная сортировка
-        if (secondarySortBy !== 'none') {
-            const primary = applySort(result, sortBy);
-            result = applySort(primary, secondarySortBy);
         }
 
         // Поиск

@@ -1,5 +1,5 @@
 import { getAuthToken, handleUnauthorized, getUserData } from './auth';
-import type { Ticket } from '../entities';
+import type { Ticket, SortByType, FavoriteTicketView } from '../entities';
 import type { TicketView } from '../entities';
 import { formatTicketImageUrl, formatProfileImageUrl } from './imageHelper';
 import { API_BASE_URL } from './config';
@@ -176,3 +176,19 @@ export const ticketToTicketView = (ticket: Ticket): TicketView => {
         negotiableBudget: ticket.negotiableBudget,
     };
 };
+
+export function applyFavoriteSort(tickets: FavoriteTicketView[], sort: SortByType): FavoriteTicketView[] {
+    return [...tickets].sort((a, b) => {
+        switch (sort) {
+            case 'newest': return new Date(b.date).getTime() - new Date(a.date).getTime();
+            case 'oldest': return new Date(a.date).getTime() - new Date(b.date).getTime();
+            case 'price-asc': return (a.price || 0) - (b.price || 0);
+            case 'price-desc': return (b.price || 0) - (a.price || 0);
+            case 'reviews-asc': return (a.userReviewCount || 0) - (b.userReviewCount || 0);
+            case 'reviews-desc': return (b.userReviewCount || 0) - (a.userReviewCount || 0);
+            case 'rating-asc': return (a.userRating || 0) - (b.userRating || 0);
+            case 'rating-desc': return (b.userRating || 0) - (a.userRating || 0);
+            default: return 0;
+        }
+    });
+}
