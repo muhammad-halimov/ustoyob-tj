@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { ROUTES } from '../routers/routes';
-import Header from "../../shared/ui/Header/Header.tsx";
+import Header from "../../shared/ui/Header/Header";
 import { Footer } from "../../shared/ui/Footer";
-import Auth from "../../shared/ui/Modal/Auth/Auth.tsx";
+import Auth from "../../shared/ui/Modal/Auth/Auth";
 import { setupTokenRefresh, isAuthenticated } from '../../utils/auth';
 
 export default function Layout() {

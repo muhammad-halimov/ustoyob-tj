@@ -1,18 +1,18 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
-import {MainPage} from '../../pages/main/main/Main.tsx';
-import Layout from "../layouts/Layout.tsx";
-import Favorites from "../../pages/favorites/Favorites.tsx";
-import Chat from "../../pages/chats/Chat.tsx";
-import Profile from "../../pages/profile/Profile.tsx";
-import {Ticket} from "../../pages/tickets/ticket/Ticket.tsx";
-import CreateEdit from "../../pages/tickets/crud/CreateEdit.tsx";
-import MyTickets from "../../pages/tickets/me/MyTickets.tsx";
-import Category from "../../pages/tickets/category/Category.tsx";
-import OAuthCallbackPage from "../../pages/OAuth/OAuthCallbackPage.tsx";
-import OAuthRedirectPage from "../../pages/OAuth/OAuthRedirectPage.tsx";
-import TelegramCallbackPage from "../../pages/OAuth/TelegramCallbackPage.tsx";
+import {MainPage} from '../../pages/main/main/Main';
+import Layout from "../layouts/Layout";
+import Favorites from "../../pages/favorites/Favorites";
+import Chat from "../../pages/chats/Chat";
+import Profile from "../../pages/profile/Profile";
+import {Ticket} from "../../pages/tickets/ticket/Ticket";
+import CreateEdit from "../../pages/tickets/crud/CreateEdit";
+import MyTickets from "../../pages/tickets/me/MyTickets";
+import Category from "../../pages/tickets/category/Category";
+import OAuthCallbackPage from "../../pages/OAuth/OAuthCallbackPage";
+import OAuthRedirectPage from "../../pages/OAuth/OAuthRedirectPage";
+import TelegramCallbackPage from "../../pages/OAuth/TelegramCallbackPage";
 import { Legal } from "../../pages/legal";
-import ConfirmAccountPage from "../../pages/auth/ConfirmAccountPage.tsx";
+import ConfirmAccountPage from "../../pages/auth/ConfirmAccountPage";
 import { ROUTE_PATTERNS } from './routes';
 
 const router = createBrowserRouter([

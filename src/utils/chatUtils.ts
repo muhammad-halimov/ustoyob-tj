@@ -1,64 +1,9 @@
 import { getAuthToken, handleUnauthorized } from './auth';
+import type { Chat } from '../entities';
+import type { HydraResponse } from '../entities';
+import type { User } from '../entities';
+import { API_BASE_URL } from './config';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
-// Интерфейсы для типизации
-export interface UserData {
-    id: number;
-    email: string;
-    name: string;
-    surname: string;
-    image?: string;
-    approved?: boolean;
-    active?: boolean;
-}
-
-export interface MessageData {
-    id: number;
-    text: string;
-    author: UserData;
-    createdAt: string;
-    readAt?: string;
-    isRead?: boolean;
-}
-
-export interface ChatData {
-    id: number;
-    author: UserData;
-    replyAuthor: UserData;
-    messages: MessageData[];
-    ticket?: {
-        id: number;
-        title: string;
-    };
-}
-
-export interface ChatCreationData {
-    replyAuthor: string;
-    ticket?: string;
-}
-
-export interface HydraResponse<T> {
-    'hydra:member': T[];
-    'hydra:totalItems': number;
-    'hydra:view'?: {
-        'hydra:first': string;
-        'hydra:last': string;
-        'hydra:next'?: string;
-        'hydra:previous'?: string;
-    };
-}
-
-// Интерфейсы для управления модалками
-export interface ModalCallbacks {
-    showSuccessModal: (message: string) => void;
-    showErrorModal: (message: string) => void;
-    showInfoModal: (message: string) => void;
-}
-
-// Глобальная переменная для хранения колбэков модалок
-
-// Функция для инициализации модалок
 export const initChatModals = () => {
 };
 
@@ -75,7 +20,7 @@ const extractId = (obj: any): number | undefined => {
 };
 
 // Функция для показа модалок с авто-закрытием
-export const createChatWithAuthor = async (replyAuthorId: number, ticketId?: number): Promise<ChatData | null> => {
+export const createChatWithAuthor = async (replyAuthorId: number, ticketId?: number): Promise<Chat | null> => {
     const token = getAuthToken();
     if (!token) {
         console.log('No auth token available');
@@ -99,7 +44,7 @@ export const createChatWithAuthor = async (replyAuthorId: number, ticketId?: num
     }
 
     // Создаем новый чат
-    const chatData: ChatCreationData = {
+    const chatData: { replyAuthor: string; ticket?: string } = {
         replyAuthor: `/api/users/${replyAuthorId}`
     };
 
@@ -137,7 +82,7 @@ export const createChatWithAuthor = async (replyAuthorId: number, ticketId?: num
         const rawResponse = await response.json();
         console.log('Chat created successfully:', rawResponse);
         rawResponse.id = extractId(rawResponse);
-        return rawResponse as ChatData;
+        return rawResponse as Chat;
     }
 
     const errorText = await response.text();
@@ -178,7 +123,7 @@ export const checkUserStatus = async (userId: number): Promise<{ approved: boole
         }
 
         if (response.ok) {
-            const userData: UserData = await response.json();
+            const userData: User = await response.json();
             return {
                 approved: userData.approved !== false,
                 active: userData.active !== false
@@ -191,7 +136,7 @@ export const checkUserStatus = async (userId: number): Promise<{ approved: boole
     }
 };
 
-const findExistingChat = async (replyAuthorId: number): Promise<ChatData | null> => {
+const findExistingChat = async (replyAuthorId: number): Promise<Chat | null> => {
     try {
         const getChats = async (): Promise<Response> => {
             return fetch(`${API_BASE_URL}/api/chats/me`, {
@@ -216,19 +161,19 @@ const findExistingChat = async (replyAuthorId: number): Promise<ChatData | null>
 
         if (response.ok) {
             const responseData = await response.json();
-            let chatsArray: ChatData[] = [];
+            let chatsArray: Chat[] = [];
 
             // Обрабатываем разные форматы ответа
             if (Array.isArray(responseData)) {
                 chatsArray = responseData;
             } else if (responseData && typeof responseData === 'object') {
                 // Если это Hydra-ответ
-                if ('hydra:member' in responseData && Array.isArray((responseData as HydraResponse<ChatData>)['hydra:member'])) {
-                    const hydraResponse = responseData as HydraResponse<ChatData>;
+                if ('hydra:member' in responseData && Array.isArray((responseData as HydraResponse<Chat>)['hydra:member'])) {
+                    const hydraResponse = responseData as HydraResponse<Chat>;
                     chatsArray = hydraResponse['hydra:member'];
                 } else if (responseData.id) {
                     // Если это один объект
-                    chatsArray = [responseData as ChatData];
+                    chatsArray = [responseData as Chat];
                 }
             }
 

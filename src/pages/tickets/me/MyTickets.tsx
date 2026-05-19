@@ -2,156 +2,39 @@ import {useState, useEffect, useCallback} from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../app/routers/routes';
-import { getAuthToken, fetchCurrentUser } from '../../../utils/auth.ts';
+import { getAuthToken, fetchCurrentUser } from '../../../utils/auth';
 import { getStorageItem } from '../../../utils/storageHelper';
 import { useLanguageChange } from '../../../hooks';
 import styles from './MyTickets.module.scss';
 import { PageLoader } from '../../../widgets/PageLoader';
 import { EmptyState } from '../../../widgets/EmptyState';
-import Auth from '../../../shared/ui/Modal/Auth/Auth.tsx';
-import { Card } from '../../../shared/ui/Ticket/Card/Card.tsx';
-import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
+import Auth from '../../../shared/ui/Modal/Auth/Auth';
+import { Card } from '../../../shared/ui/Ticket/Card/Card';
+import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
 import Status from '../../../shared/ui/Modal/Status';
 import { Tabs } from '../../../shared/ui/Tabs';
 import { SectionActions } from '../../../shared/ui/SectionActions';
 import { IoCheckmarkCircleOutline, IoCloseCircleOutline } from 'react-icons/io5';
-import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore.tsx';
+import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore';
 import { SelectSearch } from '../../../shared/ui/SelectSearch';
-import { getPageSize } from '../../../utils/pageSize.ts';
-import { parsePagedResponse } from '../../../utils/apiHelper';
+import { getPageSize } from '../../../utils/pageSize';
+import { parsePagedResponse, ticketToTicketView } from '../../../utils/apiHelper';
 import { useShowMore } from '../../../hooks';
+import type { Ticket, TicketView, User } from '../../../entities';
+import { API_BASE_URL } from '../../../utils/config';
 
-interface ApiUser {
-    id: number;
-    email: string;
-    name: string;
-    surname: string;
-    phone1: string;
-    phone2: string;
-    image?: string;
-    isOnline?: boolean;
-    lastSeen?: string;
-    approved?: boolean;
-    active?: boolean;
-}
-
-interface Ticket {
-    id: number;
-    title: string;
-    description: string;
-    notice: string;
-    budget: number;
-    active: boolean;
-    category: {
-        id: number;
-        title: string;
-        image: string;
-    };
-    subcategory?: {
-        id: number;
-        title: string;
-        image: string;
-    } | null;
-    author: {
-        id: number;
-        email: string;
-        name: string;
-        surname: string;
-        image: string;
-        imageExternalUrl?: string | null;
-    };
-    master: {
-        id: number;
-        email: string;
-        name: string;
-        surname: string;
-        image: string;
-        imageExternalUrl?: string | null;
-    } | null;
-    images: Array<{
-        id: number;
-        image: string;
-    }>;
-    unit: {
-        id: number;
-        title: string;
-    };
-    service: boolean;
-    addresses: {
-        id: number;
-        title?: string;
-        province?: {
-            id: number;
-            title?: string;
-        };
-        district?: {
-            id: number;
-            title?: string;
-            image?: string | null;
-        };
-        city?: {
-            id: number;
-            title?: string;
-            image?: string | null;
-        };
-        suburb?: {
-            id: number;
-            title?: string;
-        } | null;
-        settlement?: {
-            id: number;
-            title?: string;
-        } | null;
-        village?: {
-            id: number;
-            title?: string;
-        } | null;
-        community?: {
-            id: number;
-            title?: string;
-        } | null;
-    }[];
-    createdAt: string;
-    updatedAt: string;
-    negotiableBudget?: boolean;
-}
-
-interface FormattedTicket {
-    id: number;
-    title: string;
-    price: number;
-    unit: string;
-    description: string;
-    address: string;
-    date: string;
-    author: string;
-    master: string;
-    timeAgo: string;
-    category: string;
-    subcategory?: string;
-    status: string;
-    authorId: number;
-    masterId: number;
-    type: 'client' | 'master';
-    authorImage?: string;
-    active: boolean;
-    photos?: string[];
-    negotiableBudget?: boolean;
-}
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 function MyTickets() {
     const navigate = useNavigate();
     const { t } = useTranslation(['myTickets', 'common']);
     
-    const [currentUser, setCurrentUser] = useState<ApiUser | null>(null);
-    const [allTickets, setAllTickets] = useState<FormattedTicket[]>([]);
-    const [displayedTickets, setDisplayedTickets] = useState<FormattedTicket[]>([]);
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
+    const [allTickets, setAllTickets] = useState<TicketView[]>([]);
+    const [displayedTickets, setDisplayedTickets] = useState<TicketView[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isContentLoading, setIsContentLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<'active' | 'inactive'>('active');
-    const { page, setPage, appendRef: appendTicketsRef, skipFetchRef: skipTicketsFetchRef, applyFetch: applyTicketsFetch, showMoreProps: ticketsShowMoreProps } = useShowMore<FormattedTicket>(setAllTickets);
+    const { page, setPage, appendRef: appendTicketsRef, skipFetchRef: skipTicketsFetchRef, applyFetch: applyTicketsFetch, showMoreProps: ticketsShowMoreProps } = useShowMore<TicketView>(setAllTickets);
     const [activeTabTotal, setActiveTabTotal] = useState(0);
     const [inactiveTabTotal, setInactiveTabTotal] = useState(0);
 
@@ -214,14 +97,14 @@ function MyTickets() {
     }, [activeTab]);
 
     // Загрузка текущего пользователя через централизованный кэш (auth.ts)
-    const getCurrentUser = useCallback(async (): Promise<ApiUser | null> => {
+    const getCurrentUser = useCallback(async (): Promise<User | null> => {
         const userData = await fetchCurrentUser();
         if (!userData) {
             setIsLoading(false);
             return null;
         }
-        setCurrentUser(userData as unknown as ApiUser);
-        return userData as unknown as ApiUser;
+        setCurrentUser(userData as unknown as User);
+        return userData as unknown as User;
     }, []);
 
     const fetchMyTickets = async () => {
@@ -282,39 +165,14 @@ function MyTickets() {
 
                 console.log('My tickets:', myTickets);
 
-                const formattedTickets: FormattedTicket[] = myTickets.map(ticket => {
-                    // Для услуг специалиста (service = true) автор - это специалист (user в API)
-                    // Для заказов заказчика (service = false) автор - это заказчик (author в API)
-                    const isService = ticket.service;
-                    const authorData = isService ? ticket.master : ticket.author;
-                    const authorName = `${authorData?.surname || ''} ${authorData?.name || ''}`.trim() ||
-                        (isService ? t('myTickets:master') : t('myTickets:client'));
-                    
+                const formattedTickets: TicketView[] = myTickets.map(ticket => {
+                    const base = ticketToTicketView(ticket);
                     return {
-                        id: ticket.id,
-                        title: ticket.title || t('myTickets:noTitle'),
-                        price: ticket.budget || 0,
-                        unit: ticket.unit?.title || 'N/A',
-                        description: ticket.description || t('myTickets:noDescription'),
-                        address: getFullAddress(ticket),
-                        date: ticket.createdAt,
-                        author: authorName,
-                        master: `${ticket.master?.surname || ''} ${ticket.master?.name || ''}`.trim() ||
-                            (ticket.service ? t('myTickets:master') : t('myTickets:client')),
-                        authorId: ticket.author?.id || 0,
+                        ...base,
+                        master: `${ticket.master?.surname || ''} ${ticket.master?.name || ''}`.trim()
+                            || (ticket.service ? t('myTickets:master') : t('myTickets:client')),
                         masterId: ticket.master?.id || 0,
-                        timeAgo: ticket.createdAt,
-                        category: ticket.category?.title || 'другое',
-                        subcategory: ticket.subcategory?.title,
                         status: ticket.active ? t('myTickets:statusActive') : t('myTickets:statusDone'),
-                        type: ticket.service ? 'master' : 'client',
-                        authorImage: (() => {
-                            const src = authorData?.image || (authorData as any)?.imageExternalUrl;
-                            return src ? formatProfileImageUrl(src) : undefined;
-                        })(),
-                        active: ticket.active,
-                        photos: ticket.images?.map(img => formatTicketImageUrl(img.image)),
-                        negotiableBudget: ticket.negotiableBudget
                     };
                 });
 
@@ -341,78 +199,6 @@ function MyTickets() {
             setIsContentLoading(false);
             setIsLoading(false);
         }
-    };
-
-    const formatProfileImageUrl = (imagePath: string): string => {
-        if (!imagePath) return '';
-
-        if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) {
-            return `${API_BASE_URL}${imagePath}`;
-        } else if (imagePath.startsWith('http')) {
-            return imagePath;
-        } else {
-            return `${API_BASE_URL}/uploads/users/${imagePath}`;
-        }
-    };
-
-    const formatTicketImageUrl = (imagePath: string): string => {
-        if (!imagePath) return '';
-        if (imagePath.startsWith('http')) return imagePath;
-        if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) return `${API_BASE_URL}${imagePath}`;
-        return `${API_BASE_URL}/uploads/tickets/${imagePath}`;
-    };
-
-    const getFullAddress = (ticketData: Ticket): string => {
-        if (!ticketData.addresses || ticketData.addresses.length === 0) {
-            return t('myTickets:addrNotSpecified');
-        }
-
-        const address = ticketData.addresses[0];
-        const parts: string[] = [];
-
-        // Провинция (область)
-        if (address.province?.title) {
-            parts.push(address.province.title);
-        }
-
-        // Город
-        if (address.city?.title) {
-            parts.push(address.city.title);
-        }
-
-        // Район
-        if (address.district?.title) {
-            parts.push(address.district.title);
-        }
-
-        // Пригород (если есть)
-        if (address.suburb?.title) {
-            parts.push(address.suburb.title);
-        }
-
-        // Поселение (если есть)
-        if (address.settlement?.title) {
-            parts.push(address.settlement.title);
-        }
-
-        // Деревня (если есть)
-        if (address.village?.title) {
-            parts.push(address.village.title);
-        }
-
-        // Сообщество (если есть)
-        if (address.community?.title) {
-            parts.push(address.community.title);
-        }
-
-        // Конкретный адрес
-        if (address.title) {
-            parts.push(address.title);
-        }
-
-        const result = parts.length > 0 ? parts.join(', ') : t('myTickets:addrNotSpecified');
-        console.log('Formatted address:', result);
-        return result;
     };
 
     const handleCardClick = useCallback((ticketId?: number, authorId?: number, masterId?: number) => {
@@ -587,8 +373,8 @@ function MyTickets() {
                             showEditButton={true}
                             onEditClick={(e) => handleEditTicket(e, ticket.id)}
                             showActiveToggle={true}
-                            isActive={ticket.active}
-                            onActiveToggle={(e) => handleToggleTicketActive(e, ticket.id, ticket.active)}
+                            isActive={ticket.active ?? false}
+                            onActiveToggle={(e) => handleToggleTicketActive(e, ticket.id, ticket.active ?? false)}
                             photos={ticket.photos}
                             authorImage={ticket.authorImage}
                             negotiableBudget={ticket.negotiableBudget}

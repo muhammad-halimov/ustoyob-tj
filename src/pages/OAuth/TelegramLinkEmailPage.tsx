@@ -12,20 +12,8 @@ import {
     setUserEmail,
     setUserOccupation
 } from '../../utils/auth';
-
-interface LinkEmailResponse {
-    user?: {
-        id: number;
-        email: string;
-        name: string;
-        surname: string;
-        roles: string[];
-        occupation?: Array<{ id: number; title: string; [key: string]: unknown }>;
-        [key: string]: unknown;
-    };
-    token?: string;
-    error?: string;
-}
+import type { BackendAuthCallbackResponse } from '../../entities';
+import { API_BASE_URL } from '../../utils/config';
 
 const TelegramLinkEmailPage = () => {
     const navigate = useNavigate();
@@ -35,8 +23,6 @@ const TelegramLinkEmailPage = () => {
     const { theme } = useTheme();
     const isDark = theme === 'dark';
     const { t } = useTranslation('common');
-
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     useEffect(() => {
         const tempToken = sessionStorage.getItem('telegramTempToken');
@@ -66,7 +52,7 @@ const TelegramLinkEmailPage = () => {
                 body: JSON.stringify({ temp_token: tempToken, email }),
             });
 
-            const data: LinkEmailResponse = await response.json();
+            const data: BackendAuthCallbackResponse = await response.json();
 
             if (data.error === 'invalid_token') {
                 sessionStorage.removeItem('telegramTempToken');
@@ -144,7 +130,7 @@ const TelegramLinkEmailPage = () => {
                 body: JSON.stringify({ temp_token: tempToken }),
             });
 
-            const data: LinkEmailResponse = await response.json();
+            const data: BackendAuthCallbackResponse = await response.json();
 
             if (data.token && data.user) {
                 setAuthToken(data.token);

@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ticketTranslator, ticketTranslatorSync } from '../utils/textHelper';
 
-type TextLanguage = 'ru' | 'tj' | 'eng';
+import type { Language } from '../types/common';
+type TextLanguage = Language;
 
 /**
  * Хук для автоматического перевода текста при смене языка

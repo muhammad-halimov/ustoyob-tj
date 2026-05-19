@@ -1,39 +1,10 @@
 import { useState, useCallback } from 'react';
 import { makeApiRequest } from '../utils/apiHelper';
-import { getAuthToken } from '../utils/auth.ts';
+import { getAuthToken } from '../utils/auth';
 import { uploadPhotos } from '../utils/imageHelper';
+import type { Review } from '../entities';
 
-export interface Review {
-    id: number;
-    master?: {
-        id: number;
-        name?: string;
-        surname?: string;
-        patronymic?: string;
-        image?: string;
-    };
-    client?: {
-        id: number;
-        name?: string;
-        surname?: string;
-        patronymic?: string;
-        image?: string;
-    };
-    rating: number;
-    description: string;
-    ticket?: {
-        id: number;
-        title: string;
-        service?: boolean;
-        active?: boolean;
-    };
-    images: Array<{
-        id: number;
-        image: string;
-    }>;
-    createdAt?: string;
-    type?: string;
-}
+export type { Review };
 
 export const useReviews = () => {
     const [reviews, setReviews] = useState<Review[]>([]);

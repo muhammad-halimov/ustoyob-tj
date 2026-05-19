@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ROUTES } from '../../../app/routers/routes.ts';
+import { ROUTES } from '../../../app/routers/routes';
 import styles from "./Footer.module.scss";
 
 function Footer() {
@@ -25,6 +25,6 @@ function Footer() {
             </div>
         </footer>
     );
-};
+}
 
 export default Footer;

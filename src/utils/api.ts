@@ -1,47 +1,16 @@
 import { getAuthToken } from './auth';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
-// Интерфейсы для типизации
-export interface ApiUser {
-    id: number;
-    email: string;
-    name: string;
-    surname: string;
-    roles: string[];
-    approved?: boolean;
-    active?: boolean;
-    image?: string;
-    occupation?: Array<{
-        id: number;
-        title: string;
-        [key: string]: unknown;
-    }>;
-    createdAt?: string;
-    updatedAt?: string;
-    [key: string]: unknown;
-}
-
-export interface HydraResponse<T> {
-    'hydra:member': T[];
-    'hydra:totalItems': number;
-    'hydra:view'?: {
-        'hydra:first': string;
-        'hydra:last': string;
-        'hydra:next'?: string;
-        'hydra:previous'?: string;
-    };
-    [key: string]: unknown;
-}
+import type { User } from '../entities';
+import type { HydraResponse } from '../entities';
+import { API_BASE_URL } from './config';
 
 export interface UserWithRole {
-    user: ApiUser | null;
+    user: User | null;
     role: 'master' | 'client' | null;
 }
 
-type ApiResponseData = ApiUser | ApiUser[] | HydraResponse<ApiUser>;
+type ApiResponseData = User | User[] | HydraResponse<User>;
 
-export const fetchUserById = async (userId: number): Promise<ApiUser | null> => {
+export const fetchUserById = async (userId: number): Promise<User | null> => {
     try {
         const token = getAuthToken();
         const headers: HeadersInit = {
@@ -57,7 +26,7 @@ export const fetchUserById = async (userId: number): Promise<ApiUser | null> => 
         });
 
         if (response.ok) {
-            const userData: ApiUser = await response.json();
+            const userData: User = await response.json();
             console.log(`User ${userId} found:`, userData);
             return userData;
         }
@@ -70,7 +39,7 @@ export const fetchUserById = async (userId: number): Promise<ApiUser | null> => 
     }
 };
 
-const findUserInList = async (userId: number, headers: HeadersInit): Promise<ApiUser | null> => {
+const findUserInList = async (userId: number, headers: HeadersInit): Promise<User | null> => {
     try {
         // Пробуем разные варианты фильтрации
         const urls = [
@@ -88,7 +57,7 @@ const findUserInList = async (userId: number, headers: HeadersInit): Promise<Api
                     const data: ApiResponseData = await response.json();
                     const usersArray = extractUsersArray(data);
 
-                    const user = usersArray.find((u: ApiUser) => u.id === userId);
+                    const user = usersArray.find((u: User) => u.id === userId);
                     if (user) {
                         console.log(`Found user ${userId} in list`);
                         return user;
@@ -107,20 +76,18 @@ const findUserInList = async (userId: number, headers: HeadersInit): Promise<Api
     }
 };
 
-const extractUsersArray = (data: ApiResponseData): ApiUser[] => {
+const extractUsersArray = (data: ApiResponseData): User[] => {
     if (Array.isArray(data)) {
-        return data as ApiUser[];
+        return data as User[];
     }
 
     if (data && typeof data === 'object') {
-        // Если это Hydra-ответ
-        if ('hydra:member' in data && Array.isArray((data as HydraResponse<ApiUser>)['hydra:member'])) {
-            return (data as HydraResponse<ApiUser>)['hydra:member'];
+        if ('hydra:member' in data && Array.isArray((data as HydraResponse<User>)['hydra:member'])) {
+            return (data as HydraResponse<User>)['hydra:member'];
         }
 
-        // Если это один объект пользователя
-        if ('id' in data && typeof (data as ApiUser).id === 'number') {
-            return [data as ApiUser];
+        if ('id' in data) {
+            return [data as User];
         }
     }
 
@@ -146,18 +113,18 @@ export const fetchUserWithRole = async (userId: number): Promise<UserWithRole> =
     return { user, role };
 };
 
-export const getUserFullName = (user: ApiUser): string => {
+export const getUserFullName = (user: User): string => {
     const name = user.name || '';
     const surname = user.surname || '';
     const fullName = `${surname} ${name}`.trim();
     return fullName || user.email || 'Пользователь';
 };
 
-export const isUserApproved = (user: ApiUser): boolean => {
+export const isUserApproved = (user: User): boolean => {
     return user.approved === true;
 };
 
-export const isUserActive = (user: ApiUser): boolean => {
+export const isUserActive = (user: User): boolean => {
     return user.active !== false; // Считаем активным, если явно не указано false
 };
 

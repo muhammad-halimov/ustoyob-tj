@@ -1,3 +1,3 @@
-export { Preview } from './Preview.tsx';
-export { usePreview } from './usePreview.ts';
-export type { UsePhotoGalleryProps } from './usePreview.ts';
+export { Preview } from './Preview';
+export { usePreview } from './usePreview';
+export type { UsePhotoGalleryProps } from './usePreview';

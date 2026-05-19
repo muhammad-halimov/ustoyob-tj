@@ -1,1 +1,1 @@
-export { MainReviewsSection } from './MainReviewsSection.tsx';
+export { MainReviewsSection } from './MainReviewsSection';

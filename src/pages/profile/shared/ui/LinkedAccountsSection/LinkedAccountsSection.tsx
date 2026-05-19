@@ -2,21 +2,17 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ProfileSection } from '../ProfileSection';
 import styles from './LinkedAccountsSection.module.scss';
-
-export interface LinkedProvider {
-    provider: 'google' | 'facebook' | 'instagram' | 'telegram';
-    linkedAt: string;
-}
+import type { OAuthProvider } from '../../../../../entities';
 
 interface LinkedAccountsSectionProps {
-    providers: LinkedProvider[];
+    providers: OAuthProvider[];
     loading: boolean;
     readOnly: boolean;
     onLink: (provider: string) => void;
     onUnlink: (provider: string) => void;
 }
 
-const ALL_PROVIDERS: LinkedProvider['provider'][] = ['google', 'facebook', 'instagram', 'telegram'];
+const ALL_PROVIDERS: OAuthProvider['provider'][] = ['google', 'facebook', 'instagram', 'telegram'];
 
 interface ProviderItem {
     id: string;
@@ -24,7 +20,7 @@ interface ProviderItem {
 
 const PROVIDER_ITEMS: ProviderItem[] = ALL_PROVIDERS.map(p => ({ id: p }));
 
-const ProviderIcon: React.FC<{ provider: LinkedProvider['provider'] }> = ({ provider }) => {
+const ProviderIcon: React.FC<{ provider: OAuthProvider['provider'] }> = ({ provider }) => {
     if (provider === 'google') {
         return (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -99,7 +95,7 @@ export const LinkedAccountsSection: React.FC<LinkedAccountsSectionProps> = ({
             isLoading={loading}
             emptyTitle=""
             renderViewItem={(providerItem) => {
-                const provider = providerItem.id as LinkedProvider['provider'];
+                const provider = providerItem.id as OAuthProvider['provider'];
                 const linkedEntry = providers.find(p => p.provider === provider);
                 const isLinked = linkedSet.has(provider);
                 const isLastLinked = isOnlyOneLinked && isLinked;
@@ -114,7 +110,7 @@ export const LinkedAccountsSection: React.FC<LinkedAccountsSectionProps> = ({
                             </div>
                             <div className={`${styles.provider_status} ${isLinked ? styles.linked : styles.unlinked}`}>
                                 {isLinked
-                                    ? `${t('oauth.linked')} ${formatDate(linkedEntry!.linkedAt)}`
+                                    ? `${t('oauth.linked')} ${linkedEntry?.linkedAt ? formatDate(linkedEntry.linkedAt) : ''}`
                                     : t('oauth.notLinked')}
                             </div>
                         </div>

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { getAuthToken, fetchCurrentUser } from "../../utils/auth";
 import { ROUTES } from '../../app/routers/routes';
 import { smartNameTranslator } from '../../utils/textHelper';
-import Auth from '../../shared/ui/Modal/Auth/Auth.tsx';
+import Auth from '../../shared/ui/Modal/Auth/Auth';
 import Feedback from '../../shared/ui/Modal/Feedback';
 import { PageLoader } from '../../widgets/PageLoader';
 import { EmptyState } from '../../widgets/EmptyState';
@@ -11,101 +11,22 @@ import styles from "./Chat.module.scss";
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { IoSend, IoAttach, IoImages, IoArchiveOutline, IoArrowUpCircleOutline, IoWarningOutline, IoPencilSharp, IoTrashSharp, IoArrowUndoSharp, IoEye, IoChatbubblesOutline } from "react-icons/io5";
 import { Preview, usePreview } from '../../shared/ui/Photo/Preview';
-import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
+import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
 import { ActionsDropdown } from '../../widgets/ActionsDropdown';
 import { uploadPhotos } from '../../utils/imageHelper';
 import { Tabs } from '../../shared/ui/Tabs';
 import Grid, { PhotoItem, buildOrderedImagePayload } from '../../shared/ui/Photo/Grid';
 import { Clear } from '../../shared/ui/Button/Clear/Clear';
-import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore.tsx';
+import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore';
 import { SelectSearch } from '../../shared/ui/SelectSearch';
-import { getPageSize } from '../../utils/pageSize.ts';
+import { getPageSize } from '../../utils/pageSize';
 import { parsePagedResponse } from '../../utils/apiHelper';
 import { useShowMore } from '../../hooks';
 import { Marquee } from '../../shared/ui/Text/Marquee';
-
-interface Message {
-    id: number;
-    sender: "me" | "other";
-    name: string;
-    text: string;
-    time: string;
-    type?: 'text' | 'image';
-    imageUrl?: string;
-    status?: 'pending' | 'uploading' | 'uploaded' | 'error';
-    file?: File;
-    progress?: number;
-    isLocal?: boolean;
-    createdAt?: string;
-    replyTo?: { id: number; text: string; name: string };
-    edited?: boolean;
-    readAt?: string | null;
-    images?: { id: number; url: string; name: string }[]; // вложенные фото сообщения
-}
-
-interface ApiUser {
-    id: number;
-    email: string;
-    name: string;
-    surname: string;
-    phone1: string;
-    phone2: string;
-    image?: string;
-    isOnline?: boolean;
-    lastSeen?: string;
-    approved?: boolean;
-    active?: boolean;
-}
-
-interface ApiMessage {
-    id: number;
-    description: string;
-    author: ApiUser;
-    chat?: { id: number } | null;
-    createdAt?: string;
-    updatedAt?: string;
-    readAt?: string | null;
-    replyTo?: { id: number; description: string; author: ApiUser } | null;
-    images?: UploadedImage[];
-}
-
-interface ApiTicket {
-    id: number;
-    title: string;
-    service?: boolean;
-    active?: boolean;
-}
-
-interface ApiChat {
-    id: number;
-    author: ApiUser;
-    replyAuthor: ApiUser;
-    messages: ApiMessage[];
-    images?: UploadedImage[]; // все фото чата (плоский список от бэкенда)
-    ticket?: ApiTicket;
-    createdAt?: string;
-    updatedAt?: string;
-    active?: boolean;
-    isArchived?: boolean;
-    archivedBy?: ApiUser;
-    archivedAt?: string;
-}
-
-interface UploadedImage {
-    id: number;
-    author: ApiUser;
-    image: string;
-    createdAt?: string;
-}
-
-// Интерфейс для миниатюр фото в чате
-interface ChatImageThumbnail {
-    id: number;
-    imageUrl: string;
-    thumbnailUrl?: string;
-    author: ApiUser;
-    createdAt: string;
-}
+import type { User as ApiUser } from '../../entities/api/User';
+import type { Chat as ApiChat, ChatMessage as ApiMessage } from '../../entities/api/Chat';
+import type { ChatImageView as ChatImageThumbnail, ChatMessageView as Message } from '../../entities/view/Chat';
+import { API_BASE_URL } from '../../utils/config';
 
 function Chat() {
     const { t, i18n } = useTranslation(['components', 'common']);
@@ -150,7 +71,6 @@ function Chat() {
     const heartbeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const chatsRef = useRef<ApiChat[]>([]);
     const messageInputRef = useRef<HTMLInputElement>(null);
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
     const MERCURE_HUB_URL = import.meta.env.VITE_MERCURE_HUB_URL;
 
     const [searchParams] = useSearchParams();
@@ -1055,8 +975,8 @@ function Chat() {
             const fullName = getTranslatedFullName(interlocutor).toLowerCase();
             const originalFullName = `${interlocutor.surname} ${interlocutor.name}`.toLowerCase();
             const email = interlocutor.email?.toLowerCase() || '';
-            const phone1 = interlocutor.phone1?.toLowerCase() || '';
-            const phone2 = interlocutor.phone2?.toLowerCase() || '';
+            const phone1 = (interlocutor.phone1 as string | undefined)?.toLowerCase() || '';
+            const phone2 = (interlocutor.phone2 as string | undefined)?.toLowerCase() || '';
             const ticketTitle = chat.ticket?.title?.toLowerCase() || '';
             const lastMessageText = chat.messages?.length
                 ? chat.messages[chat.messages.length - 1].description?.toLowerCase() || ''
@@ -1477,7 +1397,7 @@ function Chat() {
                                             <Marquee text={getTranslatedFullName(interlocutor)} alwaysScroll />
                                         </div>
                                         <div className={styles.specialty}>
-                                            <Marquee text={chat.ticket?.title || interlocutor.email} alwaysScroll />
+                                            <Marquee text={chat.ticket?.title || interlocutor.email || ''} alwaysScroll />
                                         </div>
                                         <div className={styles.lastMessage}><Marquee text={getLastMessageText(chat)} alwaysScroll /></div>
                                     </div>

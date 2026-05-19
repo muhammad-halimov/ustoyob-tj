@@ -1,36 +1,38 @@
 import {type ChangeEvent, useCallback, useEffect, useRef, useState, Dispatch, SetStateAction} from 'react';
 import {Navigate, useNavigate, useParams} from 'react-router-dom';
-import {getAuthToken, getUserData, getUserRole, handleUnauthorized, logout} from '../../utils/auth.ts';
+import {getAuthToken, getUserData, getUserRole, handleUnauthorized, logout} from '../../utils/auth';
 import {ROUTES} from '../../app/routers/routes';
 import styles from './Profile.module.scss';
 import {useTranslation} from 'react-i18next';
 import {useTheme} from '../../contexts';
 import {useLanguageChange, useShowMore} from '../../hooks';
-import {getStorageItem} from '../../utils/storageHelper.ts';
+import {getStorageItem} from '../../utils/storageHelper';
 import {createChatWithAuthor} from '../../utils/chatUtils';
 import { uploadPhotos } from '../../utils/imageHelper';
 
 import {usePreview} from '../../shared/ui/Photo/Preview';
 import {AddressValue, buildAddressData} from '../../shared/ui/Address/Selector';
 import {PageLoader} from '../../widgets/PageLoader';
-import {getOccupations} from '../../utils/dataCache.ts';
-import {smartNameTranslator} from '../../utils/textHelper.ts';
+import {getOccupations} from '../../utils/dataCache';
+import {smartNameTranslator} from '../../utils/textHelper';
 
 // Импорты из entities
 import {
     ApiResponse,
     Education,
-    EducationApiData,
-    GalleryApiData,
-    GalleryImageApiData,
+    EducationItem,
+    Gallery,
     Occupation,
     ProfileData,
     Review as ReviewType,
-    ReviewApiData,
-    Service,
-    UserAddressApiData,
-    UserApiData
+    Ticket,
+    WorkExample,
+    SocialNetwork,
+    User,
+    Address,
 } from '../../entities';
+import type { Image } from '../../entities';
+import { API_BASE_URL } from '../../utils/config';
 
 // Новые компоненты из shared/ui
 import {ProfileHeader} from './shared/ui/ProfileHeader';
@@ -43,40 +45,20 @@ import {WorkAreasSection} from './shared/ui/WorkAreasSection';
 import {ServicesSection} from './shared/ui/ServicesSection';
 import {ReviewsSection} from './shared/ui/ReviewsSection';
 import {LinkedAccountsSection} from './shared/ui/LinkedAccountsSection';
-import type {LinkedProvider} from './shared/ui/LinkedAccountsSection';
-import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
+import type { OAuthProvider } from '../../entities';
+import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
 import Status from '../../shared/ui/Modal/Status';
 import Feedback from '../../shared/ui/Modal/Feedback';
-import Auth from '../../shared/ui/Modal/Auth/Auth.tsx';
-import { getAuthorAvatar } from '../../utils/imageHelper.ts';
-import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore.tsx';
-import { getPageSize } from '../../utils/pageSize.ts';
+import Auth from '../../shared/ui/Modal/Auth/Auth';
+import { getAuthorAvatar } from '../../utils/imageHelper';
+import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore';
+import { getPageSize } from '../../utils/pageSize';
 import { parsePagedResponse } from '../../utils/apiHelper';
-
-// Интерфейс для социальных сетей с API
-interface LocalAvailableSocialNetwork {
-    id: number;
-    network: string;
-}
-
-interface LocalSocialNetwork {
-    id: string;
-    network: string;
-    handle: string;
-}
-
-interface LocalAddress {
-    id: string;
-    displayText: string;
-    addressValue: AddressValue;
-}
-
-interface LocalPhone {
-    id: string;
-    number: string;
-    type: 'tj' | 'international';
-    main?: boolean;
-}
+import type { AvailableSocialNetwork as LocalAvailableSocialNetwork, UISocialNetwork } from '../../entities';
+import type { AddressFormData as LocalAddress } from '../../entities';
+import type { Phone as LocalPhone } from '../../entities';
+/** Alias for local use */
+type LocalSocialNetwork = UISocialNetwork;
 
 function Profile() {
     const navigate = useNavigate();
@@ -146,9 +128,9 @@ function Profile() {
     const specialtyInputRef = useRef<HTMLSelectElement>(null);
     // Refs that mirror server-side array state to avoid redundant GET requests before PATCH
     // and prevent read-modify-write race conditions on rapid mutations.
-    const rawEducationRef = useRef<EducationApiData[]>([]);
-    const rawPhonesRef = useRef<{ id: number; phone: string; main: boolean }[]>([]);
-    const rawAddressesRef = useRef<UserAddressApiData[]>([]);
+    const rawEducationRef = useRef<Education[]>([]);
+    const rawPhonesRef = useRef<LocalPhone[]>([]);
+    const rawAddressesRef = useRef<Address[]>([]);
     const [editingSocialNetwork, setEditingSocialNetwork] = useState<string | null>(null);
     const [socialNetworks, setSocialNetworks] = useState<LocalSocialNetwork[]>([]);
     const [socialNetworkEditValue, setSocialNetworkEditValue] = useState('');
@@ -180,10 +162,8 @@ function Profile() {
     const [editingPhone, setEditingPhone] = useState<string | null>(null);
     const [phoneForm, setPhoneForm] = useState({ number: '', type: 'tj' as 'tj' | 'international' });
 
-    const [linkedProviders, setLinkedProviders] = useState<LinkedProvider[]>([]);
+    const [linkedProviders, setLinkedProviders] = useState<OAuthProvider[]>([]);
     const [linkedProvidersLoading, setLinkedProvidersLoading] = useState(false);
-
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     // Загружаем привязанные OAuth-провайдеры (только для своей страницы)
     useEffect(() => {
@@ -659,7 +639,7 @@ function Profile() {
                 // Обновляем профиль
                 setProfileData(prev => prev ? {
                     ...prev,
-                    socialNetworks: updatedNetworks
+                    socialNetworks: updatedNetworks as unknown as SocialNetwork[]
                 } : null);
 
                 console.log('Социальные сети успешно обновлены');
@@ -707,7 +687,7 @@ function Profile() {
     // ===== Функции для работы с адресами =====
     
     // Вспомогательная функция для преобразования адреса из формата API (с объектами) в формат для отправки (с IRI)
-    const convertAddressToIRI = (address: UserAddressApiData): any => {
+    const convertAddressToIRI = (address: Address): any => {
         const iriAddress: any = {};
         
         // Сохраняем id если есть
@@ -840,7 +820,7 @@ function Profile() {
                 throw new Error('Failed to fetch current user data');
             }
 
-            const userData: UserApiData = await userResponse.json();
+            const userData: User = await userResponse.json();
             const currentAddresses = userData.addresses || [];
             
             // Преобразуем AddressValue в формат API
@@ -852,12 +832,12 @@ function Profile() {
             // Определяем, обновляем существующий или создаем новый
             const addressIndex = editingAddress.startsWith('new-') 
                 ? -1 
-                : currentAddresses.findIndex((addr: UserAddressApiData) => addr.id?.toString() === editingAddress);
+                : currentAddresses.findIndex((addr: Address) => addr.id?.toString() === editingAddress);
 
             let updatedAddresses: any[];
             if (addressIndex >= 0) {
                 // Обновляем существующий - преобразуем все адреса в IRI формат
-                updatedAddresses = currentAddresses.map((addr: UserAddressApiData, idx: number) => {
+                updatedAddresses = currentAddresses.map((addr: Address, idx: number) => {
                     if (idx === addressIndex) {
                         // Заменяем редактируемый адрес на новые данные
                         return {
@@ -872,7 +852,7 @@ function Profile() {
             } else {
                 // Добавляем новый - преобразуем существующие адреса в IRI формат
                 updatedAddresses = [
-                    ...currentAddresses.map((addr: UserAddressApiData) => convertAddressToIRI(addr)),
+                    ...currentAddresses.map((addr: Address) => convertAddressToIRI(addr)),
                     addressData
                 ];
             }
@@ -901,7 +881,7 @@ function Profile() {
                 });
 
                 if (updatedUserResponse.ok) {
-                    const updatedUserData: UserApiData = await updatedUserResponse.json();
+                    const updatedUserData: User = await updatedUserResponse.json();
                     const updatedAddresses = updatedUserData.addresses || [];
 
                     // Преобразуем адреса в формат для отображения
@@ -965,15 +945,15 @@ function Profile() {
             }
 
             // Use the cached server-state ref — avoids a redundant GET and race conditions
-            const currentAddresses = rawAddressesRef.current;
+            const currentAddresses: Address[] = rawAddressesRef.current;
 
             // Фильтруем адрес с указанным ID и преобразуем в IRI формат
             const updatedAddresses = currentAddresses
-                .filter((addr: UserAddressApiData) => addr.id?.toString() !== addressId)
-                .map((addr: UserAddressApiData) => convertAddressToIRI(addr));
+                .filter((addr: Address) => addr.id?.toString() !== addressId)
+                .map((addr: Address) => convertAddressToIRI(addr));
 
             // Update ref synchronously before PATCH
-            rawAddressesRef.current = currentAddresses.filter((addr: UserAddressApiData) => addr.id?.toString() !== addressId);
+rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.toString() !== addressId);
 
             // Отправляем на сервер
             const updateResponse = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
@@ -1033,14 +1013,14 @@ function Profile() {
             return;
         }
 
-        const hasTj = profileData.phones.some(p => p.type === 'tj');
+        const hasTj = profileData.phones.some(p => p.countryCode === '+992');
         setPhoneForm({ number: hasTj ? '+' : '+992', type: hasTj ? 'international' : 'tj' });
         setEditingPhone('new');
     };
 
     const handleEditPhoneStart = (phone: LocalPhone) => {
-        setEditingPhone(phone.id);
-        setPhoneForm({ number: phone.number, type: phone.type });
+        setEditingPhone(String(phone.id));
+        setPhoneForm({ number: phone.phone || '', type: phone.countryCode === '+992' ? 'tj' : 'international' });
     };
 
     const handleEditPhoneCancel = () => {
@@ -1300,13 +1280,13 @@ function Profile() {
                 throw new Error(`Failed to fetch user data: ${response.status} ${response.statusText}`);
             }
 
-            const userData: UserApiData = await response.json();
+            const userData: User = await response.json();
             console.log('User data received:', userData);
 
             // Sync server-state refs so subsequent mutations don't need a redundant GET
             rawEducationRef.current = userData.education || [];
-            rawPhonesRef.current = (userData.phones as { id: number; phone: string; main: boolean }[]) || [];
-            rawAddressesRef.current = (userData.addresses as UserAddressApiData[]) || [];
+            rawPhonesRef.current = (userData.phones as LocalPhone[]) || [];
+            rawAddressesRef.current = (userData.addresses as Address[]) || [];
 
             // Обновляем текущего пользователя из ответа (только для приватного профиля)
             if (!readOnly) {
@@ -1349,7 +1329,7 @@ function Profile() {
                 if (typeof part === 'object' && part?.title) return String(part.title);
                 return '';
             };
-            const buildAddressText = (addr: UserAddressApiData): string => {
+            const buildAddressText = (addr: Address): string => {
                 const parts = [
                     resolveAddr(addr.province, provinceMap),
                     resolveAddr(addr.city, cityMap),
@@ -1373,7 +1353,7 @@ function Profile() {
                 : null;
 
             // Получаем все адреса пользователя
-            const userAddresses = userData.addresses as UserAddressApiData[] | undefined;
+            const userAddresses = userData.addresses as Address[] | undefined;
 
             // Строим displayText для каждого адреса через lookup maps (переведённые названия)
             const loadedAddresses: LocalAddress[] = [];
@@ -1430,47 +1410,22 @@ function Profile() {
             // Обновляем состояние социальных сетей
             setSocialNetworks(loadedSocialNetworks);
 
-            // Преобразуем телефоны из коллекции phones
-            const loadedPhones: LocalPhone[] = ((userData.phones as any[]) || []).map((p: any) => ({
-                id: String(p.id),
-                number: p.phone,
-                type: (p.countryCode === '+992' ? 'tj' : 'international') as 'tj' | 'international',
-                main: p.main ?? false,
-            })).sort((a: LocalPhone, b: LocalPhone) => (b.main ? 1 : 0) - (a.main ? 1 : 0));
+            // Загружаем телефоны напрямую из backend-ответа (Phone entity)
+            const loadedPhones: LocalPhone[] = ((userData.phones as LocalPhone[]) || [])
+                .sort((a: LocalPhone, b: LocalPhone) => ((b.main ?? false) ? 1 : 0) - ((a.main ?? false) ? 1 : 0));
 
             // localizedOccupations уже получены выше через Promise.all
             setOccupations(localizedOccupations);
 
-            // Хелпер: по occupation (объект или IRI) вернуть переведённое название из localized списка
-            const resolveOccupationTitle = (occ: any): string => {
-                if (!occ) return '';
-                // Всегда ищем по ID в переведённом списке
-                const id = typeof occ === 'object' ? occ.id
-                         : typeof occ === 'string' ? parseInt(occ.split('/').pop() || '0')
-                         : null;
-                if (id) {
-                    const found = localizedOccupations.find(o => o.id === id);
-                    if (found) return found.title;
-                }
-                // Fallback на встроенный title
-                if (typeof occ === 'object' && occ.title) return String(occ.title);
-                return '';
-            };
-
             const transformedData: ProfileData = {
-                id: userData.id.toString(),
+                id: userData.id,
                 fullName: [userData.surname, userData.name, userData.patronymic]
                     .filter(Boolean)
                     .join(' ') || t('profile:defaultFullName'),
                 email: userData.email || undefined,
                 gender: (userData as any).gender || (userData as any).sex || undefined,
                 dateOfBirth: userData.dateOfBirth || undefined,
-                specialty: Array.isArray(userData.occupation) 
-                    ? userData.occupation.map(resolveOccupationTitle).filter(Boolean).join(', ') || t('profile:defaultSpecialty')
-                    : t('profile:defaultSpecialty'),
-                specialties: Array.isArray(userData.occupation) 
-                    ? userData.occupation.map(resolveOccupationTitle).filter(Boolean) 
-                    : [],
+                specialties: Array.isArray(userData.occupation) ? (userData.occupation as Occupation[]) : [],
                 rating: userData.rating || 0,
                 reviews: 0,
                 avatar: avatarUrl,
@@ -1480,7 +1435,7 @@ function Profile() {
                 addresses: loadedAddresses,
                 canWorkRemotely: userData.atHome || false,
                 services: [],
-                socialNetworks: loadedSocialNetworks,
+                socialNetworks: loadedSocialNetworks as unknown as SocialNetwork[],
                 phones: loadedPhones,
                 isOnline: (userData as any).isOnline ?? false,
                 lastSeen: (userData as any).lastSeen ?? null,
@@ -1507,11 +1462,10 @@ function Profile() {
             // При ошибке устанавливаем пустой массив социальных сетей
             setSocialNetworks([]);
             setProfileData({
-                id: '',
+                id: 0,
                 fullName: t('profile:defaultFullName'),
                 email: undefined,
                 gender: undefined,
-                specialty: t('profile:defaultSpecialty'),
                 specialties: [],
                 rating: 0,
                 reviews: 0,
@@ -1530,12 +1484,12 @@ function Profile() {
         }
     };
 
-    const extractAddressPart = async (addressPart: string | { title: string }): Promise<{ title: string } | null> => {
+    const extractAddressPart = async (addressPart: string | { title?: string; [key: string]: unknown }): Promise<{ title: string } | null> => {
         try {
             if (typeof addressPart === 'string') {
                 return { title: addressPart };
-            } else if (addressPart && typeof addressPart === 'object' && 'title' in addressPart) {
-                return { title: addressPart.title };
+            } else if (addressPart && typeof addressPart === 'object' && 'title' in addressPart && addressPart.title) {
+                return { title: String(addressPart.title) };
             }
             return null;
         } catch (error) {
@@ -1544,7 +1498,7 @@ function Profile() {
         }
     };
 
-    const getFullAddressText = async (address: UserAddressApiData): Promise<string> => {
+    const getFullAddressText = async (address: Address): Promise<string> => {
         const addressParts: string[] = [];
 
         try {
@@ -1657,10 +1611,10 @@ function Profile() {
 
             const reviewsRaw = await response.json();
             console.log('Raw reviews data:', reviewsRaw);
-            const reviewsArray: ReviewApiData[] = Array.isArray(reviewsRaw)
+            const reviewsArray: ReviewType[] = Array.isArray(reviewsRaw)
                 ? reviewsRaw
                 : (reviewsRaw?.['hydra:member'] ?? (reviewsRaw?.id ? [reviewsRaw] : []));
-            const { hasMore: reviewsHasMoreFlag } = parsePagedResponse<ReviewApiData>(reviewsArray, reviewsPage, pageSize);
+            const { hasMore: reviewsHasMoreFlag } = parsePagedResponse<ReviewType>(reviewsArray, reviewsPage, pageSize);
 
             console.log(`Processing ${reviewsArray.length} reviews`);
             if (reviewsArray.length > 0) {
@@ -1711,7 +1665,7 @@ function Profile() {
 
                         const nameParts = getFullNameParts(profileData.fullName);
                         const user = masterData || {
-                            id: parseInt(profileData.id),
+                            id: profileData.id,
                             email: '',
                             name: nameParts.firstName,
                             surname: nameParts.lastName,
@@ -1735,15 +1689,14 @@ function Profile() {
                             id: review.id,
                             rating: review.rating || 0,
                             description: review.description || '',
-                            forReviewer: review.forClient || false,
                             services: {
                                 id: review.ticket?.id || 0,
                                 title: String(serviceTitle) // Ensure it's always a string
                             },
                             ticket: review.ticket,
                             images: review.images || [],
-                            user: user,
-                            reviewer: reviewer,
+                            master: user,
+                            client: reviewer,
                             vacation: String(serviceTitle), // Ensure string
                             worker: clientData ?
                                 smartNameTranslator(
@@ -1768,8 +1721,8 @@ function Profile() {
                 // Для специалистов фильтруем по user.id (получатели отзывов)
                 // Для заказчиков фильтруем по reviewer.id (оставляющие отзывы) 
                 const userReviews = userRole === 'client' 
-                    ? transformedReviews.filter(r => r.reviewer.id === parseInt(profileData.id))
-                    : transformedReviews.filter(r => r.user.id === parseInt(profileData.id));
+                    ? transformedReviews.filter(r => r.client?.id === profileData.id)
+                    : transformedReviews.filter(r => r.master?.id === profileData.id);
                 const newRating = calculateAverageRating(userReviews);
 
                 console.log('User reviews for rating calculation:', userReviews);
@@ -1875,7 +1828,7 @@ function Profile() {
 
             console.log(`Processing ${servicesArray.length} services`);
             
-            const transformedServices: Service[] = servicesArray.map(service => {
+            const transformedServices: Ticket[] = servicesArray.map(service => {
                 // Преобразуем изображения в правильный формат
                 let serviceImages: Array<{id: number; image: string}> = [];
                 if (service.images && Array.isArray(service.images)) {
@@ -1893,9 +1846,10 @@ function Profile() {
                     title: service.title || t('components:app.service'),
                     description: service.description || '',
                     budget: service.budget || 0,
-                    price: service.budget || 0, // deprecated, используется budget
+                    price: service.budget || 0,
                     negotiableBudget: service.negotiableBudget ?? false,
                     unit: service.unit || 'сомони',
+                    service: service.service ?? true,
                     createdAt: service.createdAt,
                     active: service.active !== false,
                     images: serviceImages,
@@ -1999,7 +1953,7 @@ function Profile() {
         }
     };
 
-    const getUserGallery = async (token: string): Promise<GalleryApiData | null> => {
+    const getUserGallery = async (token: string): Promise<Gallery | null> => {
         try {
             console.log('Fetching user gallery via /api/galleries/me...');
             const response = await fetch(`${API_BASE_URL}/api/galleries/me`, {
@@ -2018,16 +1972,16 @@ function Profile() {
             const galleriesData = await response.json();
             console.log('Galleries data:', galleriesData);
             
-            let galleryArray: GalleryApiData[] = [];
+            let galleryArray: Gallery[] = [];
 
             if (Array.isArray(galleriesData)) {
                 galleryArray = galleriesData;
             } else if (galleriesData && typeof galleriesData === 'object') {
-                const apiResponse = galleriesData as ApiResponse<GalleryApiData>;
+                const apiResponse = galleriesData as ApiResponse<Gallery>;
                 if (apiResponse['hydra:member'] && Array.isArray(apiResponse['hydra:member'])) {
                     galleryArray = apiResponse['hydra:member'];
-                } else if ((galleriesData as GalleryApiData).id) {
-                    galleryArray = [galleriesData as GalleryApiData];
+                } else if ((galleriesData as Gallery).id) {
+                    galleryArray = [galleriesData as Gallery];
                 }
             }
 
@@ -2044,7 +1998,7 @@ function Profile() {
         }
     };
 
-    const handleDeleteWorkExample = async (workExampleId: string) => {
+    const handleDeleteWorkExample = async (workExampleId: number) => {
         console.log('Delete triggered for ID:', workExampleId);
 
         if (!profileData?.id) return;
@@ -2077,7 +2031,7 @@ function Profile() {
             console.log('Found gallery ID for deletion:', galleryId);
 
             // Проверяем, есть ли изображение в галерее
-            const imageToDelete = gallery.images?.find(img => img.id.toString() === workExampleId);
+            const imageToDelete = gallery.images?.find(img => img.id === workExampleId);
 
             if (!imageToDelete) {
                 console.log('Image not found in gallery:', workExampleId);
@@ -2099,7 +2053,7 @@ function Profile() {
 
             // Формируем новый массив изображений без удаляемого
             const updatedImages = gallery.images
-                ?.filter(img => img.id.toString() !== workExampleId)
+                ?.filter(img => img.id !== workExampleId)
                 .map(img => ({ image: img.image })) || [];
 
             console.log(`Filtered images: ${gallery.images?.length} -> ${updatedImages.length}`);
@@ -2308,7 +2262,7 @@ function Profile() {
                 }
 
                 const data = await response.json();
-                let galleryArray: GalleryApiData[] = [];
+                let galleryArray: Gallery[] = [];
                 if (Array.isArray(data)) {
                     galleryArray = data;
                 } else if (data?.['hydra:member']) {
@@ -2320,11 +2274,11 @@ function Profile() {
                 const gallery = galleryArray[0] ?? null;
                 if (gallery?.images && gallery.images.length > 0) {
                     const workExamplesLocal = await Promise.all(
-                        gallery.images.map(async (image: GalleryImageApiData) => {
+                        gallery.images.map(async (image: Image) => {
                             const imageUrl = getImageUrl(image.image);
                             const exists = await checkImageExists(imageUrl).catch(() => false);
                             return {
-                                id: image.id?.toString() || Date.now().toString(),
+                                id: image.id ?? Date.now(),
                                 image: exists ? imageUrl : '../fonTest6.png',
                                 title: 'Пример работы'
                             };
@@ -2347,7 +2301,7 @@ function Profile() {
                 if (gallery.images && gallery.images.length > 0) {
                     console.log(`Found ${gallery.images.length} images in gallery`);
                     const workExamplesLocal = await Promise.all(
-                        gallery.images.map(async (image: GalleryImageApiData) => {
+                        gallery.images.map(async (image: Image) => {
                             const imagePath = image.image;
                             const imageUrl = getImageUrl(imagePath);
 
@@ -2359,14 +2313,14 @@ function Profile() {
                                 console.log(`Image exists: ${exists}`);
 
                                 return {
-                                    id: image.id?.toString() || Date.now().toString(),
+                                    id: image.id ?? Date.now(),
                                     image: exists ? imageUrl : "../fonTest6.png",
                                     title: "Пример работы"
                                 };
                             } catch (error) {
                                 console.error(`Error checking image ${image.id}:`, error);
                                 return {
-                                    id: image.id?.toString() || Date.now().toString(),
+                                    id: image.id ?? Date.now(),
                                     image: "../fonTest6.png",
                                     title: "Пример работы"
                                 };
@@ -2435,7 +2389,7 @@ function Profile() {
         return `${day}.${month}.${year}, ${randomCity}`;
     };
 
-    const transformEducation = (education: EducationApiData[], occupationsList?: { id: number; title: string }[]): Education[] => {
+    const transformEducation = (education: Education[], occupationsList?: { id: number; title: string }[]): EducationItem[] => {
         const resolvedOccupations = occupationsList && occupationsList.length > 0 ? occupationsList : occupations;
         return education.map(edu => {
             let specialty = '';
@@ -2502,33 +2456,8 @@ function Profile() {
             }
 
             // Обработка специальности
-            if (updatedData.specialty !== undefined) {
-                const specialtyTitles = updatedData.specialty.split(',').map(title => title.trim());
-                const occupationIris: string[] = [];
-
-                for (const title of specialtyTitles) {
-                    const occupation = occupations.find(occ => occ.title === title);
-                    if (occupation) {
-                        occupationIris.push(`/api/occupations/${occupation.id}`);
-                    } else {
-                        const similarOccupation = occupations.find(occ =>
-                            occ.title.toLowerCase().includes(title.toLowerCase()) ||
-                            title.toLowerCase().includes(occ.title.toLowerCase())
-                        );
-                        if (similarOccupation) {
-                            occupationIris.push(`/api/occupations/${similarOccupation.id}`);
-                        } else {
-                            console.warn(`Occupation not found for title: "${title}"`);
-                        }
-                    }
-                }
-
-                if (occupationIris.length > 0) {
-                    apiData.occupation = occupationIris;
-                } else {
-                    console.warn('No valid occupations found for:', updatedData.specialty);
-                    apiData.occupation = [];
-                }
+            if (updatedData.specialties !== undefined) {
+                apiData.occupation = updatedData.specialties.map(o => `/api/occupations/${o.id}`);
             }
 
             // Обработка пола
@@ -2574,18 +2503,7 @@ function Profile() {
 
             console.log('User data updated successfully');
             
-            // Ensure specialties is always an array of strings when updating state
-            const safeUpdatedData = { ...updatedData };
-            if (safeUpdatedData.specialties) {
-                safeUpdatedData.specialties = safeUpdatedData.specialties.map(s =>
-                    typeof s === 'string' ? s : (typeof s === 'object' && s && 'title' in s ? String((s as any).title) : '')
-                ).filter(Boolean);
-            }
-            
-            setProfileData(prev => prev ? {
-                ...prev,
-                ...safeUpdatedData
-            } : null);
+            setProfileData(prev => prev ? { ...prev, ...updatedData } : null);
 
         } catch (error) {
             console.error('Error updating user data:', error);
@@ -2595,7 +2513,7 @@ function Profile() {
     };
 
     // Функция для нормализации всех элементов образования - преобразует occupation в IRI формат
-    const normalizeEducationArray = (educationArray: EducationApiData[]): EducationApiData[] => {
+    const normalizeEducationArray = (educationArray: Education[]): Education[] => {
         return educationArray.map(edu => {
             let occupationIri: string | undefined = undefined;
             
@@ -2623,7 +2541,7 @@ function Profile() {
         });
     };
 
-    const updateEducation = async (educationId: string, updatedEducation: Omit<Education, 'id'>) => {
+    const updateEducation = async (educationId: string, updatedEducation: Omit<EducationItem, 'id'>) => {
     if (!profileData?.id) return;
 
     try {
@@ -2830,16 +2748,16 @@ function Profile() {
 
     // ===== Обработчики переупорядочивания =====
 
-    const handleReorderEducation = async (newEducation: Education[]) => {
+    const handleReorderEducation = async (newEducation: EducationItem[]) => {
         if (!profileData?.id) return;
         setProfileData(prev => prev ? { ...prev, education: newEducation } : null);
         const token = getAuthToken();
         if (!token) return;
         try {
-            const serverEducation: EducationApiData[] = rawEducationRef.current;
+            const serverEducation: Education[] = rawEducationRef.current;
             const reordered = newEducation
-                .map(localEdu => serverEducation.find((se: EducationApiData) => se.id?.toString() === localEdu.id))
-                .filter(Boolean) as EducationApiData[];
+                .map(localEdu => serverEducation.find((se: Education) => se.id?.toString() === localEdu.id))
+                .filter(Boolean) as Education[];
             const normalized = normalizeEducationArray(reordered);
             rawEducationRef.current = normalized;
             await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
@@ -2858,14 +2776,14 @@ function Profile() {
         const token = getAuthToken();
         if (!token) return;
         try {
-            const serverAddresses: UserAddressApiData[] = rawAddressesRef.current;
+            const serverAddresses: Address[] = rawAddressesRef.current;
             const reordered = newAddresses
-                .map(localAddr => serverAddresses.find((sa: UserAddressApiData) => sa.id?.toString() === localAddr.id))
+                .map(localAddr => serverAddresses.find((sa: Address) => sa.id?.toString() === localAddr.id))
                 .filter(Boolean)
-                .map(addr => convertAddressToIRI(addr as UserAddressApiData));
+                .map(addr => convertAddressToIRI(addr as Address));
             rawAddressesRef.current = newAddresses
-                .map(localAddr => serverAddresses.find((sa: UserAddressApiData) => sa.id?.toString() === localAddr.id))
-                .filter((a): a is UserAddressApiData => !!a);
+                .map(localAddr => serverAddresses.find((sa: Address) => sa.id?.toString() === localAddr.id))
+                .filter((a): a is Address => !!a);
             await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
                 method: 'PATCH',
                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/merge-patch+json' },
@@ -2886,8 +2804,8 @@ function Profile() {
 
         try {
             const phonesPayload = phonesWithMain.map(p => ({
-                id: parseInt(p.id, 10),
-                phone: p.number,
+                id: p.id,
+                phone: p.phone,
                 main: p.main,
             }));
 
@@ -2905,7 +2823,7 @@ function Profile() {
         }
     };
 
-    const handleReorderWorkExamples = async (newWorkExamples: { id: string; image: string; title: string }[]) => {
+    const handleReorderWorkExamples = async (newWorkExamples: WorkExample[]) => {
         setProfileData(prev => prev ? { ...prev, workExamples: newWorkExamples } : null);
 
         const token = getAuthToken();
@@ -2917,7 +2835,7 @@ function Profile() {
 
             const newOrderIds = newWorkExamples.map(w => w.id);
             const reordered = newOrderIds
-                .map(id => gallery.images?.find(img => img.id?.toString() === id))
+                .map(id => gallery.images?.find(img => img.id === id))
                 .filter(Boolean);
 
             await fetch(`${API_BASE_URL}/api/galleries/${gallery.id}`, {
@@ -2933,7 +2851,7 @@ function Profile() {
         }
     };
 
-    const handleReorderServices = async (newServices: Service[]) => {
+    const handleReorderServices = async (newServices: Ticket[]) => {
         setProfileData(prev => prev ? { ...prev, services: newServices } : null);
         const token = getAuthToken();
         if (!token) return;
@@ -2962,14 +2880,7 @@ function Profile() {
         } else if (field === 'specialty') {
             // Инициализируем массив специальностей из готового массива или парсим строку
             // Обязательно преобразуем в строки на случай, если API вернул объекты
-            let currentSpecialties: string[] = [];
-            if (profileData?.specialties && profileData.specialties.length > 0) {
-                currentSpecialties = profileData.specialties.map(s => 
-                    typeof s === 'string' ? s : (typeof s === 'object' && s && 'title' in s ? String((s as any).title) : '')
-                ).filter(Boolean);
-            } else if (profileData?.specialty) {
-                currentSpecialties = profileData.specialty.split(',').map(s => s.trim()).filter(Boolean);
-            }
+            const currentSpecialties = profileData?.specialties?.map(o => o.title).filter(Boolean) ?? [];
             setSelectedSpecialties(currentSpecialties);
             setTempValue('');
         } else if (field === 'gender') {
@@ -2995,25 +2906,15 @@ function Profile() {
             return;
         }
 
-        // Ensure all specialties are strings
-        const safeSpecialties = selectedSpecialties.map(s => 
-            typeof s === 'string' ? s : (typeof s === 'object' && s && 'title' in s ? String((s as any).title) : '')
-        ).filter(Boolean);
-
-        const specialtyString = safeSpecialties.join(', ');
+        const safeOccupations = selectedSpecialties
+            .map(title => occupations.find(o => o.title === title))
+            .filter((o): o is Occupation => !!o);
         
         // Обновляем данные в API
-        await updateUserData({ 
-            specialty: specialtyString,
-            specialties: safeSpecialties 
-        });
+        await updateUserData({ specialties: safeOccupations });
         
         // Обновляем локальное состояние профиля
-        setProfileData(prev => prev ? {
-            ...prev,
-            specialty: specialtyString,
-            specialties: safeSpecialties
-        } : null);
+        setProfileData(prev => prev ? { ...prev, specialties: safeOccupations } : null);
         
         setEditingField(null);
         setTempValue('');
@@ -3034,7 +2935,7 @@ function Profile() {
         }
 
         const currentValue = field === 'fullName' ? profileData.fullName :
-            field === 'specialty' ? profileData.specialty :
+            field === 'specialty' ? profileData.specialties?.map(o => o.title).join(', ') ?? '' :
             field === 'gender' ? (profileData.gender || '') :
             (profileData.dateOfBirth || '');
 
@@ -3070,7 +2971,7 @@ function Profile() {
         }
     };
 
-    const handleEditEducationStart = (education: Education) => {
+    const handleEditEducationStart = (education: EducationItem) => {
         setEditingEducation(education.id);
         
         console.log('Starting edit for education:', education);
@@ -3151,7 +3052,7 @@ function Profile() {
         });
     };
 
-    const handleEducationFormChange = (field: keyof Omit<Education, 'id'>, value: string | boolean) => {
+    const handleEducationFormChange = (field: keyof Omit<EducationItem, 'id'>, value: string | boolean) => {
         setEducationForm(prev => {
             const updated = { ...prev, [field]: value };
             // When currentlyStudying is toggled ON, clear endYear
@@ -3263,18 +3164,18 @@ function Profile() {
     };
 
     const getMasterName = (review: ReviewType) => {
-        if (!review.user.name && !review.user.surname) {
+        if (!review.master?.name && !review.master?.surname) {
             return t('components:app.defaultMaster');
         }
-        const fullName = `${review.user.surname || ''} ${review.user.name || ''}`.trim();
+        const fullName = `${review.master?.surname || ''} ${review.master?.name || ''}`.trim();
         return smartNameTranslator(fullName, i18n.language as 'ru' | 'tj' | 'eng');
     };
 
     const getClientName = (review: ReviewType) => {
-        if (!review.reviewer.name && !review.reviewer.surname) {
+        if (!review.client?.name && !review.client?.surname) {
             return t('components:app.defaultClient');
         }
-        const fullName = `${review.reviewer.surname || ''} ${review.reviewer.name || ''}`.trim();
+        const fullName = `${review.client?.surname || ''} ${review.client?.name || ''}`.trim();
         return smartNameTranslator(fullName, i18n.language as 'ru' | 'tj' | 'eng');
     };
 
@@ -3466,9 +3367,9 @@ function Profile() {
                     email={profileData.email}
                     gender={profileData.gender}
                     dateOfBirth={profileData.dateOfBirth}
-                    specialty={profileData.specialty}
-                    specialties={profileData.specialties}
-                    rating={profileData.rating}
+                    specialty={profileData.specialties?.map(o => o.title).join(', ') ?? ''}
+                    specialties={profileData.specialties?.map(o => o.title) ?? []}
+                    rating={parseFloat(profileData.rating?.toString() ?? '0')}
                     reviewsCount={reviews.length}
                     editingField={editingField}
                     tempValue={tempValue}
@@ -3724,7 +3625,7 @@ function Profile() {
                 onSuccess={handleReviewSuccess}
                 onError={handleReviewError}
                 ticketId={0}
-                targetUserId={profileData?.id ? parseInt(profileData.id) : 0}
+                targetUserId={profileData?.id ?? 0}
                 onReviewSubmitted={handleReviewSubmitted}
                 showServiceSelector={true}
             />
@@ -3735,7 +3636,7 @@ function Profile() {
                 onClose={handleCloseComplaintModal}
                 onSuccess={handleComplaintSuccess}
                 onError={handleComplaintError}
-                targetUserId={profileData?.id ? parseInt(profileData.id) : 0}
+                targetUserId={profileData?.id ?? 0}
                 targetUserRole={userRole ?? undefined}
                 showUserComplaintToggle
             />
@@ -3757,7 +3658,7 @@ function Profile() {
                     isOpen={showEditReviewModal}
                     onClose={() => { setShowEditReviewModal(false); setEditingReview(null); }}
                     onSuccess={() => fetchReviews()}
-                    targetUserId={editingReview.user?.id ?? 0}
+                    targetUserId={editingReview.master?.id ?? editingReview.client?.id ?? 0}
                     ticketId={editingReview.ticket?.id}
                     editReviewId={editingReview.id}
                     initialRating={editingReview.rating}

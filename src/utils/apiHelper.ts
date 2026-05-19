@@ -1,6 +1,8 @@
 import { getAuthToken, handleUnauthorized, getUserData } from './auth';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import type { Ticket } from '../entities';
+import type { TicketView } from '../entities';
+import { formatTicketImageUrl, formatProfileImageUrl } from './imageHelper';
+import { API_BASE_URL } from './config';
 
 export interface ApiRequestOptions {
     method?: string;
@@ -94,3 +96,83 @@ export function parsePagedResponse<T = unknown>(
 
     return { items, hasMore: total != null ? page * pageSize < total : items.length >= pageSize };
 }
+
+// ─── Адрес тикета ──────────────────────────────────────────────
+
+/** Полный адрес: область, город, район, пригород, поселение, сообщество, деревня, улица */
+export const getTicketFullAddress = (ticket: Ticket): string => {
+    if (ticket.addresses?.length) {
+        const addr = ticket.addresses[0];
+        const parts: string[] = [];
+        if (addr.province?.title)   parts.push(addr.province.title);
+        if (addr.city?.title)       parts.push(addr.city.title);
+        if (addr.district?.title)   parts.push(addr.district.title);
+        if (addr.suburb?.title)     parts.push(addr.suburb.title);
+        if (addr.settlement?.title) parts.push(addr.settlement.title);
+        if (addr.community?.title)  parts.push(addr.community.title);
+        if (addr.village?.title)    parts.push(addr.village.title);
+        if (addr.title)             parts.push(addr.title);
+        const unique = Array.from(new Set(parts.filter(Boolean)));
+        if (unique.length) return unique.join(', ');
+    }
+    return ticket.address || 'Адрес не указан';
+};
+
+/** Краткий адрес: только город + район */
+export const getTicketShortAddress = (ticket: Ticket): string => {
+    if (ticket.addresses?.length) {
+        const addr = ticket.addresses[0];
+        const parts: string[] = [];
+        if (addr.city?.title)     parts.push(addr.city.title);
+        if (addr.district?.title) parts.push(addr.district.title);
+        const unique = Array.from(new Set(parts.filter(Boolean)));
+        if (unique.length) return unique.join(', ');
+    }
+    return ticket.address || 'Адрес не указан';
+};
+
+// ─── Маппинг Ticket → TicketView ───────────────────────────
+
+/** Извлекает данные автора тикета (мастер или заказчик) */
+export const getTicketAuthor = (ticket: Ticket): { name: string; id: number; imageSrc?: string } => {
+    const person = ticket.service ? ticket.master : ticket.author;
+    const name = `${person?.surname || ''} ${person?.name || ''}`.trim()
+        || (ticket.service ? 'Специалист' : 'Заказчик');
+    return {
+        name,
+        id: person?.id || 0,
+        imageSrc: person?.image || person?.imageExternalUrl || undefined,
+    };
+};
+
+/**
+ * Единый маппер Ticket (бэк) → TicketView (UI).
+ * Используйте spread для добавления page-specific полей:
+ *   `{ ...ticketToTicketView(ticket), status: 'В работе', master: masterName }`
+ */
+export const ticketToTicketView = (ticket: Ticket): TicketView => {
+    const author = getTicketAuthor(ticket);
+    return {
+        id: ticket.id,
+        title: ticket.title || 'Без названия',
+        price: ticket.budget ?? 0,
+        unit: (typeof ticket.unit === 'object' ? ticket.unit?.title : ticket.unit) || 'TJS',
+        description: ticket.description || '',
+        address: getTicketFullAddress(ticket),
+        date: ticket.createdAt ?? '',
+        author: author.name,
+        authorId: author.id,
+        authorImage: author.imageSrc ? formatProfileImageUrl(author.imageSrc) : undefined,
+        timeAgo: ticket.createdAt ?? '',
+        category: ticket.category?.title || 'другое',
+        subcategory: ticket.subcategory?.title,
+        type: ticket.service ? 'master' : 'client',
+        active: ticket.active,
+        userRating: (ticket.service ? ticket.master?.rating : ticket.author?.rating) || 0,
+        userReviewCount: ticket.reviewsCount || 0,
+        responsesCount: ticket.responsesCount,
+        viewsCount: ticket.viewsCount,
+        photos: ticket.images?.map(img => formatTicketImageUrl(img.image)),
+        negotiableBudget: ticket.negotiableBudget,
+    };
+};

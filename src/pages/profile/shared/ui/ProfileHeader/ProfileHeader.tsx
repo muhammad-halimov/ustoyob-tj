@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { UserRole, Occupation } from '../../../../../entities';
 import { smartNameTranslator } from '../../../../../utils/textHelper';
 import { Marquee } from '../../../../../shared/ui/Text/Marquee';
-import { DateWidget } from '../../../../../widgets/DateWidget/DateWidget.tsx';
+import { DateWidget } from '../../../../../widgets/DateWidget/DateWidget';
 import styles from './ProfileHeader.module.scss';
 import { EditActions } from '../EditActions/EditActions';
 import { Preview, usePreview } from '../../../../../shared/ui/Photo/Preview';

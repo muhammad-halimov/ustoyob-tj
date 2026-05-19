@@ -1,1 +1,1 @@
-export { Marquee } from './Marquee.tsx';
+export { Marquee } from './Marquee';

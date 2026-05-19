@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { smartNameTranslator } from '../utils/textHelper';
 
-type NameLanguage = 'ru' | 'tj' | 'eng';
+import type { Language } from '../types/common';
+type NameLanguage = Language;
 
 /**
  * Хук для автоматической транслитерации имен при смене языка

@@ -1,0 +1,40 @@
+import type { Occupation } from '../Occupation';
+import type { Education } from '../Education';
+import type { Address } from '../Address';
+import type { SocialNetwork } from '../SocialNetwork';
+import type { Phone } from '../Phone';
+import type { OAuthProvider } from '../OAuth';
+import type { Timestamps } from '../Misc';
+
+export type User = {
+    id: number;
+    email?: string;
+    login?: string;
+    name?: string;
+    surname?: string;
+    patronymic?: string;
+    /** Computed — not stored on backend */
+    fullName?: string;
+    gender?: string;
+    rating?: number;
+    image?: string;
+    imageExternalUrl?: string;
+    avatar?: string | null;
+    description?: string;
+    atHome?: boolean;
+    canWorkRemotely?: boolean;
+    roles?: string[];
+    active?: boolean;
+    approved?: boolean;
+    isOnline?: boolean;
+    lastSeen?: string | null;
+    reviewsCount?: number;
+    dateOfBirth?: string;
+    occupation?: Occupation[];
+    education?: Education[];
+    addresses?: Address[];
+    phones?: Phone[];
+    socialNetworks?: SocialNetwork[];
+    oauthProviders?: OAuthProvider[];
+    [key: string]: unknown;
+} & Timestamps;

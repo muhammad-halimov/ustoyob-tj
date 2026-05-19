@@ -2,20 +2,20 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../../../app/routers/routes';
-import { Service } from '../../../../../entities';
+import { Ticket } from '../../../../../entities';
 import { ProfileSection } from '../ProfileSection';
-import { Tabs } from '../../../../../shared/ui/Tabs/Tabs';
+import { Tabs } from '../../../../../shared/ui/Tabs';
 import { IoCheckmarkCircleOutline, IoCloseCircleOutline } from 'react-icons/io5';
 import styles from './ServicesSection.module.scss';
 import { Marquee } from '../../../../../shared/ui/Text/Marquee';
 
 interface ServicesSectionProps {
-    services: Service[];
+    services: Ticket[];
     servicesLoading: boolean;
     readOnly?: boolean;
     userRole?: 'master' | 'client' | null;
     API_BASE_URL?: string;
-    onReorder?: (services: Service[]) => void;
+    onReorder?: (services: Ticket[]) => void;
     onRefresh?: () => void;
     footerSlot?: React.ReactNode;
 }
@@ -52,7 +52,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
         }
     };
 
-    const getServiceImage = (service: Service): string => {
+    const getServiceImage = (service: Ticket): string => {
         // Если есть массив изображений и в нём есть хотя бы одно изображение
         if (service.images && Array.isArray(service.images) && service.images.length > 0) {
             const firstImageObj = service.images[0];
@@ -81,12 +81,8 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
         e.currentTarget.src = '../fonTest6.png';
     };
 
-    const renderServiceItem = (service: Service) => {
-        const titleText = typeof service.title === 'string'
-            ? service.title
-            : (typeof service.title === 'object' && service.title && 'title' in service.title
-                ? String((service.title as { title: unknown }).title)
-                : t('profile:serviceDefault'));
+    const renderServiceItem = (service: Ticket) => {
+        const titleText = service.title;
         const unitText = typeof service.unit === 'string'
             ? service.unit
             : (typeof service.unit === 'object' && service.unit && 'title' in service.unit
@@ -161,7 +157,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
     );
 
     return (
-        <ProfileSection<Service>
+        <ProfileSection<Ticket>
             title={baseTitle}
             items={displayedServices}
             editingId={null}

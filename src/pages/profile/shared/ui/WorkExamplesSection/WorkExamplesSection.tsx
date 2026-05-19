@@ -6,12 +6,7 @@ import { SectionActions } from '../../../../../shared/ui/SectionActions';
 import { useDragReorder, DragHandle } from '../../../../../widgets/DragReorder';
 import { ProfileSection } from '../ProfileSection';
 import styles from './WorkExamplesSection.module.scss';
-
-interface WorkExample {
-    id: string;
-    image: string;
-    title: string;
-}
+import type { WorkExample } from '../../../../../entities';
 
 interface WorkExamplesSectionProps {
     workExamples: WorkExample[];
@@ -27,7 +22,7 @@ interface WorkExamplesSectionProps {
     onGalleryNext: () => void;
     onGalleryPrevious: () => void;
     onSelectGalleryImage: (index: number) => void;
-    onDeleteWorkExample: (id: string) => Promise<void>;
+    onDeleteWorkExample: (id: number) => Promise<void>;
     onDeleteAllWorkExamples: () => Promise<void>;
     onWorkExampleUpload: (event: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
     onShowMoreWorkExamples: () => void;

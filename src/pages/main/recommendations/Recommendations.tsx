@@ -1,95 +1,27 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getUserRole, getAuthToken, getUserData } from '../../../utils/auth.ts';
+import { getUserRole, getAuthToken, getUserData } from '../../../utils/auth';
 import { useLanguageChange } from '../../../hooks';
-import { Card } from '../../../shared/ui/Ticket/Card/Card.tsx';
+import { Card } from '../../../shared/ui/Ticket/Card/Card';
 import styles from './Recommendations.module.scss';
 import { useTranslation } from 'react-i18next';
-import { ROUTES } from '../../../app/routers/routes.ts';
+import { ROUTES } from '../../../app/routers/routes';
 import { createChatWithAuthor } from '../../../utils/chatUtils';
 import Status from '../../../shared/ui/Modal/Status';
 import Feedback from '../../../shared/ui/Modal/Feedback';
 
 import { EmptyState } from '../../../widgets/EmptyState';
-import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore.tsx';
+import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore';
+import type { Ticket } from '../../../entities';
+import { formatTicketImageUrl, formatProfileImageUrl } from '../../../utils/imageHelper';
+import { getTicketFullAddress } from '../../../utils/apiHelper';
 
 const RECS_INITIAL_SIZE = 6;
 const RECS_PAGE_SIZE = 12;
-
-export interface Announcement {
-    id: number;
-    title: string;
-    description: string;
-    budget: number;
-    unit: {
-        id: number;
-        title: string;
-    };
-    service: boolean;
-    authorId?: number;
-    category?: {
-        id?: number;
-        title?: string;
-    };
-    subcategory?: {
-        id?: number;
-        title?: string;
-    } | null;
-    addresses: Array<{
-        title?: string;
-        city?: {
-            title?: string;
-        };
-        district?: {
-            title?: string;
-        };
-        province?: {
-            title?: string;
-        };
-    }>;
-    createdAt: string;
-    author?: {
-        id?: number;
-        name?: string;
-        surname?: string;
-        rating?: number;
-        reviewCount?: number;
-        image?: string | null;
-        imageExternalUrl?: string | null;
-    };
-    master?: {
-        id?: number;
-        name?: string;
-        surname?: string;
-        rating?: number;
-        reviewCount?: number;
-        image?: string | null;
-        imageExternalUrl?: string | null;
-    };
-    reviewsCount?: number;
-    responsesCount?: number;
-    viewsCount?: number;
-    images?: { id: number; image: string }[];
-    negotiableBudget?: boolean;
-}
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
-export const formatTicketImageUrl = (imagePath: string): string => {
-    if (!imagePath) return '';
-    if (imagePath.startsWith('http')) return imagePath;
-    if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) return `${API_BASE_URL}${imagePath}`;
-    return `${API_BASE_URL}/uploads/tickets/${imagePath}`;
-};
-
-export const formatProfileImageUrl = (imagePath: string): string => {
-    if (!imagePath) return '';
-    if (imagePath.startsWith('http')) return imagePath;
-    return `${API_BASE_URL}/uploads/users/${imagePath}`;
-};
+import { API_BASE_URL } from '../../../utils/config';
 
 interface RecommendationsProps {
-    customData?: Announcement[];
+    customData?: Ticket[];
     customLoading?: boolean;
     showMoreButton?: boolean;
     initialLimit?: number;
@@ -103,7 +35,7 @@ function Recommendations({
     initialLimit = 3,
     onItemClick
 }: RecommendationsProps = {}) {
-    const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+    const [announcements, setAnnouncements] = useState<Ticket[]>([]);
     const [visibleCount, setVisibleCount] = useState(customData ? initialLimit : RECS_INITIAL_SIZE);
     const [isLoading, setIsLoading] = useState(true);
     const [userRole, setUserRole] = useState<'client' | 'master' | null>(getUserRole());
@@ -205,10 +137,10 @@ function Recommendations({
 
             if (response.ok) {
                 const responseData = await response.json();
-                let data: Announcement[];
+                let data: Ticket[];
 
-                data = Array.isArray(responseData) ? responseData as Announcement[]
-                    : (responseData?.['hydra:member'] as Announcement[] | undefined) ?? [];
+                data = Array.isArray(responseData) ? responseData as Ticket[]
+                    : (responseData?.['hydra:member'] as Ticket[] | undefined) ?? [];
 
                 // Сортируем: сначала тикеты из выбранного города
                 const selectedCity = localStorage.getItem('selectedCity') || '';
@@ -285,34 +217,9 @@ function Recommendations({
         }
     }, [userRole, locale, fetchRecentAnnouncements, customData]);
 
-    const getFullAddress = (announcement: Announcement): string => {
-        if (!announcement.addresses || announcement.addresses.length === 0) {
-            return 'Адрес не указан';
-        }
+    const getFullAddress = getTicketFullAddress;
 
-        const address = announcement.addresses[0];
-        const parts: string[] = [];
-
-        if (address.province?.title) {
-            parts.push(address.province.title);
-        }
-
-        if (address.city?.title) {
-            parts.push(address.city.title);
-        }
-
-        if (address.district?.title) {
-            parts.push(address.district.title);
-        }
-
-        if (address.title) {
-            parts.push(address.title);
-        }
-
-        return parts.length > 0 ? parts.join(', ') : 'Адрес не указан';
-    };
-
-    const getAuthorName = (announcement: Announcement): string => {
+    const getAuthorName = (announcement: Ticket): string => {
         if (announcement.service && announcement.master) {
             return `${announcement.master.surname || ''} ${announcement.master.name || ''}`.trim() || 'Специалист';
         }
@@ -322,7 +229,7 @@ function Recommendations({
         return 'Автор';
     };
 
-    const getAuthorId = (announcement: Announcement): number | undefined => {
+    const getAuthorId = (announcement: Ticket): number | undefined => {
         if (announcement.service && announcement.master) {
             return announcement.master.id;
         }
@@ -333,7 +240,7 @@ function Recommendations({
     };
 
     // Функция для получения рейтинга пользователя
-    const getUserRating = (announcement: Announcement): number => {
+    const getUserRating = (announcement: Ticket): number => {
         if (announcement.service && announcement.master?.rating) {
             return announcement.master.rating;
         } else if (!announcement.service && announcement.author?.rating) {
@@ -343,14 +250,14 @@ function Recommendations({
     };
 
     // Функция для получения количества отзывов
-    const getUserReviewCount = (announcement: Announcement): number => {
+    const getUserReviewCount = (announcement: Ticket): number => {
         if (announcement.reviewsCount !== undefined) {
             return announcement.reviewsCount;
         }
-        if (announcement.service && announcement.master?.reviewCount !== undefined) {
-            return announcement.master.reviewCount;
-        } else if (!announcement.service && announcement.author?.reviewCount !== undefined) {
-            return announcement.author.reviewCount;
+        if (announcement.service && announcement.master?.reviewsCount !== undefined) {
+            return announcement.master.reviewsCount;
+        } else if (!announcement.service && announcement.author?.reviewsCount !== undefined) {
+            return announcement.author.reviewsCount;
         }
         return 0;
     };
@@ -376,16 +283,16 @@ function Recommendations({
                                 key={announcement.id}
                                 ticketId={announcement.id}
                                 title={announcement.title}
-                                description={announcement.description}
-                                price={announcement.budget}
-                                unit={announcement.unit?.title || ''}
+                                description={announcement.description ?? ''}
+                                price={announcement.budget ?? 0}
+                                unit={(typeof announcement.unit === 'object' ? announcement.unit?.title : announcement.unit) || ''}
                                 address={getFullAddress(announcement)}
-                                date={announcement.createdAt}
+                                date={announcement.createdAt ?? ''}
                                 author={getAuthorName(announcement)}
-                                authorId={getAuthorId(announcement)}
+                                authorId={getAuthorId(announcement) ?? 0}
                                 category={announcement.category?.title}
                                 subcategory={announcement.subcategory?.title}
-                                timeAgo={announcement.createdAt}
+                                timeAgo={announcement.createdAt ?? ''}
                                 ticketType={announcement.service}
                                 userRole={userRole}
                                 userRating={getUserRating(announcement)}

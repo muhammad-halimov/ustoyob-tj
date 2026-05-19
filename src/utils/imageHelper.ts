@@ -1,4 +1,19 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { API_BASE_URL } from './config';
+
+// ─── Форматирование URL изображений ──────────────────────────
+export const formatTicketImageUrl = (imagePath: string): string => {
+    if (!imagePath) return '';
+    if (imagePath.startsWith('http')) return imagePath;
+    if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) return `${API_BASE_URL}${imagePath}`;
+    return `${API_BASE_URL}/uploads/tickets/${imagePath}`;
+};
+
+export const formatProfileImageUrl = (imagePath: string): string => {
+    if (!imagePath) return '';
+    if (imagePath.startsWith('http')) return imagePath;
+    if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) return `${API_BASE_URL}${imagePath}`;
+    return `${API_BASE_URL}/uploads/users/${imagePath}`;
+};
 
 /**
  * Uploads one or more files to `/api/{endpoint}/{id}/upload-images` in a single multipart/form-data POST.
@@ -45,7 +60,6 @@ export const getAvatarUrl = async (userData: any, userType: 'client' | 'master')
         imagePath = imagePath.split('/').pop() || imagePath;
     }
 
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
     const pathsToCheck = [
         `${API_BASE_URL}/uploads/users/${imagePath}`,
         `${API_BASE_URL}/${userData.image}`,
@@ -100,7 +114,6 @@ export const getAuthorAvatar = (
     user: { image?: string | null; imageExternalUrl?: string | null } | null | undefined,
     fallback = '../default_user.png'
 ): string => {
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
     if (!user) return fallback;
 
     // Priority 1: local image

@@ -3,31 +3,8 @@
  * Предотвращает множественные запросы к одним и тем же эндпоинтам
  */
 
-interface Province {
-    id: number;
-    title: string;
-    description?: string;
-    image?: string;
-}
-
-interface City {
-    id: number;
-    title: string;
-    description?: string;
-    image?: string | null;
-    districts?: { id: number }[];
-    province?: any;
-}
-
-interface Occupation {
-    id: number;
-    title: string;
-    description?: string;
-    image?: string;
-    priority?: number;
-    categories?: { id: number; title: string }[];
-    [key: string]: any; // Индексная сигнатура для совместимости
-}
+import type { Province, City } from '../entities';
+import type { Occupation } from '../entities';
 
 interface CacheEntry<T> {
     data: T[];
@@ -36,7 +13,7 @@ interface CacheEntry<T> {
 }
 
 const CACHE_DURATION = 5 * 60 * 1000; // 5 минут
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { API_BASE_URL } from './config';
 
 // Кеши для провинций, городов и профессий
 let provincesCache: CacheEntry<Province> | null = null;

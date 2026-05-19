@@ -1,1 +1,1 @@
-export { Carousel } from './Carousel.tsx';
+export { Carousel } from './Carousel';

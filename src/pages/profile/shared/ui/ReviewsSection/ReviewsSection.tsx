@@ -137,10 +137,10 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
     const getReviewAuthorAvatar = (review: Review) => {
         if (userRole === 'master') {
             // Профиль специалиста - показываем заказчика
-            return getAuthorAvatar(review.reviewer);
+            return getAuthorAvatar(review.client);
         } else {
             // Профиль заказчика - показываем специалиста
-            return getAuthorAvatar(review.user);
+            return getAuthorAvatar(review.master);
         }
     };
 
@@ -157,13 +157,13 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
     const handleAuthorClick = (review: Review) => {
         if (userRole === 'master') {
             // Кликаем на заказчика
-            if (review.reviewer?.id) {
-                onClientProfileClick(review.reviewer.id);
+            if (review.client?.id) {
+                onClientProfileClick(review.client.id);
             }
         } else {
             // Кликаем на специалиста
-            if (onMasterProfileClick && review.user?.id) {
-                onMasterProfileClick(review.user.id);
+            if (onMasterProfileClick && review.master?.id) {
+                onMasterProfileClick(review.master.id);
             }
         }
     };
@@ -182,19 +182,19 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
     const handleWorkerClick = (review: Review) => {
         if (userRole === 'master') {
             // Кликаем на специалиста
-            if (onMasterProfileClick && review.user?.id) {
-                onMasterProfileClick(review.user.id);
+            if (onMasterProfileClick && review.master?.id) {
+                onMasterProfileClick(review.master.id);
             }
         } else {
             // Кликаем на заказчика
-            if (review.reviewer?.id) {
-                onClientProfileClick(review.reviewer.id);
+            if (review.client?.id) {
+                onClientProfileClick(review.client.id);
             }
         }
     };
 
     const getReviewAuthorId = (review: Review): number | undefined =>
-        userRole === 'master' ? review.reviewer?.id : review.user?.id;
+        userRole === 'master' ? review.client?.id : review.master?.id;
 
     const isWorkerClickable = () => {
         return true;
@@ -207,7 +207,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
     const getPlainReviewText = (review: Review) =>
         review.description ? review.description.replace(/<[^>]*>/g, '') : '';
 
-    const isReviewExpanded = (review: Review) => !!expandedReviews[review.id];
+    const isReviewExpanded = (review: Review) => expandedReviews[review.id];
 
     const renderReviewDescription = (review: Review, previewLength = maxLength) => {
         if (!review.description) return null;
@@ -267,9 +267,9 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
             reviews.slice(0, 3).forEach((review, index) => {
                 console.log(`Review ${index}:`, {
                     id: review.id,
-                    reviewer: review.reviewer,
-                    reviewerImage: review.reviewer?.image,
-                    reviewerImageExternalUrl: review.reviewer?.imageExternalUrl
+                    reviewer: review.client,
+                    reviewerImage: review.client?.image,
+                    reviewerImageExternalUrl: review.client?.imageExternalUrl
                 });
             });
         }
@@ -304,8 +304,8 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                 onClick={() => handleAuthorClick(review)}
                                                 style={{ cursor: 'pointer' }}
                                                 className={styles.reviewer_avatar}
-                                                data-fallback-image={(userRole === 'master' ? review.reviewer?.image : review.user?.image) || ''}
-                                                data-fallback-external={(userRole === 'master' ? review.reviewer?.imageExternalUrl : review.user?.imageExternalUrl) || ''}
+                                                data-fallback-image={(userRole === 'master' ? review.client?.image : review.master?.image) || ''}
+                                                data-fallback-external={(userRole === 'master' ? review.client?.imageExternalUrl : review.master?.imageExternalUrl) || ''}
                                                 onError={(e) => {
                                                     const img = e.currentTarget;
                                                     if (!img.src.includes('default_user')) {
@@ -428,8 +428,8 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                             onClick={() => handleAuthorClick(review)}
                                                             style={{ cursor: 'pointer' }}
                                                             className={styles.reviewer_avatar}
-                                                            data-fallback-image={(userRole === 'master' ? review.reviewer?.image : review.user?.image) || ''}
-                                                            data-fallback-external={(userRole === 'master' ? review.reviewer?.imageExternalUrl : review.user?.imageExternalUrl) || ''}
+                                                            data-fallback-image={(userRole === 'master' ? review.client?.image : review.master?.image) || ''}
+                                                            data-fallback-external={(userRole === 'master' ? review.client?.imageExternalUrl : review.master?.imageExternalUrl) || ''}
                                                             onError={(e) => {
                                                                 const img = e.currentTarget;
                                                                 if (!img.src.includes('default_user')) {
@@ -545,8 +545,8 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                         onClick={() => handleAuthorClick(review)}
                                                         style={{ cursor: 'pointer' }}
                                                         className={styles.reviewer_avatar}
-                                                        data-fallback-image={(userRole === 'master' ? review.reviewer?.image : review.user?.image) || ''}
-                                                        data-fallback-external={(userRole === 'master' ? review.reviewer?.imageExternalUrl : review.user?.imageExternalUrl) || ''}
+                                                        data-fallback-image={(userRole === 'master' ? review.client?.image : review.master?.image) || ''}
+                                                        data-fallback-external={(userRole === 'master' ? review.client?.imageExternalUrl : review.master?.imageExternalUrl) || ''}
                                                         onError={(e) => {
                                                             const img = e.currentTarget;
                                                             if (!img.src.includes('default_user')) {

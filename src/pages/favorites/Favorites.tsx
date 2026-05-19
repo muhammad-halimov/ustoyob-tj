@@ -4,11 +4,11 @@ import styles from './Favorite.module.scss';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../app/routers/routes';
 import { createChatWithAuthor } from "../../utils/chatUtils";
-import { textHelper } from '../../utils/textHelper.ts';
+import { textHelper } from '../../utils/textHelper';
 import { useTranslation } from 'react-i18next';
 import { useLanguageChange, useShowMore } from '../../hooks';
-import { Card } from '../../shared/ui/Ticket/Card/Card.tsx';
-import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
+import { Card } from '../../shared/ui/Ticket/Card/Card';
+import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
 import { ServiceTypeFilter } from '../../widgets/Sorting/TypeFilter';
 import { SortingFilter } from '../../widgets/Sorting/CriteriaFilter';
 import { PageLoader } from '../../widgets/PageLoader';
@@ -18,175 +18,21 @@ import Feedback from '../../shared/ui/Modal/Feedback';
 import Status from '../../shared/ui/Modal/Status';
 import { Tabs } from '../../shared/ui/Tabs';
 import { IoListOutline, IoPeopleOutline } from 'react-icons/io5';
-import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore.tsx';
+import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore';
 import { SelectSearch } from '../../shared/ui/SelectSearch';
-import { getPageSize } from '../../utils/pageSize.ts';
-import { parsePagedResponse } from '../../utils/apiHelper';
+import { getPageSize } from '../../utils/pageSize';
+import { parsePagedResponse, getTicketFullAddress } from '../../utils/apiHelper';
+import { formatTicketImageUrl, formatProfileImageUrl } from '../../utils/imageHelper';
+import type { User, Ticket, SortByType, SecondarySortByType, TimeFilterType, LocalStorageFavorites, FavoriteEntry, FavoriteTicketView, FavoriteUserView } from '../../entities';
+import { getSessionJSON } from '../../utils/storageHelper';
+import { API_BASE_URL } from '../../utils/config';
 
-// ── New flat-entry shape from the API ──────────────────────────────────────────
-// GET /api/favorites/me  →  array of FavoriteEntry (hydra:member)
-// POST /api/favorites    →  { user: IRI } | { ticket: IRI }   → FavoriteEntry
-// DELETE /api/favorites/{id}
-
-interface ApiUser {
-    id: number;
-    email?: string;
-    name?: string;
-    surname?: string;
-    image?: string | null;
-    imageExternalUrl?: string | null;
-    rating?: number;
-    roles?: string[];
-    occupation?: Array<{ id: number; title: string }>;
-    reviewsCount?: number;
-    gender?: string;
-    isOnline?: boolean;
-    lastSeen?: string | null;
-}
-
-interface ApiTicketAddress {
-    id: number;
-    province?: { id: number; title: string };
-    city?: { id: number; title: string; image?: string | null };
-    district?: { id: number; title: string };
-    suburb?: { id: number; title: string };
-    village?: { id: number; title: string };
-    settlement?: { id: number; title: string };
-    community?: { id: number; title: string };
-}
-
-interface ApiTicketInEntry {
-    id: number;
-    title?: string;
-    description?: string;
-    budget?: number;
-    unit?: { id: number; title: string };
-    active: boolean;
-    service: boolean;
-    createdAt?: string;
-    reviewsCount?: number;
-    responsesCount?: number;
-    viewsCount?: number;
-    images?: { id: number; image: string }[];
-    negotiableBudget?: boolean;
-    category?: { title: string };
-    subcategory?: { title: string } | null;
-    author?: ApiUser | null;
-    master?: ApiUser | null;
-    addresses?: ApiTicketAddress[];
-    address?: { title?: string; city?: { title?: string } } | null;
-    district?: { title?: string; city?: { title?: string } } | null;
-}
-
-// One row returned by GET /api/favorites/me
-interface FavoriteEntry {
-    id: number;            // entry id (used for DELETE)
-    type: 'user' | 'ticket';
-    user: ApiUser | null;
-    ticket: ApiTicketInEntry | null;
-}
-
-// ── Local view-model shapes ───────────────────────────────────────────────────
-
-interface FavoriteTicket {
-    entryId: number;       // entry id for DELETE
-    id: number;            // ticket id
-    title: string;
-    price: number;
-    unit: string;
-    description: string;
-    address: string;
-    date: string;
-    author: string;
-    timeAgo: string;
-    category: string;
-    subcategory?: string;
-    status: string;
-    authorId: number;
-    type: 'client' | 'master';
-    authorImage?: string;
-    active: boolean;
-    service: boolean;
-    userRating?: number;
-    userReviewCount?: number;
-    responsesCount?: number;
-    viewsCount?: number;
-    photos?: string[];
-    negotiableBudget?: boolean;
-}
-
-interface FavoriteUser {
-    entryId: number;       // entry id for DELETE
-    id: number;
-    email: string;
-    name: string;
-    surname: string;
-    rating: number;
-    image: string | null;
-    role: 'master' | 'client';
-    specialties: string[];
-    reviewsCount?: number;
-    gender?: string;
-    isOnline?: boolean;
-    lastSeen?: string | null;
-}
-
-// Legacy API ticket shape (kept for standalone fetchTicketDetails used by unauth users)
-interface ApiTicket {
-    id: number;
-    title: string;
-    description: string;
-    budget: number;
-    unit: { id: number; title: string };
-    addresses?: Array<{
-        id: number;
-        province?: { id: number; title: string };
-        city?: { image: string | null; id: number; title: string };
-        district?: { id: number; title: string };
-        suburb?: { id: number; title: string };
-        village?: { id: number; title: string };
-        settlement?: { id: number; title: string };
-        community?: { id: number; title: string };
-    }>;
-    address?: {
-        title?: string;
-        city?: { title?: string }
-    } | null;
-    district?: {
-        title?: string;
-        city?: { title?: string }
-    } | null;
-    createdAt: string;
-    master: { id: number; name?: string; surname?: string; image?: string; rating?: number } | null;
-    author: { id: number; name?: string; surname?: string; image?: string; rating?: number };
-    category: { title: string };
-    subcategory?: { title: string } | null;
-    active: boolean;
-    notice?: string;
-    service: boolean;
-    reviewsCount?: number;
-    responsesCount?: number;
-    viewsCount?: number;
-    images?: { id: number; image: string }[];
-}
-
-interface LocalStorageFavorites {
-    tickets: number[];
-    users: number[];
-}
-
-type SortByType = 'newest' | 'oldest' | 'price-asc' | 'price-desc' | 'reviews-asc' | 'reviews-desc' | 'rating-asc' | 'rating-desc';
-type SecondarySortByType = 'none' | SortByType;
-type TimeFilterType = 'all' | 'today' | 'yesterday' | 'week' | 'month';
-
+// FavoriteTicketView and FavoriteUserView are defined in entities/Favorite
 const FAV_FILTERS_KEY = 'fav-filters';
-function getFavSession(): Record<string, unknown> | null {
-    try { const r = sessionStorage.getItem(FAV_FILTERS_KEY); return r ? JSON.parse(r) : null; } catch { return null; }
-}
 
 function Favorites() {
-    const [favoriteTickets, setFavoriteTickets] = useState<FavoriteTicket[]>([]);
-    const [favoriteUsers, setFavoriteUsers] = useState<FavoriteUser[]>([]);
+    const [favoriteTickets, setFavoriteTicketViews] = useState<FavoriteTicketView[]>([]);
+    const [favoriteUsers, setFavoriteUserViews] = useState<FavoriteUserView[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isFavoritesRefreshing, setIsFavoritesRefreshing] = useState(false);
     const [activeTab, setActiveTab] = useState<'orders' | 'masters'>('orders');
@@ -199,7 +45,7 @@ function Favorites() {
     useEffect(() => { pageRef.current = page; }, [page]);
 
     // Фильтры — восстанавливаем из sessionStorage
-    const [_favSession] = useState(() => getFavSession());
+    const [_favSession] = useState(() => getSessionJSON(FAV_FILTERS_KEY));
     const [showOnlyServices, setShowOnlyServices] = useState<boolean>(() => (_favSession?.showOnlyServices as boolean) ?? false);
     const [showOnlyAnnouncements, setShowOnlyAnnouncements] = useState<boolean>(() => (_favSession?.showOnlyAnnouncements as boolean) ?? false);
     const [sortBy, setSortBy] = useState<SortByType>(() => ((_favSession?.sortBy as string) || 'newest') as SortByType);
@@ -245,7 +91,6 @@ function Favorites() {
     const userRole = getUserRole();
     const currentUserId = getUserData()?.id;
     const { t } = useTranslation(['components', 'common']);
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     // Загрузка избранного при монтировании (с восстановлением страниц и скролла)
     useEffect(() => {
@@ -360,8 +205,8 @@ function Favorites() {
         usersPerPageRef.current = usersPerPageRef.current.slice(0, -1);
         skipFavFetchRef.current = true;
         setPage(p => p - 1);
-        setFavoriteTickets(prev => prev.slice(0, prev.length - lastTickets));
-        setFavoriteUsers(prev => prev.slice(0, prev.length - lastUsers));
+        setFavoriteTicketViews(prev => prev.slice(0, prev.length - lastTickets));
+        setFavoriteUserViews(prev => prev.slice(0, prev.length - lastUsers));
         setHasMore(true);
     };
 
@@ -372,8 +217,8 @@ function Favorites() {
         usersPerPageRef.current = [firstUsers];
         skipFavFetchRef.current = true;
         setPage(1);
-        setFavoriteTickets(prev => prev.slice(0, firstTickets));
-        setFavoriteUsers(prev => prev.slice(0, firstUsers));
+        setFavoriteTicketViews(prev => prev.slice(0, firstTickets));
+        setFavoriteUserViews(prev => prev.slice(0, firstUsers));
         setHasMore(true);
     };
 
@@ -416,7 +261,7 @@ function Favorites() {
                 const parsed = JSON.parse(stored);
                 return {
                     tickets: Array.isArray(parsed.tickets) ? parsed.tickets : [],
-                    users: Array.isArray(parsed.users) ? parsed.users : [],
+                    users: Array.isArray(parsed.users) ? parsed.users : [] as number[],
                 };
             }
         } catch { /* ignore */ }
@@ -451,25 +296,6 @@ function Favorites() {
         }
     }, []);
 
-    const formatProfileImageUrl = (imagePath: string): string => {
-        if (!imagePath) return './default_user.png';
-
-        if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) {
-            return `${API_BASE_URL}${imagePath}`;
-        } else if (imagePath.startsWith('http')) {
-            return imagePath;
-        } else {
-            return `${API_BASE_URL}/uploads/users/${imagePath}`;
-        }
-    };
-
-    const formatTicketImageUrl = (imagePath: string): string => {
-        if (!imagePath) return '';
-        if (imagePath.startsWith('http')) return imagePath;
-        if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) return `${API_BASE_URL}${imagePath}`;
-        return `${API_BASE_URL}/uploads/tickets/${imagePath}`;
-    };
-
     // Функция для определения реального статуса тикета
     const getTicketStatus = (active: boolean, service: boolean): string => {
         if (!active) {
@@ -484,7 +310,7 @@ function Favorites() {
     };
 
 
-    const fetchTicketDetails = async (ticketId: number): Promise<FavoriteTicket | null> => {
+    const fetchTicketDetails = async (ticketId: number): Promise<FavoriteTicketView | null> => {
         try {
             const token = getAuthToken();
             const locale = localStorage.getItem('i18nextLng') || 'ru';
@@ -502,7 +328,7 @@ function Favorites() {
                 return null;
             }
 
-            const ticket: ApiTicket = await response.json();
+            const ticket: Ticket = await response.json();
 
             const isMasterTicket = ticket.service;
             const userType = isMasterTicket ? 'master' : 'client';
@@ -521,14 +347,14 @@ function Favorites() {
                 entryId: 0,  // unauth — no server entry id
                 id: ticket.id,
                 title: ticket.title || 'Без названия',
-                price: ticket.budget || 0,
-                unit: ticket.unit?.title || 'tjs',
+                price: ticket.budget ?? 0,
+                unit: (typeof ticket.unit === 'object' ? ticket.unit?.title : ticket.unit) || 'tjs',
                 description: ticket.description || 'Описание отсутствует',
-                address: getFullAddress(ticket),
-                date: ticket.createdAt,
+                address: getTicketFullAddress(ticket),
+                date: ticket.createdAt ?? '',
                 author: authorName,
                 authorId: authorId,
-                timeAgo: ticket.createdAt,
+                timeAgo: ticket.createdAt ?? '',
                 category: ticket.category?.title || 'другое',
                 subcategory: ticket.subcategory?.title,
                 status: getTicketStatus(ticket.active, ticket.service),
@@ -550,14 +376,14 @@ function Favorites() {
     // Алиас для обратной совместимости с вызовами для неавторизованных
     const fetchTicketDetailsForUnauthorized = fetchTicketDetails;
 
-    const fetchUserProfile = async (userId: number): Promise<FavoriteUser | null> => {
+    const fetchUserProfile = async (userId: number): Promise<FavoriteUserView | null> => {
         try {
             const locale = localStorage.getItem('i18nextLng') || 'ru';
             const response = await fetch(`${API_BASE_URL}/api/users/${userId}?locale=${locale}`, {
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
             });
             if (!response.ok) return null;
-            const u: ApiUser = await response.json();
+            const u: User = await response.json();
             const isMaster = u.roles?.includes('ROLE_MASTER') ?? false;
             return {
                 entryId: 0,
@@ -566,11 +392,11 @@ function Favorites() {
                 name: u.name || '',
                 surname: u.surname || '',
                 rating: u.rating || 0,
-                image: u.image ? formatProfileImageUrl(u.image) : (u.imageExternalUrl || null),
+                image: u.image ? formatProfileImageUrl(String(u.image)) : (u.imageExternalUrl ? String(u.imageExternalUrl) : null),
                 role: isMaster ? 'master' : 'client',
-                specialties: (u.occupation || []).map(o => o.title),
-                reviewsCount: u.reviewsCount || 0,
-                gender: u.gender,
+                specialties: ((u as { occupation?: Array<{ id: number; title: string }> }).occupation || []).map(o => o.title),
+                reviewsCount: (u as { reviewsCount?: number }).reviewsCount || 0,
+                gender: (u as { gender?: string }).gender,
                 isOnline: u.isOnline,
                 lastSeen: u.lastSeen,
             };
@@ -593,20 +419,20 @@ function Favorites() {
 
                 setLikedTickets(localFavorites.tickets);
 
-                const tickets: FavoriteTicket[] = [];
+                const tickets: FavoriteTicketView[] = [];
                 for (const ticketId of localFavorites.tickets) {
                     const ticketDetails = await fetchTicketDetailsForUnauthorized(ticketId);
                     if (ticketDetails) tickets.push(ticketDetails);
                 }
 
-                const users: FavoriteUser[] = [];
-                for (const userId of localFavorites.users) {
+                const users: FavoriteUserView[] = [];
+                for (const userId of (localFavorites.users ?? [])) {
                     const userProfile = await fetchUserProfile(userId);
                     if (userProfile) users.push(userProfile);
                 }
 
-                setFavoriteTickets(tickets);
-                setFavoriteUsers(users);
+                setFavoriteTicketViews(tickets);
+                setFavoriteUserViews(users);
                 setIsLoading(false);
                 return;
             }
@@ -623,8 +449,8 @@ function Favorites() {
                 const rawData = await response.json();
                 const { items: entries, hasMore: fetchedHasMore } = parsePagedResponse<FavoriteEntry>(rawData, currentPage, pageSize);
 
-                const tickets: FavoriteTicket[] = [];
-                const users: FavoriteUser[] = [];
+                const tickets: FavoriteTicketView[] = [];
+                const users: FavoriteUserView[] = [];
 
                 for (const entry of entries) {
                     if (entry.type === 'ticket' && entry.ticket) {
@@ -641,9 +467,9 @@ function Favorites() {
                             id: ticket.id,
                             title: ticket.title || 'Без названия',
                             price: ticket.budget || 0,
-                            unit: ticket.unit?.title || 'tjs',
+                            unit: (typeof ticket.unit === 'object' ? ticket.unit?.title : ticket.unit) || 'tjs',
                             description: ticket.description || '',
-                            address: getFullAddress(ticket as unknown as ApiTicket),
+                            address: getTicketFullAddress(ticket),
                             date: ticket.createdAt || '',
                             author: authorName,
                             authorId,
@@ -674,8 +500,8 @@ function Favorites() {
                             rating: u.rating || 0,
                             image: u.image || null,
                             role: isMaster ? 'master' : 'client',
-                            specialties: (u.occupation || []).map(o => o.title),
-                            reviewsCount: u.reviewsCount || 0,
+                            specialties: ((u as { occupation?: Array<{ id: number; title: string }> }).occupation || []).map(o => o.title),
+                            reviewsCount: (u as { reviewsCount?: number }).reviewsCount ?? 0,
                             gender: u.gender,
                             isOnline: u.isOnline,
                             lastSeen: u.lastSeen,
@@ -685,14 +511,14 @@ function Favorites() {
 
                 if (appendFavRef.current) {
                     appendFavRef.current = false;
-                    setFavoriteTickets(prev => [...prev, ...tickets]);
-                    setFavoriteUsers(prev => [...prev, ...users]);
+                    setFavoriteTicketViews(prev => [...prev, ...tickets]);
+                    setFavoriteUserViews(prev => [...prev, ...users]);
                     ticketsPerPageRef.current = [...ticketsPerPageRef.current, tickets.length];
                     usersPerPageRef.current = [...usersPerPageRef.current, users.length];
                     setLikedTickets(prev => [...prev, ...tickets.map(t => t.id)]);
                 } else {
-                    setFavoriteTickets(tickets);
-                    setFavoriteUsers(users);
+                    setFavoriteTicketViews(tickets);
+                    setFavoriteUserViews(users);
                     ticketsPerPageRef.current = [tickets.length];
                     usersPerPageRef.current = [users.length];
                     setLikedTickets(tickets.map(t => t.id));
@@ -701,14 +527,14 @@ function Favorites() {
             } else {
                 console.error('Favorites - Error fetching favorites:', response.status);
                 setHasMore(false);
-                setFavoriteTickets([]);
-                setFavoriteUsers([]);
+                setFavoriteTicketViews([]);
+                setFavoriteUserViews([]);
                 setLikedTickets([]);
             }
         } catch (error) {
             console.error('Error fetching favorites:', error);
-            setFavoriteTickets([]);
-            setFavoriteUsers([]);
+            setFavoriteTicketViews([]);
+            setFavoriteUserViews([]);
             setLikedTickets([]);
         } finally {
             isInitialLoadRef.current = false;
@@ -727,13 +553,13 @@ function Favorites() {
         // Неавторизованный: сохраняем в localStorage
         if (!token) {
             const localFavorites = loadLocalStorageFavorites();
-            const isLiked = localFavorites.users.includes(userId);
+            const isLiked = (localFavorites.users ?? []).includes(userId);
             const updatedUsers = isLiked
-                ? localFavorites.users.filter(id => id !== userId)
-                : [...localFavorites.users, userId];
+                ? (localFavorites.users ?? []).filter(id => id !== userId)
+                : [...(localFavorites.users ?? []), userId];
             saveLocalStorageFavorites({ ...localFavorites, users: updatedUsers });
             if (isLiked) {
-                setFavoriteUsers(prev => prev.filter(u => u.id !== userId));
+                setFavoriteUserViews(prev => prev.filter(u => u.id !== userId));
             }
             window.dispatchEvent(new Event('favoritesUpdated'));
             return;
@@ -749,7 +575,7 @@ function Favorites() {
                 headers: { 'Authorization': `Bearer ${token}` },
             });
             if (res.ok || res.status === 204) {
-                setFavoriteUsers(prev => prev.filter(u => u.id !== userId));
+                setFavoriteUserViews(prev => prev.filter(u => u.id !== userId));
                 window.dispatchEvent(new Event('favoritesUpdated'));
             } else {
                 console.error('Error removing user from favorites:', await res.text());
@@ -759,31 +585,6 @@ function Favorites() {
         } finally {
             setIsLikeLoading(null);
         }
-    };
-
-    const getFullAddress = (ticket: ApiTicket): string => {
-        if (ticket.addresses && ticket.addresses.length > 0) {
-            const address = ticket.addresses[0];
-            const parts: string[] = [];
-            if (address.city?.title) parts.push(address.city.title);
-            if (address.province?.title) parts.push(address.province.title);
-            if (address.district?.title) parts.push(address.district.title);
-            if (address.suburb?.title) parts.push(address.suburb.title);
-            if (address.village?.title) parts.push(address.village.title);
-            if (address.settlement?.title) parts.push(address.settlement.title);
-            if (address.community?.title) parts.push(address.community.title);
-            return parts.join(', ') || 'Адрес не указан';
-        }
-        const districtTitle = ticket.district?.title || '';
-        const districtCity = ticket.district?.city?.title || '';
-        const addressTitle = ticket.address?.title || '';
-        const addressCity = ticket.address?.city?.title || '';
-        const city = districtCity || addressCity;
-        const parts: string[] = [];
-        if (city) parts.push(city);
-        if (districtTitle) parts.push(districtTitle);
-        if (addressTitle && !districtTitle) parts.push(addressTitle);
-        return parts.length > 0 ? parts.join(', ') : 'Адрес не указан';
     };
 
     const handleCardClick = (authorId?: number, ticketId?: number) => {
@@ -806,7 +607,7 @@ function Favorites() {
             });
             if (res.ok || res.status === 204) {
                 setLikedTickets(prev => prev.filter(id => id !== ticketId));
-                setFavoriteTickets(prev => prev.filter(t => t.id !== ticketId));
+                setFavoriteTicketViews(prev => prev.filter(t => t.id !== ticketId));
                 window.dispatchEvent(new Event('favoritesUpdated'));
             } else {
                 setRespondModal({ open: true, type: 'error', message: 'Ошибка при удалении из избранного' });
@@ -840,7 +641,7 @@ function Favorites() {
             if (res.ok) {
                 setLikedTickets(prev => [...prev, ticketId]);
                 const ticketDetails = await fetchTicketDetails(ticketId);
-                if (ticketDetails) setFavoriteTickets(prev => [...prev, ticketDetails]);
+                if (ticketDetails) setFavoriteTicketViews(prev => [...prev, ticketDetails]);
                 window.dispatchEvent(new Event('favoritesUpdated'));
             } else if (res.status === 409) {
                 setLikedTickets(prev => [...prev, ticketId]);
@@ -863,12 +664,12 @@ function Favorites() {
         if (isCurrentlyLiked) {
             updatedTickets = localFavorites.tickets.filter(id => id !== ticketId);
             setLikedTickets(prev => prev.filter(id => id !== ticketId));
-            setFavoriteTickets(prev => prev.filter(t => t.id !== ticketId));
+            setFavoriteTicketViews(prev => prev.filter(t => t.id !== ticketId));
         } else {
             updatedTickets = [...localFavorites.tickets, ticketId];
             setLikedTickets(prev => [...prev, ticketId]);
             const ticketDetails = await fetchTicketDetailsForUnauthorized(ticketId);
-            if (ticketDetails) setFavoriteTickets(prev => [...prev, ticketDetails]);
+            if (ticketDetails) setFavoriteTicketViews(prev => [...prev, ticketDetails]);
         }
 
         saveLocalStorageFavorites({ ...localFavorites, tickets: updatedTickets });
@@ -960,7 +761,7 @@ function Favorites() {
     const hasSecondTabItems = hasUsers;
 
     // Применяем фильтры и сортировку к тикетам
-    const applySort = (tickets: FavoriteTicket[], sort: SortByType): FavoriteTicket[] => {
+    const applySort = (tickets: FavoriteTicketView[], sort: SortByType): FavoriteTicketView[] => {
         return [...tickets].sort((a, b) => {
             switch (sort) {
                 case 'newest': return new Date(b.date).getTime() - new Date(a.date).getTime();
@@ -1207,7 +1008,7 @@ function Favorites() {
                             gender={user.gender}
                             isOnline={user.isOnline}
                             lastSeen={user.lastSeen ?? undefined}
-                            isLiked={token ? true : loadLocalStorageFavorites().users.includes(user.id)}
+                            isLiked={token ? true : (loadLocalStorageFavorites().users ?? []).includes(user.id)}
                             isLikeLoading={isLikeLoading === user.id}
                             onLike={() => handleLikeUser(user.id)}
                             onChat={token ? () => handleMasterChat(user.id) : undefined}

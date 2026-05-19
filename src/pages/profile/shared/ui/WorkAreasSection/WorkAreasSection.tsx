@@ -1,35 +1,30 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Marquee } from '../../../../../shared/ui/Text/Marquee';
-import Address from '../../../../../shared/ui/Address/Selector/Address.tsx';
-import { AddressValue } from '../../../../../entities';
+import Address from '../../../../../shared/ui/Address/Selector/Address';
+import { AddressValueView } from '../../../../../entities';
 import Status from '../../../../../shared/ui/Modal/Status';
 import PageLoader from '../../../../../widgets/PageLoader/PageLoader';
 import { ProfileSection } from '../ProfileSection';
 import styles from './WorkAreasSection.module.scss';
 import { EditActions } from '../EditActions/EditActions';
-
-interface Address {
-    id: string;
-    displayText: string;
-    addressValue: AddressValue;
-}
+import type { AddressFormData as WorkAreaItem } from '../../../../../entities';
 
 interface WorkAreasSectionProps {
-    addresses: Address[];
+    addresses: WorkAreaItem[];
     canWorkRemotely: boolean;
     editingAddress: string | null;
-    addressForm: AddressValue;
+    addressForm: AddressValueView;
     readOnly?: boolean;
     userRole?: 'master' | 'client' | null;
-    setAddressForm: (form: AddressValue) => void;
+    setAddressForm: (form: AddressValueView) => void;
     onAddAddress: () => void;
-    onEditAddressStart: (address: Address) => void;
+    onEditAddressStart: (address: WorkAreaItem) => void;
     onEditAddressSave: () => Promise<void>;
     onEditAddressCancel: () => void;
     onDeleteAddress: (addressId: string) => Promise<void>;
     onCanWorkRemotelyToggle: () => Promise<void>;
-    onReorder?: (addresses: Address[]) => void;
+    onReorder?: (addresses: WorkAreaItem[]) => void;
     onRefresh?: () => void;
     isLoading?: boolean;
 }
@@ -103,7 +98,7 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
     return (
         <>
             <Status type={statusType} isOpen={statusOpen} onClose={() => setStatusOpen(false)} message={statusMsg} />
-            <ProfileSection<Address>
+            <ProfileSection<WorkAreaItem>
                 title={userRole === 'client' ? t('profile:workAreasTitleClient') : t('profile:workAreasTitle')}
                 items={addresses}
                 editingId={editingAddress}

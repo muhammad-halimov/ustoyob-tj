@@ -1,15 +1,15 @@
 import {useNavigate, useParams} from 'react-router-dom';
 import {useEffect, useRef, useState} from 'react';
-import {getAuthToken, getUserData, getUserRole} from '../../../utils/auth.ts';
-import { getAuthorAvatar } from '../../../utils/imageHelper';
+import {getAuthToken, getUserData, getUserRole} from '../../../utils/auth';
+import { getAuthorAvatar, formatTicketImageUrl } from '../../../utils/imageHelper';
 import styles from './Ticket.module.scss';
-import {createChatWithAuthor, initChatModals} from "../../../utils/chatUtils.ts";
-import Auth from "../../../shared/ui/Modal/Auth/Auth.tsx";
-import {smartNameTranslator, textHelper} from "../../../utils/textHelper.ts";
-import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
+import {createChatWithAuthor, initChatModals} from "../../../utils/chatUtils";
+import Auth from "../../../shared/ui/Modal/Auth/Auth";
+import {smartNameTranslator, textHelper} from "../../../utils/textHelper";
+import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
 import {useTranslation} from 'react-i18next';
 import {useLanguageChange} from '../../../hooks';
-import {getStorageItem} from '../../../utils/storageHelper.ts';
+import {getStorageItem} from '../../../utils/storageHelper';
 import Status from '../../../shared/ui/Modal/Status';
 import Feedback from '../../../shared/ui/Modal/Feedback';
 import { Carousel } from '../../../shared/ui/Photo/Carousel';
@@ -20,125 +20,23 @@ import {ReviewsSection} from '../../profile/shared/ui/ReviewsSection';
 import {SocialNetworksSection} from '../../profile/shared/ui/SocialNetworksSection';
 import {PhonesSection} from '../../profile/shared/ui/PhonesSection';
 import {SOCIAL_NETWORK_CONFIG, renderSocialIcon} from '../../profile/shared/config/socialNetworkConfig';
-import type {Review as ReviewType} from '../../../entities';
+import type {Review as ReviewType, Ticket as ApiTicket, Phone, TicketView} from '../../../entities';
 import {PageLoader} from '../../../widgets/PageLoader';
 import {IoWarningOutline, IoStar, IoHeart, IoHeartOutline, IoChevronForward, IoCompass, IoChatbubbleOutline, IoCheckmarkCircleOutline, IoBanOutline} from 'react-icons/io5';
 import { ActionsDropdown } from '../../../widgets/ActionsDropdown';
-import Recommendations, { type Announcement } from '../../main/recommendations/Recommendations.tsx';
-import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore.tsx';
-import { getPageSize } from '../../../utils/pageSize.ts';
-import { parsePagedResponse } from '../../../utils/apiHelper';
+import Recommendations from '../../main/recommendations/Recommendations';
+import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore';
+import { getPageSize } from '../../../utils/pageSize';
+import { getTicketFullAddress, parsePagedResponse } from '../../../utils/apiHelper';
 import { useShowMore } from '../../../hooks';
+import { API_BASE_URL } from '../../../utils/config';
 
-interface ApiTicket {
-    id: number;
-    title: string;
-    description: string;
-    budget: number;
-    unit: { id: number; title: string };
-    addresses: {
-        id: number;
-        title?: string;
-        province?: {
-            id: number;
-            title?: string;
-        };
-        district?: {
-            id: number;
-            title?: string;
-            image?: string | null;
-        };
-        city?: {
-            id: number;
-            title?: string;
-            image?: string | null;
-        };
-        suburb?: {
-            id: number;
-            title?: string;
-        } | null;
-        settlement?: {
-            id: number;
-            title?: string;
-        } | null;
-        village?: {
-            id: number;
-            title?: string;
-        } | null;
-        community?: {
-            id: number;
-            title?: string;
-        } | null;
-    }[];
-    createdAt: string;
-    master: { 
-        id: number; 
-        name?: string; 
-        surname?: string; 
-        image?: string; 
-        rating?: number;
-        phones?: { id: number; phone: string; countryCode?: string; main?: boolean }[];
-        socialNetworks?: { id: number; network: string; handle?: string }[];
-        education?: {
-            id: number;
-            title: string;
-            beginning: number;
-            ending: number;    
-            graduated: boolean;
-            occupation: {
-                id: number;
-                title: string | null;
-                image: string | null;
-            };
-        }[];
-    } | null;
-    author: { id: number; name?: string; surname?: string; image?: string; rating?: number };
-    category: { id: number; title: string };
-    subcategory?: { id: number; title: string };
-    notice?: string;
-    images?: { id: number; image: string }[];
-    ticketImages?: { id: number; image: string }[];
-    active: boolean;
-    service: boolean;
-    reviewsCount?: number;
-    responsesCount?: number;
-    viewsCount?: number;
-    negotiableBudget?: boolean;
-}
-
-interface Order {
-    id: number;
-    title: string;
-    price: number;
-    unit: string;
-    description: string;
-    address: string;
-    date: string;
-    author: string;
-    authorId: number;
-    timeAgo: string;
-    category: string;
-    categoryId: number;
-    subcategory?: string;
-    additionalComments?: string;
-    photos?: string[];
-    notice?: string;
-    rating: number;
-    authorImage?: string;
-    active?: boolean;
-    hasEducation?: boolean;
-    negotiableBudget?: boolean;
-    isService?: boolean;
-    displayedUserRole?: 'master' | 'client';
-}
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export function Ticket() {
     const {id} = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { t, i18n } = useTranslation(['ticket', 'components', 'common']);
-    const [order, setOrder] = useState<Order | null>(null);
+    const [order, setOrder] = useState<TicketView | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -198,7 +96,7 @@ export function Ticket() {
     // Social networks of the ticket author
     const [authorSocialNetworks, setAuthorSocialNetworks] = useState<{ id: string; network: string; handle: string }[]>([]);
     // Phones of the ticket author
-    const [authorPhones, setAuthorPhones] = useState<{ id: string; number: string; type: 'tj' | 'international'; main?: boolean }[]>([]);
+    const [authorPhones, setAuthorPhones] = useState<Phone[]>([]);
 
     // States for similar tickets
     const [similarTickets, setSimilarTickets] = useState<ApiTicket[]>([]);
@@ -302,74 +200,7 @@ export function Ticket() {
         setReviewCount(updatedCount);
     };
 
-    const getFullAddress = (ticketData: ApiTicket): string => {
-        console.log('getFullAddress input:', ticketData);
-
-        if (!ticketData.addresses || ticketData.addresses.length === 0) {
-            return 'Адрес не указан';
-        }
-
-        const address = ticketData.addresses[0];
-        const parts: string[] = [];
-
-        // Провинция (область)
-        if (address.province?.title) {
-            parts.push(address.province.title);
-        }
-
-        // Город
-        if (address.city?.title) {
-            parts.push(address.city.title);
-        }
-
-        // Район
-        if (address.district?.title) {
-            parts.push(address.district.title);
-        }
-
-        // Пригород (если есть)
-        if (address.suburb?.title) {
-            parts.push(address.suburb.title);
-        }
-
-        // Поселение (если есть)
-        if (address.settlement?.title) {
-            parts.push(address.settlement.title);
-        }
-
-        // Деревня (если есть)
-        if (address.village?.title) {
-            parts.push(address.village.title);
-        }
-
-        // Сообщество (если есть)
-        if (address.community?.title) {
-            parts.push(address.community.title);
-        }
-
-        // Конкретный адрес
-        if (address.title) {
-            parts.push(address.title);
-        }
-
-        const result = parts.length > 0 ? parts.join(', ') : 'Адрес не указан';
-        console.log('Formatted address:', result);
-        return result;
-    };
-
-    const formatTicketImageUrl = (imagePath: string): string => {
-        if (!imagePath) return '';
-
-        console.log('Formatting ticket image path:', imagePath);
-
-        if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) {
-            return `${API_BASE_URL}${imagePath}`;
-        } else if (imagePath.startsWith('http')) {
-            return imagePath;
-        } else {
-            return `${API_BASE_URL}/uploads/tickets/${imagePath}`;
-        }
-    };
+    const getFullAddress = getTicketFullAddress;
 
     const fetchOrder = async (ticketId: number) => {
         const fetchTime = Date.now();
@@ -459,11 +290,11 @@ export function Ticket() {
                 userRating = ticketData.master.rating || 0; // Рейтинг специалиста из тикета
             } else {
                 // Услуга специалиста - показываем автора (заказчика)
-                displayUserId = ticketData.author.id;
-                displayUserName = `${ticketData.author.surname || ''} ${ticketData.author.name || ''}`.trim() || t('components:app.defaultClient');
-                displayUserImage = getAuthorAvatar(ticketData.author, '');
+                displayUserId = ticketData.author?.id ?? 0;
+                displayUserName = `${ticketData.author?.surname || ''} ${ticketData.author?.name || ''}`.trim() || t('components:app.defaultClient');
+                displayUserImage = getAuthorAvatar(ticketData.author ?? { id: 0 }, '');
                 userTypeForRating = 'client';
-                userRating = ticketData.author.rating || 0; // Рейтинг автора из тикета
+                userRating = ticketData.author?.rating || 0;
             }
 
             // Переводим имя пользователя
@@ -508,17 +339,17 @@ export function Ticket() {
                                 ticketData.master.education && 
                                 ticketData.master.education.length > 0;
 
-            const orderData: Order = {
+            const orderData: TicketView = {
                 id: ticketData.id,
                 title: ticketData.title ? textHelper(ticketData.title) : t('ticket:noTitle'),
                 price: ticketData.budget || 0,
-                unit: ticketData.unit?.title || 'N/A',
+                unit: (typeof ticketData.unit === 'object' ? ticketData.unit?.title : ticketData.unit) || 'N/A',
                 description: ticketData.description ? textHelper(ticketData.description) : t('ticket:noDescription'),
                 address: fullAddress,
-                date: formatDate(ticketData.createdAt),
+                date: formatDate(ticketData.createdAt ?? ''),
                 author: displayUserName,
                 authorId: displayUserId,
-                timeAgo: getTimeAgo(ticketData.createdAt),
+                timeAgo: getTimeAgo(ticketData.createdAt ?? ''),
                 category: ticketData.category?.title ? textHelper(ticketData.category.title) : t('components:app.service'),
                 categoryId: ticketData.category?.id || 0,
                 subcategory: ticketData.subcategory?.title ? textHelper(ticketData.subcategory.title) : undefined,
@@ -548,22 +379,16 @@ export function Ticket() {
                             .filter(sn => sn.network)
                             .map(sn => ({
                                 id: String(sn.id),
-                                network: sn.network.toLowerCase(),
+                                network: sn.network!.toLowerCase(),
                                 handle: sn.handle || '',
                             }))
                     );
                 }
                 if (contactSource.phones?.length) {
                     setAuthorPhones(
-                        contactSource.phones
+                        (contactSource.phones as Phone[])
                             .filter(p => p.phone)
-                            .map(p => ({
-                                id: String(p.id),
-                                number: p.phone,
-                                type: (p.countryCode && p.countryCode !== '+992' ? 'international' : 'tj') as 'tj' | 'international',
-                                main: p.main ?? false,
-                            }))
-                            .sort((a, b) => (b.main ? 1 : 0) - (a.main ? 1 : 0))
+                            .sort((a, b) => ((b.main ?? false) ? 1 : 0) - ((a.main ?? false) ? 1 : 0))
                     );
                 }
             }
@@ -728,7 +553,7 @@ export function Ticket() {
         if (order?.authorId) {
             const createChat = async () => {
                 try {
-                    const chat = await createChatWithAuthor(order.authorId, order.id);
+                    const chat = await createChatWithAuthor(order.authorId!, order.id);
                     if (chat && chat.id) {
                         console.log('Navigating to chat after login:', chat.id);
                         navigate(`${ROUTES.CHATS}?chatId=${chat.id}`);
@@ -999,7 +824,7 @@ export function Ticket() {
     };
     
     const getMasterName = (review: ReviewType) => {
-        const master = review.user;
+        const master = review.master;
         if (!master) return t('components:app.defaultMaster');
         
         const firstName = master.name || '';
@@ -1015,7 +840,7 @@ export function Ticket() {
     };
     
     const getClientName = (review: ReviewType) => {
-        const reviewer = review.reviewer;
+        const reviewer = review.client;
         if (!reviewer) return t('components:app.defaultClient');
         
         const firstName = reviewer.name || '';
@@ -1089,7 +914,7 @@ export function Ticket() {
                         ? b.addresses?.some(addr => addr.city?.title === selectedCity) ?? false
                         : false;
                     if (aMatchesCity !== bMatchesCity) return aMatchesCity ? -1 : 1;
-                    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                    return new Date(String(b.createdAt ?? '')).getTime() - new Date(String(a.createdAt ?? '')).getTime();
                 });
                 
                 // Ограничиваем до 6 похожих объявлений
@@ -1103,8 +928,8 @@ export function Ticket() {
         }
     };
 
-    // Convert ApiTicket[] to Announcement[] for Recommendations component
-    const similarAnnouncements: Announcement[] = similarTickets.map(ticket => ({
+    // Convert ApiTicket[] to Ticket[] for Recommendations component
+    const similarAnnouncements: ApiTicket[] = similarTickets.map(ticket => ({
         id: ticket.id,
         title: ticket.title,
         description: ticket.description,
@@ -1113,7 +938,8 @@ export function Ticket() {
         service: ticket.service,
         category: ticket.category,
         subcategory: ticket.subcategory,
-        addresses: ticket.addresses.map(addr => ({
+        addresses: (ticket.addresses ?? []).map(addr => ({
+            id: addr.id,
             title: addr.title,
             city: addr.city,
             district: addr.district,
@@ -1132,7 +958,8 @@ export function Ticket() {
         responsesCount: ticket.responsesCount,
         viewsCount: ticket.viewsCount,
         images: ticket.images,
-        negotiableBudget: ticket.negotiableBudget
+        negotiableBudget: ticket.negotiableBudget,
+        active: ticket.active ?? false
     }));
 
     if (isLoading) return <PageLoader text={t('ticket:loading')} />;
@@ -1218,7 +1045,7 @@ export function Ticket() {
                     <div className={styles.categoryContainer}>
                         <button
                             className={styles.categoryBadge}
-                            onClick={() => navigate(ROUTES.CATEGORY_TICKETS_BY_ID(order.categoryId), { state: { categoryName: order.category } })}
+                            onClick={() => navigate(ROUTES.CATEGORY_TICKETS_BY_ID(order.categoryId!), { state: { categoryName: order.category } })}
                         >
                             <IoCompass className={styles.categoryIcon} />
                             <Marquee text={order.category} className={styles.categoryBadgeText} alwaysScroll />
@@ -1288,7 +1115,7 @@ export function Ticket() {
                         <img
                             src={order.authorImage || '/default_user.png'}
                             alt="authorImage"
-                            onClick={() => handleProfileClick(order.authorId)}
+                            onClick={() => handleProfileClick(order.authorId!)}
                             style={{cursor: 'pointer'}}
                             onError={(e) => {
                                 (e.target as HTMLImageElement).src = '/default_user.png';
@@ -1297,7 +1124,7 @@ export function Ticket() {
                         <div className={styles.authorSection}>
                             <div className={styles.authorInfo}>
                                 <h3
-                                    onClick={() => handleProfileClick(order.authorId)}
+                                    onClick={() => handleProfileClick(order.authorId!)}
                                     style={{cursor: 'pointer'}}
                                 >
                                     {order.author}
@@ -1572,7 +1399,7 @@ export function Ticket() {
                     isOpen={showEditReviewModal}
                     onClose={() => { setShowEditReviewModal(false); setEditingReview(null); }}
                     onSuccess={() => fetchReviews()}
-                    targetUserId={editingReview.user?.id ?? 0}
+                    targetUserId={editingReview.master?.id ?? editingReview.client?.id ?? 0}
                     ticketId={editingReview.ticket?.id}
                     editReviewId={editingReview.id}
                     initialRating={editingReview.rating}

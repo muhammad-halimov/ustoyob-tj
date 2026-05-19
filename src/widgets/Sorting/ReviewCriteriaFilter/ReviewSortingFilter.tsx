@@ -2,9 +2,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import styles from '../CriteriaFilter/SortingFilter.module.scss';
 import { Toggle } from '../../../shared/ui/Button/Toggle/Toggle';
-
-export type ReviewSortByType = 'newest' | 'oldest' | 'rating-high' | 'rating-low';
-export type ReviewTimeFilterType = 'all' | 'today' | 'yesterday' | 'week' | 'month';
+import type { ReviewSortByType, ReviewTimeFilterType } from '../../../types/common';
+export type { ReviewSortByType, ReviewTimeFilterType };
 
 interface ReviewSortingFilterProps {
     sortBy: ReviewSortByType;

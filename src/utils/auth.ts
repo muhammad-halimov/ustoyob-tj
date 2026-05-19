@@ -1,5 +1,6 @@
 // utils/auth.ts
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import {API_BASE_URL} from './config';
+import type {Occupation, User} from '../entities';
 
 // Константы для хранения ключей в localStorage
 const STORAGE_KEYS = {
@@ -15,36 +16,8 @@ const STORAGE_KEYS = {
 // Время жизни токена (1 час)
 const TOKEN_LIFETIME_HOURS = 1;
 
-// Интерфейсы для типизации
-export interface UserOccupation {
-    id: number;
-    title: string;
-    [key: string]: unknown;
-}
-
-export interface UserData {
-    id: number;
-    email: string;
-    name: string;
-    surname: string;
-    approved?: boolean;
-    roles: string[];
-    image?: string;
-    occupation?: UserOccupation[];
-    createdAt?: string;
-    updatedAt?: string;
-    oauthType?: {
-        id?: number;
-        googleId?: string;
-        telegramId?: string;
-        vkId?: string;
-        facebookId?: string;
-        instagramId?: string;
-    };
-}
-
 // ============ Кэш запроса /api/users/me ============
-let _mePromise: Promise<UserData | null> | null = null;
+let _mePromise: Promise<User | null> | null = null;
 let _meCachedAt = 0;
 const ME_CACHE_TTL_MS = 30_000 as const;
 
@@ -202,9 +175,7 @@ const formatRole = (role: 'client' | 'master'): string =>
 
 export const getUserRole = (): 'client' | 'master' | null => {
     const role = getItem(STORAGE_KEYS.USER_ROLE);
-    const normalizedRole = role ? normalizeRole(role) : null;
-
-    return normalizedRole;
+    return role ? normalizeRole(role) : null;
 };
 
 export const setUserRole = (role: 'client' | 'master'): void => {
@@ -222,15 +193,15 @@ export const hasRole = (role: 'client' | 'master' | string): boolean => {
 };
 
 // ============ Работа с данными пользователя ============
-export const getUserData = (): UserData | null => {
-    return parseJSON<UserData>(getItem(STORAGE_KEYS.USER_DATA), 'userData');
+export const getUserData = (): User | null => {
+    return parseJSON<User>(getItem(STORAGE_KEYS.USER_DATA), 'userData');
 };
 
-export const setUserData = (data: UserData): void => {
+export const setUserData = (data: User): void => {
     setItem(STORAGE_KEYS.USER_DATA, stringifyJSON(data));
 };
 
-export const updateUserData = (updates: Partial<UserData>): UserData | null => {
+export const updateUserData = (updates: Partial<User>): User | null => {
     const currentData = getUserData();
     if (!currentData) return null;
     const updatedData = { ...currentData, ...updates };
@@ -246,11 +217,11 @@ export const setUserEmail = (email: string): void => {
 };
 
 // ============ Работа с occupation пользователя ============
-export const getUserOccupation = (): UserOccupation[] | null => {
-    return parseJSON<UserOccupation[]>(getItem(STORAGE_KEYS.USER_OCCUPATION), 'occupation');
+export const getUserOccupation = (): Occupation[] | null => {
+    return parseJSON<Occupation[]>(getItem(STORAGE_KEYS.USER_OCCUPATION), 'occupation');
 };
 
-export const setUserOccupation = (occupation: UserOccupation[]): void => {
+export const setUserOccupation = (occupation: Occupation[]): void => {
     setItem(STORAGE_KEYS.USER_OCCUPATION, stringifyJSON(occupation));
 };
 
@@ -388,7 +359,7 @@ export const invalidateCurrentUserCache = (): void => {
     _meCachedAt = 0;
 };
 
-export const fetchCurrentUser = async (): Promise<UserData | null> => {
+export const fetchCurrentUser = async (): Promise<User | null> => {
     const token = getAuthToken();
     if (!token) return null;
 
@@ -409,7 +380,7 @@ export const fetchCurrentUser = async (): Promise<UserData | null> => {
             });
 
             if (response.ok) {
-                const userData: UserData = await response.json();
+                const userData: User = await response.json();
                 setUserData(userData);
                 _meCachedAt = Date.now();
                 return userData;
@@ -427,7 +398,7 @@ export const fetchCurrentUser = async (): Promise<UserData | null> => {
                     },
                 });
                 if (!retryResp.ok) return null;
-                const userData: UserData = await retryResp.json();
+                const userData: User = await retryResp.json();
                 setUserData(userData);
                 _meCachedAt = Date.now();
                 return userData;

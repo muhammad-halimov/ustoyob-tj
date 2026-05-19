@@ -1,17 +1,14 @@
 import { useState, useCallback } from 'react';
 import { getAuthToken } from '../../utils/auth';
 import { getStorageJSON, setStorageJSON } from '../../utils/storageHelper';
+import type { LocalStorageFavorites } from '../../entities';
 
 // Flat entry returned by GET /api/favorites/me (hydra:member)
 interface FavoriteEntry {
-    id: number;           // entry id — used for DELETE
+    id: number;
     type: 'user' | 'ticket';
     user: { id: number } | null;
     ticket: { id: number } | null;
-}
-
-interface LocalStorageFavorites {
-    tickets: number[];
 }
 
 interface UseFavoritesProps {
@@ -21,7 +18,7 @@ interface UseFavoritesProps {
     onError?: (message: string) => void;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { API_BASE_URL } from '../../utils/config';
 
 // Module-level cache to deduplicate concurrent /api/favorites/me requests
 let _favoritesPromise: Promise<FavoriteEntry[]> | null = null;

@@ -1,59 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getAuthToken, handleUnauthorized } from '../../../../utils/auth.ts';
-import { getStorageItem } from '../../../../utils/storageHelper.ts';
-import { AddressValue, AddressData } from '../../../../entities';
+import { getAuthToken, handleUnauthorized } from '../../../../utils/auth';
+import { getStorageItem } from '../../../../utils/storageHelper';
+import { AddressValueView, AddressDataView } from '../../../../entities';
+import type { Province, City, District } from '../../../../entities';
+import { API_BASE_URL } from '../../../../utils/config';
 import { PageLoader } from '../../../../widgets/PageLoader';
-import { SelectSearch } from '../../SelectSearch/SelectSearch';
+import { SelectSearch } from '../../SelectSearch';
 import styles from './Address.module.scss';
 
-// Локальные интерфейсы для Address (расширенные версии)
-interface Province {
-    id: number;
-    title: string;
-}
-
-interface City {
-    id: number;
-    title: string;
-    image?: string;
-    province: Province;
-    suburbs: Suburb[];
-}
-
-interface District {
-    id: number;
-    title: string;
-    image?: string;
-    province: Province;
-    settlements: Settlement[];
-    communities: Community[];
-}
-
-interface Suburb {
-    id: number;
-    title: string;
-}
-
-interface Settlement {
-    id: number;
-    title: string;
-    village: Village[];
-}
-
-interface Community {
-    id: number;
-    title: string;
-}
-
-interface Village {
-    id: number;
-    title: string;
-}
-
 interface AddressSelectorProps {
-    value?: AddressValue;
-    onChange: (value: AddressValue) => void;
+    value?: AddressValueView;
+    onChange: (value: AddressValueView) => void;
     required?: boolean;
 }
 
@@ -78,7 +36,6 @@ const Address = ({ value, onChange }: AddressSelectorProps) => {
     const selectedCommunityId = value?.communityId ?? null;
     const selectedVillageId = value?.villageId ?? null;
 
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
     const locale = getStorageItem('i18nextLng') || 'ru';
 
     const fetchLocationData = async () => {
@@ -167,7 +124,7 @@ const Address = ({ value, onChange }: AddressSelectorProps) => {
         : citiesInSelectedProvince;
 
     const filteredDistricts = districtQuery
-        ? districtsInSelectedProvince.filter(d => d.title.toLowerCase().includes(districtQuery.toLowerCase()))
+        ? districtsInSelectedProvince.filter(d => d.title?.toLowerCase().includes(districtQuery.toLowerCase()))
         : districtsInSelectedProvince;
 
     const filteredSuburbs = suburbQuery
@@ -514,7 +471,7 @@ const Address = ({ value, onChange }: AddressSelectorProps) => {
 };
 
 // Утилита для формирования данных адреса для API
-export const buildAddressData = (value: AddressValue): AddressData | null => {
+export const buildAddressData = (value: AddressValueView): AddressDataView | null => {
     if (!value.provinceId) return null;
 
     const addressData: any = {

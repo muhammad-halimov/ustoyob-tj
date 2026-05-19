@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getAuthToken, getUserRole, getUserData } from '../../../../utils/auth.ts';
-import { getStorageItem } from '../../../../utils/storageHelper.ts';
-import Auth from '../Auth/Auth.tsx';
+import { getAuthToken, getUserRole, getUserData } from '../../../../utils/auth';
+import { getStorageItem } from '../../../../utils/storageHelper';
+import Auth from '../Auth/Auth';
 import Status from '../Status';
 import { Toggle } from '../../Button/Toggle/Toggle';
 import Grid, { PhotoItem } from '../../Photo/Grid';
 import { Preview, usePreview } from '../../Photo/Preview';
 import { uploadPhotos } from '../../../../utils/imageHelper';
 import styles from './Feedback.module.scss';
+import type { Ticket, AppealReason } from '../../../../entities';
 
 export interface FeedbackModalProps {
     mode: 'review' | 'complaint';
@@ -17,17 +18,13 @@ export interface FeedbackModalProps {
     onSuccess: (message: string) => void;
     onError?: (message: string) => void;
     targetUserId: number;
-    // Shared / Review
     ticketId?: number;
-    // Review-specific
     onReviewSubmitted?: (reviewCount: number) => void;
     showServiceSelector?: boolean;
-    /** Edit mode: PATCH an existing review instead of creating a new one */
     editReviewId?: number;
     initialRating?: number;
     initialText?: string;
     initialImages?: Array<{ id: number; image: string }>;
-    // Complaint-specific
     targetUserRole?: 'client' | 'master';
     chatId?: number;
     reviewId?: number;
@@ -35,23 +32,7 @@ export interface FeedbackModalProps {
     showUserComplaintToggle?: boolean;
 }
 
-interface Service {
-    id: number;
-    title: string;
-}
-
-interface Ticket {
-    id: number;
-    title: string;
-}
-
-interface AppealReason {
-    id: number;
-    code: string;
-    title: string;
-}
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { API_BASE_URL } from '../../../../utils/config';
 
 const Feedback: React.FC<FeedbackModalProps> = ({
     mode,
@@ -86,7 +67,7 @@ const Feedback: React.FC<FeedbackModalProps> = ({
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [reviewText, setReviewText] = useState('');
     const [selectedStars, setSelectedStars] = useState(0);
-    const [services, setServices] = useState<Service[]>([]);
+    const [services, setServices] = useState<Pick<Ticket, 'id' | 'title'>[]>([]);
     const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
     const [loadingServices, setLoadingServices] = useState(false);
 
@@ -95,7 +76,7 @@ const Feedback: React.FC<FeedbackModalProps> = ({
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [reason, setReason] = useState('');
-    const [tickets, setTickets] = useState<Ticket[]>([]);
+    const [tickets, setTickets] = useState<Pick<Ticket, 'id' | 'title'>[]>([]);
     const [selectedTicketId, setSelectedTicketId] = useState<number | null>(ticketId ?? null);
     const [loadingTickets, setLoadingTickets] = useState(false);
     const [isUserComplaint, setIsUserComplaint] = useState(false);

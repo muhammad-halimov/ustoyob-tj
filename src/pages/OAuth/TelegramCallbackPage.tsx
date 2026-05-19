@@ -13,31 +13,8 @@ import {
     setUserOccupation,
     getAuthToken,
 } from '../../utils/auth';
-
-interface TelegramUserData {
-    id: number;
-    first_name: string;
-    last_name?: string;
-    username?: string;
-    photo_url?: string;
-    auth_date: number;
-    hash: string;
-}
-
-interface TelegramAuthResponse {
-    user?: {
-        id: number;
-        email: string;
-        name: string;
-        surname: string;
-        roles: string[];
-        occupation?: Array<{ id: number; title: string; [key: string]: unknown }>;
-        [key: string]: unknown;
-    };
-    token?: string;
-    message?: string;
-    error?: string;
-}
+import type { TelegramUserData, BackendAuthCallbackResponse } from '../../entities';
+import { API_BASE_URL } from '../../utils/config';
 
 const TelegramCallbackPage = () => {
     const [searchParams] = useSearchParams();
@@ -46,8 +23,6 @@ const TelegramCallbackPage = () => {
     const [error, setError] = useState<string>('');
     const [success, setSuccess] = useState(false);
     const { t } = useTranslation('common');
-
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     useEffect(() => {
         const processTelegramCallback = async () => {
@@ -194,7 +169,7 @@ const TelegramCallbackPage = () => {
                     }
                 }
 
-                const data: TelegramAuthResponse = JSON.parse(responseText);
+                const data: BackendAuthCallbackResponse = JSON.parse(responseText);
 
                 // Сохраняем токен и данные пользователя
                 if (data.token && data.user) {

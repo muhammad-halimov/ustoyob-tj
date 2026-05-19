@@ -13,38 +13,16 @@ import {
     setUserOccupation,
     getAuthToken,
 } from '../../utils/auth';
-
-// Типы для провайдеров
-type OAuthProvider = 'google' | 'instagram' | 'facebook';
+import type { OAuthErrorResponse, OAuthProviderName, BackendAuthCallbackResponse } from '../../entities';
+import { API_BASE_URL } from '../../utils/config';
 
 // Определяем провайдер по URL
-const getProviderFromUrl = (pathname: string): OAuthProvider | null => {
+const getProviderFromUrl = (pathname: string): OAuthProviderName | null => {
     if (pathname.includes('/auth/google')) return 'google';
     if (pathname.includes('/auth/instagram')) return 'instagram';
     if (pathname.includes('/auth/facebook')) return 'facebook';
     return null;
 };
-
-interface OAuthResponse {
-    user?: {
-        id: number;
-        email: string;
-        name: string;
-        surname: string;
-        roles: string[];
-        occupation?: Array<{id: number; title: string; [key: string]: unknown}>;
-        [key: string]: unknown;
-    };
-    token?: string;
-    message?: string;
-    error?: string;
-}
-
-interface OAuthErrorResponse {
-    error?: string;
-    error_description?: string;
-    message?: string;
-}
 
 const OAuthCallbackPage = () => {
     const [searchParams] = useSearchParams();
@@ -52,11 +30,9 @@ const OAuthCallbackPage = () => {
     const [error, setError] = useState<string>('');
     const [loading, setLoading] = useState(true);
     const [success, setSuccess] = useState(false);
-    const [provider, setProvider] = useState<OAuthProvider | null>(null);
+    const [provider, setProvider] = useState<OAuthProviderName | null>(null);
     const [isLinkMode, setIsLinkMode] = useState(false);
     const { t } = useTranslation('common');
-
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     useEffect(() => {
         // Определяем провайдер по URL
@@ -192,7 +168,7 @@ const OAuthCallbackPage = () => {
                     }
                 }
 
-                const data: OAuthResponse = JSON.parse(responseText);
+                const data: BackendAuthCallbackResponse = JSON.parse(responseText);
 
                 if (data.error === 'email_taken') {
                     setError(t('oauth.emailTaken'));

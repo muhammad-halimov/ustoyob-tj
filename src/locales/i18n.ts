@@ -40,8 +40,9 @@ import tjProfile from './languages/tj/profile.json';
 import tjCreateEdit from './languages/tj/createEdit.json';
 import tjAddress from './languages/tj/address.json';
 import tjMyTickets from './languages/tj/myTickets.json';
+import type { Language } from '../types/common';
 
-export type Language = 'tj' | 'ru' | 'eng';
+export type { Language } from '../types/common';
 
 export const changeLanguage = (lang: Language) => {
     i18n.changeLanguage(lang);

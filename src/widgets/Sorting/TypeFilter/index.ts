@@ -1,1 +1,1 @@
-export { ServiceTypeFilter } from './ServiceTypeFilter.tsx';
+export { ServiceTypeFilter } from './ServiceTypeFilter';

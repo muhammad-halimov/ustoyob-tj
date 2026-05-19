@@ -6,27 +6,9 @@ import PageLoader from '../../../../widgets/PageLoader/PageLoader';
 import { Toggle } from '../../../../shared/ui/Button/Toggle/Toggle';
 import { getAuthToken } from '../../../../utils/auth';
 import { getStorageItem } from '../../../../utils/storageHelper';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
-interface Occupation {
-    id: number;
-    title: string;
-    categories: { id: number; title: string }[];
-}
-
-export interface FilterState {
-    minPrice: string;
-    maxPrice: string;
-    negotiablePrice: boolean;
-    category: string;
-    subcategory: string; // Добавляем подкатегорию
-    rating: string;
-    reviewCount: string;
-    sortBy: string;
-    province: string; // Провинция
-    city: string; // Город/Район
-}
+import type { Occupation, Category, FilterState } from '../../../../entities';
+import type { Province } from '../../../../entities';
+import { API_BASE_URL } from '../../../../utils/config';
 
 interface FilterPanelProps {
     showFilters: boolean;
@@ -34,9 +16,9 @@ interface FilterPanelProps {
     onApply: (filters: FilterState) => Promise<void> | void;
     filters: FilterState;
     onResetFilters: () => void;
-    categories: { id: number; name: string }[];
-    provinces: { id: number; name: string }[];
-    cities: { id: number; name: string }[];
+    categories: Category[];
+    provinces: Province[];
+    cities: { id: number; title: string }[];
     occupations: Occupation[];
 }
 
@@ -93,7 +75,7 @@ function FilterPanel({
     const getFilteredOccupations = () => {
         if (!localFilters.category) return [];
         return occupations.filter(occupation => 
-            occupation.categories.some(cat => cat.id.toString() === localFilters.category)
+            occupation.categories?.some(cat => cat.id.toString() === localFilters.category)
         );
     };
 
@@ -153,12 +135,12 @@ function FilterPanel({
     }, [localFilters.province]);
 
     const provinceOptions = useMemo<SelectOption[]>(
-        () => provinces.map(p => ({ value: p.id.toString(), label: p.name })),
+        () => provinces.map(p => ({ value: p.id.toString(), label: p.title ?? '' })),
         [provinces],
     );
 
     const categoryOptions = useMemo<SelectOption[]>(
-        () => categories.map(c => ({ value: c.id.toString(), label: c.name })),
+        () => categories.map(c => ({ value: c.id.toString(), label: c.title })),
         [categories],
     );
 

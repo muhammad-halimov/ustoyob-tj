@@ -7,26 +7,15 @@ import { Tabs } from '../../shared/ui/Tabs';
 import PageLoader from '../../widgets/PageLoader/PageLoader';
 import { IoDocumentTextOutline, IoShieldCheckmarkOutline, IoReceiptOutline } from 'react-icons/io5';
 import styles from './Legal.module.scss';
-
-interface LegalDocument {
-    id: number;
-    type: string;
-    title: string;
-    description: string;
-    createdAt: string;
-    updatedAt: string;
-}
-
-type DocumentType = 'privacy_policy' | 'terms_of_use' | 'public_offer';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import type { LegalDocument, LegalDocumentType } from '../../entities';
+import { API_BASE_URL } from '../../utils/config';
 
 function Legal() {
     const { t, i18n } = useTranslation('common');
     const location = useLocation();
     const navigate = useNavigate();
     const [document, setDocument] = useState<LegalDocument | null>(null);
-    const [activeType, setActiveType] = useState<DocumentType>('privacy_policy');
+    const [activeType, setActiveType] = useState<LegalDocumentType>('privacy_policy');
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -84,7 +73,7 @@ function Legal() {
     }, [activeType, i18n.language]);
 
     // Переключение документа
-    const handleTypeChange = (type: DocumentType) => {
+    const handleTypeChange = (type: LegalDocumentType) => {
         if (type !== activeType) {
             setActiveType(type);
             let newPath: string = ROUTES.PRIVACY_POLICY;
@@ -98,9 +87,9 @@ function Legal() {
     };
 
     const navTabs = [
-        { key: 'terms_of_use' as DocumentType, icon: <IoDocumentTextOutline />, label: t('footer.termsOfUse', 'Условия использования') },
-        { key: 'privacy_policy' as DocumentType, icon: <IoShieldCheckmarkOutline />, label: t('footer.privacyPolicy', 'Политика конфиденциальности') },
-        { key: 'public_offer' as DocumentType, icon: <IoReceiptOutline />, label: t('footer.publicOffer', 'Публичная оферта') },
+        { key: 'terms_of_use' as LegalDocumentType, icon: <IoDocumentTextOutline />, label: t('footer.termsOfUse', 'Условия использования') },
+        { key: 'privacy_policy' as LegalDocumentType, icon: <IoShieldCheckmarkOutline />, label: t('footer.privacyPolicy', 'Политика конфиденциальности') },
+        { key: 'public_offer' as LegalDocumentType, icon: <IoReceiptOutline />, label: t('footer.publicOffer', 'Публичная оферта') },
     ];
 
     return (

@@ -10,13 +10,16 @@ import {
     setUserEmail,
     setUserRole,
     setUserOccupation,
-} from '../../../../utils/auth.ts';
-import { getOccupations } from '../../../../utils/dataCache.ts';
-import { DateWidget } from '../../../../widgets/DateWidget/DateWidget.tsx';
+} from '../../../../utils/auth';
+import { getOccupations } from '../../../../utils/dataCache';
+import { DateWidget } from '../../../../widgets/DateWidget/DateWidget';
 import { Marquee } from '../../Text/Marquee';
 import Status from '../Status';
 import { PageLoader } from '../../../../widgets/PageLoader';
 import { Clear } from '../../Button/Clear/Clear';
+import type { TelegramUserData as TelegramWidgetData } from '../../../../entities/api/OAuth';
+import type { OAuthProviderName, User, Occupation, Category } from '../../../../entities';
+import { API_BASE_URL } from '../../../../utils/config';
 
 const AuthModalState = {
     WELCOME: 'welcome',
@@ -51,13 +54,6 @@ interface FormData {
     dateOfBirth: string;
 }
 
-interface Category {
-    id: number;
-    title: string;
-    description: string;
-    imageFile: string;
-}
-
 interface LoginResponse {
     token: string;
 }
@@ -88,36 +84,12 @@ interface OAuthUserResponse {
 }
 
 interface TelegramAuthResponse {
-    user: TelegramUserData;
+    user: User;
     token: string;
 }
 
-interface TelegramUserData {
-    id: number;
-    email: string;
-    name: string;
-    surname: string;
-    roles: string[];
-    approved?: boolean;
-    image?: string;
-    occupation?: Array<{id: number; title: string; [key: string]: unknown}>;
-    createdAt?: string;
-    updatedAt?: string;
-    [key: string]: unknown;
-}
-
-interface TelegramAuthCallbackData {
-    id: number;
-    first_name: string;
-    last_name?: string;
-    username?: string;
-    photo_url?: string;
-    auth_date: number;
-    hash: string;
-}
-
 // Типы для OAuth провайдеров
-type OAuthProvider = 'google' | 'instagram' | 'facebook' | 'telegram';
+type OAuthProvider = OAuthProviderName;
 interface OAuthCallbackData {
     code: string;
     state: string;
@@ -178,8 +150,6 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         message: ''
     });
     const [showPasswordRequirements, setShowPasswordRequirements] = useState(false);
-
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     // Эффект для валидации пароля при изменении
     useEffect(() => {
@@ -257,7 +227,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                     id: occ.id,
                     title: occ.title,
                     description: occ.description || '',
-                    imageFile: occ.image || ''
+                    image: occ.image || ''
                 }));
                 setCategories(categories);
             } catch (err) {
@@ -276,7 +246,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                     id: occ.id,
                     title: occ.title,
                     description: occ.description || '',
-                    imageFile: occ.image || ''
+                    image: occ.image || ''
                 }));
                 setCategories(categories);
             } catch (err) {
@@ -314,7 +284,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 console.log('Telegram auth data received:', data);
 
                 if (data.event === 'auth_callback') {
-                    const authData: TelegramAuthCallbackData = data.auth;
+                    const authData: TelegramWidgetData = data.auth;
                     handleTelegramWidgetCallback(authData);
                 }
             } catch (err) {
@@ -499,7 +469,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             // Сохраняем occupation если есть
             if (data.user.occupation) {
                 console.log('User occupation from OAuth:', data.user.occupation);
-                setUserOccupation(data.user.occupation);
+                setUserOccupation(data.user.occupation as Occupation[]);
             }
 
             console.log('Final user role set to:', getUserRole());
@@ -507,7 +477,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
     };
 
     // Обработка Telegram Widget callback
-    const handleTelegramWidgetCallback = async (authData: TelegramAuthCallbackData) => {
+    const handleTelegramWidgetCallback = async (authData: TelegramWidgetData) => {
         try {
             setIsLoading(true);
             setError('');
@@ -747,7 +717,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 // Сохраняем occupation если есть
                 if (userData.occupation) {
                     console.log('User occupation from API:', userData.occupation);
-                    setUserOccupation(userData.occupation);
+                    setUserOccupation(userData.occupation as Occupation[]);
                 }
             } else {
                 console.warn('Could not fetch user data from /me endpoint');
@@ -1837,7 +1807,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 throw new Error('Данные пользователя Telegram не найдены');
             }
 
-            const telegramUserData: TelegramUserData = JSON.parse(telegramUserDataStr);
+            const telegramUserData: User = JSON.parse(telegramUserDataStr);
             console.log('Completing Telegram auth for role:', selectedRole);
 
             const response = await fetch(`${API_BASE_URL}/api/auth/telegram/complete`, {

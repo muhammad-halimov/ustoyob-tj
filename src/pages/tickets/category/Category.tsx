@@ -1,7 +1,7 @@
 import {useState, useEffect, useCallback} from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { getAuthToken, getUserRole, getUserData } from '../../../utils/auth.ts';
-import { getStorageItem } from '../../../utils/storageHelper.ts';
+import { getAuthToken, getUserRole, getUserData } from '../../../utils/auth';
+import { getStorageItem } from '../../../utils/storageHelper';
 import { useLanguageChange } from '../../../hooks';
 import { createChatWithAuthor } from '../../../utils/chatUtils';
 import Status from '../../../shared/ui/Modal/Status';
@@ -10,145 +10,35 @@ import Feedback from '../../../shared/ui/Modal/Feedback';
 import { EmptyState } from '../../../widgets/EmptyState';
 import { ROUTES } from '../../../app/routers/routes';
 import styles from './Category.module.scss';
-import { Card } from '../../../shared/ui/Ticket/Card/Card.tsx';
+import { Card } from '../../../shared/ui/Ticket/Card/Card';
 import { ServiceTypeFilter } from '../../../widgets/Sorting/TypeFilter';
 import { SortingFilter } from '../../../widgets/Sorting/CriteriaFilter';
 import { useTranslation } from 'react-i18next';
-import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
-import { getOccupations } from '../../../utils/dataCache.ts';
-import { truncateText } from '../../../utils/textHelper.ts';
-import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore.tsx';
+import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
+import { getOccupations } from '../../../utils/dataCache';
+import { truncateText } from '../../../utils/textHelper';
+import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore';
 import { SelectSearch } from '../../../shared/ui/SelectSearch';
-import { getPageSize } from '../../../utils/pageSize.ts';
-import { parsePagedResponse } from '../../../utils/apiHelper';
+import { getPageSize } from '../../../utils/pageSize';
+import { parsePagedResponse, ticketToTicketView, getTicketFullAddress, getTicketShortAddress } from '../../../utils/apiHelper';
 import { useShowMore } from '../../../hooks';
+import type { Ticket, TicketView } from '../../../entities';
+import type { Occupation } from '../../../entities';
+import { API_BASE_URL } from '../../../utils/config';
+import { getSessionJSON } from '../../../utils/storageHelper';
 
-interface Occupation {
-    id: number;
-    title: string;
-    image?: string;
-    priority?: number;
-    categories: { id: number; title: string }[];
-}
 
-interface Ticket {
-    id: number;
-    title: string;
-    description: string;
-    notice: string;
-    budget: number;
-    active: boolean;
-    service: boolean; // true - услуга от специалиста, false - заказ от заказчика
-    category: {
-        id: number;
-        title: string;
-        image: string;
-    };
-    subcategory?: {
-        id: number;
-        title: string;
-        image: string;
-    } | null;
-    author: {
-        id: number;
-        email: string;
-        name: string;
-        surname: string;
-        image: string;
-        imageExternalUrl?: string | null;
-        rating?: number;
-    } | null;
-    master: {
-        id: number;
-        email: string;
-        name: string;
-        surname: string;
-        image: string;
-        imageExternalUrl?: string | null;
-        rating?: number;
-    } | null;
-    images: Array<{
-        id: number;
-        image: string;
-    }>;
-    unit: {
-        id: number;
-        title: string;
-    };
-    district?: {
-        id: number;
-        title: string;
-        image: string;
-        city?: {
-            id: number;
-            title: string;
-            image: string;
-            province?: {
-                id: number;
-                title: string;
-            };
-        };
-    };
-    addresses?: Array<{
-        id: number;
-        province?: { id: number; title: string };
-        district?: { id: number; title: string; image: string };
-        city?: { id: number; title: string; image: string };
-        settlement?: { id: number; title: string };
-        community?: { id: number; title: string };
-        village?: { id: number; title: string };
-        suburb?: { id: number; title: string };
-        title?: string; // Улица/дом/квартира
-    }>;
-    createdAt: string;
-    updatedAt: string;
-    reviewsCount?: number;
-    responsesCount?: number;
-    viewsCount?: number;
-    negotiableBudget?: boolean;
-}
-
-interface FormattedTicket {
-    id: number;
-    title: string;
-    price: number;
-    unit: string;
-    description: string;
-    address: string;
-    fullAddress: string; // Добавляем поле для полного адреса
-    date: string;
-    author: string;
-    timeAgo: string;
-    category: string;
-    subcategory?: string;
-    status: string;
-    authorId: number;
-    type: 'client' | 'master';
-    authorImage?: string;
-    userRating?: number;
-    userReviewCount?: number;
-    responsesCount?: number;
-    viewsCount?: number;
-    photos?: string[];
-    negotiableBudget?: boolean;
-}
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 function getCatSession(catId: string | undefined): Record<string, unknown> | null {
-    if (!catId) return null;
-    try {
-        const raw = sessionStorage.getItem(`cat-filters-${catId}`);
-        return raw ? JSON.parse(raw) as Record<string, unknown> : null;
-    } catch { return null; }
+    return catId ? getSessionJSON(`cat-filters-${catId}`) : null;
 }
 
 function Category() {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
     const location = useLocation();
-    const [tickets, setTickets] = useState<FormattedTicket[]>([]);
-    const { page, setPage, appendRef: appendTicketsRef, skipFetchRef: skipTicketsFetchRef, applyFetch: applyTicketsFetch, showMoreProps: ticketsShowMoreProps } = useShowMore<FormattedTicket>(setTickets);
+    const [tickets, setTickets] = useState<TicketView[]>([]);
+    const { page, setPage, appendRef: appendTicketsRef, skipFetchRef: skipTicketsFetchRef, applyFetch: applyTicketsFetch, showMoreProps: ticketsShowMoreProps } = useShowMore<TicketView>(setTickets);
     const [isLoading, setIsLoading] = useState(true);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [categoryName, setCategoryName] = useState<string>(() => {
@@ -317,42 +207,6 @@ function Category() {
         }
     }, [userRole, id, locale, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter, page, selectedSubcategory]);
 
-    const formatProfileImageUrl = (imagePath: string): string => {
-        if (!imagePath) return '';
-
-        if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) {
-            return `${API_BASE_URL}${imagePath}`;
-        } else if (imagePath.startsWith('http')) {
-            return imagePath;
-        } else {
-            return `${API_BASE_URL}/uploads/users/${imagePath}`;
-        }
-    };
-
-    const formatTicketImageUrl = (imagePath: string): string => {
-        if (!imagePath) return '';
-        if (imagePath.startsWith('http')) return imagePath;
-        if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) return `${API_BASE_URL}${imagePath}`;
-        return `${API_BASE_URL}/uploads/tickets/${imagePath}`;
-    };
-
-    const formatOccupationImageUrl = (imagePath?: string): string => {
-        if (!imagePath) return '/default_subcategory.png'; // Дефолтное изображение
-
-        // Проверяем, начинается ли путь с /uploads/ или /images/
-        if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) {
-            return `${API_BASE_URL}${imagePath}`;
-        }
-
-        // Если путь уже содержит http или просто имя файла
-        if (imagePath.startsWith('http')) {
-            return imagePath;
-        }
-
-        // По умолчанию используем путь из API для изображений профессий
-        return `${API_BASE_URL}/uploads/occupations/${imagePath}`;
-    };
-
     const fetchCategoryName = async () => {
         try {
             const token = getAuthToken();
@@ -388,13 +242,7 @@ function Category() {
         try {
             const occupationsData = await getOccupations();
             
-            const formatted: Occupation[] = occupationsData.filter((occ: { 
-                id: number; 
-                title: string;
-                image?: string;
-                priority?: number;
-                categories?: { id: number; title: string }[] 
-            }) => 
+            const formatted: Occupation[] = occupationsData.filter((occ: Occupation) => 
                 occ.categories?.some(cat => cat.id.toString() === id) || false
             ).map((occ) => ({
                 id: occ.id,
@@ -445,98 +293,17 @@ function Category() {
     }, []);
 
     // Функция для получения полного адреса
-    const getFullAddress = useCallback((ticket: Ticket): string => {
-        // Проверяем addresses массив (новый формат)
-        if (ticket.addresses && ticket.addresses.length > 0) {
-            const address = ticket.addresses[0];
-            const parts: string[] = [];
-
-            // Добавляем все компоненты адреса в правильном порядке
-            if (address.province?.title) {
-                parts.push(address.province.title);
-            }
-            if (address.city?.title) {
-                parts.push(address.city.title);
-            }
-            if (address.district?.title) {
-                parts.push(address.district.title);
-            }
-            if (address.settlement?.title) {
-                parts.push(address.settlement.title);
-            }
-            if (address.community?.title) {
-                parts.push(address.community.title);
-            }
-            if (address.village?.title) {
-                parts.push(address.village.title);
-            }
-            if (address.suburb?.title) {
-                parts.push(address.suburb.title);
-            }
-            // Конкретный адрес (улица, дом, квартира)
-            if (address.title) {
-                parts.push(address.title);
-            }
-
-            // Удаляем дубликаты и пустые значения
-            const uniqueParts = Array.from(new Set(parts.filter(part => part && part.trim())));
-
-            if (uniqueParts.length === 0) {
-                return 'Адрес не указан';
-            }
-
-            return uniqueParts.join(', ');
-        }
-
-        return 'Адрес не указан';
-    }, []);
+    const getFullAddress = getTicketFullAddress;
 
     // Функция для получения краткого адреса (город, район)
-    const getShortAddress = useCallback((ticket: Ticket): string => {
-        // Проверяем addresses массив
-        if (ticket.addresses && ticket.addresses.length > 0) {
-            const address = ticket.addresses[0];
-            const parts: string[] = [];
+    const getShortAddress = getTicketShortAddress;
 
-            // Только город и район
-            if (address.city?.title) {
-                parts.push(address.city.title);
-            }
-            if (address.district?.title) {
-                parts.push(address.district.title);
-            }
-
-            const uniqueParts = Array.from(new Set(parts.filter(part => part && part.trim())));
-
-            if (uniqueParts.length === 0) {
-                return 'Адрес не указан';
-            }
-
-            return uniqueParts.join(', ');
-        }
-
-        // Проверяем устаревший формат
-        if (ticket.district) {
-            const parts: string[] = [];
-
-            if (ticket.district.city?.title) {
-                parts.push(ticket.district.city.title);
-            }
-            if (ticket.district?.title) {
-                parts.push(ticket.district.title);
-            }
-
-            const uniqueParts = Array.from(new Set(parts.filter(part => part && part.trim())));
-
-            if (uniqueParts.length === 0) {
-                return 'Адрес не указан';
-            }
-
-            return uniqueParts.join(', ');
-        }
-
-        return 'Адрес не указан';
-    }, []);
+    const formatOccupationImageUrl = (imagePath?: string): string => {
+        if (!imagePath) return '/default_subcategory.png';
+        if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) return `${API_BASE_URL}${imagePath}`;
+        if (imagePath.startsWith('http')) return imagePath;
+        return `${API_BASE_URL}/uploads/occupations/${imagePath}`;
+    };
 
     const fetchTicketsByCategory = async () => {
         try {
@@ -607,38 +374,15 @@ function Category() {
             console.log('Category - Total tickets received:', ticketsData.length);
 
             // Форматируем тикеты
-            const formattedTickets: FormattedTicket[] = ticketsData.map(ticket => {
-                const isMasterTicket = ticket.service; // service: true - услуга от специалиста, false - заказ от заказчика 
-                const author = isMasterTicket ? ticket.master : ticket.author;
-                const authorId = author?.id || 0;
-                const authorName = author ? `${author.surname || ''} ${author.name || ''}`.trim() : 'Пользователь';
-
-                const fullAddress = getFullAddress(ticket);
-                const shortAddress = getShortAddress(ticket);
-
+            const formattedTickets: TicketView[] = ticketsData.map(ticket => {
                 return {
+                    ...ticketToTicketView(ticket),
                     id: ticket.id,
-                    title: ticket.title || t('ticket:noTitle'),
-                    price: ticket.budget || 0,
-                    unit: ticket.unit?.title || 'TJS',
-                    description: ticket.description || t('ticket:noDescription'),
-                    address: shortAddress, // Краткий адрес для основного отображения
-                    fullAddress: fullAddress, // Полный адрес
-                    date: ticket.createdAt,
-                    author: authorName,
-                    authorId: authorId,
-                    timeAgo: ticket.createdAt,
-                    category: ticket.category?.title || 'другое',
-                    subcategory: ticket.subcategory?.title,
+                    fullAddress: getFullAddress(ticket),
+                    address: getShortAddress(ticket),
                     status: ticket.active ? 'В работе' : 'Завершен',
-                    type: isMasterTicket ? 'master' : 'client',
-                    authorImage: author ? (author.image || author.imageExternalUrl ? formatProfileImageUrl(author.image || author.imageExternalUrl!) : undefined) : undefined,
-                    userRating: author?.rating || 0,
-                    userReviewCount: ticket.reviewsCount || 0,
                     responsesCount: ticket.responsesCount,
                     viewsCount: ticket.viewsCount,
-                    photos: ticket.images?.map((img: { id: number; image: string }) => formatTicketImageUrl(img.image)),
-                    negotiableBudget: ticket.negotiableBudget
                 };
             });
 
@@ -675,7 +419,7 @@ function Category() {
             // Применяем сортировку
             const sortedTickets = [...filteredTickets].sort((a, b) => {
                 // Вспомогательная функция для получения значения сортировки
-                const getSortValue = (ticket: FormattedTicket, sortType: typeof sortBy | typeof secondarySortBy): number => {
+                const getSortValue = (ticket: TicketView, sortType: typeof sortBy | typeof secondarySortBy): number => {
                     switch (sortType) {
                         case 'newest':
                             return new Date(ticket.date).getTime();
@@ -895,7 +639,7 @@ function Category() {
                                 }}
                             >
                                 <img
-                                    src={formatOccupationImageUrl(occupation.image)}
+                                    src={formatOccupationImageUrl(occupation.image ?? undefined)}
                                     alt={occupation.title}
                                     className={!occupation.image ? styles.img_fallback : undefined}
                                     onError={(e) => {
@@ -973,7 +717,7 @@ function Category() {
                             description={cleanText(ticket.description)}
                             price={ticket.price}
                             unit={ticket.unit}
-                            address={ticket.fullAddress}
+                            address={ticket.fullAddress ?? ticket.address}
                             date={ticket.date}
                             author={ticket.author}
                             authorId={ticket.authorId}
@@ -990,11 +734,11 @@ function Category() {
                             authorImage={ticket.authorImage}
                             negotiableBudget={ticket.negotiableBudget}
                             onClick={() => handleCardClick(ticket.id)}
-                            onRespondClick={ticket.authorId !== currentUserId ? (e) => { e.stopPropagation(); handleRespondCard(ticket.id, ticket.authorId); } : undefined}
+                            onRespondClick={ticket.authorId !== currentUserId ? (e) => { e.stopPropagation(); handleRespondCard(ticket.id, ticket.authorId ?? 0); } : undefined}
                             isResponded={respondedTickets.has(ticket.id)}
                             isRespondLoading={respondingTicketId === ticket.id}
-                            onReviewClick={ticket.authorId !== currentUserId ? () => { const tok = getAuthToken(); if (!tok) { window.dispatchEvent(new CustomEvent('openAuthModal')); return; } setCardReviewTarget({ authorId: ticket.authorId, ticketId: ticket.id }); } : undefined}
-                            onComplaintClick={ticket.authorId !== currentUserId ? () => { const tok = getAuthToken(); if (!tok) { window.dispatchEvent(new CustomEvent('openAuthModal')); return; } setCardComplaintTarget({ authorId: ticket.authorId, ticketId: ticket.id }); } : undefined}
+                            onReviewClick={ticket.authorId !== currentUserId ? () => { const tok = getAuthToken(); if (!tok) { window.dispatchEvent(new CustomEvent('openAuthModal')); return; } setCardReviewTarget({ authorId: ticket.authorId ?? 0, ticketId: ticket.id }); } : undefined}
+                            onComplaintClick={ticket.authorId !== currentUserId ? () => { const tok = getAuthToken(); if (!tok) { window.dispatchEvent(new CustomEvent('openAuthModal')); return; } setCardComplaintTarget({ authorId: ticket.authorId ?? 0, ticketId: ticket.id }); } : undefined}
                         />
                     ))
                 )}

@@ -1,34 +1,24 @@
 import styles from "./Main.module.scss";
-import Search from "../search/search/Search.tsx";
-import { Add } from "../../../shared/ui/Button/Header/Add/Add.tsx";
-import Category from "../categories/Category.tsx";
+import Search from "../search/search/Search";
+import { Add } from "../../../shared/ui/Button/Header/Add/Add";
+import Category from "../categories/Category";
 import { MainReviewsSection } from "../reviews";
-import Recommendations from "../recommendations/Recommendations.tsx";
+import Recommendations from "../recommendations/Recommendations";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ROUTES } from '../../../app/routers/routes';
-import { getUserRole } from "../../../utils/auth.ts";
+import { getUserRole } from "../../../utils/auth";
 import { useTranslation } from "react-i18next";
-import Auth from "../../../shared/ui/Modal/Auth/Auth.tsx";
-import Status from "../../../shared/ui/Modal/Status/Status.tsx";
+import Auth from "../../../shared/ui/Modal/Auth/Auth";
+import Status from "../../../shared/ui/Modal/Status/Status";
 
 import "swiper/css";
 import "swiper/css/pagination";
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Pagination } from 'swiper/modules';
-import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
+import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
 
-interface SearchResult {
-    id: number;
-    title: string;
-    price: number;
-    unit: string;
-    description: string;
-    address: string;
-    date: string;
-    author: string;
-    timeAgo: string;
-}
+import type { TicketView } from '../../../entities';
 
 interface MainPageProps {
     onOpenAuthModal?: () => void;
@@ -157,7 +147,7 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
         { id: 2, name: t('roles.masters'), title: t('roles.mastersDesc'), img: "./master.jpg" }
     ];
 
-    const handleSearchResults = useCallback((results: SearchResult[]) => {
+    const handleSearchResults = useCallback((results: TicketView[]) => {
         setShowResults(results.length > 0);
     }, []);
 

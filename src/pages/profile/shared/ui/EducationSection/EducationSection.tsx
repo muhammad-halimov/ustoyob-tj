@@ -7,18 +7,10 @@ import PageLoader from '../../../../../widgets/PageLoader/PageLoader';
 import { ProfileSection } from '../ProfileSection';
 import styles from './EducationSection.module.scss';
 import { EditActions } from '../EditActions/EditActions';
-
-interface Education {
-    id: string;
-    institution: string;
-    specialty: string;
-    startYear: string;
-    endYear: string;
-    currentlyStudying: boolean;
-}
+import type { EducationItem } from '../../../../../entities';
 
 interface EducationSectionProps {
-    education: Education[];
+    education: EducationItem[];
     editingEducation: string | null;
     educationForm: {
         institution: string;
@@ -31,10 +23,10 @@ interface EducationSectionProps {
     occupationsLoading: boolean;
     readOnly?: boolean;
     onAddEducation: () => void;
-    onEditEducationStart: (education: Education) => void;
+    onEditEducationStart: (education: EducationItem) => void;
     onEditEducationSave: () => Promise<void>;
     onEditEducationCancel: () => void;
-    onEducationFormChange: (field: keyof Omit<Education, 'id'>, value: string | boolean) => void;
+    onEducationFormChange: (field: keyof Omit<EducationItem, 'id'>, value: string | boolean) => void;
     onDeleteEducation: (educationId: string) => Promise<void>;
     setEducationForm: React.Dispatch<React.SetStateAction<{
         institution: string;
@@ -43,7 +35,7 @@ interface EducationSectionProps {
         endYear: string;
         currentlyStudying: boolean;
     }>>;
-    onReorder?: (education: Education[]) => void;
+    onReorder?: (education: EducationItem[]) => void;
     onRefresh?: () => void;
     isLoading?: boolean;
 }
@@ -165,7 +157,7 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
     return (
         <>
             <Status type={statusType} isOpen={statusOpen} onClose={() => setStatusOpen(false)} message={statusMsg} />
-            <ProfileSection<Education>
+            <ProfileSection<EducationItem>
                 title={t('profile:educationAndExp')}
                 items={education}
                 editingId={editingEducation}

@@ -1,3 +1,3 @@
-export { default } from './Grid.tsx';
-export type { PhotoItem } from './Grid.tsx';
-export { buildOrderedImagePayload } from './Grid.tsx';
+export { default } from './Grid';
+export type { PhotoItem } from './Grid';
+export { buildOrderedImagePayload } from './Grid';

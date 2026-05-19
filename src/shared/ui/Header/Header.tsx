@@ -1,21 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import styles from "./Header.module.scss";
-import { ROUTES } from '../../../app/routers/routes.ts';
+import { ROUTES } from '../../../app/routers/routes';
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import {getAuthToken, fetchCurrentUser, invalidateCurrentUserCache} from "../../../utils/auth.ts";
+import {getAuthToken, fetchCurrentUser, invalidateCurrentUserCache} from "../../../utils/auth";
 import { getStorageItem } from '../../../utils/storageHelper';
 import { useTranslation } from 'react-i18next';
-import { changeLanguage, Language } from '../../../locales/i18n.ts';
+import { changeLanguage, Language } from '../../../locales/i18n';
 import { useLanguageChange } from '../../../hooks';
 import { ThemeToggle } from '../../../widgets/ThemeToggle';
 import Status from '../Modal/Status';
 import { PageLoader } from '../../../widgets/PageLoader';
 import { EmptyState } from '../../../widgets/EmptyState';
-import { Back } from '../Button/Back/Back.tsx';
-import { Clear } from '../Button/Clear/Clear.tsx';
-import { ShowMore } from '../Button/ShowMore/ShowMore.tsx';
-import { getPageSize } from '../../../utils/pageSize.ts';
+import { Back } from '../Button/Back/Back';
+import { Clear } from '../Button/Clear/Clear';
+import { ShowMore } from '../Button/ShowMore/ShowMore';
+import { getPageSize } from '../../../utils/pageSize';
 import { SelectSearch } from '../SelectSearch';
+import type { User } from '../../../entities';
+import { API_BASE_URL } from '../../../utils/config';
+
+type UserData = User;
 
 interface HeaderProps {
     onOpenAuthModal?: () => void;
@@ -26,23 +30,6 @@ interface LocationOption {
     title: string;
     value: string;
     type: 'city' | 'district';
-}
-
-interface UserData {
-    id: number;
-    email: string;
-    name: string;
-    surname: string;
-    approved?: boolean;
-    roles: string[];
-    oauthType?: {
-        id: number;
-        googleId: string;
-        telegramId: string;
-        vkId: string;
-        facebookId: string;
-        instagramId: string;
-    };
 }
 
 function Header({ onOpenAuthModal }: HeaderProps) {
@@ -83,7 +70,6 @@ function Header({ onOpenAuthModal }: HeaderProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [showLogo, setShowLogo] = useState(false);
     const [headerStatus, setHeaderStatus] = useState<{ type: 'success' | 'error' | 'info'; message: string; isOpen: boolean }>({ type: 'success', message: '', isOpen: false });
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     const languages = [
         { code: 'tj' as Language, name: 'ТҶ', fullName: 'Тоҷикӣ', flagUrl: 'https://flagcdn.com/w20/tj.png' },
@@ -213,7 +199,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
 
             // Проверка роли (только при явном запросе — монтирование / login)
             if (opts.checkRole) {
-                const isGoogleAuth = !!userData.oauthType?.googleId;
+                const isGoogleAuth = userData.oauthProviders?.some(p => p.provider === 'google') ?? false;
                 const hasRole = userData.roles && userData.roles.length > 0;
                 if (isGoogleAuth && !hasRole && onOpenAuthModal) {
                     onOpenAuthModal();

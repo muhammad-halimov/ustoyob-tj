@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useTranslation } from 'react-i18next';
-import { getAuthToken, logout } from '../../../../../utils/auth.ts';
-import Auth from "../../../Modal/Auth/Auth.tsx";
+import { getAuthToken, logout } from '../../../../../utils/auth';
+import Auth from "../../../Modal/Auth/Auth";
 import styles from './Enter.module.scss';
 
 type EnterBtnProps = {

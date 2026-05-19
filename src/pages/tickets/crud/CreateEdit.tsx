@@ -1,68 +1,24 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ROUTES } from '../../../app/routers/routes.ts';
+import { ROUTES } from '../../../app/routers/routes';
 import styles from './CreateEdit.module.scss';
-import { getAuthToken, getUserRole, getUserData } from '../../../utils/auth.ts';
+import { getAuthToken, getUserRole, getUserData } from '../../../utils/auth';
 import Address, { AddressValue, buildAddressData } from '../../../shared/ui/Address/Selector';
-import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner.tsx";
+import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
 import Status from '../../../shared/ui/Modal/Status';
 import { Preview, usePreview } from '../../../shared/ui/Photo/Preview';
 import { useTranslation } from 'react-i18next';
 import { useLanguageChange } from '../../../hooks';
-import { getStorageItem } from '../../../utils/storageHelper.ts';
+import { getStorageItem } from '../../../utils/storageHelper';
 import { PageLoader } from '../../../widgets/PageLoader';
 import { Toggle } from '../../../shared/ui/Button/Toggle/Toggle';
 import Grid, { PhotoItem, buildOrderedImagePayload } from '../../../shared/ui/Photo/Grid';
 import { uploadPhotos } from '../../../utils/imageHelper';
 import { EditActions } from '../../profile/shared/ui/EditActions/EditActions';
 import { SelectSearch } from '../../../shared/ui/SelectSearch';
+import type { Category, Occupation, Image, Unit, TicketFormData } from '../../../entities';
+import { API_BASE_URL } from '../../../utils/config';
 
-interface ServiceData {
-    id?: number;
-    title: string;
-    description: string;
-    notice: string;
-    budget: string;
-    category?: { id: number; title: string };
-    subcategory?: { id: number; title: string };
-    unit?: { id: number; title: string };
-    addresses?: Array<{
-        id: number;
-        province?: { id: number; title: string };
-        city?: { id: number; title: string };
-        suburb?: { id: number; title: string };
-        district?: { id: number; title: string };
-        settlement?: { id: number; title: string };
-        community?: { id: number; title: string };
-        village?: { id: number; title: string };
-    }>;
-    images?: Array<{ id: number; image: string }>;
-}
-
-interface ImageData {
-    id: number;
-    image: string;
-}
-
-interface Category {
-    id: number;
-    title: string;
-    image?: string;
-}
-
-interface Unit {
-    id: number;
-    title: string;
-}
-
-interface Occupation {
-    id: number;
-    title: string;
-    description?: string;
-    image?: string;
-    priority?: number;
-    categories?: Array<{ id: number; title: string; image?: string }>;
-}
 
 const CreateEdit = () => {
     const navigate = useNavigate();
@@ -79,7 +35,7 @@ const CreateEdit = () => {
         fetchUnits();
     });
     
-    const [serviceData, setServiceData] = useState<ServiceData>({
+    const [serviceData, setServiceData] = useState<TicketFormData>({
         title: '',
         description: '',
         notice: '',
@@ -133,7 +89,6 @@ const CreateEdit = () => {
     const [negotiableBudget, setNegotiableBudget] = useState(false);
 
     const formRef = useRef<HTMLFormElement>(null);
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
     const token = getAuthToken();
 
     // Функция для форматирования URL изображений
@@ -210,7 +165,7 @@ const CreateEdit = () => {
 
     // Отладка: логирование изменений serviceData
     useEffect(() => {
-        console.log('ServiceData changed:', serviceData);
+        console.log('TicketFormData changed:', serviceData);
         console.log('Current form values:', {
             title: serviceData.title,
             description: serviceData.description,
@@ -306,18 +261,14 @@ const CreateEdit = () => {
             console.log('Raw data.category:', data.category);
             console.log('Raw data.subcategory:', data.subcategory);
             
-            // Преобразуем данные API в формат ServiceData
-            const formattedData: ServiceData = {
+            // Преобразуем данные API в формат TicketFormData
+            const formattedData: TicketFormData = {
                 id: data.id,
                 title: data.title || '',
                 description: data.description || '',
                 notice: data.notice || '',
                 budget: data.budget ? String(data.budget) : '',
-                category: data.category,
-                subcategory: data.subcategory,
                 unit: data.unit,
-                addresses: data.addresses,
-                images: data.images
             };
             
             console.log('Formatted data:', formattedData);
@@ -502,7 +453,7 @@ const CreateEdit = () => {
                     headers: { 'Authorization': `Bearer ${token}` },
                 });
                 const freshTicket = freshTicketResp.ok ? await freshTicketResp.json() : null;
-                const allCurrentImages: ImageData[] = freshTicket?.images || [];
+                const allCurrentImages: Image[] = freshTicket?.images || [];
 
                 // Новые = те, которых не было раньше (в порядке вставки = порядок загрузки)
                 const finalImages = buildOrderedImagePayload(photos, allCurrentImages);

@@ -1,1 +1,1 @@
-export { SortingFilter } from './SortingFilter.tsx';
+export { SortingFilter } from './SortingFilter';

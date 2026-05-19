@@ -1,193 +1,55 @@
 import styles from './Search.module.scss';
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import FilterPanel, { FilterState } from "../filters/FilterPanel.tsx";
-import { getAuthToken, getUserRole, getUserData } from "../../../../utils/auth.ts";
+import FilterPanel from "../filters/FilterPanel";
+import type { FilterState } from '../../../../entities';
+import { getAuthToken, getUserRole, getUserData } from "../../../../utils/auth";
 import { useNavigate } from "react-router-dom";
-import { ROUTES } from '../../../../app/routers/routes.ts';
-import {textHelper} from "../../../../utils/textHelper.ts";
+import { ROUTES } from '../../../../app/routers/routes';
+import {textHelper} from "../../../../utils/textHelper";
 import { useTranslation } from 'react-i18next';
 import { useLanguageChange } from "../../../../hooks";
-import { Card } from "../../../../shared/ui/Ticket/Card/Card.tsx";
+import { Card } from "../../../../shared/ui/Ticket/Card/Card";
 import { ServiceTypeFilter } from "../../../../widgets/Sorting/TypeFilter";
 import { SortingFilter } from "../../../../widgets/Sorting/CriteriaFilter";
-import { createChatWithAuthor } from '../../../../utils/chatUtils.ts';
-import { getProvinces, getCities, getOccupations } from "../../../../utils/dataCache.ts";
+import { createChatWithAuthor } from '../../../../utils/chatUtils';
+import { getProvinces, getCities, getOccupations } from "../../../../utils/dataCache";
 import { PageLoader } from '../../../../widgets/PageLoader';
 import { SelectSearch } from '../../../../shared/ui/SelectSearch';
 import { EmptyState } from '../../../../widgets/EmptyState';
 import Status from '../../../../shared/ui/Modal/Status';
 import Feedback from '../../../../shared/ui/Modal/Feedback';
-import { Clear } from '../../../../shared/ui/Button/Clear/Clear.tsx';
-import { ShowMore } from '../../../../shared/ui/Button/ShowMore/ShowMore.tsx';
-import { getPageSize } from '../../../../utils/pageSize.ts';
+import { Clear } from '../../../../shared/ui/Button/Clear/Clear';
+import { ShowMore } from '../../../../shared/ui/Button/ShowMore/ShowMore';
+import { getPageSize } from '../../../../utils/pageSize';
 import { parsePagedResponse } from '../../../../utils/apiHelper';
 import { useShowMore } from '../../../../hooks';
+import type { Ticket as ApiTicket, Occupation, TicketView, Category, UserRole } from '../../../../entities';
 
-// Интерфейсы
-interface ApiTicket {
-    id: number;
-    title: string;
-    description: string;
-    notice?: string;
-    budget: number;
-    unit: { title: string };
-    addresses: {
-        id: number;
-        title?: string;
-        province?: {
-            id: number;
-            title?: string;
-        };
-        district?: {
-            id: number;
-            title?: string;
-            image?: string | null;
-        };
-        city?: {
-            id: number;
-            title?: string;
-            image?: string | null;
-        };
-        suburb?: {
-            id: number;
-            title?: string;
-        } | null;
-        settlement?: {
-            id: number;
-            title?: string;
-        } | null;
-        village?: {
-            id: number;
-            title?: string;
-        } | null;
-        community?: {
-            id: number;
-            title?: string;
-        } | null;
-    }[];
-    createdAt: string;
-    images?: { id: number; image: string }[];
-    master: {
-        id: number;
-        name?: string;
-        surname?: string;
-        rating?: number;
-        image?: string | null;
-        imageExternalUrl?: string | null;
-    } | null;
-    author: {
-        id: number;
-        name?: string;
-        surname?: string;
-        rating?: number;
-        image?: string | null;
-        imageExternalUrl?: string | null;
-    } | null;
-    category: {
-        id: number;
-        title: string;
-    };
-    subcategory?: {
-        id: number;
-        title: string;
-    } | null;
-    reviewsCount: number;
-    responsesCount?: number;
-    viewsCount?: number;
-    service: boolean;
-    active: boolean;
-    negotiableBudget?: boolean;
-}
-
-interface TypedTicket extends ApiTicket {
-    type: 'client' | 'master';
-    userRating: number;
-    userReviewCount: number;
-}
+/** Intermediate type: raw API ticket enriched with computed display fields for filtering/sorting */
+type TicketWithMeta = ApiTicket & { type: UserRole; userRating: number; userReviewCount: number };
+import type { Province, City } from '../../../../entities';
+import { formatTicketImageUrl, formatProfileImageUrl } from '../../../../utils/imageHelper';
+import { getSessionJSON } from '../../../../utils/storageHelper';
+import { API_BASE_URL } from '../../../../utils/config';
 
 interface SearchProps {
-    onSearchResults: (results: SearchResult[]) => void;
+    onSearchResults: (results: TicketView[]) => void;
     onFilterToggle: (isVisible: boolean) => void;
 }
 
-interface SearchResult {
-    id: number;
-    title: string;
-    price: number;
-    unit: string;
-    description: string;
-    address: string;
-    city?: string;
-    date: string;
-    author: string;
-    authorId?: number;
-    timeAgo: string;
-    category: string;
-    subcategory?: string;
-    type: 'client' | 'master';
-    isInSelectedCity?: boolean;
-    userRating?: number;
-    userReviewCount?: number;
-    responsesCount?: number;
-    viewsCount?: number;
-    photos?: string[];
-    authorImage?: string;
-    negotiableBudget?: boolean;
-}
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
-
-function formatTicketImageUrl(filename: string): string {
-    if (!filename) return '';
-    if (filename.startsWith('http')) return filename;
-    if (filename.startsWith('/uploads/') || filename.startsWith('/images/')) return `${API_BASE_URL}${filename}`;
-    return `${API_BASE_URL}/uploads/tickets/${filename}`;
-}
-
-function formatProfileImageUrl(filename: string): string {
-    if (!filename) return '';
-    if (filename.startsWith('http')) return filename;
-    return `${API_BASE_URL}/uploads/users/${filename}`;
-}
-
-interface Category {
-    id: number;
-    name: string;
-}
-
-interface Occupation {
-    id: number;
-    title: string;
-    categories: {
-        id: number;
-        title: string;
-    }[];
-}
-
-interface City {
-    id: number;
-    name: string;
-}
 
 const SEARCH_SESSION_KEY = 'search-state';
-
-function getSearchSession(): Record<string, unknown> | null {
-    try {
-        const raw = sessionStorage.getItem(SEARCH_SESSION_KEY);
-        return raw ? JSON.parse(raw) as Record<string, unknown> : null;
-    } catch { return null; }
-}
 
 export default function Search({ onSearchResults, onFilterToggle }: SearchProps) {
     const { t } = useTranslation(['components', 'common']);
     // Restore from session on mount (survives back-navigation)
-    const initSessionRef = useRef(getSearchSession());
+    const initSessionRef = useRef(getSessionJSON(SEARCH_SESSION_KEY));
     const [showFilters, setShowFilters] = useState<boolean>(() => (initSessionRef.current?.showFilters as boolean) ?? false);
     const [searchQuery, setSearchQuery] = useState<string>(() => (initSessionRef.current?.searchQuery as string) ?? '');
     const [selectedCity, setSelectedCity] = useState<string>(() => {
         return localStorage.getItem('selectedCity') || '';
     });
-    const [searchResults, setSearchResults] = useState<SearchResult[]>(() => (initSessionRef.current?.searchResults as SearchResult[]) ?? []);
+    const [searchResults, setSearchResults] = useState<TicketView[]>(() => (initSessionRef.current?.searchResults as TicketView[]) ?? []);
     const [showResults, setShowResults] = useState<boolean>(() => (initSessionRef.current?.showResults as boolean) ?? false);
     const showResultsRef = useRef<boolean>((initSessionRef.current?.showResults as boolean) ?? false);
     useEffect(() => { showResultsRef.current = showResults; }, [showResults]);
@@ -221,10 +83,10 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     });
     const [isLoading, setIsLoading] = useState(false);
     const [filterResetCount, setFilterResetCount] = useState(0);
-    const { page, setPage, appendRef: appendSearchRef, skipFetchRef: skipSearchFetchRef, setHasMore, showMoreProps: searchShowMoreProps } = useShowMore<SearchResult>(setSearchResults);
+    const { page, setPage, appendRef: appendSearchRef, skipFetchRef: skipSearchFetchRef, setHasMore, showMoreProps: searchShowMoreProps } = useShowMore<TicketView>(setSearchResults);
     const [categories, setCategories] = useState<Category[]>([]);
     const [occupations, setOccupations] = useState<Occupation[]>([]);
-    const [provinces, setProvinces] = useState<{ id: number; name: string }[]>([]);
+    const [provinces, setProvinces] = useState<Province[]>([]);
     const [cities, setCities] = useState<City[]>([]);
     const [userRole, setUserRole] = useState<'client' | 'master' | null>(null);
     const [showOnlyServices, setShowOnlyServices] = useState<boolean>(() => (initSessionRef.current?.showOnlyServices as boolean) ?? false);
@@ -269,11 +131,11 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     const fetchProvinces = useCallback(async () => {
         try {
             const data = await getProvinces();
-            const formatted = data.map((p: { id: number; title: string }) => ({
+            const formatted: Province[] = data.map((p: { id: number; title: string }) => ({
                 id: p.id,
-                name: p.title,
+                title: p.title,
             }));
-            formatted.sort((a, b) => a.name.localeCompare(b.name));
+            formatted.sort((a, b) => (a.title ?? '').localeCompare(b.title ?? ''));
             setProvinces(formatted);
         } catch (error) {
             console.error('Error fetching provinces:', error);
@@ -286,7 +148,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             const citiesData = await getCities();
             const formatted: City[] = citiesData.map((city: { id: number; title: string }) => ({
                 id: city.id,
-                name: city.title
+                title: city.title
             }));
 
             // Убираем дубликаты и сортируем
@@ -297,7 +159,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 return acc;
             }, []);
             
-            uniqueCities.sort((a, b) => a.name.localeCompare(b.name));
+            uniqueCities.sort((a, b) => (a.title ?? '').localeCompare(b.title ?? ''));
             setCities(uniqueCities);
         } catch (error) {
             console.error('Error fetching cities:', error);
@@ -347,7 +209,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                             if (!citiesMap.has(cityName.toLowerCase())) {
                                 citiesMap.set(cityName.toLowerCase(), {
                                     id: address.city.id,
-                                    name: cityName
+                                    title: cityName
                                 });
                             }
                         }
@@ -355,7 +217,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 });
 
                 const uniqueCities = Array.from(citiesMap.values());
-                uniqueCities.sort((a, b) => a.name.localeCompare(b.name));
+                uniqueCities.sort((a, b) => (a.title ?? '').localeCompare(b.title ?? ''));
 
                 setCities(uniqueCities);
             }
@@ -438,7 +300,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     }, []);
 
     // Функция для фильтрации по городу
-    const filterByCity = useCallback(async (tickets: TypedTicket[], cityFilter: string): Promise<TypedTicket[]> => {
+    const filterByCity = useCallback(async (tickets: TicketWithMeta[], cityFilter: string): Promise<TicketWithMeta[]> => {
         if (!cityFilter || !cityFilter.trim()) {
             return tickets;
         }
@@ -461,7 +323,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             })
         );
 
-        return filteredTickets.filter((ticket): ticket is TypedTicket => ticket !== null);
+        return filteredTickets.filter((ticket): ticket is TicketWithMeta => ticket !== null);
     }, [getAddressInfo]);
 
     // Функция для определения приоритета тикета по городу
@@ -502,10 +364,10 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
     // Функция сортировки с учетом приоритета города и множественной сортировки
     const sortTicketsWithPriority = useCallback(async (
-        tickets: TypedTicket[], 
+        tickets: TicketWithMeta[], 
         primarySort: string,
         secondarySort: string = 'none'
-    ): Promise<TypedTicket[]> => {
+    ): Promise<TicketWithMeta[]> => {
         // Получаем приоритет для каждого тикета
         const ticketsWithPriority = await Promise.all(
             tickets.map(async (ticket) => ({
@@ -515,16 +377,16 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         );
 
         // Функция для получения значения сортировки
-        const getSortValue = (ticket: TypedTicket, sortType: string): number => {
+        const getSortValue = (ticket: TicketWithMeta, sortType: string): number => {
             switch (sortType) {
                 case 'newest':
-                    return new Date(ticket.createdAt).getTime();
+                    return new Date(ticket.createdAt ?? '').getTime();
                 case 'oldest':
-                    return -new Date(ticket.createdAt).getTime();
+                    return -new Date(ticket.createdAt ?? '').getTime();
                 case 'price-asc':
-                    return ticket.budget;
+                    return ticket.budget ?? 0;
                 case 'price-desc':
-                    return -ticket.budget;
+                    return -(ticket.budget ?? 0);
                 case 'reviews-asc':
                     return ticket.userReviewCount || 0;
                 case 'reviews-desc':
@@ -543,13 +405,13 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 case 'reviews_asc':
                     return ticket.userReviewCount || 0;
                 case 'price_desc':
-                    return -ticket.budget;
+                    return -(ticket.budget ?? 0);
                 case 'price_asc':
-                    return ticket.budget;
+                    return ticket.budget ?? 0;
                 case 'date_desc':
-                    return new Date(ticket.createdAt).getTime();
+                    return new Date(ticket.createdAt ?? '').getTime();
                 case 'date_asc':
-                    return -new Date(ticket.createdAt).getTime();
+                    return -new Date(ticket.createdAt ?? '').getTime();
                 default:
                     return 0;
             }
@@ -654,14 +516,14 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 if (Array.isArray(categoriesData)) {
                     formatted = categoriesData.map((cat: { id: number; title: string }) => ({
                         id: cat.id,
-                        name: cat.title
+                        title: cat.title
                     }));
                 } else if (categoriesData && typeof categoriesData === 'object' && 'hydra:member' in categoriesData) {
                     const hydraMember = (categoriesData as { 'hydra:member': { id: number; title: string }[] })['hydra:member'];
                     if (Array.isArray(hydraMember)) {
                         formatted = hydraMember.map((cat: { id: number; title: string }) => ({
                             id: cat.id,
-                            name: cat.title
+                            title: cat.title
                         }));
                     }
                 }
@@ -824,7 +686,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             }
 
             // Определяем тип тикета
-            const typedTickets: TypedTicket[] = ticketsData.map(ticket => {
+            const typedTickets: TicketWithMeta[] = ticketsData.map(ticket => {
                 const ticketType = ticket.service ? 'master' : 'client';
                 let userRating: number;
                 if (ticketType === 'client') {
@@ -855,7 +717,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 startOfMonth.setMonth(startOfMonth.getMonth() - 1);
 
                 filteredData = filteredData.filter(ticket => {
-                    const ticketDate = new Date(ticket.createdAt);
+                    const ticketDate = new Date(ticket.createdAt ?? '');
                     
                     switch (timeFilter) {
                         case 'today':
@@ -885,7 +747,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             }
 
             // Создаем финальные результаты
-            const ticketsWithUsers: SearchResult[] = await Promise.all(
+            const ticketsWithUsers: TicketView[] = await Promise.all(
                 filteredData.map(async (ticket) => {
                     const userName = await getUserName(ticket, ticket.type);
                     const authorId = ticket.type === 'client' ? ticket.author?.id : ticket.master?.id;
@@ -895,15 +757,15 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     return {
                         id: ticket.id,
                         title: ticket.title || 'Без названия',
-                        price: ticket.budget || 0,
-                        unit: ticket.unit?.title || 'TJS',
-                        description: ticket.description,
+                        price: ticket.budget ?? 0,
+                        unit: (typeof ticket.unit === 'object' ? ticket.unit?.title : ticket.unit) || 'TJS',
+                        description: ticket.description ?? '',
                         address: addressInfo.formatted,
                         city: addressInfo.cityName,
-                        date: ticket.createdAt,
+                        date: ticket.createdAt ?? '',
                         author: userName,
                         authorId,
-                        timeAgo: ticket.createdAt, // Передаём сырую дату, чтобы Card мог сам вычислить timeAgo
+                        timeAgo: ticket.createdAt ?? '',
                         category: ticket.category?.title || 'другое',
                         subcategory: ticket.subcategory?.title,
                         type: ticket.type,
@@ -1472,7 +1334,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                                 {filters.negotiablePrice && <span className={styles.filter_tag}>Договорная</span>}
                                 {filters.province && (
                                     <span className={styles.filter_tag}>
-                                        {provinces.find(p => p.id.toString() === filters.province)?.name || filters.province}
+                                        {provinces.find(p => p.id.toString() === filters.province)?.title || filters.province}
                                     </span>
                                 )}
                                 {filters.city && (
@@ -1482,7 +1344,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                                 )}
                                 {filters.category && (
                                     <span className={styles.filter_tag}>
-                                        {categories.find(cat => cat.id.toString() === filters.category)?.name}
+                                        {categories.find(cat => cat.id.toString() === filters.category)?.title}
                                     </span>
                                 )}
                                 {filters.rating && <span className={styles.filter_tag}>{filters.rating}+ звезд</span>}
@@ -1506,24 +1368,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                                 className={styles.input_wrap}
                                 onKeyDown={e => e.key === 'Enter' && handleSearch()}
                             />
-                            {false && (
-                                <button
-                                    className={styles.button}
-                                    onClick={handleSearch}
-                                    disabled={isLoading}
-                                    aria-label={t('search.find')}
-                                    title={t('search.find')}
-                                >
-                                    {isLoading ? (
-                                        <PageLoader fullPage={false} compact primary asSpan />
-                                    ) : (
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                            <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-                                            <line x1="16.65" y1="16.65" x2="21" y2="21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                                        </svg>
-                                    )}
-                                </button>
-                            )}
+                            {false}
                         </div>
 
                         <div className={styles.filter_controls}>

@@ -1,21 +1,22 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ROUTES } from '../../../app/routers/routes.ts';
+import { ROUTES } from '../../../app/routers/routes';
 import { smartNameTranslator } from '../../../utils/textHelper';
 import { Swiper, SwiperSlide } from "swiper/react";
 import styles from './MainReviewsSection.module.scss';
 import { Preview, usePreview } from '../../../shared/ui/Photo/Preview';
 import { Marquee } from '../../../shared/ui/Text/Marquee';
 import { EmptyState } from '../../../widgets/EmptyState';
-import { getAuthorAvatar } from '../../../utils/imageHelper.ts';
+import { getAuthorAvatar } from '../../../utils/imageHelper';
 import { ActionsDropdown } from '../../../widgets/ActionsDropdown';
 import { IoWarningOutline } from 'react-icons/io5';
 import Feedback from '../../../shared/ui/Modal/Feedback';
-import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore.tsx';
-import { getPageSize } from '../../../utils/pageSize.ts';
+import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore';
+import { getPageSize } from '../../../utils/pageSize';
 import { parsePagedResponse } from '../../../utils/apiHelper';
 import { useShowMore } from '../../../hooks';
+import { API_BASE_URL } from '../../../utils/config';
 
 interface MainReviewsSectionProps {
     className?: string;
@@ -31,9 +32,6 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
     const [isComplaintOpen, setIsComplaintOpen] = useState(false);
     const navigate = useNavigate();
     const { t, i18n } = useTranslation(['profile', 'components', 'common']);
-    
-
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     // Загружаем отзывы с API
     const fetchReviews = async (currentPage: number) => {
@@ -176,7 +174,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
     const getPlainReviewText = (review: any) =>
         review.description ? review.description.replace(/<[^>]*>/g, '') : '';
 
-    const isReviewExpanded = (review: any) => !!expandedReviews[review.id];
+    const isReviewExpanded = (review: any) => expandedReviews[review.id];
 
     const renderReviewDescription = (review: any, previewLength = 150) => {
         if (!review.description) return null;

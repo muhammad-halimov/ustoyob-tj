@@ -4,6 +4,7 @@ import { ROUTES } from '../../app/routers/routes';
 import { PageLoader } from '../../widgets/PageLoader';
 import Status from '../../shared/ui/Modal/Status';
 import { useTranslation } from 'react-i18next';
+import { API_BASE_URL } from '../../utils/config';
 
 const ConfirmAccountPage = () => {
     const { token } = useParams<{ token: string }>();
@@ -12,8 +13,6 @@ const ConfirmAccountPage = () => {
     const [loading, setLoading] = useState(true);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState('');
-
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     useEffect(() => {
         if (!token) {

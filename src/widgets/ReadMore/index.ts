@@ -1,1 +1,1 @@
-export { ReadMore } from './ReadMore.tsx';
+export { ReadMore } from './ReadMore';

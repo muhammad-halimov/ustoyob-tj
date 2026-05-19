@@ -7,29 +7,10 @@ import { AuthBanner } from '../../../../../widgets/Banners/AuthBanner/AuthBanner
 import { ProfileSection } from '../ProfileSection';
 import { EditActions } from '../EditActions/EditActions';
 import styles from './SocialNetworksSection.module.scss';
-
-interface SocialNetwork {
-    id: string;
-    network: string;
-    handle: string;
-}
-
-interface AvailableSocialNetwork {
-    id: number;
-    network: string;
-}
-
-interface SocialNetworkConfig {
-    label: string;
-    icon: string;
-    validate: (value: string) => boolean;
-    format: (value: string) => string;
-    generateUrl: (handle: string) => string;
-    placeholder: string;
-}
+import type { AvailableSocialNetwork, SocialNetworkConfig, UISocialNetwork } from '../../../../../entities';
 
 interface SocialNetworksSectionProps {
-    socialNetworks: SocialNetwork[];
+    socialNetworks: UISocialNetwork[];
     editingSocialNetwork: string | null;
     socialNetworkEditValue: string;
     socialNetworkValidationError: string;
@@ -43,8 +24,8 @@ interface SocialNetworksSectionProps {
     setSocialNetworkValidationError: (error: string) => void;
     setShowAddSocialNetwork: (show: boolean) => void;
     setSelectedNewNetwork: (network: string) => void;
-    setSocialNetworks: React.Dispatch<React.SetStateAction<SocialNetwork[]>>;
-    onUpdateSocialNetworks: (networks: SocialNetwork[]) => Promise<boolean>;
+    setSocialNetworks: React.Dispatch<React.SetStateAction<UISocialNetwork[]>>;
+    onUpdateSocialNetworks: (networks: UISocialNetwork[]) => Promise<boolean>;
     onRemoveSocialNetwork: (networkId: string) => Promise<void>;
     onAddSocialNetwork: () => Promise<void>;
     onResetSocialNetworks: () => Promise<void>;
@@ -154,7 +135,7 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
     const editingId = editingSocialNetwork || (showAddSocialNetwork ? 'new-social' : null);
 
     return (
-        <ProfileSection<SocialNetwork>
+        <ProfileSection<UISocialNetwork>
             title={t('profile:socialNetworksTitle')}
             items={showAuthBanner ? [] : socialNetworks}
             editingId={editingId}

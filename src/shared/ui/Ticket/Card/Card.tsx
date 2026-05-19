@@ -1,63 +1,50 @@
 import styles from './Card.module.scss';
-import { useTranslation } from 'react-i18next';
-import { useLanguageChange } from '../../../../hooks';
-import { useTranslatedName } from '../../../../hooks';
-import { useTranslatedText } from '../../../../hooks';
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { useFavorites } from '../../useFavorites.ts';
-import { ROUTES } from '../../../../app/routers/routes.ts';
-import { truncateText } from '../../../../utils/textHelper.ts';
-import { Marquee } from '../../Text/Marquee';
-import { Carousel } from '../../Photo/Carousel';
-import { Toggle } from '../../Button/Toggle/Toggle.tsx';
-import { ActionsDropdown } from '../../../../widgets/ActionsDropdown';
+import {useTranslation} from 'react-i18next';
+import {useLanguageChange, useTranslatedName, useTranslatedText} from '../../../../hooks';
+import React, {useEffect, useState} from 'react';
+import {Link} from 'react-router-dom';
+import {useFavorites} from '../../useFavorites';
+import {ROUTES} from '../../../../app/routers/routes';
+import {truncateText} from '../../../../utils/textHelper';
+import {Marquee} from '../../Text/Marquee';
+import {Carousel} from '../../Photo/Carousel';
+import {Toggle} from '../../Button/Toggle/Toggle';
+import {ActionsDropdown} from '../../../../widgets/ActionsDropdown';
 import Status from '../../Modal/Status';
-import { IoChatbubbleEllipsesOutline, IoCheckmarkCircle } from 'react-icons/io5';
+import {IoChatbubbleEllipsesOutline, IoCheckmarkCircle} from 'react-icons/io5';
+import type {TicketView} from '../../../../entities';
 // Re-export for backward compatibility (other files import truncateText from Card)
 export default truncateText
 
-interface AnnouncementCardProps {
-  title: string;
-  description: string;
+export interface AnnouncementCardProps extends Omit<TicketView, 'id' | 'price' | 'type' | 'category' | 'timeAgo'> {
+  // overrides for type incompatibilities
   price: number | null;
-  unit: string;
-  address: string;
-  date: string; // Может быть как отформатированная дата, так и ISO строка
-  author: string;
-  authorId?: number;
   category?: string;
-  subcategory?: string;
-  timeAgo?: string; // Может быть как отформатированное время, так и ISO строка
-  ticketType?: string | boolean; // Принимаем либо строку, либо boolean
-  userRole?: 'client' | 'master' | null; // Добавляем userRole для условного отображения
+  timeAgo?: string;
+  // ticketId / ticketType kept as aliases to avoid breaking callers
+  ticketId?: number;
+  ticketType?: string | boolean;
+  // UI-only props
+  userRole?: 'client' | 'master' | null;
   onClick?: () => void;
-  // Пропсы для избранного - внешнее управление
+  // Favourite — external control
   isFavorite?: boolean;
   onFavoriteClick?: (e: React.MouseEvent) => void;
   isLikeLoading?: boolean;
-  // Пропсы для избранного - внутреннее управление
-  ticketId?: number;
+  // Favourite — internal control
   useManagedFavorites?: boolean;
-  // Новые пропсы для рейтинга и отзывов
-  userRating?: number;
-  userReviewCount?: number;
-  // Новые пропсы для редактирования и активности (MyTickets)
+  // Edit / active toggle (MyTickets)
   showEditButton?: boolean;
   onEditClick?: (e: React.MouseEvent) => void;
   showActiveToggle?: boolean;
   isActive?: boolean;
   onActiveToggle?: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  photos?: string[];
-  authorImage?: string;
-  negotiableBudget?: boolean;
+  // Respond / complaint / review
   onRespondClick?: (e: React.MouseEvent) => void;
   isResponded?: boolean;
   isRespondLoading?: boolean;
   onComplaintClick?: () => void;
   onReviewClick?: () => void;
-  viewsCount?: number;
-  responsesCount?: number;
 }
 
 // truncateText moved to src/utils/textHelper.ts
@@ -231,18 +218,16 @@ export function Card({
   const isFavorite = shouldUseManagedFavorites ? managedFavorites.isLiked : (externalIsFavorite || false);
   const isLikeLoading = shouldUseManagedFavorites ? managedFavorites.isLikeLoading : (externalIsLikeLoading || false);
 
-  const handleFavoriteClick = (e: React.MouseEvent | React.TouchEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    if (isLikeLoading) return;
-    if (shouldUseManagedFavorites) {
-      managedFavorites.handleLikeClick();
-    } else if (externalOnFavoriteClick) {
-      externalOnFavoriteClick(e as React.MouseEvent);
-    }
+  const onFavoriteClick = (e: React.MouseEvent | React.TouchEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      if (isLikeLoading) return;
+      if (shouldUseManagedFavorites) {
+          managedFavorites.handleLikeClick();
+      } else if (externalOnFavoriteClick) {
+          externalOnFavoriteClick(e as React.MouseEvent);
+      }
   };
-
-  const onFavoriteClick = handleFavoriteClick;
   
   // Хук для реактивного обновления переводов
   useLanguageChange(() => {

@@ -76,3 +76,22 @@ export const setStorageBoolean = (key: string, value: boolean): void => {
 export const clearAllStorage = (): void => {
     if (isClientSide()) localStorage.clear();
 };
+
+/**
+ * Safe sessionStorage JSON getter — mirrors getStorageJSON but for sessionStorage
+ */
+export const getSessionJSON = <T = Record<string, unknown>>(key: string): T | null => {
+    try {
+        const raw = isClientSide() ? sessionStorage.getItem(key) : null;
+        return raw ? (JSON.parse(raw) as T) : null;
+    } catch { return null; }
+};
+
+/**
+ * Safe sessionStorage JSON setter
+ */
+export const setSessionJSON = (key: string, value: unknown): void => {
+    try {
+        if (isClientSide()) sessionStorage.setItem(key, JSON.stringify(value));
+    } catch { /* ignore */ }
+};

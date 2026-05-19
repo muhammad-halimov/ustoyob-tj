@@ -1,10 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import styles from './SortingFilter.module.scss';
-
-type SortByType = 'newest' | 'oldest' | 'price-asc' | 'price-desc' | 'reviews-asc' | 'reviews-desc' | 'rating-asc' | 'rating-desc';
-type SecondarySortByType = 'none' | SortByType;
-type TimeFilterType = 'all' | 'today' | 'yesterday' | 'week' | 'month';
+import type { SortByType, SecondarySortByType, TimeFilterType } from '../../../types/common';
 
 interface SortingFilterProps {
     sortBy: SortByType;

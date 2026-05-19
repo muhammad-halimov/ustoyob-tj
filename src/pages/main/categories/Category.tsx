@@ -1,25 +1,18 @@
 import styles from "./Category.module.scss";
-import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore.tsx';
+import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore';
 import { SelectSearch } from '../../../shared/ui/SelectSearch';
 import { EmptyState } from '../../../widgets/EmptyState';
-import { Marquee } from '../../../shared/ui/Text/Marquee/Marquee';
+import { Marquee } from '../../../shared/ui/Text/Marquee';
 import { useNavigate } from "react-router-dom";
-import { ROUTES } from '../../../app/routers/routes.ts';
+import { ROUTES } from '../../../app/routers/routes';
 import { useTranslation } from 'react-i18next';
 import { useLanguageChange } from '../../../hooks';
 import { PageLoader } from '../../../widgets/PageLoader';
+import type { Category } from '../../../entities';
 import { useEffect, useState } from "react";
 
-interface CategoryItem {
-    id: number;
-    title: string;
-    description?: string;
-    image?: string;
-    priority?: number;
-}
-
 export default function Category() {
-    const [categories, setCategories] = useState<CategoryItem[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
     const [visibleCount, setVisibleCount] = useState(() => window.innerWidth <= 480 ? 6 : 8);
@@ -39,7 +32,7 @@ export default function Category() {
                 throw new Error(`Ошибка: ${response.status} ${response.statusText}`);
             }
 
-            const data: CategoryItem[] = await response.json();
+            const data: Category[] = await response.json();
             console.log('Categories data received:', data);
 
             // Проверяем и форматируем данные
