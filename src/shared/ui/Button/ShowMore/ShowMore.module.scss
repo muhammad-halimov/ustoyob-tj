@@ -55,7 +55,22 @@
   user-select: none;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
   position: relative;
+
+  &:focus-visible {
+    outline: 2px solid map.get(vars.$colors, actual-blue);
+    outline-offset: 2px;
+  }
+
+  @media (hover: none) {
+    &:active {
+      background: map.get(vars.$colors, actual-blue);
+      transition: background 0s;
+    }
+  }
 
   @media (hover: hover) and (pointer: fine) {
     transition: background 0.2s;
