@@ -74,12 +74,16 @@ export const ShowMore = ({ expanded, canLoadMore, hasMore, onShowMore, onShowLes
     const lessLoading = loading && clicked === 'less';
     const shouldShowMoreButton = resolvedCanLoadMore && !(hideShowMoreWhenExpanded && expanded);
 
+    const handleTouchEnd = (e: React.TouchEvent<HTMLButtonElement>) => {
+        e.currentTarget.blur();
+    };
+
     return (
         <div className={styles.wrapper} ref={wrapperRef}>
             <div className={styles.outer}>
                 <div className={`${styles.row}${column ? ` ${styles.rowColumn}` : ''}`}>
                     {shouldShowMoreButton && (
-                        <button className={styles.btn} onClick={handleShowMore} disabled={loading}>
+                        <button className={styles.btn} onClick={handleShowMore} onTouchEnd={handleTouchEnd} disabled={loading}>
                             {moreLoading ? <PageLoader fullPage={false} compact primary={false} /> : (
                                 <span className={styles.btnText}>
                                     <span className={styles.btnLabel}>
@@ -95,7 +99,7 @@ export const ShowMore = ({ expanded, canLoadMore, hasMore, onShowMore, onShowLes
                         </button>
                     )}
                     {(expanded || lessLoading) && (
-                        <button className={styles.btn} onClick={handleShowLess} disabled={loading}>
+                        <button className={styles.btn} onClick={handleShowLess} onTouchEnd={handleTouchEnd} disabled={loading}>
                             {lessLoading ? <PageLoader fullPage={false} compact primary={false} /> : (
                                 <span className={styles.btnText}>
                                     <span className={styles.btnLabel}>
