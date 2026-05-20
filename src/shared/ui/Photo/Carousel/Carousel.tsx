@@ -4,6 +4,7 @@ import { Preview } from '../Preview';
 
 const THUMB_PER_PAGE = 4;
 const TOUCH_SCROLL_THRESHOLD = 10;
+const SWIPE_THRESHOLD = 40;
 
 interface PhotoCarouselProps {
   photos: string[];
@@ -15,7 +16,7 @@ export function Carousel({ photos, className }: PhotoCarouselProps) {
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [galleryStartIndex, setGalleryStartIndex] = useState(0);
   const [thumbOffset, setThumbOffset] = useState(0);
-  const touchState = useRef<{ x: number; y: number; scrolled: boolean } | null>(null);
+  const touchState = useRef<{ x: number; y: number; dx: number; scrolled: boolean } | null>(null);
 
   const visibleThumbs = photos.slice(thumbOffset, thumbOffset + THUMB_PER_PAGE);
   const canScrollLeft = thumbOffset > 0;
@@ -33,28 +34,42 @@ export function Carousel({ photos, className }: PhotoCarouselProps) {
     touchState.current = {
       x: e.touches[0].clientX,
       y: e.touches[0].clientY,
+      dx: 0,
       scrolled: false,
     };
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!touchState.current) return;
-    const dx = Math.abs(e.touches[0].clientX - touchState.current.x);
+    const dx = e.touches[0].clientX - touchState.current.x;
     const dy = Math.abs(e.touches[0].clientY - touchState.current.y);
-    if (dx > TOUCH_SCROLL_THRESHOLD || dy > TOUCH_SCROLL_THRESHOLD) {
+    touchState.current.dx = dx;
+    if (Math.abs(dx) > TOUCH_SCROLL_THRESHOLD || dy > TOUCH_SCROLL_THRESHOLD) {
       touchState.current.scrolled = true;
     }
   };
 
   const handleTouchEndOpen = (index: number, e: React.TouchEvent) => {
-    if (touchState.current?.scrolled) {
-      touchState.current = null;
+    const state = touchState.current;
+    touchState.current = null;
+
+    if (state && Math.abs(state.dx) >= SWIPE_THRESHOLD) {
+      e.stopPropagation();
+      e.preventDefault();
+      if (state.dx < 0) {
+        setCurrentIndex(i => (i + 1) % photos.length);
+      } else {
+        setCurrentIndex(i => (i - 1 + photos.length) % photos.length);
+      }
+      return;
+    }
+
+    if (state?.scrolled) {
       e.stopPropagation();
       e.preventDefault();
       return;
     }
 
-    touchState.current = null;
     openGallery(index, e);
   };
 

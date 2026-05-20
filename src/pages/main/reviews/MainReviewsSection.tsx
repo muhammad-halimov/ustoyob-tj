@@ -200,6 +200,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                         clearBtn={false}
                         hideShowMoreWhenExpanded
                         loading={false}
+                        horizontal
                     />
                 )}
             </div>
@@ -274,7 +275,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                         <span>{parseFloat(review.rating).toFixed(1)}</span>
                                     </div>
                                     <div className={styles.service_master_info}>
-                                        <span 
+                                        <div 
                                             className={styles.service_title}
                                             onClick={() => {
                                                 if (review.ticket && review.ticket.id) {
@@ -283,9 +284,8 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                             }}
                                         >
                                             <Marquee text={getServiceTitle(review)} alwaysScroll />
-                                        </span>
-                                        <span className={styles.divider}>•</span>
-                                        <span 
+                                        </div>
+                                        <div 
                                             className={styles.master_name}
                                             onClick={() => {
                                                 if (review.master && review.master.id) {
@@ -294,7 +294,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                             }}
                                         >
                                             <Marquee text={getMasterName(review)} alwaysScroll />
-                                        </span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -376,7 +376,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                                 <span>{parseFloat(review.rating).toFixed(1)}</span>
                                             </div>
                                             <div className={styles.service_master_info}>
-                                                <span 
+                                                <div 
                                                     className={styles.service_title}
                                                     onClick={() => {
                                                         if (review.ticket && review.ticket.id) {
@@ -385,8 +385,8 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                                     }}
                                                 >
                                                     <Marquee text={getServiceTitle(review)} alwaysScroll />
-                                                </span>
-                                                <span 
+                                                </div>
+                                                <div 
                                                     className={styles.master_name}
                                                     onClick={() => {
                                                         if (review.master && review.master.id) {
@@ -395,7 +395,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                                     }}
                                                 >
                                                     <Marquee text={getMasterName(review)} alwaysScroll />
-                                                </span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -438,6 +438,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                     showMoreText={t('common:app.showMore')}
                     showLessText={t('common:app.showLess')}
                     loading={loading}
+                    horizontal
                 />
             </div>
 

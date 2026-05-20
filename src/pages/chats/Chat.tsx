@@ -37,6 +37,7 @@ function Chat() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [newMessage, setNewMessage] = useState("");
     const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingMoreChats, setIsLoadingMoreChats] = useState(false);
     const [isChatListRefreshing, setIsChatListRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [currentUser, setCurrentUser] = useState<ApiUser | null>(null);
@@ -1029,7 +1030,8 @@ function Chat() {
     const fetchChats = useCallback(async (silent = false) => {
         try {
             if (!silent) {
-                if (!appendChatsRef.current) setIsLoading(true);
+                if (appendChatsRef.current) setIsLoadingMoreChats(true);
+                else setIsLoading(true);
                 setError(null);
             } else {
                 setIsChatListRefreshing(true);
@@ -1160,7 +1162,7 @@ function Chat() {
         } catch (error) {
             console.error('Error fetching chats:', error);
         } finally {
-            if (!silent) setIsLoading(false);
+            if (!silent) { setIsLoading(false); setIsLoadingMoreChats(false); }
             else setIsChatListRefreshing(false);
         }
     }, [API_BASE_URL, chatIdFromUrl, t, fetchChatMessages, chatPage]);
@@ -1446,6 +1448,7 @@ function Chat() {
                         showMoreText={t('common:app.showMore', { defaultValue: 'Показать больше' })}
                         showLessText={t('common:app.showLess', { defaultValue: 'Показать меньше' })}
                         column={true}
+                        loading={isLoadingMoreChats}
                     />
                 )}
             </div>

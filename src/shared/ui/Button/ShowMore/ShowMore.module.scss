@@ -34,6 +34,12 @@
   flex-direction: column-reverse;
 }
 
+.rowHorizontal {
+  @media screen and (max-width: 540px) {
+    flex-direction: row-reverse;
+  }
+}
+
 .btn {
   font-family: vars.$font-family;
   background-color: map.get(vars.$colors, background-btn);
@@ -101,6 +107,14 @@
 .icon {
   display: inline-flex;
   align-items: center;
+}
+
+.btnLoader {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .clearPlaceholder {

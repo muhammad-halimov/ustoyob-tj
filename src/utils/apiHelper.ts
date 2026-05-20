@@ -115,7 +115,24 @@ export const getTicketFullAddress = (ticket: Ticket): string => {
         const unique = Array.from(new Set(parts.filter(Boolean)));
         if (unique.length) return unique.join(', ');
     }
-    return ticket.address || 'Адрес не указан';
+    // Handle case where API returns `address` as a single embedded object (e.g. JSON-LD)
+    // instead of a string (common when individual ticket endpoint is called without auth)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rawAddress = (ticket as any).address;
+    if (rawAddress && typeof rawAddress === 'object') {
+        const parts: string[] = [];
+        if (rawAddress.province?.title)   parts.push(rawAddress.province.title);
+        if (rawAddress.city?.title)       parts.push(rawAddress.city.title);
+        if (rawAddress.district?.title)   parts.push(rawAddress.district.title);
+        if (rawAddress.suburb?.title)     parts.push(rawAddress.suburb.title);
+        if (rawAddress.settlement?.title) parts.push(rawAddress.settlement.title);
+        if (rawAddress.community?.title)  parts.push(rawAddress.community.title);
+        if (rawAddress.village?.title)    parts.push(rawAddress.village.title);
+        if (rawAddress.title)             parts.push(rawAddress.title);
+        const unique = Array.from(new Set(parts.filter(Boolean)));
+        if (unique.length) return unique.join(', ');
+    }
+    return (typeof ticket.address === 'string' ? ticket.address : '') || 'Адрес не указан';
 };
 
 /** Краткий адрес: только город + район */
@@ -128,7 +145,17 @@ export const getTicketShortAddress = (ticket: Ticket): string => {
         const unique = Array.from(new Set(parts.filter(Boolean)));
         if (unique.length) return unique.join(', ');
     }
-    return ticket.address || 'Адрес не указан';
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rawAddress = (ticket as any).address;
+    if (rawAddress && typeof rawAddress === 'object') {
+        const parts: string[] = [];
+        if (rawAddress.city?.title)     parts.push(rawAddress.city.title);
+        if (rawAddress.district?.title) parts.push(rawAddress.district.title);
+        if (rawAddress.title)           parts.push(rawAddress.title);
+        const unique = Array.from(new Set(parts.filter(Boolean)));
+        if (unique.length) return unique.join(', ');
+    }
+    return (typeof ticket.address === 'string' ? ticket.address : '') || 'Адрес не указан';
 };
 
 // ─── Маппинг Ticket → TicketView ───────────────────────────

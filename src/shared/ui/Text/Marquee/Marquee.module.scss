@@ -2,7 +2,10 @@
   overflow: hidden;
   white-space: nowrap;
   width: 100%;
+  min-width: 0;
+  flex: 1;
   position: relative;
+  text-align: inherit;
 }
 
 /* .measure class removed — measurement now uses a document.body temp element */
@@ -28,5 +31,5 @@
 
 @keyframes marqueeScroll {
   0%   { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
+  100% { transform: translateX(var(--marquee-offset, -50%)); }
 }

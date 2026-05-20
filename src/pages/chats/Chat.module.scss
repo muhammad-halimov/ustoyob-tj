@@ -648,6 +648,10 @@
       margin-bottom: 5px;
       padding: 12px 16px;
       border-radius: 18px;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      white-space: pre-wrap;
+      min-width: 0;
 
       @media (max-width: 480px) {
         font-size: 14px;
@@ -673,6 +677,10 @@
 
     &.myMessage {
       align-self: flex-end;
+
+      .messageImagesGrid {
+        align-self: flex-end;
+      }
 
       .messageText {
         background: #3A54DA;

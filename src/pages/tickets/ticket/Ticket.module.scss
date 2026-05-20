@@ -393,6 +393,9 @@
 .authorSection {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .social_networks_override {
@@ -416,13 +419,25 @@
 .authorInfo {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  width: 100%;
 
   h3 {
     margin: 0;
     color: #333;
     font-size: 24px;
     cursor: pointer;
+    min-width: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
   }
+}
+
+.authorSection > p {
+  min-width: 0;
+  overflow: hidden;
+  width: 100%;
 }
 
 .timeAgo {

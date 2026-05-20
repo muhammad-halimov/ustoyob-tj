@@ -738,7 +738,7 @@ function Category() {
                             isResponded={respondedTickets.has(ticket.id)}
                             isRespondLoading={respondingTicketId === ticket.id}
                             onReviewClick={ticket.authorId !== currentUserId ? () => { const tok = getAuthToken(); if (!tok) { window.dispatchEvent(new CustomEvent('openAuthModal')); return; } setCardReviewTarget({ authorId: ticket.authorId ?? 0, ticketId: ticket.id }); } : undefined}
-                            onComplaintClick={ticket.authorId !== currentUserId ? () => { const tok = getAuthToken(); if (!tok) { window.dispatchEvent(new CustomEvent('openAuthModal')); return; } setCardComplaintTarget({ authorId: ticket.authorId ?? 0, ticketId: ticket.id }); } : undefined}
+                            onComplaintClick={ticket.authorId !== currentUserId ? () => { setCardComplaintTarget({ authorId: ticket.authorId ?? 0, ticketId: ticket.id }); } : undefined}
                         />
                     ))
                 )}

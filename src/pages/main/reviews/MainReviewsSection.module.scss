@@ -109,9 +109,8 @@
           cursor: pointer;
           transition: color 0.2s ease;
           overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          max-width: 100%;
+          display: flex;
+          align-items: center;
 
           &:hover {
             color: map.get(vars.$colors, primary);
@@ -137,17 +136,22 @@
 
         .service_master_info {
           display: flex;
-          align-items: center;
-          flex-wrap: wrap;
-          gap: 4px;
+          flex-direction: column;
+          gap: 2px;
           font-size: 14px;
           color: map.get(vars.$colors, text-secondary);
+          min-width: 0;
+          overflow: hidden;
 
           .service_title {
             cursor: pointer;
             color: map.get(vars.$colors, primary);
             font-weight: 500;
             transition: color 0.2s ease;
+            min-width: 0;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
 
             &:hover {
               color: map.get(vars.$colors, actual-blue);
@@ -155,16 +159,15 @@
             }
           }
 
-          .divider {
-            color: map.get(vars.$colors, text-secondary);
-            margin: 0 4px;
-          }
-
           .master_name {
             cursor: pointer;
             color: map.get(vars.$colors, primary);
             font-weight: 500;
             transition: color 0.2s ease;
+            min-width: 0;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
 
             &:hover {
               color: map.get(vars.$colors, actual-blue);
@@ -276,8 +279,8 @@
           color: map.get(vars.$colors, text-primary);
           cursor: pointer;
           overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
+          display: flex;
+          align-items: center;
 
           &:hover {
             color: map.get(vars.$colors, primary);
@@ -303,16 +306,21 @@
 
         .service_master_info {
           display: flex;
-          align-items: center;
-          flex-wrap: wrap;
-          gap: 4px;
+          flex-direction: column;
+          gap: 2px;
           font-size: 12px;
           color: map.get(vars.$colors, text-secondary);
+          min-width: 0;
+          overflow: hidden;
 
           .service_title {
             cursor: pointer;
             color: map.get(vars.$colors, primary);
             font-weight: 500;
+            min-width: 0;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
 
             &:hover {
               color: map.get(vars.$colors, actual-blue);
@@ -320,15 +328,14 @@
             }
           }
 
-          .divider {
-            color: map.get(vars.$colors, text-secondary);
-            margin: 0 2px;
-          }
-
           .master_name {
             cursor: pointer;
             color: map.get(vars.$colors, primary);
             font-weight: 500;
+            min-width: 0;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
 
             &:hover {
               color: map.get(vars.$colors, actual-blue);

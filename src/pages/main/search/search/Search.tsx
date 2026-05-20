@@ -1298,7 +1298,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                     isResponded={respondedTickets.has(result.id)}
                     isRespondLoading={respondingTicketId === result.id}
                     onReviewClick={result.authorId !== currentUserId ? () => { const tok = getAuthToken(); if (!tok) { window.dispatchEvent(new CustomEvent('openAuthModal')); return; } setCardReviewTarget({ authorId: result.authorId!, ticketId: result.id }); } : undefined}
-                    onComplaintClick={result.authorId !== currentUserId ? () => { const tok = getAuthToken(); if (!tok) { window.dispatchEvent(new CustomEvent('openAuthModal')); return; } setCardComplaintTarget({ authorId: result.authorId!, ticketId: result.id }); } : undefined}
+                    onComplaintClick={result.authorId !== currentUserId ? () => { setCardComplaintTarget({ authorId: result.authorId!, ticketId: result.id }); } : undefined}
                 />
             );
         });

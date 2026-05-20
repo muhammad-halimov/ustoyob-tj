@@ -1127,10 +1127,10 @@ export function Ticket() {
                                     onClick={() => handleProfileClick(order.authorId!)}
                                     style={{cursor: 'pointer'}}
                                 >
-                                    {order.author}
+                                    <Marquee text={order.author} alwaysScroll />
                                 </h3>
                             </div>
-                            <p>{order.title}</p>
+                            <p><Marquee text={order.title} alwaysScroll /></p>
                         </div>
                     </div>
                     {authorSocialNetworks.length > 0 && (
@@ -1326,6 +1326,7 @@ export function Ticket() {
                                 {...reviewsShowMoreProps}
                                 showMoreText={t('common:app.showMore')}
                                 showLessText={t('common:app.showLess')}
+                                loading={reviewsLoading}
                             />
                         }
                     />

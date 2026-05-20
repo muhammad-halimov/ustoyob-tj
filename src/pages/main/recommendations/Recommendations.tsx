@@ -311,7 +311,7 @@ function Recommendations({
                                 isResponded={respondedTickets.has(announcement.id)}
                                 isRespondLoading={respondingTicketId === announcement.id}
                                 onReviewClick={getAuthorId(announcement) !== currentUserId ? () => { const tok = getAuthToken(); if (!tok) { window.dispatchEvent(new CustomEvent('openAuthModal')); return; } setCardReviewTarget({ authorId: getAuthorId(announcement)!, ticketId: announcement.id }); } : undefined}
-                                onComplaintClick={getAuthorId(announcement) !== currentUserId ? () => { const tok = getAuthToken(); if (!tok) { window.dispatchEvent(new CustomEvent('openAuthModal')); return; } setCardComplaintTarget({ authorId: getAuthorId(announcement)!, ticketId: announcement.id }); } : undefined}
+                                onComplaintClick={getAuthorId(announcement) !== currentUserId ? () => { setCardComplaintTarget({ authorId: getAuthorId(announcement)!, ticketId: announcement.id }); } : undefined}
                             />
                         ))}
                     </div>

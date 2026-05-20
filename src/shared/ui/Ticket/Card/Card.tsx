@@ -188,6 +188,15 @@ export function Card({
   const { t, i18n } = useTranslation(['components', 'ticket']);
   const [, forceUpdate] = useState({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const truncateLimit = windowWidth <= 480 ? 100 : 200;
   
   // Транслитерация имени автора (автоопределение языка)
   const translatedAuthor = useTranslatedName(author);
@@ -390,20 +399,20 @@ export function Card({
       {photos && photos.length > 0 ? (
         <div className={styles.card_content_row}>
           <Carousel photos={photos} className={styles.card_photo_slider} />
-          <p className={`${styles.card_description} ${styles.card_description_in_row}`}>{truncateText(translatedDescription)}</p>
+          <p className={`${styles.card_description} ${styles.card_description_in_row}`}>{truncateText(translatedDescription, truncateLimit)}</p>
         </div>
       ) : (
-        <p className={styles.card_description}>{truncateText(translatedDescription)}</p>
+        <p className={styles.card_description}>{truncateText(translatedDescription, truncateLimit)}</p>
       )}
 
       <div className={styles.card_details}>
-        <span className={styles.card_address}>
+        <div className={styles.card_address}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             <circle cx="12" cy="9" r="2.5" stroke="#3A54DA" strokeWidth="2"/>
           </svg>
-          {address}
-        </span>
+          <Marquee text={address || ''} alwaysScroll />
+        </div>
         <span className={styles.card_date}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M3 8h18M21 6v14H3V6h18zM16 2v4M8 2v4" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -499,7 +508,7 @@ export function Card({
                 ) : (
                   <img src="/default_user.png" className={styles.card_author_avatar} alt="" />
                 )}
-                {translatedAuthor}
+                <Marquee text={translatedAuthor} alwaysScroll />
               </Link>
             ) : (
               <span className={styles.card_author}>
@@ -508,7 +517,7 @@ export function Card({
                 ) : (
                   <img src="/default_user.png" className={styles.card_author_avatar} alt="" />
                 )}
-                {translatedAuthor}
+                <Marquee text={translatedAuthor} alwaysScroll />
               </span>
             )}
           </div>
