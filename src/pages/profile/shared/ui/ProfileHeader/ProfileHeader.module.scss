@@ -3,6 +3,7 @@
 
 .profile_content {
   padding: 20px;
+  padding-top: 50px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -27,14 +28,14 @@
   z-index: 2;
 }
 
-// desktop logout (inside badge_actions_row) — visible only on desktop
+// desktop logout (inside badge_actions_row) — always hidden
 .logout_desktop {
-  display: inline-flex;
+  display: none;
 }
 
-// mobile logout (separate element, top-left) — hidden on desktop
+// logout always shown in top-left corner
 .logout_row {
-  display: none;
+  display: block;
   position: absolute;
   top: 10px;
   left: 20px;
@@ -50,6 +51,7 @@
   background: transparent;
   border: none;
   font-size: 14px;
+  margin-top: 5px;
   text-transform: uppercase;
   cursor: pointer;
   color: var(--color-text-primary, #333);
@@ -74,6 +76,7 @@
   border-radius: 6px;
   font-size: 12px;
   font-weight: 500;
+  margin-top: 10px;
 }
 
 .profile_info {
@@ -478,7 +481,7 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 820px) {
   .profile_content {
     flex-direction: column;
     padding: 16px;
@@ -493,18 +496,18 @@
   }
 
   .logout_row {
-    display: block;
     top: 12px;
     left: 12px;
   }
 
-  .logout_desktop {
-    display: none;
+  .logout_btn {
+    margin-top: -3px;
   }
 
   .profile_type_badge {
     font-size: 11px;
     padding: 5px 10px;
+    margin-top: 2px;
   }
 
   .avatar_section {
@@ -604,13 +607,12 @@
 
 @media (max-width: 480px) {
   .logout_row {
-    display: block;
     top: 8px;
     left: 8px;
   }
 
-  .logout_desktop {
-    display: none;
+  .logout_btn {
+    margin-top: 0;
   }
 
   .profile_type_badge {
@@ -717,7 +719,7 @@
   overflow: hidden;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 820px) {
   .specialty_badge {
     font-size: 14px;
     padding: 4px 12px;
@@ -882,7 +884,7 @@
   min-width: 0;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 820px) {
   .name_container {
     width: fit-content;
     margin: 0 auto 15px;
@@ -890,7 +892,7 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 820px) {
   .subinfo {
     justify-content: center;
     text-align: center;

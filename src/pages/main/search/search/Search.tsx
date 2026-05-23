@@ -1253,11 +1253,11 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             return <div className={styles.emptyStateWrap}><EmptyState /></div>;
         }
 
-        if (isLoading) {
+        if (isLoading && searchResults.length === 0) {
             return <div style={{ display: 'flex', justifyContent: 'center', width: '100%', paddingTop: '2rem' }}><PageLoader fullPage={false} /></div>;
         }
 
-        if (searchResults.length === 0) {
+        if (!isLoading && searchResults.length === 0) {
             return <EmptyState title={t('messages.noResults')} onRefresh={handleForceRefresh} />;
         }
 
@@ -1437,12 +1437,13 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
                     <div className={`${styles.searchResults} ${!showResults && !showFilters ? styles.hidden : ''}`}>
                         {renderedResults}
-                        {showResults && !isLoading && (
+                        {showResults && (
                             <ShowMore
                                 {...searchShowMoreProps}
                                 showMoreText={t('common:app.showMore')}
                                 showLessText={t('common:app.showLess')}
                                 loading={isLoading}
+                                horizontal
                             />
                         )}
                     </div>

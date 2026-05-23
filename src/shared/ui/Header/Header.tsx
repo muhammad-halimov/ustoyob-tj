@@ -787,8 +787,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                                                 onClear={() => setVisibleCities(getPageSize())}
                                                 showMoreText={t('common:app.showMore')}
                                                 showLessText={t('common:app.showLess')}
-                                                column
-                                            />
+                                                column                                                horizontal                                            />
                                         )}
                                     </>
                                 );

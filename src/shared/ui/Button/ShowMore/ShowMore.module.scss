@@ -44,9 +44,7 @@
   font-family: vars.$font-family;
   background-color: map.get(vars.$colors, background-btn);
   display: inline-flex;
-  width: min(235px, 100%);
-  min-width: 0;
-  max-width: 235px;
+  max-width: 300px;
   color: map.get(vars.$colors, primary-text-white);
   font-size: map.get(vars.$font-sizes, 'lg');
   box-sizing: border-box;
@@ -55,7 +53,7 @@
   justify-content: center;
   gap: 6px;
   overflow: hidden;
-  padding: 10px 20px;
+  padding: 5px 30px;
   border-radius: 10px;
   cursor: pointer;
   user-select: none;
@@ -109,6 +107,13 @@
   align-items: center;
 }
 
+// When horizontal prop is used: left/right arrows on mobile, rotated to up/down on desktop
+.icon_horizontal {
+  @media screen and (min-width: 541px) {
+    transform: rotate(90deg);
+  }
+}
+
 .btnLoader {
   position: absolute;
   inset: 0;
@@ -125,10 +130,18 @@
 
 @media screen and (max-width: 480px) {
   .btn {
-    width: min(164px, 100%);
     min-width: 0;
     max-width: 164px;
-    font-size: 12px;
-    padding: 8px 14px;
+    font-size: 14px;
+    padding: 5px 20px;
   }
 }
+
+// @media screen and (max-width: 380px) {
+//   .btn {
+//     width: min(130px, 100%);
+//     max-width: 130px;
+//     font-size: 11px;
+//     padding: 6px 10px;
+//   }
+// }

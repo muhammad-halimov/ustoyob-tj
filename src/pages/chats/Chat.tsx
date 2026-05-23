@@ -1449,6 +1449,7 @@ function Chat() {
                         showLessText={t('common:app.showLess', { defaultValue: 'Показать меньше' })}
                         column={true}
                         loading={isLoadingMoreChats}
+                        horizontal
                     />
                 )}
             </div>

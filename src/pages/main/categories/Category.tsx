@@ -226,6 +226,7 @@ export default function Category() {
                         onClear={() => setVisibleCount(initialCount)}
                         showMoreText={t('common:app.showMore')}
                         showLessText={t('common:app.showLess')}
+                        horizontal
                     />
                 </div>
             )}

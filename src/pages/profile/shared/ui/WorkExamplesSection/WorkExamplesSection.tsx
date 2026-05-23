@@ -154,6 +154,7 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
                                 onClear={onClearWorkExamples}
                                 showMoreText={t('common:app.showMore')}
                                 showLessText={t('common:app.showLess')}
+                                horizontal
                             />
                         )}
                     </div>

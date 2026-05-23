@@ -17,8 +17,8 @@
     "previous": "Предыдущий",
     "submit": "Отправить",
     "close": "Закрыть",
-    "showMore": "Показать больше",
-    "showLess": "Показать меньше"
+    "showMore": "Больше",
+    "showLess": "Меньше"
   },
   "validation": {
     "required": "Это поле обязательно",

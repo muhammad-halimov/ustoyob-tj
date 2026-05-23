@@ -1344,7 +1344,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                         onClick={() => setCurrentState(AuthModalState.FORGOT_PASSWORD)}
                         disabled={isLoading}
                     >
-                        {t('auth.back')}
+                        {t('common:app.back')}
                     </button>
                 </div>
             </form>
@@ -1393,7 +1393,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                         onClick={() => setCurrentState(AuthModalState.VERIFY_CODE)}
                         disabled={isLoading}
                     >
-                        {t('auth.back')}
+                        {t('common:app.back')}
                     </button>
                 </div>
             </form>
@@ -1435,24 +1435,6 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         return (
             <form onSubmit={handleLogin} className={styles.form}>
                 <h2>{t('auth.entrance')}</h2>
-                <div className={styles.roleSelector}>
-                    <button
-                        type="button"
-                        className={formData.role === 'master' ? styles.roleButtonActive : styles.roleButton}
-                        onClick={() => handleRoleChange('master')}
-                        disabled={isLoading}
-                    >
-                        <Marquee text={t('auth.iAmSpecialist')} />
-                    </button>
-                    <button
-                        type="button"
-                        className={formData.role === 'client' ? styles.roleButtonActive : styles.roleButton}
-                        onClick={() => handleRoleChange('client')}
-                        disabled={isLoading}
-                    >
-                        <Marquee text={t('auth.iAmClient')} />
-                    </button>
-                </div>
 
                 <div className={styles.inputGroup}>
                     <input

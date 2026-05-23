@@ -845,7 +845,8 @@ function Favorites() {
                         title={t('messages.authRequired')}
                         subtitle={t('pages.favorites.noFavoritesHint')}
                         isLoading={isFavoritesRefreshing}
-                        onRefresh={fetchFavorites}
+                        actionText={t('header:login')}
+                        onAction={() => window.dispatchEvent(new CustomEvent('openAuthModal'))}
                     />
                 </div>
             </div>
@@ -1024,6 +1025,7 @@ function Favorites() {
                     showMoreText={t('common:app.showMore')}
                     showLessText={t('common:app.showLess')}
                     loading={isFavoritesRefreshing}
+                    horizontal
                 />
             )}
 

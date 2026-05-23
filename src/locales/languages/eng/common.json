@@ -17,8 +17,8 @@
     "previous": "Previous",
     "submit": "Submit",
     "close": "Close",
-    "showMore": "Show more",
-    "showLess": "Show less"
+    "showMore": "More",
+    "showLess": "Less"
   },
   "validation": {
     "required": "This field is required",

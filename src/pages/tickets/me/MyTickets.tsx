@@ -388,6 +388,7 @@ function MyTickets() {
                     showMoreText={t('common:app.showMore', { defaultValue: 'Показать больше' })}
                     showLessText={t('common:app.showLess', { defaultValue: 'Показать меньше' })}
                     loading={isContentLoading}
+                    horizontal
                 />
             )}
 

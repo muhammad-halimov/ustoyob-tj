@@ -669,6 +669,7 @@ function Category() {
                                 onClear={handleShowLessOccupations}
                                 showMoreText={t('common:app.showMore')}
                                 showLessText={t('common:app.showLess')}
+                                horizontal
                             />
                         </div>
                     )}
@@ -748,6 +749,7 @@ function Category() {
                 showMoreText={t('common:app.showMore')}
                 showLessText={t('common:app.showLess')}
                 loading={isLoadingMore}
+                horizontal
             />
             <CookieConsentBanner/>
             <Status

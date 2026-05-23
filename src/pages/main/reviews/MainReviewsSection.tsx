@@ -201,6 +201,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                         hideShowMoreWhenExpanded
                         loading={false}
                         horizontal
+                        horizontalArrows
                     />
                 )}
             </div>
@@ -244,7 +245,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                     {reviews.map((review, reviewIndex) => (
                         <div key={review.id} className={styles.reviews_item}>
                             <ActionsDropdown
-                                style={{ position: 'absolute', top: '0px', right: '10px', zIndex: 2 }}
+                                style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 2 }}
                                 items={[{
                                     icon: <IoWarningOutline />,
                                     label: t('profile:complaint'),
@@ -345,7 +346,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                             <SwiperSlide key={review.id}>
                                 <div className={styles.reviews_item}>
                                     <ActionsDropdown
-                                        style={{ position: 'absolute', top: '0px', right: '10px', zIndex: 2 }}
+                                        style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 2 }}
                                         items={[{
                                             icon: <IoWarningOutline />,
                                             label: t('profile:complaint'),
@@ -439,6 +440,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                     showLessText={t('common:app.showLess')}
                     loading={loading}
                     horizontal
+                    horizontalArrows
                 />
             </div>
 

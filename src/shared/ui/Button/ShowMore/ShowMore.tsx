@@ -36,11 +36,13 @@ interface ShowMoreProps {
     loading?: boolean;
     /** Вертикальное расположение кнопок */
     column?: boolean;
-    /** Горизонтальное расположение кнопок даже на мобилке, стрелки влево/вправо */
+    /** Горизонтальное расположение кнопок (кнопки рядом) */
     horizontal?: boolean;
+    /** Стрелки влево/вправо вместо вверх/вниз */
+    horizontalArrows?: boolean;
 }
 
-export const ShowMore = ({ expanded, canLoadMore, hasMore, onShowMore, onShowLess, onClear, showMoreText, showLessText, clearBtn = true, hideShowMoreWhenExpanded = false, loading = false, column = false, horizontal = false }: ShowMoreProps) => {
+export const ShowMore = ({ expanded, canLoadMore, hasMore, onShowMore, onShowLess, onClear, showMoreText, showLessText, clearBtn = true, hideShowMoreWhenExpanded = false, loading = false, column = false, horizontal = false, horizontalArrows = false }: ShowMoreProps) => {
     const [clicked, setClicked] = useState<'more' | 'less' | null>(null);
     const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -86,9 +88,9 @@ export const ShowMore = ({ expanded, canLoadMore, hasMore, onShowMore, onShowLes
                                 <span className={styles.btnLabel}>
                                     <Marquee text={showMoreText} />
                                 </span>
-                                <span className={styles.icon}>
+                                <span className={`${styles.icon}${horizontalArrows ? ` ${styles.icon_horizontal}` : ''}`}>
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                                        {horizontal
+                                        {horizontalArrows
                                             ? <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                                             : <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>}
                                     </svg>
@@ -103,9 +105,9 @@ export const ShowMore = ({ expanded, canLoadMore, hasMore, onShowMore, onShowLes
                                 <span className={styles.btnLabel}>
                                     <Marquee text={showLessText} />
                                 </span>
-                                <span className={styles.icon}>
+                                <span className={`${styles.icon}${horizontalArrows ? ` ${styles.icon_horizontal}` : ''}`}>
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                                        {horizontal
+                                        {horizontalArrows
                                             ? <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                                             : <path d="M18 15l-6-6-6 6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>}
                                     </svg>

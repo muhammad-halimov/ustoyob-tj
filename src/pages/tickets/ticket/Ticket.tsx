@@ -1327,6 +1327,7 @@ export function Ticket() {
                                 showMoreText={t('common:app.showMore')}
                                 showLessText={t('common:app.showLess')}
                                 loading={reviewsLoading}
+                                horizontal
                             />
                         }
                     />

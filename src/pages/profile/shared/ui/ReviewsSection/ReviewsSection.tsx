@@ -233,6 +233,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                         clearBtn={false}
                         hideShowMoreWhenExpanded
                         loading={false}
+                        horizontal
                     />
                 )}
             </>
@@ -671,6 +672,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                         onClear={onShowLess}
                         showMoreText={t('common:app.showMore')}
                         showLessText={t('common:app.showLess')}
+                        horizontal
                     />
                 )}
                 {footerSlot}
