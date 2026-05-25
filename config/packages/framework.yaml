@@ -16,6 +16,14 @@ framework:
             ticket_views_cache_pool:
                 adapter: cache.adapter.redis
 
+when@prod:
+    framework:
+        session:
+            cookie_secure: true
+            cookie_httponly: true
+            cookie_samesite: strict
+            gc_maxlifetime: 3600
+
 when@test:
     framework:
         test: true

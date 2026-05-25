@@ -8,13 +8,15 @@ lexik_jwt_authentication:
         enabled: true
         cache: block_list_token_cache_pool
 
-    # EventSource не поддерживает кастомные заголовки, поэтому SSE-эндпоинты
-    # передают JWT через query-параметр ?authorization=TOKEN
+    # Токен принимается ТОЛЬКО из заголовка Authorization: Bearer <token>.
+    # Query-параметр отключён: токен в URL попадает в логи сервера,
+    # историю браузера и заголовок Referer третьих сторон.
+    # Для Mercure/SSE используйте отдельный Mercure subscriber JWT.
     token_extractors:
         authorization_header:
             enabled: true
             prefix: Bearer
             name: Authorization
         query_parameter:
-            enabled: true
+            enabled: false
             name: authorization

@@ -35,6 +35,9 @@ security:
             form_login:
                 login_path: app_login
                 check_path: app_login
+            login_throttling:
+                max_attempts: 5
+                interval: '1 minute'
             logout:
                 path: app_logout
 

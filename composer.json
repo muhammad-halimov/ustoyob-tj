@@ -6,7 +6,9 @@
     "require": {
         "php": ">=8.4",
         "ext-ctype": "*",
+        "ext-curl": "*",
         "ext-iconv": "*",
+        "ext-mbstring": "*",
         "api-platform/core": "^4.2.6",
         "api-platform/doctrine-orm": "^4.1",
         "api-platform/symfony": "^4.1",
@@ -44,6 +46,7 @@
         "symfony/process": "7.3.*",
         "symfony/property-access": "7.3.*",
         "symfony/property-info": "7.3.*",
+        "symfony/rate-limiter": "7.3.*",
         "symfony/routing": "7.3.*",
         "symfony/runtime": "7.3.*",
         "symfony/security-bundle": "7.3.*",
@@ -58,9 +61,7 @@
         "symfony/yaml": "7.3.*",
         "twig/extra-bundle": "^2.12|^3.22.1",
         "twig/twig": "^2.12|^3.22.1",
-        "vich/uploader-bundle": "^2.9.1",
-        "ext-mbstring": "*",
-        "ext-curl": "*"
+        "vich/uploader-bundle": "^2.9.1"
     },
     "config": {
         "allow-plugins": {
