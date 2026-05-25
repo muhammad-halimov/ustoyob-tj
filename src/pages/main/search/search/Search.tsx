@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import FilterPanel from "../filters/FilterPanel";
 import type { FilterState } from '../../../../entities';
 import { getAuthToken, getUserRole, getUserData } from "../../../../utils/auth";
+import { universalApiRequest } from '../../../../utils/apiHelper';
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from '../../../../app/routers/routes';
 import {textHelper} from "../../../../utils/textHelper";
@@ -11,8 +12,8 @@ import { useLanguageChange } from "../../../../hooks";
 import { Card } from "../../../../shared/ui/Ticket/Card/Card";
 import { ServiceTypeFilter } from "../../../../widgets/Sorting/TypeFilter";
 import { SortingFilter } from "../../../../widgets/Sorting/CriteriaFilter";
-import { createChatWithAuthor } from '../../../../utils/chatUtils';
-import { getProvinces, getCities, getOccupations } from "../../../../utils/dataCache";
+import { createChatWithAuthor, getChatsMe } from '../../../../utils/chatUtils';
+import { getProvinces, getCities, getOccupations, getCategories } from "../../../../utils/dataCache";
 import { PageLoader } from '../../../../widgets/PageLoader';
 import { SelectSearch } from '../../../../shared/ui/SelectSearch';
 import { EmptyState } from '../../../../widgets/EmptyState';
@@ -30,7 +31,6 @@ type TicketWithMeta = ApiTicket & { type: UserRole; userRating: number; userRevi
 import type { Province, City } from '../../../../entities';
 import { formatTicketImageUrl, formatProfileImageUrl } from '../../../../utils/imageHelper';
 import { getSessionJSON } from '../../../../utils/storageHelper';
-import { API_BASE_URL } from '../../../../utils/config';
 
 interface SearchProps {
     onSearchResults: (results: TicketView[]) => void;
@@ -171,56 +171,33 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     // Функция для извлечения городов из существующих тикетов
     const extractCitiesFromTickets = useCallback(async () => {
         try {
-            const token = getAuthToken();
-            const headers: HeadersInit = {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-            };
+            const ticketsData = await universalApiRequest('/api/tickets?active=true&itemsPerPage=100');
+            let tickets: ApiTicket[] = [];
 
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-
-            const response = await fetch(`${API_BASE_URL}/api/tickets?active=true&itemsPerPage=100&locale=${localStorage.getItem('i18nextLng') || 'ru'}`, {
-                method: 'GET',
-                headers: headers,
-            });
-
-            if (response.ok) {
-                const ticketsData = await response.json();
-                let tickets: ApiTicket[] = [];
-
-                if (Array.isArray(ticketsData)) {
-                    tickets = ticketsData;
-                } else if (ticketsData && typeof ticketsData === 'object' && 'hydra:member' in ticketsData) {
-                    const hydraMember = (ticketsData as { 'hydra:member': ApiTicket[] })['hydra:member'];
-                    if (Array.isArray(hydraMember)) {
-                        tickets = hydraMember;
-                    }
+            if (Array.isArray(ticketsData)) {
+                tickets = ticketsData;
+            } else if (ticketsData && typeof ticketsData === 'object' && 'hydra:member' in ticketsData) {
+                const hydraMember = (ticketsData as { 'hydra:member': ApiTicket[] })['hydra:member'];
+                if (Array.isArray(hydraMember)) {
+                    tickets = hydraMember;
                 }
-
-                // Извлекаем уникальные города из адресов тикетов
-                const citiesMap = new Map<string, City>();
-
-                tickets.forEach(ticket => {
-                    ticket.addresses?.forEach(address => {
-                        if (address.city?.title) {
-                            const cityName = address.city.title.trim();
-                            if (!citiesMap.has(cityName.toLowerCase())) {
-                                citiesMap.set(cityName.toLowerCase(), {
-                                    id: address.city.id,
-                                    title: cityName
-                                });
-                            }
-                        }
-                    });
-                });
-
-                const uniqueCities = Array.from(citiesMap.values());
-                uniqueCities.sort((a, b) => (a.title ?? '').localeCompare(b.title ?? ''));
-
-                setCities(uniqueCities);
             }
+
+            // Извлекаем уникальные города из адресов тикетов
+            const citiesMap = new Map<string, City>();
+            tickets.forEach(ticket => {
+                ticket.addresses?.forEach(address => {
+                    if (address.city?.title) {
+                        const cityName = address.city.title.trim();
+                        if (!citiesMap.has(cityName.toLowerCase())) {
+                            citiesMap.set(cityName.toLowerCase(), { id: address.city.id, title: cityName });
+                        }
+                    }
+                });
+            });
+            const uniqueCities = Array.from(citiesMap.values());
+            uniqueCities.sort((a, b) => (a.title ?? '').localeCompare(b.title ?? ''));
+            setCities(uniqueCities);
         } catch (error) {
             console.error('Error extracting cities from tickets:', error);
         }
@@ -492,44 +469,9 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     // Функция загрузки категорий
     const fetchCategories = useCallback(async () => {
         try {
-            const locale = localStorage.getItem('i18nextLng') || 'ru';
-            const token = getAuthToken();
-
-            const headers: HeadersInit = {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-            };
-
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-
-            const response = await fetch(`${API_BASE_URL}/api/categories?locale=${locale}`, {
-                method: 'GET',
-                headers: headers,
-            });
-
-            if (response.ok) {
-                const categoriesData = await response.json();
-
-                let formatted: Category[] = [];
-                if (Array.isArray(categoriesData)) {
-                    formatted = categoriesData.map((cat: { id: number; title: string }) => ({
-                        id: cat.id,
-                        title: cat.title
-                    }));
-                } else if (categoriesData && typeof categoriesData === 'object' && 'hydra:member' in categoriesData) {
-                    const hydraMember = (categoriesData as { 'hydra:member': { id: number; title: string }[] })['hydra:member'];
-                    if (Array.isArray(hydraMember)) {
-                        formatted = hydraMember.map((cat: { id: number; title: string }) => ({
-                            id: cat.id,
-                            title: cat.title
-                        }));
-                    }
-                }
-
-                setCategories(formatted);
-            }
+            const categoriesData = await getCategories();
+            const formatted: Category[] = categoriesData.map((cat) => ({ id: cat.id, title: cat.title }));
+            setCategories(formatted);
         } catch (error) {
             console.error('Error fetching categories:', error);
         }
@@ -560,11 +502,9 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     const fetchAllTickets = useCallback(async (query: string = '', filterParams: FilterState, silent = false, pageOverride?: number) => {
         try {
             if (!silent) setIsLoading(true);
-            const token = getAuthToken();
 
             const params = new URLSearchParams();
             params.append('active', 'true');
-            params.append('locale', localStorage.getItem('i18nextLng') || 'ru');
 
             // Фильтр типа сервиса управляется только через ServiceTypeFilter
             if (showOnlyServices) {
@@ -628,28 +568,11 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             params.append('page', String(pageOverride ?? page));
             params.append('itemsPerPage', String(pageSize));
 
-            console.log('Loading tickets with params:', params.toString());
-
-            const response = await fetch(`${API_BASE_URL}/api/tickets?${params.toString()}`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    ...(token && { 'Authorization': `Bearer ${token}` })
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const responseData = await response.json();
+            const responseData = await universalApiRequest(`/api/tickets?${params.toString()}`);
             let ticketsData: ApiTicket[] = [];
-
             const { items: parsedTickets, hasMore: fetchedHasMore } = parsePagedResponse<ApiTicket>(responseData, pageOverride ?? page, pageSize);
             ticketsData = parsedTickets;
             setHasMore(fetchedHasMore);
-            console.log(`Loaded ${ticketsData.length} tickets from API`);
 
             // Фильтрация по поисковому запросу
             if (query.trim()) {
@@ -969,12 +892,8 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         if (!token) return;
         (async () => {
             try {
-                const res = await fetch(`${API_BASE_URL}/api/chats/me`, {
-                    headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
-                });
-                if (!res.ok) return;
-                const data = await res.json();
-                const chats: any[] = data['hydra:member'] || (Array.isArray(data) ? data : []);
+                const data = await getChatsMe();
+                const chats: any[] = data;
                 const ids = new Set<number>();
                 chats.forEach((chat: any) => {
                     const t = chat.ticket;

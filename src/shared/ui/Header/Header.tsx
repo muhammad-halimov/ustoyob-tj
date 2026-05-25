@@ -3,7 +3,6 @@ import styles from "./Header.module.scss";
 import { ROUTES } from '../../../app/routers/routes';
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {getAuthToken, fetchCurrentUser, invalidateCurrentUserCache} from "../../../utils/auth";
-import { getStorageItem } from '../../../utils/storageHelper';
 import { useTranslation } from 'react-i18next';
 import { changeLanguage, Language } from '../../../locales/i18n';
 import { useLanguageChange } from '../../../hooks';
@@ -17,7 +16,8 @@ import { ShowMore } from '../Button/ShowMore/ShowMore';
 import { getPageSize } from '../../../utils/pageSize';
 import { SelectSearch } from '../SelectSearch';
 import type { User } from '../../../entities';
-import { API_BASE_URL } from '../../../utils/config';
+import { universalApiRequest } from '../../../utils/apiHelper';
+import { getCities, getDistricts } from '../../../utils/dataCache';
 
 type UserData = User;
 
@@ -83,23 +83,10 @@ function Header({ onOpenAuthModal }: HeaderProps) {
         setIsCitiesLoading(true);
         setCitiesError(false);
         try {
-            const token = getAuthToken();
-            const headers: HeadersInit = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-            const lang = getStorageItem('i18nextLng') || 'ru';
-
-            const [citiesRes, districtsRes] = await Promise.all([
-                fetch(`${API_BASE_URL}/api/cities?locale=${lang}`, { headers }),
-                fetch(`${API_BASE_URL}/api/districts?locale=${lang}`, { headers }),
+            const [citiesData, districtsData] = await Promise.all([
+                getCities().catch(() => []),
+                getDistricts().catch(() => []),
             ]);
-
-            const toArr = async (res: Response) => {
-                if (!res.ok) return [];
-                const data = await res.json();
-                return Array.isArray(data) ? data : (data['hydra:member'] ?? []);
-            };
-
-            const [citiesData, districtsData] = await Promise.all([toArr(citiesRes), toArr(districtsRes)]);
 
             const combinedLocations: LocationOption[] = [
                 ...citiesData.map((city: any) => ({
@@ -235,51 +222,22 @@ function Header({ onOpenAuthModal }: HeaderProps) {
         }
 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/confirm-account-tokenless/`, {
+            await universalApiRequest('/api/confirm-account-tokenless/', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                }
+                locale: false,
             });
-
-            console.log('Resend confirmation response status:', response.status);
-
-            if (response.ok) {
-                setHeaderStatus({ type: 'success', message: t('header:confirmationBanner.emailSent'), isOpen: true });
-            } else if (response.status === 409) {
-                const errorText = await response.text();
-                let errorMessage = t('header:confirmationBanner.sendError');
-
-                try {
-                    const errorData = JSON.parse(errorText);
-                    errorMessage = errorData.detail || errorData.message || errorMessage;
-                } catch {
-                    errorMessage = errorText || `${t('common:error')} ${response.status}`;
-                }
-
-                setHeaderStatus({ type: 'info', message: `${t('header:confirmationBanner.warning')}: ${errorMessage}`, isOpen: true });
-
+            setHeaderStatus({ type: 'success', message: t('header:confirmationBanner.emailSent'), isOpen: true });
+        } catch (error: any) {
+            const status = error?.status ?? error?.response?.status;
+            if (status === 409) {
+                setHeaderStatus({ type: 'info', message: t('header:confirmationBanner.warning'), isOpen: true });
                 invalidateCurrentUserCache();
                 const freshUserData = await fetchCurrentUser();
                 if (freshUserData) setShowConfirmationBanner(freshUserData.approved === false);
             } else {
-                const errorText = await response.text();
-                let errorMessage = t('header:confirmationBanner.sendErrorRetry');
-
-                try {
-                    const errorData = JSON.parse(errorText);
-                    errorMessage = errorData.detail || errorData.message || errorMessage;
-                } catch {
-                    errorMessage = `${t('common:error')} ${response.status}: ${errorText}`;
-                }
-
-                setHeaderStatus({ type: 'error', message: errorMessage, isOpen: true });
+                console.error('Error resending confirmation:', error);
+                setHeaderStatus({ type: 'error', message: t('header:confirmationBanner.sendErrorRetry'), isOpen: true });
             }
-        } catch (error) {
-            console.error('Error resending confirmation:', error);
-            setHeaderStatus({ type: 'error', message: t('header:confirmationBanner.networkError'), isOpen: true });
         } finally {
             setIsLoading(false);
         }

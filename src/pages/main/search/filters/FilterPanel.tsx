@@ -4,11 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { SelectSearch, SelectOption } from '../../../../shared/ui/SelectSearch';
 import PageLoader from '../../../../widgets/PageLoader/PageLoader';
 import { Toggle } from '../../../../shared/ui/Button/Toggle/Toggle';
-import { getAuthToken } from '../../../../utils/auth';
-import { getStorageItem } from '../../../../utils/storageHelper';
 import type { Occupation, Category, FilterState } from '../../../../entities';
 import type { Province } from '../../../../entities';
-import { API_BASE_URL } from '../../../../utils/config';
+import { universalApiRequest } from '../../../../utils/apiHelper';
 
 interface FilterPanelProps {
     showFilters: boolean;
@@ -91,25 +89,12 @@ function FilterPanel({
         const fetchCityDistricts = async () => {
             setIsCityDistrictLoading(true);
             try {
-                const token = getAuthToken();
-                const headers: HeadersInit = {};
-                if (token) headers['Authorization'] = `Bearer ${token}`;
-                const lang = getStorageItem('i18nextLng') || 'ru';
-
                 const provinceParam = localFilters.province ? `&province.id=${localFilters.province}` : '';
 
-                const [citiesRes, districtsRes] = await Promise.all([
-                    fetch(`${API_BASE_URL}/api/cities?locale=${lang}${provinceParam}`, { headers }),
-                    fetch(`${API_BASE_URL}/api/districts?locale=${lang}${provinceParam}`, { headers }),
+                const [citiesData, districtsData] = await Promise.all([
+                    universalApiRequest(`/api/cities?${provinceParam.slice(1)}`).then((d: any) => Array.isArray(d) ? d : (d['hydra:member'] ?? [])).catch(() => []),
+                    universalApiRequest(`/api/districts?${provinceParam.slice(1)}`).then((d: any) => Array.isArray(d) ? d : (d['hydra:member'] ?? [])).catch(() => []),
                 ]);
-
-                const toArr = async (res: Response) => {
-                    if (!res.ok) return [];
-                    const data = await res.json();
-                    return Array.isArray(data) ? data : (data['hydra:member'] ?? []);
-                };
-
-                const [citiesData, districtsData] = await Promise.all([toArr(citiesRes), toArr(districtsRes)]);
 
                 const combined: SelectOption[] = [
                     ...citiesData.map((c: { id: number; title: string }) => ({ value: `city_${c.id}`, label: c.title })),

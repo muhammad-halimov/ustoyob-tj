@@ -33,6 +33,7 @@ export interface FeedbackModalProps {
 }
 
 import { API_BASE_URL } from '../../../../utils/config';
+import { universalApiRequest } from '../../../../utils/apiHelper';
 
 const Feedback: React.FC<FeedbackModalProps> = ({
     mode,
@@ -130,9 +131,8 @@ const Feedback: React.FC<FeedbackModalProps> = ({
             : effectiveComplaintType === 'review' ? 'review'
             : effectiveComplaintType === 'user' ? 'overall'
             : 'ticket';
-        fetch(`${API_BASE_URL}/api/appeal-reasons?locale=${locale}&applicableTo=${type}`)
-            .then(r => r.ok ? r.json() : [])
-            .then((data: any[]) => setReasons(data.map(r => ({ id: r.id, code: r.code, title: r.title }))))
+        universalApiRequest(`/api/appeal-reasons?applicableTo=${type}`, { locale: locale as any })
+            .then((data: any) => setReasons((Array.isArray(data) ? data : (data['hydra:member'] ?? [])).map((r: any) => ({ id: r.id, code: r.code, title: r.title }))))
             .catch(() => setReasons([]));
     }, [isOpen, isReview, effectiveComplaintType]);
 
@@ -146,19 +146,13 @@ const Feedback: React.FC<FeedbackModalProps> = ({
     const fetchServices = async () => {
         try {
             setLoadingServices(true);
-            const token = getAuthToken();
-            const headers: HeadersInit = { 'Content-Type': 'application/json' };
-            if (token) headers['Authorization'] = `Bearer ${token}`;
             const userRole = getUserRole();
             const endpoint = userRole === 'client'
                 ? `/api/tickets?service=true&active=true&exists[author]=false&exists[master]=true&master=${targetUserId}`
                 : `/api/tickets?service=false&active=true&exists[master]=false&exists[author]=true&author=${targetUserId}`;
-            const response = await fetch(`${API_BASE_URL}${endpoint}`, { headers });
-            if (response.ok) {
-                const data = await response.json();
-                const arr: any[] = Array.isArray(data) ? data : (data['hydra:member'] ?? []);
-                setServices(arr.map(t => ({ id: t.id, title: t.title || 'Без названия' })));
-            }
+            const data: any = await universalApiRequest(endpoint);
+            const arr: any[] = Array.isArray(data) ? data : (data['hydra:member'] ?? []);
+            setServices(arr.map(t => ({ id: t.id, title: t.title || 'Без названия' })));
         } catch (e) {
             console.error('Error fetching services:', e);
         } finally {
@@ -170,12 +164,7 @@ const Feedback: React.FC<FeedbackModalProps> = ({
 
     const fetchReviewCount = async (userId: number): Promise<number> => {
         try {
-            const token = getAuthToken();
-            const headers: HeadersInit = { 'Content-Type': 'application/json' };
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-            const res = await fetch(`${API_BASE_URL}/api/reviews?exists[ticket]=true&exists[master]=true&exists[client]=true&master=${userId}`, { headers });
-            if (!res.ok) return 0;
-            const data = await res.json();
+            const data: any = await universalApiRequest(`/api/reviews?exists[ticket]=true&exists[master]=true&exists[client]=true&master=${userId}`);
             const arr: any[] = Array.isArray(data) ? data : (data['hydra:member'] ?? []);
             return arr.filter(r => r.master?.id === userId || r.client?.id === userId).length;
         } catch {
@@ -187,20 +176,14 @@ const Feedback: React.FC<FeedbackModalProps> = ({
     const fetchTickets = async () => {
         try {
             setLoadingTickets(true);
-            const token = getAuthToken();
-            const headers: HeadersInit = { 'Content-Type': 'application/json' };
-            if (token) headers['Authorization'] = `Bearer ${token}`;
             const userRole = getUserRole();
             const resolvedTargetRole = targetUserRole ?? (userRole === 'client' ? 'master' : 'client');
             const endpoint = resolvedTargetRole === 'master'
                 ? `/api/tickets?service=true&active=true&exists[master]=true&master=${targetUserId}`
                 : `/api/tickets?service=false&active=true&exists[author]=true&author=${targetUserId}`;
-            const response = await fetch(`${API_BASE_URL}${endpoint}`, { headers });
-            if (response.ok) {
-                const data = await response.json();
-                const arr: any[] = Array.isArray(data) ? data : (data['hydra:member'] ?? []);
-                setTickets(arr.map(t => ({ id: t.id, title: t.title || 'Без названия' })));
-            }
+            const data: any = await universalApiRequest(endpoint);
+            const arr: any[] = Array.isArray(data) ? data : (data['hydra:member'] ?? []);
+            setTickets(arr.map(t => ({ id: t.id, title: t.title || 'Без названия' })));
         } catch (e) {
             console.error('Error fetching tickets:', e);
         } finally {
@@ -222,6 +205,7 @@ const Feedback: React.FC<FeedbackModalProps> = ({
 
             // --- Edit mode: PATCH existing review (same pattern as CreateEdit) ---
             if (editReviewId) {
+                try {
                 // 1. Remember existing image IDs before upload
                 const existingImageIds = new Set(
                     photos
@@ -243,11 +227,8 @@ const Feedback: React.FC<FeedbackModalProps> = ({
                 }
 
                 // 3. Re-fetch review to get updated image list (old + newly uploaded)
-                const freshReviewResp = await fetch(`${API_BASE_URL}/api/reviews/${editReviewId}`, {
-                    headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
-                });
-                const freshReview = freshReviewResp.ok ? await freshReviewResp.json() : null;
-                const allCurrentImages: Array<{ id: number; image: string }> = freshReview?.images || [];
+                const freshReview = await universalApiRequest(`/api/reviews/${editReviewId}`).catch(() => null);
+                const allCurrentImages: Array<{ id: number; image: string }> = (freshReview as any)?.images || [];
 
                 // 4. Build sorted final images list preserving user order
                 const uploadedInOrder = allCurrentImages.filter(img => !existingImageIds.has(img.id));
@@ -262,18 +243,18 @@ const Feedback: React.FC<FeedbackModalProps> = ({
                     })
                     .filter((x): x is { id: number; image: string } => x !== null);
 
-                // 5. PATCH with rating, description and sorted images list
-                const response = await fetch(`${API_BASE_URL}/api/reviews/${editReviewId}`, {
+                await universalApiRequest(`/api/reviews/${editReviewId}`, {
                     method: 'PATCH',
-                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/merge-patch+json', 'Accept': 'application/json' },
-                    body: JSON.stringify({ rating: selectedStars, description: reviewText, images: finalImages }),
+                    headers: { 'Content-Type': 'application/merge-patch+json' },
+                    body: { rating: selectedStars, description: reviewText, images: finalImages },
+                    locale: false,
                 });
-                if (response.ok) {
-                    showStatus('success', t('reviewModal.successEditMessage'));
-                } else {
-                    showStatus('error', t('reviewModal.errorDefault'));
-                }
+                showStatus('success', t('reviewModal.successEditMessage'));
                 return;
+                } catch {
+                    showStatus('error', t('reviewModal.errorDefault'));
+                    return;
+                }
             }
 
             // --- Create mode ---
@@ -302,14 +283,12 @@ const Feedback: React.FC<FeedbackModalProps> = ({
                 return;
             }
 
-            const response = await fetch(`${API_BASE_URL}/api/reviews`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                body: JSON.stringify(reviewData),
-            });
-
-            if (response.ok || response.status === 201) {
-                const reviewResponse = await response.json();
+            try {
+                const reviewResponse: any = await universalApiRequest('/api/reviews', {
+                    method: 'POST',
+                    body: reviewData,
+                    locale: false,
+                });
                 if (photos.length > 0 && reviewResponse.id) {
                     const filesToUpload = photos.flatMap(p => p.type === 'new' ? [p.file] : []);
                     try { await uploadPhotos('reviews', reviewResponse.id, filesToUpload, token); }
@@ -320,22 +299,14 @@ const Feedback: React.FC<FeedbackModalProps> = ({
                     onReviewSubmitted(updatedCount);
                 }
                 showStatus('success', t('reviewModal.successMessage'));
-            } else {
-                const errorText = await response.text();
+            } catch (reviewErr: any) {
+                const status = reviewErr?.status ?? 0;
                 let errorMessage = t('reviewModal.errorDefault');
-                if (errorText.includes('no interactions') || errorText.includes('no interaction')) {
-                    errorMessage = t('reviewModal.errorNoInteraction');
-                } else if (response.status === 422) {
-                    try {
-                        const errData = JSON.parse(errorText);
-                        if (errData.violations?.length > 0) errorMessage = errData.violations.map((v: any) => v.message).join(', ');
-                        else if (errData.message?.includes('no interaction')) errorMessage = t('reviewModal.errorNoInteraction');
-                        else if (errData.message) errorMessage = errData.message;
-                    } catch { errorMessage = t('reviewModal.errorValidation'); }
-                } else if (response.status === 409) errorMessage = t('reviewModal.errorAlreadyReviewed');
-                else if (response.status === 400) errorMessage = t('reviewModal.errorInvalidData');
-                else if (response.status === 404) errorMessage = t('reviewModal.errorNotFound');
-                else if (response.status === 403) errorMessage = t('reviewModal.errorNoAccess');
+                if (status === 409) errorMessage = t('reviewModal.errorAlreadyReviewed');
+                else if (status === 400) errorMessage = t('reviewModal.errorInvalidData');
+                else if (status === 404) errorMessage = t('reviewModal.errorNotFound');
+                else if (status === 403) errorMessage = t('reviewModal.errorNoAccess');
+                else if (reviewErr?.message?.includes('no interaction')) errorMessage = t('reviewModal.errorNoInteraction');
                 showStatus('error', errorMessage);
             }
         } catch {
@@ -366,40 +337,23 @@ const Feedback: React.FC<FeedbackModalProps> = ({
             if (chatId) complaintData.chat = `/api/chats/${chatId}`;
             if (reviewId) complaintData.review = `/api/reviews/${reviewId}`;
 
-            const response = await fetch(`${API_BASE_URL}/api/appeals`, {
-                method: 'POST',
-                headers: {
-                    ...(token && { 'Authorization': `Bearer ${token}` }),
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify(complaintData),
-            });
-
-            if (response.ok || response.status === 201) {
-                const complaintResponse = await response.json();
+            try {
+                const complaintResponse: any = await universalApiRequest('/api/appeals', {
+                    method: 'POST',
+                    body: complaintData,
+                    locale: false,
+                });
                 if (photos.length > 0 && complaintResponse.id) {
                     const filesToUpload = photos.flatMap(p => p.type === 'new' ? [p.file] : []);
                     try { await uploadPhotos('appeals', complaintResponse.id, filesToUpload, token); }
                     catch (e) { console.error('Error uploading complaint photos:', e); }
                 }
                 showStatus('success', t('complaintModal.successMessage'));
-            } else {
-                const errorText = await response.text();
+            } catch (complaintErr: any) {
+                const status = complaintErr?.status ?? 0;
                 let errorMessage = t('complaintModal.errorDefault');
-                if (response.status === 422) {
-                    try {
-                        const errData = JSON.parse(errorText);
-                        if (errData.violations?.length > 0) errorMessage = errData.violations.map((v: any) => v.message).join(', ');
-                        else if (errData.message) errorMessage = errData.message;
-                    } catch { errorMessage = t('complaintModal.errorValidation'); }
-                } else if (response.status === 400) {
-                    try {
-                        const errData = JSON.parse(errorText);
-                        errorMessage = errData.message || t('complaintModal.errorInvalidData');
-                    } catch { errorMessage = t('complaintModal.errorInvalidData'); }
-                } else if (response.status === 404) errorMessage = t('complaintModal.errorNotFound');
-                else if (response.status === 403) errorMessage = t('complaintModal.errorNoAccess');
+                if (status === 404) errorMessage = t('complaintModal.errorNotFound');
+                else if (status === 403) errorMessage = t('complaintModal.errorNoAccess');
                 showStatus('error', errorMessage);
             }
         } catch {
@@ -434,7 +388,7 @@ const Feedback: React.FC<FeedbackModalProps> = ({
             <Auth
                 isOpen={true}
                 onClose={handleCloseModal}
-                onLoginSuccess={(_token: string) => setIsAuthenticated(true)}
+                onLoginSuccess={() => setIsAuthenticated(true)}
             />
         );
     }

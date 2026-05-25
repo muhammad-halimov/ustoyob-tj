@@ -1,3 +1,5 @@
+import { getStorageItem, setStorageItem } from './storageHelper';
+
 /**
  * Функция для получения перевода города на текущем языке
  */
@@ -18,14 +20,14 @@ export const getCityTranslation = (cityName: string, t: (key: string) => string)
  * Функция для сохранения выбранного города
  */
 export const saveSelectedCity = (cityName: string): void => {
-    localStorage.setItem('selectedCity', cityName);
+    setStorageItem('selectedCity', cityName);
 };
 
 /**
  * Функция для получения выбранного города
  */
 export const getSelectedCity = (): string | null => {
-    return localStorage.getItem('selectedCity');
+    return getStorageItem('selectedCity');
 };
 
 /**

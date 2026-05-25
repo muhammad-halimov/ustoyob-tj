@@ -9,7 +9,6 @@ import Status from '../../../shared/ui/Modal/Status';
 import { Preview, usePreview } from '../../../shared/ui/Photo/Preview';
 import { useTranslation } from 'react-i18next';
 import { useLanguageChange } from '../../../hooks';
-import { getStorageItem } from '../../../utils/storageHelper';
 import { PageLoader } from '../../../widgets/PageLoader';
 import { Toggle } from '../../../shared/ui/Button/Toggle/Toggle';
 import Grid, { PhotoItem, buildOrderedImagePayload } from '../../../shared/ui/Photo/Grid';
@@ -17,6 +16,8 @@ import { uploadPhotos } from '../../../utils/imageHelper';
 import { EditActions } from '../../profile/shared/ui/EditActions/EditActions';
 import { SelectSearch } from '../../../shared/ui/SelectSearch';
 import type { Category, Occupation, Image, Unit, TicketFormData } from '../../../entities';
+import { universalApiRequest } from '../../../utils/apiHelper';
+import { getCategories } from '../../../utils/dataCache';
 import { API_BASE_URL } from '../../../utils/config';
 
 
@@ -187,16 +188,8 @@ const CreateEdit = () => {
     const fetchCategories = async () => {
         try {
             if (!token) return;
-            const locale = getStorageItem('i18nextLng') || 'ru';
-            const response = await fetch(`${API_BASE_URL}/api/categories?locale=${locale}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setCategories(data);
-            }
+            const data = await getCategories();
+            setCategories(data);
         } catch (error) {
             console.error('Error fetching categories:', error);
         }
@@ -205,15 +198,8 @@ const CreateEdit = () => {
     const fetchUnits = async () => {
         try {
             if (!token) return;
-            const response = await fetch(`${API_BASE_URL}/api/units`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setUnits(data);
-            }
+            const data = await universalApiRequest('/api/units', { locale: false });
+            setUnits(data);
         } catch (error) {
             console.error('Error fetching units:', error);
         }
@@ -222,17 +208,9 @@ const CreateEdit = () => {
     const fetchOccupations = async () => {
         try {
             if (!token) return;
-            const locale = getStorageItem('i18nextLng') || 'ru';
-            const response = await fetch(`${API_BASE_URL}/api/occupations?locale=${locale}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                const sorted = Array.isArray(data) ? data.sort((a: Occupation, b: Occupation) => (a.priority ?? Infinity) - (b.priority ?? Infinity)) : data;
-                setOccupations(sorted);
-            }
+            const data = await universalApiRequest('/api/occupations');
+            const sorted = Array.isArray(data) ? data.sort((a: Occupation, b: Occupation) => (a.priority ?? Infinity) - (b.priority ?? Infinity)) : data;
+            setOccupations(sorted);
         } catch (error) {
             console.error('Error fetching occupations:', error);
         }
@@ -241,26 +219,8 @@ const CreateEdit = () => {
     const fetchTicketData = async (ticketId: number) => {
         try {
             setIsLoading(true);
-            console.log('Fetching ticket data for ID:', ticketId);
-            
-            const locale = getStorageItem('i18nextLng') || 'ru';
-            const response = await fetch(`${API_BASE_URL}/api/tickets/${ticketId}?locale=${locale}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                }
-            });
+            const data = await universalApiRequest(`/api/tickets/${ticketId}`);
 
-            if (!response.ok) {
-                throw new Error('Не удалось загрузить данные тикета');
-            }
-
-            const data = await response.json();
-            console.log('Loaded ticket data:', data);
-            console.log('Raw data.title:', data.title);
-            console.log('Raw data.budget:', data.budget, 'type:', typeof data.budget);
-            console.log('Raw data.category:', data.category);
-            console.log('Raw data.subcategory:', data.subcategory);
-            
             // Преобразуем данные API в формат TicketFormData
             const formattedData: TicketFormData = {
                 id: data.id,
@@ -390,28 +350,10 @@ const CreateEdit = () => {
                     master: role === 'master' ? `/api/users/${userId}` : null
                 };
 
-                const response = await fetch(`${API_BASE_URL}/api/tickets?locale=${getStorageItem('i18nextLng') || 'ru'}`, {
+                const ticketDataResponse = await universalApiRequest('/api/tickets', {
                     method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                    },
-                    body: JSON.stringify(ticketData),
+                    body: ticketData,
                 });
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    try {
-                        const errorJson = JSON.parse(errorText);
-                        throw new Error(errorJson.message || errorJson.detail || t('createEdit:genericError'));
-                    } catch (parseErr) {
-                        if (parseErr instanceof SyntaxError) throw new Error(t('createEdit:genericError'));
-                        throw parseErr;
-                    }
-                }
-
-                const ticketDataResponse = await response.json();
 
                 // Загрузка изображений
                 const filesToUpload = photos
@@ -449,10 +391,7 @@ const CreateEdit = () => {
                 }
 
                 // 3. Перечитываем тикет, чтобы получить ID только что загруженных фото
-                const freshTicketResp = await fetch(`${API_BASE_URL}/api/tickets/${serviceData.id}?locale=${getStorageItem('i18nextLng') || 'ru'}`, {
-                    headers: { 'Authorization': `Bearer ${token}` },
-                });
-                const freshTicket = freshTicketResp.ok ? await freshTicketResp.json() : null;
+                const freshTicket = await universalApiRequest(`/api/tickets/${serviceData.id}`).catch(() => null);
                 const allCurrentImages: Image[] = freshTicket?.images || [];
 
                 // Новые = те, которых не было раньше (в порядке вставки = порядок загрузки)
@@ -473,25 +412,11 @@ const CreateEdit = () => {
                     images: finalImages.map(img => ({ id: img.id, image: img.image })),
                 };
 
-                const response = await fetch(`${API_BASE_URL}/api/tickets/${serviceData.id}?locale=${getStorageItem('i18nextLng') || 'ru'}`, {
+                await universalApiRequest(`/api/tickets/${serviceData.id}`, {
                     method: 'PATCH',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/merge-patch+json',
-                    },
-                    body: JSON.stringify(updateData),
+                    headers: { 'Content-Type': 'application/merge-patch+json' },
+                    body: updateData,
                 });
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    try {
-                        const errorJson = JSON.parse(errorText);
-                        throw new Error(errorJson.message || errorJson.detail || t('createEdit:genericError'));
-                    } catch (parseErr) {
-                        if (parseErr instanceof SyntaxError) throw new Error(t('createEdit:genericError'));
-                        throw parseErr;
-                    }
-                }
 
                 // 6. Обновляем локальный стейт
                 setPhotos(finalImages.map(img => ({ type: 'existing' as const, id: img.id, image: img.image })));

@@ -1,6 +1,6 @@
 import {type ChangeEvent, useCallback, useEffect, useRef, useState, Dispatch, SetStateAction} from 'react';
 import {Navigate, useNavigate, useParams} from 'react-router-dom';
-import {getAuthToken, getUserData, getUserRole, handleUnauthorized, logout} from '../../utils/auth';
+import {getAuthToken, getUserData, getUserRole, logout} from '../../utils/auth';
 import {ROUTES} from '../../app/routers/routes';
 import styles from './Profile.module.scss';
 import {useTranslation} from 'react-i18next';
@@ -13,7 +13,7 @@ import { uploadPhotos } from '../../utils/imageHelper';
 import {usePreview} from '../../shared/ui/Photo/Preview';
 import {AddressValue, buildAddressData} from '../../shared/ui/Address/Selector';
 import {PageLoader} from '../../widgets/PageLoader';
-import {getOccupations} from '../../utils/dataCache';
+import {getOccupations, getProvinces, getCities, getDistricts} from '../../utils/dataCache';
 import {smartNameTranslator} from '../../utils/textHelper';
 
 // Импорты из entities
@@ -53,7 +53,7 @@ import Auth from '../../shared/ui/Modal/Auth/Auth';
 import { getAuthorAvatar } from '../../utils/imageHelper';
 import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore';
 import { getPageSize } from '../../utils/pageSize';
-import { parsePagedResponse } from '../../utils/apiHelper';
+import { parsePagedResponse, universalApiRequest } from '../../utils/apiHelper';
 import type { AvailableSocialNetwork as LocalAvailableSocialNetwork, UISocialNetwork } from '../../entities';
 import type { AddressFormData as LocalAddress } from '../../entities';
 import type { Phone as LocalPhone } from '../../entities';
@@ -168,16 +168,11 @@ function Profile() {
     // Загружаем привязанные OAuth-провайдеры (только для своей страницы)
     useEffect(() => {
         if (readOnly) return;
-        const token = getAuthToken();
-        if (!token) return;
 
         const loadProviders = () => {
             setLinkedProvidersLoading(true);
-            fetch(`${API_BASE_URL}/api/profile/oauth/providers`, {
-                headers: { Authorization: `Bearer ${token}` },
-            })
-                .then(r => r.json())
-                .then(data => setLinkedProviders(Array.isArray(data) ? data : (data.providers ?? [])))
+            universalApiRequest('/api/profile/oauth/providers', { locale: false })
+                .then(data => setLinkedProviders(Array.isArray(data) ? data : ((data as any).providers ?? [])))
                 .catch(() => {})
                 .finally(() => setLinkedProvidersLoading(false));
         };
@@ -194,7 +189,7 @@ function Profile() {
         };
         window.addEventListener('storage', onStorage);
         return () => window.removeEventListener('storage', onStorage);
-    }, [readOnly, API_BASE_URL]);
+    }, [readOnly]);
 
     const handleLinkProvider = (provider: string) => {
         if (provider === 'telegram') {
@@ -243,8 +238,7 @@ function Profile() {
             document.body.appendChild(overlay);
             return;
         }
-        fetch(`${API_BASE_URL}/api/auth/${provider}/url`)
-            .then(r => r.json())
+        universalApiRequest(`/api/auth/${provider}/url`, { requiresAuth: false, locale: false })
             .then(data => {
                 sessionStorage.setItem('oauthMode', 'link');
                 // На мобильных нативное приложение открывает callback в новой вкладке,
@@ -253,20 +247,22 @@ function Profile() {
                     const stateParam = new URL(data.url).searchParams.get('state');
                     if (stateParam) localStorage.setItem(`oauth_mode_${stateParam}`, 'link');
                 } catch {}
+                // Проверяем протокол перед редиректом (защита от open redirect)
+                try {
+                    const parsed = new URL(data.url);
+                    if (!['https:', 'http:'].includes(parsed.protocol)) return;
+                } catch { return; }
                 window.location.href = data.url;
             })
             .catch(() => {});
     };
 
     const handleUnlinkProvider = async (provider: string) => {
-        const token = getAuthToken();
-        if (!token) return;
         try {
-            const res = await fetch(`${API_BASE_URL}/api/profile/oauth/unlink/${provider}`, {
+            const data: any = await universalApiRequest(`/api/profile/oauth/unlink/${provider}`, {
                 method: 'DELETE',
-                headers: { Authorization: `Bearer ${token}` },
+                locale: false,
             });
-            const data = await res.json();
             if (data.error === 'last_auth_method') {
                 setModalMessage(t('profile:oauth.lastAuthMethod'));
                 setShowErrorModal(true);
@@ -304,11 +300,7 @@ function Profile() {
 
         (async () => {
             try {
-                const res = await fetch(`${API_BASE_URL}/api/favorites/me`, {
-                    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }
-                });
-                if (!res.ok) return;
-                const data = await res.json();
+                const data: any = await universalApiRequest('/api/favorites/me', { locale: false });
                 const entries: Array<{ id: number; type: string; user: { id: number } | null }> =
                     data['hydra:member'] ?? (Array.isArray(data) ? data : []);
                 const match = entries.find(e => e.type === 'user' && e.user?.id === Number(profileData.id));
@@ -402,15 +394,9 @@ function Profile() {
     // Функция загрузки доступных социальных сетей
     const fetchAvailableSocialNetworks = async () => {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/users/social-networks`);
-            
-            if (response.ok) {
-                const data: LocalAvailableSocialNetwork[] = await response.json();
-                setAvailableSocialNetworks(data);
-                console.log('Available social networks loaded:', data);
-            } else {
-                console.error('Failed to fetch social networks:', response.status);
-            }
+            const data = await universalApiRequest('/api/users/social-networks', { requiresAuth: false }) as LocalAvailableSocialNetwork[];
+            setAvailableSocialNetworks(data);
+            console.log('Available social networks loaded:', data);
         } catch (error) {
             console.error('Error fetching available social networks:', error);
         }
@@ -609,54 +595,34 @@ function Profile() {
             });
 
             console.log('Sending social networks PATCH request...');
-            console.log('URL:', `${API_BASE_URL}/api/users/${profileData.id}`);
+            console.log('URL:', `/api/users/${profileData.id}`);
             console.log('Data to send:', JSON.stringify({
                 socialNetworks: socialNetworksData
             }, null, 2));
 
             // Используем правильный Content-Type как указано в API
-            const response = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
+            const updatedData: any = await universalApiRequest(`/api/users/${profileData.id}`, {
                 method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/merge-patch+json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify({
-                    socialNetworks: socialNetworksData
-                }),
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: { socialNetworks: socialNetworksData },
+                locale: false,
             });
 
-            console.log('Response status:', response.status);
+            console.log('Response received');
 
-            if (response.ok) {
-                const updatedData = await response.json();
-                console.log('Social networks updated successfully on server:', updatedData.socialNetworks);
+            console.log('Social networks updated successfully on server:', updatedData.socialNetworks);
 
-                // Обновляем локальное состояние
-                setSocialNetworks(updatedNetworks);
+            // Обновляем локальное состояние
+            setSocialNetworks(updatedNetworks);
 
-                // Обновляем профиль
-                setProfileData(prev => prev ? {
-                    ...prev,
-                    socialNetworks: updatedNetworks as unknown as SocialNetwork[]
-                } : null);
+            // Обновляем профиль
+            setProfileData(prev => prev ? {
+                ...prev,
+                socialNetworks: updatedNetworks as unknown as SocialNetwork[]
+            } : null);
 
-                console.log('Социальные сети успешно обновлены');
-                return true;
-            } else {
-                const errorText = await response.text();
-                console.error('Error updating social networks. Status:', response.status, 'Response:', errorText);
-
-                try {
-                    const errorData = JSON.parse(errorText);
-                    console.error('Error details:', errorData);
-                    console.error('Ошибка при обновлении социальных сетей:', response.status);
-                } catch {
-                    console.error('Ошибка при обновлении социальных сетей');
-                }
-                return false;
-            }
+            console.log('Социальные сети успешно обновлены');
+            return true;
         } catch (error) {
             console.error('Network error updating social networks:', error);
             return false;
@@ -808,19 +774,7 @@ function Profile() {
             }
 
             // Получаем текущие данные пользователя
-            const userResponse = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (!userResponse.ok) {
-                throw new Error('Failed to fetch current user data');
-            }
-
-            const userData: User = await userResponse.json();
+            const userData: User = await universalApiRequest(`/api/users/${profileData.id}`) as User;
             const currentAddresses = userData.addresses || [];
             
             // Преобразуем AddressValue в формат API
@@ -858,70 +812,50 @@ function Profile() {
             }
 
             // Отправляем на сервер
-            const updateResponse = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
+            await universalApiRequest(`/api/users/${profileData.id}`, {
                 method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/merge-patch+json',
-                },
-                body: JSON.stringify({
-                    addresses: updatedAddresses
-                }),
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: { addresses: updatedAddresses },
+                locale: false,
             });
 
-            if (updateResponse.ok) {
-                // Получаем обновленные данные пользователя
-                const currentLocale = getStorageItem('i18nextLng') || 'ru';
-                const updatedUserResponse = await fetch(`${API_BASE_URL}/api/users/${profileData.id}?locale=${currentLocale}`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                });
+            // Получаем обновленные данные пользователя
+            const currentLocale = getStorageItem('i18nextLng') || 'ru';
+            const updatedUserData: User = await universalApiRequest(`/api/users/${profileData.id}`, { locale: currentLocale as any }) as User;
+            const updatedAddressesFromServer = updatedUserData.addresses || [];
 
-                if (updatedUserResponse.ok) {
-                    const updatedUserData: User = await updatedUserResponse.json();
-                    const updatedAddresses = updatedUserData.addresses || [];
+            // Преобразуем адреса в формат для отображения
+            const loadedAddresses: LocalAddress[] = [];
+            for (let i = 0; i < updatedAddressesFromServer.length; i++) {
+                const addr = updatedAddressesFromServer[i];
+                const addressText = await getFullAddressText(addr);
+                
+                if (addressText) {
+                    const addressValue: AddressValue = {
+                        provinceId: addr.province ? (typeof addr.province === 'object' ? (addr.province.id || null) : null) : null,
+                        cityId: addr.city ? (typeof addr.city === 'object' ? (addr.city.id || null) : null) : null,
+                        suburbIds: addr.suburb ? [(typeof addr.suburb === 'object' ? (addr.suburb.id || null) : null)].filter((id): id is number => id !== null) : [],
+                        districtIds: addr.district ? [(typeof addr.district === 'object' ? (addr.district.id || null) : null)].filter((id): id is number => id !== null) : [],
+                        settlementId: addr.settlement ? (typeof addr.settlement === 'object' ? (addr.settlement.id || null) : null) : null,
+                        communityId: addr.community ? (typeof addr.community === 'object' ? (addr.community.id || null) : null) : null,
+                        villageId: addr.village ? (typeof addr.village === 'object' ? (addr.village.id || null) : null) : null
+                    };
 
-                    // Преобразуем адреса в формат для отображения
-                    const loadedAddresses: LocalAddress[] = [];
-                    for (let i = 0; i < updatedAddresses.length; i++) {
-                        const addr = updatedAddresses[i];
-                        const addressText = await getFullAddressText(addr);
-                        
-                        if (addressText) {
-                            const addressValue: AddressValue = {
-                                provinceId: addr.province ? (typeof addr.province === 'object' ? (addr.province.id || null) : null) : null,
-                                cityId: addr.city ? (typeof addr.city === 'object' ? (addr.city.id || null) : null) : null,
-                                suburbIds: addr.suburb ? [(typeof addr.suburb === 'object' ? (addr.suburb.id || null) : null)].filter((id): id is number => id !== null) : [],
-                                districtIds: addr.district ? [(typeof addr.district === 'object' ? (addr.district.id || null) : null)].filter((id): id is number => id !== null) : [],
-                                settlementId: addr.settlement ? (typeof addr.settlement === 'object' ? (addr.settlement.id || null) : null) : null,
-                                communityId: addr.community ? (typeof addr.community === 'object' ? (addr.community.id || null) : null) : null,
-                                villageId: addr.village ? (typeof addr.village === 'object' ? (addr.village.id || null) : null) : null
-                            };
-
-                            loadedAddresses.push({
-                                id: addr.id?.toString() || `addr-${i}`,
-                                displayText: addressText,
-                                addressValue
-                            });
-                        }
-                    }
-
-                    // Обновляем только addresses в profileData
-                    setProfileData(prev => prev ? {
-                        ...prev,
-                        addresses: loadedAddresses
-                    } : null);
+                    loadedAddresses.push({
+                        id: addr.id?.toString() || `addr-${i}`,
+                        displayText: addressText,
+                        addressValue
+                    });
                 }
-
-                handleEditAddressCancel();
-            } else {
-                const errorText = await updateResponse.text();
-                console.error('Error updating address:', errorText);
-                throw new Error(t('profile:addrSaveError'));
             }
+
+            // Обновляем только addresses в profileData
+            setProfileData(prev => prev ? {
+                ...prev,
+                addresses: loadedAddresses
+            } : null);
+
+            handleEditAddressCancel();
 
         } catch (error) {
             console.error('Error saving address:', error);
@@ -956,18 +890,13 @@ function Profile() {
 rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.toString() !== addressId);
 
             // Отправляем на сервер
-            const updateResponse = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/merge-patch+json',
-                },
-                body: JSON.stringify({
-                    addresses: updatedAddresses
-                }),
-            });
-
-            if (updateResponse.ok) {
+            try {
+                await universalApiRequest(`/api/users/${profileData.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/merge-patch+json' },
+                    body: { addresses: updatedAddresses },
+                    locale: false,
+                });
                 // Обновляем только addresses в profileData без перезагрузки
                 setProfileData(prev => {
                     if (!prev) return null;
@@ -976,11 +905,10 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                         addresses: prev.addresses.filter(addr => addr.id !== addressId)
                     };
                 });
-            } else {
+            } catch (patchError) {
                 // Roll back ref on failure
                 rawAddressesRef.current = currentAddresses;
-                const errorText = await updateResponse.text();
-                console.error('Error deleting address:', errorText);
+                console.error('Error deleting address:', patchError);
                 throw new Error(t('profile:addrDeleteError'));
             }
 
@@ -1047,11 +975,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             }
 
             // GET actual server-side phones to avoid stale state
-            const getRes = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
-                headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
-            });
-            if (!getRes.ok) throw new Error('Failed to fetch current phones');
-            const userData = await getRes.json();
+            const userData: any = await universalApiRequest(`/api/users/${profileData.id}`);
             const serverPhones: { id: number; phone: string; main: boolean }[] = userData.phones || [];
 
             let phonesPayload;
@@ -1069,26 +993,21 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                 }));
             }
 
-            const response = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/merge-patch+json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify({ phones: phonesPayload }),
-            });
-
-            if (response.ok) {
+            try {
+                await universalApiRequest(`/api/users/${profileData.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/merge-patch+json' },
+                    body: { phones: phonesPayload },
+                    locale: false,
+                });
                 await fetchUserData(true);
                 handleEditPhoneCancel();
-            } else if (response.status === 422) {
-                const errorData = await response.json();
-                const violation = errorData?.violations?.[0]?.message;
-                throw new Error(violation || t('profile:phoneBusy'));
-            } else {
-                const errorText = await response.text();
-                console.error('Error saving phone:', errorText);
+            } catch (err: any) {
+                const status = err?.status ?? err?.response?.status;
+                if (status === 422) {
+                    const violation = err?.violations?.[0]?.message;
+                    throw new Error(violation || t('profile:phoneBusy'));
+                }
                 throw new Error(t('profile:phoneSaveError'));
             }
         } catch (error) {
@@ -1121,23 +1040,18 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             // Update ref synchronously before PATCH
             rawPhonesRef.current = serverPhones.filter(p => String(p.id) !== phoneId);
 
-            const response = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/merge-patch+json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify({ phones: phonesPayload }),
-            });
-
-            if (response.ok) {
+            try {
+                await universalApiRequest(`/api/users/${profileData.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/merge-patch+json' },
+                    body: { phones: phonesPayload },
+                    locale: false,
+                });
                 await fetchUserData(true);
-            } else {
+            } catch (patchError) {
                 // Roll back ref on failure
                 rawPhonesRef.current = serverPhones;
-                const errorText = await response.text();
-                console.error('Error deleting phone:', errorText);
+                console.error('Error deleting phone:', patchError);
                 throw new Error(t('profile:phoneDeleteError'));
             }
         } catch (error) {
@@ -1169,34 +1083,19 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         const newValue = !profileData.canWorkRemotely;
 
         try {
-            const token = getAuthToken();
-            if (!token) {
-                console.error('No auth token');
-                return;
-            }
-
-            const response = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
+            await universalApiRequest(`/api/users/${profileData.id}`, {
                 method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/merge-patch+json',
-                },
-                body: JSON.stringify({ atHome: newValue }),
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: { atHome: newValue },
+                locale: false,
             });
-
-            if (response.ok) {
-                setProfileData((prev) => {
-                    if (!prev) return null;
-                    return {
-                        ...prev,
-                        canWorkRemotely: newValue
-                    };
-                });
-            } else {
-                console.error('Failed to update remote work setting');
-                setModalMessage(t('profile:remoteWorkSaveError'));
-                setShowErrorModal(true);
-            }
+            setProfileData((prev) => {
+                if (!prev) return null;
+                return {
+                    ...prev,
+                    canWorkRemotely: newValue
+                };
+            });
         } catch (error) {
             console.error('Error updating remote work setting:', error);
             setModalMessage(t('profile:remoteWorkSaveError'));
@@ -1249,56 +1148,30 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
 
             // Определяем endpoint: /api/users/me для приватного или /api/users/:id для публичного
             const currentLocale = getStorageItem('i18nextLng') || 'ru';
-            const endpoint = userId
-                ? `${API_BASE_URL}/api/users/${userId}?locale=${currentLocale}`
-                : `${API_BASE_URL}/api/users/me?locale=${currentLocale}`;
+            const userPath = userId ? `/api/users/${userId}` : '/api/users/me';
 
             // Загружаем данные пользователя + географию + профессии параллельно
-            const localeHeaders = { ...(token && { 'Authorization': `Bearer ${token}` }) };
-            const [response, provincesRes, citiesRes, districtsRes, localizedOccupations] = await Promise.all([
-                fetch(endpoint, {
-                    method: 'GET',
-                    headers: { ...localeHeaders, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                }),
-                fetch(`${API_BASE_URL}/api/provinces?locale=${currentLocale}`, { headers: localeHeaders }),
-                fetch(`${API_BASE_URL}/api/cities?locale=${currentLocale}`, { headers: localeHeaders }),
-                fetch(`${API_BASE_URL}/api/districts?locale=${currentLocale}`, { headers: localeHeaders }),
+            const [userData, pRaw, cRaw, dRaw, localizedOccupations] = await Promise.all([
+                universalApiRequest(userPath, { locale: currentLocale as any }) as Promise<User>,
+                getProvinces(currentLocale),
+                getCities(currentLocale),
+                getDistricts(currentLocale),
                 getOccupations(currentLocale),
             ]);
 
-            if (response.status === 401 && !readOnly) {
-                console.log('Token is invalid or expired');
-                const refreshed = await handleUnauthorized();
-                if (refreshed) {
-                    // Повторяем запрос
-                    fetchUserData(silent);
-                }
-                return;
-            }
-
-            if (!response.ok) {
-                throw new Error(`Failed to fetch user data: ${response.status} ${response.statusText}`);
-            }
-
-            const userData: User = await response.json();
             console.log('User data received:', userData);
 
             // Sync server-state refs so subsequent mutations don't need a redundant GET
-            rawEducationRef.current = userData.education || [];
-            rawPhonesRef.current = (userData.phones as LocalPhone[]) || [];
-            rawAddressesRef.current = (userData.addresses as Address[]) || [];
+            rawEducationRef.current = (userData as any).education || [];
+            rawPhonesRef.current = ((userData as any).phones as LocalPhone[]) || [];
+            rawAddressesRef.current = ((userData as any).addresses as Address[]) || [];
 
             // Обновляем текущего пользователя из ответа (только для приватного профиля)
             if (!readOnly) {
-                setCurrentUser({ id: userData.id, email: userData.email ?? '', name: userData.name ?? '', surname: userData.surname ?? '' });
+                setCurrentUser({ id: (userData as any).id, email: (userData as any).email ?? '', name: (userData as any).name ?? '', surname: (userData as any).surname ?? '' });
             }
 
             // Строим lookup maps из переведённых географических данных
-            const [pRaw, cRaw, dRaw] = await Promise.all([
-                provincesRes.ok ? provincesRes.json() : Promise.resolve([]),
-                citiesRes.ok ? citiesRes.json() : Promise.resolve([]),
-                districtsRes.ok ? districtsRes.json() : Promise.resolve([]),
-            ]);
             const toArr = (d: any) => Array.isArray(d) ? d : (d?.['hydra:member'] || []);
             const provincesArr2: any[] = toArr(pRaw);
             const citiesArr: any[] = toArr(cRaw);
@@ -1575,41 +1448,18 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             const paginatedEndpoint = `${endpoint}&page=${reviewsPage}&itemsPerPage=${pageSize}`;
             console.log(`Trying endpoint: ${paginatedEndpoint}`);
 
-            const response = await fetch(`${API_BASE_URL}${paginatedEndpoint}`, {
-                method: 'GET',
-                headers: {
-                    ...(token && { 'Authorization': `Bearer ${token}` }),
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-            });
-
-            console.log(`Response status: ${response.status}`);
-            console.log(`Response ok: ${response.ok}`);
-
-            if (response.status === 401 && !readOnly) {
-                console.log('Unauthorized, redirecting to login');
-                const refreshed = await handleUnauthorized();
-                if (refreshed) {
-                    // Повторяем запрос
-                    fetchReviews();
+            let reviewsRaw: any;
+            try {
+                reviewsRaw = await universalApiRequest(paginatedEndpoint);
+            } catch (err: any) {
+                if (err?.status === 404) {
+                    console.log('No reviews found for this master');
+                    applyReviewsFetch([], false);
+                    return;
                 }
-                return;
+                throw err;
             }
 
-            if (response.status === 404) {
-                console.log('No reviews found for this master');
-                applyReviewsFetch([], false);
-                return;
-            }
-
-            if (!response.ok) {
-                console.error(`Failed to fetch reviews: ${response.status} ${response.statusText}`);
-                applyReviewsFetch([], false);
-                return;
-            }
-
-            const reviewsRaw = await response.json();
             console.log('Raw reviews data:', reviewsRaw);
             const reviewsArray: ReviewType[] = Array.isArray(reviewsRaw)
                 ? reviewsRaw
@@ -1780,49 +1630,21 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                 : `/api/tickets?locale=${getStorageItem('i18nextLng') || 'ru'}&service=true&exists[author]=false&exists[master]=true&master=${profileData.id}&page=${servicesPage}&itemsPerPage=${pageSize}`;
             console.log(`Trying endpoint: ${endpoint}`);
 
-            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-                method: 'GET',
-                headers: {
-                    ...(token && { 'Authorization': `Bearer ${token}` }),
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-            });
-
-            console.log(`Response status: ${response.status}`);
-            console.log(`Response ok: ${response.ok}`);
-
-            if (response.status === 401 && !readOnly) {
-                console.log('Unauthorized, redirecting to login');
-                const refreshed = await handleUnauthorized();
-                if (refreshed) {
-                    // Повторяем запрос
-                    fetchServices();
+            let servicesRaw: any;
+            try {
+                servicesRaw = await universalApiRequest(endpoint, { locale: false });
+            } catch (err: any) {
+                if (err?.status === 404) {
+                    console.log(`No services found for this ${userRole}`);
+                    setProfileData(prev => prev ? { ...prev, services: [] } : null);
+                    applyServicesFetch([], false);
+                    return;
                 }
-                return;
-            }
-
-            if (response.status === 404) {
-                console.log(`No services found for this ${userRole}`);
-                setProfileData(prev => prev ? {
-                    ...prev,
-                    services: []
-                } : null);
+                setProfileData(prev => prev ? { ...prev, services: [] } : null);
                 applyServicesFetch([], false);
                 return;
             }
 
-            if (!response.ok) {
-                console.error(`Failed to fetch services: ${response.status} ${response.statusText}`);
-                setProfileData(prev => prev ? {
-                    ...prev,
-                    services: []
-                } : null);
-                applyServicesFetch([], false);
-                return;
-            }
-
-            const servicesRaw = await response.json();
             console.log('Raw services data:', servicesRaw);
             const { items: servicesArray, hasMore: servicesHasMoreFlag } = parsePagedResponse<any>(servicesRaw, servicesPage, pageSize);
 
@@ -1953,23 +1775,10 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         }
     };
 
-    const getUserGallery = async (token: string): Promise<Gallery | null> => {
+    const getUserGallery = async (_token: string): Promise<Gallery | null> => {
         try {
             console.log('Fetching user gallery via /api/galleries/me...');
-            const response = await fetch(`${API_BASE_URL}/api/galleries/me`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                console.log('Gallery not found, status:', response.status);
-                return null;
-            }
-
-            const galleriesData = await response.json();
+            const galleriesData: any = await universalApiRequest('/api/galleries/me', { locale: false });
             console.log('Galleries data:', galleriesData);
             
             let galleryArray: Gallery[] = [];
@@ -2059,19 +1868,15 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             console.log(`Filtered images: ${gallery.images?.length} -> ${updatedImages.length}`);
 
             // Отправляем PATCH запрос с обновленным массивом
-            const updateResponse = await fetch(`${API_BASE_URL}/api/galleries/${galleryId}`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/merge-patch+json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify({ images: updatedImages }),
-            });
-
-            if (!updateResponse.ok) {
-                const errorText = await updateResponse.text();
-                console.error('PATCH failed:', errorText);
+            try {
+                await universalApiRequest(`/api/galleries/${galleryId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/merge-patch+json' },
+                    body: { images: updatedImages },
+                    locale: false,
+                });
+            } catch (patchErr) {
+                console.error('PATCH failed:', patchErr);
                 setModalMessage(t('profile:photoDeleteError'));
                 setShowErrorModal(true);
                 setIsGalleryOperating(false);
@@ -2132,19 +1937,15 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             console.log('Found gallery ID for deletion:', galleryId);
 
             // Отправляем PATCH запрос с пустым массивом изображений
-            const updateResponse = await fetch(`${API_BASE_URL}/api/galleries/${galleryId}`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/merge-patch+json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify({ images: [] }),
-            });
-
-            if (!updateResponse.ok) {
-                const errorText = await updateResponse.text();
-                console.error('PATCH failed:', errorText);
+            try {
+                await universalApiRequest(`/api/galleries/${galleryId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/merge-patch+json' },
+                    body: { images: [] },
+                    locale: false,
+                });
+            } catch (patchErr) {
+                console.error('PATCH failed:', patchErr);
                 setModalMessage(t('profile:allPhotosDeleteError'));
                 setShowErrorModal(true);
                 setIsGalleryOperating(false);
@@ -2174,57 +1975,42 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         }
     };
 
-    const createUserGallery = async (token: string): Promise<number | null> => {
+    const createUserGallery = async (_token: string): Promise<number | null> => {
         try {
             console.log('Creating new gallery...');
-            const requestBody = { images: [] };
 
-            const response = await fetch(`${API_BASE_URL}/api/galleries`, {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "Content-Type": "application/json",
-                    "Accept": "application/json",
-                },
-                body: JSON.stringify(requestBody),
-            });
-
-            const responseText = await response.text();
-            console.log('Create gallery response:', response.status, responseText);
-
-            if (!response.ok) {
-                console.error('Failed to create gallery:', response.status, responseText);
-                // Если 422, возможно галерея уже есть - проверяем
-                if (response.status === 422) {
+            let responseData: any;
+            try {
+                responseData = await universalApiRequest('/api/galleries', {
+                    method: 'POST',
+                    body: { images: [] },
+                    locale: false,
+                });
+            } catch (err: any) {
+                if (err?.status === 422) {
                     console.log('422 error - checking if gallery exists...');
-                    const existingGallery = await getUserGallery(token);
+                    const existingGallery = await getUserGallery('');
                     return existingGallery?.id || null;
                 }
                 return null;
             }
 
+            console.log('Create gallery response:', responseData);
+
             // Галерея создана успешно
             console.log('Gallery created successfully, parsing response...');
             
-            // Пробуем распарсить ответ (новый формат: {id, user, message})
-            try {
-                const responseData = JSON.parse(responseText);
-                
-                // Проверяем наличие id (работает и для старого, и для нового формата)
-                if (responseData.id) {
-                    console.log('Gallery ID from response:', responseData.id);
-                    return responseData.id;
-                }
-                
-                console.log('Response parsed but no ID found:', responseData);
-            } catch (e) {
-                console.error('Failed to parse response:', e);
+            if (responseData?.id) {
+                console.log('Gallery ID from response:', responseData.id);
+                return responseData.id;
             }
             
-            // Если парсинг не удался или нет ID - делаем GET запрос
+            console.log('Response parsed but no ID found:', responseData);
+            
+            // Если нет ID - делаем GET запрос
             console.log('Fetching created gallery as fallback...');
             await new Promise(resolve => setTimeout(resolve, 300));
-            const createdGallery = await getUserGallery(token);
+            const createdGallery = await getUserGallery('');
             
             if (createdGallery?.id) {
                 console.log('Created gallery ID from GET:', createdGallery.id);
@@ -2252,16 +2038,14 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
 
             if (userId) {
                 // Публичный профиль — грузим галерею по ID пользователя, без токена
-                const response = await fetch(`${API_BASE_URL}/api/galleries?user=${userId}`, {
-                    headers: { 'Accept': 'application/json' },
-                });
-
-                if (!response.ok) {
+                let data: any;
+                try {
+                    data = await universalApiRequest(`/api/galleries?user=${userId}`, { requiresAuth: false, locale: false });
+                } catch {
                     setProfileData(prev => prev ? { ...prev, workExamples: [] } : null);
                     return;
                 }
 
-                const data = await response.json();
                 let galleryArray: Gallery[] = [];
                 if (Array.isArray(data)) {
                     galleryArray = data;
@@ -2292,9 +2076,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             }
 
             // Приватный профиль — грузим свою галерею
-            const token = getAuthToken();
-            if (!token) return;
-            const gallery = await getUserGallery(token);
+            const gallery = await getUserGallery('');
 
             if (gallery) {
                 console.log('Gallery found:', gallery);
@@ -2359,17 +2141,9 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
 
     const fetchUserAvatar = async () => {
         try {
-            const token = getAuthToken();
-            if (!token) return;
             const currentLocale = getStorageItem('i18nextLng') || 'ru';
-            const endpoint = userId
-                ? `${API_BASE_URL}/api/users/${userId}?locale=${currentLocale}`
-                : `${API_BASE_URL}/api/users/me?locale=${currentLocale}`;
-            const response = await fetch(endpoint, {
-                headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
-            });
-            if (!response.ok) return;
-            const userData = await response.json();
+            const userPath = userId ? `/api/users/${userId}` : '/api/users/me';
+            const userData: any = await universalApiRequest(userPath, { locale: currentLocale as any });
             const avatarUrl = (userData.image || userData.imageExternalUrl)
                 ? getAuthorAvatar(userData)
                 : null;
@@ -2477,29 +2251,12 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             }
 
             console.log('Sending update data:', apiData);
-            const response = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
+            await universalApiRequest(`/api/users/${profileData.id}`, {
                 method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/merge-patch+json',
-                },
-                body: JSON.stringify(apiData),
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: apiData,
+                locale: false,
             });
-
-            if (response.status === 401) {
-                const refreshed = await handleUnauthorized();
-                if (refreshed) {
-                    // Повторяем запрос
-                    updateUserData(updatedData);
-                }
-                return;
-            }
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Update failed:', errorText);
-                throw new Error(`Failed to update user data: ${response.status}`);
-            }
 
             console.log('User data updated successfully');
             
@@ -2597,33 +2354,23 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         // Update the ref synchronously before PATCH so concurrent ops see the new state
         rawEducationRef.current = normalizedEducation;
 
-        const updateResponse = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
+        await universalApiRequest(`/api/users/${profileData.id}`, {
             method: 'PATCH',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/merge-patch+json',
-            },
-            body: JSON.stringify({
-                education: normalizedEducation
-            }),
+            headers: { 'Content-Type': 'application/merge-patch+json' },
+            body: { education: normalizedEducation },
+            locale: false,
         });
 
-        if (updateResponse.ok) {
-            setEditingEducation(null);
-            setEducationForm({
-                institution: '',
-                selectedSpecialty: undefined,
-                startYear: '',
-                endYear: '',
-                currentlyStudying: false
-            });
+        setEditingEducation(null);
+        setEducationForm({
+            institution: '',
+            selectedSpecialty: undefined,
+            startYear: '',
+            endYear: '',
+            currentlyStudying: false
+        });
 
-            await fetchUserData(true);
-        } else {
-            const errorText = await updateResponse.text();
-            console.error('Failed to update education:', errorText);
-            throw new Error(t('profile:eduSaveError') || 'Failed to update education');
-        }
+        await fetchUserData(true);
 
     } catch (error) {
         console.error('Error updating education:', error);
@@ -2661,25 +2408,18 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             console.log(`Deleting education ${educationId}. Before: ${normalizedEducation.length}, after: ${updatedEducationArray.length}`);
             console.log('Sending normalized education array:', updatedEducationArray);
 
-            const updateResponse = await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/merge-patch+json',
-                },
-                body: JSON.stringify({
-                    education: updatedEducationArray
-                }),
-            });
-
-            if (updateResponse.ok) {
+            try {
+                await universalApiRequest(`/api/users/${profileData.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/merge-patch+json' },
+                    body: { education: updatedEducationArray },
+                    locale: false,
+                });
                 console.log('Education deleted successfully on server');
-                // Не обновляем profileData здесь, т.к Это уже сделано оптимистически
-            } else {
+            } catch (patchError) {
                 // Roll back the ref on failure
                 rawEducationRef.current = currentEducation;
-                const errorText = await updateResponse.text();
-                console.error('Failed to delete education:', errorText);
+                console.error('Failed to delete education:', patchError);
                 throw new Error('Failed to delete education');
             }
 
@@ -2760,10 +2500,11 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                 .filter(Boolean) as Education[];
             const normalized = normalizeEducationArray(reordered);
             rawEducationRef.current = normalized;
-            await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
+            await universalApiRequest(`/api/users/${profileData.id}`, {
                 method: 'PATCH',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/merge-patch+json' },
-                body: JSON.stringify({ education: normalized }),
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: { education: normalized },
+                locale: false,
             });
         } catch (error) {
             console.error('Error reordering education:', error);
@@ -2784,10 +2525,11 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             rawAddressesRef.current = newAddresses
                 .map(localAddr => serverAddresses.find((sa: Address) => sa.id?.toString() === localAddr.id))
                 .filter((a): a is Address => !!a);
-            await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
+            await universalApiRequest(`/api/users/${profileData.id}`, {
                 method: 'PATCH',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/merge-patch+json' },
-                body: JSON.stringify({ addresses: reordered }),
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: { addresses: reordered },
+                locale: false,
             });
         } catch (error) {
             console.error('Error reordering addresses:', error);
@@ -2809,14 +2551,11 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                 main: p.main,
             }));
 
-            await fetch(`${API_BASE_URL}/api/users/${profileData.id}`, {
+            await universalApiRequest(`/api/users/${profileData.id}`, {
                 method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/merge-patch+json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify({ phones: phonesPayload }),
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: { phones: phonesPayload },
+                locale: false,
             });
         } catch (error) {
             console.error('Error reordering phones:', error);
@@ -2830,7 +2569,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         if (!token) return;
 
         try {
-            const gallery = await getUserGallery(token);
+            const gallery = await getUserGallery('');
             if (!gallery?.id) return;
 
             const newOrderIds = newWorkExamples.map(w => w.id);
@@ -2838,13 +2577,11 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                 .map(id => gallery.images?.find(img => img.id === id))
                 .filter(Boolean);
 
-            await fetch(`${API_BASE_URL}/api/galleries/${gallery.id}`, {
+            await universalApiRequest(`/api/galleries/${gallery.id}`, {
                 method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
-                body: JSON.stringify({ images: reordered.map(img => ({ image: img!.image })) }),
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: { images: reordered.map(img => ({ image: img!.image })) },
+                locale: false,
             });
         } catch (error) {
             console.error('Error reordering work examples:', error);
@@ -2858,13 +2595,11 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         try {
             await Promise.all(
                 newServices.map((service, index) =>
-                    fetch(`${API_BASE_URL}/api/tickets/${service.id}`, {
+                    universalApiRequest(`/api/tickets/${service.id}`, {
                         method: 'PATCH',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`,
-                        },
-                        body: JSON.stringify({ priority: index }),
+                        headers: { 'Content-Type': 'application/merge-patch+json' },
+                        body: { priority: index },
+                        locale: false,
                     })
                 )
             );
@@ -3288,34 +3023,28 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         try {
             if (isProfileLiked && profileEntryId) {
                 // Unlike — DELETE /api/favorites/{entryId}
-                const res = await fetch(`${API_BASE_URL}/api/favorites/${profileEntryId}`, {
+                await universalApiRequest(`/api/favorites/${profileEntryId}`, {
                     method: 'DELETE',
-                    headers: { Authorization: `Bearer ${token}` },
+                    locale: false,
                 });
-                if (res.ok || res.status === 204) {
-                    setIsProfileLiked(false);
-                    setProfileEntryId(null);
-                    window.dispatchEvent(new Event('favoritesUpdated'));
-                }
+                setIsProfileLiked(false);
+                setProfileEntryId(null);
+                window.dispatchEvent(new Event('favoritesUpdated'));
             } else {
                 // Like — POST /api/favorites { user: IRI }
-                const res = await fetch(`${API_BASE_URL}/api/favorites`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                    body: JSON.stringify({ user: `/api/users/${profileData.id}` }),
-                });
-                if (res.status === 201 || res.ok) {
-                    const entry = await res.json();
+                try {
+                    const entry: any = await universalApiRequest('/api/favorites', {
+                        method: 'POST',
+                        body: { user: `/api/users/${profileData.id}` },
+                        locale: false,
+                    });
                     setIsProfileLiked(true);
                     setProfileEntryId(entry.id ?? null);
                     window.dispatchEvent(new Event('favoritesUpdated'));
-                } else if (res.status === 409) {
-                    // Already in favorites — re-fetch to get entryId
-                    const checkRes = await fetch(`${API_BASE_URL}/api/favorites/me`, {
-                        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }
-                    });
-                    if (checkRes.ok) {
-                        const data = await checkRes.json();
+                } catch (postErr: any) {
+                    if (postErr?.status === 409) {
+                        // Already in favorites — re-fetch to get entryId
+                        const data: any = await universalApiRequest('/api/favorites/me', { locale: false });
                         const entries: Array<{ id: number; type: string; user: { id: number } | null }> =
                             data['hydra:member'] ?? [];
                         const match = entries.find(e => e.type === 'user' && e.user?.id === Number(profileData.id));

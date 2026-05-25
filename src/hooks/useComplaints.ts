@@ -1,7 +1,7 @@
-import { useState, useCallback } from 'react';
-import { makeApiRequest } from '../utils/apiHelper';
-import { getAuthToken } from '../utils/auth';
-import { uploadPhotos } from '../utils/imageHelper';
+import {useCallback, useState} from 'react';
+import {universalApiRequest} from '../utils/apiHelper';
+import {getAuthToken} from '../utils/auth';
+import {uploadPhotos} from '../utils/imageHelper';
 
 export const useComplaints = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -9,10 +9,9 @@ export const useComplaints = () => {
 
     const fetchComplaintReasons = useCallback(async () => {
         try {
-            const reasons = await makeApiRequest('/api/appeals/reasons', {
+            return await universalApiRequest('/api/appeals/reasons', {
                 requiresAuth: false
             });
-            return reasons;
         } catch {
             return [{ id: 1, complaint_code: 'other', complaint_human: 'Другое' }];
         }
@@ -23,12 +22,11 @@ export const useComplaints = () => {
         setError(null);
 
         try {
-            const result = await makeApiRequest('/api/appeals', {
+            return await universalApiRequest('/api/appeals', {
                 method: 'POST',
                 body: complaintData,
                 requiresAuth: true
             });
-            return result;
         } catch (err: any) {
             setError(err?.message ?? 'Ошибка при отправке жалобы');
             throw err;

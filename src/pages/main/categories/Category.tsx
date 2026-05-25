@@ -10,6 +10,7 @@ import { useLanguageChange } from '../../../hooks';
 import { PageLoader } from '../../../widgets/PageLoader';
 import type { Category } from '../../../entities';
 import { useEffect, useState } from "react";
+import { getCategories } from '../../../utils/dataCache';
 
 export default function Category() {
     const [categories, setCategories] = useState<Category[]>([]);
@@ -20,20 +21,9 @@ export default function Category() {
     const navigate = useNavigate();
     const { t } = useTranslation(['common', 'category']); // Добавьте перевод
 
-    const API_URL = import.meta.env.VITE_API_BASE_URL;
-
     const fetchCategories = async () => {
         try {
-            const locale = localStorage.getItem('i18nextLng') || 'ru';
-            const response = await fetch(`${API_URL}/api/categories?locale=${locale}`);
-            console.log('Categories response status:', response.status);
-
-            if (!response.ok) {
-                throw new Error(`Ошибка: ${response.status} ${response.statusText}`);
-            }
-
-            const data: Category[] = await response.json();
-            console.log('Categories data received:', data);
+            const data: Category[] = await getCategories();
 
             // Проверяем и форматируем данные
             const formattedData = Array.isArray(data) ? data.map(item => ({
@@ -146,6 +136,7 @@ export default function Category() {
         if (!imagePath) {
             return "./fonTest4.png"; // Запасное изображение
         }
+        const API_URL = import.meta.env.VITE_API_BASE_URL || '';
 
         // Проверяем, начинается ли путь с /uploads/ или /images/
         if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) {

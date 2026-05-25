@@ -20,6 +20,7 @@ import { Clear } from '../../Button/Clear/Clear';
 import type { TelegramUserData as TelegramWidgetData } from '../../../../entities/api/OAuth';
 import type { OAuthProviderName, User, Occupation, Category } from '../../../../entities';
 import { API_BASE_URL } from '../../../../utils/config';
+import { universalApiRequest } from '../../../../utils/apiHelper';
 
 const AuthModalState = {
     WELCOME: 'welcome',
@@ -299,7 +300,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             window.removeEventListener('message', handleTelegramAuth);
             window.removeEventListener('languageChanged', handleLanguageChange);
         };
-    }, [API_BASE_URL]);
+    }, []);
 
     // Общая функция для начала OAuth авторизации
     const handleOAuthStart = (provider: OAuthProvider) => {
@@ -312,33 +313,32 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
 
             console.log(`Saved role to sessionStorage for ${provider}:`, formData.role);
 
-            // Генерируем случайный state для CSRF
-            const csrfState = Math.random().toString(36).substring(2);
+            // Генерируем криптографически стойкий state для CSRF
+            const array = new Uint8Array(32);
+            crypto.getRandomValues(array);
+            const csrfState = Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
             sessionStorage.setItem(`${provider}CsrfState`, csrfState);
 
             // Получаем URL для OAuth
-            fetch(`${API_BASE_URL}/api/auth/${provider}/url?state=${encodeURIComponent(csrfState)}`, {
-                method: 'GET',
-                headers: { 'Accept': 'application/json' },
+            universalApiRequest(`/api/auth/${provider}/url?state=${encodeURIComponent(csrfState)}`, {
+                requiresAuth: false,
+                locale: false,
             })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`Не удалось получить URL для авторизации через ${provider.charAt(0).toUpperCase() + provider.slice(1)}`);
+                .then((data: any) => {
+                    const redirectUrl = (data as OAuthUrlResponse).url;
+                    try {
+                        const parsed = new URL(redirectUrl);
+                        if (!['https:', 'http:'].includes(parsed.protocol)) throw new Error('Invalid protocol');
+                    } catch {
+                        setError('Получен некорректный URL для авторизации');
+                        return;
                     }
-                    return response.json();
-                })
-                .then((data: OAuthUrlResponse) => {
-                    console.log(`Redirecting to ${provider.toUpperCase()} OAuth with role:`, formData.role);
-
-                    // Закрываем модалку и перенаправляем на OAuth
                     handleClose();
-                    window.location.href = data.url;
+                    window.location.href = redirectUrl;
                 })
                 .catch(err => {
                     console.error(`${provider.toUpperCase()} auth error:`, err);
                     setError(err instanceof Error ? err.message : `Ошибка при авторизации через ${provider.charAt(0).toUpperCase() + provider.slice(1)}`);
-
-                    // Очищаем сохраненные данные при ошибке
                     sessionStorage.removeItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Role`);
                     sessionStorage.removeItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Specialty`);
                     sessionStorage.removeItem(`${provider}CsrfState`);
@@ -387,25 +387,13 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 requestData.occupation = `${API_BASE_URL}/api/occupations/${formData.specialty}`;
             }
 
-            console.log(`Sending ${provider.toUpperCase()} callback request:`, requestData);
-
             // Отправляем запрос
-            const response = await fetch(`${API_BASE_URL}/api/auth/${provider}/callback`, {
+            const data: OAuthUserResponse = await universalApiRequest(`/api/auth/${provider}/callback`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify(requestData)
+                body: requestData,
+                requiresAuth: false,
+                locale: false,
             });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Server error response:', errorText);
-                throw new Error(`Ошибка авторизации ${provider.charAt(0).toUpperCase() + provider.slice(1)}: ${errorText}`);
-            }
-
-            const data: OAuthUserResponse = await response.json();
             console.log(`${provider.toUpperCase()} auth completed successfully:`, data);
 
             // Сохраняем данные пользователя
@@ -518,23 +506,12 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 requestData.occupation = `${API_BASE_URL}/api/occupations/${savedSpecialty}`;
             }
 
-            console.log('Sending Telegram widget callback request:', requestData);
-
-            const response = await fetch(`${API_BASE_URL}/api/auth/telegram/callback`, {
+            const data: OAuthUserResponse = await universalApiRequest('/api/auth/telegram/callback', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify(requestData)
+                body: requestData,
+                requiresAuth: false,
+                locale: false,
             });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Ошибка авторизации Telegram: ${errorText}`);
-            }
-
-            const data: OAuthUserResponse = await response.json();
             console.log('Telegram widget auth completed successfully:', data);
 
             // Сохраняем данные пользователя
@@ -654,20 +631,10 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         setAuthTokenExpiry(expiryTime.toISOString());
     };
 
-    // Новая функция для получения данных пользователя
-    const fetchUserData = async (token: string): Promise<void> => {
+    const fetchUserData = async (): Promise<void> => {
         try {
-            const userResponse = await fetch(`${API_BASE_URL}/api/users/me`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json',
-                }
-            });
-
-            if (userResponse.ok) {
-                const userData = await userResponse.json();
-                console.log('🔥🔥🔥 User data from /me endpoint:', userData);
+            const userData: any = await universalApiRequest('/api/users/me', { locale: false });
+            console.log('🔥🔥🔥 User data from /me endpoint:', userData);
 
                 // Сохраняем данные пользователя
                 setUserData(userData);
@@ -719,9 +686,6 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                     console.log('User occupation from API:', userData.occupation);
                     setUserOccupation(userData.occupation as Occupation[]);
                 }
-            } else {
-                console.warn('Could not fetch user data from /me endpoint');
-            }
         } catch (err) {
             console.error('Error fetching user data:', err);
         }
@@ -740,36 +704,13 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
 
             console.log('Login attempt with:', loginData);
 
-            const response = await fetch(`${API_BASE_URL}/api/authentication_token`, {
+            const data: LoginResponse = await universalApiRequest('/api/authentication_token', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify(loginData)
+                body: loginData,
+                requiresAuth: false,
+                locale: false,
             });
-
-            const responseText = await response.text();
-            console.log('Login response:', response.status, responseText);
-
-            if (!response.ok) {
-                let errorMessage = 'Ошибка авторизации';
-
-                try {
-                    const errorData = JSON.parse(responseText);
-                    errorMessage = errorData.message || errorData.detail || errorMessage;
-                } catch {
-                    errorMessage = responseText || `HTTP error! status: ${response.status}`;
-                }
-
-                if (response.status === 401) {
-                    errorMessage += '. ' + t('auth.checkEmailPassword') + '.';
-                }
-
-                throw new Error(errorMessage);
-            }
-
-            const data: LoginResponse = JSON.parse(responseText);
+            console.log('Login response token received');
 
             if (!data.token) {
                 throw new Error('Токен не получен в ответе');
@@ -780,7 +721,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             setTokenExpiry();
 
             // ПОЛУЧАЕМ И СОХРАНЯЕМ ДАННЫЕ ПОЛЬЗОВАТЕЛЯ С OCCUPATION
-            await fetchUserData(data.token);
+            await fetchUserData();
 
             handleSuccessfulAuth(data.token, formData.email);
 
@@ -862,54 +803,20 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
 
         try {
             // 1. Регистрируем пользователя
-            const createResponse = await fetch(`${API_BASE_URL}/api/users`, {
+            await universalApiRequest('/api/users', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify(userData)
+                body: userData,
+                requiresAuth: false,
+                locale: false,
             });
-
-            const createResponseText = await createResponse.text();
-            console.log('Registration response:', createResponse.status, createResponseText);
-
-            if (!createResponse.ok) {
-                let errorMessage = 'Ошибка регистрации';
-                try {
-                    const errorData = JSON.parse(createResponseText);
-                    errorMessage = errorData.detail || errorData.message || errorMessage;
-                    if (errorData.violations) {
-                        errorMessage = errorData.violations.map((v: { propertyPath: string; message: string }) =>
-                            `${v.propertyPath}: ${v.message}`
-                        ).join(', ');
-                    }
-                } catch {
-                    errorMessage = `HTTP error! status: ${createResponse.status}, response: ${createResponseText}`;
-                }
-                throw new Error(errorMessage);
-            }
 
             // 2. Логинимся после регистрации
-            const loginResponse = await fetch(`${API_BASE_URL}/api/authentication_token`, {
+            const loginData: LoginResponse = await universalApiRequest('/api/authentication_token', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify({
-                    email,
-                    password: formData.password
-                })
+                body: { email, password: formData.password },
+                requiresAuth: false,
+                locale: false,
             });
-
-            if (!loginResponse.ok) {
-                const errorText = await loginResponse.text();
-                console.error('Login after registration error:', errorText);
-                throw new Error('Не удалось авторизоваться после регистрации');
-            }
-
-            const loginData: LoginResponse = await loginResponse.json();
 
             if (!loginData.token) {
                 throw new Error('Токен не получен в ответе');
@@ -933,47 +840,26 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
 
             // 6. Пытаемся получить данные пользователя (может вернуть 403 до подтверждения)
             try {
-                const userResponse = await fetch(`${API_BASE_URL}/api/users/me`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${loginData.token}`,
-                        'Accept': 'application/json',
+                const userData: any = await universalApiRequest('/api/users/me', { locale: false });
+                console.log('User data after registration:', userData);
+
+                setUserData(userData);
+
+                if (userData.email) {
+                    setUserEmail(userData.email);
+                }
+
+                if (userData.roles && userData.roles.length > 0) {
+                    console.log('🔥🔥🔥 Registration - User roles from API:', userData.roles);
+                    const roles = userData.roles.map((r: string) => r.toLowerCase());
+                    if (roles.includes('role_master') || roles.includes('master')) {
+                        setUserRole('master');
+                    } else if (roles.includes('role_client') || roles.includes('client')) {
+                        setUserRole('client');
                     }
-                });
-
-                if (userResponse.ok) {
-                    const userData = await userResponse.json();
-                    console.log('User data after registration:', userData);
-
-                    // Сохраняем данные пользователя
-                    setUserData(userData);
-
-                    if (userData.email) {
-                        setUserEmail(userData.email);
-                    }
-
-                    // Проверяем роли из API
-                    if (userData.roles && userData.roles.length > 0) {
-                        console.log('🔥🔥🔥 Registration - User roles from API:', userData.roles);
-
-                        const roles = userData.roles.map((r: string) => r.toLowerCase());
-                        console.log('🔥 roles after toLowerCase():', roles);
-
-                        if (roles.includes('role_master') || roles.includes('master')) {
-                            console.log('✅ Registration MATCHED: role_master → setUserRole("master")');
-                            setUserRole('master');
-                        } else if (roles.includes('role_client') || roles.includes('client')) {
-                            console.log('✅ Registration MATCHED: role_client → setUserRole("client")');
-                            setUserRole('client');
-                        } else {
-                            console.log('⚠️ Registration NO MATCH in roles, keeping formData.role:', formData.role);
-                        }
-                    }
-                } else {
-                    console.warn('Could not fetch user data from /me endpoint (expected for new users)');
                 }
             } catch (userErr) {
-                console.error('Error fetching user data after registration:', userErr);
+                console.warn('Could not fetch user data from /me endpoint (expected for new users)', userErr);
             }
 
             // 7. Отправляем пользователя на подтверждение email
@@ -991,7 +877,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         }
     };
 
-    const grantUserRole = async (token: string, role: 'master' | 'client'): Promise<boolean> => {
+    const grantUserRole = async (_token: string, role: 'master' | 'client'): Promise<boolean> => {
         try {
             console.log('Granting role:', role);
 
@@ -1001,26 +887,16 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
 
             console.log('Trying to grant role:', roleValue);
 
-            const response = await fetch(`${API_BASE_URL}/api/users/grant-role`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify({
-                    role: roleValue
-                })
-            });
-
-            const responseText = await response.text();
-            console.log('Grant role response:', response.status, responseText);
-
-            if (response.ok) {
+            try {
+                await universalApiRequest('/api/users/grant-role', {
+                    method: 'POST',
+                    body: { role: roleValue },
+                    locale: false,
+                });
                 console.log('Role granted successfully');
                 return true;
-            } else {
-                console.warn('Failed to grant role:', response.status, responseText);
+            } catch (grantErr: any) {
+                console.warn('Failed to grant role:', roleValue, grantErr?.message);
 
                 // Попробуем другие форматы ролей
                 const alternativeRoleValues = [
@@ -1032,24 +908,15 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 for (const altRole of alternativeRoleValues) {
                     console.log('Trying alternative role:', altRole);
                     try {
-                        const altResponse = await fetch(`${API_BASE_URL}/api/users/grant-role`, {
+                        await universalApiRequest('/api/users/grant-role', {
                             method: 'POST',
-                            headers: {
-                                'Authorization': `Bearer ${token}`,
-                                'Content-Type': 'application/json',
-                                'Accept': 'application/json',
-                            },
-                            body: JSON.stringify({
-                                role: altRole
-                            })
+                            body: { role: altRole },
+                            locale: false,
                         });
-
-                        if (altResponse.ok) {
-                            console.log('Role granted successfully with alternative value:', altRole);
-                            return true;
-                        }
+                        console.log('Role granted successfully with alternative value:', altRole);
+                        return true;
                     } catch (err) {
-                        console.log('Failed with alternative role:', altRole);
+                        console.log('Failed with alternative role:', altRole, 'Error:', err);
                     }
                 }
 
@@ -1225,10 +1092,11 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         setIsLoading(true);
         setError('');
         try {
-            await fetch(`${API_BASE_URL}/api/change-password/send-otp/`, {
+            await universalApiRequest('/api/change-password/send-otp/', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: formData.email }),
+                body: { email: formData.email },
+                requiresAuth: false,
+                locale: false,
             });
             // Always move to next step (don't reveal if email exists)
             setCurrentState(AuthModalState.VERIFY_CODE);
@@ -1254,20 +1122,12 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         setIsLoading(true);
         setError('');
         try {
-            const response = await fetch(`${API_BASE_URL}/api/change-password/`, {
+            await universalApiRequest('/api/change-password/', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    email: formData.email,
-                    code: formData.code,
-                    newPassword: formData.newPassword,
-                }),
+                body: { email: formData.email, code: formData.code, newPassword: formData.newPassword },
+                requiresAuth: false,
+                locale: false,
             });
-            if (!response.ok) {
-                const data = await response.json();
-                setError(data?.message ?? t('auth.otpInvalidOrExpired'));
-                return;
-            }
             setCurrentState(AuthModalState.LOGIN);
         } catch {
             setError(t('auth.errorOccurred'));
@@ -1792,24 +1652,12 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             const telegramUserData: User = JSON.parse(telegramUserDataStr);
             console.log('Completing Telegram auth for role:', selectedRole);
 
-            const response = await fetch(`${API_BASE_URL}/api/auth/telegram/complete`, {
+            const data: TelegramAuthResponse = await universalApiRequest('/api/auth/telegram/complete', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify({
-                    userData: telegramUserData,
-                    role: selectedRole
-                })
+                body: { userData: telegramUserData, role: selectedRole },
+                requiresAuth: false,
+                locale: false,
             });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Ошибка завершения авторизации через Telegram: ${errorText}`);
-            }
-
-            const data: TelegramAuthResponse = await response.json();
             console.log('Telegram auth completed, data:', data);
 
             if (data.token) {

@@ -3,7 +3,7 @@ import { getAuthToken, getUserRole, getUserData } from '../../utils/auth';
 import styles from './Favorite.module.scss';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../app/routers/routes';
-import { createChatWithAuthor } from "../../utils/chatUtils";
+import { createChatWithAuthor, getChatsMe } from "../../utils/chatUtils";
 import { textHelper } from '../../utils/textHelper';
 import { useTranslation } from 'react-i18next';
 import { useLanguageChange, useShowMore } from '../../hooks';
@@ -21,7 +21,7 @@ import { IoListOutline, IoPeopleOutline } from 'react-icons/io5';
 import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore';
 import { SelectSearch } from '../../shared/ui/SelectSearch';
 import { getPageSize } from '../../utils/pageSize';
-import { parsePagedResponse, getTicketFullAddress, applyFavoriteSort } from '../../utils/apiHelper';
+import { parsePagedResponse, getTicketFullAddress, applyFavoriteSort, universalApiRequest } from '../../utils/apiHelper';
 import { formatTicketImageUrl, formatProfileImageUrl } from '../../utils/imageHelper';
 import type { User, Ticket, SortByType, SecondarySortByType, TimeFilterType, LocalStorageFavorites, FavoriteEntry, FavoriteTicketView, FavoriteUserView } from '../../entities';
 import { getSessionJSON } from '../../utils/storageHelper';
@@ -126,12 +126,8 @@ function Favorites() {
         if (token) {
             (async () => {
                 try {
-                    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/chats/me`, {
-                        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
-                    });
-                    if (!res.ok) return;
-                    const data = await res.json();
-                    const chats: any[] = data['hydra:member'] || (Array.isArray(data) ? data : []);
+                    const data = await getChatsMe();
+                    const chats: any[] = data;
                     const ids = new Set<number>();
                     chats.forEach((chat: any) => {
                         const t = chat.ticket;
@@ -327,23 +323,7 @@ function Favorites() {
 
     const fetchTicketDetails = async (ticketId: number): Promise<FavoriteTicketView | null> => {
         try {
-            const token = getAuthToken();
-            const locale = localStorage.getItem('i18nextLng') || 'ru';
-
-            const response = await fetch(`${API_BASE_URL}/api/tickets/${ticketId}?locale=${locale}`, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    ...(token && { 'Authorization': `Bearer ${token}` })
-                }
-            });
-
-            if (!response.ok) {
-                console.error(`Error fetching ticket ${ticketId}, status:`, response.status);
-                return null;
-            }
-
-            const ticket: Ticket = await response.json();
+            const ticket: Ticket = await universalApiRequest(`/api/tickets/${ticketId}`);
 
             const isMasterTicket = ticket.service;
             const userType = isMasterTicket ? 'master' : 'client';

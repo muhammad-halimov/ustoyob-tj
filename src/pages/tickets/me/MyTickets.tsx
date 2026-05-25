@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../app/routers/routes';
 import { getAuthToken, fetchCurrentUser } from '../../../utils/auth';
-import { getStorageItem } from '../../../utils/storageHelper';
 import { useLanguageChange } from '../../../hooks';
 import styles from './MyTickets.module.scss';
 import { PageLoader } from '../../../widgets/PageLoader';
@@ -18,10 +17,9 @@ import { IoCheckmarkCircleOutline, IoCloseCircleOutline } from 'react-icons/io5'
 import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore';
 import { SelectSearch } from '../../../shared/ui/SelectSearch';
 import { getPageSize } from '../../../utils/pageSize';
-import { parsePagedResponse, ticketToTicketView } from '../../../utils/apiHelper';
+import { parsePagedResponse, ticketToTicketView, universalApiRequest } from '../../../utils/apiHelper';
 import { useShowMore } from '../../../hooks';
 import type { Ticket, TicketView, User } from '../../../entities';
-import { API_BASE_URL } from '../../../utils/config';
 
 
 function MyTickets() {
@@ -127,19 +125,8 @@ function MyTickets() {
             // Получаем тикеты с пагинацией и фильтром по active
             const pageSize = getPageSize();
             const activeParam = `&active=${activeTab === 'active' ? 'true' : 'false'}`;
-            const url = `${API_BASE_URL}/api/tickets/me?locale=${getStorageItem('i18nextLng') || 'ru'}${activeParam}&page=${page}&itemsPerPage=${pageSize}`;
-            console.log('Fetching tickets from:', url);
-
-            const response = await fetch(url, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (response.ok) {
-                const responseData = await response.json();
-                let ticketsData: Ticket[];
+            const responseData = await universalApiRequest(`/api/tickets/me?${activeParam.slice(1)}&page=${page}&itemsPerPage=${pageSize}`);
+            let ticketsData: Ticket[];
 
                 if (Array.isArray(responseData)) {
                     ticketsData = responseData;
@@ -188,10 +175,6 @@ function MyTickets() {
                 });
 
                 applyTicketsFetch(formattedTickets, fetchedHasMore);
-            } else {
-                console.error('Error fetching tickets, status:', response.status);
-                setAllTickets([]);
-            }
         } catch (error) {
             console.error('Error fetching tickets:', error);
             setAllTickets([]);
@@ -223,34 +206,20 @@ function MyTickets() {
 
         try {
             const newActiveStatus = !currentActive;
-
-            const response = await fetch(`${API_BASE_URL}/api/tickets/${ticketId}`, {
+            await universalApiRequest(`/api/tickets/${ticketId}`, {
                 method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/merge-patch+json',
-                },
-                body: JSON.stringify({
-                    active: newActiveStatus
-                }),
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: { active: newActiveStatus },
+                locale: false,
             });
-
-            if (response.ok) {
-                // Обновляем все тикеты со статусом
-                setAllTickets(prev => prev.map(ticket => 
-                    ticket.id === ticketId
-                        ? { ...ticket, active: newActiveStatus, status: newActiveStatus ? t('myTickets:statusActive') : t('myTickets:statusDone') }
-                        : ticket
-                ));
-
-                setModalMessage(newActiveStatus ? t('myTickets:activated') : t('myTickets:deactivated'));
-                setShowSuccessModal(true);
-                setTimeout(() => setShowSuccessModal(false), 3000);
-            } else {
-                const errorText = await response.text();
-                console.error('Error toggling ticket active status:', errorText);
-                throw new Error(newActiveStatus ? t('myTickets:activateOperError') : t('myTickets:deactivateOperError'));
-            }
+            setAllTickets(prev => prev.map(ticket =>
+                ticket.id === ticketId
+                    ? { ...ticket, active: newActiveStatus, status: newActiveStatus ? t('myTickets:statusActive') : t('myTickets:statusDone') }
+                    : ticket
+            ));
+            setModalMessage(newActiveStatus ? t('myTickets:activated') : t('myTickets:deactivated'));
+            setShowSuccessModal(true);
+            setTimeout(() => setShowSuccessModal(false), 3000);
         } catch (error) {
             console.error('Error toggling ticket active status:', error);
             setModalMessage(currentActive ? t('myTickets:deactivateError') : t('myTickets:activateError'));

@@ -15,6 +15,7 @@ import {
 } from '../../utils/auth';
 import type { TelegramUserData, BackendAuthCallbackResponse } from '../../entities';
 import { API_BASE_URL } from '../../utils/config';
+import { universalApiRequest } from '../../utils/apiHelper';
 
 const TelegramCallbackPage = () => {
     const [searchParams] = useSearchParams();
@@ -91,20 +92,11 @@ const TelegramCallbackPage = () => {
                     if (telegramData.last_name) linkBody.last_name = telegramData.last_name;
                     if (telegramData.username)  linkBody.username  = telegramData.username;
                     if (telegramData.photo_url) linkBody.photo_url = telegramData.photo_url;
-                    const linkRes = await fetch(`${API_BASE_URL}/api/profile/oauth/link`, {
+                    const linkData = await universalApiRequest('/api/profile/oauth/link', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'Authorization': `Bearer ${jwtToken}`,
-                        },
-                        body: JSON.stringify(linkBody),
-                    });
-                    if (!linkRes.ok) {
-                        const errData = await linkRes.json().catch(() => ({}));
-                        throw new Error((errData as { error?: string }).error || `HTTP ${linkRes.status}`);
-                    }
-                    const linkData = await linkRes.json() as { new_token?: string };
+                        body: linkBody,
+                        locale: false,
+                    }) as { new_token?: string };
                     if (linkData.new_token) {
                         setAuthToken(linkData.new_token);
                         const expiryTime = new Date();
@@ -149,27 +141,12 @@ const TelegramCallbackPage = () => {
                     requestData.occupation = `${API_BASE_URL}/api/occupations/${savedSpecialty}`;
                 }
 
-                const response = await fetch(`${API_BASE_URL}/api/auth/telegram/callback`, {
+                const data: BackendAuthCallbackResponse = await universalApiRequest('/api/auth/telegram/callback', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                    },
-                    body: JSON.stringify(requestData)
+                    body: requestData,
+                    requiresAuth: false,
+                    locale: false,
                 });
-
-                const responseText = await response.text();
-
-                if (!response.ok) {
-                    try {
-                        const errorData = JSON.parse(responseText);
-                        throw new Error(errorData.message || errorData.error || `HTTP ${response.status}`);
-                    } catch (parseError) {
-                        throw new Error(`Ошибка сервера: ${response.status}`);
-                    }
-                }
-
-                const data: BackendAuthCallbackResponse = JSON.parse(responseText);
 
                 // Сохраняем токен и данные пользователя
                 if (data.token && data.user) {

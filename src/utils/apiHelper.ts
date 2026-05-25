@@ -1,17 +1,42 @@
 import { getAuthToken, handleUnauthorized, getUserData } from './auth';
+import { getStorageItem } from './storageHelper';
 import type { Ticket, SortByType, FavoriteTicketView } from '../entities';
 import type { TicketView } from '../entities';
 import { formatTicketImageUrl, formatProfileImageUrl } from './imageHelper';
 import { API_BASE_URL } from './config';
+
+export type LocaleType = 'tj' | 'ru' | 'eng';
 
 export interface ApiRequestOptions {
     method?: string;
     body?: any;
     headers?: Record<string, string>;
     requiresAuth?: boolean;
+    /**
+     * Locale appended as ?locale=xxx to every request.
+     * Pass `false` to suppress the param (e.g. auth/chat endpoints that don't support it).
+     * Defaults to the stored i18nextLng value, falling back to 'tj'.
+     */
+    locale?: LocaleType | false;
 }
 
-export const makeApiRequest = async (endpoint: string, options: ApiRequestOptions = {}): Promise<any> => {
+/** Reads the active locale from storage, defaulting to 'tj'. */
+export const getDefaultLocale = (): LocaleType => {
+    const stored = getStorageItem('i18nextLng');
+    if (stored === 'ru') return 'ru';
+    if (stored === 'eng' || stored?.startsWith('en')) return 'eng';
+    return 'tj';
+};
+
+/** Appends ?locale=xxx to a URL only when not already present. */
+const appendLocale = (url: string, locale: LocaleType): string => {
+    if (url.includes('locale=')) return url;
+    return url + (url.includes('?') ? '&' : '?') + `locale=${locale}`;
+};
+
+export const universalApiRequest = async (endpoint: string, options: ApiRequestOptions = {}): Promise<any> => {
+    const locale = options.locale !== false ? (options.locale ?? getDefaultLocale()) : null;
+
     const executeRequest = async (): Promise<Response> => {
         const token = getAuthToken();
         const headers: Record<string, string> = {
@@ -27,7 +52,8 @@ export const makeApiRequest = async (endpoint: string, options: ApiRequestOption
             headers['Authorization'] = `Bearer ${token}`;
         }
 
-        const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
+        let url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
+        if (locale) url = appendLocale(url, locale);
 
         return fetch(url, {
             method: options.method || 'GET',
@@ -44,7 +70,6 @@ export const makeApiRequest = async (endpoint: string, options: ApiRequestOption
     if (response.status === 401 && options.requiresAuth !== false) {
         const refreshed = await handleUnauthorized();
         if (refreshed) {
-            // Повторяем запрос с новым токеном
             response = await executeRequest();
         } else {
             throw new Error(`API request failed: ${response.status} ${response.statusText}`);
@@ -57,6 +82,9 @@ export const makeApiRequest = async (endpoint: string, options: ApiRequestOption
 
     return response.json();
 };
+
+/** @deprecated Use universalApiRequest instead */
+export const makeApiRequest = universalApiRequest;
 
 export const getCurrentUserId = (): number | null => getUserData()?.id ?? null;
 
@@ -117,7 +145,6 @@ export const getTicketFullAddress = (ticket: Ticket): string => {
     }
     // Handle case where API returns `address` as a single embedded object (e.g. JSON-LD)
     // instead of a string (common when individual ticket endpoint is called without auth)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rawAddress = (ticket as any).address;
     if (rawAddress && typeof rawAddress === 'object') {
         const parts: string[] = [];
@@ -145,7 +172,6 @@ export const getTicketShortAddress = (ticket: Ticket): string => {
         const unique = Array.from(new Set(parts.filter(Boolean)));
         if (unique.length) return unique.join(', ');
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rawAddress = (ticket as any).address;
     if (rawAddress && typeof rawAddress === 'object') {
         const parts: string[] = [];

@@ -6,7 +6,7 @@ import { Card } from '../../../shared/ui/Ticket/Card/Card';
 import styles from './Recommendations.module.scss';
 import { useTranslation } from 'react-i18next';
 import { ROUTES } from '../../../app/routers/routes';
-import { createChatWithAuthor } from '../../../utils/chatUtils';
+import { createChatWithAuthor, getChatsMe } from '../../../utils/chatUtils';
 import Status from '../../../shared/ui/Modal/Status';
 import Feedback from '../../../shared/ui/Modal/Feedback';
 
@@ -14,11 +14,10 @@ import { EmptyState } from '../../../widgets/EmptyState';
 import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore';
 import type { Ticket } from '../../../entities';
 import { formatTicketImageUrl, formatProfileImageUrl } from '../../../utils/imageHelper';
-import { getTicketFullAddress } from '../../../utils/apiHelper';
+import { getTicketFullAddress, universalApiRequest } from '../../../utils/apiHelper';
 
 const RECS_INITIAL_SIZE = 6;
 const RECS_PAGE_SIZE = 12;
-import { API_BASE_URL } from '../../../utils/config';
 
 interface RecommendationsProps {
     customData?: Ticket[];
@@ -65,12 +64,8 @@ function Recommendations({
         if (!token) return;
         (async () => {
             try {
-                const res = await fetch(`${API_BASE_URL}/api/chats/me`, {
-                    headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
-                });
-                if (!res.ok) return;
-                const data = await res.json();
-                const chats: any[] = data['hydra:member'] || (Array.isArray(data) ? data : []);
+                const res = await getChatsMe();
+                const chats: any[] = res;
                 const ids = new Set<number>();
                 chats.forEach((chat: any) => {
                     const t = chat.ticket;
@@ -123,39 +118,27 @@ function Recommendations({
             console.log('Recommendations - Current user ID:', currentUserId);
             console.log('Recommendations - Token exists:', !!token);
             
-            const endpoint = `/api/tickets?locale=${locale}&active=true&page=1&itemsPerPage=${RECS_PAGE_SIZE}${currentUserId ? `&author.id[ne]=${currentUserId}&master.id[ne]=${currentUserId}` : ''}`;
-            
-            console.log('Recommendations - Endpoint:', `${API_BASE_URL}${endpoint}`);
-            console.log('============================================');
+            const endpoint = `/api/tickets?active=true&page=1&itemsPerPage=${RECS_PAGE_SIZE}${currentUserId ? `&author.id[ne]=${currentUserId}&master.id[ne]=${currentUserId}` : ''}`;
 
-            const headers: HeadersInit = {
-                'Accept': 'application/json',
-                ...(token && { 'Authorization': `Bearer ${token}` })
-            };
+            const responseData = await universalApiRequest(endpoint);
+            let data: Ticket[];
 
-            const response = await fetch(`${API_BASE_URL}${endpoint}`, { headers });
+            data = Array.isArray(responseData) ? responseData as Ticket[]
+                : (responseData?.['hydra:member'] as Ticket[] | undefined) ?? [];
 
-            if (response.ok) {
-                const responseData = await response.json();
-                let data: Ticket[];
-
-                data = Array.isArray(responseData) ? responseData as Ticket[]
-                    : (responseData?.['hydra:member'] as Ticket[] | undefined) ?? [];
-
-                // Сортируем: сначала тикеты из выбранного города
-                const selectedCity = localStorage.getItem('selectedCity') || '';
-                if (selectedCity) {
-                    data = data.sort((a, b) => {
-                        const aMatchesCity = a.addresses?.some(addr => addr.city?.title === selectedCity) ?? false;
-                        const bMatchesCity = b.addresses?.some(addr => addr.city?.title === selectedCity) ?? false;
-                        if (aMatchesCity !== bMatchesCity) return aMatchesCity ? -1 : 1;
-                        return 0;
-                    });
-                }
-
-                setAnnouncements(data);
-                setVisibleCount(RECS_INITIAL_SIZE);
+            // Сортируем: сначала тикеты из выбранного города
+            const selectedCity = localStorage.getItem('selectedCity') || '';
+            if (selectedCity) {
+                data = data.sort((a, b) => {
+                    const aMatchesCity = a.addresses?.some(addr => addr.city?.title === selectedCity) ?? false;
+                    const bMatchesCity = b.addresses?.some(addr => addr.city?.title === selectedCity) ?? false;
+                    if (aMatchesCity !== bMatchesCity) return aMatchesCity ? -1 : 1;
+                    return 0;
+                });
             }
+
+            setAnnouncements(data);
+            setVisibleCount(RECS_INITIAL_SIZE);
         } catch (error) {
             console.error('Error fetching announcements:', error);
         } finally {

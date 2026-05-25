@@ -1,8 +1,8 @@
-import { getAuthToken, handleUnauthorized } from './auth';
+import { getAuthToken } from './auth';
+import { universalApiRequest } from './apiHelper';
 import type { Chat } from '../entities';
 import type { HydraResponse } from '../entities';
 import type { User } from '../entities';
-import { API_BASE_URL } from './config';
 
 export const initChatModals = () => {
 };
@@ -19,80 +19,34 @@ const extractId = (obj: any): number | undefined => {
     return undefined;
 };
 
-// Функция для показа модалок с авто-закрытием
 export const createChatWithAuthor = async (replyAuthorId: number, ticketId?: number): Promise<Chat | null> => {
     const token = getAuthToken();
-    if (!token) {
-        console.log('No auth token available');
-        return null;
-    }
+    if (!token) return null;
 
-    console.log('Creating chat with params:', { replyAuthorId, ticketId });
-
-    // Проверяем существующие чаты
     const existingChat = await findExistingChat(replyAuthorId);
-    if (existingChat) {
-        console.log('Found existing chat:', existingChat.id);
-        return existingChat;
-    }
+    if (existingChat) return existingChat;
 
-    // Проверяем статус пользователя
     const userStatus = await checkUserStatus(replyAuthorId);
     if (!userStatus.approved || !userStatus.active) {
-        console.log('User is not active or approved');
         throw new Error('Пользователь не активен. Чаты можно создавать только с активными пользователями.');
     }
 
-    // Создаем новый чат
     const chatData: { replyAuthor: string; ticket?: string } = {
-        replyAuthor: `/api/users/${replyAuthorId}`
+        replyAuthor: `/api/users/${replyAuthorId}`,
     };
+    if (ticketId) chatData.ticket = `/api/tickets/${ticketId}`;
 
-    if (ticketId) {
-        chatData.ticket = `/api/tickets/${ticketId}`;
-    }
-
-    console.log('Creating chat with data:', chatData);
-
-    const doCreate = async (): Promise<Response> => {
-        return fetch(`${API_BASE_URL}/api/chats`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${getAuthToken()}`,
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-            },
-            body: JSON.stringify(chatData)
-        });
-    };
-
-    let response = await doCreate();
-
-    // Если 401, пробуем обновить токен
-    if (response.status === 401) {
-        const refreshed = await handleUnauthorized();
-        if (refreshed) {
-            response = await doCreate();
-        } else {
-            throw new Error('Сессия истекла. Пожалуйста, войдите снова.');
-        }
-    }
-
-    if (response.ok) {
-        const rawResponse = await response.json();
-        console.log('Chat created successfully:', rawResponse);
-        rawResponse.id = extractId(rawResponse);
-        return rawResponse as Chat;
-    }
-
-    const errorText = await response.text();
-    console.error('Failed to create chat:', response.status, errorText);
     try {
-        const errorData = JSON.parse(errorText);
-        throw new Error(errorData.detail ? 'Ошибка при создании чата: ' + errorData.detail : 'Ошибка при создании чата');
-    } catch (e) {
-        if (e instanceof Error && e.message !== errorText) throw e;
-        throw new Error('Ошибка при создании чата');
+        const rawResponse = await universalApiRequest('/api/chats', {
+            method: 'POST',
+            body: chatData,
+            locale: false,
+        });
+        rawResponse.id = extractId(rawResponse);
+        invalidateChatsCache();
+        return rawResponse as Chat;
+    } catch (e: any) {
+        throw new Error(e?.message?.includes('detail') ? 'Ошибка при создании чата: ' + e.message : 'Ошибка при создании чата');
     }
 };
 
@@ -100,100 +54,70 @@ export const checkUserStatus = async (userId: number): Promise<{ approved: boole
     try {
         const token = getAuthToken();
         if (!token) return { approved: false, active: false };
-
-        const checkUser = async (): Promise<Response> => {
-            return fetch(`${API_BASE_URL}/api/users/${userId}`, {
-                headers: {
-                    'Authorization': `Bearer ${getAuthToken()}`,
-                    'Accept': 'application/json',
-                },
-            });
+        const userData: User = await universalApiRequest(`/api/users/${userId}`, { locale: false });
+        return {
+            approved: userData.approved !== false,
+            active: userData.active !== false,
         };
-
-        let response = await checkUser();
-
-        // Если 401, пробуем обновить токен
-        if (response.status === 401) {
-            const refreshed = await handleUnauthorized();
-            if (refreshed) {
-                response = await checkUser();
-            } else {
-                return { approved: false, active: false };
-            }
-        }
-
-        if (response.ok) {
-            const userData: User = await response.json();
-            return {
-                approved: userData.approved !== false,
-                active: userData.active !== false
-            };
-        }
-        return { approved: false, active: false };
-    } catch (error) {
-        console.error('Error checking user status:', error);
+    } catch {
         return { approved: false, active: false };
     }
 };
 
+const CHATS_ME_CACHE_TTL = 15_000; // 15 секунд
+let _chatsMeCache: { data: Chat[]; timestamp: number } | null = null;
+let _chatsMePromise: Promise<Chat[]> | null = null;
+
+/**
+ * Загружает список чатов /api/chats/me с дедупликацией и коротким кешем (15 с).
+ * Не использовать для постраничного вывода — только для поиска существующего чата.
+ */
+export const getChatsMe = async (): Promise<Chat[]> => {
+    const now = Date.now();
+    if (_chatsMeCache && now - _chatsMeCache.timestamp < CHATS_ME_CACHE_TTL) {
+        return _chatsMeCache.data;
+    }
+    if (_chatsMePromise) return _chatsMePromise;
+
+    _chatsMePromise = universalApiRequest('/api/chats/me', { locale: false }).then((responseData) => {
+        let chatsArray: Chat[] = [];
+        if (Array.isArray(responseData)) {
+            chatsArray = responseData;
+        } else if (responseData && typeof responseData === 'object') {
+            if ('hydra:member' in responseData && Array.isArray((responseData as HydraResponse<Chat>)['hydra:member'])) {
+                chatsArray = (responseData as HydraResponse<Chat>)['hydra:member'];
+            } else if ((responseData as Chat).id) {
+                chatsArray = [responseData as Chat];
+            }
+        }
+        chatsArray = chatsArray.map(chat => ({ ...chat, id: extractId(chat) ?? chat.id }));
+        _chatsMeCache = { data: chatsArray, timestamp: Date.now() };
+        _chatsMePromise = null;
+        return chatsArray;
+    }).catch((err) => {
+        _chatsMePromise = null;
+        throw err;
+    });
+
+    return _chatsMePromise;
+};
+
+/**
+ * Инвалидирует кеш чатов (вызывать после создания/удаления чата).
+ */
+export const invalidateChatsCache = (): void => {
+    _chatsMeCache = null;
+    _chatsMePromise = null;
+};
+
 const findExistingChat = async (replyAuthorId: number): Promise<Chat | null> => {
     try {
-        const getChats = async (): Promise<Response> => {
-            return fetch(`${API_BASE_URL}/api/chats/me`, {
-                headers: {
-                    'Authorization': `Bearer ${getAuthToken()}`,
-                    'Accept': 'application/json',
-                },
-            });
-        };
-
-        let response = await getChats();
-
-        // Если 401, пробуем обновить токен
-        if (response.status === 401) {
-            const refreshed = await handleUnauthorized();
-            if (refreshed) {
-                response = await getChats();
-            } else {
-                return null;
-            }
-        }
-
-        if (response.ok) {
-            const responseData = await response.json();
-            let chatsArray: Chat[] = [];
-
-            // Обрабатываем разные форматы ответа
-            if (Array.isArray(responseData)) {
-                chatsArray = responseData;
-            } else if (responseData && typeof responseData === 'object') {
-                // Если это Hydra-ответ
-                if ('hydra:member' in responseData && Array.isArray((responseData as HydraResponse<Chat>)['hydra:member'])) {
-                    const hydraResponse = responseData as HydraResponse<Chat>;
-                    chatsArray = hydraResponse['hydra:member'];
-                } else if (responseData.id) {
-                    // Если это один объект
-                    chatsArray = [responseData as Chat];
-                }
-            }
-
-            // Нормализуем id у всех чатов (IRI → number)
-            chatsArray = chatsArray.map(chat => ({
-                ...chat,
-                id: extractId(chat) ?? chat.id,
-            }));
-
-            // Ищем чат с тем же replyAuthor (или author, если текущий пользователь — replyAuthor)
-            const existingChat = chatsArray.find(chat => {
-                return extractId(chat.replyAuthor) === replyAuthorId ||
-                       extractId(chat.author) === replyAuthorId;
-            });
-
-            return existingChat || null;
-        }
-        return null;
-    } catch (error) {
-        console.error('Error finding existing chat:', error);
+        const chatsArray = await getChatsMe();
+        return chatsArray.find(chat =>
+            extractId(chat.replyAuthor) === replyAuthorId ||
+            extractId(chat.author) === replyAuthorId
+        ) ?? null;
+    } catch {
         return null;
     }
 };

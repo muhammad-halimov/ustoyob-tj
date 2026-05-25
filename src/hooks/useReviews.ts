@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { makeApiRequest } from '../utils/apiHelper';
+import { universalApiRequest } from '../utils/apiHelper';
 import { getAuthToken } from '../utils/auth';
 import { uploadPhotos } from '../utils/imageHelper';
 import type { Review } from '../entities';
@@ -30,7 +30,7 @@ export const useReviews = () => {
                 endpoint = `/api/reviews?${params.toString()}`;
             }
 
-            const reviewsData = await makeApiRequest(endpoint, {
+            const reviewsData = await universalApiRequest(endpoint, {
                 requiresAuth: !!token
             });
 
@@ -93,7 +93,7 @@ export const useReviews = () => {
         try {
             console.log('Creating review with data:', reviewData);
 
-            const result = await makeApiRequest('/api/reviews', {
+            const result = await universalApiRequest('/api/reviews', {
                 method: 'POST',
                 body: reviewData,
                 requiresAuth: true,

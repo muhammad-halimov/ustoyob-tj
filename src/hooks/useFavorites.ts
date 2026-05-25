@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
-import { getAuthToken } from '../../utils/auth';
-import { getStorageJSON, setStorageJSON } from '../../utils/storageHelper';
-import type { LocalStorageFavorites } from '../../entities';
+import { getAuthToken } from '../utils/auth.ts';
+import { getStorageJSON, setStorageJSON } from '../utils/storageHelper.ts';
+import type { LocalStorageFavorites } from '../entities';
+import { universalApiRequest } from '../utils/apiHelper.ts';
 
 // Flat entry returned by GET /api/favorites/me (hydra:member)
 interface FavoriteEntry {
@@ -17,8 +18,6 @@ interface UseFavoritesProps {
     onSuccess?: () => void;
     onError?: (message: string) => void;
 }
-
-import { API_BASE_URL } from '../../utils/config';
 
 // Module-level cache to deduplicate concurrent /api/favorites/me requests
 let _favoritesPromise: Promise<FavoriteEntry[]> | null = null;
@@ -52,7 +51,7 @@ export const useFavorites = ({ itemId, itemType, onSuccess, onError }: UseFavori
     };
 
     // Fetch all favorite entries from GET /api/favorites/me (with dedup/cache)
-    const getCurrentFavorites = useCallback(async (token: string): Promise<FavoriteEntry[]> => {
+    const getCurrentFavorites = useCallback(async (_token: string): Promise<FavoriteEntry[]> => {
         const now = Date.now();
 
         if (_favoritesCache && now - _favoritesCache.timestamp < FAVORITES_CACHE_TTL) {
@@ -60,16 +59,12 @@ export const useFavorites = ({ itemId, itemType, onSuccess, onError }: UseFavori
         }
 
         if (!_favoritesPromise) {
-            _favoritesPromise = fetch(`${API_BASE_URL}/api/favorites/me`, {
-                headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
-            }).then(async (response) => {
-                if (!response.ok) throw new Error(`Failed to fetch favorites: ${response.status}`);
-                const data = await response.json();
+            _favoritesPromise = universalApiRequest('/api/favorites/me', { locale: false }).then((data: any) => {
                 const entries: FavoriteEntry[] = data['hydra:member'] ?? (Array.isArray(data) ? data : []);
                 _favoritesCache = { data: entries, timestamp: Date.now() };
                 _favoritesPromise = null;
                 return entries;
-            }).catch((err) => {
+            }).catch((err: unknown) => {
                 _favoritesPromise = null;
                 throw err;
             });
@@ -126,19 +121,15 @@ export const useFavorites = ({ itemId, itemType, onSuccess, onError }: UseFavori
         if (isLiked && entryId) {
             setIsLikeLoading(true);
             try {
-                const res = await fetch(`${API_BASE_URL}/api/favorites/${entryId}`, {
+                await universalApiRequest(`/api/favorites/${entryId}`, {
                     method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` },
+                    locale: false,
                 });
-                if (res.ok || res.status === 204) {
-                    setIsLiked(false);
-                    setEntryId(null);
-                    invalidateFavoritesCache();
-                    window.dispatchEvent(new Event('favoritesUpdated'));
-                    if (onSuccess) onSuccess();
-                } else {
-                    if (onError) onError('Ошибка при удалении из избранного');
-                }
+                setIsLiked(false);
+                setEntryId(null);
+                invalidateFavoritesCache();
+                window.dispatchEvent(new Event('favoritesUpdated'));
+                if (onSuccess) onSuccess();
             } catch {
                 if (onError) onError('Ошибка при удалении из избранного');
             } finally {
@@ -154,26 +145,16 @@ export const useFavorites = ({ itemId, itemType, onSuccess, onError }: UseFavori
                 ? { ticket: `/api/tickets/${itemId}` }
                 : { user: `/api/users/${itemId}` };
 
-            const res = await fetch(`${API_BASE_URL}/api/favorites`, {
+            const newEntry: FavoriteEntry = await universalApiRequest('/api/favorites', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify(body),
+                body,
+                locale: false,
             });
-
-            if (res.status === 201 || res.ok) {
-                const newEntry: FavoriteEntry = await res.json();
-                setIsLiked(true);
-                setEntryId(newEntry.id);
-                invalidateFavoritesCache();
-                window.dispatchEvent(new Event('favoritesUpdated'));
-                if (onSuccess) onSuccess();
-            } else if (res.status === 409) {
-                // Already in favorites — re-check to pick up entryId
-                invalidateFavoritesCache();
-                await checkFavoriteStatus();
-            } else {
-                if (onError) onError('Ошибка при добавлении в избранное');
-            }
+            setIsLiked(true);
+            setEntryId(newEntry.id);
+            invalidateFavoritesCache();
+            window.dispatchEvent(new Event('favoritesUpdated'));
+            if (onSuccess) onSuccess();
         } catch {
             if (onError) onError('Ошибка при добавлении в избранное');
         } finally {

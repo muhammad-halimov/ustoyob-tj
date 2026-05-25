@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.9.2",
+    "@types/dompurify": "^3.0.5",
+    "dompurify": "^3.4.5",
     "i18next-browser-languagedetector": "^8.2.0",
     "i18next-http-backend": "^3.0.2",
     "react": "^19.1.1",

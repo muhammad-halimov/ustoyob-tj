@@ -66,8 +66,7 @@ export function Enter({ onClick, isModalOpen, onModalClose, onLoginSuccess }: En
         };
     }, []);
 
-    const handleLoginSuccess = (token: string) => {
-        console.log('User logged in with token:', token);
+    const handleLoginSuccess = (_token: string) => {
         setIsLoggedIn(true);
         closeModal();
 

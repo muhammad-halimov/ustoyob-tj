@@ -1,6 +1,14 @@
 // utils/auth.ts
 import {API_BASE_URL} from './config';
 import type {Occupation, User} from '../entities';
+import {
+    getStorageItem,
+    setStorageItem,
+    removeStorageItem,
+    removeStorageItems,
+    getStorageJSON,
+    setStorageJSON,
+} from './storageHelper';
 
 // Константы для хранения ключей в localStorage
 const STORAGE_KEYS = {
@@ -21,36 +29,11 @@ let _mePromise: Promise<User | null> | null = null;
 let _meCachedAt = 0;
 const ME_CACHE_TTL_MS = 30_000 as const;
 
-// ============ Утилиты для работы с localStorage ============
-const isClientSide = (): boolean => typeof window !== 'undefined';
-
-const getItem = (key: string): string | null => 
-    isClientSide() ? localStorage.getItem(key) : null;
-
-const setItem = (key: string, value: string): void => {
-    if (isClientSide()) localStorage.setItem(key, value);
-};
-
-const removeItem = (key: string): void => {
-    if (isClientSide()) localStorage.removeItem(key);
-};
-
-const removeItems = (...keys: string[]): void => {
-    if (isClientSide()) keys.forEach(key => localStorage.removeItem(key));
-};
-
-// ============ Парсинг JSON с обработкой ошибок ============
-const parseJSON = <T,>(str: string | null, key: string): T | null => {
-    if (!str) return null;
-    try {
-        return JSON.parse(str) as T;
-    } catch (error) {
-        console.error(`Error parsing ${key}:`, error);
-        return null;
-    }
-};
-
-const stringifyJSON = (data: unknown): string => JSON.stringify(data);
+// Aliases to keep internal code concise
+const getItem = getStorageItem;
+const setItem = setStorageItem;
+const removeItem = removeStorageItem;
+const removeItems = removeStorageItems;
 
 // ============ Работа с токеном ============
 export const getAuthToken = (): string | null => getItem(STORAGE_KEYS.AUTH_TOKEN);
@@ -194,11 +177,11 @@ export const hasRole = (role: 'client' | 'master' | string): boolean => {
 
 // ============ Работа с данными пользователя ============
 export const getUserData = (): User | null => {
-    return parseJSON<User>(getItem(STORAGE_KEYS.USER_DATA), 'userData');
+    return getStorageJSON<User>(STORAGE_KEYS.USER_DATA);
 };
 
 export const setUserData = (data: User): void => {
-    setItem(STORAGE_KEYS.USER_DATA, stringifyJSON(data));
+    setStorageJSON(STORAGE_KEYS.USER_DATA, data);
 };
 
 export const updateUserData = (updates: Partial<User>): User | null => {
@@ -218,11 +201,11 @@ export const setUserEmail = (email: string): void => {
 
 // ============ Работа с occupation пользователя ============
 export const getUserOccupation = (): Occupation[] | null => {
-    return parseJSON<Occupation[]>(getItem(STORAGE_KEYS.USER_OCCUPATION), 'occupation');
+    return getStorageJSON<Occupation[]>(STORAGE_KEYS.USER_OCCUPATION);
 };
 
 export const setUserOccupation = (occupation: Occupation[]): void => {
-    setItem(STORAGE_KEYS.USER_OCCUPATION, stringifyJSON(occupation));
+    setStorageJSON(STORAGE_KEYS.USER_OCCUPATION, occupation);
 };
 
 export const clearUserOccupation = (): void => {
@@ -318,6 +301,8 @@ export const handleUnauthorized = async (): Promise<boolean> => {
 };
 
 // ============ Автоматическое обновление токена ============
+const isClientSide = (): boolean => typeof window !== 'undefined';
+
 export const setupTokenRefresh = async (
     onTokenExpired?: () => void
 ): Promise<void> => {

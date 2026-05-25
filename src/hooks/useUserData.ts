@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { makeApiRequest, getCurrentUserId } from '../utils/apiHelper';
+import { universalApiRequest, getCurrentUserId } from '../utils/apiHelper';
 import { getAvatarUrl } from '../utils/imageHelper';
 
 export const useUserData = () => {
@@ -11,7 +11,7 @@ export const useUserData = () => {
         setError(null);
 
         try {
-            const userData = await makeApiRequest(`/api/users/${userId}`, {
+            const userData = await universalApiRequest(`/api/users/${userId}`, {
                 requiresAuth: false
             });
 

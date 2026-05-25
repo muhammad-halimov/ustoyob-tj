@@ -3,8 +3,12 @@
  * Предотвращает множественные запросы к одним и тем же эндпоинтам
  */
 
-import type { Province, City } from '../entities';
-import type { Occupation } from '../entities';
+import type { Province, City, Occupation } from '../entities';
+import type { Category } from '../entities';
+import type { District } from '../entities';
+import { universalApiRequest, getDefaultLocale } from './apiHelper';
+import type { LocaleType } from './apiHelper';
+import { getStorageItem } from './storageHelper';
 
 interface CacheEntry<T> {
     data: T[];
@@ -13,28 +17,31 @@ interface CacheEntry<T> {
 }
 
 const CACHE_DURATION = 5 * 60 * 1000; // 5 минут
-import { API_BASE_URL } from './config';
+const STATIC_CACHE_DURATION = 30 * 60 * 1000; // 30 минут (для редко меняющихся данных)
 
 // Кеши для провинций, городов и профессий
 let provincesCache: CacheEntry<Province> | null = null;
 let citiesCache: CacheEntry<City> | null = null;
 let occupationsCache: CacheEntry<Occupation> | null = null;
+let categoriesCache: CacheEntry<Category> | null = null;
+let districtsCache: CacheEntry<District> | null = null;
 
 // Активные промисы для предотвращения дублирующих запросов
 let provincesPromise: Promise<Province[]> | null = null;
 let citiesPromise: Promise<City[]> | null = null;
 let occupationsPromise: Promise<Occupation[]> | null = null;
+let categoriesPromise: Promise<Category[]> | null = null;
+let districtsPromise: Promise<District[]> | null = null;
 
 /**
  * Нормализует локаль в поддерживаемый формат
  */
-const normalizeLocale = (locale?: string): string => {
-    if (!locale) return 'ru';
-    
+const normalizeLocale = (locale?: string): LocaleType => {
+    if (!locale) return 'tj';
     const normalized = locale.toLowerCase();
+    if (normalized === 'ru') return 'ru';
     if (normalized.includes('en') || normalized === 'eng') return 'eng';
-    if (normalized.includes('tj') || normalized === 'tg') return 'tj';
-    return 'ru'; // по умолчанию русский
+    return 'tj';
 };
 
 /**
@@ -47,21 +54,17 @@ const isCacheValid = <T>(cache: CacheEntry<T> | null, locale: string): boolean =
 };
 
 /**
- * Получает токен авторизации
- */
-const getAuthToken = (): string | null => {
-    if (typeof window === 'undefined') return null;
-    return localStorage.getItem('authToken');
-};
-
-/**
  * Получает текущую локаль из localStorage
  */
-const getCurrentLocale = (): string => {
-    if (typeof window === 'undefined') return 'ru';
-    const stored = localStorage.getItem('i18nextLng');
-    return normalizeLocale(stored || undefined);
-};
+const getCurrentLocale = (): LocaleType =>
+    normalizeLocale(getStorageItem('i18nextLng') ?? undefined) || getDefaultLocale();
+
+/** Извлекает массив из Hydra-ответа или массива */
+const toArray = <T>(data: unknown): T[] =>
+    Array.isArray(data) ? (data as T[]) :
+    (data && typeof data === 'object' && 'hydra:member' in (data as object)
+        ? ((data as any)['hydra:member'] as T[])
+        : []);
 
 /**
  * Загружает провинции с кешированием
@@ -73,24 +76,12 @@ export const getProvinces = async (locale?: string): Promise<Province[]> => {
         return provincesCache!.data;
     }
 
-    if (provincesPromise) {
-        return provincesPromise;
-    }
+    if (provincesPromise) return provincesPromise;
 
     provincesPromise = (async () => {
         try {
-            const headers: HeadersInit = { 'Content-Type': 'application/json' };
-            const token = getAuthToken();
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-
-            const response = await fetch(`${API_BASE_URL}/api/provinces?locale=${targetLocale}`, { headers });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const data = await response.json();
-            const provinces: Province[] = Array.isArray(data) ? data
-                : (data['hydra:member'] ? data['hydra:member'] : []);
-
+            const data = await universalApiRequest('/api/provinces', { locale: targetLocale });
+            const provinces = toArray<Province>(data);
             provincesCache = { data: provinces, locale: targetLocale, timestamp: Date.now() };
             return provinces;
         } catch (error) {
@@ -110,50 +101,17 @@ export const getProvinces = async (locale?: string): Promise<Province[]> => {
 export const getCities = async (locale?: string): Promise<City[]> => {
     const targetLocale = normalizeLocale(locale || getCurrentLocale());
 
-    // Проверяем кеш
     if (isCacheValid(citiesCache, targetLocale)) {
-        console.log('Using cached cities for locale:', targetLocale);
         return citiesCache!.data;
     }
 
-    // Если уже есть активный запрос, ждем его
-    if (citiesPromise) {
-        console.log('Waiting for existing cities request...');
-        return citiesPromise;
-    }
-
-    console.log('Fetching cities for locale:', targetLocale);
+    if (citiesPromise) return citiesPromise;
 
     citiesPromise = (async () => {
         try {
-            const headers: HeadersInit = {
-                'Content-Type': 'application/json',
-            };
-
-            const token = getAuthToken();
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-
-            const response = await fetch(`${API_BASE_URL}/api/cities?locale=${targetLocale}`, {
-                headers,
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-
-            const data = await response.json();
-            const cities: City[] = Array.isArray(data) ? data : 
-                                   (data['hydra:member'] ? data['hydra:member'] : []);
-
-            // Кешируем результат
-            citiesCache = {
-                data: cities,
-                locale: targetLocale,
-                timestamp: Date.now()
-            };
-
+            const data = await universalApiRequest('/api/cities', { locale: targetLocale });
+            const cities = toArray<City>(data);
+            citiesCache = { data: cities, locale: targetLocale, timestamp: Date.now() };
             return cities;
         } catch (error) {
             console.error('Error fetching cities:', error);
@@ -172,50 +130,17 @@ export const getCities = async (locale?: string): Promise<City[]> => {
 export const getOccupations = async (locale?: string): Promise<Occupation[]> => {
     const targetLocale = normalizeLocale(locale || getCurrentLocale());
 
-    // Проверяем кеш
     if (isCacheValid(occupationsCache, targetLocale)) {
-        console.log('Using cached occupations for locale:', targetLocale);
         return occupationsCache!.data;
     }
 
-    // Если уже есть активный запрос, ждем его
-    if (occupationsPromise) {
-        console.log('Waiting for existing occupations request...');
-        return occupationsPromise;
-    }
-
-    console.log('Fetching occupations for locale:', targetLocale);
+    if (occupationsPromise) return occupationsPromise;
 
     occupationsPromise = (async () => {
         try {
-            const headers: HeadersInit = {
-                'Content-Type': 'application/json',
-            };
-
-            const token = getAuthToken();
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-
-            const response = await fetch(`${API_BASE_URL}/api/occupations?locale=${targetLocale}&itemsPerPage=500`, {
-                headers,
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-
-            const data = await response.json();
-            const occupations: Occupation[] = Array.isArray(data) ? data : 
-                                             (data['hydra:member'] ? data['hydra:member'] : []);
-
-            // Кешируем результат
-            occupationsCache = {
-                data: occupations,
-                locale: targetLocale,
-                timestamp: Date.now()
-            };
-
+            const data = await universalApiRequest(`/api/occupations?itemsPerPage=500`, { locale: targetLocale });
+            const occupations = toArray<Occupation>(data);
+            occupationsCache = { data: occupations, locale: targetLocale, timestamp: Date.now() };
             return occupations;
         } catch (error) {
             console.error('Error fetching occupations:', error);
@@ -229,19 +154,74 @@ export const getOccupations = async (locale?: string): Promise<Occupation[]> => 
 };
 
 /**
+ * Загружает категории с кешированием (TTL 30 мин — данные очень редко меняются)
+ */
+export const getCategories = async (locale?: string): Promise<Category[]> => {
+    const targetLocale = normalizeLocale(locale || getCurrentLocale());
+
+    if (categoriesCache && categoriesCache.locale === targetLocale &&
+        (Date.now() - categoriesCache.timestamp) < STATIC_CACHE_DURATION) {
+        return categoriesCache.data;
+    }
+
+    if (categoriesPromise) return categoriesPromise;
+
+    categoriesPromise = (async () => {
+        try {
+            const data = await universalApiRequest('/api/categories', { locale: targetLocale, requiresAuth: false });
+            const categories = toArray<Category>(data);
+            categoriesCache = { data: categories, locale: targetLocale, timestamp: Date.now() };
+            return categories;
+        } catch (error) {
+            console.error('Error fetching categories:', error);
+            return [];
+        } finally {
+            categoriesPromise = null;
+        }
+    })();
+
+    return categoriesPromise;
+};
+
+/**
+ * Загружает районы с кешированием (TTL 30 мин)
+ */
+export const getDistricts = async (locale?: string): Promise<District[]> => {
+    const targetLocale = normalizeLocale(locale || getCurrentLocale());
+
+    if (districtsCache && districtsCache.locale === targetLocale &&
+        (Date.now() - districtsCache.timestamp) < STATIC_CACHE_DURATION) {
+        return districtsCache.data;
+    }
+
+    if (districtsPromise) return districtsPromise;
+
+    districtsPromise = (async () => {
+        try {
+            const data = await universalApiRequest('/api/districts', { locale: targetLocale });
+            const districts = toArray<District>(data);
+            districtsCache = { data: districts, locale: targetLocale, timestamp: Date.now() };
+            return districts;
+        } catch (error) {
+            console.error('Error fetching districts:', error);
+            return [];
+        } finally {
+            districtsPromise = null;
+        }
+    })();
+
+    return districtsPromise;
+};
+
+/**
  * Очищает кеш (например, при смене языка)
  */
-export const clearCache = (type?: 'provinces' | 'cities' | 'occupations') => {
-    if (!type || type === 'provinces') {
-        provincesCache = null;
-    }
-    if (!type || type === 'cities') {
-        citiesCache = null;
-    }
-    if (!type || type === 'occupations') {
-        occupationsCache = null;
-    }
-    console.log('Cache cleared for:', type || 'all');
+export const clearCache = (type?: 'provinces' | 'cities' | 'occupations' | 'categories' | 'districts') => {
+    if (!type || type === 'provinces') provincesCache = null;
+    if (!type || type === 'cities') citiesCache = null;
+    if (!type || type === 'occupations') occupationsCache = null;
+    if (!type || type === 'categories') categoriesCache = null;
+    if (!type || type === 'districts') districtsCache = null;
 };
 
 /**
@@ -249,18 +229,15 @@ export const clearCache = (type?: 'provinces' | 'cities' | 'occupations') => {
  */
 export const preloadData = async () => {
     const locale = getCurrentLocale();
-    console.log('Preloading data for locale:', locale);
-    
     try {
         await Promise.all([
             getProvinces(locale),
             getCities(locale),
-            getOccupations(locale)
+            getOccupations(locale),
         ]);
-        console.log('Data preloaded successfully');
     } catch (error) {
         console.error('Error preloading data:', error);
     }
 };
 
-export type { Province, City, Occupation };
+export type { Province, City, Occupation, Category, District };

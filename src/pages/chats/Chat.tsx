@@ -20,7 +20,7 @@ import { Clear } from '../../shared/ui/Button/Clear/Clear';
 import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore';
 import { SelectSearch } from '../../shared/ui/SelectSearch';
 import { getPageSize } from '../../utils/pageSize';
-import { parsePagedResponse } from '../../utils/apiHelper';
+import { parsePagedResponse, universalApiRequest } from '../../utils/apiHelper';
 import { useShowMore } from '../../hooks';
 import { Marquee } from '../../shared/ui/Text/Marquee';
 import type { User as ApiUser } from '../../entities/api/User';
@@ -231,22 +231,14 @@ function Chat() {
             }
 
             console.log('Fetching messages for chat:', chatId);
-            const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json',
-                },
-            });
+            const chatData: ApiChat = await universalApiRequest(`/api/chats/${chatId}`, { locale: false });
+            console.log('Chat data received:', chatData);
 
-            if (response.ok) {
-                const chatData: ApiChat = await response.json();
-                console.log('Chat data received:', chatData);
-
-                // Добавляем вычисляемое поле isArchived
-                const chatDataWithArchive = {
-                    ...chatData,
-                    isArchived: chatData.active === false
-                };
+            // Добавляем вычисляемое поле isArchived
+            const chatDataWithArchive = {
+                ...chatData,
+                isArchived: chatData.active === false
+            };
 
                 setChats(prev => {
                     const chatIndex = prev.findIndex(c => c.id === chatId);
@@ -317,26 +309,18 @@ function Chat() {
                         return combined;
                     });
                 }
-            } else {
-                console.error(`Error fetching chat messages: ${response.status}`);
-            }
         } catch (err) {
             console.error('Error fetching chat messages:', err);
         }
-    }, [API_BASE_URL, currentUser, getImageUrl]);
+    }, [currentUser, getImageUrl, getTranslatedFullName]);
 
     const markChatAsRead = useCallback(async (chatId: number) => {
-        const token = getAuthToken();
-        if (!token) return;
         try {
-            await fetch(`${API_BASE_URL}/api/chats/${chatId}/read`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` },
-            });
+            await universalApiRequest(`/api/chats/${chatId}/read`, { method: 'POST', locale: false });
         } catch {
             // fire-and-forget — ошибка не критична
         }
-    }, [API_BASE_URL]);
+    }, []);
 
     const stopSSE = useCallback(() => {
         if (tokenRefreshRef.current) {
@@ -368,14 +352,7 @@ function Chat() {
         if (!token) return;
 
         try {
-            const subResp = await fetch(`${API_BASE_URL}/api/chats/${chatId}/subscribe`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!subResp.ok) {
-                console.error('Failed to get Mercure token:', subResp.status);
-                return;
-            }
-            const { token: mercureToken, topic } = await subResp.json() as { token: string; topic: string };
+            const { token: mercureToken, topic } = await universalApiRequest(`/api/chats/${chatId}/subscribe`, { locale: false }) as { token: string; topic: string };
 
             // 3. Открываем SSE-соединение
             const hubUrl = new URL(MERCURE_HUB_URL);
@@ -513,7 +490,7 @@ function Chat() {
         } catch (err) {
             console.error('Error setting up SSE:', err);
         }
-    }, [stopSSE, fetchChatMessages, markChatAsRead, setIsChatLoading, API_BASE_URL, MERCURE_HUB_URL, getTranslatedFullName, getImageUrl]);
+    }, [stopSSE, fetchChatMessages, markChatAsRead, setIsChatLoading, MERCURE_HUB_URL, getTranslatedFullName, getImageUrl]);
 
     const startPresenceSSE = useCallback((interlocutorId: number) => {
         if (presenceSourceRef.current) {
@@ -569,11 +546,7 @@ function Chat() {
         const token = getAuthToken();
         if (!token) return;
         try {
-            const resp = await fetch(`${API_BASE_URL}/api/chats/inbox-token`, {
-                headers: { 'Authorization': `Bearer ${token}` },
-            });
-            if (!resp.ok) return;
-            const { token: mercureToken, topics } = await resp.json() as { token: string | null; topics: string[] };
+            const { token: mercureToken, topics } = await universalApiRequest('/api/chats/inbox-token', { locale: false }) as { token: string | null; topics: string[] };
             if (!mercureToken || !topics?.length) return;
 
             const hubUrl = new URL(MERCURE_HUB_URL);
@@ -622,7 +595,7 @@ function Chat() {
             };
             es.onerror = () => { /* EventSource auto-reconnects */ };
         } catch { /* ignore network errors */ }
-    }, [API_BASE_URL, MERCURE_HUB_URL]);
+    }, [MERCURE_HUB_URL]);
 
     useEffect(() => { startInboxSSERef.current = startInboxSSE; }, [startInboxSSE]);
 
@@ -709,35 +682,22 @@ function Chat() {
 
     const sendMessageToServer = useCallback(async (chatId: number, messageText: string, replyToId?: number): Promise<number | false> => {
         try {
-            const token = getAuthToken();
-            if (!token) return false;
-
-            const response = await fetch(`${API_BASE_URL}/api/chat-messages`, {
+            const data: any = await universalApiRequest('/api/chat-messages', {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
+                body: {
                     description: messageText,
                     chat: `/api/chats/${chatId}`,
                     ...(replyToId ? { replyTo: `/api/chat-messages/${replyToId}` } : {})
-                })
+                },
+                locale: false,
             });
-
-            if (response.ok) {
-                const data = await response.json();
-                console.log(t('chat.messageSuccess'));
-                return typeof data.id === 'number' ? data.id : false;
-            } else {
-                console.error(t('chat.messageError'), response.status);
-                return false;
-            }
+            console.log(t('chat.messageSuccess'));
+            return typeof data.id === 'number' ? data.id : false;
         } catch (err) {
             console.error(t('chat.messageError'), err);
             return false;
         }
-    }, [API_BASE_URL, t]);
+    }, [t]);
 
     const deleteMessage = useCallback(async (messageId: number) => {
         if (!window.confirm(t('chat.deleteConfirm'))) {
@@ -745,21 +705,12 @@ function Chat() {
         }
 
         try {
-            const token = getAuthToken();
-            if (!token) return;
-            const response = await fetch(`${API_BASE_URL}/api/chat-messages/${messageId}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (response.ok || response.status === 204) {
-                setMessages(prev => prev.filter(msg => msg.id !== messageId));
-            } else {
-                console.error('Delete failed:', response.status);
-            }
+            await universalApiRequest(`/api/chat-messages/${messageId}`, { method: 'DELETE', locale: false });
+            setMessages(prev => prev.filter(msg => msg.id !== messageId));
         } catch (err) {
             console.error('Error deleting message:', err);
         }
-    }, [API_BASE_URL, t]);
+    }, [t]);
 
     const editMessageOnServer = useCallback(async (
         messageId: number,
@@ -768,16 +719,13 @@ function Chat() {
     ): Promise<boolean> => {
         const newFiles = (photoItems.filter(p => p.type === 'new') as Array<{ type: 'new'; file: File; previewUrl: string }>).map(p => p.file);
 
-        const fetchMessageImages = async (id: number, token: string): Promise<Array<{ id: number; image: string }>> => {
-            const response = await fetch(`${API_BASE_URL}/api/chat-messages/${id}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                }
-            });
-            if (!response.ok) return [];
-            const messageData = await response.json() as ApiMessage;
-            return (messageData.images || []).map(img => ({ id: img.id, image: img.image }));
+        const fetchMessageImages = async (id: number): Promise<Array<{ id: number; image: string }>> => {
+            try {
+                const messageData = await universalApiRequest(`/api/chat-messages/${id}`, { locale: false }) as ApiMessage;
+                return (messageData.images || []).map(img => ({ id: img.id, image: img.image }));
+            } catch {
+                return [];
+            }
         };
 
         try {
@@ -790,28 +738,21 @@ function Chat() {
                 }
             }
 
-            const currentImages = await fetchMessageImages(messageId, token);
+            const currentImages = await fetchMessageImages(messageId);
             const orderedImages = buildOrderedImagePayload(photoItems, currentImages);
 
-            const response = await fetch(`${API_BASE_URL}/api/chat-messages/${messageId}`, {
+            await universalApiRequest(`/api/chat-messages/${messageId}`, {
                 method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/merge-patch+json'
-                },
-                body: JSON.stringify({
-                    description: newText,
-                    chat: `/api/chats/${selectedChat}`,
-                    images: orderedImages
-                })
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: { description: newText, chat: `/api/chats/${selectedChat}`, images: orderedImages },
+                locale: false,
             });
-
-            return response.ok;
+            return true;
         } catch (err) {
             console.error('Error editing message:', err);
             return false;
         }
-    }, [API_BASE_URL, selectedChat]);
+    }, [selectedChat]);
 
     // Загрузка файлов к конкретному сообщению
     const uploadFilesToMessage = useCallback(async (messageId: number, files: File[]): Promise<void> => {
@@ -836,10 +777,11 @@ function Chat() {
         if (chatToSend?.isArchived) {
             const token = getAuthToken();
             if (token) {
-                await fetch(`${API_BASE_URL}/api/chats/${selectedChat}`, {
+        universalApiRequest(`/api/chats/${selectedChat}`, {
                     method: 'PATCH',
-                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/merge-patch+json' },
-                    body: JSON.stringify({ active: true })
+                    headers: { 'Content-Type': 'application/merge-patch+json' },
+                    body: { active: true },
+                    locale: false,
                 }).then(() => {
                     setChats(prev => prev.map(c => c.id === selectedChat ? { ...c, isArchived: false, active: true } : c));
                 }).catch(() => {});
@@ -912,7 +854,7 @@ function Chat() {
             }
         }
         // SSE created-событие доставит итоговое сообщение (текст без файлов)
-    }, [newMessage, selectedPhotoItems, selectedChat, currentUser, sendMessageToServer, editingMessage, editMessageOnServer, editingPhotoItems, replyToMessage, getTranslatedFullName, uploadFilesToMessage, fetchChatMessages, chats, API_BASE_URL]);
+    }, [newMessage, selectedPhotoItems, selectedChat, currentUser, sendMessageToServer, editingMessage, editMessageOnServer, editingPhotoItems, replyToMessage, getTranslatedFullName, uploadFilesToMessage, fetchChatMessages, chats]);
 
 
 
@@ -1046,47 +988,32 @@ function Chat() {
 
             console.log('Fetching chats with token...');
             const pageSize = getPageSize();
-            const response = await fetch(`${API_BASE_URL}/api/chats/me?page=${chatPage}&itemsPerPage=${pageSize}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                },
-            });
+            const responseData: any = await universalApiRequest(`/api/chats/me?page=${chatPage}&itemsPerPage=${pageSize}`, { locale: false });
 
             let chatsData: ApiChat[] = [];
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            let responseData: any = null;
 
-            if (response.ok) {
-                responseData = await response.json();
-                console.log('Chats API response:', responseData);
+            console.log('Chats API response:', responseData);
 
-                if (Array.isArray(responseData)) {
-                    chatsData = responseData.map(chat => ({
+            if (Array.isArray(responseData)) {
+                chatsData = responseData.map(chat => ({
+                    ...chat,
+                    isArchived: chat.active === false
+                }));
+            } else if (responseData && typeof responseData === 'object') {
+                if (responseData['hydra:member'] && Array.isArray(responseData['hydra:member'])) {
+                    chatsData = responseData['hydra:member'].map((chat: any) => ({
                         ...chat,
                         isArchived: chat.active === false
                     }));
-                } else if (responseData && typeof responseData === 'object') {
-                    if (responseData['hydra:member'] && Array.isArray(responseData['hydra:member'])) {
-                        chatsData = responseData['hydra:member'].map(chat => ({
-                            ...chat,
-                            isArchived: chat.active === false
-                        }));
-                    } else if (responseData.id) {
-                        chatsData = [{
-                            ...responseData,
-                            isArchived: responseData.active === false
-                        }];
-                    }
+                } else if (responseData.id) {
+                    chatsData = [{
+                        ...responseData,
+                        isArchived: responseData.active === false
+                    }];
                 }
-
-                console.log(`Parsed ${chatsData.length} chats`);
-            } else {
-                console.warn(`Failed to fetch chats (status: ${response.status})`);
-                // Any failure (404, 5xx, etc.) — just leave the list as-is, EmptyState handles it
-                setChatHasMore(false);
-                return;
             }
+
+            console.log(`Parsed ${chatsData.length} chats`);
 
             const { hasMore: fetchedHasMore } = parsePagedResponse(responseData, chatPage, pageSize);
 
@@ -1165,7 +1092,7 @@ function Chat() {
             if (!silent) { setIsLoading(false); setIsLoadingMoreChats(false); }
             else setIsChatListRefreshing(false);
         }
-    }, [API_BASE_URL, chatIdFromUrl, t, fetchChatMessages, chatPage]);
+    }, [chatIdFromUrl, t, fetchChatMessages, chatPage]);
 
     // Перезагружаем чаты при смене страницы
     useEffect(() => {
@@ -1190,19 +1117,13 @@ function Chat() {
                 return;
             }
 
-            const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}`, {
+            await universalApiRequest(`/api/chats/${chatId}`, {
                 method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/merge-patch+json'
-                },
-                body: JSON.stringify({
-                    active: !archive
-                })
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: { active: !archive },
+                locale: false,
             });
-
-            if (response.ok) {
-                setChats(prev => prev.map(chat =>
+            setChats(prev => prev.map(chat =>
                     chat.id === chatId
                         ? { ...chat, isArchived: archive, active: !archive }
                         : chat
@@ -1218,17 +1139,11 @@ function Chat() {
                 if (!archive && selectedChat === chatId) {
                     fetchChatMessages(chatId);
                 }
-            } else {
-                console.error(`Error updating chat: ${response.status}`);
-                const errorText = await response.text();
-                console.error('Error response:', errorText);
-                setError(archive ? t('chat.archiveError') : t('chat.restoreError'));
-            }
         } catch (error) {
             console.error(`Error ${archive ? 'archiving' : 'unarchiving'} chat:`, error);
-            setError(t('chat.operationError'));
+            setError(archive ? t('chat.archiveError') : t('chat.restoreError'));
         }
-    }, [API_BASE_URL, selectedChat, activeTab, t, fetchChatMessages]);
+    }, [selectedChat, activeTab, t, fetchChatMessages]);
 
     // ===== ФУНКЦИИ ДЛЯ РАБОТЫ С ФАЙЛАМИ И ФОТО =====
 
@@ -1236,14 +1151,18 @@ function Chat() {
         const files = event.target.files;
         if (files && files.length > 0) {
             const newFiles = Array.from(files);
+            const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
             const validFiles = newFiles.filter(file => {
                 const fileType = file.type;
-                const isValid = fileType.startsWith('image/');
-                if (!isValid) {
+                const isValidType = fileType.startsWith('image/');
+                const isValidSize = file.size <= MAX_FILE_SIZE;
+                if (!isValidType) {
                     setError(t('chat.fileNotImage', { filename: file.name }));
+                } else if (!isValidSize) {
+                    setError(t('chat.fileTooLarge', { filename: file.name, max: '10MB' }));
                 }
-                return isValid;
+                return isValidType && isValidSize;
             });
 
             const newItems: PhotoItem[] = validFiles.map(file => ({

@@ -4,7 +4,7 @@ import { ROUTES } from '../../app/routers/routes';
 import { PageLoader } from '../../widgets/PageLoader';
 import Status from '../../shared/ui/Modal/Status';
 import { useTranslation } from 'react-i18next';
-import { API_BASE_URL } from '../../utils/config';
+import { universalApiRequest } from '../../utils/apiHelper';
 
 const ConfirmAccountPage = () => {
     const { token } = useParams<{ token: string }>();
@@ -23,18 +23,12 @@ const ConfirmAccountPage = () => {
 
         const confirm = async () => {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/confirm-account/`, {
+                await universalApiRequest('/api/confirm-account/', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token }),
+                    body: { token },
+                    requiresAuth: false,
+                    locale: false,
                 });
-
-                if (!response.ok) {
-                    setError(t('confirmAccount.linkExpired'));
-                    setLoading(false);
-                    return;
-                }
-
                 setSuccess(true);
                 setTimeout(() => navigate(ROUTES.HOME, { replace: true }), 3000);
             } catch {
@@ -45,7 +39,7 @@ const ConfirmAccountPage = () => {
         };
 
         confirm();
-    }, [token, API_BASE_URL, navigate, t]);
+    }, [token, navigate, t]);
 
     if (loading) {
         return <PageLoader text={t('confirmAccount.loading')} />;

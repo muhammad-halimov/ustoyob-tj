@@ -1,9 +1,8 @@
 import {useState, useEffect, useCallback} from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { getAuthToken, getUserRole, getUserData } from '../../../utils/auth';
-import { getStorageItem } from '../../../utils/storageHelper';
 import { useLanguageChange } from '../../../hooks';
-import { createChatWithAuthor } from '../../../utils/chatUtils';
+import { createChatWithAuthor, getChatsMe } from '../../../utils/chatUtils';
 import Status from '../../../shared/ui/Modal/Status';
 import Feedback from '../../../shared/ui/Modal/Feedback';
 
@@ -20,7 +19,7 @@ import { truncateText } from '../../../utils/textHelper';
 import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore';
 import { SelectSearch } from '../../../shared/ui/SelectSearch';
 import { getPageSize } from '../../../utils/pageSize';
-import { parsePagedResponse, ticketToTicketView, getTicketFullAddress, getTicketShortAddress } from '../../../utils/apiHelper';
+import { parsePagedResponse, ticketToTicketView, getTicketFullAddress, getTicketShortAddress, universalApiRequest } from '../../../utils/apiHelper';
 import { useShowMore } from '../../../hooks';
 import type { Ticket, TicketView } from '../../../entities';
 import type { Occupation } from '../../../entities';
@@ -88,12 +87,8 @@ function Category() {
         if (!token) return;
         (async () => {
             try {
-                const res = await fetch(`${API_BASE_URL}/api/chats/me`, {
-                    headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
-                });
-                if (!res.ok) return;
-                const data = await res.json();
-                const chats: any[] = data['hydra:member'] || (Array.isArray(data) ? data : []);
+                const data = await getChatsMe();
+                const chats: any[] = data;
                 const ids = new Set<number>();
                 chats.forEach((chat: any) => {
                     const t = chat.ticket;
@@ -209,32 +204,15 @@ function Category() {
 
     const fetchCategoryName = async () => {
         try {
-            const token = getAuthToken();
-            const locale = getStorageItem('i18nextLng') || 'ru';
-            const headers: HeadersInit = {
-                'Accept': 'application/json',
-                ...(token && { 'Authorization': `Bearer ${token}` })
-            };
-
-            const response = await fetch(`${API_BASE_URL}/api/categories/${id}?locale=${locale}`, {
-                headers: headers
-            });
-
-            if (response.ok) {
-                const categoryData = await response.json();
-                // Handle both direct object and Hydra collection / array responses
-                const title =
-                    categoryData?.title ||
-                    (Array.isArray(categoryData) ? categoryData[0]?.title : null) ||
-                    categoryData?.['hydra:member']?.[0]?.title ||
-                    '';
-                if (title) setAndCacheCategoryName(title);
-            } else {
-                // keep existing name
-            }
+            const categoryData = await universalApiRequest(`/api/categories/${id}`);
+            const title =
+                categoryData?.title ||
+                (Array.isArray(categoryData) ? categoryData[0]?.title : null) ||
+                categoryData?.['hydra:member']?.[0]?.title ||
+                '';
+            if (title) setAndCacheCategoryName(title);
         } catch (error) {
             console.error('Error fetching category name:', error);
-            // keep whatever name we already have
         }
     };
 
@@ -349,26 +327,17 @@ function Category() {
                 serviceParam = '&service=false';
             }
             const pageSize = getPageSize();
-            const endpoint = `/api/tickets?locale=${locale}&active=true&category=${id}&page=${page}&itemsPerPage=${pageSize}${serviceParam}${selectedSubcategory ? `&subcategory=${selectedSubcategory}` : ''}${currentUserId ? `&author.id[ne]=${currentUserId}&master.id[ne]=${currentUserId}` : ''}`;
-
-            console.log('✅ Category - Selected endpoint:', `${API_BASE_URL}${endpoint}`);
-
-            const headers: HeadersInit = {
-                'Accept': 'application/json',
-                ...(token && { 'Authorization': `Bearer ${token}` })
-            };
-
-            const response = await fetch(`${API_BASE_URL}${endpoint}`, { headers });
+            const endpoint = `/api/tickets?active=true&category=${id}&page=${page}&itemsPerPage=${pageSize}${serviceParam}${selectedSubcategory ? `&subcategory=${selectedSubcategory}` : ''}${currentUserId ? `&author.id[ne]=${currentUserId}&master.id[ne]=${currentUserId}` : ''}`;
 
             let ticketsData: Ticket[] = [];
             let fetchedHasMore = false;
-            if (response.ok) {
-                const data = await response.json();
+            try {
+                const data = await universalApiRequest(endpoint);
                 const parsed = parsePagedResponse<Ticket>(data, page, pageSize);
                 ticketsData = parsed.items;
                 fetchedHasMore = parsed.hasMore;
-            } else {
-                console.error('Category - Error fetching tickets:', response.status, response.statusText);
+            } catch (err) {
+                console.error('Category - Error fetching tickets:', err);
             }
 
             console.log('Category - Total tickets received:', ticketsData.length);

@@ -14,9 +14,8 @@ import { IoWarningOutline } from 'react-icons/io5';
 import Feedback from '../../../shared/ui/Modal/Feedback';
 import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore';
 import { getPageSize } from '../../../utils/pageSize';
-import { parsePagedResponse } from '../../../utils/apiHelper';
+import { parsePagedResponse, universalApiRequest } from '../../../utils/apiHelper';
 import { useShowMore } from '../../../hooks';
-import { API_BASE_URL } from '../../../utils/config';
 
 interface MainReviewsSectionProps {
     className?: string;
@@ -38,27 +37,14 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
         try {
             setLoading(true);
             const pageSize = getPageSize();
-            const url = `${API_BASE_URL}/api/reviews?page=${currentPage}&itemsPerPage=${pageSize}`;
-            console.log('Fetching reviews from:', url);
-            
-            const response = await fetch(url);
-            
-            if (response.ok) {
-                const data = await response.json();
-                
-                const { items: reviewsData, hasMore: fetchedHasMore } = parsePagedResponse<any>(data, currentPage, pageSize);
-                
-                // Сортируем по дате создания (самые новые сначала)
-                const sortedReviews = reviewsData.sort((a, b) => {
-                    const dateA = new Date(a.createdAt || 0).getTime();
-                    const dateB = new Date(b.createdAt || 0).getTime();
-                    return dateB - dateA;
-                });
-                
-                applyReviewsFetch(sortedReviews, fetchedHasMore);
-            } else {
-                console.error('Response not ok:', response.status, response.statusText);
-            }
+            const data = await universalApiRequest(`/api/reviews?page=${currentPage}&itemsPerPage=${pageSize}`, { requiresAuth: false });
+            const { items: reviewsData, hasMore: fetchedHasMore } = parsePagedResponse<any>(data, currentPage, pageSize);
+            const sortedReviews = reviewsData.sort((a: any, b: any) => {
+                const dateA = new Date(a.createdAt || 0).getTime();
+                const dateB = new Date(b.createdAt || 0).getTime();
+                return dateB - dateA;
+            });
+            applyReviewsFetch(sortedReviews, fetchedHasMore);
         } catch (error) {
             console.error('Error fetching reviews:', error);
         } finally {
@@ -72,7 +58,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
             return;
         }
         fetchReviews(page);
-    }, [API_BASE_URL, page]);
+    }, [page]);
 
 
 
@@ -163,8 +149,9 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
     const getReviewImageUrl = (imagePath: string): string => {
         if (!imagePath) return './default_user.png';
         if (imagePath.startsWith('http')) return imagePath;
-        if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) return `${API_BASE_URL}${imagePath}`;
-        return `${API_BASE_URL}/uploads/reviews/${imagePath}`;
+        const base = import.meta.env.VITE_API_BASE_URL || '';
+        if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) return `${base}${imagePath}`;
+        return `${base}/uploads/reviews/${imagePath}`;
     };
 
     // Аватар заказчика через общую утилиту

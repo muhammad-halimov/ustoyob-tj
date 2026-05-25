@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getAuthToken, handleUnauthorized } from '../../../../utils/auth';
 import { getStorageItem } from '../../../../utils/storageHelper';
 import { AddressValueView, AddressDataView } from '../../../../entities';
 import type { Province, City, District } from '../../../../entities';
-import { API_BASE_URL } from '../../../../utils/config';
+import { getProvinces, getCities, getDistricts } from '../../../../utils/dataCache';
 import { PageLoader } from '../../../../widgets/PageLoader';
 import { SelectSearch } from '../../SelectSearch';
 import styles from './Address.module.scss';
@@ -41,35 +40,14 @@ const Address = ({ value, onChange }: AddressSelectorProps) => {
     const fetchLocationData = async () => {
         try {
             setIsLocationLoading(true);
-            const token = getAuthToken();
-            if (!token) return;
-            const lang = getStorageItem('i18nextLng') || 'ru';
-
-            const makeRequest = async () => {
-                const currentToken = getAuthToken();
-                return Promise.all([
-                    fetch(`${API_BASE_URL}/api/provinces?locale=${lang}`, { headers: { 'Authorization': `Bearer ${currentToken}` } }),
-                    fetch(`${API_BASE_URL}/api/cities?locale=${lang}`, { headers: { 'Authorization': `Bearer ${currentToken}` } }),
-                    fetch(`${API_BASE_URL}/api/districts?locale=${lang}`, { headers: { 'Authorization': `Bearer ${currentToken}` } })
-                ]);
-            };
-
-            let [provincesRes, citiesRes, districtsRes] = await makeRequest();
-
-            // Проверяем на 401 и пробуем обновить токен
-            if (provincesRes.status === 401 || citiesRes.status === 401 || districtsRes.status === 401) {
-                const refreshed = await handleUnauthorized();
-                if (refreshed) {
-                    // Повторяем запросы с новым токеном
-                    [provincesRes, citiesRes, districtsRes] = await makeRequest();
-                } else {
-                    return;
-                }
-            }
-
-            if (provincesRes.ok) setProvinces(await provincesRes.json());
-            if (citiesRes.ok) setCities(await citiesRes.json());
-            if (districtsRes.ok) setDistricts(await districtsRes.json());
+            const [provincesData, citiesData, districtsData] = await Promise.all([
+                getProvinces(),
+                getCities(),
+                getDistricts(),
+            ]);
+            setProvinces(provincesData);
+            setCities(citiesData);
+            setDistricts(districtsData);
         } catch (err) {
             console.error('Error fetching location data:', err);
         } finally {
@@ -80,7 +58,7 @@ const Address = ({ value, onChange }: AddressSelectorProps) => {
     useEffect(() => {
         fetchLocationData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [API_BASE_URL, locale]);
+    }, [locale]);
 
     // Фильтрованные данные
     const citiesInSelectedProvince = selectedProvinceId

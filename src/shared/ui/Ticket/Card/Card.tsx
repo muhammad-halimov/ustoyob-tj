@@ -3,7 +3,7 @@ import {useTranslation} from 'react-i18next';
 import {useLanguageChange, useTranslatedName, useTranslatedText} from '../../../../hooks';
 import React, {useEffect, useState} from 'react';
 import {Link} from 'react-router-dom';
-import {useFavorites} from '../../useFavorites';
+import {useFavorites} from '../../../../hooks/useFavorites.ts';
 import {ROUTES} from '../../../../app/routers/routes';
 import {truncateText} from '../../../../utils/textHelper';
 import {Marquee} from '../../Text/Marquee';

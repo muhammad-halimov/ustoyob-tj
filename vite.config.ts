@@ -8,6 +8,10 @@ export default defineConfig(({ mode }) => {
   
   return {
     plugins: [react(), basicSsl()],
+    esbuild: {
+      // Strip all console.* and debugger statements in production builds
+      drop: mode === 'production' ? ['console', 'debugger'] : [],
+    },
     server: {
       proxy: {
         '/api': {

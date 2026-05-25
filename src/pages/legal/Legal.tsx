@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
+import DOMPurify from 'dompurify';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { getAuthToken } from '../../utils/auth';
 import { ROUTES } from '../../app/routers/routes';
 import { Tabs } from '../../shared/ui/Tabs';
 import PageLoader from '../../widgets/PageLoader/PageLoader';
 import { IoDocumentTextOutline, IoShieldCheckmarkOutline, IoReceiptOutline } from 'react-icons/io5';
 import styles from './Legal.module.scss';
 import type { LegalDocument, LegalDocumentType } from '../../entities';
-import { API_BASE_URL } from '../../utils/config';
+import { universalApiRequest } from '../../utils/apiHelper';
+import type { LocaleType } from '../../utils/apiHelper';
 
 function Legal() {
     const { t, i18n } = useTranslation('common');
@@ -37,28 +38,12 @@ function Legal() {
             try {
                 setIsLoading(true);
                 setError(null);
-                const token = getAuthToken();
-                
-                const headers: HeadersInit = {
-                    'Accept': 'application/json',
-                    ...(token && { 'Authorization': `Bearer ${token}` })
-                };
-
-                const locale = i18n.language || 'ru';
-                const response = await fetch(`${API_BASE_URL}/api/legals?type=${activeType}&locale=${locale}`, {
-                    headers
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    // API возвращает массив с одним объектом для конкретного типа
-                    if (Array.isArray(data) && data.length > 0) {
-                        setDocument(data[0]);
-                    } else {
-                        throw new Error('Document not found');
-                    }
+                const locale = (i18n.language || 'tj') as LocaleType;
+                const data = await universalApiRequest(`/api/legals?type=${activeType}`, { locale });
+                if (Array.isArray(data) && data.length > 0) {
+                    setDocument(data[0]);
                 } else {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    throw new Error('Document not found');
                 }
             } catch (err) {
                 console.error('Error fetching legal document:', err);
@@ -120,7 +105,7 @@ function Legal() {
                         </div>
                         <div
                             className={styles.description}
-                            dangerouslySetInnerHTML={{ __html: document.description }}
+                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(document.description) }}
                         />
                     </>
                 )}

@@ -13,7 +13,7 @@ import {
     setUserOccupation
 } from '../../utils/auth';
 import type { BackendAuthCallbackResponse } from '../../entities';
-import { API_BASE_URL } from '../../utils/config';
+import { universalApiRequest } from '../../utils/apiHelper';
 
 const TelegramLinkEmailPage = () => {
     const navigate = useNavigate();
@@ -43,16 +43,12 @@ const TelegramLinkEmailPage = () => {
         setError('');
 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/auth/telegram/link-email`, {
+            const data: BackendAuthCallbackResponse = await universalApiRequest('/api/auth/telegram/link-email', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify({ temp_token: tempToken, email }),
+                body: { temp_token: tempToken, email },
+                requiresAuth: false,
+                locale: false,
             });
-
-            const data: BackendAuthCallbackResponse = await response.json();
 
             if (data.error === 'invalid_token') {
                 sessionStorage.removeItem('telegramTempToken');
@@ -124,13 +120,12 @@ const TelegramLinkEmailPage = () => {
         setError('');
 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/auth/telegram/link-email`, {
+            const data: BackendAuthCallbackResponse = await universalApiRequest('/api/auth/telegram/link-email', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                body: JSON.stringify({ temp_token: tempToken }),
+                body: { temp_token: tempToken },
+                requiresAuth: false,
+                locale: false,
             });
-
-            const data: BackendAuthCallbackResponse = await response.json();
 
             if (data.token && data.user) {
                 setAuthToken(data.token);

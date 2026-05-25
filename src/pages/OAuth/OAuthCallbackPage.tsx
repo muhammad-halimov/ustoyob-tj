@@ -13,8 +13,9 @@ import {
     setUserOccupation,
     getAuthToken,
 } from '../../utils/auth';
-import type { OAuthErrorResponse, OAuthProviderName, BackendAuthCallbackResponse } from '../../entities';
+import type { OAuthProviderName, BackendAuthCallbackResponse } from '../../entities';
 import { API_BASE_URL } from '../../utils/config';
+import { universalApiRequest } from '../../utils/apiHelper';
 
 // Определяем провайдер по URL
 const getProviderFromUrl = (pathname: string): OAuthProviderName | null => {
@@ -86,16 +87,11 @@ const OAuthCallbackPage = () => {
                         setLoading(false);
                         return;
                     }
-                    const linkRes = await fetch(`${API_BASE_URL}/api/profile/oauth/link`, {
+                    const linkData = await universalApiRequest('/api/profile/oauth/link', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'Authorization': `Bearer ${jwtToken}`,
-                        },
-                        body: JSON.stringify({ provider: detectedProvider, code, state }),
+                        body: { provider: detectedProvider, code, state },
+                        locale: false,
                     });
-                    const linkData = await linkRes.json();
                     if (linkData.error === 'provider_taken' || linkData.error === 'oauth_provider_taken') {
                         setError(linkData.message || t('oauth.providerTaken') || 'This account is already linked to another user');
                         setLoading(false);
@@ -129,6 +125,17 @@ const OAuthCallbackPage = () => {
                 const savedRoleKey = `pending${detectedProvider.charAt(0).toUpperCase() + detectedProvider.slice(1)}Role`;
                 const savedSpecialtyKey = `pending${detectedProvider.charAt(0).toUpperCase() + detectedProvider.slice(1)}Specialty`;
 
+                // Валидируем CSRF state (sessionStorage доступен только если та же вкладка)
+                const savedCsrfState = sessionStorage.getItem(`${detectedProvider}CsrfState`);
+                if (savedCsrfState && state !== savedCsrfState) {
+                    sessionStorage.removeItem(`${detectedProvider}CsrfState`);
+                    setError(t('oauth.invalidState') || 'Invalid OAuth state. Possible CSRF attack.');
+                    setLoading(false);
+                    setTimeout(() => navigate(ROUTES.HOME), 3000);
+                    return;
+                }
+                sessionStorage.removeItem(`${detectedProvider}CsrfState`);
+
                 const savedRole = sessionStorage.getItem(savedRoleKey) || 'client';
                 const savedSpecialty = sessionStorage.getItem(savedSpecialtyKey);
 
@@ -148,27 +155,14 @@ const OAuthCallbackPage = () => {
                     requestData.occupation = `${API_BASE_URL}/api/occupations/${savedSpecialty}`;
                 }
 
-                const response = await fetch(`${API_BASE_URL}/api/auth/${detectedProvider}/callback`, {
+                const callbackData: BackendAuthCallbackResponse = await universalApiRequest(`/api/auth/${detectedProvider}/callback`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                    },
-                    body: JSON.stringify(requestData)
+                    body: requestData,
+                    requiresAuth: false,
+                    locale: false,
                 });
 
-                const responseText = await response.text();
-
-                if (!response.ok) {
-                    try {
-                        const errorData: OAuthErrorResponse = JSON.parse(responseText);
-                        throw new Error(errorData.error_description || errorData.message || errorData.error || `HTTP ${response.status}`);
-                    } catch (parseError) {
-                        throw new Error(`Ошибка сервера: ${response.status} - ${responseText}`);
-                    }
-                }
-
-                const data: BackendAuthCallbackResponse = JSON.parse(responseText);
+                const data: BackendAuthCallbackResponse = callbackData;
 
                 if (data.error === 'email_taken') {
                     setError(t('oauth.emailTaken'));

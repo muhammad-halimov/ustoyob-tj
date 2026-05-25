@@ -3,7 +3,7 @@ import {useEffect, useRef, useState} from 'react';
 import {getAuthToken, getUserData, getUserRole} from '../../../utils/auth';
 import { getAuthorAvatar, formatTicketImageUrl } from '../../../utils/imageHelper';
 import styles from './Ticket.module.scss';
-import {createChatWithAuthor, initChatModals} from "../../../utils/chatUtils";
+import {createChatWithAuthor, initChatModals, getChatsMe} from "../../../utils/chatUtils";
 import Auth from "../../../shared/ui/Modal/Auth/Auth";
 import {smartNameTranslator, textHelper} from "../../../utils/textHelper";
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
@@ -14,7 +14,7 @@ import Status from '../../../shared/ui/Modal/Status';
 import Feedback from '../../../shared/ui/Modal/Feedback';
 import { Carousel } from '../../../shared/ui/Photo/Carousel';
 import { Marquee } from '../../../shared/ui/Text/Marquee';
-import {useFavorites} from '../../../shared/ui/useFavorites';
+import {useFavorites} from '../../../hooks/useFavorites.ts';
 import {ROUTES} from '../../../app/routers/routes';
 import {ReviewsSection} from '../../profile/shared/ui/ReviewsSection';
 import {SocialNetworksSection} from '../../profile/shared/ui/SocialNetworksSection';
@@ -27,7 +27,7 @@ import { ActionsDropdown } from '../../../widgets/ActionsDropdown';
 import Recommendations from '../../main/recommendations/Recommendations';
 import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore';
 import { getPageSize } from '../../../utils/pageSize';
-import { getTicketFullAddress, parsePagedResponse } from '../../../utils/apiHelper';
+import { getTicketFullAddress, parsePagedResponse, universalApiRequest } from '../../../utils/apiHelper';
 import { useShowMore } from '../../../hooks';
 import { API_BASE_URL } from '../../../utils/config';
 
@@ -70,7 +70,7 @@ export function Ticket() {
     // States for reviews
     const [reviews, setReviews] = useState<ReviewType[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(false);
-    const { page: reviewsPage, skipFetchRef: skipReviewsFetchRef, applyFetch: applyReviewsFetch, setHasMore: setReviewsHasMore, showMoreProps: reviewsShowMoreProps } = useShowMore<ReviewType>(setReviews);
+    const { page: reviewsPage, skipFetchRef: skipReviewsFetchRef, applyFetch: applyReviewsFetch, showMoreProps: reviewsShowMoreProps } = useShowMore<ReviewType>(setReviews);
 
     const [reviewCount, setReviewCount] = useState<number>(0);
     const [responsesCount, setResponsesCount] = useState<number>(0);
@@ -212,36 +212,9 @@ export function Ticket() {
 
             console.log('Fetching ticket with ID:', ticketId);
 
-            const headers: HeadersInit = {
-                'Content-Type': 'application/json',
-            };
+            const responseData = await universalApiRequest(`/api/tickets/${ticketId}`);
 
-            const token = getAuthToken();
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-
-            const currentLocale = getStorageItem('i18nextLng') || 'ru';
-            const response = await fetch(`${API_BASE_URL}/api/tickets/${ticketId}?locale=${currentLocale}`, {
-                method: 'GET',
-                headers: headers,
-            });
-
-            if (!response.ok) {
-                if (response.status === 404) {
-                    setError(t('ticket:ticketNotFound'));
-                    return;
-                } else if (response.status === 403) {
-                    setError(t('ticket:accessDenied'));
-                    return;
-                }
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-        const responseData = await response.json();
-        console.log('Raw API response:', responseData);
-
-        // API может возвращать как объект, так и массив с одним элементом
+            // API может возвращать как объект, так и массив с одним элементом
         let ticketData: ApiTicket;
         
         if (Array.isArray(responseData)) {
@@ -462,30 +435,17 @@ export function Ticket() {
         try {
             setIsTogglingActive(true);
             const newActiveStatus = !isTicketActive;
-
-            const response = await fetch(`${API_BASE_URL}/api/tickets/${order.id}`, {
+            await universalApiRequest(`/api/tickets/${order.id}`, {
                 method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/merge-patch+json',
-                },
-                body: JSON.stringify({
-                    active: newActiveStatus
-                }),
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: { active: newActiveStatus },
+                locale: false,
             });
-
-            if (response.ok) {
-                setIsTicketActive(newActiveStatus);
-                setOrder(prev => prev ? { ...prev, active: newActiveStatus } : null);
-
-                setModalMessage(newActiveStatus ? t('ticket:activatedSuccess') : t('ticket:deactivatedSuccess'));
-                setShowSuccessModal(true);
-                setTimeout(() => setShowSuccessModal(false), 3000);
-            } else {
-                const errorText = await response.text();
-                console.error('Error toggling active status:', errorText);
-                throw new Error(newActiveStatus ? t('ticket:activateError') : t('ticket:deactivateError'));
-            }
+            setIsTicketActive(newActiveStatus);
+            setOrder(prev => prev ? { ...prev, active: newActiveStatus } : null);
+            setModalMessage(newActiveStatus ? t('ticket:activatedSuccess') : t('ticket:deactivatedSuccess'));
+            setShowSuccessModal(true);
+            setTimeout(() => setShowSuccessModal(false), 3000);
         } catch (error) {
             console.error('Error toggling active status:', error);
             setModalMessage(`Ошибка при ${isTicketActive ? 'деактивации' : 'активации'} объявления`);
@@ -543,11 +503,7 @@ export function Ticket() {
         }
     };
 
-    const handleLoginSuccess = (token: string, email?: string) => {
-        console.log('Login successful, token:', token);
-        if (email) {
-            console.log('User email:', email);
-        }
+    const handleLoginSuccess = (_token: string, _email?: string) => {
         setShowAuthModal(false);
 
         if (order?.authorId) {
@@ -602,26 +558,7 @@ export function Ticket() {
     };
 
     const getUserInfoWithoutAuth = async (userId: number): Promise<any> => {
-        try {
-            console.log(`Fetching user info for ID: ${userId} without auth`);
-
-            const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
-                headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (response.ok) {
-                return await response.json();
-            } else {
-                console.log(`User info fetch failed: ${response.status}`);
-                throw new Error(`Failed to fetch user info: ${response.status}`);
-            }
-        } catch (error) {
-            console.error('Error fetching user info:', error);
-            throw error;
-        }
+        return universalApiRequest(`/api/users/${userId}`, { requiresAuth: false, locale: false });
     };
     
     // Проверяем существующие чаты пользователя
@@ -632,22 +569,7 @@ export function Ticket() {
         setIsCheckingChats(true);
         
         try {
-            const response = await fetch(`${API_BASE_URL}/api/chats/me`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                },
-            });
-
-            if (response.ok) {
-                const responseData = await response.json();
-                let chatsData: any[] = [];
-
-                if (Array.isArray(responseData)) {
-                    chatsData = responseData;
-                } else if (responseData && responseData['hydra:member']) {
-                    chatsData = responseData['hydra:member'];
-                }
+            const chatsData = await getChatsMe();
 
                 // Helper: extract numeric id from object or IRI string "/api/xxx/123"
                 const extractId = (obj: any): number | undefined => {
@@ -670,7 +592,6 @@ export function Ticket() {
                 } else {
                     setExistingChatId(null);
                 }
-            }
         } catch (error) {
             console.error('Error checking existing chats:', error);
         } finally {
@@ -711,39 +632,13 @@ export function Ticket() {
         setReviewsLoading(true);
         
         try {
-            const token = getAuthToken();
-            
             // Тип тикета уже известен из fetchOrder — не делаем повторный запрос
             const isService = isServiceRef.current;
             
             // Формируем правильный эндпоинт
             const serviceParam = isService ? 'true' : 'false';
             const pageSize = getPageSize();
-            const url = `${API_BASE_URL}/api/reviews?ticket.service=${serviceParam}&exists[ticket]=true&exists[master]=true&exists[client]=true&ticket=${order.id}&page=${reviewsPage}&itemsPerPage=${pageSize}`;
-            
-            const headers: HeadersInit = {
-                'Content-Type': 'application/json',
-            };
-            
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-            
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: headers,
-            });
-            
-            if (!response.ok) {
-                console.error('Failed to fetch reviews:', response.statusText);
-                setReviews([]);
-                setReviewsHasMore(false);
-                return;
-            }
-            
-            const data = await response.json();
-            
-            // API может вернуть объект с 'hydra:member' или массив
+            const data = await universalApiRequest(`/api/reviews?ticket.service=${serviceParam}&exists[ticket]=true&exists[master]=true&exists[client]=true&ticket=${order.id}&page=${reviewsPage}&itemsPerPage=${pageSize}`);
             const { items: reviewsData, hasMore: fetchedHasMore } = parsePagedResponse(data, reviewsPage, pageSize);
             
             console.log('=== Ticket Reviews Debug ===');
@@ -872,32 +767,17 @@ export function Ticket() {
         setSimilarTicketsLoading(true);
         
         try {
-            const token = getAuthToken();
-            const locale = i18n.language || 'ru';
-            
             // Строим параметры фильтрации: та же категория, но не этот тикет, активные и исключаем свои тикеты
             const params = new URLSearchParams({
-                locale,
                 active: 'true',
                 'category.id': String(order.categoryId),
                 'id[ne]': String(order.id),
             });
-            
-            // Исключаем тикеты текущего пользователя
             if (currentUserId) {
                 params.append('author.id[ne]', String(currentUserId));
                 params.append('master.id[ne]', String(currentUserId));
             }
-            
-            const headers: HeadersInit = {
-                'Accept': 'application/json',
-                ...(token && { 'Authorization': `Bearer ${token}` })
-            };
-            
-            const response = await fetch(`${API_BASE_URL}/api/tickets?${params.toString()}`, { headers });
-            
-            if (response.ok) {
-                let data: ApiTicket[] = await response.json();
+            let data: ApiTicket[] = await universalApiRequest(`/api/tickets?${params.toString()}`);
                 
                 // Если вернул Hydra формат
                 if (!Array.isArray(data) && (data as any)['hydra:member']) {
@@ -919,7 +799,6 @@ export function Ticket() {
                 
                 // Ограничиваем до 6 похожих объявлений
                 setSimilarTickets(data.slice(0, 6));
-            }
         } catch (error) {
             console.error('Error fetching similar tickets:', error);
             setSimilarTickets([]);
