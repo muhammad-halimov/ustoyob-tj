@@ -99,7 +99,7 @@ class AppealReason
     #[Groups([
         G::APPEAL_REASON,
     ])]
-    private string $applicableTo = 'both';
+    private string $applicableTo = 'overall';
 
     /**
      * @var Collection<int, Translation>

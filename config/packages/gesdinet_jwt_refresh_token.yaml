@@ -6,7 +6,7 @@ gesdinet_jwt_refresh_token:
     cookie:
         enabled: true
         http_only: "%env(bool:REFRESH_TOKEN_COOKIE_HTTP_ONLY)%"
-        path: "%env(bool:REFRESH_TOKEN_COOKIE_PATH)%"
+        path: "%env(REFRESH_TOKEN_COOKIE_PATH)%"
 
 when@prod:
     gesdinet_jwt_refresh_token:
