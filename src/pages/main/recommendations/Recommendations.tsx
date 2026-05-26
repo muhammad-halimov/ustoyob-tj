@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getUserRole, getAuthToken, getUserData } from '../../../utils/auth';
+import { getStorageItem } from '../../../utils/storageHelper';
 import { useLanguageChange } from '../../../hooks';
 import { Card } from '../../../shared/ui/Ticket/Card/Card';
 import styles from './Recommendations.module.scss';
@@ -19,14 +20,22 @@ import { getTicketFullAddress, universalApiRequest } from '../../../utils/apiHel
 const RECS_INITIAL_SIZE = 6;
 const RECS_PAGE_SIZE = 12;
 
+/** Props for the Recommendations section. */
 interface RecommendationsProps {
+    /** When provided, uses this data instead of fetching from the API. */
     customData?: Ticket[];
     customLoading?: boolean;
+    /** Whether to render the "Show more" button. Default: true. */
     showMoreButton?: boolean;
     initialLimit?: number;
     onItemClick?: (id: number) => void;
 }
 
+/**
+ * Ticket recommendations section.
+ * Fetches recommended tickets from /api/tickets filtered by the user's selected
+ * city. Supports "show more" pagination. Can be fed custom data (e.g. for tests).
+ */
 function Recommendations({ 
     customData, 
     customLoading = false,
@@ -127,7 +136,7 @@ function Recommendations({
                 : (responseData?.['hydra:member'] as Ticket[] | undefined) ?? [];
 
             // Сортируем: сначала тикеты из выбранного города
-            const selectedCity = localStorage.getItem('selectedCity') || '';
+            const selectedCity = getStorageItem('selectedCity') || '';
             if (selectedCity) {
                 data = data.sort((a, b) => {
                     const aMatchesCity = a.addresses?.some(addr => addr.city?.title === selectedCity) ?? false;

@@ -31,7 +31,12 @@ import { getTicketFullAddress, parsePagedResponse, universalApiRequest } from '.
 import { useShowMore } from '../../../hooks';
 import { API_BASE_URL } from '../../../utils/config';
 
-
+/**
+ * Ticket detail page.
+ * Fetches a single ticket by ID from /api/tickets/:id.
+ * Displays full ticket info: photos, description, address, author, reviews.
+ * Handles favorite toggle, chat creation, and complaint submission.
+ */
 export function Ticket() {
     const {id} = useParams<{ id: string }>();
     const navigate = useNavigate();

@@ -1,4 +1,5 @@
 // ─── Географические сущности (бэк: Geography\*) ─────────────
+/** Province (oblast / viloyat). Top level of the address hierarchy. */
 export interface Province {
     id: number;
     title: string;
@@ -6,6 +7,7 @@ export interface Province {
     [key: string]: unknown;
 }
 
+/** City. Belongs to a Province; may have Suburbs. */
 export interface City {
     id: number;
     title: string;
@@ -17,6 +19,7 @@ export interface City {
     [key: string]: unknown;
 }
 
+/** Suburb / mikrorayon of a City. */
 export interface Suburb {
     id: number;
     title: string;
@@ -26,6 +29,7 @@ export interface Suburb {
     [key: string]: unknown;
 }
 
+/** District (rayon). Belongs to a Province; contains Settlements and Communities. */
 export interface District {
     id: number;
     title?: string;

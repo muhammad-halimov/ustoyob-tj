@@ -1,5 +1,10 @@
 // utils/storageHelper.ts - Unified localStorage management
+// All localStorage/sessionStorage access is centralised here to:
+//   • guard against SSR / server-side rendering (typeof window check)
+//   • avoid duplicated try/catch JSON.parse boilerplate
+//   • provide a single place to swap storage strategies in the future
 
+/** Returns true when running inside a browser (window is defined). Prevents SSR crashes. */
 const isClientSide = (): boolean => typeof window !== 'undefined';
 
 /**
@@ -75,6 +80,33 @@ export const setStorageBoolean = (key: string, value: boolean): void => {
  */
 export const clearAllStorage = (): void => {
     if (isClientSide()) localStorage.clear();
+};
+
+/**
+ * Safe sessionStorage string getter
+ */
+export const getSessionItem = (key: string): string | null =>
+    isClientSide() ? sessionStorage.getItem(key) : null;
+
+/**
+ * Safe sessionStorage string setter
+ */
+export const setSessionItem = (key: string, value: string): void => {
+    if (isClientSide()) sessionStorage.setItem(key, value);
+};
+
+/**
+ * Safe sessionStorage item remover
+ */
+export const removeSessionItem = (key: string): void => {
+    if (isClientSide()) sessionStorage.removeItem(key);
+};
+
+/**
+ * Remove multiple sessionStorage items at once
+ */
+export const removeSessionItems = (...keys: string[]): void => {
+    if (isClientSide()) keys.forEach(key => sessionStorage.removeItem(key));
 };
 
 /**

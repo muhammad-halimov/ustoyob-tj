@@ -150,7 +150,7 @@ const normalizeMixedFormat = (text: string): string => {
  * @param options - Опции: from (исходный язык), to (целевой язык)
  * @returns Транслитерированное имя
  */
-export const nameTranslator = (name: string, options: NameTranslatorOptions): string => {
+const nameTranslator = (name: string, options: NameTranslatorOptions): string => {
     if (!name) return '';
     
     const { from, to } = options;
@@ -230,7 +230,7 @@ export const nameTranslator = (name: string, options: NameTranslatorOptions): st
  * @param name - Имя в любом формате
  * @returns Нормализованное имя в кириллице (если был смешанный формат)
  */
-export const normalizeNameFormat = (name: string): string => {
+const normalizeNameFormat = (name: string): string => {
     if (!name) return '';
     
     // Проверяем смешанный формат
@@ -249,7 +249,7 @@ export const normalizeNameFormat = (name: string): string => {
  * @param text - Текст для анализа
  * @returns Определенный язык: 'ru', 'tj' или 'eng'
  */
-export const detectNameLanguage = (text: string): NameLanguage => {
+const detectNameLanguage = (text: string): NameLanguage => {
     if (!text) return 'ru';
     
     // Проверяем наличие специфических таджикских букв

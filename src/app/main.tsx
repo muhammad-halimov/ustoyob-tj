@@ -1,3 +1,17 @@
+/**
+ * Application entry point.
+ *
+ * Boot order:
+ *  1. `initDataCache()` — warms the data cache (cities, occupations, etc.)
+ *     and subscribes to the global `languageChanged` event for cache invalidation.
+ *  2. React tree is mounted with:
+ *     - Redux `Provider` for global state
+ *     - `ThemeProvider` for dark/light theme from localStorage
+ *     - `AppRouter` with all page routes
+ *
+ * NOTE: React.StrictMode is temporarily disabled to prevent double-fetching
+ * during development; re-enable when ready.
+ */
 import { createRoot } from 'react-dom/client'
 import './styles/index.scss'
 import '../locales/i18n';

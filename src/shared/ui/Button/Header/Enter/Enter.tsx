@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useTranslation } from 'react-i18next';
 import { getAuthToken, logout } from '../../../../../utils/auth';
+import { getStorageJSON } from '../../../../../utils/storageHelper';
 import Auth from "../../../Modal/Auth/Auth";
 import styles from './Enter.module.scss';
 
@@ -29,12 +30,9 @@ export function Enter({ onClick, isModalOpen, onModalClose, onLoginSuccess }: En
             if (loggedIn) {
                 try {
                     // Получаем данные пользователя для отображения имени
-                    const userDataStr = localStorage.getItem('userData');
-                    if (userDataStr) {
-                        const userData = JSON.parse(userDataStr);
-                        if (userData.name) {
-                            setUserName(userData.name);
-                        }
+                    const userData = getStorageJSON<{ name?: string }>('userData');
+                    if (userData?.name) {
+                        setUserName(userData.name);
                     }
                 } catch (error) {
                     console.error('Error parsing user data:', error);

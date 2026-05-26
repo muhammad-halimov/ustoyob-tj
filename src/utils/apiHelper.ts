@@ -18,6 +18,8 @@ export interface ApiRequestOptions {
      * Defaults to the stored i18nextLng value, falling back to 'tj'.
      */
     locale?: LocaleType | false;
+    /** Pass `true` to send the request with keepalive (e.g. offline/unload beacons). */
+    keepalive?: boolean;
 }
 
 /** Reads the active locale from storage, defaulting to 'tj'. */
@@ -34,6 +36,16 @@ const appendLocale = (url: string, locale: LocaleType): string => {
     return url + (url.includes('?') ? '&' : '?') + `locale=${locale}`;
 };
 
+/**
+ * Central HTTP wrapper for all API calls.
+ *
+ * - Automatically appends `?locale=` from storage (suppress with `locale: false`).
+ * - Attaches `Authorization: Bearer <token>` when a token is present (and `requiresAuth !== false`).
+ * - On HTTP 401 it tries to refresh the token once and retries the original request.
+ *   If refresh fails it throws, leaving the caller to handle the error.
+ * - Throws on any non-2xx response.
+ * - Returns the parsed JSON body, or `null` for empty responses (204 / no body).
+ */
 export const universalApiRequest = async (endpoint: string, options: ApiRequestOptions = {}): Promise<any> => {
     const locale = options.locale !== false ? (options.locale ?? getDefaultLocale()) : null;
 
@@ -60,7 +72,8 @@ export const universalApiRequest = async (endpoint: string, options: ApiRequestO
             headers,
             body: options.body instanceof FormData
                 ? options.body
-                : options.body ? JSON.stringify(options.body) : undefined
+                : options.body ? JSON.stringify(options.body) : undefined,
+            ...(options.keepalive !== undefined && { keepalive: options.keepalive }),
         });
     };
 
@@ -80,7 +93,8 @@ export const universalApiRequest = async (endpoint: string, options: ApiRequestO
         throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
 
-    return response.json();
+    const text = await response.text();
+    return text ? JSON.parse(text) : null;
 };
 
 /** @deprecated Use universalApiRequest instead */
@@ -230,6 +244,14 @@ export const ticketToTicketView = (ticket: Ticket): TicketView => {
     };
 };
 
+/**
+ * Sorts a list of favourite tickets client-side according to the chosen sort key.
+ * Used on the Favorites page where all data is already loaded.
+ *
+ * @param tickets  Flat array of favourite ticket view objects
+ * @param sort     One of the `SortByType` values (newest, oldest, price-*, reviews-*, rating-*)
+ * @returns        New sorted array (original is not mutated)
+ */
 export function applyFavoriteSort(tickets: FavoriteTicketView[], sort: SortByType): FavoriteTicketView[] {
     return [...tickets].sort((a, b) => {
         switch (sort) {

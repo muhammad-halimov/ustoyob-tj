@@ -17,10 +17,15 @@ import { EditActions } from '../../profile/shared/ui/EditActions/EditActions';
 import { SelectSearch } from '../../../shared/ui/SelectSearch';
 import type { Category, Occupation, Image, Unit, TicketFormData } from '../../../entities';
 import { universalApiRequest } from '../../../utils/apiHelper';
-import { getCategories } from '../../../utils/dataCache';
+import { getCategories, getOccupations, getUnits } from '../../../utils/dataCache';
 import { API_BASE_URL } from '../../../utils/config';
 
-
+/**
+ * Create / Edit ticket page.
+ * - Create mode: `/ticket/new` — blank form, POSTs to /api/tickets.
+ * - Edit mode:   `/ticket/:id/edit` — pre-fills form from API, PATCHes the ticket.
+ * Handles photo uploads, category/occupation selection, and address picking.
+ */
 const CreateEdit = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
@@ -198,7 +203,7 @@ const CreateEdit = () => {
     const fetchUnits = async () => {
         try {
             if (!token) return;
-            const data = await universalApiRequest('/api/units', { locale: false });
+            const data = await getUnits();
             setUnits(data);
         } catch (error) {
             console.error('Error fetching units:', error);
@@ -208,8 +213,8 @@ const CreateEdit = () => {
     const fetchOccupations = async () => {
         try {
             if (!token) return;
-            const data = await universalApiRequest('/api/occupations');
-            const sorted = Array.isArray(data) ? data.sort((a: Occupation, b: Occupation) => (a.priority ?? Infinity) - (b.priority ?? Infinity)) : data;
+            const data = await getOccupations();
+            const sorted = [...data].sort((a: Occupation, b: Occupation) => (a.priority ?? Infinity) - (b.priority ?? Infinity));
             setOccupations(sorted);
         } catch (error) {
             console.error('Error fetching occupations:', error);

@@ -19,11 +19,14 @@ interface UseFavoritesProps {
     onError?: (message: string) => void;
 }
 
-// Module-level cache to deduplicate concurrent /api/favorites/me requests
+// Module-level cache to deduplicate concurrent /api/favorites/me requests.
+// Multiple components may mount simultaneously and call useFavorites;
+// sharing a single in-flight Promise avoids redundant network requests.
 let _favoritesPromise: Promise<FavoriteEntry[]> | null = null;
 let _favoritesCache: { data: FavoriteEntry[]; timestamp: number } | null = null;
 const FAVORITES_CACHE_TTL = 30 * 1000; // 30 seconds
 
+/** Clears both the in-memory cache and the in-flight promise. Call after a favorite is added or removed. */
 const invalidateFavoritesCache = () => {
     _favoritesCache = null;
     _favoritesPromise = null;

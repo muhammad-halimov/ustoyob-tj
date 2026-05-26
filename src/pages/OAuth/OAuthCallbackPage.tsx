@@ -16,6 +16,7 @@ import {
 import type { OAuthProviderName, BackendAuthCallbackResponse } from '../../entities';
 import { API_BASE_URL } from '../../utils/config';
 import { universalApiRequest } from '../../utils/apiHelper';
+import { getStorageItem, removeStorageItem, getSessionItem, removeSessionItem, removeSessionItems } from '../../utils/storageHelper';
 
 // Определяем провайдер по URL
 const getProviderFromUrl = (pathname: string): OAuthProviderName | null => {
@@ -25,6 +26,12 @@ const getProviderFromUrl = (pathname: string): OAuthProviderName | null => {
     return null;
 };
 
+/**
+ * Handles the OAuth callback for Google / Instagram / Facebook.
+ * Reads the `code` query parameter from the URL, exchanges it for a
+ * backend JWT via the provider-specific endpoint, stores auth data,
+ * and redirects the user to their destination or the home page.
+ */
 const OAuthCallbackPage = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
@@ -74,12 +81,12 @@ const OAuthCallbackPage = () => {
             try {
                 // Режим привязки провайдера к существующему аккаунту
                 // Проверяем sessionStorage (обычный браузер) и localStorage по state (мобильный: новая вкладка)
-                const sessionMode = sessionStorage.getItem('oauthMode');
-                const localMode = state ? localStorage.getItem(`oauth_mode_${state}`) : null;
+                const sessionMode = getSessionItem('oauthMode');
+                const localMode = state ? getStorageItem(`oauth_mode_${state}`) : null;
                 const oauthMode = sessionMode || localMode;
                 if (oauthMode === 'link') {
-                    sessionStorage.removeItem('oauthMode');
-                    if (state) localStorage.removeItem(`oauth_mode_${state}`);
+                    removeSessionItem('oauthMode');
+                    if (state) removeStorageItem(`oauth_mode_${state}`);
                     setIsLinkMode(true);
                     const jwtToken = getAuthToken();
                     if (!jwtToken) {
@@ -126,18 +133,18 @@ const OAuthCallbackPage = () => {
                 const savedSpecialtyKey = `pending${detectedProvider.charAt(0).toUpperCase() + detectedProvider.slice(1)}Specialty`;
 
                 // Валидируем CSRF state (sessionStorage доступен только если та же вкладка)
-                const savedCsrfState = sessionStorage.getItem(`${detectedProvider}CsrfState`);
+                const savedCsrfState = getSessionItem(`${detectedProvider}CsrfState`);
                 if (savedCsrfState && state !== savedCsrfState) {
-                    sessionStorage.removeItem(`${detectedProvider}CsrfState`);
+                    removeSessionItem(`${detectedProvider}CsrfState`);
                     setError(t('oauth.invalidState') || 'Invalid OAuth state. Possible CSRF attack.');
                     setLoading(false);
                     setTimeout(() => navigate(ROUTES.HOME), 3000);
                     return;
                 }
-                sessionStorage.removeItem(`${detectedProvider}CsrfState`);
+                removeSessionItem(`${detectedProvider}CsrfState`);
 
-                const savedRole = sessionStorage.getItem(savedRoleKey) || 'client';
-                const savedSpecialty = sessionStorage.getItem(savedSpecialtyKey);
+                const savedRole = getSessionItem(savedRoleKey) || 'client';
+                const savedSpecialty = getSessionItem(savedSpecialtyKey);
 
                 // Подготавливаем запрос с ролью
                 const requestData: {
@@ -204,8 +211,7 @@ const OAuthCallbackPage = () => {
                     }
 
                     // Очищаем временные данные
-                    sessionStorage.removeItem(savedRoleKey);
-                    sessionStorage.removeItem(savedSpecialtyKey);
+                    removeSessionItems(savedRoleKey, savedSpecialtyKey);
 
                     setSuccess(true);
                     setTimeout(() => {

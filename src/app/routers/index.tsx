@@ -15,6 +15,13 @@ import { Legal } from "../../pages/legal";
 import ConfirmAccountPage from "../../pages/auth/ConfirmAccountPage";
 import { ROUTE_PATTERNS } from './routes';
 
+/**
+ * Application router.
+ * All page routes are nested under the shared `Layout` component.
+ * OAuth and auth confirmation routes live outside the layout (full-page redirects).
+ * Add new pages by inserting entries into the `children` array
+ * and importing the component at the top of this file.
+ */
 const router = createBrowserRouter([
     {
         path: ROUTE_PATTERNS.HOME,

@@ -21,6 +21,7 @@ import type { TelegramUserData as TelegramWidgetData } from '../../../../entitie
 import type { OAuthProviderName, User, Occupation, Category } from '../../../../entities';
 import { API_BASE_URL } from '../../../../utils/config';
 import { universalApiRequest } from '../../../../utils/apiHelper';
+import { setSessionItem, getSessionItem, removeSessionItem, removeSessionItems, removeStorageItems, getStorageJSON } from '../../../../utils/storageHelper';
 
 const AuthModalState = {
     WELCOME: 'welcome',
@@ -122,6 +123,13 @@ const validatePassword = (password: string, t: any): { isValid: boolean; message
     };
 };
 
+/**
+ * Authentication modal.
+ * Handles: login (email+password), registration, password reset,
+ * and OAuth (Google, Telegram) flows within a single modal.
+ * After a successful login stores the JWT and user data via auth.ts helpers
+ * and calls `onLoginSuccess` to notify the parent.
+ */
 const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => {
     const { t } = useTranslation('components');
     useLanguageChange(); // Для обновления категорий при смене языка
@@ -306,9 +314,9 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
     const handleOAuthStart = (provider: OAuthProvider) => {
         try {
             // Сохраняем выбранную роль и специальность
-            sessionStorage.setItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Role`, formData.role);
+            setSessionItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Role`, formData.role);
             if (formData.role === 'master' && formData.specialty) {
-                sessionStorage.setItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Specialty`, formData.specialty);
+                setSessionItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Specialty`, formData.specialty);
             }
 
             // Получаем URL для OAuth
@@ -324,7 +332,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                         // Сохраняем state из реального redirect URL для CSRF-проверки на callback
                         const stateFromUrl = parsed.searchParams.get('state');
                         if (stateFromUrl) {
-                            sessionStorage.setItem(`${provider}CsrfState`, stateFromUrl);
+                            setSessionItem(`${provider}CsrfState`, stateFromUrl);
                         }
                     } catch {
                         setError('Получен некорректный URL для авторизации');
@@ -336,9 +344,11 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 .catch(err => {
                     console.error(`${provider.toUpperCase()} auth error:`, err);
                     setError(err instanceof Error ? err.message : `Ошибка при авторизации через ${provider.charAt(0).toUpperCase() + provider.slice(1)}`);
-                    sessionStorage.removeItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Role`);
-                    sessionStorage.removeItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Specialty`);
-                    sessionStorage.removeItem(`${provider}CsrfState`);
+                    removeSessionItems(
+                        `pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Role`,
+                        `pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Specialty`,
+                        `${provider}CsrfState`
+                    );
                 });
 
         } catch (err) {
@@ -346,9 +356,11 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             setError(err instanceof Error ? err.message : `Ошибка при авторизации через ${provider.charAt(0).toUpperCase() + provider.slice(1)}`);
 
             // Очищаем сохраненные данные при ошибке
-            sessionStorage.removeItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Role`);
-            sessionStorage.removeItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Specialty`);
-            sessionStorage.removeItem(`${provider}CsrfState`);
+            removeSessionItems(
+                `pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Role`,
+                `pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Specialty`,
+                `${provider}CsrfState`
+            );
         }
     };
 
@@ -470,8 +482,8 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             console.log('Processing Telegram widget auth data:', authData);
 
             // Получаем сохраненную роль
-            const savedRole = sessionStorage.getItem('pendingTelegramRole') || formData.role;
-            const savedSpecialty = sessionStorage.getItem('pendingTelegramSpecialty');
+            const savedRole = getSessionItem('pendingTelegramRole') || formData.role;
+            const savedSpecialty = getSessionItem('pendingTelegramSpecialty');
 
             // Подготавливаем данные для отправки
             const requestData: {
@@ -516,9 +528,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             handleSuccessfulAuth(data.token, data.user.email);
 
             // Очищаем временные данные
-            sessionStorage.removeItem('pendingTelegramRole');
-            sessionStorage.removeItem('pendingTelegramSpecialty');
-            sessionStorage.removeItem('telegramCsrfState');
+            removeSessionItems('pendingTelegramRole', 'pendingTelegramSpecialty', 'telegramCsrfState');
 
         } catch (err) {
             console.error('Telegram widget callback error:', err);
@@ -531,9 +541,9 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
     // Функция для Telegram Widget
     const handleTelegramAuthClick = () => {
         // Сохраняем роль перед началом авторизации
-        sessionStorage.setItem('pendingTelegramRole', formData.role);
+        setSessionItem('pendingTelegramRole', formData.role);
         if (formData.role === 'master' && formData.specialty) {
-            sessionStorage.setItem('pendingTelegramSpecialty', formData.specialty);
+            setSessionItem('pendingTelegramSpecialty', formData.specialty);
         }
 
         // Создаем модальное окно для Telegram widget
@@ -981,13 +991,11 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
 
         // Очищаем все временные данные
         ['google', 'instagram', 'facebook', 'telegram'].forEach(provider => {
-            sessionStorage.removeItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Role`);
-            sessionStorage.removeItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Specialty`);
-            sessionStorage.removeItem(`${provider}CsrfState`);
+            removeSessionItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Role`);
+            removeSessionItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Specialty`);
+            removeSessionItem(`${provider}CsrfState`);
         });
-        localStorage.removeItem('tempGoogleToken');
-        localStorage.removeItem('tempGoogleUserData');
-        localStorage.removeItem('telegramUserData');
+        removeStorageItems('tempGoogleToken', 'tempGoogleUserData', 'telegramUserData');
     };
 
     const handleClose = () => {
@@ -1646,12 +1654,10 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             setIsLoading(true);
             setError('');
 
-            const telegramUserDataStr = localStorage.getItem('telegramUserData');
-            if (!telegramUserDataStr) {
+            const telegramUserData = getStorageJSON<User>('telegramUserData');
+            if (!telegramUserData) {
                 throw new Error('Данные пользователя Telegram не найдены');
             }
-
-            const telegramUserData: User = JSON.parse(telegramUserDataStr);
             console.log('Completing Telegram auth for role:', selectedRole);
 
             const data: TelegramAuthResponse = await universalApiRequest('/api/auth/telegram/complete', {
@@ -1665,7 +1671,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             if (data.token) {
                 saveUserData(data);
                 handleSuccessfulAuth(data.token, data.user?.email);
-                localStorage.removeItem('telegramUserData');
+                removeStorageItems('telegramUserData');
             } else {
                 throw new Error('Токен не получен в ответе');
             }

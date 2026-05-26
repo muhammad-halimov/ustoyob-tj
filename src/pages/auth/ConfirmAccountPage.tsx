@@ -6,6 +6,11 @@ import Status from '../../shared/ui/Modal/Status';
 import { useTranslation } from 'react-i18next';
 import { universalApiRequest } from '../../utils/apiHelper';
 
+/**
+ * Email confirmation page.
+ * Reads the `token` URL param and calls /api/confirm_account/:token on mount.
+ * On success redirects to home; on failure shows an error message.
+ */
 const ConfirmAccountPage = () => {
     const { token } = useParams<{ token: string }>();
     const navigate = useNavigate();

@@ -6,7 +6,7 @@ import PageLoader from '../../../../widgets/PageLoader/PageLoader';
 import { Toggle } from '../../../../shared/ui/Button/Toggle/Toggle';
 import type { Occupation, Category, FilterState } from '../../../../entities';
 import type { Province } from '../../../../entities';
-import { universalApiRequest } from '../../../../utils/apiHelper';
+import { getCities, getDistricts } from '../../../../utils/dataCache';
 
 interface FilterPanelProps {
     showFilters: boolean;
@@ -89,16 +89,19 @@ function FilterPanel({
         const fetchCityDistricts = async () => {
             setIsCityDistrictLoading(true);
             try {
-                const provinceParam = localFilters.province ? `&province.id=${localFilters.province}` : '';
+                const [allCities, allDistricts] = await Promise.all([getCities(), getDistricts()]);
 
-                const [citiesData, districtsData] = await Promise.all([
-                    universalApiRequest(`/api/cities?${provinceParam.slice(1)}`).then((d: any) => Array.isArray(d) ? d : (d['hydra:member'] ?? [])).catch(() => []),
-                    universalApiRequest(`/api/districts?${provinceParam.slice(1)}`).then((d: any) => Array.isArray(d) ? d : (d['hydra:member'] ?? [])).catch(() => []),
-                ]);
+                const provinceId = localFilters.province ? Number(localFilters.province) : null;
+                const citiesFiltered = provinceId
+                    ? allCities.filter(c => c.province?.id === provinceId)
+                    : allCities;
+                const districtsFiltered = provinceId
+                    ? allDistricts.filter(d => d.province?.id === provinceId)
+                    : allDistricts;
 
                 const combined: SelectOption[] = [
-                    ...citiesData.map((c: { id: number; title: string }) => ({ value: `city_${c.id}`, label: c.title })),
-                    ...districtsData.map((d: { id: number; title: string }) => ({ value: `district_${d.id}`, label: d.title })),
+                    ...citiesFiltered.map((c: { id: number; title: string }) => ({ value: `city_${c.id}`, label: c.title })),
+                    ...districtsFiltered.map((d: { id: number; title?: string }) => ({ value: `district_${d.id}`, label: d.title ?? '' })),
                 ].sort((a, b) => a.label.localeCompare(b.label));
 
                 setCityDistrictOptions(combined);

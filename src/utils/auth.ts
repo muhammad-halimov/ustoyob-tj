@@ -21,10 +21,15 @@ const STORAGE_KEYS = {
     SELECTED_CITY: 'selectedCity',
 } as const;
 
-// Время жизни токена (1 час)
+// Время жизни токена (1 час). Используется при расчёте времени истечения
+// если бэкенд не вернул явный expiry в ответе.
 const TOKEN_LIFETIME_HOURS = 1;
 
 // ============ Кэш запроса /api/users/me ============
+// _mePromise  — хранит текущий незавершённый запрос, чтобы несколько
+//              одновременных вызовов fetchCurrentUser не создавали дублей.
+// _meCachedAt — timestamp последнего успешного ответа. Кэш актуален
+//              пока не истёк ME_CACHE_TTL_MS (30 сек).
 let _mePromise: Promise<User | null> | null = null;
 let _meCachedAt = 0;
 const ME_CACHE_TTL_MS = 30_000 as const;
@@ -36,13 +41,20 @@ const removeItem = removeStorageItem;
 const removeItems = removeStorageItems;
 
 // ============ Работа с токеном ============
+/** Retrieves the JWT access token from localStorage. Returns null when not logged in. */
 export const getAuthToken = (): string | null => getItem(STORAGE_KEYS.AUTH_TOKEN);
 
+/** Persists the JWT token and calculates/stores its expiry time. */
 export const setAuthToken = (token: string): void => {
     setItem(STORAGE_KEYS.AUTH_TOKEN, token);
     setAuthTokenExpiry();
 };
 
+/**
+ * Removes the token, expiry, and all user-related localStorage keys.
+ * Also resets the /api/users/me cache.
+ * NOTE: does NOT call the server logout endpoint — use `logout()` for a full logout.
+ */
 export const removeAuthToken = (): void => {
     removeItems(
         STORAGE_KEYS.AUTH_TOKEN,
@@ -58,6 +70,10 @@ export const removeAuthToken = (): void => {
 };
 
 // ============ Logout ============
+/**
+ * Calls /api/invalidate_token then /api/logout on the server.
+ * @param wait  When false the second request is aborted immediately (fire-and-forget for page unload).
+ */
 const performLogout = async (token: string, wait: boolean = true): Promise<void> => {
     const controller = new AbortController();
     if (!wait) controller.abort();
@@ -81,6 +97,10 @@ const performLogout = async (token: string, wait: boolean = true): Promise<void>
     }
 };
 
+/**
+ * Full logout: clears auth data from localStorage first (so the UI updates
+ * immediately), then attempts to invalidate the token on the server.
+ */
 export const logout = async (): Promise<boolean> => {
     const token = getAuthToken();
     clearAuthData();
@@ -88,12 +108,6 @@ export const logout = async (): Promise<boolean> => {
         await performLogout(token, true);
     }
     return true;
-};
-
-export const logoutSync = (): void => {
-    const token = getAuthToken();
-    clearAuthData();
-    if (token) performLogout(token, false);
 };
 
 // ============ Работа со сроком истечения токена ============
@@ -132,7 +146,11 @@ export const isAuthenticated = (): boolean => {
     return token !== null && !isTokenExpired();
 };
 
-// ============ Очистка данных ============
+/**
+ * Removes token + expiry + all user data keys from localStorage.
+ * Unlike `removeAuthToken`, this does NOT remove SELECTED_CITY,
+ * so the user's city preference is preserved after logout.
+ */
 export const clearAuthData = (): void => {
     removeItems(
         STORAGE_KEYS.AUTH_TOKEN,
@@ -147,12 +165,14 @@ export const clearAuthData = (): void => {
 };
 
 // ============ Работа с ролью пользователя ============
+/** Normalises any stored role format ('ROLE_CLIENT', 'client', 'ROLE_MASTER', 'master') to a canonical value. */
 const normalizeRole = (role: string): 'client' | 'master' | null => {
     if (role === 'ROLE_CLIENT' || role === 'client') return 'client';
     if (role === 'ROLE_MASTER' || role === 'master') return 'master';
     return null;
 };
 
+/** Formats a canonical role to the backend format expected by the API (e.g. 'client' → 'ROLE_CLIENT'). */
 const formatRole = (role: 'client' | 'master'): string => 
     role === 'client' ? 'ROLE_CLIENT' : 'ROLE_MASTER';
 
@@ -168,13 +188,6 @@ export const setUserRole = (role: 'client' | 'master'): void => {
     setItem(STORAGE_KEYS.USER_ROLE, formatted);
 };
 
-export const hasRole = (role: 'client' | 'master' | string): boolean => {
-    const userRole = getUserRole();
-    if (!userRole) return false;
-    const normalizedRole = normalizeRole(role as string);
-    return userRole === normalizedRole;
-};
-
 // ============ Работа с данными пользователя ============
 export const getUserData = (): User | null => {
     return getStorageJSON<User>(STORAGE_KEYS.USER_DATA);
@@ -182,14 +195,6 @@ export const getUserData = (): User | null => {
 
 export const setUserData = (data: User): void => {
     setStorageJSON(STORAGE_KEYS.USER_DATA, data);
-};
-
-export const updateUserData = (updates: Partial<User>): User | null => {
-    const currentData = getUserData();
-    if (!currentData) return null;
-    const updatedData = { ...currentData, ...updates };
-    setUserData(updatedData);
-    return updatedData;
 };
 
 // ============ Работа с email пользователя ============
@@ -208,50 +213,10 @@ export const setUserOccupation = (occupation: Occupation[]): void => {
     setStorageJSON(STORAGE_KEYS.USER_OCCUPATION, occupation);
 };
 
-export const clearUserOccupation = (): void => {
-    removeItem(STORAGE_KEYS.USER_OCCUPATION);
-};
-
-// ============ Работа с JWT ============
-interface JWTPayload {
-    exp?: number;
-    [key: string]: unknown;
-}
-
-const decodeJWTPayload = (token: string): JWTPayload | null => {
-    try {
-        const payload = token.split('.')[1];
-        return payload ? JSON.parse(atob(payload)) as JWTPayload : null;
-    } catch (error) {
-        console.error('Error decoding JWT:', error);
-        return null;
-    }
-};
-
-export const setTokenExpiryFromJWT = (token: string): void => {
-    const payload = decodeJWTPayload(token);
-    if (payload?.exp) {
-        setAuthTokenExpiry(new Date(payload.exp * 1000).toISOString());
-        console.log('Token expiry set from JWT');
-    } else {
-        setAuthTokenExpiry();
-    }
-};
-
-// ============ Вспомогательные функции ============
-export const getUserFullName = (): string | null => {
-    const userData = getUserData();
-    const name = userData?.name || '';
-    const surname = userData?.surname || '';
-    return `${surname} ${name}`.trim() || userData?.email || null;
-};
-
-export const isUserApproved = (): boolean => {
-    const userData = getUserData();
-    return userData?.approved === true;
-};
-
-// ============ Обновление токена ============
+/**
+ * Attempts to obtain a new JWT via the httpOnly refresh-token cookie.
+ * Returns true on success (new token stored), false otherwise.
+ */
 export const refreshToken = async (): Promise<boolean> => {
     try {
         const response = await fetch(`${API_BASE_URL}/api/refresh_token`, {
@@ -283,7 +248,12 @@ export const refreshToken = async (): Promise<boolean> => {
     }
 };
 
-// ============ Обработка 401 ошибки с автоматическим обновлением токена ============
+/**
+ * Called automatically by `universalApiRequest` on HTTP 401.
+ * Tries to refresh the token; if successful returns true so the
+ * caller can retry its request. On failure triggers a full logout
+ * and dispatches a global 'logout' event.
+ */
 export const handleUnauthorized = async (): Promise<boolean> => {
     console.log('Handling 401 Unauthorized - attempting token refresh...');
     
@@ -303,6 +273,13 @@ export const handleUnauthorized = async (): Promise<boolean> => {
 // ============ Автоматическое обновление токена ============
 const isClientSide = (): boolean => typeof window !== 'undefined';
 
+/**
+ * Starts a 60-second polling interval that:
+ *   - logs out when the token has already expired;
+ *   - attempts a silent refresh 5 minutes before expiry.
+ * Call once at application boot (e.g. inside Layout).
+ * @param onTokenExpired  Optional callback; if omitted the page redirects to '/'.
+ */
 export const setupTokenRefresh = async (
     onTokenExpired?: () => void
 ): Promise<void> => {
@@ -340,10 +317,18 @@ export const setupTokenRefresh = async (
 };
 
 // ============ Единый закэшированный запрос /api/users/me ============
+/** Invalidates the in-memory timestamp so the next fetchCurrentUser call hits the network. */
 export const invalidateCurrentUserCache = (): void => {
     _meCachedAt = 0;
 };
 
+/**
+ * Fetches the current user from /api/users/me with:
+ *   - localStorage cache: returns stored data when fresher than ME_CACHE_TTL_MS (30 s).
+ *   - In-flight deduplication: concurrent calls share one network request.
+ *   - Auto-refresh on 401: retries once after refreshing the token.
+ * Returns null when the user is not authenticated.
+ */
 export const fetchCurrentUser = async (): Promise<User | null> => {
     const token = getAuthToken();
     if (!token) return null;

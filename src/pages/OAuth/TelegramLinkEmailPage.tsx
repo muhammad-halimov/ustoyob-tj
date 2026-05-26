@@ -14,6 +14,7 @@ import {
 } from '../../utils/auth';
 import type { BackendAuthCallbackResponse } from '../../entities';
 import { universalApiRequest } from '../../utils/apiHelper';
+import { getSessionItem, removeSessionItems } from '../../utils/storageHelper';
 
 const TelegramLinkEmailPage = () => {
     const navigate = useNavigate();
@@ -25,7 +26,7 @@ const TelegramLinkEmailPage = () => {
     const { t } = useTranslation('common');
 
     useEffect(() => {
-        const tempToken = sessionStorage.getItem('telegramTempToken');
+        const tempToken = getSessionItem('telegramTempToken');
         if (!tempToken) {
             navigate(ROUTES.HOME, { replace: true });
         }
@@ -33,7 +34,7 @@ const TelegramLinkEmailPage = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        const tempToken = sessionStorage.getItem('telegramTempToken');
+        const tempToken = getSessionItem('telegramTempToken');
         if (!tempToken) {
             navigate(ROUTES.HOME, { replace: true });
             return;
@@ -51,9 +52,7 @@ const TelegramLinkEmailPage = () => {
             });
 
             if (data.error === 'invalid_token') {
-                sessionStorage.removeItem('telegramTempToken');
-                sessionStorage.removeItem('pendingTelegramRole');
-                sessionStorage.removeItem('pendingTelegramSpecialty');
+                removeSessionItems('telegramTempToken', 'pendingTelegramRole', 'pendingTelegramSpecialty');
                 navigate(ROUTES.HOME, { replace: true });
                 return;
             }
@@ -77,7 +76,7 @@ const TelegramLinkEmailPage = () => {
                     setUserEmail(data.user.email);
                 }
 
-                const savedRole = sessionStorage.getItem('pendingTelegramRole') || 'client';
+                const savedRole = getSessionItem('pendingTelegramRole') || 'client';
                 let finalRole = savedRole as 'master' | 'client';
                 if (data.user.roles && data.user.roles.length > 0) {
                     const roles = data.user.roles.map(r => r.toLowerCase());
@@ -93,9 +92,7 @@ const TelegramLinkEmailPage = () => {
                     setUserOccupation(data.user.occupation);
                 }
 
-                sessionStorage.removeItem('telegramTempToken');
-                sessionStorage.removeItem('pendingTelegramRole');
-                sessionStorage.removeItem('pendingTelegramSpecialty');
+                removeSessionItems('telegramTempToken', 'pendingTelegramRole', 'pendingTelegramSpecialty');
 
                 window.dispatchEvent(new Event('login'));
                 navigate(ROUTES.HOME, { replace: true });
@@ -110,7 +107,7 @@ const TelegramLinkEmailPage = () => {
     };
 
     const handleSkip = async () => {
-        const tempToken = sessionStorage.getItem('telegramTempToken');
+        const tempToken = getSessionItem('telegramTempToken');
         if (!tempToken) {
             navigate(ROUTES.HOME, { replace: true });
             return;
@@ -140,7 +137,7 @@ const TelegramLinkEmailPage = () => {
                     setUserEmail(data.user.email);
                 }
 
-                const savedRole = sessionStorage.getItem('pendingTelegramRole') || 'client';
+                const savedRole = getSessionItem('pendingTelegramRole') || 'client';
                 let finalRole = savedRole as 'master' | 'client';
                 if (data.user.roles && data.user.roles.length > 0) {
                     const roles = data.user.roles.map(r => r.toLowerCase());
@@ -156,9 +153,7 @@ const TelegramLinkEmailPage = () => {
                     setUserOccupation(data.user.occupation);
                 }
 
-                sessionStorage.removeItem('telegramTempToken');
-                sessionStorage.removeItem('pendingTelegramRole');
-                sessionStorage.removeItem('pendingTelegramSpecialty');
+                removeSessionItems('telegramTempToken', 'pendingTelegramRole', 'pendingTelegramSpecialty');
 
                 window.dispatchEvent(new Event('login'));
                 navigate(ROUTES.HOME, { replace: true });

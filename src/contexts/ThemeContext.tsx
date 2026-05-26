@@ -1,6 +1,15 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { getStorageItem, setStorageItem } from '../utils/storageHelper';
 
+/**
+ * ThemeContext — provides light/dark theme state to the whole component tree.
+ *
+ * - Initial theme is read from localStorage ('theme' key).
+ *   Defaults to 'dark' when no value is stored.
+ * - The active theme is written to `data-theme` on `<html>` so SCSS variables
+ *   can switch via CSS custom properties (see _variables.scss).
+ * - The `theme-color` meta tag is updated for mobile status-bar colour.
+ */
 export type Theme = 'light' | 'dark';
 
 interface ThemeContextType {
@@ -64,6 +73,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     );
 }
 
+/** Returns the theme context. Must be used inside <ThemeProvider>. */
 export function useTheme() {
     const context = useContext(ThemeContext);
     if (context === undefined) {

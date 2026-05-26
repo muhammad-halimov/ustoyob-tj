@@ -1,6 +1,7 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
+import { getStorageItem, setStorageItem } from '../utils/storageHelper';
 
 // Импорты для английского языка
 import enCommon from './languages/eng/common.json';
@@ -44,9 +45,14 @@ import type { Language } from '../types/common';
 
 export type { Language } from '../types/common';
 
+/**
+ * Changes the active language and persists the selection to localStorage
+ * so the language is restored on the next page load.
+ * @param lang  One of 'ru' | 'tj' | 'eng'
+ */
 export const changeLanguage = (lang: Language) => {
     i18n.changeLanguage(lang);
-    localStorage.setItem('i18nextLng', lang);
+    setStorageItem('i18nextLng', lang);
 };
 
 
@@ -96,7 +102,7 @@ i18n
             },
         },
         fallbackLng: 'ru',
-        lng: localStorage.getItem('i18nextLng') || 'ru',
+        lng: getStorageItem('i18nextLng') || 'ru',
         debug: import.meta.env.DEV,
         interpolation: {
             escapeValue: false,

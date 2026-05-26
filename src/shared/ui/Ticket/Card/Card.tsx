@@ -13,8 +13,6 @@ import {ActionsDropdown} from '../../../../widgets/ActionsDropdown';
 import Status from '../../Modal/Status';
 import {IoChatbubbleEllipsesOutline, IoCheckmarkCircle} from 'react-icons/io5';
 import type {TicketView} from '../../../../entities';
-// Re-export for backward compatibility (other files import truncateText from Card)
-export default truncateText
 
 export interface AnnouncementCardProps extends Omit<TicketView, 'id' | 'price' | 'type' | 'category' | 'timeAgo'> {
   // overrides for type incompatibilities

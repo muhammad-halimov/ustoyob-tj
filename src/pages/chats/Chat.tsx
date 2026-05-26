@@ -28,6 +28,14 @@ import type { Chat as ApiChat, ChatMessage as ApiMessage } from '../../entities/
 import type { ChatImageView as ChatImageThumbnail, ChatMessageView as Message } from '../../entities/view/Chat';
 import { API_BASE_URL } from '../../utils/config';
 
+/**
+ * Chat page — full real-time-style messaging interface.
+ * - Shows a list of chat threads on the left panel.
+ * - Clicking a thread loads messages on the right panel.
+ * - Supports image attachments, reply-to, message editing/deletion, and archiving.
+ * - Polls for new messages periodically when a chat is open.
+ * - Supports deep-linking via ?chatId query param.
+ */
 function Chat() {
     const { t, i18n } = useTranslation(['components', 'common']);
     const [activeTab, setActiveTab] = useState<"active" | "archive">("active");
@@ -609,18 +617,8 @@ function Chat() {
     useEffect(() => {
         if (!currentUser) return;
 
-        const pingUrl = `${API_BASE_URL}/api/users/ping`;
-        const offlineUrl = `${API_BASE_URL}/api/users/offline`;
-
-        const doPing = () => {
-            const token = getAuthToken();
-            if (token) fetch(pingUrl, { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
-        };
-
-        const markOffline = () => {
-            const token = getAuthToken();
-            if (token) fetch(offlineUrl, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, keepalive: true }).catch(() => {});
-        };
+        const doPing = () => universalApiRequest('/api/users/ping', { method: 'POST', locale: false }).catch(() => {});
+        const markOffline = () => universalApiRequest('/api/users/offline', { method: 'POST', locale: false, keepalive: true }).catch(() => {});
 
         doPing();
         heartbeatIntervalRef.current = setInterval(doPing, 10_000);

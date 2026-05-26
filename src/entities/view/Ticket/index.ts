@@ -1,6 +1,12 @@
 import type { UserRole } from '../../../types/common';
 import type { Ticket } from '../../api';
 
+/**
+ * UI representation of a ticket used by all list and detail components.
+ * Produced by `ticketToTicketView()` in apiHelper.ts.
+ * Detail-page-only fields (rating, notice, etc.) are injected by Ticket.tsx
+ * via a spread after the base mapping.
+ */
 export interface TicketView {
     id: number;
     title: string;

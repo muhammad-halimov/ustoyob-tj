@@ -4,6 +4,7 @@ import type { Chat } from '../entities';
 import type { HydraResponse } from '../entities';
 import type { User } from '../entities';
 
+/** Stub — previously contained modal initialisation logic that was removed. Kept for backwards-compat imports. */
 export const initChatModals = () => {
 };
 
@@ -19,6 +20,14 @@ const extractId = (obj: any): number | undefined => {
     return undefined;
 };
 
+/**
+ * Creates a new chat with the given user (replyAuthor), or returns the
+ * existing chat if one already exists between the current user and replyAuthorId.
+ *
+ * @param replyAuthorId  ID of the user to start a chat with
+ * @param ticketId       Optional: link the chat to a specific ticket
+ * @throws Error when the target user is inactive or the API call fails
+ */
 export const createChatWithAuthor = async (replyAuthorId: number, ticketId?: number): Promise<Chat | null> => {
     const token = getAuthToken();
     if (!token) return null;
@@ -50,6 +59,10 @@ export const createChatWithAuthor = async (replyAuthorId: number, ticketId?: num
     }
 };
 
+/**
+ * Checks whether the given user is approved and active before allowing
+ * chat creation.  Returns { approved: false, active: false } on any error.
+ */
 export const checkUserStatus = async (userId: number): Promise<{ approved: boolean; active: boolean }> => {
     try {
         const token = getAuthToken();

@@ -24,12 +24,17 @@ import { getPageSize } from '../../utils/pageSize';
 import { parsePagedResponse, getTicketFullAddress, applyFavoriteSort, universalApiRequest } from '../../utils/apiHelper';
 import { formatTicketImageUrl, formatProfileImageUrl } from '../../utils/imageHelper';
 import type { User, Ticket, SortByType, SecondarySortByType, TimeFilterType, LocalStorageFavorites, FavoriteEntry, FavoriteTicketView, FavoriteUserView } from '../../entities';
-import { getSessionJSON } from '../../utils/storageHelper';
-import { API_BASE_URL } from '../../utils/config';
+import { getSessionJSON, setSessionJSON, getStorageJSON, setStorageJSON } from '../../utils/storageHelper';
 
 // FavoriteTicketView and FavoriteUserView are defined in entities/Favorite
 const FAV_FILTERS_KEY = 'fav-filters';
 
+/**
+ * Favorites page.
+ * Shows two tabs: "Orders" (saved tickets) and "Masters" (saved user profiles).
+ * Fetches favorite IDs from the API and enriches them with ticket/user detail data.
+ * Supports sorting, service-type filter, and "show more" pagination.
+ */
 function Favorites() {
     const [favoriteTickets, setFavoriteTicketViews] = useState<FavoriteTicketView[]>([]);
     const [favoriteUsers, setFavoriteUserViews] = useState<FavoriteUserView[]>([]);
@@ -56,20 +61,17 @@ function Favorites() {
     const restoreScrollRef = useRef<number>((_favSession?._savedScrollY as number) || 0);
     // Персистенция фильтров
     useEffect(() => {
-        try { sessionStorage.setItem(FAV_FILTERS_KEY, JSON.stringify({ showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter })); } catch { /* ignore */ }
+        setSessionJSON(FAV_FILTERS_KEY, { showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter });
     }, [showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter]);
     // Сохраняем позицию и страницу при уходе со страницы
     useEffect(() => {
         return () => {
-            try {
-                const existing = sessionStorage.getItem(FAV_FILTERS_KEY);
-                const cur = existing ? JSON.parse(existing) : {};
-                sessionStorage.setItem(FAV_FILTERS_KEY, JSON.stringify({
-                    ...cur,
-                    _savedPage: pageRef.current,
-                    _savedScrollY: window.scrollY,
-                }));
-            } catch { /* ignore */ }
+            const cur = getSessionJSON(FAV_FILTERS_KEY) ?? {};
+            setSessionJSON(FAV_FILTERS_KEY, {
+                ...cur,
+                _savedPage: pageRef.current,
+                _savedScrollY: window.scrollY,
+            });
         };
     }, []);
     // Состояния отклика
@@ -113,13 +115,10 @@ function Favorites() {
                 await fetchFavoritesRef.current(1);
             }
             // Сбрасываем сохранённые значения, чтобы F5 не восстанавливал старое состояние
-            try {
-                const existing = sessionStorage.getItem(FAV_FILTERS_KEY);
-                const cur = existing ? JSON.parse(existing) : {};
-                delete cur._savedPage;
-                delete cur._savedScrollY;
-                sessionStorage.setItem(FAV_FILTERS_KEY, JSON.stringify(cur));
-            } catch { /* ignore */ }
+            const cur = getSessionJSON<Record<string, unknown>>(FAV_FILTERS_KEY) ?? {};
+            delete cur._savedPage;
+            delete cur._savedScrollY;
+            setSessionJSON(FAV_FILTERS_KEY, cur);
         };
         doRestore();
         const token = getAuthToken();
@@ -180,7 +179,6 @@ function Favorites() {
     const [complaintTicketId, setComplaintTicketId] = useState<number | null>(null);
 
     const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
-    const API_BASE_URL_REF = useRef(import.meta.env.VITE_API_BASE_URL);
     const fetchFavoritesRef = useRef<(pageOverride?: number) => Promise<void>>(null!);
     const isInitialLoadRef = useRef(true);
     const isSortMountRef = useRef(false);
@@ -245,10 +243,8 @@ function Favorites() {
         const token = getAuthToken();
         if (!token) return;
 
-        const pingUrl = `${API_BASE_URL_REF.current}/api/users/ping`;
-        const offlineUrl = `${API_BASE_URL_REF.current}/api/users/offline`;
-        const doPing = () => fetch(pingUrl, { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
-        const markOffline = () => fetch(offlineUrl, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, keepalive: true }).catch(() => {});
+        const doPing = () => universalApiRequest('/api/users/ping', { method: 'POST', locale: false }).catch(() => {});
+        const markOffline = () => universalApiRequest('/api/users/offline', { method: 'POST', locale: false, keepalive: true }).catch(() => {});
 
         doPing();
         heartbeatRef.current = setInterval(doPing, 30_000);
@@ -266,23 +262,18 @@ function Favorites() {
 
     // Загрузка избранного из localStorage для неавторизованных пользователей
     const loadLocalStorageFavorites = (): LocalStorageFavorites => {
-        try {
-            const stored = localStorage.getItem('favorites');
-            if (stored) {
-                const parsed = JSON.parse(stored);
-                return {
-                    tickets: Array.isArray(parsed.tickets) ? parsed.tickets : [],
-                    users: Array.isArray(parsed.users) ? parsed.users : [] as number[],
-                };
-            }
-        } catch { /* ignore */ }
+        const parsed = getStorageJSON<LocalStorageFavorites>('favorites');
+        if (parsed) {
+            return {
+                tickets: Array.isArray(parsed.tickets) ? parsed.tickets : [],
+                users: Array.isArray(parsed.users) ? parsed.users : [],
+            };
+        }
         return { tickets: [], users: [] };
     };
 
     const saveLocalStorageFavorites = (favorites: LocalStorageFavorites) => {
-        try {
-            localStorage.setItem('favorites', JSON.stringify(favorites));
-        } catch { /* ignore */ }
+        setStorageJSON('favorites', favorites);
     };
 
     useEffect(() => {
@@ -375,12 +366,7 @@ function Favorites() {
 
     const fetchUserProfile = async (userId: number): Promise<FavoriteUserView | null> => {
         try {
-            const locale = localStorage.getItem('i18nextLng') || 'ru';
-            const response = await fetch(`${API_BASE_URL}/api/users/${userId}?locale=${locale}`, {
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
-            });
-            if (!response.ok) return null;
-            const u: User = await response.json();
+            const u: User = await universalApiRequest(`/api/users/${userId}`, { requiresAuth: false });
             const isMaster = u.roles?.includes('ROLE_MASTER') ?? false;
             return {
                 entryId: 0,
@@ -437,16 +423,10 @@ function Favorites() {
             }
 
             // Авторизованные — новый flat-list API
-            const locale = localStorage.getItem('i18nextLng') || 'ru';
             const pageSize = getPageSize();
             const currentPage = pageOverride ?? page;
-            const response = await fetch(`${API_BASE_URL}/api/favorites/me?locale=${locale}&page=${currentPage}&itemsPerPage=${pageSize}`, {
-                headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
-            });
-
-            if (response.ok) {
-                const rawData = await response.json();
-                const { items: entries, hasMore: fetchedHasMore } = parsePagedResponse<FavoriteEntry>(rawData, currentPage, pageSize);
+            const rawData = await universalApiRequest(`/api/favorites/me?page=${currentPage}&itemsPerPage=${pageSize}`);
+            const { items: entries, hasMore: fetchedHasMore } = parsePagedResponse<FavoriteEntry>(rawData, currentPage, pageSize);
 
                 const tickets: FavoriteTicketView[] = [];
                 const users: FavoriteUserView[] = [];
@@ -527,15 +507,9 @@ function Favorites() {
                     setLikedTickets(finalTickets.map(t => t.id));
                 }
                 setHasMore(fetchedHasMore);
-            } else {
-                console.error('Favorites - Error fetching favorites:', response.status);
-                setHasMore(false);
-                setFavoriteTicketViews([]);
-                setFavoriteUserViews([]);
-                setLikedTickets([]);
-            }
         } catch (error) {
             console.error('Error fetching favorites:', error);
+            setHasMore(false);
             setFavoriteTicketViews([]);
             setFavoriteUserViews([]);
             setLikedTickets([]);
@@ -573,16 +547,9 @@ function Favorites() {
 
         setIsLikeLoading(userId);
         try {
-            const res = await fetch(`${API_BASE_URL}/api/favorites/${entry.entryId}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` },
-            });
-            if (res.ok || res.status === 204) {
-                setFavoriteUserViews(prev => prev.filter(u => u.id !== userId));
-                window.dispatchEvent(new Event('favoritesUpdated'));
-            } else {
-                console.error('Error removing user from favorites:', await res.text());
-            }
+            await universalApiRequest(`/api/favorites/${entry.entryId}`, { method: 'DELETE', locale: false });
+            setFavoriteUserViews(prev => prev.filter(u => u.id !== userId));
+            window.dispatchEvent(new Event('favoritesUpdated'));
         } catch (err) {
             console.error('Error removing user from favorites:', err);
         } finally {
@@ -604,17 +571,10 @@ function Favorites() {
         if (!entry) return;
 
         try {
-            const res = await fetch(`${API_BASE_URL}/api/favorites/${entry.entryId}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` },
-            });
-            if (res.ok || res.status === 204) {
-                setLikedTickets(prev => prev.filter(id => id !== ticketId));
-                setFavoriteTicketViews(prev => prev.filter(t => t.id !== ticketId));
-                window.dispatchEvent(new Event('favoritesUpdated'));
-            } else {
-                setRespondModal({ open: true, type: 'error', message: 'Ошибка при удалении из избранного' });
-            }
+            await universalApiRequest(`/api/favorites/${entry.entryId}`, { method: 'DELETE', locale: false });
+            setLikedTickets(prev => prev.filter(id => id !== ticketId));
+            setFavoriteTicketViews(prev => prev.filter(t => t.id !== ticketId));
+            window.dispatchEvent(new Event('favoritesUpdated'));
         } catch {
             setRespondModal({ open: true, type: 'error', message: 'Ошибка при удалении из избранного' });
         }
@@ -636,23 +596,21 @@ function Favorites() {
 
         setIsLikeLoading(ticketId);
         try {
-            const res = await fetch(`${API_BASE_URL}/api/favorites`, {
+            await universalApiRequest('/api/favorites', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ ticket: `/api/tickets/${ticketId}` }),
+                body: { ticket: `/api/tickets/${ticketId}` },
+                locale: false,
             });
-            if (res.ok) {
-                setLikedTickets(prev => [...prev, ticketId]);
-                const ticketDetails = await fetchTicketDetails(ticketId);
-                if (ticketDetails) setFavoriteTicketViews(prev => [...prev, ticketDetails]);
-                window.dispatchEvent(new Event('favoritesUpdated'));
-            } else if (res.status === 409) {
+            setLikedTickets(prev => [...prev, ticketId]);
+            const ticketDetails = await fetchTicketDetails(ticketId);
+            if (ticketDetails) setFavoriteTicketViews(prev => [...prev, ticketDetails]);
+            window.dispatchEvent(new Event('favoritesUpdated'));
+        } catch (e: any) {
+            if (e?.message?.includes('409')) {
                 setLikedTickets(prev => [...prev, ticketId]);
             } else {
                 setRespondModal({ open: true, type: 'error', message: 'Ошибка при добавлении в избранное' });
             }
-        } catch {
-            setRespondModal({ open: true, type: 'error', message: 'Ошибка при добавлении в избранное' });
         } finally {
             setIsLikeLoading(null);
         }

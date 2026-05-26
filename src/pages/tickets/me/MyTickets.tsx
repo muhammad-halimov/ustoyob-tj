@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../app/routers/routes';
 import { getAuthToken, fetchCurrentUser } from '../../../utils/auth';
+import { getStorageItem } from '../../../utils/storageHelper';
 import { useLanguageChange } from '../../../hooks';
 import styles from './MyTickets.module.scss';
 import { PageLoader } from '../../../widgets/PageLoader';
@@ -22,6 +23,13 @@ import { useShowMore } from '../../../hooks';
 import type { Ticket, TicketView, User } from '../../../entities';
 
 
+/**
+ * "My Tickets" page — lists tickets belonging to the current user.
+ * - Masters see their service tickets (offers).
+ * - Clients see their request tickets.
+ * - Supports active/archived tabs, city filter, and "show more" pagination.
+ * - Guards the route: redirects to home if not authenticated.
+ */
 function MyTickets() {
     const navigate = useNavigate();
     const { t } = useTranslation(['myTickets', 'common']);
@@ -164,7 +172,7 @@ function MyTickets() {
                 });
 
                 // Сортируем: сначала тикеты из выбранного города, затем по дате (новые первыми)
-                const selectedCity = localStorage.getItem('selectedCity') || '';
+                const selectedCity = getStorageItem('selectedCity') || '';
                 formattedTickets.sort((a, b) => {
                     const aCity = myTickets.find(t => t.id === a.id)?.addresses?.[0]?.city?.title || '';
                     const bCity = myTickets.find(t => t.id === b.id)?.addresses?.[0]?.city?.title || '';

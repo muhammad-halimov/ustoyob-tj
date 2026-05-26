@@ -16,7 +16,14 @@ import {
 import type { TelegramUserData, BackendAuthCallbackResponse } from '../../entities';
 import { API_BASE_URL } from '../../utils/config';
 import { universalApiRequest } from '../../utils/apiHelper';
+import { getStorageItem, setStorageItem, removeStorageItem, getSessionItem, removeSessionItem, removeSessionItems } from '../../utils/storageHelper';
 
+/**
+ * Handles the Telegram login callback.
+ * Receives Telegram user data as query params (hash, id, first_name, etc.),
+ * verifies it with the backend, stores auth data, and redirects the user.
+ * If the Telegram account has no linked email, redirects to TelegramLinkEmailPage.
+ */
 const TelegramCallbackPage = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
@@ -71,13 +78,13 @@ const TelegramCallbackPage = () => {
 
                 // Режим привязки — отправляем данные напрямую в link endpoint
                 // Проверяем sessionStorage (та же вкладка) и localStorage (новая вкладка на мобильном)
-                const sessionMode = sessionStorage.getItem('oauthMode');
-                const localMode = localStorage.getItem('oauth_mode_telegram');
+                const sessionMode = getSessionItem('oauthMode');
+                const localMode = getStorageItem('oauth_mode_telegram');
                 const oauthMode = sessionMode || localMode;
                 if (oauthMode === 'link') {
                     const jwtToken = getAuthToken();
-                    sessionStorage.removeItem('oauthMode');
-                    localStorage.removeItem('oauth_mode_telegram');
+                    removeSessionItem('oauthMode');
+                    removeStorageItem('oauth_mode_telegram');
                     if (!jwtToken) {
                         navigate(ROUTES.HOME, { replace: true });
                         return;
@@ -106,7 +113,7 @@ const TelegramCallbackPage = () => {
                     setSuccess(true);
                     setLoading(false);
                     // Сигналим оригинальной вкладке и закрываем эту (новая вкладка на мобильном)
-                    localStorage.setItem('telegram_link_success', Date.now().toString());
+                    setStorageItem('telegram_link_success', Date.now().toString());
                     setTimeout(() => {
                         window.close();
                         // Если вкладка не закрылась (та же вкладка) — навигируем
@@ -116,8 +123,8 @@ const TelegramCallbackPage = () => {
                 }
 
                 // Получаем сохраненную роль из sessionStorage
-                const savedRole = sessionStorage.getItem('pendingTelegramRole') || 'client';
-                const savedSpecialty = sessionStorage.getItem('pendingTelegramSpecialty');
+                const savedRole = getSessionItem('pendingTelegramRole') || 'client';
+                const savedSpecialty = getSessionItem('pendingTelegramSpecialty');
 
                 // Подготавливаем запрос на бекенд
                 const requestData: {
@@ -182,8 +189,7 @@ const TelegramCallbackPage = () => {
                     }
 
                     // Очищаем временные данные
-                    sessionStorage.removeItem('pendingTelegramRole');
-                    sessionStorage.removeItem('pendingTelegramSpecialty');
+                    removeSessionItems('pendingTelegramRole', 'pendingTelegramSpecialty');
 
                     setSuccess(true);
                     setLoading(false);

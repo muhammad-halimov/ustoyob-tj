@@ -11,7 +11,14 @@ import { PageLoader } from '../../../widgets/PageLoader';
 import type { Category } from '../../../entities';
 import { useEffect, useState } from "react";
 import { getCategories } from '../../../utils/dataCache';
+import { setSessionJSON } from '../../../utils/storageHelper';
 
+/**
+ * Home page category strip.
+ * Fetches all categories from the cache and renders them as a horizontal
+ * scrollable grid. Clicking a category navigates to its ticket list page
+ * and stores the category session for filter restoration on back-navigation.
+ */
 export default function Category() {
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
@@ -43,7 +50,7 @@ export default function Category() {
 
             setCategories(formattedData);
             // Cache for category tickets page title
-            try { sessionStorage.setItem('categories-list', JSON.stringify(formattedData)); } catch { /* empty */ }
+            setSessionJSON('categories-list', formattedData);
         } catch (error) {
             console.error("Ошибка при загрузке категорий:", error);
             setCategories([]); // Устанавливаем пустой массив при ошибке

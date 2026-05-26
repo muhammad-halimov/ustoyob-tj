@@ -1,4 +1,5 @@
 import { API_BASE_URL } from './config';
+import { getAuthToken } from './auth';
 
 // ─── Форматирование URL изображений ──────────────────────────
 export const formatTicketImageUrl = (imagePath: string): string => {
@@ -23,12 +24,13 @@ export const uploadPhotos = async (
     endpoint: string,
     id: number | string,
     files: File[],
-    token?: string | null,
+    _token?: string | null, // deprecated: auth handled internally via getAuthToken()
 ): Promise<any> => {
     const formData = new FormData();
     for (const file of files) {
         formData.append('imageFile[]', file);
     }
+    const token = getAuthToken();
     const headers: HeadersInit = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
     const response = await fetch(`${API_BASE_URL}/api/${endpoint}/${id}/upload-images`, {
@@ -52,6 +54,11 @@ export const checkImageExists = (url: string): Promise<boolean> => {
     });
 };
 
+/**
+ * Resolves a user's avatar URL by trying several known upload paths in order.
+ * Uses a DOM Image element to probe each URL; the first one that loads is returned.
+ * Returns null when no image is found or userData has no image field.
+ */
 export const getAvatarUrl = async (userData: any, userType: 'client' | 'master'): Promise<string | null> => {
     if (!userData?.image) return null;
 
@@ -79,6 +86,7 @@ export const getAvatarUrl = async (userData: any, userType: 'client' | 'master')
     return null;
 };
 
+/** Formats a date string to 'DD.MM.YYYY' (ru-RU locale). Falls back to today's date when the string is absent or invalid. */
 export const getFormattedDate = (dateString?: string): string => {
     if (dateString) {
         try {
@@ -94,6 +102,7 @@ export const getFormattedDate = (dateString?: string): string => {
     return `${day}.${month}.${year}`;
 };
 
+/** Maps backend gender enum values to their Russian display strings. */
 export const getGenderDisplay = (gender: string): string => {
     const genderMap: Record<string, string> = {
         'gender_female': 'Женский',

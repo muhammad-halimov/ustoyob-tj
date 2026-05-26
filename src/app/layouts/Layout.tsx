@@ -5,7 +5,19 @@ import Header from "../../shared/ui/Header/Header";
 import { Footer } from "../../shared/ui/Footer";
 import Auth from "../../shared/ui/Modal/Auth/Auth";
 import { setupTokenRefresh, isAuthenticated } from '../../utils/auth';
+import { getSessionItem, setSessionItem } from '../../utils/storageHelper';
 
+/**
+ * Root layout component. Wraps all nested page routes (via <Outlet>).
+ *
+ * Responsibilities:
+ *  - Renders shared Header and Footer around page content.
+ *  - Manages the global Auth modal (open via 'openAuthModal' custom event
+ *    or directly via the openAuthModal prop passed to Header).
+ *  - Persists and restores scroll position per history entry using
+ *    sessionStorage (key: `scroll:<location.key>`).
+ *  - Starts the token-refresh polling loop when the user is authenticated.
+ */
 export default function Layout() {
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const location = useLocation();
@@ -20,7 +32,7 @@ export default function Layout() {
             if (!ticking) {
                 ticking = true;
                 requestAnimationFrame(() => {
-                    try { sessionStorage.setItem(key, String(window.scrollY)); } catch { /* ignore */ }
+                    try { setSessionItem(key, String(window.scrollY)); } catch { /* ignore */ }
                     ticking = false;
                 });
             }
@@ -32,7 +44,7 @@ export default function Layout() {
     // При смене маршрута: POP → восстановить скролл, PUSH/REPLACE → сброс вверх
     useEffect(() => {
         if (navType === 'POP') {
-            const saved = (() => { try { return sessionStorage.getItem(`scroll:${location.key}`); } catch { return null; } })();
+            const saved = (() => { try { return getSessionItem(`scroll:${location.key}`); } catch { return null; } })();
             if (saved !== null) {
                 const target = Number(saved);
                 // Пробуем восстановить несколько раз — контент подгружается асинхронно

@@ -5,6 +5,7 @@
  */
 
 import type { Province, City, Occupation, Category, District } from '../entities';
+import type { Unit } from '../entities/api/Ticket';
 import { universalApiRequest, getDefaultLocale } from './apiHelper';
 import type { LocaleType } from './apiHelper';
 import { getStorageItem } from './storageHelper';
@@ -19,6 +20,7 @@ interface CacheEntry<T> {
 
 interface FetcherOpts {
     requiresAuth?: boolean;
+    locale?: LocaleType | false;
 }
 
 // ─── Константы ───────────────────────────────────────────────────────────────
@@ -63,7 +65,9 @@ function createCachedFetcher<T>(
     let inFlight: Promise<T[]> | null = null;
 
     async function fetcher(locale?: string): Promise<T[]> {
-        const targetLocale = normalizeLocale(locale || getCurrentLocale());
+        const targetLocale = opts.locale !== undefined
+            ? (opts.locale === false ? 'fixed' : opts.locale)
+            : normalizeLocale(locale || getCurrentLocale());
 
         if (cache && cache.locale === targetLocale && Date.now() - cache.timestamp < cacheDuration) {
             return cache.data;
@@ -73,7 +77,8 @@ function createCachedFetcher<T>(
 
         inFlight = (async (): Promise<T[]> => {
             try {
-                const raw = await universalApiRequest(endpoint, { locale: targetLocale, ...opts });
+                const apiLocale = opts.locale !== undefined ? opts.locale : (targetLocale as LocaleType);
+                const raw = await universalApiRequest(endpoint, { locale: apiLocale, requiresAuth: opts.requiresAuth });
                 const items = toArray<T>(raw);
                 cache = { data: items, locale: targetLocale, timestamp: Date.now() };
                 return items;
@@ -99,15 +104,17 @@ export const getCities      = createCachedFetcher<City>('/api/cities');
 export const getOccupations = createCachedFetcher<Occupation>('/api/occupations?itemsPerPage=500');
 export const getCategories  = createCachedFetcher<Category>('/api/categories',  { requiresAuth: false }, STATIC_CACHE_DURATION);
 export const getDistricts   = createCachedFetcher<District>('/api/districts',   {}, STATIC_CACHE_DURATION);
+export const getUnits       = createCachedFetcher<Unit>('/api/units',           { locale: false }, STATIC_CACHE_DURATION);
 
 // ─── Управление кешем ────────────────────────────────────────────────────────
 
-export const clearCache = (type?: 'provinces' | 'cities' | 'occupations' | 'categories' | 'districts'): void => {
+export const clearCache = (type?: 'provinces' | 'cities' | 'occupations' | 'categories' | 'districts' | 'units'): void => {
     if (!type || type === 'provinces')   getProvinces.clearCache();
     if (!type || type === 'cities')      getCities.clearCache();
     if (!type || type === 'occupations') getOccupations.clearCache();
     if (!type || type === 'categories')  getCategories.clearCache();
     if (!type || type === 'districts')   getDistricts.clearCache();
+    if (!type || type === 'units')       getUnits.clearCache();
 };
 
 export const preloadData = async (): Promise<void> => {
@@ -119,4 +126,4 @@ export const preloadData = async (): Promise<void> => {
     }
 };
 
-export type { Province, City, Occupation, Category, District };
+export type { Province, City, Occupation, Category, District, Unit };

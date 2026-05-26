@@ -24,14 +24,24 @@ import { useShowMore } from '../../../hooks';
 import type { Ticket, TicketView } from '../../../entities';
 import type { Occupation } from '../../../entities';
 import { API_BASE_URL } from '../../../utils/config';
-import { getSessionJSON } from '../../../utils/storageHelper';
+import { getSessionJSON, getSessionItem, setSessionItem, setSessionJSON, getStorageItem } from '../../../utils/storageHelper';
 
 
 
+/**
+ * Reads the persisted filter/page state for a category from sessionStorage.
+ * Used to restore state when navigating back to a category page.
+ */
 function getCatSession(catId: string | undefined): Record<string, unknown> | null {
     return catId ? getSessionJSON(`cat-filters-${catId}`) : null;
 }
 
+/**
+ * Category tickets page.
+ * Lists all tickets for a specific occupation/category ID.
+ * Supports service/request type filter, sort, city filter, and "show more" pagination.
+ * Filter + page state is persisted to sessionStorage for back-navigation restore.
+ */
 function Category() {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
@@ -43,13 +53,13 @@ function Category() {
     const [categoryName, setCategoryName] = useState<string>(() => {
         const fromState = (location.state as any)?.categoryName;
         if (fromState) return fromState;
-        const cached = sessionStorage.getItem(`cat-name-${id}`);
+        const cached = getSessionItem(`cat-name-${id}`);
         if (cached) return cached;
         try {
-            const list = JSON.parse(sessionStorage.getItem('categories-list') || '[]');
-            const found = list.find((c: { id: number; title: string }) => String(c.id) === String(id));
+            const list = getSessionJSON<{ id: number; title: string }[]>('categories-list') ?? [];
+            const found = list.find(c => String(c.id) === String(id));
             if (found?.title) {
-                sessionStorage.setItem(`cat-name-${id}`, found.title);
+                setSessionItem(`cat-name-${id}`, found.title);
                 return found.title;
             }
         } catch {}
@@ -71,9 +81,7 @@ function Category() {
     // Persist filter state to sessionStorage
     useEffect(() => {
         if (!id) return;
-        try {
-            sessionStorage.setItem(`cat-filters-${id}`, JSON.stringify({ showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter, selectedSubcategory, showAllOccupations }));
-        } catch { /* ignore */ }
+        setSessionJSON(`cat-filters-${id}`, { showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter, selectedSubcategory, showAllOccupations });
     }, [id, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter, selectedSubcategory, showAllOccupations]);
     // Respond state
     const [respondedTickets, setRespondedTickets] = useState<Set<number>>(new Set());
@@ -127,7 +135,7 @@ function Category() {
 
     const setAndCacheCategoryName = (name: string) => {
         if (!name) return;
-        if (id) sessionStorage.setItem(`cat-name-${id}`, name);
+        if (id) setSessionItem(`cat-name-${id}`, name);
         setCategoryName(name);
     };
 
@@ -142,7 +150,7 @@ function Category() {
 
     useEffect(() => {
         const role = getUserRole();
-        const rawRole = typeof window !== 'undefined' ? localStorage.getItem('userRole') : null;
+        const rawRole = getStorageItem('userRole');
         console.log('🔥 Category - Initial mount');
         console.log('🔥 localStorage["userRole"]:', rawRole);
         console.log('🔥 getUserRole() returned:', role);
@@ -159,7 +167,7 @@ function Category() {
     useEffect(() => {
         const interval = setInterval(() => {
             const currentRole = getUserRole();
-            const rawRole = typeof window !== 'undefined' ? localStorage.getItem('userRole') : null;
+            const rawRole = getStorageItem('userRole');
             if (currentRole !== userRole) {
                 console.log('🔥 Category - Role changed from', userRole, 'to', currentRole);
                 console.log('🔥 localStorage["userRole"]:', rawRole);
@@ -293,7 +301,7 @@ function Category() {
             const token = getAuthToken();
             const userData = getUserData();
             const currentUserId = userData?.id;
-            const rawRole = typeof window !== 'undefined' ? localStorage.getItem('userRole') : null;
+            const rawRole = getStorageItem('userRole');
 
             console.log('============================================');
             console.log('🚀 Category - Fetching tickets for category:', id);
@@ -430,7 +438,7 @@ function Category() {
                 if (nameFromTicket) {
                     setCategoryName((prev) => {
                         const next = prev || nameFromTicket;
-                        if (!prev && id) sessionStorage.setItem(`cat-name-${id}`, next);
+                        if (!prev && id) setSessionItem(`cat-name-${id}`, next);
                         return next;
                     });
                 }

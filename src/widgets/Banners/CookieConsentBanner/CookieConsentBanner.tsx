@@ -1,11 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import styles from './CookieConsentBanner.module.scss';
+import { getStorageItem, setStorageItem } from '../../../utils/storageHelper';
 
+/**
+ * Cookie consent banner.
+ * Shown once after a 1-second delay when 'cookieConsent' is absent from localStorage.
+ * Accepting stores 'accepted' under that key so the banner is never shown again.
+ */
 const CookieConsentBanner: React.FC = () => {
     const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {
-        const isCookieConsentGiven = localStorage.getItem('cookieConsent');
+        const isCookieConsentGiven = getStorageItem('cookieConsent');
 
         if (!isCookieConsentGiven) {
             const timer = setTimeout(() => {
@@ -17,7 +23,7 @@ const CookieConsentBanner: React.FC = () => {
     }, []);
 
     const handleAccept = () => {
-        localStorage.setItem('cookieConsent', 'accepted');
+        setStorageItem('cookieConsent', 'accepted');
         setIsVisible(false);
     };
 

@@ -6,7 +6,7 @@ import styles from './Profile.module.scss';
 import {useTranslation} from 'react-i18next';
 import {useTheme} from '../../contexts';
 import {useLanguageChange, useShowMore} from '../../hooks';
-import {getStorageItem} from '../../utils/storageHelper';
+import {getStorageItem, removeStorageItem, setStorageItem, setStorageJSON, getStorageJSON, setSessionItem, removeSessionItem} from '../../utils/storageHelper';
 import {createChatWithAuthor} from '../../utils/chatUtils';
 import { uploadPhotos } from '../../utils/imageHelper';
 
@@ -60,6 +60,15 @@ import type { Phone as LocalPhone } from '../../entities';
 /** Alias for local use */
 type LocalSocialNetwork = UISocialNetwork;
 
+/**
+ * Profile page — handles two modes:
+ *  - `/profile`       : private personal cabinet (edit mode, full data access).
+ *  - `/profile/:id`   : public profile of another user (read-only view).
+ *
+ * Fetches user data from /api/users/me (own profile) or /api/users/:id (public).
+ * Manages editing of personal info, education, work examples, social networks,
+ * addresses, and photos.
+ */
 function Profile() {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>(); // Получаем id из URL
@@ -182,7 +191,7 @@ function Profile() {
         // Слушаем успешную привязку Telegram из новой вкладки
         const onStorage = (e: StorageEvent) => {
             if (e.key === 'telegram_link_success') {
-                localStorage.removeItem('telegram_link_success');
+                removeStorageItem('telegram_link_success');
                 document.getElementById('telegram-link-modal')?.remove();
                 loadProviders();
             }
@@ -194,10 +203,10 @@ function Profile() {
     const handleLinkProvider = (provider: string) => {
         if (provider === 'telegram') {
             // Показываем всплывающий виджет Telegram (как в Auth)
-            sessionStorage.setItem('oauthMode', 'link');
+            setSessionItem('oauthMode', 'link');
             // На мобильных нативное приложение открывает callback в новой вкладке,
             // где sessionStorage пустой — дублируем в localStorage
-            localStorage.setItem('oauth_mode_telegram', 'link');
+            setStorageItem('oauth_mode_telegram', 'link');
 
             const overlay = document.createElement('div');
             overlay.id = 'telegram-link-modal';
@@ -210,7 +219,7 @@ function Profile() {
             const close = document.createElement('button');
             close.textContent = '✕';
             close.style.cssText = `position:absolute;top:12px;right:14px;background:none;border:none;font-size:20px;cursor:pointer;color:${isDark ? '#888' : '#999'}`;
-            close.onclick = () => { sessionStorage.removeItem('oauthMode'); overlay.remove(); };
+            close.onclick = () => { removeSessionItem('oauthMode'); overlay.remove(); };
 
             const title = document.createElement('p');
             title.textContent = t('oauth.linkTelegramTitle');
@@ -234,18 +243,18 @@ function Profile() {
             box.appendChild(title);
             box.appendChild(widgetWrap);
             overlay.appendChild(box);
-            overlay.onclick = (e: MouseEvent) => { if (e.target === overlay) { sessionStorage.removeItem('oauthMode'); overlay.remove(); } };
+            overlay.onclick = (e: MouseEvent) => { if (e.target === overlay) { removeSessionItem('oauthMode'); overlay.remove(); } };
             document.body.appendChild(overlay);
             return;
         }
         universalApiRequest(`/api/auth/${provider}/url`, { requiresAuth: false, locale: false })
             .then(data => {
-                sessionStorage.setItem('oauthMode', 'link');
+                setSessionItem('oauthMode', 'link');
                 // На мобильных нативное приложение открывает callback в новой вкладке,
                 // где sessionStorage пустой. Сохраняем mode по state-параметру в localStorage.
                 try {
                     const stateParam = new URL(data.url).searchParams.get('state');
-                    if (stateParam) localStorage.setItem(`oauth_mode_${stateParam}`, 'link');
+                    if (stateParam) setStorageItem(`oauth_mode_${stateParam}`, 'link');
                 } catch {}
                 // Проверяем протокол перед редиректом (защита от open redirect)
                 try {
@@ -287,14 +296,11 @@ function Profile() {
         const token = getAuthToken();
         if (!token) {
             // Проверяем localStorage для неавторизованных пользователей
-            try {
-                const stored = localStorage.getItem('favorites');
-                if (stored) {
-                    const parsed = JSON.parse(stored);
-                    const users: number[] = Array.isArray(parsed.users) ? parsed.users : [];
-                    setIsProfileLiked(users.includes(Number(profileData.id)));
-                }
-            } catch { /* silent */ }
+            const parsed = getStorageJSON<{ users?: number[] }>('favorites');
+            if (parsed) {
+                const users: number[] = Array.isArray(parsed.users) ? parsed.users : [];
+                setIsProfileLiked(users.includes(Number(profileData.id)));
+            }
             return;
         }
 
@@ -3003,19 +3009,16 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
 
         // Неавторизованный пользователь — сохраняем в localStorage
         if (!token) {
-            try {
-                const stored = localStorage.getItem('favorites');
-                const parsed = stored ? JSON.parse(stored) : {};
-                const users: number[] = Array.isArray(parsed.users) ? parsed.users : [];
-                const userId = Number(profileData.id);
-                const nowLiked = users.includes(userId);
-                const updatedUsers = nowLiked
-                    ? users.filter(id => id !== userId)
-                    : [...users, userId];
-                localStorage.setItem('favorites', JSON.stringify({ ...parsed, users: updatedUsers }));
-                setIsProfileLiked(!nowLiked);
-                window.dispatchEvent(new Event('favoritesUpdated'));
-            } catch { /* silent */ }
+            const parsed = getStorageJSON<Record<string, unknown>>('favorites') ?? {};
+            const users: number[] = Array.isArray(parsed.users) ? parsed.users as number[] : [];
+            const userId = Number(profileData.id);
+            const nowLiked = users.includes(userId);
+            const updatedUsers = nowLiked
+                ? users.filter(id => id !== userId)
+                : [...users, userId];
+            setStorageJSON('favorites', { ...parsed, users: updatedUsers });
+            setIsProfileLiked(!nowLiked);
+            window.dispatchEvent(new Event('favoritesUpdated'));
             return;
         }
 

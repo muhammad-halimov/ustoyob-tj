@@ -3,16 +3,24 @@ import { useTranslation } from 'react-i18next';
 import PageLoader from '../PageLoader/PageLoader';
 import styles from './EmptyState.module.scss';
 
+/** Props for the EmptyState widget. */
 interface EmptyStateProps {
     title?: string;
     subtitle?: string;
+    /** Label for an optional call-to-action button. */
     actionText?: string;
     onAction?: () => void;
+    /** When provided, shows a \"Refresh\" button that calls this function. */
     onRefresh?: () => void | Promise<void>;
     className?: string;
+    /** When true, shows a spinner instead of the empty-state illustration. */
     isLoading?: boolean;
 }
 
+/**
+ * Generic empty-state placeholder shown when a list has no items.
+ * Displays a title, optional subtitle, and optional action / refresh buttons.
+ */
 export function EmptyState({ title, subtitle, actionText, onAction, onRefresh, className, isLoading }: EmptyStateProps) {
     const { t } = useTranslation(['common']);
     const [isRefreshing, setIsRefreshing] = useState(false);

@@ -11,6 +11,12 @@ import type { LegalDocument, LegalDocumentType } from '../../entities';
 import { universalApiRequest } from '../../utils/apiHelper';
 import type { LocaleType } from '../../utils/apiHelper';
 
+/**
+ * Legal documents page.
+ * Serves three documents (Privacy Policy, Terms of Use, Public Offer) in tabs.
+ * Content is fetched from the API per document type + locale and sanitised
+ * with DOMPurify before being rendered as innerHTML.
+ */
 function Legal() {
     const { t, i18n } = useTranslation('common');
     const location = useLocation();

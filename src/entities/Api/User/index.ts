@@ -6,6 +6,12 @@ import type { Phone } from '../Phone';
 import type { OAuthProvider } from '../OAuth';
 import type { Timestamps } from '../Misc';
 
+/**
+ * Raw User entity as returned by the backend.
+ * The backend uses a flat roles array (e.g. ['ROLE_CLIENT', 'ROLE_USER']);
+ * use `getUserRole()` from auth.ts to get the canonical 'client'|'master' value.
+ * `fullName` is a computed frontend-only field, not stored on the backend.
+ */
 export type User = {
     id: number;
     email?: string;

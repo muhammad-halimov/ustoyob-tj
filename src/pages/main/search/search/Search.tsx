@@ -30,7 +30,7 @@ import type { Ticket as ApiTicket, Occupation, TicketView, Category, UserRole } 
 type TicketWithMeta = ApiTicket & { type: UserRole; userRating: number; userReviewCount: number };
 import type { Province, City } from '../../../../entities';
 import { formatTicketImageUrl, formatProfileImageUrl } from '../../../../utils/imageHelper';
-import { getSessionJSON } from '../../../../utils/storageHelper';
+import { getSessionJSON, setSessionJSON, getStorageItem, removeSessionItem } from '../../../../utils/storageHelper';
 
 interface SearchProps {
     onSearchResults: (results: TicketView[]) => void;
@@ -40,6 +40,14 @@ interface SearchProps {
 
 const SEARCH_SESSION_KEY = 'search-state';
 
+/**
+ * Full-featured ticket search component.
+ * - Persists search state (query, filters, page) to sessionStorage under
+ *   `SEARCH_SESSION_KEY` so results survive back-navigation.
+ * - Supports service/request type filter, sort criteria, and multi-field filters
+ *   (category, city, occupation, date range, price range).
+ * - Calls `onSearchResults` to pass paginated results up to the parent page.
+ */
 export default function Search({ onSearchResults, onFilterToggle }: SearchProps) {
     const { t } = useTranslation(['components', 'common']);
     // Restore from session on mount (survives back-navigation)
@@ -47,7 +55,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     const [showFilters, setShowFilters] = useState<boolean>(() => (initSessionRef.current?.showFilters as boolean) ?? false);
     const [searchQuery, setSearchQuery] = useState<string>(() => (initSessionRef.current?.searchQuery as string) ?? '');
     const [selectedCity, setSelectedCity] = useState<string>(() => {
-        return localStorage.getItem('selectedCity') || '';
+        return getStorageItem('selectedCity') || '';
     });
     const [searchResults, setSearchResults] = useState<TicketView[]>(() => (initSessionRef.current?.searchResults as TicketView[]) ?? []);
     const [showResults, setShowResults] = useState<boolean>(() => (initSessionRef.current?.showResults as boolean) ?? false);
@@ -1049,7 +1057,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     // Следим за изменениями в localStorage для города
     useEffect(() => {
         const handleStorageChange = () => {
-            const city = localStorage.getItem('selectedCity') || '';
+            const city = getStorageItem('selectedCity') || '';
             if (city !== selectedCity) {
                 setSelectedCity(city);
             }
@@ -1061,7 +1069,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
     // Загружаем город при монтировании
     useEffect(() => {
-        const city = localStorage.getItem('selectedCity') || '';
+        const city = getStorageItem('selectedCity') || '';
         setSelectedCity(city);
     }, []);
 
@@ -1139,7 +1147,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 secondarySortBy: 'none',
                 timeFilter: 'all'
             };
-            sessionStorage.removeItem(SEARCH_SESSION_KEY);
+            removeSessionItem(SEARCH_SESSION_KEY);
         };
 
         window.addEventListener('resetAllStates', handleResetAllStates);
@@ -1148,20 +1156,18 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
 
     // Сохраняем состояние поиска в sessionStorage при каждом изменении
     useEffect(() => {
-        try {
-            sessionStorage.setItem(SEARCH_SESSION_KEY, JSON.stringify({
-                searchQuery,
-                searchResults,
-                showResults,
-                showFilters,
-                filters,
-                showOnlyServices,
-                showOnlyAnnouncements,
-                sortBy,
-                secondarySortBy,
-                timeFilter,
-            }));
-        } catch { /* ignore quota errors */ }
+        setSessionJSON(SEARCH_SESSION_KEY, {
+            searchQuery,
+            searchResults,
+            showResults,
+            showFilters,
+            filters,
+            showOnlyServices,
+            showOnlyAnnouncements,
+            sortBy,
+            secondarySortBy,
+            timeFilter,
+        });
     }, [searchQuery, searchResults, showResults, showFilters, filters, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter]);
 
     // Мемоизированный рендер результатов

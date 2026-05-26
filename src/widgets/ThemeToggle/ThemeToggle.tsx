@@ -2,11 +2,18 @@ import React from 'react';
 import { useTheme } from '../../contexts';
 import styles from './ThemeToggle.module.scss';
 
+/** Props for the ThemeToggle button. */
 interface ThemeToggleProps {
     className?: string;
+    /** When true, shows a text label next to the toggle button. */
     showLabel?: boolean;
 }
 
+/**
+ * Animated light/dark theme toggle button.
+ * Reads and writes the theme via ThemeContext (`useTheme`).
+ * Accessible: includes aria-label that reflects the next theme state.
+ */
 export const ThemeToggle: React.FC<ThemeToggleProps> = ({ 
     className = '', 
     showLabel = false 

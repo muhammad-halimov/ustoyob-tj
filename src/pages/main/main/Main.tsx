@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ROUTES } from '../../../app/routers/routes';
 import { getUserRole } from "../../../utils/auth";
+import { getStorageItem } from "../../../utils/storageHelper";
 import { useTranslation } from "react-i18next";
 import Auth from "../../../shared/ui/Modal/Auth/Auth";
 import Status from "../../../shared/ui/Modal/Status/Status";
@@ -24,6 +25,10 @@ interface MainPageProps {
     onOpenAuthModal?: () => void;
 }
 
+/**
+ * Home page. Orchestrates the Search bar, category strip, ticket recommendations,
+ * and review section. Handles the "create ticket" flow (auth guard + role selection).
+ */
 export function MainPage({ onOpenAuthModal }: MainPageProps) {
     const [showResults, setShowResults] = useState(false);
     const [modalMessage, setModalMessage] = useState<string | null>(null);
@@ -60,8 +65,8 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
                 console.log('Should open auth modal, source:', oauthSourceParam);
 
                 if (oauthSourceParam === 'google') {
-                    const googleCode = localStorage.getItem('googleAuthCode');
-                    const googleState = localStorage.getItem('googleAuthState');
+                    const googleCode = getStorageItem('googleAuthCode');
+                    const googleState = getStorageItem('googleAuthState');
 
                     console.log('Google auth data in localStorage:', {
                         code: googleCode ? 'present' : 'missing',
@@ -101,8 +106,8 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
 
     useEffect(() => {
         const checkGoogleAuthData = () => {
-            const googleCode = localStorage.getItem('googleAuthCode');
-            const googleState = localStorage.getItem('googleAuthState');
+            const googleCode = getStorageItem('googleAuthCode');
+            const googleState = getStorageItem('googleAuthState');
 
             if (googleCode && googleState && !userRole) {
                 console.log('Found Google auth data, should show role selection');

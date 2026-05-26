@@ -18,13 +18,16 @@ import { SelectSearch } from '../SelectSearch';
 import type { User } from '../../../entities';
 import { universalApiRequest } from '../../../utils/apiHelper';
 import { getCities, getDistricts } from '../../../utils/dataCache';
+import { getStorageItem, setStorageItem, removeStorageItems, getStorageJSON, setStorageJSON } from '../../../utils/storageHelper';
 
 type UserData = User;
 
+/** @param onOpenAuthModal  Callback to open the Auth modal from the parent layout. */
 interface HeaderProps {
     onOpenAuthModal?: () => void;
 }
 
+/** Represents a city or district option in the location selector dropdown. */
 interface LocationOption {
     id: number;
     title: string;
@@ -32,6 +35,15 @@ interface LocationOption {
     type: 'city' | 'district';
 }
 
+/**
+ * Application header. Handles:
+ *  - Logo and main navigation links
+ *  - Location selector (city/district) with localStorage persistence
+ *  - Language switcher (ru / tj / eng)
+ *  - Theme toggle (light/dark)
+ *  - Auth button / user avatar menu (login, logout, profile navigation)
+ *  - Confirmation banner for new user registrations
+ */
 function Header({ onOpenAuthModal }: HeaderProps) {
     const location = useLocation();
     const navigate = useNavigate();
@@ -40,11 +52,11 @@ function Header({ onOpenAuthModal }: HeaderProps) {
 
     const [locations, setLocations] = useState<LocationOption[]>([]);
     const [displayCityName, setDisplayCityName] = useState<string>(() => {
-        const savedCity = localStorage.getItem('selectedCity');
+        const savedCity = getStorageItem('selectedCity');
         return savedCity || t('header:geography');
     });
     const [selectedCity, setSelectedCity] = useState<string>(() => {
-        return localStorage.getItem('selectedCityValue') || '';
+        return getStorageItem('selectedCityValue') || '';
     });
     const [isCitiesLoading, setIsCitiesLoading] = useState(false);
     const [citiesError, setCitiesError] = useState(false);
@@ -56,14 +68,9 @@ function Header({ onOpenAuthModal }: HeaderProps) {
         const token = getAuthToken();
         if (!token) return false;
 
-        const userDataStr = localStorage.getItem('userData');
-        if (userDataStr) {
-            try {
-                const userData: UserData = JSON.parse(userDataStr);
-                return userData.approved === false;
-            } catch {
-                return false;
-            }
+        const userData = getStorageJSON<UserData>('userData');
+        if (userData) {
+            return userData.approved === false;
         }
         return false;
     });
@@ -124,22 +131,22 @@ function Header({ onOpenAuthModal }: HeaderProps) {
     // Обновляем отображаемое название города при изменении списка городов/районов (смена языка)
     useEffect(() => {
         if (locations.length === 0) return;
-        const savedCityValue = localStorage.getItem('selectedCityValue');
-        const savedCityTitle = localStorage.getItem('selectedCity');
+        const savedCityValue = getStorageItem('selectedCityValue');
+        const savedCityTitle = getStorageItem('selectedCity');
 
         if (savedCityValue) {
             const found = locations.find(c => c.value === savedCityValue);
             if (found) {
                 setDisplayCityName(found.title);
                 setSelectedCity(found.value);
-                localStorage.setItem('selectedCity', found.title);
+                setStorageItem('selectedCity', found.title);
             }
         } else if (savedCityTitle) {
             const found = locations.find(c => c.title === savedCityTitle);
             if (found) {
                 setDisplayCityName(found.title);
                 setSelectedCity(found.value);
-                localStorage.setItem('selectedCityValue', found.value);
+                setStorageItem('selectedCityValue', found.value);
             } else {
                 setDisplayCityName(savedCityTitle);
             }
@@ -148,8 +155,8 @@ function Header({ onOpenAuthModal }: HeaderProps) {
 
     // Устанавливаем плейсхолдер если город не выбран
     useEffect(() => {
-        const savedCityId = localStorage.getItem('selectedCityId');
-        const savedCity = localStorage.getItem('selectedCity');
+        const savedCityId = getStorageItem('selectedCityId');
+        const savedCity = getStorageItem('selectedCity');
         if (!savedCityId && !savedCity) {
             setDisplayCityName(t('header:location'));
         }
@@ -179,7 +186,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
                 return;
             }
 
-            localStorage.setItem('userData', JSON.stringify(userData));
+            setStorageJSON('userData', userData);
 
             // Баннер подтверждения аккаунта
             setShowConfirmationBanner(userData.approved === false);
@@ -247,10 +254,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
         e.preventDefault();
         
         // Очищаем localStorage от данных поиска и фильтров
-        localStorage.removeItem('searchQuery');
-        localStorage.removeItem('searchFilters');
-        localStorage.removeItem('searchResults');
-        localStorage.removeItem('showResults');
+        removeStorageItems('searchQuery', 'searchFilters', 'searchResults', 'showResults');
         
         // Отправляем событие для сброса состояний в других компонентах
         window.dispatchEvent(new Event('resetAllStates'));
@@ -262,9 +266,9 @@ function Header({ onOpenAuthModal }: HeaderProps) {
     const handleCitySelect = (cityTitle: string, cityValue: string, cityId?: number) => {
         setSelectedCity(cityValue);
         setDisplayCityName(cityTitle);
-        localStorage.setItem('selectedCity', cityTitle);
-        localStorage.setItem('selectedCityValue', cityValue);
-        if (cityId !== undefined) localStorage.setItem('selectedCityId', String(cityId));
+        setStorageItem('selectedCity', cityTitle);
+        setStorageItem('selectedCityValue', cityValue);
+        if (cityId !== undefined) setStorageItem('selectedCityId', String(cityId));
         setShowCityModal(false);
         window.dispatchEvent(new Event('cityChanged'));
     };

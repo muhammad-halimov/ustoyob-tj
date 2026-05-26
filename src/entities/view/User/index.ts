@@ -7,6 +7,11 @@ import type { WorkExample } from '../../api';
 import type { AddressFormData } from '../Address';
 import type { EducationItem } from '../Education';
 
+/**
+ * Flattened profile data used by the Profile page.
+ * Combines raw User fields with computed values (fullName, avatar URL, etc.)
+ * that are resolved during profile fetch in Profile.tsx.
+ */
 export type ProfileData =
     Pick<User, 'id' | 'email' | 'gender' | 'dateOfBirth' | 'rating' | 'isOnline' | 'lastSeen'> & {
         fullName: string;
