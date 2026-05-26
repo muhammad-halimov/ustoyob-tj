@@ -311,16 +311,8 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 sessionStorage.setItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Specialty`, formData.specialty);
             }
 
-            console.log(`Saved role to sessionStorage for ${provider}:`, formData.role);
-
-            // Генерируем криптографически стойкий state для CSRF
-            const array = new Uint8Array(32);
-            crypto.getRandomValues(array);
-            const csrfState = Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
-            sessionStorage.setItem(`${provider}CsrfState`, csrfState);
-
             // Получаем URL для OAuth
-            universalApiRequest(`/api/auth/${provider}/url?state=${encodeURIComponent(csrfState)}`, {
+            universalApiRequest(`/api/auth/${provider}/url`, {
                 requiresAuth: false,
                 locale: false,
             })
@@ -329,6 +321,11 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                     try {
                         const parsed = new URL(redirectUrl);
                         if (!['https:', 'http:'].includes(parsed.protocol)) throw new Error('Invalid protocol');
+                        // Сохраняем state из реального redirect URL для CSRF-проверки на callback
+                        const stateFromUrl = parsed.searchParams.get('state');
+                        if (stateFromUrl) {
+                            sessionStorage.setItem(`${provider}CsrfState`, stateFromUrl);
+                        }
                     } catch {
                         setError('Получен некорректный URL для авторизации');
                         return;
@@ -562,17 +559,22 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         widgetWrapper.style.position = 'relative';
         widgetWrapper.style.minWidth = '350px';
 
-        // Кнопка закрытия
+        // Кнопка закрытия (Clear-стиль)
         const closeBtn = document.createElement('button');
-        closeBtn.textContent = '✕';
+        closeBtn.type = 'button';
+        closeBtn.setAttribute('aria-label', 'Clear');
+        closeBtn.innerHTML = `<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" width="32" height="32"><circle cx="8" cy="8" r="7.5" stroke="currentColor" stroke-width="1.2"/><path d="M5.5 5.5L10.5 10.5M10.5 5.5L5.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
         closeBtn.style.position = 'absolute';
         closeBtn.style.top = '10px';
         closeBtn.style.right = '10px';
         closeBtn.style.background = 'none';
         closeBtn.style.border = 'none';
-        closeBtn.style.fontSize = '24px';
         closeBtn.style.cursor = 'pointer';
         closeBtn.style.color = isDark ? '#888' : '#999';
+        closeBtn.style.display = 'flex';
+        closeBtn.style.alignItems = 'center';
+        closeBtn.style.justifyContent = 'center';
+        closeBtn.style.padding = '4px';
         closeBtn.onclick = () => {
             telegramModalContainer.remove();
         };
