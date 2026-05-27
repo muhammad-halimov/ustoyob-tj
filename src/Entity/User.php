@@ -450,7 +450,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         G::TECH_SUPPORT,
         G::TECH_SUPPORT_MESSAGES,
     ])]
-    private ?string $gender = null;
+    private ?string $gender = 'gender_neutral';
 
     #[ORM\Column(type: Types::DATE_MUTABLE, nullable: true)]
     #[Groups([
