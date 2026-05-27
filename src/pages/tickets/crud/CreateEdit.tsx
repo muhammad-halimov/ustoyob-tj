@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ROUTES } from '../../../app/routers/routes';
 import styles from './CreateEdit.module.scss';
-import { getAuthToken, getUserRole, getUserData } from '../../../utils/auth';
+import { getAuthToken, getUserRole, getUserData } from '../../../utils/authUtils';
 import Address, { AddressValue, buildAddressData } from '../../../shared/ui/Address/Selector';
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
 import Status from '../../../shared/ui/Modal/Status';
@@ -12,13 +12,13 @@ import { useLanguageChange } from '../../../hooks';
 import { PageLoader } from '../../../widgets/PageLoader';
 import { Toggle } from '../../../shared/ui/Button/Toggle/Toggle';
 import Grid, { PhotoItem, buildOrderedImagePayload } from '../../../shared/ui/Photo/Grid';
-import { uploadPhotos } from '../../../utils/imageHelper';
+import { uploadPhotos } from '../../../utils/imageUtils';
 import { EditActions } from '../../profile/shared/ui/EditActions/EditActions';
 import { SelectSearch } from '../../../shared/ui/SelectSearch';
 import type { Category, Occupation, Image, Unit, TicketFormData } from '../../../entities';
-import { universalApiRequest } from '../../../utils/apiHelper';
-import { getCategories, getOccupations, getUnits } from '../../../utils/dataCache';
-import { API_BASE_URL } from '../../../utils/config';
+import { universalApiRequest } from '../../../utils/apiUtils';
+import { getCategories, getOccupations, getUnits } from '../../../utils/dataCacheUtils';
+import { API_BASE_URL } from '../../../utils/configUtils';
 
 /**
  * Create / Edit ticket page.
@@ -465,7 +465,7 @@ const CreateEdit = () => {
                             type="text"
                             name="title"
                             value={serviceData.title}
-                            onChange={(e) => setServiceData({...serviceData, title: e.target.value})}
+                            onChange={(e) => setServiceData(prev => ({...prev, title: e.target.value}))}
                             placeholder={t('createEdit:serviceNamePlaceholder')}
                             className={styles.titleInput}
                             required
@@ -527,7 +527,7 @@ const CreateEdit = () => {
                                     type="number"
                                     name="budget"
                                     value={serviceData.budget}
-                                    onChange={(e) => setServiceData({...serviceData, budget: e.target.value})}
+                                    onChange={(e) => setServiceData(prev => ({...prev, budget: e.target.value}))}
                                     placeholder="0"
                                     className={styles.budgetInput}
                                     min="1"
@@ -581,7 +581,7 @@ const CreateEdit = () => {
                         <textarea
                             name="description"
                             value={serviceData.description}
-                            onChange={(e) => setServiceData({...serviceData, description: e.target.value})}
+                            onChange={(e) => setServiceData(prev => ({...prev, description: e.target.value}))}
                             placeholder={isEditMode ? t('createEdit:descriptionEditPlaceholder') : t('createEdit:descriptionCreatePlaceholder')}
                             rows={isEditMode ? 6 : 4}
                             className={styles.descriptionTextarea}
@@ -600,7 +600,7 @@ const CreateEdit = () => {
                         <textarea
                             name="notice"
                             value={serviceData.notice}
-                            onChange={(e) => setServiceData({...serviceData, notice: e.target.value})}
+                            onChange={(e) => setServiceData(prev => ({...prev, notice: e.target.value}))}
                             placeholder={t('createEdit:notesPlaceholder')}
                             rows={isEditMode ? 3 : 2}
                             className={styles.descriptionTextarea}

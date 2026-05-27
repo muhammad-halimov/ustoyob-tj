@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useTranslation } from 'react-i18next';
-import { getAuthToken, logout } from '../../../../../utils/auth';
-import { getStorageJSON } from '../../../../../utils/storageHelper';
+import { getAuthToken, logout } from '../../../../../utils/authUtils';
+import { getStorageJSON } from '../../../../../utils/storageUtils';
 import Auth from "../../../Modal/Auth/Auth";
 import styles from './Enter.module.scss';
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styles from './CookieConsentBanner.module.scss';
-import { getStorageItem, setStorageItem } from '../../../utils/storageHelper';
+import { getStorageItem, setStorageItem } from '../../../utils/storageUtils';
 
 /**
  * Cookie consent banner.

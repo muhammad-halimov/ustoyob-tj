@@ -1,11 +1,12 @@
 import styles from './Card.module.scss';
 import {useTranslation} from 'react-i18next';
-import {useLanguageChange, useTranslatedName, useTranslatedText} from '../../../../hooks';
+import {useLanguageChange, useTranslatedName, useTranslatedText, useFormattedDate, useTimeAgo} from '../../../../hooks';
 import React, {useEffect, useState} from 'react';
 import {Link} from 'react-router-dom';
 import {useFavorites} from '../../../../hooks/useFavorites.ts';
 import {ROUTES} from '../../../../app/routers/routes';
-import {truncateText} from '../../../../utils/textHelper';
+import {truncateText} from '../../../../utils/textUtils';
+
 import {Marquee} from '../../Text/Marquee';
 import {Carousel} from '../../Photo/Carousel';
 import {Toggle} from '../../Button/Toggle/Toggle';
@@ -54,98 +55,6 @@ const getRussianPlural = (number: number, forms: [string, string, string]): stri
   return forms[number % 100 > 4 && number % 100 < 20 ? 2 : cases[number % 10 < 5 ? number % 10 : 5]];
 };
 
-// Универсальная функция для форматирования даты с переводами
-export const formatLocalizedDate = (dateString: string, t: any): string => {
-  try {
-    if (!dateString) return 'Дата не указана';
-    
-    // Проверяем, является ли строка ISO форматом или числовым timestamp
-    const date = new Date(dateString);
-    
-    // Если дата невалидна
-    if (isNaN(date.getTime())) {
-      return dateString; // возвращаем как есть
-    }
-    
-    // Проверяем, содержит ли строка уже переведенные названия месяцев (но не ISO символы)
-    const hasTranslatedMonth = /\b(январ|феврал|март|апрел|май|июн|июл|август|сентябр|октябр|ноябр|декабр|january|february|march|april|may|june|july|august|september|october|november|december|декабри|январи|феврали|марти|апрели|маи|июни|июли|августи|сентябри|октябри|ноябри)\w*/i.test(dateString);
-    
-    if (hasTranslatedMonth) {
-      return dateString; // уже отформатировано
-    }
-    
-    const months = t('time.months', { returnObjects: true }) as string[] || [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    
-    const day = date.getDate();
-    const month = months[date.getMonth()];
-    const year = date.getFullYear();
-    
-    return `${day} ${month} ${year}`;
-  } catch {
-    return dateString; // в случае ошибки возвращаем исходную строку
-  }
-};
-export const getTimeAgo = (dateString: string, t: any): string => {
-  try {
-    if (!dateString) return t('time.recentlyAgo');
-    
-    const date = new Date(dateString);
-    
-    // Проверяем, что дата валидна
-    if (isNaN(date.getTime())) {
-      console.warn('Invalid date passed to getTimeAgo:', dateString);
-      return t('time.recentlyAgo');
-    }
-    
-    const now = new Date();
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
-    // Защита от отрицательных значений (даты из будущего)
-    if (diffInSeconds < 0) {
-      return t('time.justNow');
-    }
-    
-    if (diffInSeconds < 60) return t('time.justNow');
-    
-    if (diffInSeconds < 3600) {
-      const minutes = Math.floor(diffInSeconds / 60);
-      if (minutes === 1) {
-        return t('time.minuteAgo');
-      } else if (minutes < 5) {
-        return t('time.minutesAgo', { count: minutes });
-      } else {
-        return t('time.minutesPluralAgo', { count: minutes });
-      }
-    }
-    
-    if (diffInSeconds < 86400) {
-      const hours = Math.floor(diffInSeconds / 3600);
-      if (hours === 1) {
-        return t('time.hourAgo');
-      } else if (hours < 5) {
-        return t('time.hoursAgo', { count: hours });
-      } else {
-        return t('time.hoursPluralAgo', { count: hours });
-      }
-    }
-    
-    const days = Math.floor(diffInSeconds / 86400);
-    if (days === 1) {
-      return t('time.dayAgo');
-    } else if (days < 5) {
-      return t('time.daysAgo', { count: days });
-    } else {
-      return t('time.daysPluralAgo', { count: days });
-    }
-  } catch (error) {
-    console.warn('Error in getTimeAgo:', error, 'for date:', dateString);
-    return t('time.recentlyAgo');
-  }
-};
-
 export function Card({
   title,
   description,
@@ -183,7 +92,7 @@ export function Card({
   viewsCount,
   responsesCount,
 }: AnnouncementCardProps) {
-  const { t, i18n } = useTranslation(['components', 'ticket']);
+  const { t, i18n } = useTranslation(['components', 'ticket', 'common']);
   const [, forceUpdate] = useState({});
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
@@ -242,11 +151,9 @@ export function Card({
     forceUpdate({});
   });
 
-  // Форматируем дату с переводами
-  const formattedDate = formatLocalizedDate(date, t);
-  
-  // Форматируем время с переводами
-  const formattedTimeAgo = timeAgo ? getTimeAgo(timeAgo, t) : undefined;
+  const formattedDate = useFormattedDate(date);
+  const formattedTimeAgoValue = useTimeAgo(timeAgo ?? '');  // '' suppresses formatting when timeAgo is absent
+  const formattedTimeAgo = timeAgo ? formattedTimeAgoValue : undefined;
 
   // Унифицированная функция для определения типа тикета и его перевода
   const getTicketTypeDisplay = (): string | null => {
@@ -266,6 +173,10 @@ export function Card({
     
     return null;
   };
+
+  const displayAddress = address && address !== 'Адрес не указан'
+    ? address
+    : t('common:app.addressNotSpecified');
 
   const displayTicketType = getTicketTypeDisplay();
   const showActionsDropdown = !showEditButton && (onComplaintClick || onReviewClick);
@@ -391,7 +302,7 @@ export function Card({
             }
           </button>
         )}
-        <span className={styles.card_price}>{(negotiableBudget && !price) ? t('app.negotiablePrice') : `${price != null ? price.toLocaleString('ru-RU') : '—'} TJS, ${unit || 'N/A'}`}</span>
+        <span className={styles.card_price}>{(negotiableBudget && !price) ? t('app.negotiablePrice') : `${price != null ? price.toLocaleString('ru-RU') : '—'} TJS, ${unit && unit !== 'N/A' && unit.toLowerCase() !== 'tjs' ? unit : t('common:app.notSpecified')}`}</span>
       </div>
 
       {photos && photos.length > 0 ? (
@@ -409,7 +320,7 @@ export function Card({
             <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="#3A54DA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             <circle cx="12" cy="9" r="2.5" stroke="#3A54DA" strokeWidth="2"/>
           </svg>
-          <Marquee text={address || ''} alwaysScroll />
+          <Marquee text={displayAddress} alwaysScroll />
         </div>
         <span className={styles.card_date}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

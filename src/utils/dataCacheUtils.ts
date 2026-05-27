@@ -6,9 +6,9 @@
 
 import type { Province, City, Occupation, Category, District } from '../entities';
 import type { Unit } from '../entities/api/Ticket';
-import { universalApiRequest, getDefaultLocale } from './apiHelper';
-import type { LocaleType } from './apiHelper';
-import { getStorageItem } from './storageHelper';
+import { universalApiRequest } from './apiUtils';
+import type { LocaleType } from './apiUtils';
+import { getStorageItem, getDefaultLocale } from './storageUtils';
 
 // ─── Типы ────────────────────────────────────────────────────────────────────
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { getAuthToken } from '../../../utils/auth';
+import { getAuthToken } from '../../../utils/authUtils';
 import styles from './AuthBanner.module.scss';
 
 interface AuthBannerProps {

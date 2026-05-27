@@ -8,8 +8,9 @@ import PageLoader from '../../widgets/PageLoader/PageLoader';
 import { IoDocumentTextOutline, IoShieldCheckmarkOutline, IoReceiptOutline } from 'react-icons/io5';
 import styles from './Legal.module.scss';
 import type { LegalDocument, LegalDocumentType } from '../../entities';
-import { universalApiRequest } from '../../utils/apiHelper';
-import type { LocaleType } from '../../utils/apiHelper';
+import { universalApiRequest } from '../../utils/apiUtils';
+import type { LocaleType } from '../../utils/apiUtils';
+import { resolveApiError } from '../../utils/appMessagesUtils';
 
 /**
  * Legal documents page.
@@ -53,7 +54,7 @@ function Legal() {
                 }
             } catch (err) {
                 console.error('Error fetching legal document:', err);
-                setError(err instanceof Error ? err.message : 'Unknown error');
+                setError(resolveApiError(err));
                 setDocument(null);
             } finally {
                 setIsLoading(false);

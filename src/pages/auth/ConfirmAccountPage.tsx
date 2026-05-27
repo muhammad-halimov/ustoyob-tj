@@ -4,7 +4,7 @@ import { ROUTES } from '../../app/routers/routes';
 import { PageLoader } from '../../widgets/PageLoader';
 import Status from '../../shared/ui/Modal/Status';
 import { useTranslation } from 'react-i18next';
-import { universalApiRequest } from '../../utils/apiHelper';
+import { universalApiRequest } from '../../utils/apiUtils';
 
 /**
  * Email confirmation page.

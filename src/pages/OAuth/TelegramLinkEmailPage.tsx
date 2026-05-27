@@ -11,10 +11,10 @@ import {
     setUserData,
     setUserEmail,
     setUserOccupation
-} from '../../utils/auth';
+} from '../../utils/authUtils';
 import type { BackendAuthCallbackResponse } from '../../entities';
-import { universalApiRequest } from '../../utils/apiHelper';
-import { getSessionItem, removeSessionItems } from '../../utils/storageHelper';
+import { universalApiRequest } from '../../utils/apiUtils';
+import { getSessionItem, removeSessionItems } from '../../utils/storageUtils';
 
 const TelegramLinkEmailPage = () => {
     const navigate = useNavigate();

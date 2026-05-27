@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getStorageItem } from '../../../../utils/storageHelper';
+import { getStorageItem } from '../../../../utils/storageUtils';
 import { AddressValueView, AddressDataView } from '../../../../entities';
 import type { Province, City, District } from '../../../../entities';
-import { getProvinces, getCities, getDistricts } from '../../../../utils/dataCache';
+import { getProvinces, getCities, getDistricts } from '../../../../utils/dataCacheUtils';
 import { PageLoader } from '../../../../widgets/PageLoader';
 import { SelectSearch } from '../../SelectSearch';
 import styles from './Address.module.scss';

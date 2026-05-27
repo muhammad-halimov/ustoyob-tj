@@ -1,8 +1,9 @@
 import { useState, useCallback } from 'react';
-import { getAuthToken } from '../utils/auth.ts';
-import { getStorageJSON, setStorageJSON } from '../utils/storageHelper.ts';
+import { getAuthToken } from '../utils/authUtils';
+import { getStorageJSON, setStorageJSON } from '../utils/storageUtils';
 import type { LocalStorageFavorites } from '../entities';
-import { universalApiRequest } from '../utils/apiHelper.ts';
+import { universalApiRequest } from '../utils/apiUtils';
+import { resolveApiError } from '../utils/appMessagesUtils';
 
 // Flat entry returned by GET /api/favorites/me (hydra:member)
 interface FavoriteEntry {
@@ -133,8 +134,8 @@ export const useFavorites = ({ itemId, itemType, onSuccess, onError }: UseFavori
                 invalidateFavoritesCache();
                 window.dispatchEvent(new Event('favoritesUpdated'));
                 if (onSuccess) onSuccess();
-            } catch {
-                if (onError) onError('Ошибка при удалении из избранного');
+            } catch (err) {
+                if (onError) onError(resolveApiError(err));
             } finally {
                 setIsLikeLoading(false);
             }
@@ -158,8 +159,8 @@ export const useFavorites = ({ itemId, itemType, onSuccess, onError }: UseFavori
             invalidateFavoritesCache();
             window.dispatchEvent(new Event('favoritesUpdated'));
             if (onSuccess) onSuccess();
-        } catch {
-            if (onError) onError('Ошибка при добавлении в избранное');
+        } catch (err) {
+            if (onError) onError(resolveApiError(err));
         } finally {
             setIsLikeLoading(false);
         }

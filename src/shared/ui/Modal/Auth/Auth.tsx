@@ -10,8 +10,8 @@ import {
     setUserEmail,
     setUserRole,
     setUserOccupation,
-} from '../../../../utils/auth';
-import { getOccupations } from '../../../../utils/dataCache';
+} from '../../../../utils/authUtils';
+import { getOccupations } from '../../../../utils/dataCacheUtils';
 import { DateWidget } from '../../../../widgets/DateWidget/DateWidget';
 import { Marquee } from '../../Text/Marquee';
 import Status from '../Status';
@@ -19,9 +19,10 @@ import { PageLoader } from '../../../../widgets/PageLoader';
 import { Clear } from '../../Button/Clear/Clear';
 import type { TelegramUserData as TelegramWidgetData } from '../../../../entities/api/OAuth';
 import type { OAuthProviderName, User, Occupation, Category } from '../../../../entities';
-import { API_BASE_URL } from '../../../../utils/config';
-import { universalApiRequest } from '../../../../utils/apiHelper';
-import { setSessionItem, getSessionItem, removeSessionItem, removeSessionItems, removeStorageItems, getStorageJSON } from '../../../../utils/storageHelper';
+import { API_BASE_URL } from '../../../../utils/configUtils';
+import { universalApiRequest } from '../../../../utils/apiUtils';
+import { resolveApiError, ApiError } from '../../../../utils/appMessagesUtils';
+import { setSessionItem, getSessionItem, removeSessionItem, removeSessionItems, removeStorageItems, getStorageJSON } from '../../../../utils/storageUtils';
 
 const AuthModalState = {
     WELCOME: 'welcome',
@@ -91,11 +92,10 @@ interface TelegramAuthResponse {
 }
 
 // Типы для OAuth провайдеров
-type OAuthProvider = OAuthProviderName;
 interface OAuthCallbackData {
     code: string;
     state: string;
-    provider: OAuthProvider;
+    provider: OAuthProviderName
 }
 
 // Регулярное выражение для проверки пароля
@@ -153,7 +153,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
     const [registeredEmail, setRegisteredEmail] = useState<string>('');
     const [oauthCallbackData, setOAuthCallbackData] = useState<OAuthCallbackData | null>(null);
     const [isCheckingProfile, setIsCheckingProfile] = useState(false);
-    const [activeOAuthProvider, setActiveOAuthProvider] = useState<OAuthProvider | null>(null);
+    const [activeOAuthProvider, setActiveOAuthProvider] = useState<OAuthProviderName | null>(null);
     const [passwordValidation, setPasswordValidation] = useState<{ isValid: boolean; message: string }>({
         isValid: false,
         message: ''
@@ -186,7 +186,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         const code = urlParams.get('code');
         const state = urlParams.get('state');
         const oauthError = urlParams.get('error');
-        const provider = urlParams.get('provider') as OAuthProvider;
+        const provider = urlParams.get('provider') as OAuthProviderName
 
         // Очищаем URL от параметров OAuth
         if (code || state || oauthError || provider) {
@@ -207,7 +207,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
     }, [isOpen]);
 
     // Функция обработки OAuth callback
-    const handleOAuthCallback = async (code: string, state: string, provider: OAuthProvider) => {
+    const handleOAuthCallback = async (code: string, state: string, provider: OAuthProviderName) => {
         try {
             setIsCheckingProfile(true);
 
@@ -311,7 +311,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
     }, []);
 
     // Общая функция для начала OAuth авторизации
-    const handleOAuthStart = (provider: OAuthProvider) => {
+    const handleOAuthStart = (provider: OAuthProviderName) => {
         try {
             // Сохраняем выбранную роль и специальность
             setSessionItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Role`, formData.role);
@@ -343,7 +343,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 })
                 .catch(err => {
                     console.error(`${provider.toUpperCase()} auth error:`, err);
-                    setError(err instanceof Error ? err.message : `Ошибка при авторизации через ${provider.charAt(0).toUpperCase() + provider.slice(1)}`);
+                    setError(resolveApiError(err, `Ошибка при авторизации через ${provider.charAt(0).toUpperCase() + provider.slice(1)}`));
                     removeSessionItems(
                         `pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Role`,
                         `pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Specialty`,
@@ -353,7 +353,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
 
         } catch (err) {
             console.error(`${provider.toUpperCase()} auth error:`, err);
-            setError(err instanceof Error ? err.message : `Ошибка при авторизации через ${provider.charAt(0).toUpperCase() + provider.slice(1)}`);
+            setError(resolveApiError(err, `Ошибка при авторизации через ${provider.charAt(0).toUpperCase() + provider.slice(1)}`));
 
             // Очищаем сохраненные данные при ошибке
             removeSessionItems(
@@ -415,7 +415,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
 
         } catch (err) {
             console.error('OAuth completion error:', err);
-            setError(err instanceof Error ? err.message : 'Ошибка завершения авторизации');
+            setError(resolveApiError(err, 'Ошибка завершения авторизации'));
         } finally {
             setIsLoading(false);
         }
@@ -532,7 +532,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
 
         } catch (err) {
             console.error('Telegram widget callback error:', err);
-            setError(err instanceof Error ? err.message : 'Ошибка при завершении авторизации через Telegram');
+            setError(resolveApiError(err, 'Ошибка при завершении авторизации через Telegram'));
         } finally {
             setIsLoading(false);
         }
@@ -725,7 +725,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             console.log('Login response token received');
 
             if (!data.token) {
-                throw new Error('Токен не получен в ответе');
+                throw new ApiError('token_not_found', 'Токен не получен в ответе', 401);
             }
 
             // Сохраняем токен
@@ -739,7 +739,11 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
 
         } catch (err) {
             console.error('Login error:', err);
-            setError(err instanceof Error ? err.message : 'Произошла ошибка при авторизации');
+            if (err instanceof ApiError && err.http === 401) {
+                setError(t('auth.invalidCredentials'));
+                return;
+            }
+            setError(resolveApiError(err, 'Произошла ошибка при авторизации'));
         } finally {
             setIsLoading(false);
         }
@@ -831,7 +835,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             });
 
             if (!loginData.token) {
-                throw new Error('Токен не получен в ответе');
+                throw new ApiError('token_not_found', 'Токен не получен в ответе', 401);
             }
 
             // 3. Сохраняем токен
@@ -883,7 +887,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
 
         } catch (err) {
             console.error('Registration error:', err);
-            setError(err instanceof Error ? err.message : 'Произошла ошибка при регистрации');
+            setError(resolveApiError(err, 'Произошла ошибка при регистрации'));
         } finally {
             setIsLoading(false);
         }
@@ -1673,12 +1677,12 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 handleSuccessfulAuth(data.token, data.user?.email);
                 removeStorageItems('telegramUserData');
             } else {
-                throw new Error('Токен не получен в ответе');
+                throw new ApiError('token_not_found', 'Токен не получен в ответе', 401);
             }
 
         } catch (err) {
             console.error('Telegram auth completion error:', err);
-            setError(err instanceof Error ? err.message : 'Ошибка при завершении авторизации через Telegram');
+            setError(resolveApiError(err, 'Ошибка при завершении авторизации через Telegram'));
         } finally {
             setIsLoading(false);
         }

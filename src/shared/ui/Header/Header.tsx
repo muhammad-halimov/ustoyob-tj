@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import styles from "./Header.module.scss";
 import { ROUTES } from '../../../app/routers/routes';
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import {getAuthToken, fetchCurrentUser, invalidateCurrentUserCache} from "../../../utils/auth";
+import {getAuthToken, fetchCurrentUser, invalidateCurrentUserCache} from "../../../utils/authUtils";
 import { useTranslation } from 'react-i18next';
 import { changeLanguage, Language } from '../../../locales/i18n';
 import { useLanguageChange } from '../../../hooks';
@@ -13,14 +13,13 @@ import { EmptyState } from '../../../widgets/EmptyState';
 import { Back } from '../Button/Back/Back';
 import { Clear } from '../Button/Clear/Clear';
 import { ShowMore } from '../Button/ShowMore/ShowMore';
-import { getPageSize } from '../../../utils/pageSize';
+import { getPageSize } from '../../../utils/pageSizeUtils';
 import { SelectSearch } from '../SelectSearch';
 import type { User } from '../../../entities';
-import { universalApiRequest } from '../../../utils/apiHelper';
-import { getCities, getDistricts } from '../../../utils/dataCache';
-import { getStorageItem, setStorageItem, removeStorageItems, getStorageJSON, setStorageJSON } from '../../../utils/storageHelper';
+import { universalApiRequest } from '../../../utils/apiUtils';
+import { getCities, getDistricts } from '../../../utils/dataCacheUtils';
+import { getStorageItem, setStorageItem, removeStorageItems, getStorageJSON, setStorageJSON } from '../../../utils/storageUtils';
 
-type UserData = User;
 
 /** @param onOpenAuthModal  Callback to open the Auth modal from the parent layout. */
 interface HeaderProps {
@@ -68,7 +67,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
         const token = getAuthToken();
         if (!token) return false;
 
-        const userData = getStorageJSON<UserData>('userData');
+        const userData = getStorageJSON<User>('userData');
         if (userData) {
             return userData.approved === false;
         }

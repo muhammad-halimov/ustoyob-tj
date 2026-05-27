@@ -1,6 +1,6 @@
 import React from 'react';
 import styles from './Add.module.scss';
-import { getAuthToken, getUserRole } from "../../../../../utils/auth";
+import { getAuthToken, getUserRole } from "../../../../../utils/authUtils";
 import { useTranslation } from 'react-i18next';
 
 interface AdBtnProps {

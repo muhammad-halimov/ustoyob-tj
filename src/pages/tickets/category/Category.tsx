@@ -1,6 +1,6 @@
 import {useState, useEffect, useCallback} from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { getAuthToken, getUserRole, getUserData } from '../../../utils/auth';
+import { getAuthToken, getUserRole, getUserData } from '../../../utils/authUtils';
 import { useLanguageChange } from '../../../hooks';
 import { createChatWithAuthor, getChatsMe } from '../../../utils/chatUtils';
 import Status from '../../../shared/ui/Modal/Status';
@@ -14,17 +14,18 @@ import { ServiceTypeFilter } from '../../../widgets/Sorting/TypeFilter';
 import { SortingFilter } from '../../../widgets/Sorting/CriteriaFilter';
 import { useTranslation } from 'react-i18next';
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
-import { getOccupations } from '../../../utils/dataCache';
-import { truncateText } from '../../../utils/textHelper';
+import { getOccupations } from '../../../utils/dataCacheUtils';
+import { truncateText } from '../../../utils/textUtils';
 import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore';
 import { SelectSearch } from '../../../shared/ui/SelectSearch';
-import { getPageSize } from '../../../utils/pageSize';
-import { parsePagedResponse, ticketToTicketView, getTicketFullAddress, getTicketShortAddress, universalApiRequest } from '../../../utils/apiHelper';
+import { getPageSize } from '../../../utils/pageSizeUtils';
+import { parsePagedResponse, ticketToTicketView, getTicketFullAddress, getTicketShortAddress, universalApiRequest } from '../../../utils/apiUtils';
 import { useShowMore } from '../../../hooks';
 import type { Ticket, TicketView } from '../../../entities';
 import type { Occupation } from '../../../entities';
-import { API_BASE_URL } from '../../../utils/config';
-import { getSessionJSON, getSessionItem, setSessionItem, setSessionJSON, getStorageItem } from '../../../utils/storageHelper';
+import { API_BASE_URL } from '../../../utils/configUtils';
+import { getSessionJSON, getSessionItem, setSessionItem, setSessionJSON, getStorageItem } from '../../../utils/storageUtils';
+import { resolveApiError } from '../../../utils/appMessagesUtils';
 
 
 
@@ -121,10 +122,10 @@ function Category() {
                 setRespondedTickets(prev => new Set(prev).add(ticketId));
                 setRespondModal({ open: true, type: 'success', message: 'Вы успешно откликнулись!' });
             } else {
-                setRespondModal({ open: true, type: 'error', message: 'Не удалось откликнуться. Попробуйте ещё раз.' });
+                setRespondModal({ open: true, type: 'error', message: resolveApiError(null) });
             }
         } catch (e) {
-            const msg = e instanceof Error ? e.message : 'Не удалось откликнуться. Попробуйте ещё раз.';
+            const msg = resolveApiError(e);
             setRespondModal({ open: true, type: 'error', message: msg });
         } finally {
             setRespondingTicketId(null);

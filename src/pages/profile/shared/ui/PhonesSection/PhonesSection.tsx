@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getAuthToken } from '../../../../../utils/auth';
+import { getAuthToken } from '../../../../../utils/authUtils';
 import { Marquee } from '../../../../../shared/ui/Text/Marquee';
 import { AuthBanner } from '../../../../../widgets/Banners/AuthBanner/AuthBanner';
 import Status from '../../../../../shared/ui/Modal/Status';

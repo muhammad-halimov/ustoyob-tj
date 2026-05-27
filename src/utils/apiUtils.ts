@@ -1,9 +1,10 @@
-import { getAuthToken, handleUnauthorized, getUserData } from './auth';
-import { getStorageItem } from './storageHelper';
+import { getAuthToken, handleUnauthorized, getUserData } from './authUtils';
+import { ApiError } from './appMessagesUtils';
+import { getDefaultLocale } from './storageUtils';
 import type { Ticket, SortByType, FavoriteTicketView } from '../entities';
 import type { TicketView } from '../entities';
-import { formatTicketImageUrl, formatProfileImageUrl } from './imageHelper';
-import { API_BASE_URL } from './config';
+import { formatTicketImageUrl, formatProfileImageUrl } from './imageUtils';
+import { API_BASE_URL } from './configUtils';
 
 export type LocaleType = 'tj' | 'ru' | 'eng';
 
@@ -21,14 +22,6 @@ export interface ApiRequestOptions {
     /** Pass `true` to send the request with keepalive (e.g. offline/unload beacons). */
     keepalive?: boolean;
 }
-
-/** Reads the active locale from storage, defaulting to 'tj'. */
-export const getDefaultLocale = (): LocaleType => {
-    const stored = getStorageItem('i18nextLng');
-    if (stored === 'ru') return 'ru';
-    if (stored === 'eng' || stored?.startsWith('en')) return 'eng';
-    return 'tj';
-};
 
 /** Appends ?locale=xxx to a URL only when not already present. */
 const appendLocale = (url: string, locale: LocaleType): string => {
@@ -56,7 +49,7 @@ export const universalApiRequest = async (endpoint: string, options: ApiRequestO
             ...options.headers
         };
 
-        if (options.body && !(options.body instanceof FormData)) {
+        if (options.body && !(options.body instanceof FormData) && !headers['Content-Type']) {
             headers['Content-Type'] = 'application/json';
         }
 
@@ -85,16 +78,33 @@ export const universalApiRequest = async (endpoint: string, options: ApiRequestO
         if (refreshed) {
             response = await executeRequest();
         } else {
-            throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+            await throwApiError(response);
         }
     }
 
     if (!response.ok) {
-        throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+        await throwApiError(response);
     }
 
     const text = await response.text();
     return text ? JSON.parse(text) : null;
+};
+
+/**
+ * Parses the response body (if JSON) to extract the `code` field and throws
+ * an ApiError.  Falls back to a generic error when the body cannot be parsed.
+ */
+const throwApiError = async (response: Response): Promise<never> => {
+    let code = 'unknown_error';
+    let message = `${response.status} ${response.statusText}`;
+    try {
+        const body = await response.clone().json();
+        if (body?.code) code = String(body.code);
+        if (body?.message) message = String(body.message);
+    } catch {
+        // body is not JSON — keep defaults
+    }
+    throw new ApiError(code, message, response.status);
 };
 
 /** @deprecated Use universalApiRequest instead */
@@ -141,59 +151,47 @@ export function parsePagedResponse<T = unknown>(
 
 // ─── Адрес тикета ──────────────────────────────────────────────
 
+const FULL_ADDR_FIELDS = ['province', 'city', 'district', 'suburb', 'settlement', 'community', 'village'] as const;
+
+/** Extracts address part titles from an address object into an array of strings. */
+const extractAddrParts = (addr: any, fields: readonly string[]): string[] => {
+    const parts: string[] = [];
+    for (const f of fields) if (addr[f]?.title) parts.push(addr[f].title);
+    if (addr.title) parts.push(addr.title);
+    return parts;
+};
+
+/** Deduplicates and joins parts into a comma-separated string, or returns '' if empty. */
+const joinAddrParts = (parts: string[]): string =>
+    Array.from(new Set(parts.filter(Boolean))).join(', ');
+
 /** Полный адрес: область, город, район, пригород, поселение, сообщество, деревня, улица */
 export const getTicketFullAddress = (ticket: Ticket): string => {
     if (ticket.addresses?.length) {
-        const addr = ticket.addresses[0];
-        const parts: string[] = [];
-        if (addr.province?.title)   parts.push(addr.province.title);
-        if (addr.city?.title)       parts.push(addr.city.title);
-        if (addr.district?.title)   parts.push(addr.district.title);
-        if (addr.suburb?.title)     parts.push(addr.suburb.title);
-        if (addr.settlement?.title) parts.push(addr.settlement.title);
-        if (addr.community?.title)  parts.push(addr.community.title);
-        if (addr.village?.title)    parts.push(addr.village.title);
-        if (addr.title)             parts.push(addr.title);
-        const unique = Array.from(new Set(parts.filter(Boolean)));
-        if (unique.length) return unique.join(', ');
+        const result = joinAddrParts(extractAddrParts(ticket.addresses[0], FULL_ADDR_FIELDS));
+        if (result) return result;
     }
     // Handle case where API returns `address` as a single embedded object (e.g. JSON-LD)
     // instead of a string (common when individual ticket endpoint is called without auth)
     const rawAddress = (ticket as any).address;
     if (rawAddress && typeof rawAddress === 'object') {
-        const parts: string[] = [];
-        if (rawAddress.province?.title)   parts.push(rawAddress.province.title);
-        if (rawAddress.city?.title)       parts.push(rawAddress.city.title);
-        if (rawAddress.district?.title)   parts.push(rawAddress.district.title);
-        if (rawAddress.suburb?.title)     parts.push(rawAddress.suburb.title);
-        if (rawAddress.settlement?.title) parts.push(rawAddress.settlement.title);
-        if (rawAddress.community?.title)  parts.push(rawAddress.community.title);
-        if (rawAddress.village?.title)    parts.push(rawAddress.village.title);
-        if (rawAddress.title)             parts.push(rawAddress.title);
-        const unique = Array.from(new Set(parts.filter(Boolean)));
-        if (unique.length) return unique.join(', ');
+        const result = joinAddrParts(extractAddrParts(rawAddress, FULL_ADDR_FIELDS));
+        if (result) return result;
     }
     return (typeof ticket.address === 'string' ? ticket.address : '') || 'Адрес не указан';
 };
 
 /** Краткий адрес: только город + район */
 export const getTicketShortAddress = (ticket: Ticket): string => {
+    const SHORT_FIELDS = ['city', 'district'];
     if (ticket.addresses?.length) {
-        const addr = ticket.addresses[0];
-        const parts: string[] = [];
-        if (addr.city?.title)     parts.push(addr.city.title);
-        if (addr.district?.title) parts.push(addr.district.title);
-        const unique = Array.from(new Set(parts.filter(Boolean)));
-        if (unique.length) return unique.join(', ');
+        const result = joinAddrParts(extractAddrParts(ticket.addresses[0], SHORT_FIELDS));
+        if (result) return result;
     }
     const rawAddress = (ticket as any).address;
     if (rawAddress && typeof rawAddress === 'object') {
-        const parts: string[] = [];
-        if (rawAddress.city?.title)     parts.push(rawAddress.city.title);
-        if (rawAddress.district?.title) parts.push(rawAddress.district.title);
-        if (rawAddress.title)           parts.push(rawAddress.title);
-        const unique = Array.from(new Set(parts.filter(Boolean)));
-        if (unique.length) return unique.join(', ');
+        const result = joinAddrParts(extractAddrParts(rawAddress, SHORT_FIELDS));
+        if (result) return result;
     }
     return (typeof ticket.address === 'string' ? ticket.address : '') || 'Адрес не указан';
 };

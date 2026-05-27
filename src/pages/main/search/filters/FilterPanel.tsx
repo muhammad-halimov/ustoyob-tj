@@ -6,7 +6,7 @@ import PageLoader from '../../../../widgets/PageLoader/PageLoader';
 import { Toggle } from '../../../../shared/ui/Button/Toggle/Toggle';
 import type { Occupation, Category, FilterState } from '../../../../entities';
 import type { Province } from '../../../../entities';
-import { getCities, getDistricts } from '../../../../utils/dataCache';
+import { getCities, getDistricts } from '../../../../utils/dataCacheUtils';
 
 interface FilterPanelProps {
     showFilters: boolean;

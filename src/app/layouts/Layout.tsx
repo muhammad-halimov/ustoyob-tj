@@ -4,8 +4,8 @@ import { ROUTES } from '../routers/routes';
 import Header from "../../shared/ui/Header/Header";
 import { Footer } from "../../shared/ui/Footer";
 import Auth from "../../shared/ui/Modal/Auth/Auth";
-import { setupTokenRefresh, isAuthenticated } from '../../utils/auth';
-import { getSessionItem, setSessionItem } from '../../utils/storageHelper';
+import { setupTokenRefresh, isAuthenticated } from '../../utils/authUtils';
+import { getSessionItem, setSessionItem } from '../../utils/storageUtils';
 
 /**
  * Root layout component. Wraps all nested page routes (via <Outlet>).

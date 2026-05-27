@@ -18,7 +18,9 @@
     "submit": "Отправить",
     "close": "Закрыть",
     "showMore": "Больше",
-    "showLess": "Меньше"
+    "showLess": "Меньше",
+    "notSpecified": "Н/У",
+    "addressNotSpecified": "Адрес не указан"
   },
   "validation": {
     "required": "Это поле обязательно",

@@ -1,5 +1,6 @@
-import { getAuthToken } from './auth';
-import { universalApiRequest } from './apiHelper';
+import { getAuthToken } from './authUtils';
+import { universalApiRequest } from './apiUtils';
+import { resolveApiError } from './appMessagesUtils';
 import type { Chat } from '../entities';
 import type { HydraResponse } from '../entities';
 import type { User } from '../entities';
@@ -37,7 +38,7 @@ export const createChatWithAuthor = async (replyAuthorId: number, ticketId?: num
 
     const userStatus = await checkUserStatus(replyAuthorId);
     if (!userStatus.approved || !userStatus.active) {
-        throw new Error('Пользователь не активен. Чаты можно создавать только с активными пользователями.');
+        throw new Error('user_inactive');
     }
 
     const chatData: { replyAuthor: string; ticket?: string } = {
@@ -55,7 +56,7 @@ export const createChatWithAuthor = async (replyAuthorId: number, ticketId?: num
         invalidateChatsCache();
         return rawResponse as Chat;
     } catch (e: any) {
-        throw new Error(e?.message?.includes('detail') ? 'Ошибка при создании чата: ' + e.message : 'Ошибка при создании чата');
+        throw new Error(resolveApiError(e));
     }
 };
 

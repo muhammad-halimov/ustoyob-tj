@@ -61,20 +61,6 @@ const handleProfileClick = (userId: number) => {
 };
 ```
 
-## Файлы, где нужно заменить хардкод на ROUTES:
-
-### Обязательно обновить:
-- ✅ `src/app/routers/index.tsx` - уже обновлен
-- ✅ `src/pages/legal/Legal.tsx` - уже обновлен
-- ✅ `src/widgets/Footer/Footer.tsx` - уже обновлен
-
-### Рекомендуется обновить:
-- `src/widgets/Header/Header.tsx` - замените navigate('/') на navigate(ROUTES.HOME)
-- `src/pages/tickets/my/MyTickets.tsx` - замените navigate('/create-ticket') и т.д.
-- `src/pages/profile/Profile.tsx` - замените все navigate() вызовы
-- `src/widgets/Category/Category.tsx` - если есть навигация
-- `src/pages/main/ui/Main.tsx` - если есть navigate()
-
 ## Как изменить путь
 
 Раньше нужно было менять в 10+ местах:

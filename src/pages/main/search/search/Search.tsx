@@ -2,18 +2,18 @@ import styles from './Search.module.scss';
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import FilterPanel from "../filters/FilterPanel";
 import type { FilterState } from '../../../../entities';
-import { getAuthToken, getUserRole, getUserData } from "../../../../utils/auth";
-import { universalApiRequest } from '../../../../utils/apiHelper';
+import { getAuthToken, getUserRole, getUserData } from "../../../../utils/authUtils";
+import { universalApiRequest } from '../../../../utils/apiUtils';
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from '../../../../app/routers/routes';
-import {textHelper} from "../../../../utils/textHelper";
+import {textHelper} from "../../../../utils/textUtils";
 import { useTranslation } from 'react-i18next';
 import { useLanguageChange } from "../../../../hooks";
 import { Card } from "../../../../shared/ui/Ticket/Card/Card";
 import { ServiceTypeFilter } from "../../../../widgets/Sorting/TypeFilter";
 import { SortingFilter } from "../../../../widgets/Sorting/CriteriaFilter";
 import { createChatWithAuthor, getChatsMe } from '../../../../utils/chatUtils';
-import { getProvinces, getCities, getOccupations, getCategories } from "../../../../utils/dataCache";
+import { getProvinces, getCities, getOccupations, getCategories } from "../../../../utils/dataCacheUtils";
 import { PageLoader } from '../../../../widgets/PageLoader';
 import { SelectSearch } from '../../../../shared/ui/SelectSearch';
 import { EmptyState } from '../../../../widgets/EmptyState';
@@ -21,16 +21,17 @@ import Status from '../../../../shared/ui/Modal/Status';
 import Feedback from '../../../../shared/ui/Modal/Feedback';
 import { Clear } from '../../../../shared/ui/Button/Clear/Clear';
 import { ShowMore } from '../../../../shared/ui/Button/ShowMore/ShowMore';
-import { getPageSize } from '../../../../utils/pageSize';
-import { parsePagedResponse } from '../../../../utils/apiHelper';
+import { getPageSize } from '../../../../utils/pageSizeUtils';
+import { parsePagedResponse } from '../../../../utils/apiUtils';
 import { useShowMore } from '../../../../hooks';
 import type { Ticket as ApiTicket, Occupation, TicketView, Category, UserRole } from '../../../../entities';
 
 /** Intermediate type: raw API ticket enriched with computed display fields for filtering/sorting */
 type TicketWithMeta = ApiTicket & { type: UserRole; userRating: number; userReviewCount: number };
 import type { Province, City } from '../../../../entities';
-import { formatTicketImageUrl, formatProfileImageUrl } from '../../../../utils/imageHelper';
-import { getSessionJSON, setSessionJSON, getStorageItem, removeSessionItem } from '../../../../utils/storageHelper';
+import { formatTicketImageUrl, formatProfileImageUrl } from '../../../../utils/imageUtils';
+import { getSessionJSON, setSessionJSON, getStorageItem, removeSessionItem } from '../../../../utils/storageUtils';
+import { resolveApiError } from '../../../../utils/appMessagesUtils';
 
 interface SearchProps {
     onSearchResults: (results: TicketView[]) => void;
@@ -927,10 +928,10 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 setRespondedTickets(prev => new Set(prev).add(ticketId));
                 setRespondModal({ open: true, type: 'success', message: t('messages.respondSuccess', 'Вы успешно откликнулись!') });
             } else {
-                setRespondModal({ open: true, type: 'error', message: t('messages.respondError', 'Не удалось откликнуться. Попробуйте ещё раз.') });
+                setRespondModal({ open: true, type: 'error', message: t('messages.respondError', resolveApiError(null)) });
             }
         } catch (e) {
-            const msg = e instanceof Error ? e.message : t('messages.respondError', 'Не удалось откликнуться. Попробуйте ещё раз.');
+            const msg = resolveApiError(e);
             setRespondModal({ open: true, type: 'error', message: msg });
         } finally {
             setRespondingTicketId(null);

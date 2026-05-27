@@ -1,5 +1,5 @@
 // utils/auth.ts
-import {API_BASE_URL} from './config';
+import {API_BASE_URL} from './configUtils';
 import type {Occupation, User} from '../entities';
 import {
     getStorageItem,
@@ -8,7 +8,8 @@ import {
     removeStorageItems,
     getStorageJSON,
     setStorageJSON,
-} from './storageHelper';
+    isClientSide,
+} from './storageUtils';
 
 // Константы для хранения ключей в localStorage
 const STORAGE_KEYS = {
@@ -269,9 +270,6 @@ export const handleUnauthorized = async (): Promise<boolean> => {
     window.dispatchEvent(new Event('logout'));
     return false;
 };
-
-// ============ Автоматическое обновление токена ============
-const isClientSide = (): boolean => typeof window !== 'undefined';
 
 /**
  * Starts a 60-second polling interval that:

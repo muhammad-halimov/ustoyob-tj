@@ -2,7 +2,7 @@
  * Application entry point.
  *
  * Boot order:
- *  1. `initDataCache()` — warms the data cache (cities, occupations, etc.)
+ *  1. Data cache is warmed (cities, occupations, etc.)
  *     and subscribes to the global `languageChanged` event for cache invalidation.
  *  2. React tree is mounted with:
  *     - Redux `Provider` for global state
@@ -19,10 +19,17 @@ import {AppRouter} from "./routers";
 import {store} from "./store";
 import {Provider} from "react-redux";
 import { ThemeProvider } from '../contexts';
-import { initDataCache } from '../utils/dataCacheInit';
+import { clearCache, preloadData } from '../utils/dataCacheUtils';
+import { loadAppMessages } from '../utils/appMessagesUtils';
 
 // Инициализируем кеш данных при старте приложения
-initDataCache();
+clearCache('occupations');
+window.addEventListener('languageChanged', () => {
+    clearCache();
+    setTimeout(() => { preloadData(); loadAppMessages(undefined, true); }, 100);
+});
+preloadData();
+loadAppMessages();
 
 createRoot(document.getElementById('root')!).render(
     // <React.StrictMode> // Временно отключено для тестирования дубликатов

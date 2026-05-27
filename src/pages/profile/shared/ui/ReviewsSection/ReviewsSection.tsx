@@ -7,9 +7,11 @@ import { EmptyState } from '../../../../../widgets/EmptyState';
 import { Marquee } from '../../../../../shared/ui/Text/Marquee';
 import { Review } from '../../../../../entities';
 import styles from './ReviewsSection.module.scss';
-import { getAuthorAvatar } from '../../../../../utils/imageHelper';
+import { getAuthorAvatar } from '../../../../../utils/imageUtils';
 import { ActionsDropdown } from '../../../../../widgets/ActionsDropdown';
-import { IoWarningOutline, IoCreateOutline } from 'react-icons/io5';
+import { IoWarningOutline, IoCreateOutline, IoTrashOutline } from 'react-icons/io5';
+import { universalApiRequest } from '../../../../../utils/apiUtils';
+import Status from '../../../../../shared/ui/Modal/Status';
 import { ReviewSortingFilter, ReviewSortByType, ReviewTimeFilterType } from '../../../../../widgets/Sorting/ReviewCriteriaFilter';
 
 // Экспорт для обратной совместимости
@@ -67,6 +69,9 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
     const [timeFilter, setTimeFilter] = useState<ReviewTimeFilterType>('all');
     const [withPhotosOnly, setWithPhotosOnly] = useState(false);
     const [expandedReviews, setExpandedReviews] = useState<Record<number, boolean>>({});
+    const [statusModal, setStatusModal] = useState<{ isOpen: boolean; type: 'success' | 'error'; message: string }>(
+        { isOpen: false, type: 'success', message: '' }
+    );
 
     /** Returns midnight of the given date */
     const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -196,6 +201,18 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
     const getReviewAuthorId = (review: Review): number | undefined =>
         userRole === 'master' ? review.client?.id : review.master?.id;
 
+    const handleDeleteReview = async (reviewId: number) => {
+        if (!window.confirm(t('profile:deleteReviewConfirm', 'Вы уверены, что хотите удалить отзыв?'))) return;
+        try {
+            await universalApiRequest(`/api/reviews/${reviewId}`, { method: 'DELETE' });
+            setStatusModal({ isOpen: true, type: 'success', message: t('profile:deleteReviewSuccess', 'Отзыв успешно удалён') });
+            onRefresh?.();
+        } catch (error) {
+            console.error('Error deleting review:', error);
+            setStatusModal({ isOpen: true, type: 'error', message: t('profile:deleteReviewError', 'Не удалось удалить отзыв') });
+        }
+    };
+
     const isWorkerClickable = () => {
         return true;
     };
@@ -219,7 +236,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
         return (
             <>
                 <div className={styles.review_text}>
-                    {expanded ? plainText : `${plainText.slice(0, previewLength)}...`}
+                    {expanded ? plainText : canShowMore ? `${plainText.slice(0, previewLength)}...` : plainText}
                 </div>
                 {canShowMore && (
                     <ShowMore
@@ -397,11 +414,12 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                             })}
                                         </div>
                                     )}
-                                    {(onComplaintClick || onEditClick) && (
+                                    {(onComplaintClick || onEditClick || currentUserId) && (
                                         <ActionsDropdown
                                             style={{ position: 'absolute', top: '2px', right: '0', zIndex: 2 }}
                                             items={[
                                                 ...(onEditClick ? [{ icon: <IoCreateOutline />, label: t('profile:editBtn'), onClick: () => onEditClick!(review), hidden: !currentUserId || getReviewAuthorId(review) !== currentUserId }] : []),
+                                                { icon: <IoTrashOutline />, label: t('profile:deleteReview', 'Удалить'), onClick: () => handleDeleteReview(review.id), danger: true as const, hidden: !currentUserId || getReviewAuthorId(review) !== currentUserId },
                                                 ...(onComplaintClick ? [{ icon: <IoWarningOutline />, label: t('profile:complaint'), onClick: () => onComplaintClick!(review.id, getReviewAuthorId(review) ?? 0), danger: true as const, hidden: !!currentUserId && getReviewAuthorId(review) === currentUserId }] : []),
                                             ]}
                                         />
@@ -521,11 +539,12 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                         })}
                                                     </div>
                                                 )}
-                                                {(onComplaintClick || onEditClick) && (
+                                                {(onComplaintClick || onEditClick || currentUserId) && (
                                                     <ActionsDropdown
                                                         style={{ position: 'absolute', top: '2px', right: '0', zIndex: 2 }}
                                                         items={[
                                                             ...(onEditClick ? [{ icon: <IoCreateOutline />, label: t('profile:editBtn'), onClick: () => onEditClick!(review), hidden: !currentUserId || getReviewAuthorId(review) !== currentUserId }] : []),
+                                                            { icon: <IoTrashOutline />, label: t('profile:deleteReview', 'Удалить'), onClick: () => handleDeleteReview(review.id), danger: true as const, hidden: !currentUserId || getReviewAuthorId(review) !== currentUserId },
                                                             ...(onComplaintClick ? [{ icon: <IoWarningOutline />, label: t('profile:complaint'), onClick: () => onComplaintClick!(review.id, getReviewAuthorId(review) ?? 0), danger: true as const, hidden: !!currentUserId && getReviewAuthorId(review) === currentUserId }] : []),
                                                         ]}
                                                     />
@@ -638,11 +657,12 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                     })}
                                                 </div>
                                             )}
-                                            {(onComplaintClick || onEditClick) && (
+                                            {(onComplaintClick || onEditClick || currentUserId) && (
                                                 <ActionsDropdown
                                                     style={{ position: 'absolute', top: '2px', right: '0', zIndex: 2 }}
                                                     items={[
                                                         ...(onEditClick ? [{ icon: <IoCreateOutline />, label: t('profile:editBtn'), onClick: () => onEditClick!(review), hidden: !currentUserId || getReviewAuthorId(review) !== currentUserId }] : []),
+                                                        { icon: <IoTrashOutline />, label: t('profile:deleteReview', 'Удалить'), onClick: () => handleDeleteReview(review.id), danger: true as const, hidden: !currentUserId || getReviewAuthorId(review) !== currentUserId },
                                                         ...(onComplaintClick ? [{ icon: <IoWarningOutline />, label: t('profile:complaint'), onClick: () => onComplaintClick!(review.id, getReviewAuthorId(review) ?? 0), danger: true as const, hidden: !!currentUserId && getReviewAuthorId(review) === currentUserId }] : []),
                                                     ]}
                                                 />
@@ -688,6 +708,14 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                 onPrevious={photoGallery.goToPrevious}
                 onSelectImage={photoGallery.selectImage}
                 fallbackImage="./default_user.png"
+            />
+
+            {/* Статус удаления */}
+            <Status
+                type={statusModal.type}
+                isOpen={statusModal.isOpen}
+                onClose={() => setStatusModal(prev => ({ ...prev, isOpen: false }))}
+                message={statusModal.message}
             />
         </div>
     );

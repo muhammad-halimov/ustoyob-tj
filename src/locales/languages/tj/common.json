@@ -18,7 +18,9 @@
     "submit": "Ирсол кардан",
     "close": "Пӯшидан",
     "showMore": "Бештар",
-    "showLess": "Камтар"
+    "showLess": "Камтар",
+    "notSpecified": "Б/В",
+    "addressNotSpecified": "Суроғаи мошхас карда нашудааст"
   },
   "validation": {
     "required": "Ин майдон ҳатмӣ аст",

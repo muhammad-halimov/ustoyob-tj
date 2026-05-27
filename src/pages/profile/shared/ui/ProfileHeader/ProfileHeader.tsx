@@ -1,7 +1,7 @@
 import React, { ChangeEvent, RefObject, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { UserRole, Occupation } from '../../../../../entities';
-import { smartNameTranslator } from '../../../../../utils/textHelper';
+import { smartNameTranslator } from '../../../../../utils/textUtils';
 import { Marquee } from '../../../../../shared/ui/Text/Marquee';
 import { DateWidget } from '../../../../../widgets/DateWidget/DateWidget';
 import styles from './ProfileHeader.module.scss';
@@ -9,7 +9,7 @@ import { EditActions } from '../EditActions/EditActions';
 import { Preview, usePreview } from '../../../../../shared/ui/Photo/Preview';
 import { ActionsDropdown } from '../../../../../widgets/ActionsDropdown';
 import { IoStarOutline, IoWarningOutline } from 'react-icons/io5';
-import { getUserRole } from '../../../../../utils/auth';
+import { getUserRole } from '../../../../../utils/authUtils';
 
 interface ProfileHeaderProps {
     avatar: string | null;

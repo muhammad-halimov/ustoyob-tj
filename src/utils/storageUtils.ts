@@ -5,13 +5,21 @@
 //   • provide a single place to swap storage strategies in the future
 
 /** Returns true when running inside a browser (window is defined). Prevents SSR crashes. */
-const isClientSide = (): boolean => typeof window !== 'undefined';
+export const isClientSide = (): boolean => typeof window !== 'undefined';
 
 /**
  * Safe localStorage value getter
  */
 export const getStorageItem = (key: string): string | null => 
     isClientSide() ? localStorage.getItem(key) : null;
+
+/** Reads the active locale from localStorage, defaulting to 'tj'. */
+export const getDefaultLocale = (): 'tj' | 'ru' | 'eng' => {
+    const stored = getStorageItem('i18nextLng');
+    if (stored === 'ru') return 'ru';
+    if (stored === 'eng' || stored?.startsWith('en')) return 'eng';
+    return 'tj';
+};
 
 /**
  * Safe localStorage value setter

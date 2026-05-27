@@ -1,7 +1,7 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
-import { getStorageItem, setStorageItem } from '../utils/storageHelper';
+import { getStorageItem, setStorageItem } from '../utils/storageUtils';
 
 // Импорты для английского языка
 import enCommon from './languages/eng/common.json';
@@ -118,5 +118,3 @@ i18n
             lookupLocalStorage: 'i18nextLng',
         },
     });
-
-export default i18n;

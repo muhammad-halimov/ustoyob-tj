@@ -2,19 +2,19 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ROUTES } from '../../../app/routers/routes';
-import { smartNameTranslator } from '../../../utils/textHelper';
+import { smartNameTranslator } from '../../../utils/textUtils';
 import { Swiper, SwiperSlide } from "swiper/react";
 import styles from './MainReviewsSection.module.scss';
 import { Preview, usePreview } from '../../../shared/ui/Photo/Preview';
 import { Marquee } from '../../../shared/ui/Text/Marquee';
 import { EmptyState } from '../../../widgets/EmptyState';
-import { getAuthorAvatar } from '../../../utils/imageHelper';
+import { getAuthorAvatar } from '../../../utils/imageUtils';
 import { ActionsDropdown } from '../../../widgets/ActionsDropdown';
 import { IoWarningOutline } from 'react-icons/io5';
 import Feedback from '../../../shared/ui/Modal/Feedback';
 import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore';
-import { getPageSize } from '../../../utils/pageSize';
-import { parsePagedResponse, universalApiRequest } from '../../../utils/apiHelper';
+import { getPageSize } from '../../../utils/pageSizeUtils';
+import { parsePagedResponse, universalApiRequest } from '../../../utils/apiUtils';
 import { useShowMore } from '../../../hooks';
 
 interface MainReviewsSectionProps {

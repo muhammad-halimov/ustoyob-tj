@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from 'react-i18next';
-import { getAuthToken, fetchCurrentUser } from "../../utils/auth";
+import { getAuthToken, fetchCurrentUser } from "../../utils/authUtils";
 import { ROUTES } from '../../app/routers/routes';
-import { smartNameTranslator } from '../../utils/textHelper';
+import { smartNameTranslator } from '../../utils/textUtils';
 import Auth from '../../shared/ui/Modal/Auth/Auth';
 import Feedback from '../../shared/ui/Modal/Feedback';
 import { PageLoader } from '../../widgets/PageLoader';
@@ -13,20 +13,20 @@ import { IoSend, IoAttach, IoImages, IoArchiveOutline, IoArrowUpCircleOutline, I
 import { Preview, usePreview } from '../../shared/ui/Photo/Preview';
 import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
 import { ActionsDropdown } from '../../widgets/ActionsDropdown';
-import { uploadPhotos } from '../../utils/imageHelper';
+import { uploadPhotos } from '../../utils/imageUtils';
 import { Tabs } from '../../shared/ui/Tabs';
 import Grid, { PhotoItem, buildOrderedImagePayload } from '../../shared/ui/Photo/Grid';
 import { Clear } from '../../shared/ui/Button/Clear/Clear';
 import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore';
 import { SelectSearch } from '../../shared/ui/SelectSearch';
-import { getPageSize } from '../../utils/pageSize';
-import { parsePagedResponse, universalApiRequest } from '../../utils/apiHelper';
+import { getPageSize } from '../../utils/pageSizeUtils';
+import { parsePagedResponse, universalApiRequest } from '../../utils/apiUtils';
 import { useShowMore } from '../../hooks';
 import { Marquee } from '../../shared/ui/Text/Marquee';
 import type { User as ApiUser } from '../../entities/api/User';
 import type { Chat as ApiChat, ChatMessage as ApiMessage } from '../../entities/api/Chat';
 import type { ChatImageView as ChatImageThumbnail, ChatMessageView as Message } from '../../entities/view/Chat';
-import { API_BASE_URL } from '../../utils/config';
+import { API_BASE_URL } from '../../utils/configUtils';
 
 /**
  * Chat page — full real-time-style messaging interface.

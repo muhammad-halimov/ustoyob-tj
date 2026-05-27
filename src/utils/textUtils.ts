@@ -1,4 +1,4 @@
-import { getStorageJSON, setStorageJSON } from './storageHelper';
+import { getStorageJSON, setStorageJSON } from './storageUtils';
 
 // ============================================================================
 // Transliteration Maps

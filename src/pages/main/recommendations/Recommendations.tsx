@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getUserRole, getAuthToken, getUserData } from '../../../utils/auth';
-import { getStorageItem } from '../../../utils/storageHelper';
+import { getUserRole, getAuthToken, getUserData } from '../../../utils/authUtils';
+import { getStorageItem } from '../../../utils/storageUtils';
 import { useLanguageChange } from '../../../hooks';
 import { Card } from '../../../shared/ui/Ticket/Card/Card';
 import styles from './Recommendations.module.scss';
@@ -14,8 +14,9 @@ import Feedback from '../../../shared/ui/Modal/Feedback';
 import { EmptyState } from '../../../widgets/EmptyState';
 import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore';
 import type { Ticket } from '../../../entities';
-import { formatTicketImageUrl, formatProfileImageUrl } from '../../../utils/imageHelper';
-import { getTicketFullAddress, universalApiRequest } from '../../../utils/apiHelper';
+import { formatTicketImageUrl, formatProfileImageUrl } from '../../../utils/imageUtils';
+import { getTicketFullAddress, universalApiRequest } from '../../../utils/apiUtils';
+import { resolveApiError } from '../../../utils/appMessagesUtils';
 
 const RECS_INITIAL_SIZE = 6;
 const RECS_PAGE_SIZE = 12;
@@ -99,10 +100,10 @@ function Recommendations({
                 setRespondedTickets(prev => new Set(prev).add(ticketId));
                 setRespondModal({ open: true, type: 'success', message: 'Вы успешно откликнулись!' });
             } else {
-                setRespondModal({ open: true, type: 'error', message: 'Не удалось откликнуться. Попробуйте ещё раз.' });
+                setRespondModal({ open: true, type: 'error', message: resolveApiError(null) });
             }
         } catch (e) {
-            const msg = e instanceof Error ? e.message : 'Не удалось откликнуться. Попробуйте ещё раз.';
+            const msg = resolveApiError(e);
             setRespondModal({ open: true, type: 'error', message: msg });
         } finally {
             setRespondingTicketId(null);

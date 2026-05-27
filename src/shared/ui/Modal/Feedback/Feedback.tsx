@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getAuthToken, getUserRole, getUserData } from '../../../../utils/auth';
-import { getStorageItem } from '../../../../utils/storageHelper';
+import { getAuthToken, getUserRole, getUserData } from '../../../../utils/authUtils';
+import { getStorageItem } from '../../../../utils/storageUtils';
 import Auth from '../Auth/Auth';
 import Status from '../Status';
 import { Toggle } from '../../Button/Toggle/Toggle';
 import Grid, { PhotoItem } from '../../Photo/Grid';
 import { Preview, usePreview } from '../../Photo/Preview';
-import { uploadPhotos } from '../../../../utils/imageHelper';
+import { uploadPhotos } from '../../../../utils/imageUtils';
 import styles from './Feedback.module.scss';
 import type { Ticket, AppealReason } from '../../../../entities';
 
@@ -32,8 +32,8 @@ export interface FeedbackModalProps {
     showUserComplaintToggle?: boolean;
 }
 
-import { API_BASE_URL } from '../../../../utils/config';
-import { universalApiRequest } from '../../../../utils/apiHelper';
+import { API_BASE_URL } from '../../../../utils/configUtils';
+import { universalApiRequest } from '../../../../utils/apiUtils';
 
 const Feedback: React.FC<FeedbackModalProps> = ({
     mode,

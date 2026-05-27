@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getAuthToken } from '../../../../../utils/auth';
+import { getAuthToken } from '../../../../../utils/authUtils';
 import { Marquee } from '../../../../../shared/ui/Text/Marquee';
 import { SectionActions } from '../../../../../shared/ui/SectionActions';
 import { AuthBanner } from '../../../../../widgets/Banners/AuthBanner/AuthBanner';
@@ -178,7 +178,7 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
                                     </a>
                                 ) : (
                                     <span className={styles.handle_placeholder}>
-                                        {t('profile:notSpecified')}
+                                        {t('common:app.notSpecified')}
                                     </span>
                                 )}
                             </div>

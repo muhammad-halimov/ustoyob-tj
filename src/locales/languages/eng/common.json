@@ -18,7 +18,9 @@
     "submit": "Submit",
     "close": "Close",
     "showMore": "More",
-    "showLess": "Less"
+    "showLess": "Less",
+    "notSpecified": "N/A",
+    "addressNotSpecified": "Address not specified"
   },
   "validation": {
     "required": "This field is required",

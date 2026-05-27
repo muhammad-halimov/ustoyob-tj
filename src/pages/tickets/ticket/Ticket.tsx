@@ -1,15 +1,16 @@
 import {useNavigate, useParams} from 'react-router-dom';
 import {useEffect, useRef, useState} from 'react';
-import {getAuthToken, getUserData, getUserRole} from '../../../utils/auth';
-import { getAuthorAvatar, formatTicketImageUrl } from '../../../utils/imageHelper';
+import {getAuthToken, getUserData, getUserRole} from '../../../utils/authUtils';
+import { getAuthorAvatar, formatTicketImageUrl } from '../../../utils/imageUtils';
+import { formatLocalizedDate, getTimeAgo } from '../../../utils/timeUtils';
 import styles from './Ticket.module.scss';
 import {createChatWithAuthor, initChatModals, getChatsMe} from "../../../utils/chatUtils";
 import Auth from "../../../shared/ui/Modal/Auth/Auth";
-import {smartNameTranslator, textHelper} from "../../../utils/textHelper";
+import {smartNameTranslator, textHelper} from "../../../utils/textUtils";
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
 import {useTranslation} from 'react-i18next';
 import {useLanguageChange} from '../../../hooks';
-import {getStorageItem} from '../../../utils/storageHelper';
+import {getStorageItem} from '../../../utils/storageUtils';
 import Status from '../../../shared/ui/Modal/Status';
 import Feedback from '../../../shared/ui/Modal/Feedback';
 import { Carousel } from '../../../shared/ui/Photo/Carousel';
@@ -26,10 +27,11 @@ import {IoWarningOutline, IoStar, IoHeart, IoHeartOutline, IoChevronForward, IoC
 import { ActionsDropdown } from '../../../widgets/ActionsDropdown';
 import Recommendations from '../../main/recommendations/Recommendations';
 import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore';
-import { getPageSize } from '../../../utils/pageSize';
-import { getTicketFullAddress, parsePagedResponse, universalApiRequest } from '../../../utils/apiHelper';
+import { getPageSize } from '../../../utils/pageSizeUtils';
+import { getTicketFullAddress, parsePagedResponse, universalApiRequest } from '../../../utils/apiUtils';
 import { useShowMore } from '../../../hooks';
-import { API_BASE_URL } from '../../../utils/config';
+import { API_BASE_URL } from '../../../utils/configUtils';
+import { resolveApiError } from '../../../utils/appMessagesUtils';
 
 /**
  * Ticket detail page.
@@ -203,6 +205,7 @@ export function Ticket() {
 
     const handleReviewSubmitted = (updatedCount: number) => {
         setReviewCount(updatedCount);
+        fetchReviews();
     };
 
     const getFullAddress = getTicketFullAddress;
@@ -324,10 +327,10 @@ export function Ticket() {
                 unit: (typeof ticketData.unit === 'object' ? ticketData.unit?.title : ticketData.unit) || 'N/A',
                 description: ticketData.description ? textHelper(ticketData.description) : t('ticket:noDescription'),
                 address: fullAddress,
-                date: formatDate(ticketData.createdAt ?? ''),
+                date: formatLocalizedDate(ticketData.createdAt ?? '', t),
                 author: displayUserName,
                 authorId: displayUserId,
-                timeAgo: getTimeAgo(ticketData.createdAt ?? ''),
+                timeAgo: getTimeAgo(ticketData.createdAt ?? '', t),
                 category: ticketData.category?.title ? textHelper(ticketData.category.title) : t('components:app.service'),
                 categoryId: ticketData.category?.id || 0,
                 subcategory: ticketData.subcategory?.title ? textHelper(ticketData.subcategory.title) : undefined,
@@ -379,49 +382,6 @@ export function Ticket() {
             console.log(`[${fetchTime}] fetchOrder COMPLETED, setting isLoading to false`);
             setIsLoading(false);
         }
-    };
-
-    const formatDate = (dateString: string) => {
-        try {
-            if (!dateString) return t('ticket:dateNotSpecified');
-            const date = new Date(dateString);
-            if (isNaN(date.getTime())) return dateString;
-            const months = t('components:time.months', { returnObjects: true }) as string[];
-            if (Array.isArray(months) && months.length === 12) {
-                return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
-            }
-            return new Date(dateString).toLocaleDateString('ru-RU', {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric'
-            });
-        } catch {
-            return t('ticket:dateNotSpecified');
-        }
-    };
-
-    const getTimeAgo = (dateString: string) => {
-        try {
-            if (!dateString) return t('ticket:recently');
-            const date = new Date(dateString);
-            const now = new Date();
-            const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-            if (diffInSeconds < 60) return t('ticket:justNow');
-            const minuteWords = t('components:time.minuteWords', { returnObjects: true }) as string[];
-            const hourWords = t('components:time.hourWords', { returnObjects: true }) as string[];
-            const dayWords = t('components:time.dayWords', { returnObjects: true }) as string[];
-            const ago = t('components:time.ago');
-            if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} ${getRussianWord(Math.floor(diffInSeconds / 60), minuteWords as [string,string,string])} ${ago}`;
-            if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} ${getRussianWord(Math.floor(diffInSeconds / 3600), hourWords as [string,string,string])} ${ago}`;
-            return `${Math.floor(diffInSeconds / 86400)} ${getRussianWord(Math.floor(diffInSeconds / 86400), dayWords as [string,string,string])} ${ago}`;
-        } catch {
-            return t('ticket:recently');
-        }
-    };
-
-    const getRussianWord = (number: number, words: [string, string, string]) => {
-        const cases = [2, 0, 1, 1, 1, 2];
-        return words[number % 100 > 4 && number % 100 < 20 ? 2 : cases[number % 10 < 5 ? number % 10 : 5]];
     };
 
     const handleLeaveReview = () => {
@@ -501,7 +461,7 @@ export function Ticket() {
             }
         } catch (error) {
             console.error('Error creating chat:', error);
-            setModalMessage(error instanceof Error ? error.message : 'Не удалось создать чат');
+            setModalMessage(resolveApiError(error));
             setShowErrorModal(true);
         } finally {
             setIsResponding(false);
@@ -524,7 +484,7 @@ export function Ticket() {
                     }
                 } catch (error) {
                     console.error('Error creating chat after login:', error);
-                    setModalMessage(error instanceof Error ? error.message : 'Не удалось создать чат');
+                    setModalMessage(resolveApiError(error));
                     setShowErrorModal(true);
                 }
             };
@@ -602,6 +562,11 @@ export function Ticket() {
         } finally {
             setIsCheckingChats(false);
         }
+    };
+
+    const getRussianWord = (number: number, words: [string, string, string]) => {
+        const cases = [2, 0, 1, 1, 1, 2];
+        return words[number % 100 > 4 && number % 100 < 20 ? 2 : cases[number % 10 < 5 ? number % 10 : 5]];
     };
 
     const getReviewWord = (count: number) => {
@@ -704,8 +669,8 @@ export function Ticket() {
                     },
                     ticket: review.ticket,
                     images: review.images || [],
-                    user: masterData || { id: 0, email: '', name: t('components:app.defaultMaster'), surname: '', rating: 0, image: '' },
-                    reviewer: clientData || { id: 0, email: '', name: t('components:app.defaultClient'), surname: '', rating: 0, image: '' },
+                    master: masterData || { id: 0, email: '', name: t('components:app.defaultMaster'), surname: '', rating: 0, image: '' },
+                    client: clientData || { id: 0, email: '', name: t('components:app.defaultClient'), surname: '', rating: 0, image: '' },
                     date: review.createdAt
                         ? new Date(review.createdAt).toLocaleDateString('ru-RU')
                         : ''

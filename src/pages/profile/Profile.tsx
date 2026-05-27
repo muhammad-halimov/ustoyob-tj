@@ -1,20 +1,20 @@
 import {type ChangeEvent, useCallback, useEffect, useRef, useState, Dispatch, SetStateAction} from 'react';
 import {Navigate, useNavigate, useParams} from 'react-router-dom';
-import {getAuthToken, getUserData, getUserRole, logout} from '../../utils/auth';
+import {getAuthToken, getUserData, getUserRole, logout} from '../../utils/authUtils';
 import {ROUTES} from '../../app/routers/routes';
 import styles from './Profile.module.scss';
 import {useTranslation} from 'react-i18next';
 import {useTheme} from '../../contexts';
 import {useLanguageChange, useShowMore} from '../../hooks';
-import {getStorageItem, removeStorageItem, setStorageItem, setStorageJSON, getStorageJSON, setSessionItem, removeSessionItem} from '../../utils/storageHelper';
+import {getStorageItem, removeStorageItem, setStorageItem, setStorageJSON, getStorageJSON, setSessionItem, removeSessionItem} from '../../utils/storageUtils';
 import {createChatWithAuthor} from '../../utils/chatUtils';
-import { uploadPhotos } from '../../utils/imageHelper';
+import { uploadPhotos } from '../../utils/imageUtils';
 
 import {usePreview} from '../../shared/ui/Photo/Preview';
 import {AddressValue, buildAddressData} from '../../shared/ui/Address/Selector';
 import {PageLoader} from '../../widgets/PageLoader';
-import {getOccupations, getProvinces, getCities, getDistricts} from '../../utils/dataCache';
-import {smartNameTranslator} from '../../utils/textHelper';
+import {getOccupations, getProvinces, getCities, getDistricts} from '../../utils/dataCacheUtils';
+import {smartNameTranslator} from '../../utils/textUtils';
 
 // Импорты из entities
 import {
@@ -32,7 +32,7 @@ import {
     Address,
 } from '../../entities';
 import type { Image } from '../../entities';
-import { API_BASE_URL } from '../../utils/config';
+import { API_BASE_URL } from '../../utils/configUtils';
 
 // Новые компоненты из shared/ui
 import {ProfileHeader} from './shared/ui/ProfileHeader';
@@ -50,15 +50,16 @@ import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/Cooki
 import Status from '../../shared/ui/Modal/Status';
 import Feedback from '../../shared/ui/Modal/Feedback';
 import Auth from '../../shared/ui/Modal/Auth/Auth';
-import { getAuthorAvatar } from '../../utils/imageHelper';
+import { getAuthorAvatar } from '../../utils/imageUtils';
+import { getFormattedDate } from '../../utils/timeUtils';
 import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore';
-import { getPageSize } from '../../utils/pageSize';
-import { parsePagedResponse, universalApiRequest } from '../../utils/apiHelper';
+import { getPageSize } from '../../utils/pageSizeUtils';
+import { parsePagedResponse, universalApiRequest } from '../../utils/apiUtils';
+import { resolveApiError } from '../../utils/appMessagesUtils';
 import type { AvailableSocialNetwork as LocalAvailableSocialNetwork, UISocialNetwork } from '../../entities';
 import type { AddressFormData as LocalAddress } from '../../entities';
 import type { Phone as LocalPhone } from '../../entities';
 /** Alias for local use */
-type LocalSocialNetwork = UISocialNetwork;
 
 /**
  * Profile page — handles two modes:
@@ -141,7 +142,7 @@ function Profile() {
     const rawPhonesRef = useRef<LocalPhone[]>([]);
     const rawAddressesRef = useRef<Address[]>([]);
     const [editingSocialNetwork, setEditingSocialNetwork] = useState<string | null>(null);
-    const [socialNetworks, setSocialNetworks] = useState<LocalSocialNetwork[]>([]);
+    const [socialNetworks, setSocialNetworks] = useState<UISocialNetwork[]>([]);
     const [socialNetworkEditValue, setSocialNetworkEditValue] = useState('');
     const [showAddSocialNetwork, setShowAddSocialNetwork] = useState(false);
     const [selectedNewNetwork, setSelectedNewNetwork] = useState('');
@@ -278,7 +279,7 @@ function Profile() {
                 return;
             }
             if (data.error) {
-                setModalMessage(data.message || t('profile:oauth.unlinkError', 'Ошибка при отвязке аккаунта'));
+                setModalMessage(data.message || resolveApiError(null, t('profile:oauth.unlinkError', 'Ошибка при отвязке аккаунта')));
                 setShowErrorModal(true);
                 return;
             }
@@ -415,7 +416,7 @@ function Profile() {
         const networkConfig = availableSocialNetworks.find(n => n.network === selectedNewNetwork);
         if (!networkConfig) return;
 
-        const newNetwork: LocalSocialNetwork = {
+        const newNetwork: UISocialNetwork = {
             id: `new-${Date.now()}`,
             network: selectedNewNetwork,
             handle: ''
@@ -444,7 +445,7 @@ function Profile() {
 
     // Получить доступные для добавления сети (исключить уже добавленные)
     const getAvailableNetworks = () => {
-        const addedNetworks = socialNetworks.map((sn: LocalSocialNetwork) => sn.network);
+        const addedNetworks = socialNetworks.map((sn: UISocialNetwork) => sn.network);
         return availableSocialNetworks.filter((an: LocalAvailableSocialNetwork) => !addedNetworks.includes(an.network));
     };
 
@@ -575,7 +576,7 @@ function Profile() {
         }
     }, [editingEducation, occupations, profileData, educationForm.selectedSpecialty, occupationsLoading]);
 
-    const updateSocialNetworks = async (updatedNetworks: LocalSocialNetwork[]) => {
+    const updateSocialNetworks = async (updatedNetworks: UISocialNetwork[]) => {
         if (!profileData?.id) {
             console.error('No profile ID available');
             return false;
@@ -641,7 +642,7 @@ function Profile() {
         }
 
         // Очищаем все социальные сети
-        const emptyNetworks: LocalSocialNetwork[] = [];
+        const emptyNetworks: UISocialNetwork[] = [];
 
         // Обновляем локальное состояние сразу для лучшего UX
         setSocialNetworks(emptyNetworks);
@@ -1263,7 +1264,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             }
 
             // Создаем пустой массив социальных сетей - показываем только те, что есть в API
-            const loadedSocialNetworks: LocalSocialNetwork[] = [];
+            const loadedSocialNetworks: UISocialNetwork[] = [];
 
             // Если в API есть социальные сети, добавляем их
             if (userData.socialNetworks && Array.isArray(userData.socialNetworks)) {
@@ -2159,16 +2160,6 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         }
     };
 
-    const getFormattedDate = (): string => {
-        const now = new Date();
-        const day = now.getDate().toString().padStart(2, '0');
-        const month = (now.getMonth() + 1).toString().padStart(2, '0');
-        const year = now.getFullYear();
-        const cities = ['Москва', 'Санкт-Петербург', 'Новосибирск', 'Екатеринбург', 'Казань'];
-        const randomCity = cities[Math.floor(Math.random() * cities.length)];
-        return `${day}.${month}.${year}, ${randomCity}`;
-    };
-
     const transformEducation = (education: Education[], occupationsList?: { id: number; title: string }[]): EducationItem[] => {
         const resolvedOccupations = occupationsList && occupationsList.length > 0 ? occupationsList : occupations;
         return education.map(edu => {
@@ -2625,7 +2616,10 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             setSelectedSpecialties(currentSpecialties);
             setTempValue('');
         } else if (field === 'gender') {
-            setTempValue(profileData?.gender || '');
+            const g = profileData?.gender || '';
+            const normalized = (g === 'gender_male' || g === 'male') ? 'male'
+                : (g === 'gender_female' || g === 'female') ? 'female' : '';
+            setTempValue(normalized);
         } else if (field === 'dateOfBirth') {
             setTempValue(profileData?.dateOfBirth || '');
         }
@@ -2677,7 +2671,10 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
 
         const currentValue = field === 'fullName' ? profileData.fullName :
             field === 'specialty' ? profileData.specialties?.map(o => o.title).join(', ') ?? '' :
-            field === 'gender' ? (profileData.gender || '') :
+            field === 'gender' ? (
+                (profileData.gender === 'gender_male' || profileData.gender === 'male') ? 'male' :
+                (profileData.gender === 'gender_female' || profileData.gender === 'female') ? 'female' : ''
+            ) :
             (profileData.dateOfBirth || '');
 
         if (field === 'dateOfBirth' && trimmedValue) {

@@ -12,11 +12,12 @@ import {
     setUserEmail,
     setUserOccupation,
     getAuthToken,
-} from '../../utils/auth';
+} from '../../utils/authUtils';
 import type { OAuthProviderName, BackendAuthCallbackResponse } from '../../entities';
-import { API_BASE_URL } from '../../utils/config';
-import { universalApiRequest } from '../../utils/apiHelper';
-import { getStorageItem, removeStorageItem, getSessionItem, removeSessionItem, removeSessionItems } from '../../utils/storageHelper';
+import { API_BASE_URL } from '../../utils/configUtils';
+import { universalApiRequest } from '../../utils/apiUtils';
+import { resolveApiError } from '../../utils/appMessagesUtils';
+import { getStorageItem, removeStorageItem, getSessionItem, removeSessionItem, removeSessionItems } from '../../utils/storageUtils';
 
 // Определяем провайдер по URL
 const getProviderFromUrl = (pathname: string): OAuthProviderName | null => {
@@ -224,7 +225,7 @@ const OAuthCallbackPage = () => {
 
             } catch (err) {
                 console.error(`${detectedProvider} OAuth error:`, err);
-                setError(err instanceof Error ? err.message : 'Ошибка авторизации');
+                setError(resolveApiError(err));
                 setTimeout(() => navigate(ROUTES.HOME), 3000);
             } finally {
                 setLoading(false);

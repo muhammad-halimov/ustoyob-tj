@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, Dispatch, SetStateAction } from 'react';
-import { getPageSize } from '../utils/pageSize';
+import { getPageSize } from '../utils/pageSizeUtils';
 
 export interface ShowMoreBindings {
     expanded: boolean;

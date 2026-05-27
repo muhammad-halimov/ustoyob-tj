@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { getStorageItem, setStorageItem } from '../utils/storageHelper';
+import { getStorageItem, setStorageItem } from '../utils/storageUtils';
 
 /**
  * ThemeContext — provides light/dark theme state to the whole component tree.

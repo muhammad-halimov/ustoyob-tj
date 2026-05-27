@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { getAuthToken, getUserRole, getUserData } from '../../utils/auth';
+import { getAuthToken, getUserRole, getUserData } from '../../utils/authUtils';
 import styles from './Favorite.module.scss';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../app/routers/routes';
 import { createChatWithAuthor, getChatsMe } from "../../utils/chatUtils";
-import { textHelper } from '../../utils/textHelper';
+import { textHelper } from '../../utils/textUtils';
 import { useTranslation } from 'react-i18next';
 import { useLanguageChange, useShowMore } from '../../hooks';
 import { Card } from '../../shared/ui/Ticket/Card/Card';
@@ -20,11 +20,11 @@ import { Tabs } from '../../shared/ui/Tabs';
 import { IoListOutline, IoPeopleOutline } from 'react-icons/io5';
 import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore';
 import { SelectSearch } from '../../shared/ui/SelectSearch';
-import { getPageSize } from '../../utils/pageSize';
-import { parsePagedResponse, getTicketFullAddress, applyFavoriteSort, universalApiRequest } from '../../utils/apiHelper';
-import { formatTicketImageUrl, formatProfileImageUrl } from '../../utils/imageHelper';
+import { getPageSize } from '../../utils/pageSizeUtils';
+import { parsePagedResponse, getTicketFullAddress, applyFavoriteSort, universalApiRequest } from '../../utils/apiUtils';
+import { formatTicketImageUrl, formatProfileImageUrl } from '../../utils/imageUtils';
 import type { User, Ticket, SortByType, SecondarySortByType, TimeFilterType, LocalStorageFavorites, FavoriteEntry, FavoriteTicketView, FavoriteUserView } from '../../entities';
-import { getSessionJSON, setSessionJSON, getStorageJSON, setStorageJSON } from '../../utils/storageHelper';
+import { getSessionJSON, setSessionJSON, getStorageJSON, setStorageJSON } from '../../utils/storageUtils';
 
 // FavoriteTicketView and FavoriteUserView are defined in entities/Favorite
 const FAV_FILTERS_KEY = 'fav-filters';

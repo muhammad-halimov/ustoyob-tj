@@ -10,8 +10,8 @@ import { useLanguageChange } from '../../../hooks';
 import { PageLoader } from '../../../widgets/PageLoader';
 import type { Category } from '../../../entities';
 import { useEffect, useState } from "react";
-import { getCategories } from '../../../utils/dataCache';
-import { setSessionJSON } from '../../../utils/storageHelper';
+import { getCategories } from '../../../utils/dataCacheUtils';
+import { setSessionJSON } from '../../../utils/storageUtils';
 
 /**
  * Home page category strip.

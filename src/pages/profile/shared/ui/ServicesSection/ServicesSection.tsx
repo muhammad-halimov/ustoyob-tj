@@ -8,6 +8,7 @@ import { Tabs } from '../../../../../shared/ui/Tabs';
 import { IoCheckmarkCircleOutline, IoCloseCircleOutline } from 'react-icons/io5';
 import styles from './ServicesSection.module.scss';
 import { Marquee } from '../../../../../shared/ui/Text/Marquee';
+import { formatLocalizedDate } from '../../../../../utils/timeUtils';
 
 interface ServicesSectionProps {
     services: Ticket[];
@@ -39,18 +40,6 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
     const activeServices = services.filter(service => service.active !== false);
     const pastServices = services.filter(service => service.active === false);
     const displayedServices = activeTab === 'active' ? activeServices : pastServices;
-
-    const formatDate = (dateString?: string): string => {
-        if (!dateString) return '';
-        try {
-            const date = new Date(dateString);
-            if (isNaN(date.getTime())) return '';
-            const months = t('components:time.months', { returnObjects: true }) as string[];
-            return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
-        } catch {
-            return '';
-        }
-    };
 
     const getServiceImage = (service: Ticket): string => {
         // Если есть массив изображений и в нём есть хотя бы одно изображение
@@ -125,7 +114,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                     {service.createdAt && (
                         <div className={styles.service_date}>
                             <Marquee
-                                text={`${t('profile:addedAt')} ${formatDate(service.createdAt)}`}
+                                text={`${t('profile:addedAt')} ${formatLocalizedDate(service.createdAt ?? '', t)}`}
                                 alwaysScroll
                             />
                         </div>

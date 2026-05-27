@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ProfileSection } from '../ProfileSection';
 import styles from './LinkedAccountsSection.module.scss';
 import type { OAuthProvider } from '../../../../../entities';
+import { getFormattedDate } from '../../../../../utils/timeUtils';
 
 interface LinkedAccountsSectionProps {
     providers: OAuthProvider[];
@@ -74,18 +75,6 @@ export const LinkedAccountsSection: React.FC<LinkedAccountsSectionProps> = ({
     const linkedSet = new Set(providers.map(p => p.provider));
     const isOnlyOneLinked = providers.length === 1;
 
-    const formatDate = (isoDate: string) => {
-        try {
-            const d = new Date(isoDate);
-            const day = String(d.getDate()).padStart(2, '0');
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const year = d.getFullYear();
-            return `${day}.${month}.${year}`;
-        } catch {
-            return isoDate;
-        }
-    };
-
     return (
         <ProfileSection<ProviderItem>
             title={t('oauth.sectionTitle')}
@@ -110,7 +99,7 @@ export const LinkedAccountsSection: React.FC<LinkedAccountsSectionProps> = ({
                             </div>
                             <div className={`${styles.provider_status} ${isLinked ? styles.linked : styles.unlinked}`}>
                                 {isLinked
-                                    ? `${t('oauth.linked')} ${linkedEntry?.linkedAt ? formatDate(linkedEntry.linkedAt) : ''}`
+                                    ? `${t('oauth.linked')} ${linkedEntry?.linkedAt ? getFormattedDate(linkedEntry.linkedAt) : ''}`
                                     : t('oauth.notLinked')}
                             </div>
                         </div>
