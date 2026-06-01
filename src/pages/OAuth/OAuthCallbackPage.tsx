@@ -4,6 +4,8 @@ import { ROUTES } from '../../app/routers/routes';
 import Status from '../../shared/ui/Modal/Status';
 import { PageLoader } from '../../widgets/PageLoader';
 import { useTranslation } from 'react-i18next';
+import { Performers } from '../main/performers/Performers';
+import type { PerformerItem } from '../main/performers/Performers';
 import {
     setAuthToken,
     setAuthTokenExpiry,
@@ -241,30 +243,26 @@ const OAuthCallbackPage = () => {
             }
         };
 
+        const roleItems: PerformerItem[] = [
+            { id: 1, name: t('roles.customers'), title: t('roles.customersDesc'), img: '/img/misc/clientTest.jpg' },
+            { id: 2, name: t('roles.masters'), title: t('roles.mastersDesc'), img: '/img/misc/master.jpg' },
+        ];
+
         return (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--color-background-all)', gap: '20px', padding: '0 20px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--color-background-all)', gap: '20px', padding: '20px' }}>
                 <svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <circle cx="26" cy="26" r="25" stroke="#4caf50" strokeWidth="2" />
                     <path d="M14 27l8 8 16-16" stroke="#4caf50" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 <p style={{ fontWeight: 'bold', fontSize: '18px', color: '#2e7d32', margin: 0 }}>Авторизация прошла успешно!</p>
                 <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>Выберите тип аккаунта:</p>
-                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '8px' }}>
-                    <button
-                        onClick={() => handleGrantRole('client')}
-                        disabled={grantingRole}
-                        style={{ padding: '14px 32px', borderRadius: '12px', border: '2px solid var(--color-actual-blue)', background: 'transparent', color: 'var(--color-actual-blue)', fontSize: '16px', fontWeight: '600', cursor: grantingRole ? 'not-allowed' : 'pointer', opacity: grantingRole ? 0.6 : 1 }}
-                    >
-                        Я клиент
-                    </button>
-                    <button
-                        onClick={() => handleGrantRole('master')}
-                        disabled={grantingRole}
-                        style={{ padding: '14px 32px', borderRadius: '12px', border: 'none', background: 'var(--color-actual-blue)', color: '#fff', fontSize: '16px', fontWeight: '600', cursor: grantingRole ? 'not-allowed' : 'pointer', opacity: grantingRole ? 0.6 : 1 }}
-                    >
-                        Я мастер
-                    </button>
-                </div>
+                {grantingRole ? <PageLoader fullPage={false} compact /> : (
+                    <Performers
+                        items={roleItems}
+                        getButtonText={item => item.id === 1 ? 'Я клиент' : 'Я мастер'}
+                        onItemClick={item => handleGrantRole(item.id === 1 ? 'client' : 'master')}
+                    />
+                )}
             </div>
         );
     }
@@ -272,8 +270,11 @@ const OAuthCallbackPage = () => {
     if (success) {
         return (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--color-background-all)', gap: '16px' }}>
-                <span style={{ fontSize: '52px', color: 'var(--color-actual-blue)' }}>✓</span>
-                <p style={{ color: 'var(--color-text-secondary)', fontSize: '16px', margin: 0 }}>{t('oauth.success')}</p>
+                <svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="26" cy="26" r="25" stroke="#4caf50" strokeWidth="2" />
+                    <path d="M14 27l8 8 16-16" stroke="#4caf50" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <p style={{ fontWeight: 'bold', fontSize: '18px', color: '#2e7d32', margin: 0 }}>{t('oauth.success')}</p>
             </div>
         );
     }
