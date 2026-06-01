@@ -41,6 +41,8 @@ abstract class AbstractApiGetCollectionController extends AbstractApiHelperContr
 
         $results = $this->buildPaginator($page, $itemsPerPage, $bearer);
 
+        if ($results instanceof JsonResponse) return $results;
+
         $this->afterFetch($results, $bearer);
 
         return $this->buildResponse($results);
@@ -61,7 +63,7 @@ abstract class AbstractApiGetCollectionController extends AbstractApiHelperContr
         $paginator = new DoctrinePaginator($query, false);
         $total     = count($paginator);
 
-        if ($total === 0) return $this->errorJson(404);
+        if ($total === 0) return $this->errorJson(AppMessages::RESOURCE_NOT_FOUND);
 
         return iterator_to_array($paginator->getIterator());
     }
