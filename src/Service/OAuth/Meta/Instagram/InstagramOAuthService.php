@@ -87,7 +87,7 @@ class InstagramOAuthService extends AbstractOAuthService implements OAuthService
         }
     }
 
-    public function findOrCreateUser(array $userData, ?string $role): User
+    public function findOrCreateUser(array $userData, ?string $role): array
     {
         $instagramId = $userData['id'];
         $nameParts   = explode(' ', $userData['name'] ?? '', 2);
@@ -96,7 +96,7 @@ class InstagramOAuthService extends AbstractOAuthService implements OAuthService
         if ($user = $this->userRepository->findByOAuthProvider('instagram', $instagramId)) {
             $this->updateUserData($user, $userData);
             $this->entityManager->flush();
-            return $user;
+            return ['user' => $user, 'isNew' => false];
         }
 
         // 2. New user — Instagram never provides email
@@ -125,7 +125,7 @@ class InstagramOAuthService extends AbstractOAuthService implements OAuthService
         $this->entityManager->persist($user);
         $this->entityManager->flush();
 
-        return $user;
+        return ['user' => $user, 'isNew' => true];
     }
 
     public function updateUserData(User $user, array $userData): void

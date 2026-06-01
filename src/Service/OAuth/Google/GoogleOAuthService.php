@@ -170,7 +170,7 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
         }
     }
 
-    public function findOrCreateUser(array $userData, ?string $role): User
+    public function findOrCreateUser(array $userData, ?string $role): array
     {
         if (!($userData['email_verified'] ?? false)) {
             throw new BadRequestHttpException(AppMessages::get(AppMessages::OAUTH_UNVERIFIED_EMAIL)->message);
@@ -183,7 +183,7 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
         if ($user = $this->userRepository->findByOAuthProvider('google', $googleId)) {
             $this->updateUserData($user, $userData);
             $this->entityManager->flush();
-            return $user;
+            return ['user' => $user, 'isNew' => false];
         }
 
         // 2. Existing user with same verified email — link
@@ -195,7 +195,7 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
             $this->entityManager->persist($op);
             $this->updateUserData($existingUser, $userData);
             $this->entityManager->flush();
-            return $existingUser;
+            return ['user' => $existingUser, 'isNew' => false];
         }
 
         // 3. New user
@@ -223,7 +223,7 @@ class GoogleOAuthService extends AbstractOAuthService implements OAuthServiceInt
         $this->entityManager->persist($user);
         $this->entityManager->flush();
 
-        return $user;
+        return ['user' => $user, 'isNew' => true];
     }
 
     public function updateUserData(User $user, array $userData): void

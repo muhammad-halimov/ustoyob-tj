@@ -58,7 +58,7 @@ readonly class TelegramOAuthService
         if ($user = $this->userRepository->findByOAuthProvider('telegram', $telegramId)) {
             $this->updateUserFromTelegramData($user, $telegramData);
             $this->entityManager->flush();
-            return ['user' => $user, 'token' => $this->jwtManager->create($user)];
+            return ['user' => $user, 'token' => $this->jwtManager->create($user), 'isNew' => false];
         }
 
         // 2. New user — create immediately with a local placeholder email
@@ -87,7 +87,7 @@ readonly class TelegramOAuthService
         $this->entityManager->persist($op);
         $this->entityManager->flush();
 
-        return ['user' => $user, 'token' => $this->jwtManager->create($user)];
+        return ['user' => $user, 'token' => $this->jwtManager->create($user), 'isNew' => true];
     }
 
     private function updateUserFromTelegramData(User $user, TelegramCallbackInput $telegramData): void

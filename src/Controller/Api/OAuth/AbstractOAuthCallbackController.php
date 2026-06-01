@@ -25,6 +25,7 @@ abstract class AbstractOAuthCallbackController extends AbstractController
         $output = new GeneralCallbackOutput();
         $output->user = $result['user'];
         $output->token = $result['token'];
+        $output->status = $result['isNew'] ? 204 : 200;
 
         $refreshTokenValue = $this->refreshTokenService->createRefreshToken($result['user']);
         $response = $this->json($output);

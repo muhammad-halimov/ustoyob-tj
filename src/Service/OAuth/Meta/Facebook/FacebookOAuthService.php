@@ -93,7 +93,7 @@ class FacebookOAuthService extends AbstractOAuthService implements OAuthServiceI
         }
     }
 
-    public function findOrCreateUser(array $userData, ?string $role): User
+    public function findOrCreateUser(array $userData, ?string $role): array
     {
         $facebookId = $userData['id'];
         $email      = $userData['email'] ?? null;
@@ -103,7 +103,7 @@ class FacebookOAuthService extends AbstractOAuthService implements OAuthServiceI
         if ($user = $this->userRepository->findByOAuthProvider('facebook', $facebookId)) {
             $this->updateUserData($user, $userData);
             $this->entityManager->flush();
-            return $user;
+            return ['user' => $user, 'isNew' => false];
         }
 
         // 2. Existing user with same email — link
@@ -115,7 +115,7 @@ class FacebookOAuthService extends AbstractOAuthService implements OAuthServiceI
             $this->entityManager->persist($op);
             $this->updateUserData($existingUser, $userData);
             $this->entityManager->flush();
-            return $existingUser;
+            return ['user' => $existingUser, 'isNew' => false];
         }
 
         // 3. New user
@@ -147,7 +147,7 @@ class FacebookOAuthService extends AbstractOAuthService implements OAuthServiceI
         $this->entityManager->persist($user);
         $this->entityManager->flush();
 
-        return $user;
+        return ['user' => $user, 'isNew' => true];
     }
 
     public function updateUserData(User $user, array $userData): void

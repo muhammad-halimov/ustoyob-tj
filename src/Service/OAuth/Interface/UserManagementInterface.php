@@ -12,7 +12,7 @@ interface UserManagementInterface
     /**
      * Находит или создает пользователя на основе данных от провайдера
      */
-    public function findOrCreateUser(array $userData, ?string $role): User;
+    public function findOrCreateUser(array $userData, ?string $role): array;
 
     /**
      * Обновляет данные существующего пользователя

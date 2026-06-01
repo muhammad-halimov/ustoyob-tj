@@ -42,6 +42,7 @@ class TelegramOAuthCallbackController extends AbstractController
         $output = new GeneralCallbackOutput();
         $output->user = $result['user'];
         $output->token = $result['token'];
+        $output->status = $result['isNew'] ? 204 : 200;
 
         $response = $this->json($output);
         $response->headers->setCookie($this->refreshTokenService->createRefreshTokenCookie($refreshTokenValue));

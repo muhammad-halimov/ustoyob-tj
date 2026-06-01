@@ -67,9 +67,9 @@ abstract class AbstractOAuthService implements
 
         $tokens = $this->exchangeCodeForTokens($code);
         $userData = $this->fetchUserData($tokens);
-        $user = $this->findOrCreateUser($userData, $role);
+        $result = $this->findOrCreateUser($userData, $role);
 
-        return ['user' => $user, 'token' => $this->jwtManager->create($user)];
+        return ['user' => $result['user'], 'token' => $this->jwtManager->create($result['user']), 'isNew' => $result['isNew']];
     }
 
     /**
@@ -85,7 +85,7 @@ abstract class AbstractOAuthService implements
     // Методы из интерфейсов должны быть реализованы в подклассах
     abstract public function exchangeCodeForTokens(string $code): array;
     abstract public function fetchUserData(array $tokens): array;
-    abstract public function findOrCreateUser(array $userData, ?string $role): User;
+    abstract public function findOrCreateUser(array $userData, ?string $role): array;
     abstract public function updateUserData(User $user, array $userData): void;
     abstract public function getProviderName(): string;
 }

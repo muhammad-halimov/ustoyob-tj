@@ -39,4 +39,15 @@ final class GeneralCallbackOutput
         'users:me:read'
     ])]
     public ?string $message = null;
+
+    #[Groups([
+        'google:read',
+        'instagram:read',
+        'facebook:read',
+        'telegram:read',
+        'masters:read',
+        'clients:read',
+        'users:me:read'
+    ])]
+    public ?int $status = null;
 }
