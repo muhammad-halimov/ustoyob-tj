@@ -141,7 +141,7 @@ export default function Category() {
     // Форматирование URL изображения
     const getImageUrl = (imagePath?: string) => {
         if (!imagePath) {
-            return "./fonTest4.png"; // Запасное изображение
+            return '/img/icons/misc/fonTest4.png'; // Запасное изображение
         }
         const API_URL = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -196,7 +196,7 @@ export default function Category() {
                                 alt={item.title}
                                 onError={(e) => {
                                     // Если изображение не загружается, используем запасное
-                                    e.currentTarget.src = "./fonTest4.png";
+                                    e.currentTarget.src = '/img/icons/misc/fonTest4.png';
                                 }}
                                 loading="lazy"
                             />

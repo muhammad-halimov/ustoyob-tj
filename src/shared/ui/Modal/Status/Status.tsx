@@ -42,11 +42,11 @@ const Status: React.FC<StatusModalProps> = ({
         const base = import.meta.env.BASE_URL;
         switch (type) {
             case 'success':
-                return `${base}success.png`;
+                return `${base}img/icons/icons/success.png`;
             case 'error':
-                return `${base}error.png`;
+                return `${base}img/icons/icons/error.png`;
             case 'warning':
-                return `${base}warning.png`;
+                return `${base}img/icons/icons/warning.png`;
             default:
                 return null;
         }

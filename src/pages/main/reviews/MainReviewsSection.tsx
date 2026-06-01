@@ -147,7 +147,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
     const handleRefresh = () => fetchReviews(page);
     // для получения URL изображения отзыва
     const getReviewImageUrl = (imagePath: string): string => {
-        if (!imagePath) return './default_user.png';
+        if (!imagePath) return '/img/icons/icons/default_user.png';
         if (imagePath.startsWith('http')) return imagePath;
         const base = import.meta.env.VITE_API_BASE_URL || '';
         if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) return `${base}${imagePath}`;
@@ -246,7 +246,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                     alt={getClientName(review)}
                                     onClick={() => handleClientProfileClick(review.client.id)}
                                     className={styles.reviewer_avatar}
-                                    onError={(e) => { e.currentTarget.src = './default_user.png'; }}
+                                    onError={(e) => { e.currentTarget.src = '/img/icons/icons/default_user.png'; }}
                                 />
                                 <div className={styles.reviews_naming_title}>
                                     <div 
@@ -301,7 +301,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                                 onClick={() => photoGallery.openGallery(getImageGalleryIndex(reviewIndex, imageIndex))}
                                                 style={{ cursor: 'pointer' }}
                                                 onError={(e) => {
-                                                    e.currentTarget.src = "./default_user.png";
+                                                    e.currentTarget.src = '/img/icons/icons/default_user.png';
                                                 }}
                                             />
                                         ))}
@@ -347,7 +347,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                             alt={getClientName(review)}
                                             onClick={() => handleClientProfileClick(review.client.id)}
                                             className={styles.reviewer_avatar}
-                                            onError={(e) => { e.currentTarget.src = './default_user.png'; }}
+                                            onError={(e) => { e.currentTarget.src = '/img/icons/icons/default_user.png'; }}
                                         />
                                         <div className={styles.reviews_naming_title}>
                                             <div 
@@ -402,7 +402,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                                                         onClick={() => photoGallery.openGallery(getImageGalleryIndex(reviewIndex, imageIndex))}
                                                         style={{ cursor: 'pointer' }}
                                                         onError={(e) => {
-                                                            e.currentTarget.src = "./default_user.png";
+                                                            e.currentTarget.src = '/img/icons/icons/default_user.png';
                                                         }}
                                                     />
                                                 ))}
@@ -440,7 +440,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                 onNext={photoGallery.goToNext}
                 onPrevious={photoGallery.goToPrevious}
                 onSelectImage={photoGallery.selectImage}
-                fallbackImage="./default_user.png"
+                fallbackImage='/img/icons/icons/default_user.png'
             />
             <Feedback
                 mode="complaint"

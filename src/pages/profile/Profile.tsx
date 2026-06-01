@@ -2033,7 +2033,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
     };
 
     const getImageUrl = (imagePath: string): string => {
-        if (!imagePath) return "../fonTest6.png";
+        if (!imagePath) return "/img/icons/misc/fonTest6.png";
         if (imagePath.startsWith("http")) return imagePath;
         if (imagePath.startsWith("/")) return `${API_BASE_URL}${imagePath}`;
         return `${API_BASE_URL}/uploads/galleries/${imagePath}`;
@@ -2070,7 +2070,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                             const exists = await checkImageExists(imageUrl).catch(() => false);
                             return {
                                 id: image.id ?? Date.now(),
-                                image: exists ? imageUrl : '../fonTest6.png',
+                                image: exists ? imageUrl : '/img/icons/misc/fonTest6.png',
                                 title: 'Пример работы'
                             };
                         })
@@ -2103,14 +2103,14 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
 
                                 return {
                                     id: image.id ?? Date.now(),
-                                    image: exists ? imageUrl : "../fonTest6.png",
+                                    image: exists ? imageUrl : "/img/icons/misc/fonTest6.png",
                                     title: "Пример работы"
                                 };
                             } catch (error) {
                                 console.error(`Error checking image ${image.id}:`, error);
                                 return {
                                     id: image.id ?? Date.now(),
-                                    image: "../fonTest6.png",
+                                    image: "/img/icons/misc/fonTest6.png",
                                     title: "Пример работы"
                                 };
                             }
@@ -2855,14 +2855,14 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         const img = e.currentTarget;
 
         if (!profileData?.id) {
-            img.src = "../fonTest6.png";
+            img.src = "/img/icons/misc/fonTest6.png";
             return;
         }
 
         const fallbackSources = [
             profileData.avatar?.includes("uploads/") ? `${API_BASE_URL}/api/${profileData.id}/profile-photo` : null,
             profileData.avatar?.includes("uploads/") ? `/uploads/avatars/${profileData.avatar.split("/").pop()}` : null,
-            "../fonTest6.png"
+            "/img/icons/misc/fonTest6.png"
         ].filter(Boolean) as string[];
 
         for (const source of fallbackSources) {
@@ -2879,7 +2879,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             }
         }
 
-        img.src = "../fonTest6.png";
+        img.src = "/img/icons/misc/fonTest6.png";
     };
 
     const calculateAverageRating = (reviews: ReviewType[]): number => {
@@ -2895,7 +2895,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
     };
 
     const getImageUrlWithCacheBust = (url: string): string => {
-        if (!url || url === "../fonTest6.png") return url;
+        if (!url || url === "/img/icons/misc/fonTest6.png") return url;
         const timestamp = new Date().getTime();
         const separator = url.includes('?') ? '&' : '?';
         return `${url}${separator}t=${timestamp}`;

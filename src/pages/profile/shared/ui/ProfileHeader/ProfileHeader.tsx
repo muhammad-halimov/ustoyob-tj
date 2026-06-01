@@ -241,7 +241,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                         />
                     ) : (
                         <img
-                            src="../default_user.png"
+                            src='/img/icons/icons/default_user.png'
                             alt="Default Avatar"
                             className={styles.avatar_placeholder}
                         />
@@ -590,7 +590,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
             onNext={avatarPreview.goToNext}
             onPrevious={avatarPreview.goToPrevious}
             onSelectImage={avatarPreview.selectImage}
-            fallbackImage="../default_user.png"
+            fallbackImage='/img/icons/icons/default_user.png'
         />
         </>
     );

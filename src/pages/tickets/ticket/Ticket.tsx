@@ -962,12 +962,12 @@ export function Ticket() {
                 <section className={styles.section}>
                     <div className={styles.section_photo}>
                         <img
-                            src={order.authorImage || '/default_user.png'}
+                            src={order.authorImage || '/img/icons/icons/default_user.png'}
                             alt="authorImage"
                             onClick={() => handleProfileClick(order.authorId!)}
                             style={{cursor: 'pointer'}}
                             onError={(e) => {
-                                (e.target as HTMLImageElement).src = '/default_user.png';
+                                (e.target as HTMLImageElement).src = '/img/icons/icons/default_user.png';
                             }}
                         />
                         <div className={styles.authorSection}>

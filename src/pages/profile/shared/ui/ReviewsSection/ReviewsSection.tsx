@@ -327,7 +327,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                 onError={(e) => {
                                                     const img = e.currentTarget;
                                                     if (!img.src.includes('default_user')) {
-                                                        img.src = "./default_user.png";
+                                                        img.src = '/img/icons/icons/default_user.png';
                                                     }
                                                 }}
                                             />
@@ -405,7 +405,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                         alt={`${t('profile:reviewPhotoAlt')} ${imageIndex + 1}`}
                                                         onError={(e) => {
                                                             if (!e.currentTarget.src.includes('default_user')) {
-                                                                e.currentTarget.src = "./default_user.png";
+                                                                e.currentTarget.src = '/img/icons/icons/default_user.png';
                                                             }
                                                         }}
                                                     />
@@ -452,7 +452,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                             onError={(e) => {
                                                                 const img = e.currentTarget;
                                                                 if (!img.src.includes('default_user')) {
-                                                                    img.src = "./default_user.png";
+                                                                    img.src = '/img/icons/icons/default_user.png';
                                                                 }
                                                             }}
                                                         />
@@ -530,7 +530,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                                     alt={`${t('profile:reviewPhotoAlt')} ${imageIndex + 1}`}
                                                                     onError={(e) => {
                                                                         if (!e.currentTarget.src.includes('default_user')) {
-                                                                            e.currentTarget.src = "./default_user.png";
+                                                                            e.currentTarget.src = '/img/icons/icons/default_user.png';
                                                                         }
                                                                     }}
                                                                 />
@@ -570,7 +570,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                         onError={(e) => {
                                                             const img = e.currentTarget;
                                                             if (!img.src.includes('default_user')) {
-                                                                img.src = "./default_user.png";
+                                                                img.src = '/img/icons/icons/default_user.png';
                                                             }
                                                         }}
                                                     />
@@ -648,7 +648,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                                 alt={`${t('profile:reviewPhotoAlt')} ${imageIndex + 1}`}
                                                                 onError={(e) => {
                                                                     if (!e.currentTarget.src.includes('default_user')) {
-                                                                        e.currentTarget.src = "./default_user.png";
+                                                                        e.currentTarget.src = '/img/icons/icons/default_user.png';
                                                                     }
                                                                 }}
                                                             />
@@ -707,7 +707,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                 onNext={photoGallery.goToNext}
                 onPrevious={photoGallery.goToPrevious}
                 onSelectImage={photoGallery.selectImage}
-                fallbackImage="./default_user.png"
+                fallbackImage='/img/icons/icons/default_user.png'
             />
 
             {/* Статус удаления */}

@@ -1600,7 +1600,7 @@ function Chat() {
                                                     alt={t('chat.thumbnail', { index: index + 1 })}
                                                     className={styles.thumbnailImage}
                                                     onError={(e) => {
-                                                        e.currentTarget.src = '../fonTest5.png';
+                                                        e.currentTarget.src = '/img/icons/misc/fonTest5.png';
                                                     }}
                                                 />
                                                 <div className={styles.photoThumbnailOverlay}>
@@ -1755,7 +1755,7 @@ function Chat() {
                 onNext={photoGallery.goToNext}
                 onPrevious={photoGallery.goToPrevious}
                 onSelectImage={photoGallery.selectImage}
-                fallbackImage="../fonTest5.png"
+                fallbackImage="/img/icons/misc/fonTest5.png"
             />
             <Preview
                 isOpen={selectedFilesGallery.isOpen}
@@ -1765,7 +1765,7 @@ function Chat() {
                 onNext={selectedFilesGallery.goToNext}
                 onPrevious={selectedFilesGallery.goToPrevious}
                 onSelectImage={selectedFilesGallery.selectImage}
-                fallbackImage="../fonTest5.png"
+                fallbackImage="/img/icons/misc/fonTest5.png"
             />
             <Preview
                 isOpen={editingGallery.isOpen}
@@ -1775,7 +1775,7 @@ function Chat() {
                 onNext={editingGallery.goToNext}
                 onPrevious={editingGallery.goToPrevious}
                 onSelectImage={editingGallery.selectImage}
-                fallbackImage="../fonTest5.png"
+                fallbackImage="/img/icons/misc/fonTest5.png"
             />
             {showComplaintModal && currentInterlocutor && (
                 <Feedback

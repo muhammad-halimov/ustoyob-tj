@@ -112,7 +112,7 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
                                                 const img = e.currentTarget;
                                                 const alternativePaths = [
                                                     `${API_BASE_URL}/uploads/gallery_images/${work.image.split('/').pop() || work.image}`,
-                                                    './fonTest6.png'
+                                                    '/img/icons/misc/fonTest6.png'
                                                 ];
                                                 let currentIndex = 0;
                                                 const tryNextSource = () => {
@@ -124,7 +124,7 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
                                                         testImg.onerror = () => { tryNextSource(); };
                                                         testImg.src = nextSource;
                                                     } else {
-                                                        img.src = './fonTest6.png';
+                                                        img.src = '/img/icons/misc/fonTest6.png';
                                                     }
                                                 };
                                                 tryNextSource();

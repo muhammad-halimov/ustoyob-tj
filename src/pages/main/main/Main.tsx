@@ -148,8 +148,8 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
     }, []);
 
     const worker = [
-        { id: 1, name: t('roles.customers'), title: t('roles.customersDesc'), img: "./clientTest.jpg" },
-        { id: 2, name: t('roles.masters'), title: t('roles.mastersDesc'), img: "./master.jpg" }
+        { id: 1, name: t('roles.customers'), title: t('roles.customersDesc'), img: "/img/misc/clientTest.jpg" },
+        { id: 2, name: t('roles.masters'), title: t('roles.mastersDesc'), img: "/img/misc/master.jpg" }
     ];
 
     const handleSearchResults = useCallback((results: TicketView[]) => {

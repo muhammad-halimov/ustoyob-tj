@@ -63,11 +63,11 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
         }
         
         // Дефолтное изображение, если нет фото
-        return '../fonTest6.png';
+        return '/img/icons/misc/fonTest6.png';
     };
 
     const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-        e.currentTarget.src = '../fonTest6.png';
+        e.currentTarget.src = '/img/icons/misc/fonTest6.png';
     };
 
     const renderServiceItem = (service: Ticket) => {

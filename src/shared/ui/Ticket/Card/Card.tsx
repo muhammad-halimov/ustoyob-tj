@@ -415,7 +415,7 @@ export function Card({
                 {authorImage ? (
                   <img src={authorImage} className={styles.card_author_avatar} alt="" />
                 ) : (
-                  <img src="/default_user.png" className={styles.card_author_avatar} alt="" />
+                  <img src="/img/icons/icons/default_user.png" className={styles.card_author_avatar} alt="" />
                 )}
                 <Marquee text={translatedAuthor} alwaysScroll />
               </Link>
@@ -424,7 +424,7 @@ export function Card({
                 {authorImage ? (
                   <img src={authorImage} className={styles.card_author_avatar} alt="" />
                 ) : (
-                  <img src="/default_user.png" className={styles.card_author_avatar} alt="" />
+                  <img src="/img/icons/icons/default_user.png" className={styles.card_author_avatar} alt="" />
                 )}
                 <Marquee text={translatedAuthor} alwaysScroll />
               </span>

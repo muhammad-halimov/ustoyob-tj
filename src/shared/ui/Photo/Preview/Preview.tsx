@@ -22,7 +22,7 @@ export const Preview: React.FC<PhotoGalleryProps> = ({
     onNext,
     onPrevious,
     onSelectImage,
-    fallbackImage = '../fonTest5.png'
+    fallbackImage = '/img/icons/misc/fonTest5.png'
 }) => {
     // Обработчик нажатия клавиш
     useEffect(() => {

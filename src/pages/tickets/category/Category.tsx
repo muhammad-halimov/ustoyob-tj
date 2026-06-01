@@ -286,7 +286,7 @@ function Category() {
     const getShortAddress = getTicketShortAddress;
 
     const formatOccupationImageUrl = (imagePath?: string): string => {
-        if (!imagePath) return '/default_subcategory.png';
+        if (!imagePath) return '/img/icons/icons/default_subcategory.png';
         if (imagePath.startsWith('/uploads/') || imagePath.startsWith('/images/')) return `${API_BASE_URL}${imagePath}`;
         if (imagePath.startsWith('http')) return imagePath;
         return `${API_BASE_URL}/uploads/occupations/${imagePath}`;
@@ -589,12 +589,12 @@ function Category() {
                                 }}
                             >
                                 <img
-                                    src="/default_all.png"
+                                    src="/img/icons/icons/default_all.png"
                                     alt={t('category:allSubcategories', 'Все')}
                                     className={styles.img_fallback}
                                     onError={(e) => {
                                         // Fallback изображение для кнопки "Все"
-                                        e.currentTarget.src = '/default_all.png';
+                                        e.currentTarget.src = '/img/icons/icons/default_all.png';
                                     }}
                                     loading="lazy"
                                 />

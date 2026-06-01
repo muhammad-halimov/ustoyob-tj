@@ -44,11 +44,11 @@ export const uploadPhotos = async (
 /**
  * Resolves a user's avatar URL from their profile data.
  * Handles local paths, absolute paths, and external OAuth URLs.
- * Falls back to `fallback` (default: '/default_user.png') when no image is available.
+ * Falls back to `fallback` (default: '/img/icons/icons/default_user.png') when no image is available.
  */
 export const getAuthorAvatar = (
     user: { image?: string | null; imageExternalUrl?: string | null } | null | undefined,
-    fallback = '../default_user.png'
+    fallback = '/img/icons/icons/default_user.png'
 ): string => {
     if (!user) return fallback;
 
