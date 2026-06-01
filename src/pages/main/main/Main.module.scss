@@ -59,70 +59,6 @@
     }
   }
 
-  .performersDesktop {
-    max-width: 1150px; // Оптимизировано для 60% ширины на больших экранах
-    margin: 35px auto;
-    width: 100%;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 20px;
-  }
-
-  .performersMobile {
-    display: none; // Hidden on desktop
-    max-width: 1150px;
-    margin: 35px auto;
-    width: 100%;
-  }
-
-  // Общие стили для карточек performers
-  .performers_orders,
-  .performers_masters {
-    flex: 1 1 calc(50% - 10px);
-    min-width: 300px;
-    min-height: 360px;
-    padding: 25px 26px;
-    background-color: map.get(vars.$colors, primary-text-white);
-    border-radius: 20px;
-    display: flex;
-    flex-direction: row;
-    align-items: stretch;
-    overflow: hidden;
-    box-sizing: border-box;
-
-    .performers_orders_welcome {
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      height: 100%;
-      flex: 1;
-      min-width: 0; // Позволяет flex-элементу сжиматься
-
-      .performers_orders_title {
-        font-size: 30px;
-        margin-bottom: 20px;
-      }
-
-      .performers_orders_about {
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        width: 100%;
-        font-size: 20px;
-      }
-    }
-
-    img {
-      width: 255px;
-      border-radius: 20px;
-      object-fit: cover;
-      margin-left: 15px;
-      flex-shrink: 0;
-      display: block;
-    }
-  }
-
   .searchMasters {
     display: flex;
     @include vars.Container;
@@ -200,17 +136,7 @@
 
 /* Tablet padding starts at 1200px */
 @media screen and (max-width: 1200px) {
-  .performers_orders {
-    .performers_orders_welcome {
-      min-width: 100%;
-    }
-  }
-
   .searchResults {
-    padding: 0 20px;
-  }
-
-  .performersDesktop {
     padding: 0 20px;
   }
 
@@ -238,66 +164,8 @@
   display: none;
 }
 
-/* Desktop: показываем горизонтальный layout */
-@media screen and (min-width: 1201px) {
-  .performersDesktop {
-    display: flex !important;
-  }
-
-  .performersMobile {
-    display: none !important;
-  }
-}
-
-/* Mobile/Tablet: показываем слайдер */
+/* Mobile/Tablet */
 @media screen and (max-width: 1200px){
-  .performersDesktop {
-    display: none !important; // Hide desktop version on mobile
-  }
-
-  .performersMobile {
-    display: block !important; // Show mobile slider
-    padding: 0 20px;
-    margin: 40px auto;
-    padding-bottom: 50px; // Space for pagination outside cards
-  }
-
-  .performersSwiper {
-    padding-bottom: 0;
-  }
-
-  .performers_orders {
-    flex-direction: column-reverse !important;
-    min-width: 280px !important;
-    max-width: 100% !important;
-    width: 100% !important;
-    min-height: 400px !important;
-    height: 100% !important;
-    padding: 20px !important;
-    overflow: hidden !important;
-    display: flex !important;
-
-    img {
-      width: 100% !important;
-      margin-left: unset !important;
-      max-width: 100% !important;
-      height: 200px !important;
-      margin-bottom: 15px;
-    }
-
-    .performers_orders_title {
-      font-size: 22px !important;
-      font-weight: 500;
-      margin-bottom: 12px !important;
-    }
-
-    .performers_orders_about {
-      font-size: 16px !important;
-      font-weight: 300;
-      margin-bottom: 20px !important;
-      line-height: 1.4;
-    }
-  }
   .desktopGrid {
     display: none;
   }
@@ -324,8 +192,6 @@
 :global(html[data-theme="dark"]) {
   .main {
     .searchResults .resultCard,
-    .performers_orders,
-    .performers_masters,
     .searchMasters .searchMasters_item {
       background: var(--color-background-primary);
     }

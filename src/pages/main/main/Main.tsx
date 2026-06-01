@@ -1,6 +1,5 @@
 import styles from "./Main.module.scss";
 import Search from "../search/search/Search";
-import { Add } from "../../../shared/ui/Button/Header/Add/Add";
 import Category from "../categories/Category";
 import { MainReviewsSection } from "../reviews";
 import Recommendations from "../recommendations/Recommendations";
@@ -12,11 +11,8 @@ import { getStorageItem } from "../../../utils/storageUtils";
 import { useTranslation } from "react-i18next";
 import Auth from "../../../shared/ui/Modal/Auth/Auth";
 import Status from "../../../shared/ui/Modal/Status/Status";
-
-import "swiper/css";
-import "swiper/css/pagination";
-import { Swiper, SwiperSlide } from 'swiper/react';
-import { Pagination } from 'swiper/modules';
+import { Performers } from "../performers/Performers.tsx";
+import type { PerformerItem } from "../performers/Performers.tsx";
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
 
 import type { TicketView } from '../../../entities';
@@ -147,7 +143,7 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
         return () => window.removeEventListener('resetAllStates', handleResetAllStates);
     }, []);
 
-    const worker = [
+    const worker: PerformerItem[] = [
         { id: 1, name: t('roles.customers'), title: t('roles.customersDesc'), img: "/img/misc/clientTest.jpg" },
         { id: 2, name: t('roles.masters'), title: t('roles.mastersDesc'), img: "/img/misc/master.jpg" }
     ];
@@ -178,59 +174,11 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
             <Category />
             {!showResults && (
                 <>
-                    {/* Desktop: horizontal layout */}
-                    <div className={styles.performersDesktop}>
-                        {worker.map(work => (
-                            <div className={styles.performers_orders} key={work.id}>
-                                <div className={styles.performers_orders_welcome}>
-                                    <div className={styles.performers_orders_about}>
-                                        <h2 className={styles.performers_orders_title}>{work.name}</h2>
-                                        {work.title}
-                                    </div>
-                                    <Add
-                                        alwaysVisible
-                                        text={work.id === 1 ? t('pages.main.postTicket') : t('pages.main.postService')}
-                                        onClick={() =>
-                                            handleAdBtnClick(work.id === 1 ? "client" : "master")
-                                        }
-                                    />
-                                </div>
-                                <img src={work.img} alt="fonTest1" />
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Mobile: slider */}
-                    <div className={styles.performersMobile}>
-                        <Swiper
-                            spaceBetween={16}
-                            slidesPerView={1.1}
-                            pagination={{ clickable: true }}
-                            modules={[Pagination]}
-                            className={styles.performersSwiper}
-                        >
-                            {worker.map(work => (
-                                <SwiperSlide key={work.id}>
-                                    <div className={styles.performers_orders}>
-                                        <div className={styles.performers_orders_welcome}>
-                                            <div className={styles.performers_orders_about}>
-                                                <h2 className={styles.performers_orders_title}>{work.name}</h2>
-                                                {work.title}
-                                            </div>
-                                            <Add
-                                                alwaysVisible
-                                                text={work.id === 1 ? t('pages.main.postTicket') : t('pages.main.postService')}
-                                                onClick={() =>
-                                                    handleAdBtnClick(work.id === 1 ? "client" : "master")
-                                                }
-                                            />
-                                        </div>
-                                        <img src={work.img} alt="fonTest1" />
-                                    </div>
-                                </SwiperSlide>
-                            ))}
-                        </Swiper>
-                    </div>
+                    <Performers
+                        items={worker}
+                        getButtonText={item => item.id === 1 ? t('pages.main.postTicket') : t('pages.main.postService')}
+                        onItemClick={item => handleAdBtnClick(item.id === 1 ? "client" : "master")}
+                    />
 
                     <div className={styles.searchMasters}>
                         {/* MOBILE SLIDER */}
