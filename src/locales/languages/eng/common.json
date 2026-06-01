@@ -82,7 +82,8 @@
     "linkEmailSubmit": "Continue",
     "linkEmailSkip": "Skip",
     "invalidToken": "Authorization session is invalid. Please try again.",
-    "success": "Authorization successful!"
+    "success": "Authorization successful!",
+    "selectAccountType": "Choose your account type:"
   },
   "confirmAccount": {
     "loading": "Verifying link...",

@@ -254,8 +254,8 @@ const OAuthCallbackPage = () => {
                     <circle cx="26" cy="26" r="25" stroke="#4caf50" strokeWidth="2" />
                     <path d="M14 27l8 8 16-16" stroke="#4caf50" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-                <p style={{ fontWeight: 'bold', fontSize: '18px', color: '#2e7d32', margin: 0 }}>Авторизация прошла успешно!</p>
-                <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>Выберите тип аккаунта:</p>
+                <p style={{ fontWeight: 'bold', fontSize: '18px', color: '#2e7d32', margin: 0 }}>{t('oauth.success')}</p>
+                <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>{t('oauth.selectAccountType')}</p>
                 {grantingRole ? <PageLoader fullPage={false} compact /> : (
                     <Performers
                         items={roleItems}

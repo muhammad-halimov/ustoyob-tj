@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../app/routers/routes';
 import Status from '../../shared/ui/Modal/Status';
+import { PageLoader } from '../../widgets/PageLoader';
 import { useTheme } from '../../contexts';
 import { useTranslation } from 'react-i18next';
 import {
@@ -168,6 +169,8 @@ const TelegramLinkEmailPage = () => {
     };
 
     return (
+        <>
+        {loading && <PageLoader overlay text={t('oauth.pleaseWait')} />}
         <div style={{
             display: 'flex',
             justifyContent: 'center',
@@ -228,7 +231,7 @@ const TelegramLinkEmailPage = () => {
                             transition: 'background-color 0.2s',
                         }}
                     >
-                        {loading ? t('oauth.pleaseWait') : t('oauth.linkEmailSubmit')}
+                        {t('oauth.linkEmailSubmit')}
                     </button>
                     <button
                         type="button"
@@ -256,13 +259,8 @@ const TelegramLinkEmailPage = () => {
                 onClose={() => setError('')}
                 message={error}
             />
-            <style>{`
-                @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                }
-            `}</style>
         </div>
+        </>
     );
 };
 
