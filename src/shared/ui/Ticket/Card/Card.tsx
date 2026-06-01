@@ -68,6 +68,7 @@ export function Card({
   subcategory,
   timeAgo,
   ticketType,
+  userRole,
   onClick,
   isFavorite: externalIsFavorite,
   onFavoriteClick: externalOnFavoriteClick,
@@ -179,6 +180,14 @@ export function Card({
     : t('common:app.addressNotSpecified');
 
   const displayTicketType = getTicketTypeDisplay();
+
+  // Hide respond button when the user's role matches the ticket author's role:
+  // masters don't respond to master-service tickets; clients don't respond to client-order tickets
+  const isMasterTicket = ticketType === true || ticketType === 'master';
+  const isClientTicket = ticketType === false || ticketType === 'client';
+  const shouldHideRespond = (userRole === 'master' && isMasterTicket) || (userRole === 'client' && isClientTicket);
+  const showRespond = !!onRespondClick && !shouldHideRespond;
+
   const showActionsDropdown = !showEditButton && (onComplaintClick || onReviewClick);
 
   return (
@@ -286,7 +295,7 @@ export function Card({
       </div>
       <div className={`${styles.card_header} ${displayTicketType ? styles.with_ticket_type : ''}`}>
         <div className={styles.card_title}><Marquee text={translatedTitle} alwaysScroll/></div>
-        {onRespondClick && (
+        {showRespond && (
           <button
             className={`${styles.card_respond_button} ${styles.card_respond_desktop} ${isResponded ? styles.card_respond_done : ''}`}
             onClick={(e) => { e.stopPropagation(); if (!isResponded && !isRespondLoading) onRespondClick(e); }}
@@ -435,7 +444,7 @@ export function Card({
               {category && <span className={styles.card_category}>{truncateText(category, 30)}</span>}
               {subcategory && <span className={styles.card_subcategory}>{truncateText(subcategory, 30)}</span>}
             </div>
-            {onRespondClick && (
+            {showRespond && (
               <button
                 className={`${styles.card_respond_button} ${styles.card_respond_mobile} ${isResponded ? styles.card_respond_done : ''}`}
                 onClick={(e) => { e.stopPropagation(); if (!isResponded && !isRespondLoading) onRespondClick(e); }}

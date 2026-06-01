@@ -1,37 +1,47 @@
 import styles from './Search.module.scss';
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import FilterPanel from "../filters/FilterPanel";
-import type { FilterState } from '../../../../entities';
-import { getAuthToken, getUserRole, getUserData } from "../../../../utils/authUtils";
-import { universalApiRequest } from '../../../../utils/apiUtils';
-import { useNavigate } from "react-router-dom";
-import { ROUTES } from '../../../../app/routers/routes';
+import type {
+    Category,
+    City,
+    FilterState,
+    Occupation,
+    Province,
+    Ticket as ApiTicket,
+    TicketView,
+    UserRole
+} from '../../../../entities';
+import {getAuthToken, getUserData, getUserRole} from "../../../../utils/authUtils";
+import {parsePagedResponse, universalApiRequest} from '../../../../utils/apiUtils';
+import {useNavigate} from "react-router-dom";
+import {ROUTES} from '../../../../app/routers/routes';
 import {textHelper} from "../../../../utils/textUtils";
-import { useTranslation } from 'react-i18next';
-import { useLanguageChange } from "../../../../hooks";
-import { Card } from "../../../../shared/ui/Ticket/Card/Card";
-import { ServiceTypeFilter } from "../../../../widgets/Sorting/TypeFilter";
-import { SortingFilter } from "../../../../widgets/Sorting/CriteriaFilter";
-import { createChatWithAuthor, getChatsMe } from '../../../../utils/chatUtils';
-import { getProvinces, getCities, getOccupations, getCategories } from "../../../../utils/dataCacheUtils";
-import { PageLoader } from '../../../../widgets/PageLoader';
-import { SelectSearch } from '../../../../shared/ui/SelectSearch';
-import { EmptyState } from '../../../../widgets/EmptyState';
+import {useTranslation} from 'react-i18next';
+import {useLanguageChange, useShowMore} from "../../../../hooks";
+import {Card} from "../../../../shared/ui/Ticket/Card/Card";
+import {ServiceTypeFilter} from "../../../../widgets/Sorting/TypeFilter";
+import {SortingFilter} from "../../../../widgets/Sorting/CriteriaFilter";
+import {
+    createChatWithAuthor,
+    getChatsMe,
+    getPersistedRespondedTicketIds,
+    persistRespondedTicketId
+} from '../../../../utils/chatUtils';
+import {getCategories, getCities, getOccupations, getProvinces} from "../../../../utils/dataCacheUtils";
+import {PageLoader} from '../../../../widgets/PageLoader';
+import {SelectSearch} from '../../../../shared/ui/SelectSearch';
+import {EmptyState} from '../../../../widgets/EmptyState';
 import Status from '../../../../shared/ui/Modal/Status';
 import Feedback from '../../../../shared/ui/Modal/Feedback';
-import { Clear } from '../../../../shared/ui/Button/Clear/Clear';
-import { ShowMore } from '../../../../shared/ui/Button/ShowMore/ShowMore';
-import { getPageSize } from '../../../../utils/pageSizeUtils';
-import { parsePagedResponse } from '../../../../utils/apiUtils';
-import { useShowMore } from '../../../../hooks';
-import type { Ticket as ApiTicket, Occupation, TicketView, Category, UserRole } from '../../../../entities';
+import {Clear} from '../../../../shared/ui/Button/Clear/Clear';
+import {ShowMore} from '../../../../shared/ui/Button/ShowMore/ShowMore';
+import {getPageSize} from '../../../../utils/pageSizeUtils';
+import {formatProfileImageUrl, formatTicketImageUrl} from '../../../../utils/imageUtils';
+import {getSessionJSON, getStorageItem, removeSessionItem, setSessionJSON} from '../../../../utils/storageUtils';
+import {resolveApiError} from '../../../../utils/appMessagesUtils';
 
 /** Intermediate type: raw API ticket enriched with computed display fields for filtering/sorting */
 type TicketWithMeta = ApiTicket & { type: UserRole; userRating: number; userReviewCount: number };
-import type { Province, City } from '../../../../entities';
-import { formatTicketImageUrl, formatProfileImageUrl } from '../../../../utils/imageUtils';
-import { getSessionJSON, setSessionJSON, getStorageItem, removeSessionItem } from '../../../../utils/storageUtils';
-import { resolveApiError } from '../../../../utils/appMessagesUtils';
 
 interface SearchProps {
     onSearchResults: (results: TicketView[]) => void;
@@ -578,7 +588,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             params.append('itemsPerPage', String(pageSize));
 
             const responseData = await universalApiRequest(`/api/tickets?${params.toString()}`);
-            let ticketsData: ApiTicket[] = [];
+            let ticketsData: ApiTicket[];
             const { items: parsedTickets, hasMore: fetchedHasMore } = parsePagedResponse<ApiTicket>(responseData, pageOverride ?? page, pageSize);
             ticketsData = parsedTickets;
             setHasMore(fetchedHasMore);
@@ -889,27 +899,27 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     }, [navigate]);
 
     // Состояния для отклика на карточку (без перехода)
-    const [respondedTickets, setRespondedTickets] = useState<Set<number>>(new Set());
+    const [respondedTickets, setRespondedTickets] = useState<Set<number>>(() => getPersistedRespondedTicketIds());
     const [respondingTicketId, setRespondingTicketId] = useState<number | null>(null);
     const [respondModal, setRespondModal] = useState<{ open: boolean; type: 'success' | 'error'; message: string }>({ open: false, type: 'success', message: '' });
     const [cardReviewTarget, setCardReviewTarget] = useState<{ authorId: number; ticketId: number } | null>(null);
     const [cardComplaintTarget, setCardComplaintTarget] = useState<{ authorId: number; ticketId: number } | null>(null);
 
-    // Проверяем существующие чаты при монтировании (постоянное состояние отклика)
+    // Проверяем существующие чаты при монтировании и мержим с персистентными id
     useEffect(() => {
         const token = getAuthToken();
         if (!token) return;
         (async () => {
             try {
-                const data = await getChatsMe();
-                const chats: any[] = data;
+                const chats: any[] = await getChatsMe();
                 const ids = new Set<number>();
                 chats.forEach((chat: any) => {
                     const t = chat.ticket;
                     const id = t?.id ?? (() => { const m = String(t?.['@id'] || '').match(/\/\d+$/); return m ? parseInt(m[0].slice(1)) : null; })();
                     if (id) ids.add(id);
                 });
-                if (ids.size > 0) setRespondedTickets(ids);
+                const merged = new Set([...getPersistedRespondedTicketIds(), ...ids]);
+                if (merged.size > 0) setRespondedTickets(merged);
             } catch { /* ignore */ }
         })();
     }, []);
@@ -926,6 +936,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             const chat = await createChatWithAuthor(authorId, ticketId);
             if (chat) {
                 setRespondedTickets(prev => new Set(prev).add(ticketId));
+                persistRespondedTicketId(ticketId);
                 setRespondModal({ open: true, type: 'success', message: t('messages.respondSuccess', 'Вы успешно откликнулись!') });
             } else {
                 setRespondModal({ open: true, type: 'error', message: t('messages.respondError', resolveApiError(null)) });

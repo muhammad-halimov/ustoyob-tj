@@ -135,6 +135,7 @@
     "archiveError": "Хатои архивкунии чат",
     "restoreError": "Хатои барқароркунии чат",
     "operationError": "Хато ҳангоми иҷрои амалиёт",
+    "userInactive": "Корбар фаъол нест ва ё тасдиқ ншудааст",
     "messageSuccess": "Паём бо муваффақият фиристода шуд",
     "messageError": "Хатои фиристодани паём",
     "noPhotoDescription": "Акс",

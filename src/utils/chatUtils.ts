@@ -1,9 +1,25 @@
 import { getAuthToken } from './authUtils';
 import { universalApiRequest } from './apiUtils';
 import { resolveApiError } from './appMessagesUtils';
+import i18n from 'i18next';
 import type { Chat } from '../entities';
 import type { HydraResponse } from '../entities';
 import type { User } from '../entities';
+import { getSessionJSON, setSessionJSON } from './storageUtils';
+
+const RESPONDED_IDS_KEY = 'respondedTicketIds';
+
+/** Persists a responded ticket ID to sessionStorage so it survives page navigations. */
+export const persistRespondedTicketId = (ticketId: number): void => {
+    const existing = getSessionJSON<number[]>(RESPONDED_IDS_KEY) ?? [];
+    if (!existing.includes(ticketId)) {
+        setSessionJSON(RESPONDED_IDS_KEY, [...existing, ticketId]);
+    }
+};
+
+/** Reads all persisted responded ticket IDs from sessionStorage. */
+export const getPersistedRespondedTicketIds = (): Set<number> =>
+    new Set(getSessionJSON<number[]>(RESPONDED_IDS_KEY) ?? []);
 
 /** Stub — previously contained modal initialisation logic that was removed. Kept for backwards-compat imports. */
 export const initChatModals = () => {
@@ -38,7 +54,7 @@ export const createChatWithAuthor = async (replyAuthorId: number, ticketId?: num
 
     const userStatus = await checkUserStatus(replyAuthorId);
     if (!userStatus.approved || !userStatus.active) {
-        throw new Error('user_inactive');
+        throw new Error(i18n.t('components:chat.userInactive'));
     }
 
     const chatData: { replyAuthor: string; ticket?: string } = {
@@ -104,7 +120,25 @@ export const getChatsMe = async (): Promise<Chat[]> => {
                 chatsArray = [responseData as Chat];
             }
         }
-        chatsArray = chatsArray.map(chat => ({ ...chat, id: extractId(chat) ?? chat.id }));
+        chatsArray = chatsArray.map(chat => {
+            const rawTicket = (chat as any).ticket;
+            let ticket: any = rawTicket;
+            if (rawTicket) {
+                if (typeof rawTicket === 'string') {
+                    // bare IRI string e.g. "/api/tickets/123"
+                    const m = rawTicket.match(/\/(\d+)$/);
+                    ticket = m ? { id: parseInt(m[1]), '@id': rawTicket } : { '@id': rawTicket };
+                } else if (typeof rawTicket === 'object' && !rawTicket.id) {
+                    // object with '@id' but no numeric id
+                    const iri = rawTicket['@id'];
+                    if (iri) {
+                        const m = String(iri).match(/\/(\d+)$/);
+                        if (m) ticket = { ...rawTicket, id: parseInt(m[1]) };
+                    }
+                }
+            }
+            return { ...chat, id: extractId(chat) ?? chat.id, ticket };
+        });
         _chatsMeCache = { data: chatsArray, timestamp: Date.now() };
         _chatsMePromise = null;
         return chatsArray;

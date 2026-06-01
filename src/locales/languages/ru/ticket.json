@@ -49,5 +49,6 @@
   "noAddress": "Адрес не указан",
   "specialist": "Специалист",
   "customer": "Заказчик",
-  "author": "Автор"
+  "author": "Автор",
+  "noCategory": "другое"
 }

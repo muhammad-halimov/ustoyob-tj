@@ -1,30 +1,45 @@
-import { useState, useEffect, useRef } from 'react';
-import { getAuthToken, getUserRole, getUserData } from '../../utils/authUtils';
+import {useEffect, useRef, useState} from 'react';
+import {getAuthToken, getUserData, getUserRole} from '../../utils/authUtils';
 import styles from './Favorite.module.scss';
-import { useNavigate } from 'react-router-dom';
-import { ROUTES } from '../../app/routers/routes';
-import { createChatWithAuthor, getChatsMe } from "../../utils/chatUtils";
-import { textHelper } from '../../utils/textUtils';
-import { useTranslation } from 'react-i18next';
-import { useLanguageChange, useShowMore } from '../../hooks';
-import { Card } from '../../shared/ui/Ticket/Card/Card';
+import {useNavigate} from 'react-router-dom';
+import {ROUTES} from '../../app/routers/routes';
+import {
+    createChatWithAuthor,
+    getChatsMe,
+    getPersistedRespondedTicketIds,
+    persistRespondedTicketId
+} from "../../utils/chatUtils";
+import {textHelper} from '../../utils/textUtils';
+import {useTranslation} from 'react-i18next';
+import {useLanguageChange, useShowMore} from '../../hooks';
+import {Card} from '../../shared/ui/Ticket/Card/Card';
 import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
-import { ServiceTypeFilter } from '../../widgets/Sorting/TypeFilter';
-import { SortingFilter } from '../../widgets/Sorting/CriteriaFilter';
-import { PageLoader } from '../../widgets/PageLoader';
-import { EmptyState } from '../../widgets/EmptyState';
-import { ProfileHeader } from '../profile/shared/ui/ProfileHeader';
+import {ServiceTypeFilter} from '../../widgets/Sorting/TypeFilter';
+import {SortingFilter} from '../../widgets/Sorting/CriteriaFilter';
+import {PageLoader} from '../../widgets/PageLoader';
+import {EmptyState} from '../../widgets/EmptyState';
+import {ProfileHeader} from '../profile/shared/ui/ProfileHeader';
 import Feedback from '../../shared/ui/Modal/Feedback';
 import Status from '../../shared/ui/Modal/Status';
-import { Tabs } from '../../shared/ui/Tabs';
-import { IoListOutline, IoPeopleOutline } from 'react-icons/io5';
-import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore';
-import { SelectSearch } from '../../shared/ui/SelectSearch';
-import { getPageSize } from '../../utils/pageSizeUtils';
-import { parsePagedResponse, getTicketFullAddress, applyFavoriteSort, universalApiRequest } from '../../utils/apiUtils';
-import { formatTicketImageUrl, formatProfileImageUrl } from '../../utils/imageUtils';
-import type { User, Ticket, SortByType, SecondarySortByType, TimeFilterType, LocalStorageFavorites, FavoriteEntry, FavoriteTicketView, FavoriteUserView } from '../../entities';
-import { getSessionJSON, setSessionJSON, getStorageJSON, setStorageJSON } from '../../utils/storageUtils';
+import {Tabs} from '../../shared/ui/Tabs';
+import {IoListOutline, IoPeopleOutline} from 'react-icons/io5';
+import {ShowMore} from '../../shared/ui/Button/ShowMore/ShowMore';
+import {SelectSearch} from '../../shared/ui/SelectSearch';
+import {getPageSize} from '../../utils/pageSizeUtils';
+import {applyFavoriteSort, getTicketFullAddress, parsePagedResponse, universalApiRequest} from '../../utils/apiUtils';
+import {formatProfileImageUrl, formatTicketImageUrl} from '../../utils/imageUtils';
+import type {
+    FavoriteEntry,
+    FavoriteTicketView,
+    FavoriteUserView,
+    LocalStorageFavorites,
+    SecondarySortByType,
+    SortByType,
+    Ticket,
+    TimeFilterType,
+    User
+} from '../../entities';
+import {getSessionJSON, getStorageJSON, setSessionJSON, setStorageJSON} from '../../utils/storageUtils';
 
 // FavoriteTicketView and FavoriteUserView are defined in entities/Favorite
 const FAV_FILTERS_KEY = 'fav-filters';
@@ -75,7 +90,7 @@ function Favorites() {
         };
     }, []);
     // Состояния отклика
-    const [respondedTickets, setRespondedTickets] = useState<Set<number>>(new Set());
+    const [respondedTickets, setRespondedTickets] = useState<Set<number>>(() => getPersistedRespondedTicketIds());
     const [respondingTicketId, setRespondingTicketId] = useState<number | null>(null);
     const [respondModal, setRespondModal] = useState<{ open: boolean; type: 'success' | 'error'; message: string }>({ open: false, type: 'success', message: '' });
     const [searchQuery, setSearchQuery] = useState('');
@@ -125,15 +140,15 @@ function Favorites() {
         if (token) {
             (async () => {
                 try {
-                    const data = await getChatsMe();
-                    const chats: any[] = data;
+                    const chats: any[] = await getChatsMe();
                     const ids = new Set<number>();
                     chats.forEach((chat: any) => {
                         const t = chat.ticket;
                         const cid = t?.id ?? (() => { const m = String(t?.['@id'] || '').match(/\/\d+$/); return m ? parseInt(m[0].slice(1)) : null; })();
                         if (cid) ids.add(cid);
                     });
-                    if (ids.size > 0) setRespondedTickets(ids);
+                    const merged = new Set([...getPersistedRespondedTicketIds(), ...ids]);
+                    if (merged.size > 0) setRespondedTickets(merged);
                 } catch { /* ignore */ }
             })();
         }
@@ -151,6 +166,7 @@ function Favorites() {
             const chat = await createChatWithAuthor(authorId, ticketId);
             if (chat) {
                 setRespondedTickets(prev => new Set(prev).add(ticketId));
+                persistRespondedTicketId(ticketId);
                 setRespondModal({ open: true, type: 'success', message: 'Вы успешно откликнулись!' });
             } else {
                 setRespondModal({ open: true, type: 'error', message: 'Не удалось откликнуться. Попробуйте ещё раз.' });

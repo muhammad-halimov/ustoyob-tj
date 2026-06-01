@@ -135,6 +135,7 @@
     "archiveError": "Error archiving chat",
     "restoreError": "Error restoring chat",
     "operationError": "Error performing operation",
+    "userInactive": "User is inactive or not verified",
     "messageSuccess": "Message sent successfully",
     "messageError": "Error sending message",
     "noPhotoDescription": "Photo",

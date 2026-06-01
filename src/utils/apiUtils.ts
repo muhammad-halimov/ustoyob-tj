@@ -1,6 +1,7 @@
 import { getAuthToken, handleUnauthorized, getUserData } from './authUtils';
 import { ApiError } from './appMessagesUtils';
 import { getDefaultLocale } from './storageUtils';
+import i18n from 'i18next';
 import type { Ticket, SortByType, FavoriteTicketView } from '../entities';
 import type { TicketView } from '../entities';
 import { formatTicketImageUrl, formatProfileImageUrl } from './imageUtils';
@@ -178,7 +179,7 @@ export const getTicketFullAddress = (ticket: Ticket): string => {
         const result = joinAddrParts(extractAddrParts(rawAddress, FULL_ADDR_FIELDS));
         if (result) return result;
     }
-    return (typeof ticket.address === 'string' ? ticket.address : '') || 'Адрес не указан';
+    return (typeof ticket.address === 'string' ? ticket.address : '') || i18n.t('ticket:noAddress');
 };
 
 /** Краткий адрес: только город + район */
@@ -193,7 +194,7 @@ export const getTicketShortAddress = (ticket: Ticket): string => {
         const result = joinAddrParts(extractAddrParts(rawAddress, SHORT_FIELDS));
         if (result) return result;
     }
-    return (typeof ticket.address === 'string' ? ticket.address : '') || 'Адрес не указан';
+    return (typeof ticket.address === 'string' ? ticket.address : '') || i18n.t('ticket:noAddress');
 };
 
 // ─── Маппинг Ticket → TicketView ───────────────────────────
@@ -202,7 +203,7 @@ export const getTicketShortAddress = (ticket: Ticket): string => {
 export const getTicketAuthor = (ticket: Ticket): { name: string; id: number; imageSrc?: string } => {
     const person = ticket.service ? ticket.master : ticket.author;
     const name = `${person?.surname || ''} ${person?.name || ''}`.trim()
-        || (ticket.service ? 'Специалист' : 'Заказчик');
+        || (ticket.service ? i18n.t('ticket:specialist') : i18n.t('ticket:customer'));
     return {
         name,
         id: person?.id || 0,
@@ -219,7 +220,7 @@ export const ticketToTicketView = (ticket: Ticket): TicketView => {
     const author = getTicketAuthor(ticket);
     return {
         id: ticket.id,
-        title: ticket.title || 'Без названия',
+        title: ticket.title || i18n.t('ticket:noTitle'),
         price: ticket.budget ?? 0,
         unit: (typeof ticket.unit === 'object' ? ticket.unit?.title : ticket.unit) || 'TJS',
         description: ticket.description || '',
@@ -229,7 +230,7 @@ export const ticketToTicketView = (ticket: Ticket): TicketView => {
         authorId: author.id,
         authorImage: author.imageSrc ? formatProfileImageUrl(author.imageSrc) : undefined,
         timeAgo: ticket.createdAt ?? '',
-        category: ticket.category?.title || 'другое',
+        category: ticket.category?.title || i18n.t('ticket:noCategory'),
         subcategory: ticket.subcategory?.title,
         type: ticket.service ? 'master' : 'client',
         active: ticket.active,

@@ -17,6 +17,7 @@
 import { getDefaultLocale } from './storageUtils';
 import { API_BASE_URL } from './configUtils';
 import type { LocaleType } from './apiUtils';
+import i18n from 'i18next';
 
 export interface AppMessage {
     code: string;
@@ -116,11 +117,12 @@ export class ApiError extends Error {
  *  3. Generic `Error` → `error.message`.
  *  4. Anything else → `fallback` (default: 'Произошла ошибка').
  */
-export const resolveApiError = (err: unknown, fallback = 'Произошла ошибка'): string => {
+export const resolveApiError = (err: unknown, fallback?: string): string => {
+    const defaultFallback = fallback ?? i18n.t('common:app.error');
     if (err instanceof ApiError) {
         const cached = _cache.get(err.code);
-        return cached?.message ?? err.message ?? fallback;
+        return cached?.message ?? err.message ?? defaultFallback;
     }
-    if (err instanceof Error) return err.message || fallback;
-    return fallback;
+    if (err instanceof Error) return err.message || defaultFallback;
+    return defaultFallback;
 };

@@ -1,22 +1,27 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { getUserRole, getAuthToken, getUserData } from '../../../utils/authUtils';
-import { getStorageItem } from '../../../utils/storageUtils';
-import { useLanguageChange } from '../../../hooks';
-import { Card } from '../../../shared/ui/Ticket/Card/Card';
+import {useCallback, useEffect, useState} from 'react';
+import {useNavigate} from 'react-router-dom';
+import {getAuthToken, getUserData, getUserRole} from '../../../utils/authUtils';
+import {getStorageItem} from '../../../utils/storageUtils';
+import {useLanguageChange} from '../../../hooks';
+import {Card} from '../../../shared/ui/Ticket/Card/Card';
 import styles from './Recommendations.module.scss';
-import { useTranslation } from 'react-i18next';
-import { ROUTES } from '../../../app/routers/routes';
-import { createChatWithAuthor, getChatsMe } from '../../../utils/chatUtils';
+import {useTranslation} from 'react-i18next';
+import {ROUTES} from '../../../app/routers/routes';
+import {
+    createChatWithAuthor,
+    getChatsMe,
+    getPersistedRespondedTicketIds,
+    persistRespondedTicketId
+} from '../../../utils/chatUtils';
 import Status from '../../../shared/ui/Modal/Status';
 import Feedback from '../../../shared/ui/Modal/Feedback';
 
-import { EmptyState } from '../../../widgets/EmptyState';
-import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore';
-import type { Ticket } from '../../../entities';
-import { formatTicketImageUrl, formatProfileImageUrl } from '../../../utils/imageUtils';
-import { getTicketFullAddress, universalApiRequest } from '../../../utils/apiUtils';
-import { resolveApiError } from '../../../utils/appMessagesUtils';
+import {EmptyState} from '../../../widgets/EmptyState';
+import {ShowMore} from '../../../shared/ui/Button/ShowMore/ShowMore';
+import type {Ticket} from '../../../entities';
+import {formatProfileImageUrl, formatTicketImageUrl} from '../../../utils/imageUtils';
+import {getTicketFullAddress, universalApiRequest} from '../../../utils/apiUtils';
+import {resolveApiError} from '../../../utils/appMessagesUtils';
 
 const RECS_INITIAL_SIZE = 6;
 const RECS_PAGE_SIZE = 12;
@@ -62,27 +67,27 @@ function Recommendations({
     const displayLoading = customData ? customLoading : isLoading;
     
     // Respond state
-    const [respondedTickets, setRespondedTickets] = useState<Set<number>>(new Set());
+    const [respondedTickets, setRespondedTickets] = useState<Set<number>>(() => getPersistedRespondedTicketIds());
     const [respondingTicketId, setRespondingTicketId] = useState<number | null>(null);
     const [respondModal, setRespondModal] = useState<{ open: boolean; type: 'success' | 'error'; message: string }>({ open: false, type: 'success', message: '' });
     const [cardReviewTarget, setCardReviewTarget] = useState<{ authorId: number; ticketId: number } | null>(null);
     const [cardComplaintTarget, setCardComplaintTarget] = useState<{ authorId: number; ticketId: number } | null>(null);
     const currentUserId = getUserData()?.id;
-    // Check existing chats on mount
+    // Check existing chats on mount and merge with persisted ids
     useEffect(() => {
         const token = getAuthToken();
         if (!token) return;
         (async () => {
             try {
-                const res = await getChatsMe();
-                const chats: any[] = res;
+                const chats: any[] = await getChatsMe();
                 const ids = new Set<number>();
                 chats.forEach((chat: any) => {
                     const t = chat.ticket;
                     const cid = t?.id ?? (() => { const m = String(t?.['@id'] || '').match(/\/\d+$/); return m ? parseInt(m[0].slice(1)) : null; })();
                     if (cid) ids.add(cid);
                 });
-                if (ids.size > 0) setRespondedTickets(ids);
+                const merged = new Set([...getPersistedRespondedTicketIds(), ...ids]);
+                if (merged.size > 0) setRespondedTickets(merged);
             } catch { /* ignore */ }
         })();
     }, []);
@@ -98,6 +103,7 @@ function Recommendations({
             const chat = await createChatWithAuthor(authorId, ticketId);
             if (chat) {
                 setRespondedTickets(prev => new Set(prev).add(ticketId));
+                persistRespondedTicketId(ticketId);
                 setRespondModal({ open: true, type: 'success', message: 'Вы успешно откликнулись!' });
             } else {
                 setRespondModal({ open: true, type: 'error', message: resolveApiError(null) });

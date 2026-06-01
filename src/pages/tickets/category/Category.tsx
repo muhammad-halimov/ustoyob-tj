@@ -2,7 +2,7 @@ import {useState, useEffect, useCallback} from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { getAuthToken, getUserRole, getUserData } from '../../../utils/authUtils';
 import { useLanguageChange } from '../../../hooks';
-import { createChatWithAuthor, getChatsMe } from '../../../utils/chatUtils';
+import { createChatWithAuthor, getChatsMe, persistRespondedTicketId, getPersistedRespondedTicketIds } from '../../../utils/chatUtils';
 import Status from '../../../shared/ui/Modal/Status';
 import Feedback from '../../../shared/ui/Modal/Feedback';
 
@@ -85,12 +85,12 @@ function Category() {
         setSessionJSON(`cat-filters-${id}`, { showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter, selectedSubcategory, showAllOccupations });
     }, [id, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter, selectedSubcategory, showAllOccupations]);
     // Respond state
-    const [respondedTickets, setRespondedTickets] = useState<Set<number>>(new Set());
+    const [respondedTickets, setRespondedTickets] = useState<Set<number>>(() => getPersistedRespondedTicketIds());
     const [respondingTicketId, setRespondingTicketId] = useState<number | null>(null);
     const [respondModal, setRespondModal] = useState<{ open: boolean; type: 'success' | 'error'; message: string }>({ open: false, type: 'success', message: '' });
     const [cardReviewTarget, setCardReviewTarget] = useState<{ authorId: number; ticketId: number } | null>(null);
     const [cardComplaintTarget, setCardComplaintTarget] = useState<{ authorId: number; ticketId: number } | null>(null);
-    // Check existing chats on mount
+    // Check existing chats on mount and merge with persisted ids
     useEffect(() => {
         const token = getAuthToken();
         if (!token) return;
@@ -104,7 +104,8 @@ function Category() {
                     const cid = t?.id ?? (() => { const m = String(t?.['@id'] || '').match(/\/\d+$/); return m ? parseInt(m[0].slice(1)) : null; })();
                     if (cid) ids.add(cid);
                 });
-                if (ids.size > 0) setRespondedTickets(ids);
+                const merged = new Set([...getPersistedRespondedTicketIds(), ...ids]);
+                if (merged.size > 0) setRespondedTickets(merged);
             } catch { /* ignore */ }
         })();
     }, []);
@@ -120,6 +121,7 @@ function Category() {
             const chat = await createChatWithAuthor(authorId, ticketId);
             if (chat) {
                 setRespondedTickets(prev => new Set(prev).add(ticketId));
+                persistRespondedTicketId(ticketId);
                 setRespondModal({ open: true, type: 'success', message: 'Вы успешно откликнулись!' });
             } else {
                 setRespondModal({ open: true, type: 'error', message: resolveApiError(null) });

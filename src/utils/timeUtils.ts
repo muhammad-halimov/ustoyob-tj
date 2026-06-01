@@ -23,7 +23,7 @@ export const getFormattedDate = (dateString?: string): string => {
  */
 export const formatLocalizedDate = (dateString: string, t: any): string => {
     try {
-        if (!dateString) return 'Дата не указана';
+        if (!dateString) return t('ticket:dateNotSpecified');
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return dateString;
         const hasTranslatedMonth = /\b(январ|феврал|март|апрел|май|июн|июл|август|сентябр|октябр|ноябр|декабр|january|february|march|april|may|june|july|august|september|october|november|december|декабри|январи|феврали|марти|апрели|маи|июни|июли|августи|сентябри|октябри|ноябри)\w*/i.test(dateString);
