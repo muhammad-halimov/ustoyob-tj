@@ -39,6 +39,9 @@ const OAuthCallbackPage = () => {
     const [error, setError] = useState<string>('');
     const [loading, setLoading] = useState(true);
     const [success, setSuccess] = useState(false);
+    const [showRoleSelect, setShowRoleSelect] = useState(false);
+    const [, setPendingToken] = useState<string | null>(null);
+    const [grantingRole, setGrantingRole] = useState(false);
     const [provider, setProvider] = useState<OAuthProviderName | null>(null);
     const [isLinkMode, setIsLinkMode] = useState(false);
     const { t } = useTranslation('common');
@@ -144,28 +147,10 @@ const OAuthCallbackPage = () => {
                 }
                 removeSessionItem(`${detectedProvider}CsrfState`);
 
-                const savedRole = getSessionItem(savedRoleKey) || 'client';
-                const savedSpecialty = getSessionItem(savedSpecialtyKey);
-
-                // Подготавливаем запрос с ролью
-                const requestData: {
-                    code: string;
-                    state: string;
-                    role: string;
-                    occupation?: string;
-                } = {
-                    code,
-                    state,
-                    role: savedRole
-                };
-
-                if (savedRole === 'master' && savedSpecialty) {
-                    requestData.occupation = `${API_BASE_URL}/api/occupations/${savedSpecialty}`;
-                }
-
+                // Отправляем только code и state — сервер вернёт status 200 (существующий) или 204 (новый)
                 const callbackData: BackendAuthCallbackResponse = await universalApiRequest(`/api/auth/${detectedProvider}/callback`, {
                     method: 'POST',
-                    body: requestData,
+                    body: { code, state },
                     requiresAuth: false,
                     locale: false,
                 });
@@ -178,47 +163,41 @@ const OAuthCallbackPage = () => {
                     return;
                 }
 
-                // Сохраняем токен и данные пользователя
                 if (data.token && data.user) {
                     setAuthToken(data.token);
-
-                    // Устанавливаем срок действия токена
                     const expiryTime = new Date();
                     expiryTime.setHours(expiryTime.getHours() + 1);
                     setAuthTokenExpiry(expiryTime.toISOString());
 
-                    // Сохраняем данные пользователя
                     setUserData(data.user);
-
-                    if (data.user.email) {
-                        setUserEmail(data.user.email);
-                    }
-
-                    // Определяем и сохраняем роль
-                    let finalRole = savedRole as 'master' | 'client';
-                    if (data.user.roles && data.user.roles.length > 0) {
-                        const roles = data.user.roles.map(r => r.toLowerCase());
-                        if (roles.includes('role_master') || roles.includes('master')) {
-                            finalRole = 'master';
-                        } else if (roles.includes('role_client') || roles.includes('client')) {
-                            finalRole = 'client';
-                        }
-                    }
-                    setUserRole(finalRole);
-
-                    // Сохраняем occupation если есть
-                    if (data.user.occupation) {
-                        setUserOccupation(data.user.occupation);
-                    }
+                    if (data.user.email) setUserEmail(data.user.email);
 
                     // Очищаем временные данные
                     removeSessionItems(savedRoleKey, savedSpecialtyKey);
 
-                    setSuccess(true);
-                    setTimeout(() => {
-                        navigate(ROUTES.HOME);
-                        window.dispatchEvent(new Event('login'));
-                    }, 2000);
+                    if ((data as any).status === 204) {
+                        // Новый пользователь — показываем выбор роли
+                        setPendingToken(data.token);
+                        setLoading(false);
+                        setShowRoleSelect(true);
+                    } else {
+                        // Существующий пользователь — определяем роль из ответа
+                        if (data.user.roles && data.user.roles.length > 0) {
+                            const roles = data.user.roles.map(r => r.toLowerCase());
+                            if (roles.includes('role_master') || roles.includes('master')) {
+                                setUserRole('master');
+                            } else {
+                                setUserRole('client');
+                            }
+                        }
+                        if (data.user.occupation) setUserOccupation(data.user.occupation);
+
+                        setSuccess(true);
+                        setTimeout(() => {
+                            navigate(ROUTES.HOME);
+                            window.dispatchEvent(new Event('login'));
+                        }, 2000);
+                    }
                 } else {
                     throw new Error(t('oauth.tokenNotReceived'));
                 }
@@ -237,6 +216,57 @@ const OAuthCallbackPage = () => {
 
     if (loading) {
         return <PageLoader text={t('oauth.processingVia', { provider: provider === 'google' ? 'Google' : provider === 'instagram' ? 'Instagram' : 'Facebook' })} />;
+    }
+
+    if (showRoleSelect) {
+        const handleGrantRole = async (role: 'master' | 'client') => {
+            setGrantingRole(true);
+            try {
+                const roleValue = role === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT';
+                await universalApiRequest('/api/users/grant-role', {
+                    method: 'POST',
+                    body: { role: roleValue },
+                    locale: false,
+                });
+                setUserRole(role);
+                navigate(ROUTES.HOME);
+                window.dispatchEvent(new Event('login'));
+                setTimeout(() => window.location.reload(), 100);
+            } catch (err) {
+                setError(resolveApiError(err));
+                setShowRoleSelect(false);
+            } finally {
+                setGrantingRole(false);
+                setPendingToken(null);
+            }
+        };
+
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--color-background-all)', gap: '20px', padding: '0 20px' }}>
+                <svg width="52" height="52" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="26" cy="26" r="25" stroke="#4caf50" strokeWidth="2" />
+                    <path d="M14 27l8 8 16-16" stroke="#4caf50" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <p style={{ fontWeight: 'bold', fontSize: '18px', color: '#2e7d32', margin: 0 }}>Авторизация прошла успешно!</p>
+                <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>Выберите тип аккаунта:</p>
+                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '8px' }}>
+                    <button
+                        onClick={() => handleGrantRole('client')}
+                        disabled={grantingRole}
+                        style={{ padding: '14px 32px', borderRadius: '12px', border: '2px solid var(--color-actual-blue)', background: 'transparent', color: 'var(--color-actual-blue)', fontSize: '16px', fontWeight: '600', cursor: grantingRole ? 'not-allowed' : 'pointer', opacity: grantingRole ? 0.6 : 1 }}
+                    >
+                        Я клиент
+                    </button>
+                    <button
+                        onClick={() => handleGrantRole('master')}
+                        disabled={grantingRole}
+                        style={{ padding: '14px 32px', borderRadius: '12px', border: 'none', background: 'var(--color-actual-blue)', color: '#fff', fontSize: '16px', fontWeight: '600', cursor: grantingRole ? 'not-allowed' : 'pointer', opacity: grantingRole ? 0.6 : 1 }}
+                    >
+                        Я мастер
+                    </button>
+                </div>
+            </div>
+        );
     }
 
     if (success) {

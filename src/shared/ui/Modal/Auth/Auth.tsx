@@ -32,8 +32,7 @@ const AuthModalState = {
     VERIFY_CODE: 'verify_code',
     NEW_PASSWORD: 'new_password',
     CONFIRM_EMAIL: 'confirm_email',
-    TELEGRAM_ROLE_SELECT: 'telegram_role_select',
-    OAUTH_ROLE_SELECT: 'oauth_role_select'
+    TELEGRAM_ROLE_SELECT: 'telegram_role_select'
 } as const;
 
 type AuthModalStateType = typeof AuthModalState[keyof typeof AuthModalState];
@@ -93,13 +92,6 @@ interface TelegramAuthResponse {
     token: string;
 }
 
-// Типы для OAuth провайдеров
-interface OAuthCallbackData {
-    code: string;
-    state: string;
-    provider: OAuthProviderName
-}
-
 // Регулярное выражение для проверки пароля
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*]).+$/;
 
@@ -153,11 +145,6 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string>('');
     const [registeredEmail, setRegisteredEmail] = useState<string>('');
-    const [pendingOAuthToken, setPendingOAuthToken] = useState<string | null>(null);
-    const [pendingOAuthEmail, setPendingOAuthEmail] = useState<string | null>(null);
-    const [oauthCallbackData, setOAuthCallbackData] = useState<OAuthCallbackData | null>(null);
-    const [isCheckingProfile, setIsCheckingProfile] = useState(false);
-    const [activeOAuthProvider, setActiveOAuthProvider] = useState<OAuthProviderName | null>(null);
     const [passwordValidation, setPasswordValidation] = useState<{ isValid: boolean; message: string }>({
         isValid: false,
         message: ''
@@ -181,54 +168,6 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             setShowPasswordRequirements(false);
         }
     }, [formData.password]);
-
-    // Обработка OAuth callback при открытии модалки
-    useEffect(() => {
-        if (!isOpen) return;
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const code = urlParams.get('code');
-        const state = urlParams.get('state');
-        const oauthError = urlParams.get('error');
-        const provider = urlParams.get('provider') as OAuthProviderName
-
-        // Очищаем URL от параметров OAuth
-        if (code || state || oauthError || provider) {
-            window.history.replaceState({}, '', window.location.pathname);
-        }
-
-        if (oauthError) {
-            console.error('OAuth error from URL:', oauthError);
-            setError(`Ошибка авторизации: ${decodeURIComponent(oauthError)}`);
-            return;
-        }
-
-        // Если есть код авторизации
-        if (code && state && provider) {
-            console.log(`${provider.toUpperCase()} callback received:`, { code, state });
-            handleOAuthCallback(code, state, provider);
-        }
-    }, [isOpen]);
-
-    // Функция обработки OAuth callback
-    const handleOAuthCallback = async (code: string, state: string, provider: OAuthProviderName) => {
-        try {
-            setIsCheckingProfile(true);
-
-            // Сохраняем callback данные
-            setOAuthCallbackData({ code, state, provider });
-            setActiveOAuthProvider(provider);
-
-            // Показываем экран логина с выбором роли (если нужно)
-            setCurrentState(AuthModalState.LOGIN);
-
-        } catch (err) {
-            console.error('Error checking profile:', err);
-            setError('Ошибка проверки профиля');
-        } finally {
-            setIsCheckingProfile(false);
-        }
-    };
 
     // Эффект для загрузки категорий и настройки Telegram
     useEffect(() => {
@@ -365,70 +304,6 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 `pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Specialty`,
                 `${provider}CsrfState`
             );
-        }
-    };
-
-    // Функция для завершения OAuth авторизации
-    const completeOAuth = async () => {
-        if (!oauthCallbackData?.code || !oauthCallbackData?.state || !oauthCallbackData?.provider) {
-            setError('Нет данных OAuth');
-            return;
-        }
-
-        try {
-            setIsLoading(true);
-            setError('');
-
-            const { code, state, provider } = oauthCallbackData;
-
-            console.log(`Completing ${provider.toUpperCase()} OAuth callback`);
-
-            // Отправляем запрос без роли — сервер сам определит, новый это пользователь (204) или существующий (200)
-            const requestData: {
-                code: string;
-                state: string;
-            } = {
-                code,
-                state,
-            };
-
-            // Отправляем запрос
-            const data: OAuthUserResponse = await universalApiRequest(`/api/auth/${provider}/callback`, {
-                method: 'POST',
-                body: requestData,
-                requiresAuth: false,
-                locale: false,
-            });
-            console.log(`${provider.toUpperCase()} auth completed successfully:`, data);
-
-            // Сохраняем токен сразу — нужен для grant-role при status 204
-            if (data.token) {
-                setAuthToken(data.token);
-                setTokenExpiry();
-            }
-
-            if (data.status === 204) {
-                // Новый пользователь — сохраняем данные и показываем выбор роли
-                setUserData(data.user);
-                if (data.user.email) setUserEmail(data.user.email);
-                setPendingOAuthToken(data.token);
-                setPendingOAuthEmail(data.user.email ?? null);
-                setOAuthCallbackData(null);
-                setActiveOAuthProvider(null);
-                setCurrentState(AuthModalState.OAUTH_ROLE_SELECT);
-            } else {
-                // Существующий пользователь (status 200) — обычный флоу
-                saveUserData(data);
-                handleSuccessfulAuth(data.token, data.user.email);
-                setOAuthCallbackData(null);
-                setActiveOAuthProvider(null);
-            }
-
-        } catch (err) {
-            console.error('OAuth completion error:', err);
-            setError(resolveApiError(err, 'Ошибка завершения авторизации'));
-        } finally {
-            setIsLoading(false);
         }
     };
 
@@ -955,28 +830,6 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         }
     };
 
-    const handleOAuthGrantRole = async (role: 'master' | 'client') => {
-        setIsLoading(true);
-        setError('');
-        try {
-            const roleValue = role === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT';
-            await universalApiRequest('/api/users/grant-role', {
-                method: 'POST',
-                body: { role: roleValue },
-                locale: false,
-            });
-            setUserRole(role);
-            handleSuccessfulAuth(pendingOAuthToken!, pendingOAuthEmail ?? undefined);
-        } catch (err) {
-            console.error('Grant role error:', err);
-            setError(resolveApiError(err, 'Ошибка при выборе роли'));
-        } finally {
-            setIsLoading(false);
-            setPendingOAuthToken(null);
-            setPendingOAuthEmail(null);
-        }
-    };
-
     const handleSuccessfulAuth = (token: string, email?: string) => {
         if (email) {
             setUserEmail(email);
@@ -1021,10 +874,6 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         });
         setError('');
         setCurrentState(AuthModalState.WELCOME);
-        setOAuthCallbackData(null);
-        setActiveOAuthProvider(null);
-        setPendingOAuthToken(null);
-        setPendingOAuthEmail(null);
         setPasswordValidation({ isValid: false, message: '' });
         setShowPasswordRequirements(false);
 
@@ -1046,92 +895,6 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         if (e.target === e.currentTarget) {
             handleClose();
         }
-    };
-
-    // Функция для отображения экрана завершения OAuth
-    const renderOAuthCompletionScreen = () => {
-        if (!oauthCallbackData || !activeOAuthProvider) return null;
-
-        const providerNames = {
-            google: 'Google',
-            instagram: 'Instagram',
-            facebook: 'Facebook',
-            telegram: 'Telegram'
-        };
-
-        return (
-            <form onSubmit={(e) => { e.preventDefault(); completeOAuth(); }} className={styles.form}>
-                <h2>{t('auth.completeRegistration')} {providerNames[activeOAuthProvider]}</h2>
-
-                <div className={styles.successMessage}>
-                    <p>Вы успешно авторизовались через {providerNames[activeOAuthProvider]}!</p>
-                    <p>Пожалуйста, выберите тип аккаунта:</p>
-                </div>
-
-                <div className={styles.roleSelector}>
-                    <button
-                        type="button"
-                        className={formData.role === 'master' ? styles.roleButtonActive : styles.roleButton}
-                        onClick={() => handleRoleChange('master')}
-                        disabled={isLoading}
-                    >
-                        <Marquee text={t('auth.iAmSpecialist')} />
-                    </button>
-                    <button
-                        type="button"
-                        className={formData.role === 'client' ? styles.roleButtonActive : styles.roleButton}
-                        onClick={() => handleRoleChange('client')}
-                        disabled={isLoading}
-                    >
-                        <Marquee text={t('auth.iAmClient')} />
-                    </button>
-                </div>
-
-                {formData.role === 'master' && (
-                    <div className={styles.inputGroup}>
-                        <div className={styles.selectWrapper}>
-                            <select
-                                name="specialty"
-                                value={formData.specialty}
-                                onChange={handleInputChange}
-                                required={formData.role === 'master'}
-                                disabled={isLoading}
-                            >
-                                <option value="">{t('auth.selectSpecialty')}</option>
-                                {categories.map(category => (
-                                    <option key={category.id} value={category.id}>
-                                        {category.title}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-                )}
-
-                <button
-                    type="submit"
-                    className={styles.primaryButton}
-                    disabled={isLoading || isCheckingProfile}
-                >
-                    {isLoading ? <PageLoader fullPage={false} compact /> : 'Завершить регистрацию'}
-                </button>
-
-                <div className={styles.links}>
-                    <button
-                        type="button"
-                        className={styles.linkButton}
-                        onClick={() => {
-                            setOAuthCallbackData(null);
-                            setActiveOAuthProvider(null);
-                            setCurrentState(AuthModalState.LOGIN);
-                        }}
-                        disabled={isLoading}
-                    >
-                        {t('auth.backToLogin')}
-                    </button>
-                </div>
-            </form>
-        );
     };
 
     // ===== Password recovery handlers =====
@@ -1335,12 +1098,6 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
     };
 
     const renderLoginScreen = () => {
-        // Если есть OAuth callback данные, показываем экран завершения
-        if (oauthCallbackData && activeOAuthProvider) {
-            return renderOAuthCompletionScreen();
-        }
-
-        // Обычный экран логина
         return (
             <form onSubmit={handleLogin} className={styles.form}>
                 <h2>{t('auth.entrance')}</h2>
@@ -1723,38 +1480,6 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         }
     };
 
-    const renderOAuthRoleSelectScreen = () => (
-        <div className={styles.form}>
-            <div className={styles.oauthRoleSuccess}>
-                <svg className={styles.checkmarkIcon} viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="26" cy="26" r="25" stroke="#4caf50" strokeWidth="2" />
-                    <path d="M14 27l8 8 16-16" stroke="#4caf50" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <p className={styles.oauthRoleSuccessText}>Авторизация прошла успешно!</p>
-                <p>Выберите тип аккаунта:</p>
-            </div>
-            <div className={styles.roleSelector}>
-                <button
-                    type="button"
-                    className={styles.roleButton}
-                    onClick={() => handleOAuthGrantRole('master')}
-                    disabled={isLoading}
-                >
-                    <Marquee text={t('auth.iAmSpecialist')} />
-                </button>
-                <button
-                    type="button"
-                    className={styles.roleButton}
-                    onClick={() => handleOAuthGrantRole('client')}
-                    disabled={isLoading}
-                >
-                    <Marquee text={t('auth.iAmClient')} />
-                </button>
-            </div>
-            {isLoading && <PageLoader fullPage={false} compact />}
-        </div>
-    );
-
     const renderTelegramRoleSelectScreen = () => {
         return (
             <div className={styles.form}>
@@ -1808,8 +1533,6 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 return renderRegisterScreen();
             case AuthModalState.CONFIRM_EMAIL:
                 return renderConfirmEmailScreen();
-            case AuthModalState.OAUTH_ROLE_SELECT:
-                return renderOAuthRoleSelectScreen();
             case AuthModalState.TELEGRAM_ROLE_SELECT:
                 return renderTelegramRoleSelectScreen();
             case AuthModalState.FORGOT_PASSWORD:

@@ -422,32 +422,6 @@
   }
 }
 
-.oauthRoleSuccess {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 24px;
-  text-align: center;
-
-  p {
-    margin: 0;
-    line-height: 1.5;
-  }
-}
-
-.checkmarkIcon {
-  width: 52px;
-  height: 52px;
-  margin-bottom: 8px;
-}
-
-.oauthRoleSuccessText {
-  font-weight: bold;
-  font-size: 18px;
-  color: #2e7d32;
-}
-
 .divider {
   height: 1px;
   background-color: #e0e0e0;
@@ -760,7 +734,7 @@
 
   .strengthBar {
     height: 100%;
-    width: 0%;
+    width: 0;
     transition: width 0.3s ease, background-color 0.3s ease;
     border-radius: 2px;
 
