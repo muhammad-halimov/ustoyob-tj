@@ -381,24 +381,16 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
 
             const { code, state, provider } = oauthCallbackData;
 
-            console.log(`Completing ${provider.toUpperCase()} auth with role:`, formData.role);
+            console.log(`Completing ${provider.toUpperCase()} OAuth callback`);
 
-            // Подготавливаем запрос
+            // Отправляем запрос без роли — сервер сам определит, новый это пользователь (204) или существующий (200)
             const requestData: {
                 code: string;
                 state: string;
-                role: string;
-                occupation?: string;
             } = {
                 code,
                 state,
-                role: formData.role // "master" или "client"
             };
-
-            // Если выбрана роль специалиста и есть специальность
-            if (formData.role === 'master' && formData.specialty) {
-                requestData.occupation = `${API_BASE_URL}/api/occupations/${formData.specialty}`;
-            }
 
             // Отправляем запрос
             const data: OAuthUserResponse = await universalApiRequest(`/api/auth/${provider}/callback`, {
