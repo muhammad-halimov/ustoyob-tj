@@ -46,7 +46,7 @@ const OAuthCallbackPage = () => {
     const [grantingRole, setGrantingRole] = useState(false);
     const [provider, setProvider] = useState<OAuthProviderName | null>(null);
     const [isLinkMode, setIsLinkMode] = useState(false);
-    const { t } = useTranslation('common');
+    const { t } = useTranslation(['common', 'components']);
 
     useEffect(() => {
         // Определяем провайдер по URL
@@ -244,8 +244,8 @@ const OAuthCallbackPage = () => {
         };
 
         const roleItems: PerformerItem[] = [
-            { id: 1, name: t('roles.customers'), title: t('roles.customersDesc'), img: '/img/misc/clientTest.jpg' },
-            { id: 2, name: t('roles.masters'), title: t('roles.mastersDesc'), img: '/img/misc/master.jpg' },
+            { id: 1, name: t('components:roles.customers'), title: t('components:roles.customersDesc'), img: '/img/misc/clientTest.jpg' },
+            { id: 2, name: t('components:roles.masters'), title: t('components:roles.mastersDesc'), img: '/img/misc/master.jpg' },
         ];
 
         return (
@@ -259,7 +259,7 @@ const OAuthCallbackPage = () => {
                 {grantingRole ? <PageLoader fullPage={false} compact /> : (
                     <Performers
                         items={roleItems}
-                        getButtonText={item => item.id === 1 ? 'Я клиент' : 'Я мастер'}
+                        getButtonText={item => item.id === 1 ? t('components:auth.iAmClient') : t('components:auth.iAmSpecialist')}
                         onItemClick={item => handleGrantRole(item.id === 1 ? 'client' : 'master')}
                     />
                 )}
