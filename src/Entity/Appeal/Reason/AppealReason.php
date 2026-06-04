@@ -104,11 +104,11 @@ class AppealReason
     private string $applicableTo = 'overall';
 
     /** overall */
-    #[ORM\Column(type: 'boolean', nullable: true)]
+    #[ORM\Column(type: 'boolean', nullable: false)]
     #[Groups([
         G::APPEAL_REASON,
     ])]
-    private ?bool $authRequired = true;
+    private bool $authRequired = true;
 
     /**
      * @var Collection<int, Translation>
@@ -150,12 +150,12 @@ class AppealReason
         return $this;
     }
 
-    public function getAuthRequired(): ?bool
+    public function getAuthRequired(): bool
     {
         return $this->authRequired;
     }
 
-    public function setAuthRequired(?bool $authRequired): AppealReason
+    public function setAuthRequired(bool $authRequired): AppealReason
     {
         $this->authRequired = $authRequired;
 
