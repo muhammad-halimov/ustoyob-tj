@@ -2,6 +2,7 @@
 
 namespace App\Entity\Appeal\Reason;
 
+use ApiPlatform\Doctrine\Orm\Filter\BooleanFilter;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiResource;
@@ -40,6 +41,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
     paginationEnabled: false,
 )]
 #[ApiFilter(SearchFilter::class, properties: ['applicableTo' => 'exact'])]
+#[ApiFilter(BooleanFilter::class, properties: ['authRequired'])]
 class AppealReason
 {
     use CreatedAtTrait, UpdatedAtTrait, TitleTrait;
@@ -94,12 +96,19 @@ class AppealReason
     ])]
     private ?string $code = null;
 
-    /** chat | ticket | both */
+    /** chat | ticket | overall */
     #[ORM\Column(length: 16)]
     #[Groups([
         G::APPEAL_REASON,
     ])]
     private string $applicableTo = 'overall';
+
+    /** overall */
+    #[ORM\Column(type: 'boolean', nullable: true)]
+    #[Groups([
+        G::APPEAL_REASON,
+    ])]
+    private ?bool $authRequired = true;
 
     /**
      * @var Collection<int, Translation>
@@ -137,6 +146,18 @@ class AppealReason
     public function setApplicableTo(string $applicableTo): static
     {
         $this->applicableTo = $applicableTo;
+
+        return $this;
+    }
+
+    public function getAuthRequired(): ?bool
+    {
+        return $this->authRequired;
+    }
+
+    public function setAuthRequired(?bool $authRequired): AppealReason
+    {
+        $this->authRequired = $authRequired;
 
         return $this;
     }

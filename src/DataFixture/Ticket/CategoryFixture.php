@@ -180,7 +180,7 @@ class CategoryFixture extends Fixture implements DependentFixtureInterface
             }
 
             // Link category to its primary occupation (category→subcategory)
-            $category->setOccupation($this->getReference($data['occupation'], Occupation::class));
+            $category->addOccupation($this->getReference($data['occupation'], Occupation::class));
 
             foreach ($data['tickets'] as [$ticketRef, $subcategoryRef]) {
                 /** @var Ticket $ticket */

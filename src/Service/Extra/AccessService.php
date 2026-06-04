@@ -85,6 +85,8 @@ readonly class AccessService
                 if (!in_array("ROLE_ADMIN", $user->getRoles()))
                     throw new AccessDeniedHttpException(AppMessages::get(AppMessages::EXTRA_DENIED)->message);
                 break;
+            case 'anonymous':
+                break; // анонимный доступ, ничего не проверяем
             default:
                 throw new AccessDeniedHttpException(AppMessages::get(AppMessages::EXTRA_DENIED)->message);
         }

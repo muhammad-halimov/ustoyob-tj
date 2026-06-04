@@ -5,8 +5,6 @@ namespace App\Controller\Admin\Appeal\AppealTypes;
 use App\Controller\Admin\Extra\MultipleImageCrudController;
 use App\Entity\Appeal\Types\AppealTicket;
 use Doctrine\ORM\QueryBuilder;
-use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
-use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;

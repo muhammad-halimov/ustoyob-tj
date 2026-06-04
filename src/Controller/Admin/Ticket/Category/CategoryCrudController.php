@@ -5,8 +5,6 @@ namespace App\Controller\Admin\Ticket\Category;
 use App\Controller\Admin\Extra\TranslationCrudController;
 use App\Controller\Admin\Field\VichImageField;
 use App\Entity\Ticket\Category;
-use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
-use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;

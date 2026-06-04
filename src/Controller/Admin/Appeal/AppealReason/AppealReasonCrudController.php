@@ -4,10 +4,9 @@ namespace App\Controller\Admin\Appeal\AppealReason;
 
 use App\Controller\Admin\Extra\TranslationCrudController;
 use App\Entity\Appeal\Reason\AppealReason;
-use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
-use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
+use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\CollectionField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
@@ -39,6 +38,10 @@ class AppealReasonCrudController extends AbstractCrudController
     public function configureFields(string $pageName): iterable
     {
         yield IdField::new('id')->hideOnForm();
+
+        yield BooleanField::new('authRequired', 'Не анонимно')
+            ->addCssClass("form-switch")
+            ->setColumns(12);
 
         yield TextField::new('code', 'Код (machine-readable)')
             ->setHelp('Уникальный идентификатор: fraud, offend, bad_quality и т.д.')

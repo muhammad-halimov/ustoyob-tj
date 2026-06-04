@@ -11,7 +11,6 @@ use App\Entity\Appeal\Appeal\Appeal;
 use App\Entity\Appeal\Types\AppealChat;
 use App\Entity\Appeal\Types\AppealReview;
 use App\Entity\Appeal\Types\AppealUser;
-use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;

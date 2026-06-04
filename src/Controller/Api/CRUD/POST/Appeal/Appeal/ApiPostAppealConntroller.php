@@ -25,85 +25,104 @@ class ApiPostAppealConntroller extends AbstractApiPostController
 
     protected function setSerializationGroups(): array { return G::OPS_APPEALS; }
 
-    protected function afterFetch(object|array $entity, User $user): void
+    protected function getUserGrade(): string { return 'anonymous'; }
+
+    protected function isActiveAndApprovedRequired(): bool { return false; }
+
+    protected function afterFetch(object|array $entity, ?User $user): void
     {
-        if ($entity->getAuthor()) $this->localizationService->localizeUser($entity->getAuthor(), $this->getLocale());
-        if ($entity->getRespondent()) $this->localizationService->localizeUser($entity->getRespondent(), $this->getLocale());
-        if ($entity->getReason()) $this->localizationService->localizeEntityFull($entity->getReason(), $this->getLocale());
-        if (method_exists($entity, 'getTicket') && $entity->getTicket()) $this->localizationService->localizeTicket($entity->getTicket(), $this->getLocale());
+        if ($entity->getAuthor())
+            $this->localizationService->localizeUser($entity->getAuthor(), $this->getLocale());
+
+        if ($entity->getRespondent())
+            $this->localizationService->localizeUser($entity->getRespondent(), $this->getLocale());
+
+        if ($entity->getReason())
+            $this->localizationService->localizeEntityFull($entity->getReason(), $this->getLocale());
+
+        if (method_exists($entity, 'getTicket') && $entity->getTicket())
+            $this->localizationService->localizeTicket($entity->getTicket(), $this->getLocale());
     }
 
-    protected function handle(User $bearer, object $dto): object
+    protected function handle(?User $bearer, object $dto): object
     {
         /** @var AppealInput $dto */
         if (!$dto->title || !$dto->description || !$dto->reason || !$dto->type)
             return $this->errorJson(AppMessages::MISSING_REQUIRED_FIELDS);
 
-        if ($dto->type === 'ticket') {
-            if (!$dto->ticket)
-                return $this->errorJson(AppMessages::MISSING_TICKET);
+        $authRequired = $dto->reason->getAuthRequired();
+        $hasNoChat    = $bearer && $dto->respondent && (
+            !$this->chatRepository->findChatBetweenUsers($bearer, $dto->respondent) &&
+            !$this->chatRepository->findChatBetweenUsers($dto->respondent, $bearer)
+        );
 
-            if ($dto->respondent && $dto->ticket->getAuthor() !== $dto->respondent && $dto->ticket->getMaster() !== $dto->respondent)
-                return $this->errorJson(AppMessages::APPEAL_TICKET_MISMATCH);
+        switch ($dto->type) {
+            case 'ticket':
+                if (!$dto->ticket)
+                    return $this->errorJson(AppMessages::MISSING_TICKET);
+                if (
+                    $dto->respondent &&
+                    $dto->ticket->getAuthor() !== $dto->respondent &&
+                    $dto->ticket->getMaster() !== $dto->respondent
+                )
+                    return $this->errorJson(AppMessages::APPEAL_TICKET_MISMATCH);
+                if ($authRequired && !$bearer)
+                    return $this->errorJson(AppMessages::AUTHENTICATION_REQUIRED);
 
-            return (new AppealTicket())
-                ->setTitle($dto->title)
-                ->setDescription($dto->description)
-                ->setReason($dto->reason)
-                ->setRespondent($dto->respondent)
-                ->setAuthor($bearer)
-                ->setTicket($dto->ticket);
+                $entity = (new AppealTicket())->setTicket($dto->ticket);
 
-        } elseif ($dto->type === 'chat') {
+                break;
 
-            if ($dto->respondent && (
-                !$this->chatRepository->findChatBetweenUsers($bearer, $dto->respondent) &&
-                !$this->chatRepository->findChatBetweenUsers($dto->respondent, $bearer)
-            ))
-                return $this->errorJson(AppMessages::NO_INTERACTIONS);
+            case 'chat':
+                if (!$bearer)
+                    return $this->errorJson(AppMessages::AUTHENTICATION_REQUIRED);
+                if ($hasNoChat)
+                    return $this->errorJson(AppMessages::NO_INTERACTIONS);
+                if ($authRequired)
+                    return $this->errorJson(AppMessages::AUTH_REQUIRED_FOR_CHAT_APPEALS);
+                if (!$dto->chat)
+                    return $this->errorJson(AppMessages::MISSING_CHAT);
+                if ($dto->chat->getAuthor() !== $bearer && $dto->chat->getReplyAuthor() !== $bearer)
+                    return $this->errorJson(AppMessages::OWNERSHIP_MISMATCH);
+                if (
+                    $dto->respondent &&
+                    $dto->chat->getReplyAuthor() !== $dto->respondent &&
+                    $dto->chat->getAuthor() !== $dto->respondent
+                )
+                    return $this->errorJson(AppMessages::APPEAL_CHAT_MISMATCH);
 
-            if (!$dto->chat)
-                return $this->errorJson(AppMessages::MISSING_CHAT);
+                $entity = (new AppealChat())->setChat($dto->chat)->setTicket($dto->ticket);
 
-            if ($dto->chat->getAuthor() !== $bearer && $dto->chat->getReplyAuthor() !== $bearer)
-                return $this->errorJson(AppMessages::OWNERSHIP_MISMATCH);
+                break;
 
-            if ($dto->respondent && $dto->chat->getReplyAuthor() !== $dto->respondent && $dto->chat->getAuthor() !== $dto->respondent)
-                return $this->errorJson(AppMessages::APPEAL_CHAT_MISMATCH);
+            case 'review':
+                if (!$dto->review)
+                    return $this->errorJson(AppMessages::MISSING_REVIEW);
+                if ($authRequired && !$bearer)
+                    return $this->errorJson(AppMessages::AUTHENTICATION_REQUIRED);
 
-            return (new AppealChat())
-                ->setTitle($dto->title)
-                ->setDescription($dto->description)
-                ->setReason($dto->reason)
-                ->setRespondent($dto->respondent)
-                ->setAuthor($bearer)
-                ->setChat($dto->chat)
-                ->setTicket($dto->ticket);
+                $entity = (new AppealReview())->setReview($dto->review)->setTicket($dto->ticket);
 
-        } elseif ($dto->type === 'review') {
-            if (!$dto->review)
-                return $this->errorJson(AppMessages::MISSING_REVIEW);
+                break;
 
-            return (new AppealReview())
-                ->setTitle($dto->title)
-                ->setDescription($dto->description)
-                ->setReason($dto->reason)
-                ->setRespondent($dto->respondent)
-                ->setAuthor($bearer)
-                ->setReview($dto->review)
-                ->setTicket($dto->ticket);
+            case 'user':
+                if (!$dto->respondent)
+                    return $this->errorJson(AppMessages::MISSING_RESPONDENT);
+                if ($authRequired && !$bearer)
+                    return $this->errorJson(AppMessages::AUTHENTICATION_REQUIRED);
+                $entity = new AppealUser();
 
-        } elseif ($dto->type === 'user') {
-            if (!$dto->respondent)
-                return $this->errorJson(AppMessages::MISSING_RESPONDENT);
+                break;
 
-            return (new AppealUser())
-                ->setTitle($dto->title)
-                ->setDescription($dto->description)
-                ->setReason($dto->reason)
-                ->setRespondent($dto->respondent)
-                ->setAuthor($bearer);
+            default:
+                return $this->errorJson(AppMessages::WRONG_APPEAL_TYPE);
+        }
 
-        } else return $this->errorJson(AppMessages::WRONG_APPEAL_TYPE);
+        return $entity
+            ->setTitle($dto->title)
+            ->setDescription($dto->description)
+            ->setReason($dto->reason)
+            ->setRespondent($dto->respondent)
+            ->setAuthor($bearer);
     }
 }

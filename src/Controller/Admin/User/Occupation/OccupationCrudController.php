@@ -5,8 +5,6 @@ namespace App\Controller\Admin\User\Occupation;
 use App\Controller\Admin\Extra\TranslationCrudController;
 use App\Controller\Admin\Field\VichImageField;
 use App\Entity\User\Occupation;
-use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
-use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;

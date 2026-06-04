@@ -14,6 +14,7 @@ class AppealReasonFixture extends Fixture
     private const array REASONS = [
         'offend' => [
             'applicableTo' => 'chat',
+            'authRequired' => true,
             'translations' => [
                 'ru'  => 'Оскорбление/Маты',
                 'tj'  => 'Дашном/Фаҳш',
@@ -22,6 +23,7 @@ class AppealReasonFixture extends Fixture
         ],
         'rude_language' => [
             'applicableTo' => 'chat',
+            'authRequired' => true,
             'translations' => [
                 'ru'  => 'Грубая лексика',
                 'tj'  => 'Забони дағал',
@@ -30,6 +32,7 @@ class AppealReasonFixture extends Fixture
         ],
         'lateness' => [
             'applicableTo' => 'ticket',
+            'authRequired' => true,
             'translations' => [
                 'ru'  => 'Опоздание/Отсутствие',
                 'tj'  => 'Дер омадан/Набудан',
@@ -38,6 +41,7 @@ class AppealReasonFixture extends Fixture
         ],
         'bad_quality' => [
             'applicableTo' => 'ticket',
+            'authRequired' => true,
             'translations' => [
                 'ru'  => 'Плохое качество',
                 'tj'  => 'Сифати бад',
@@ -46,6 +50,7 @@ class AppealReasonFixture extends Fixture
         ],
         'property_damage' => [
             'applicableTo' => 'ticket',
+            'authRequired' => true,
             'translations' => [
                 'ru'  => 'Повреждения имущества',
                 'tj'  => 'Зарари молу мулк',
@@ -54,6 +59,7 @@ class AppealReasonFixture extends Fixture
         ],
         'overpricing' => [
             'applicableTo' => 'ticket',
+            'authRequired' => true,
             'translations' => [
                 'ru'  => 'Завышение стоимости',
                 'tj'  => 'Қимати баланд',
@@ -62,6 +68,7 @@ class AppealReasonFixture extends Fixture
         ],
         'unprofessionalism' => [
             'applicableTo' => 'ticket',
+            'authRequired' => true,
             'translations' => [
                 'ru'  => 'Непрофессионализм',
                 'tj'  => 'Беихтисосӣ',
@@ -70,6 +77,7 @@ class AppealReasonFixture extends Fixture
         ],
         'fraud' => [
             'applicableTo' => 'overall',
+            'authRequired' => false,
             'translations' => [
                 'ru'  => 'Мошенничество',
                 'tj'  => 'Фиреб',
@@ -78,6 +86,7 @@ class AppealReasonFixture extends Fixture
         ],
         'racism_nazism_xenophobia' => [
             'applicableTo' => 'overall',
+            'authRequired' => false,
             'translations' => [
                 'ru'  => 'Расизм/Нацизм/Ксенофобия',
                 'tj'  => 'Нажодпарастӣ/Нацизм/Бегонаситезӣ',
@@ -86,6 +95,7 @@ class AppealReasonFixture extends Fixture
         ],
         'other' => [
             'applicableTo' => 'overall',
+            'authRequired' => false,
             'translations' => [
                 'ru'  => 'Другое',
                 'tj'  => 'Дигар',
@@ -94,6 +104,7 @@ class AppealReasonFixture extends Fixture
         ],
         'fake_review' => [
             'applicableTo' => 'review',
+            'authRequired' => false,
             'translations' => [
                 'ru'  => 'Фальшивый отзыв',
                 'tj'  => 'Баҳои қалбакӣ',
@@ -102,6 +113,7 @@ class AppealReasonFixture extends Fixture
         ],
         'offensive_review' => [
             'applicableTo' => 'review',
+            'authRequired' => false,
             'translations' => [
                 'ru'  => 'Оскорбительный отзыв',
                 'tj'  => 'Баҳои дашномдор',
@@ -110,6 +122,7 @@ class AppealReasonFixture extends Fixture
         ],
         'unfair_rating' => [
             'applicableTo' => 'review',
+            'authRequired' => false,
             'translations' => [
                 'ru'  => 'Несправедливая оценка',
                 'tj'  => 'Баҳодиҳии ноодилона',
@@ -118,6 +131,7 @@ class AppealReasonFixture extends Fixture
         ],
         'account_issue' => [
             'applicableTo' => 'support',
+            'authRequired' => true,
             'translations' => [
                 'ru'  => 'Проблемы с аккаунтом',
                 'tj'  => 'Мушкилоти аккаунт',
@@ -126,6 +140,7 @@ class AppealReasonFixture extends Fixture
         ],
         'ads_issue' => [
             'applicableTo' => 'support',
+            'authRequired' => true,
             'translations' => [
                 'ru'  => 'Проблемы с объявлениями',
                 'tj'  => 'Мушкилоти эълонҳо',
@@ -134,6 +149,7 @@ class AppealReasonFixture extends Fixture
         ],
         'platform_question' => [
             'applicableTo' => 'support',
+            'authRequired' => true,
             'translations' => [
                 'ru'  => 'Вопросы по работе платформы',
                 'tj'  => 'Саволҳо оид ба кори платформа',
@@ -142,6 +158,7 @@ class AppealReasonFixture extends Fixture
         ],
         'tech_issue' => [
             'applicableTo' => 'support',
+            'authRequired' => true,
             'translations' => [
                 'ru'  => 'Технические проблемы',
                 'tj'  => 'Мушкилоти техникӣ',
@@ -150,6 +167,7 @@ class AppealReasonFixture extends Fixture
         ],
         'law_question' => [
             'applicableTo' => 'support',
+            'authRequired' => true,
             'translations' => [
                 'ru'  => 'Юридические вопросы',
                 'tj'  => 'Саволҳои ҳуқуқӣ',
@@ -158,6 +176,7 @@ class AppealReasonFixture extends Fixture
         ],
         'suggestion' => [
             'applicableTo' => 'support',
+            'authRequired' => true,
             'translations' => [
                 'ru'  => 'Предложения и фидбек',
                 'tj'  => 'Пешниҳодҳо ва фидбек',
@@ -166,6 +185,7 @@ class AppealReasonFixture extends Fixture
         ],
         'urgent_support' => [
             'applicableTo' => 'support',
+            'authRequired' => true,
             'translations' => [
                 'ru'  => 'Экстренный',
                 'tj'  => 'Фаврӣ',
@@ -180,6 +200,7 @@ class AppealReasonFixture extends Fixture
             $reason = new AppealReason();
             $reason->setCode($code);
             $reason->setApplicableTo($data['applicableTo']);
+            $reason->setAuthRequired($data['authRequired']);
 
             // Initialize translations collection via reflection (same pattern as CategoryFixture)
             $reflection = new ReflectionClass($reason);
