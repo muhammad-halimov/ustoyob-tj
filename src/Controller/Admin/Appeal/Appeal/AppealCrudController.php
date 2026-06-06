@@ -152,8 +152,7 @@ class AppealCrudController extends AbstractCrudController
 
         yield AssociationField::new('reason', 'Причина жалобы')
             ->setRequired(false)
-            ->setColumns(12)
-            ->hideOnIndex();
+            ->setColumns(12);
 
         yield TextEditorField::new('description', 'Описание')
             ->setRequired(false)
