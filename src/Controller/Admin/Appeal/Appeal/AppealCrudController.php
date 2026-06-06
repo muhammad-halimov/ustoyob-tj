@@ -134,25 +134,23 @@ class AppealCrudController extends AbstractCrudController
             ->setDisabled()
             ->setColumns(12);
 
+        yield AssociationField::new('reason', 'Причина жалобы')
+            ->setRequired(false)
+            ->setColumns(12);
+
         yield TextField::new('title', 'Заголовок')
             ->setRequired(true)
             ->setColumns(12);
 
         yield AssociationField::new('author', 'Истец (null — анонимно)')
-            ->setQueryBuilder($this->nonAdminQb()
-            )
+            ->setQueryBuilder($this->nonAdminQb())
             ->setRequired(false)
             ->setColumns(6);
 
         yield AssociationField::new('respondent', 'Ответчик')
-            ->setQueryBuilder($this->nonAdminQb()
-            )
+            ->setQueryBuilder($this->nonAdminQb())
             ->setRequired(false)
             ->setColumns(6);
-
-        yield AssociationField::new('reason', 'Причина жалобы')
-            ->setRequired(false)
-            ->setColumns(12);
 
         yield TextEditorField::new('description', 'Описание')
             ->setRequired(false)
