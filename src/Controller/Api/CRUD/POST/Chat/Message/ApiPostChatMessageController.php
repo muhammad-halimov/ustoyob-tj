@@ -26,7 +26,7 @@ class ApiPostChatMessageController extends AbstractApiPostController
         if ($entity->getAuthor()) $this->localizationService->localizeUser($entity->getAuthor(), $this->getLocale());
     }
 
-    protected function handle(User $bearer, object $dto): object
+    protected function handle(?User $bearer, object $dto): object
     {
         /** @var ChatMessagePostInput $dto */
         if (!$dto->chat || $dto->description === null)

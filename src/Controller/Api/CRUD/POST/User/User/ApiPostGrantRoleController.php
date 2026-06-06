@@ -15,7 +15,7 @@ class ApiPostGrantRoleController extends AbstractApiPostController
 
     protected function isActiveAndApprovedRequired(): bool { return false; }
 
-    protected function handle(User $bearer, object $dto): object
+    protected function handle(?User $bearer, object $dto): object
     {
         $masterArr = ['master', 'MASTER', 'ROLE_MASTER'];
         $clientArr = ['client', 'CLIENT', 'ROLE_CLIENT'];

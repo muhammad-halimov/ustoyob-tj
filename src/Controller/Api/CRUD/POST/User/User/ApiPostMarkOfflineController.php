@@ -11,7 +11,7 @@ class ApiPostMarkOfflineController extends AbstractApiPostController
 {
     public function __construct(private readonly HubInterface $hub) {}
 
-    protected function handle(User $bearer, object $dto): object
+    protected function handle(?User $bearer, object $dto): object
     {
         $bearer->setLastSeen(null);
         $this->flush();

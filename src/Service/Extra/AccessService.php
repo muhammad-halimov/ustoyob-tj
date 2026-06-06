@@ -46,6 +46,8 @@ readonly class AccessService
      */
     public function check(User|null $user, string $grade = 'triple', bool $activeAndApproved = true) : bool
     {
+        if ($grade === 'anonymous') return true;
+
         if (!$user)
             throw new TokenNotFoundException(AppMessages::get(AppMessages::AUTHENTICATION_REQUIRED)->message);
         elseif (!$this->security->isGranted('IS_AUTHENTICATED_FULLY'))

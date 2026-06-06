@@ -27,7 +27,7 @@ class ApiPostGalleryController extends AbstractApiPostController
         if ($entity->getUser()) $this->localizationService->localizeUser($entity->getUser(), $this->getLocale());
     }
 
-    protected function handle(User $bearer, object $dto): object
+    protected function handle(?User $bearer, object $dto): object
     {
         if ($this->galleryRepository->findUserGallery($bearer))
             return $this->errorJson(AppMessages::GALLERY_EXISTS_PATCH_INSTEAD);

@@ -12,7 +12,7 @@ class ApiPostPingController extends AbstractApiPostController
 {
     public function __construct(private readonly HubInterface $hub) {}
 
-    protected function handle(User $bearer, object $dto): object
+    protected function handle(?User $bearer, object $dto): object
     {
         $now = new DateTimeImmutable();
         $bearer->setLastSeen($now);

@@ -26,7 +26,7 @@ class ApiPostTechSupportMessageController extends AbstractApiPostController
         if ($entity->getAuthor()) $this->localizationService->localizeUser($entity->getAuthor(), $this->getLocale());
     }
 
-    protected function handle(User $bearer, object $dto): object
+    protected function handle(?User $bearer, object $dto): object
     {
         /** @var TechSupportMessagePostInput $dto */
         if (!$dto->description) return $this->errorJson(AppMessages::EMPTY_TEXT);

@@ -42,7 +42,7 @@ abstract class AbstractPostCollectionEntryController extends AbstractApiPostCont
 
     protected function getInputClass(): string { return CollectionEntryInput::class; }
 
-    final protected function handle(User $bearer, object $dto): object
+    final protected function handle(?User $bearer, object $dto): object
     {
         /** @var CollectionEntryInput $dto */
         if ($dto->user === null && $dto->ticket === null)

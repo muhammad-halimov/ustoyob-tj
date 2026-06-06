@@ -28,7 +28,7 @@ abstract class AbstractApiPostController extends AbstractApiHelperController
      * Создать сущность и вернуть её (будет persist + buildResponse),
      * либо вернуть JsonResponse для раннего выхода с ошибкой.
      */
-    abstract protected function handle(User $bearer, object $dto): object;
+    abstract protected function handle(?User $bearer, object $dto): object;
 
     final public function __invoke(): JsonResponse
     {

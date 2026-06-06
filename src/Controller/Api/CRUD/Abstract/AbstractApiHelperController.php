@@ -143,7 +143,7 @@ abstract class AbstractApiHelperController extends AbstractController
      * Бросает исключение (→ 401/403) при неудаче.
      * При успехе возвращает гарантированный User без null.
      */
-    protected function checkedUser(string $grade = 'triple', bool $activeAndApproved = true): User
+    protected function checkedUser(string $grade = 'triple', bool $activeAndApproved = true): ?User
     {
         /** @var User|null $user */
         $user = $this->security->getUser();

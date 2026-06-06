@@ -39,7 +39,7 @@ class ApiPostTicketController extends AbstractApiPostController
         if ($entity->getMaster()) $this->localizationService->localizeUser($entity->getMaster(), $this->getLocale());
     }
 
-    protected function handle(User $bearer, object $dto): object
+    protected function handle(?User $bearer, object $dto): object
     {
         /** @var TicketInput $dto */
         if (!$dto->title || !$dto->description || !$dto->category)
