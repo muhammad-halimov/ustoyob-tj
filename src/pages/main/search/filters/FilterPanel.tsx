@@ -1,5 +1,6 @@
 import styles from './FilterPanel.module.scss';
 import { useState, useEffect, useMemo } from 'react';
+import type * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { SelectSearch, SelectOption } from '../../../../shared/ui/SelectSearch';
 import PageLoader from '../../../../widgets/PageLoader/PageLoader';

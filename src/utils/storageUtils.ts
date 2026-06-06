@@ -66,30 +66,6 @@ export const setStorageJSON = <T,>(key: string, value: T): void => {
         console.error(`Error stringifying localStorage key "${key}":`, error);
     }
 };
-
-/**
- * Get boolean from localStorage
- */
-export const getStorageBoolean = (key: string, defaultValue: boolean = false): boolean => {
-    const item = getStorageItem(key);
-    if (item === null) return defaultValue;
-    return item === 'true';
-};
-
-/**
- * Set boolean in localStorage
- */
-export const setStorageBoolean = (key: string, value: boolean): void => {
-    setStorageItem(key, value ? 'true' : 'false');
-};
-
-/**
- * Clear all localStorage (use with caution!)
- */
-export const clearAllStorage = (): void => {
-    if (isClientSide()) localStorage.clear();
-};
-
 /**
  * Safe sessionStorage string getter
  */

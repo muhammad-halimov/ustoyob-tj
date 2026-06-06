@@ -58,6 +58,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
             return;
         }
         fetchReviews(page);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [page]);
 
 

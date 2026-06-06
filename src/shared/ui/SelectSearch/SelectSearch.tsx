@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import type * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Marquee } from '../Text/Marquee';
 import styles from './SelectSearch.module.scss';

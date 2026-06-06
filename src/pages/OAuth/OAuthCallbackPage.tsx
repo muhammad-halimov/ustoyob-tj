@@ -16,7 +16,6 @@ import {
     getAuthToken,
 } from '../../utils/authUtils';
 import type { OAuthProviderName, BackendAuthCallbackResponse } from '../../entities';
-import { API_BASE_URL } from '../../utils/configUtils';
 import { universalApiRequest } from '../../utils/apiUtils';
 import { resolveApiError } from '../../utils/appMessagesUtils';
 import { getStorageItem, removeStorageItem, getSessionItem, removeSessionItem, removeSessionItems } from '../../utils/storageUtils';
@@ -201,7 +200,8 @@ const OAuthCallbackPage = () => {
                         }, 2000);
                     }
                 } else {
-                    throw new Error(t('oauth.tokenNotReceived'));
+                    setError(resolveApiError(null, t('oauth.tokenNotReceived')));
+                    setTimeout(() => navigate(ROUTES.HOME), 3000);
                 }
 
             } catch (err) {
@@ -214,7 +214,7 @@ const OAuthCallbackPage = () => {
         };
 
         processCallback();
-    }, [searchParams, navigate, API_BASE_URL]);
+    }, [searchParams, navigate, t]);
 
     if (loading) {
         return <PageLoader text={t('oauth.processingVia', { provider: provider === 'google' ? 'Google' : provider === 'instagram' ? 'Instagram' : 'Facebook' })} />;

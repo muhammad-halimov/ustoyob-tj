@@ -167,7 +167,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             setPasswordValidation({ isValid: false, message: '' });
             setShowPasswordRequirements(false);
         }
-    }, [formData.password]);
+    }, [formData.password, t]);
 
     // Эффект для загрузки категорий и настройки Telegram
     useEffect(() => {
@@ -190,23 +190,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         loadCategories();
 
         // Слушаем смену языка для перезагрузки категорий
-        const handleLanguageChange = async () => {
-            try {
-                const data = await getOccupations();
-                // Преобразуем Occupation в Category
-                const categories: Category[] = data.map(occ => ({
-                    id: occ.id,
-                    title: occ.title,
-                    description: occ.description || '',
-                    image: occ.image || ''
-                }));
-                setCategories(categories);
-            } catch (err) {
-                console.error('Error loading categories on language change:', err);
-            }
-        };
-
-        window.addEventListener('languageChanged', handleLanguageChange);
+        window.addEventListener('languageChanged', loadCategories);
 
         // Загружаем скрипт Telegram Widget
         const loadTelegramWidget = () => {
@@ -249,8 +233,9 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
 
         return () => {
             window.removeEventListener('message', handleTelegramAuth);
-            window.removeEventListener('languageChanged', handleLanguageChange);
+            window.removeEventListener('languageChanged', loadCategories);
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Общая функция для начала OAuth авторизации
@@ -269,17 +254,21 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             })
                 .then((data: any) => {
                     const redirectUrl = (data as OAuthUrlResponse).url;
+                    let parsed: URL;
                     try {
-                        const parsed = new URL(redirectUrl);
-                        if (!['https:', 'http:'].includes(parsed.protocol)) throw new Error('Invalid protocol');
-                        // Сохраняем state из реального redirect URL для CSRF-проверки на callback
-                        const stateFromUrl = parsed.searchParams.get('state');
-                        if (stateFromUrl) {
-                            setSessionItem(`${provider}CsrfState`, stateFromUrl);
-                        }
+                        parsed = new URL(redirectUrl);
                     } catch {
                         setError('Получен некорректный URL для авторизации');
                         return;
+                    }
+                    if (!['https:', 'http:'].includes(parsed.protocol)) {
+                        setError('Получен некорректный URL для авторизации');
+                        return;
+                    }
+                    // Сохраняем state из реального redirect URL для CSRF-проверки на callback
+                    const stateFromUrl = parsed.searchParams.get('state');
+                    if (stateFromUrl) {
+                        setSessionItem(`${provider}CsrfState`, stateFromUrl);
                     }
                     handleClose();
                     window.location.href = redirectUrl;
@@ -611,7 +600,8 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             console.log('Login response token received');
 
             if (!data.token) {
-                throw new ApiError('token_not_found', 'Токен не получен в ответе', 401);
+                setError(t('auth.invalidCredentials'));
+                return;
             }
 
             // Сохраняем токен
@@ -721,7 +711,8 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             });
 
             if (!loginData.token) {
-                throw new ApiError('token_not_found', 'Токен не получен в ответе', 401);
+                setError(t('auth.invalidCredentials'));
+                return;
             }
 
             // 3. Сохраняем токен
@@ -1452,7 +1443,8 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
 
             const telegramUserData = getStorageJSON<User>('telegramUserData');
             if (!telegramUserData) {
-                throw new Error('Данные пользователя Telegram не найдены');
+                setError('Данные пользователя Telegram не найдены');
+                return;
             }
             console.log('Completing Telegram auth for role:', selectedRole);
 
@@ -1469,7 +1461,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 handleSuccessfulAuth(data.token, data.user?.email);
                 removeStorageItems('telegramUserData');
             } else {
-                throw new ApiError('token_not_found', 'Токен не получен в ответе', 401);
+                setError(resolveApiError(null, 'Ошибка при завершении авторизации через Telegram'));
             }
 
         } catch (err) {

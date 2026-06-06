@@ -24,11 +24,14 @@ import { loadAppMessages } from '../utils/appMessagesUtils';
 
 // Инициализируем кеш данных при старте приложения
 clearCache('occupations');
+
 window.addEventListener('languageChanged', () => {
     clearCache();
     setTimeout(() => { preloadData(); loadAppMessages(undefined, true); }, 100);
 });
+
 preloadData();
+
 loadAppMessages();
 
 createRoot(document.getElementById('root')!).render(

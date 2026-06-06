@@ -2,13 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import styles from './ShowMore.module.scss';
 import { Clear } from '../Clear/Clear';
 import { PageLoader } from '../../../../widgets/PageLoader';
-import { Marquee } from '../../Text/Marquee/Marquee';
+import { Marquee } from '../../Text/Marquee';
 
 /**
  * Компонент ShowMore отображает компактный блок для разворачивания или
  * сворачивания длинных списков с опциональной кнопкой очистки.
  *
- * Сохраняет стабильность макета при сворачивании и поддерживает состояния
+ * Сохраняет стабильность макета при сворачивании и поддерживает состоянии
  * загрузки для действий «показать еще» и «показать меньше».
  */
 interface ShowMoreProps {

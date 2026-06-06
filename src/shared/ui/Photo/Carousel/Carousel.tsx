@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import type * as React from 'react';
 import styles from './Carousel.module.scss';
 import { Preview } from '../Preview';
 

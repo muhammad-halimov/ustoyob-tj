@@ -152,6 +152,7 @@ function Favorites() {
                 } catch { /* ignore */ }
             })();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleRespondCard = async (ticketId: number, authorId: number) => {
@@ -238,6 +239,7 @@ function Favorites() {
         ticketsPerPageRef.current = [];
         usersPerPageRef.current = [];
         setPage(1);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab]);
 
     // При смене сортировки — сбрасываем на страницу 1 и перезагружаем

@@ -122,7 +122,7 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
         const handleClickOutside = (e: MouseEvent) => {
             if (editingNetworkRef.current && !editingNetworkRef.current.contains(e.target as Node)) {
                 const id = pendingEditIdRef.current;
-                if (id) handleSaveEdit(id);
+                if (id) void handleSaveEdit(id);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);

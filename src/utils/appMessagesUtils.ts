@@ -9,7 +9,7 @@
  * synchronously anywhere in the app.
  *
  * Usage in catch blocks:
- *   } catch (err) {
+ *   catch (err) {
  *       setError(resolveApiError(err));
  *   }
  */
@@ -74,20 +74,6 @@ export const loadAppMessages = (locale?: LocaleType, force = false): Promise<voi
 };
 
 // ─── Lookup ───────────────────────────────────────────────────────────────────
-
-/**
- * Returns the AppMessage for `code`, or `undefined` if the code is unknown
- * or messages haven't been loaded yet.
- */
-export const getAppMessage = (code: string): AppMessage | undefined => _cache.get(code);
-
-/**
- * Returns only the translated message text for `code`, with an optional
- * `fallback` string when the code is not found in the cache.
- */
-export const getAppMessageText = (code: string, fallback?: string): string =>
-    _cache.get(code)?.message ?? fallback ?? code;
-
 // ─── Error resolution ─────────────────────────────────────────────────────────
 
 /**

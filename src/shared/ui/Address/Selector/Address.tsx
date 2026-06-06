@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
-import { getStorageItem } from '../../../../utils/storageUtils';
-import { AddressValueView, AddressDataView } from '../../../../entities';
-import type { Province, City, District } from '../../../../entities';
-import { getProvinces, getCities, getDistricts } from '../../../../utils/dataCacheUtils';
-import { PageLoader } from '../../../../widgets/PageLoader';
-import { SelectSearch } from '../../SelectSearch';
+import {useEffect, useState} from 'react';
+import {useTranslation} from 'react-i18next';
+import {getStorageItem} from '../../../../utils/storageUtils';
+import type {City, District, Province} from '../../../../entities';
+import {AddressValueView} from '../../../../entities';
+import {getCities, getDistricts, getProvinces} from '../../../../utils/dataCacheUtils';
+import {PageLoader} from '../../../../widgets/PageLoader';
+import {SelectSearch} from '../../SelectSearch';
 import styles from './Address.module.scss';
 
 interface AddressSelectorProps {
@@ -57,7 +57,6 @@ const Address = ({ value, onChange }: AddressSelectorProps) => {
 
     useEffect(() => {
         fetchLocationData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [locale]);
 
     // Фильтрованные данные
@@ -446,39 +445,6 @@ const Address = ({ value, onChange }: AddressSelectorProps) => {
             )}
         </div>
     );
-};
-
-// Утилита для формирования данных адреса для API
-export const buildAddressData = (value: AddressValueView): AddressDataView | null => {
-    if (!value.provinceId) return null;
-
-    const addressData: any = {
-        province: `/api/provinces/${value.provinceId}`,
-    };
-
-    // If a city is selected
-    if (value.cityId) {
-        addressData.city = `/api/cities/${value.cityId}`;
-        if (value.suburbIds && value.suburbIds.length > 0) {
-            addressData.suburb = `/api/suburbs/${value.suburbIds[0]}`;
-        }
-    }
-    // If a district is selected (region-level)
-    else if (value.districtIds.length > 0) {
-        const districtId = value.districtIds[0];
-        addressData.district = `/api/districts/${districtId}`;
-        
-        if (value.settlementId) {
-            addressData.settlement = `/api/settlements/${value.settlementId}`;
-            if (value.villageId) {
-                addressData.village = `/api/villages/${value.villageId}`;
-            }
-        } else if (value.communityId) {
-            addressData.community = `/api/communities/${value.communityId}`;
-        }
-    }
-
-    return addressData;
 };
 
 export default Address;

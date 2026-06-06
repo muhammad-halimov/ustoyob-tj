@@ -71,7 +71,7 @@ export interface Address {
     city?: City | null;
     suburb?: Suburb | null;
     district?: District | null;
-    settlement?: Settlement | null;
+    settlement?: Settlement | string | null;
     community?: Community | null;
     village?: Village | null;
     [key: string]: unknown;

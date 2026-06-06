@@ -113,6 +113,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
             setSurnameInput(parts[0] || '');
             setFirstNameInput(parts.slice(1).join(' ') || '');
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editingField]);
 
     const handleSurnameChange = (value: string) => {

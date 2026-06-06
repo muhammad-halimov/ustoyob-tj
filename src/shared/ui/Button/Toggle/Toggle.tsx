@@ -1,4 +1,5 @@
 import styles from './Toggle.module.scss';
+import React from "react";
 
 interface ToggleProps {
     checked: boolean;

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../app/routers/routes';
 import Status from '../../shared/ui/Modal/Status';
@@ -98,7 +99,8 @@ const TelegramLinkEmailPage = () => {
                 window.dispatchEvent(new Event('login'));
                 navigate(ROUTES.HOME, { replace: true });
             } else {
-                throw new Error(t('oauth.tokenNotReceived'));
+                setError(t('oauth.tokenNotReceived'));
+                setLoading(false);
             }
         } catch (err) {
             console.error('TelegramLinkEmail error:', err);
@@ -159,7 +161,8 @@ const TelegramLinkEmailPage = () => {
                 window.dispatchEvent(new Event('login'));
                 navigate(ROUTES.HOME, { replace: true });
             } else {
-                throw new Error(t('oauth.tokenNotReceived'));
+                setError(t('oauth.tokenNotReceived'));
+                setLoading(false);
             }
         } catch (err) {
             console.error('TelegramSkip error:', err);

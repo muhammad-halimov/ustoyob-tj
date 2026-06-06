@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
+import type * as React from 'react';
 import styles from './Marquee.module.scss';
 
 interface MarqueeTextProps {

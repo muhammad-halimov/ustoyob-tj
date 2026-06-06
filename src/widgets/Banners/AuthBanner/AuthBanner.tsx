@@ -31,5 +31,3 @@ export const AuthBanner: React.FC<AuthBannerProps> = ({
         </div>
     );
 };
-
-export default AuthBanner;

@@ -4,7 +4,6 @@ import type {Occupation, User} from '../entities';
 import {
     getStorageItem,
     setStorageItem,
-    removeStorageItem,
     removeStorageItems,
     getStorageJSON,
     setStorageJSON,
@@ -38,7 +37,6 @@ const ME_CACHE_TTL_MS = 30_000 as const;
 // Aliases to keep internal code concise
 const getItem = getStorageItem;
 const setItem = setStorageItem;
-const removeItem = removeStorageItem;
 const removeItems = removeStorageItems;
 
 // ============ Работа с токеном ============
@@ -50,29 +48,10 @@ export const setAuthToken = (token: string): void => {
     setItem(STORAGE_KEYS.AUTH_TOKEN, token);
     setAuthTokenExpiry();
 };
-
-/**
- * Removes the token, expiry, and all user-related localStorage keys.
- * Also resets the /api/users/me cache.
- * NOTE: does NOT call the server logout endpoint — use `logout()` for a full logout.
- */
-export const removeAuthToken = (): void => {
-    removeItems(
-        STORAGE_KEYS.AUTH_TOKEN,
-        STORAGE_KEYS.TOKEN_EXPIRY,
-        STORAGE_KEYS.USER_EMAIL,
-        STORAGE_KEYS.USER_DATA,
-        STORAGE_KEYS.USER_ROLE,
-        STORAGE_KEYS.USER_OCCUPATION,
-        STORAGE_KEYS.SELECTED_CITY
-    );
-    _mePromise = null;
-    _meCachedAt = 0;
-};
-
 // ============ Logout ============
 /**
  * Calls /api/invalidate_token then /api/logout on the server.
+ * @param token
  * @param wait  When false the second request is aborted immediately (fire-and-forget for page unload).
  */
 const performLogout = async (token: string, wait: boolean = true): Promise<void> => {
@@ -124,11 +103,6 @@ export const getAuthTokenExpiry = (): string | null => getItem(STORAGE_KEYS.TOKE
 export const setAuthTokenExpiry = (expiry?: string): void => {
     setItem(STORAGE_KEYS.TOKEN_EXPIRY, createExpiryDate(expiry).toISOString());
 };
-
-export const removeAuthTokenExpiry = (): void => {
-    removeItem(STORAGE_KEYS.TOKEN_EXPIRY);
-};
-
 // ============ Проверка состояния токена ============
 const checkTokenTime = (compareFunc: (diff: number) => boolean): boolean => {
     const expiry = getAuthTokenExpiry();
@@ -199,17 +173,11 @@ export const setUserData = (data: User): void => {
 };
 
 // ============ Работа с email пользователя ============
-export const getUserEmail = (): string | null => getItem(STORAGE_KEYS.USER_EMAIL);
-
 export const setUserEmail = (email: string): void => {
     setItem(STORAGE_KEYS.USER_EMAIL, email);
 };
 
 // ============ Работа с occupation пользователя ============
-export const getUserOccupation = (): Occupation[] | null => {
-    return getStorageJSON<Occupation[]>(STORAGE_KEYS.USER_OCCUPATION);
-};
-
 export const setUserOccupation = (occupation: Occupation[]): void => {
     setStorageJSON(STORAGE_KEYS.USER_OCCUPATION, occupation);
 };

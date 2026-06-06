@@ -50,7 +50,7 @@ function Legal() {
                 if (Array.isArray(data) && data.length > 0) {
                     setDocument(data[0]);
                 } else {
-                    throw new Error('Document not found');
+                    setDocument(null);
                 }
             } catch (err) {
                 console.error('Error fetching legal document:', err);

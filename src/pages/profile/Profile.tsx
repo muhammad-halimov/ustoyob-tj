@@ -1,4 +1,5 @@
 import {type ChangeEvent, useCallback, useEffect, useRef, useState, Dispatch, SetStateAction} from 'react';
+import type * as React from 'react';
 import {Navigate, useNavigate, useParams} from 'react-router-dom';
 import {getAuthToken, getUserData, getUserRole, logout} from '../../utils/authUtils';
 import {ROUTES} from '../../app/routers/routes';
@@ -256,7 +257,7 @@ function Profile() {
                 try {
                     const stateParam = new URL(data.url).searchParams.get('state');
                     if (stateParam) setStorageItem(`oauth_mode_${stateParam}`, 'link');
-                } catch {}
+                } catch { /* url parse error ignored */ }
                 // Проверяем протокол перед редиректом (защита от open redirect)
                 try {
                     const parsed = new URL(data.url);
@@ -319,8 +320,8 @@ function Profile() {
     
     // Перезагружать данные при смене языка
     useLanguageChange(() => {
-        fetchUserData(); // fetchServices и fetchUserGallery вызываются внутри fetchUserData
-        fetchReviews();
+        void fetchUserData(); // fetchServices и fetchUserGallery вызываются внутри fetchUserData
+        void fetchReviews();
     });
 
     // Как в MyTickets - загрузка текущего пользователя для приватного профиля
@@ -476,15 +477,16 @@ function Profile() {
             console.log(`Loading ${readOnly ? 'public' : 'private'} profile`);
             if (userId) console.log('User ID:', userId);
             
-            fetchUserData();
-            fetchOccupationsList();
+            void fetchUserData();
+            void fetchOccupationsList();
             
             // Загружаем доступные социальные сети только для приватных профилей
             if (!readOnly) {
-                fetchAvailableSocialNetworks();
+                void fetchAvailableSocialNetworks();
             }
         };
         initializeProfile();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [navigate, readOnly, userId]);
 
     useEffect(() => {
@@ -497,6 +499,7 @@ function Profile() {
             fetchServices();
             fetchOccupationsList(); // Загружаем специальности сразу при загрузке профиля
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [profileData?.id, userRole]);
 
     // Перезагружаем отзывы при смене страницы
@@ -532,6 +535,7 @@ function Profile() {
             console.log('Calling fetchOccupationsList from editingField effect');
             fetchOccupationsList();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editingField]);
 
     useEffect(() => {
@@ -541,6 +545,7 @@ function Profile() {
             console.log('Calling fetchOccupationsList from editingEducation effect');
             fetchOccupationsList();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editingEducation]);
 
     // Обновляем selectedSpecialty когда загружаются occupations
@@ -773,6 +778,12 @@ function Profile() {
             throw new Error(t('profile:selectCity'));
         }
 
+        // Преобразуем AddressValue в формат API (синхронно, до try)
+        const addressData = buildAddressData(addressForm);
+        if (!addressData) {
+            throw new Error(t('profile:addrError'));
+        }
+
         try {
             const token = getAuthToken();
             if (!token) {
@@ -783,14 +794,7 @@ function Profile() {
             // Получаем текущие данные пользователя
             const userData: User = await universalApiRequest(`/api/users/${profileData.id}`) as User;
             const currentAddresses = userData.addresses || [];
-            
-            // Преобразуем AddressValue в формат API
-            const addressData = buildAddressData(addressForm);
-            if (!addressData) {
-                throw new Error(t('profile:addrError'));
-            }
 
-            // Определяем, обновляем существующий или создаем новый
             const addressIndex = editingAddress.startsWith('new-') 
                 ? -1 
                 : currentAddresses.findIndex((addr: Address) => addr.id?.toString() === editingAddress);
@@ -878,50 +882,43 @@ function Profile() {
             return;
         }
 
-        try {
-            const token = getAuthToken();
-            if (!token) {
-                console.error('No auth token');
-                return;
-            }
+        const token = getAuthToken();
+        if (!token) {
+            console.error('No auth token');
+            return;
+        }
 
-            // Use the cached server-state ref — avoids a redundant GET and race conditions
-            const currentAddresses: Address[] = rawAddressesRef.current;
+        // Use the cached server-state ref — avoids a redundant GET and race conditions
+        const currentAddresses: Address[] = rawAddressesRef.current;
 
-            // Фильтруем адрес с указанным ID и преобразуем в IRI формат
-            const updatedAddresses = currentAddresses
-                .filter((addr: Address) => addr.id?.toString() !== addressId)
-                .map((addr: Address) => convertAddressToIRI(addr));
+        // Фильтруем адрес с указанным ID и преобразуем в IRI формат
+        const updatedAddresses = currentAddresses
+            .filter((addr: Address) => addr.id?.toString() !== addressId)
+            .map((addr: Address) => convertAddressToIRI(addr));
 
-            // Update ref synchronously before PATCH
+        // Update ref synchronously before PATCH
 rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.toString() !== addressId);
 
-            // Отправляем на сервер
-            try {
-                await universalApiRequest(`/api/users/${profileData.id}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/merge-patch+json' },
-                    body: { addresses: updatedAddresses },
-                    locale: false,
-                });
-                // Обновляем только addresses в profileData без перезагрузки
-                setProfileData(prev => {
-                    if (!prev) return null;
-                    return {
-                        ...prev,
-                        addresses: prev.addresses.filter(addr => addr.id !== addressId)
-                    };
-                });
-            } catch (patchError) {
-                // Roll back ref on failure
-                rawAddressesRef.current = currentAddresses;
-                console.error('Error deleting address:', patchError);
-                throw new Error(t('profile:addrDeleteError'));
-            }
-
-        } catch (error) {
-            console.error('Error deleting address:', error);
-            if (error instanceof Error) throw error;
+        // Отправляем на сервер
+        try {
+            await universalApiRequest(`/api/users/${profileData.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: { addresses: updatedAddresses },
+                locale: false,
+            });
+            // Обновляем только addresses в profileData без перезагрузки
+            setProfileData(prev => {
+                if (!prev) return null;
+                return {
+                    ...prev,
+                    addresses: prev.addresses.filter(addr => addr.id !== addressId)
+                };
+            });
+        } catch (patchError) {
+            // Roll back ref on failure
+            rawAddressesRef.current = currentAddresses;
+            console.error('Error deleting address:', patchError);
             throw new Error(t('profile:addrDeleteError'));
         }
     };
@@ -974,52 +971,46 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                 : t('profile:phoneIntFormatError'));
         }
 
+        const token = getAuthToken();
+        if (!token) {
+            console.error('No auth token');
+            return;
+        }
+
+        // GET actual server-side phones to avoid stale state
+        const userData: any = await universalApiRequest(`/api/users/${profileData.id}`);
+        const serverPhones: { id: number; phone: string; main: boolean }[] = userData.phones || [];
+
+        let phonesPayload;
+        if (editingPhone === 'new') {
+            const isFirst = serverPhones.length === 0;
+            phonesPayload = [
+                ...serverPhones.map(p => ({ id: p.id, phone: p.phone, main: p.main })),
+                { phone: trimmedNumber, main: isFirst },
+            ];
+        } else {
+            phonesPayload = serverPhones.map(p => ({
+                id: p.id,
+                phone: String(p.id) === editingPhone ? trimmedNumber : p.phone,
+                main: p.main,
+            }));
+        }
+
         try {
-            const token = getAuthToken();
-            if (!token) {
-                console.error('No auth token');
-                return;
+            await universalApiRequest(`/api/users/${profileData.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: { phones: phonesPayload },
+                locale: false,
+            });
+            await fetchUserData(true);
+            handleEditPhoneCancel();
+        } catch (err: any) {
+            const status = err?.status ?? err?.response?.status;
+            if (status === 422) {
+                const violation = err?.violations?.[0]?.message;
+                throw new Error(violation || t('profile:phoneBusy'));
             }
-
-            // GET actual server-side phones to avoid stale state
-            const userData: any = await universalApiRequest(`/api/users/${profileData.id}`);
-            const serverPhones: { id: number; phone: string; main: boolean }[] = userData.phones || [];
-
-            let phonesPayload;
-            if (editingPhone === 'new') {
-                const isFirst = serverPhones.length === 0;
-                phonesPayload = [
-                    ...serverPhones.map(p => ({ id: p.id, phone: p.phone, main: p.main })),
-                    { phone: trimmedNumber, main: isFirst },
-                ];
-            } else {
-                phonesPayload = serverPhones.map(p => ({
-                    id: p.id,
-                    phone: String(p.id) === editingPhone ? trimmedNumber : p.phone,
-                    main: p.main,
-                }));
-            }
-
-            try {
-                await universalApiRequest(`/api/users/${profileData.id}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/merge-patch+json' },
-                    body: { phones: phonesPayload },
-                    locale: false,
-                });
-                await fetchUserData(true);
-                handleEditPhoneCancel();
-            } catch (err: any) {
-                const status = err?.status ?? err?.response?.status;
-                if (status === 422) {
-                    const violation = err?.violations?.[0]?.message;
-                    throw new Error(violation || t('profile:phoneBusy'));
-                }
-                throw new Error(t('profile:phoneSaveError'));
-            }
-        } catch (error) {
-            console.error('Error saving phone:', error);
-            if (error instanceof Error) throw error;
             throw new Error(t('profile:phoneSaveError'));
         }
     };
@@ -1031,39 +1022,33 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             return;
         }
 
+        const token = getAuthToken();
+        if (!token) {
+            console.error('No auth token');
+            return;
+        }
+
+        // Use the cached server-state ref — avoids a redundant GET and race conditions
+        const serverPhones = rawPhonesRef.current;
+        const phonesPayload = serverPhones
+            .filter(p => String(p.id) !== phoneId)
+            .map(p => ({ id: p.id, phone: p.phone, main: p.main }));
+
+        // Update ref synchronously before PATCH
+        rawPhonesRef.current = serverPhones.filter(p => String(p.id) !== phoneId);
+
         try {
-            const token = getAuthToken();
-            if (!token) {
-                console.error('No auth token');
-                return;
-            }
-
-            // Use the cached server-state ref — avoids a redundant GET and race conditions
-            const serverPhones = rawPhonesRef.current;
-            const phonesPayload = serverPhones
-                .filter(p => String(p.id) !== phoneId)
-                .map(p => ({ id: p.id, phone: p.phone, main: p.main }));
-
-            // Update ref synchronously before PATCH
-            rawPhonesRef.current = serverPhones.filter(p => String(p.id) !== phoneId);
-
-            try {
-                await universalApiRequest(`/api/users/${profileData.id}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/merge-patch+json' },
-                    body: { phones: phonesPayload },
-                    locale: false,
-                });
-                await fetchUserData(true);
-            } catch (patchError) {
-                // Roll back ref on failure
-                rawPhonesRef.current = serverPhones;
-                console.error('Error deleting phone:', patchError);
-                throw new Error(t('profile:phoneDeleteError'));
-            }
-        } catch (error) {
-            console.error('Error deleting phone:', error);
-            if (error instanceof Error) throw error;
+            await universalApiRequest(`/api/users/${profileData.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: { phones: phonesPayload },
+                locale: false,
+            });
+            await fetchUserData(true);
+        } catch (patchError) {
+            // Roll back ref on failure
+            rawPhonesRef.current = serverPhones;
+            console.error('Error deleting phone:', patchError);
             throw new Error(t('profile:phoneDeleteError'));
         }
     };
@@ -2379,36 +2364,35 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
     const deleteEducation = async (educationId: string) => {
         if (!profileData?.id) return;
 
+        const token = getAuthToken();
+        if (!token) {
+            navigate(ROUTES.HOME);
+            return;
+        }
+
+        // Use the cached server-state ref — avoids a redundant GET and race conditions
+        // when multiple deletes fire before the previous PATCH response arrives.
+        const currentEducation = rawEducationRef.current;
+
+        // Нормализуем ВСЕ элементы массива образования перед фильтрацией
+        const normalizedEducation = normalizeEducationArray(currentEducation);
+
+        // Фильтруем нормализованный массив, удаляя элемент с указанным ID
+        const updatedEducationArray = normalizedEducation.filter(edu =>
+            edu.id?.toString() !== educationId
+        );
+
+        // Update the ref synchronously so that any concurrent delete/reorder
+        // immediately sees the post-deletion state (JS is single-threaded).
+        rawEducationRef.current = updatedEducationArray;
+
+        console.log(`Deleting education ${educationId}. Before: ${normalizedEducation.length}, after: ${updatedEducationArray.length}`);
+        console.log('Sending normalized education array:', updatedEducationArray);
+
         try {
-            const token = getAuthToken();
-            if (!token) {
-                navigate(ROUTES.HOME);
-                return;
-            }
-
-            // Use the cached server-state ref — avoids a redundant GET and race conditions
-            // when multiple deletes fire before the previous PATCH response arrives.
-            const currentEducation = rawEducationRef.current;
-
-            // Нормализуем ВСЕ элементы массива образования перед фильтрацией
-            const normalizedEducation = normalizeEducationArray(currentEducation);
-
-            // Фильтруем нормализованный массив, удаляя элемент с указанным ID
-            const updatedEducationArray = normalizedEducation.filter(edu =>
-                edu.id?.toString() !== educationId
-            );
-
-            // Update the ref synchronously so that any concurrent delete/reorder
-            // immediately sees the post-deletion state (JS is single-threaded).
-            rawEducationRef.current = updatedEducationArray;
-
-            console.log(`Deleting education ${educationId}. Before: ${normalizedEducation.length}, after: ${updatedEducationArray.length}`);
-            console.log('Sending normalized education array:', updatedEducationArray);
-
-            try {
-                await universalApiRequest(`/api/users/${profileData.id}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/merge-patch+json' },
+            await universalApiRequest(`/api/users/${profileData.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/merge-patch+json' },
                     body: { education: updatedEducationArray },
                     locale: false,
                 });
@@ -2419,12 +2403,6 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                 console.error('Failed to delete education:', patchError);
                 throw new Error('Failed to delete education');
             }
-
-        } catch (error) {
-            console.error('Error deleting education:', error);
-            if (error instanceof Error) throw error;
-            throw new Error('Failed to delete education');
-        }
     };
 
     const handleDeleteEducation = async (educationId: string) => {

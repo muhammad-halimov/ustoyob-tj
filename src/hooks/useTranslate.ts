@@ -34,7 +34,7 @@ export function useLangTransform<T>(
         } else {
             setResult(out);
         }
-    }, [input, i18n.language]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [input, i18n.language]);
 
     return result;
 }

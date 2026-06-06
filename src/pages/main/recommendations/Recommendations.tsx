@@ -160,7 +160,7 @@ function Recommendations({
         } finally {
             setIsLoading(false);
         }
-    }, [locale, userRole]);
+    }, [userRole]);
 
 
 

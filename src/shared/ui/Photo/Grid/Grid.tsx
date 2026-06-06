@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React from 'react';
 import { useDragReorder, DragHandle } from '../../../../widgets/DragReorder';
 import styles from './Grid.module.scss';

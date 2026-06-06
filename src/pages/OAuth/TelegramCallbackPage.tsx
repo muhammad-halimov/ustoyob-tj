@@ -199,7 +199,9 @@ const TelegramCallbackPage = () => {
                         window.dispatchEvent(new Event('login'));
                     }, 2000);
                 } else {
-                    throw new Error(t('oauth.tokenNotReceived'));
+                    setError(resolveApiError(null, t('oauth.tokenNotReceived')));
+                    setLoading(false);
+                    setTimeout(() => navigate(ROUTES.HOME), 3000);
                 }
 
             } catch (err) {
@@ -211,7 +213,7 @@ const TelegramCallbackPage = () => {
         };
 
         processTelegramCallback();
-    }, [searchParams, navigate, API_BASE_URL]);
+    }, [searchParams, navigate, t]);
 
     if (loading) {
         return <PageLoader text={t('oauth.processingTelegram')} />;

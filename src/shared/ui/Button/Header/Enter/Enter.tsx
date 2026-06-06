@@ -64,7 +64,7 @@ export function Enter({ onClick, isModalOpen, onModalClose, onLoginSuccess }: En
         };
     }, []);
 
-    const handleLoginSuccess = (_token: string) => {
+    const handleLoginSuccess = () => {
         setIsLoggedIn(true);
         closeModal();
 

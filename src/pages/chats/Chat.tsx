@@ -119,6 +119,7 @@ function Chat() {
             await getCurrentUser();
         };
         initializeChat();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Загрузка чатов после получения текущего пользователя
@@ -128,6 +129,7 @@ function Chat() {
             console.log('User loaded, fetching chats...');
             fetchChats();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentUser]);
 
     // Если currentUser загрузился позже, чем был выбран чат из URL-параметра,
@@ -174,6 +176,7 @@ function Chat() {
                 presenceSourceRef.current = null;
             }
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedChat]);
 
     // Обработка chatId из URL
@@ -221,7 +224,7 @@ function Chat() {
         }
 
         return `${API_BASE_URL}/uploads/chat_messages/${imagePath}`;
-    }, [API_BASE_URL]);
+    }, []); // API_BASE_URL is a module-level constant, not a reactive dep
 
     // Gallery for editing mode photos (needs getImageUrl for existing items)
     const editingAllPreviews = useMemo(
@@ -955,7 +958,7 @@ function Chat() {
 
             return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
         });
-    }, [chats, searchQuery, activeTab, getInterlocutorFromChat]);
+    }, [chats, searchQuery, activeTab, getInterlocutorFromChat, getTranslatedFullName]);
 
     const getCurrentUser = useCallback(async (): Promise<ApiUser | null> => {
         const userData = await fetchCurrentUser();
@@ -965,7 +968,7 @@ function Chat() {
         }
         setCurrentUser(userData as unknown as ApiUser);
         return userData as unknown as ApiUser;
-    }, [API_BASE_URL, t]);
+    }, []);
 
     const fetchChats = useCallback(async (silent = false) => {
         try {
@@ -1090,6 +1093,7 @@ function Chat() {
             if (!silent) { setIsLoading(false); setIsLoadingMoreChats(false); }
             else setIsChatListRefreshing(false);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [chatIdFromUrl, t, fetchChatMessages, chatPage]);
 
     // Перезагружаем чаты при смене страницы

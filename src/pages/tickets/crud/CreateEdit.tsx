@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import type * as React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ROUTES } from '../../../app/routers/routes';
 import styles from './CreateEdit.module.scss';
@@ -329,7 +330,8 @@ const CreateEdit = () => {
                 // Режим создания
                 const userId = getUserData()?.id;
                 if (!userId) {
-                    throw new Error(t('createEdit:genericError'));
+                    showError(t('createEdit:genericError'));
+                    return;
                 }
 
                 const role = getUserRole();

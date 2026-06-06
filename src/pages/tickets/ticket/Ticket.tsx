@@ -159,6 +159,7 @@ export function Ticket() {
             // Загружаем похожие объявления
             fetchSimilarTickets();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [order, favorites.checkFavoriteStatus, currentUserId]);
 
     // Перезагружаем отзывы при смене страницы

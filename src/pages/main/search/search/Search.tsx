@@ -185,6 +185,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             // Фоллбек - извлекаем города из тикетов
             await extractCitiesFromTickets();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Функция для извлечения городов из существующих тикетов
@@ -261,7 +262,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             }
 
             // Поселение (если есть)
-            if (address.settlement?.title) {
+            if (address.settlement && typeof address.settlement === 'object' && address.settlement.title) {
                 addressParts.push(address.settlement.title);
             }
 
@@ -736,6 +737,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         } finally {
             if (!silent) setIsLoading(false);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userRole, filterByCity, selectedCity, sortTicketsWithPriority, getUserName, getAddressInfo, getTicketPriority, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter, page]);
 
     // Флаг для предотвращения дублирующих запросов
@@ -824,6 +826,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             isSearchInProgressRef.current = false;
             setIsLoading(false);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchQuery, filters, userRole, fetchAllTickets, onSearchResults]);
 
     const handleApply = useCallback(async (newFilters: FilterState) => {
@@ -855,6 +858,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             isSearchInProgressRef.current = false;
             skipSearchFetchRef.current = false;
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchQuery, fetchAllTickets, onSearchResults, userRole, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter]);
 
     const handleForceRefresh = useCallback(async () => {
@@ -890,6 +894,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         } finally {
             isSearchInProgressRef.current = false;
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchQuery, filters, userRole, fetchAllTickets, onSearchResults, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter]);
 
     // Обработчики событий
@@ -998,6 +1003,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             secondarySortBy: 'none',
             timeFilter: 'all'
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchQuery, userRole, onSearchResults, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter]);
 
 
@@ -1019,6 +1025,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     useEffect(() => {
         appendSearchRef.current = false;
         setPage(1);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchQuery, filters.minPrice, filters.maxPrice, filters.category, filters.rating, filters.city, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter]);
 
     // Эффекты
@@ -1239,7 +1246,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 />
             );
         });
-    }, [isLoading, showResults, searchResults, userRole, handleCardClick, textHelper, t, handleForceRefresh, handleRespondCard, respondedTickets, respondingTicketId]);
+    }, [isLoading, showResults, showFilters, searchResults, userRole, handleCardClick, t, handleForceRefresh, handleRespondCard, respondedTickets, respondingTicketId]);
 
     return (
         <div className={`${styles.container} ${showFilters ? styles.containerExpanded : ''}`}>

@@ -1,4 +1,5 @@
 import {useState, useEffect, useCallback} from 'react';
+import type * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../app/routers/routes';
@@ -64,6 +65,7 @@ function MyTickets() {
             await getCurrentUser();
         };
         initializeMyTickets();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useLanguageChange(() => {
@@ -75,6 +77,7 @@ function MyTickets() {
         if (currentUser) {
             fetchMyTickets();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentUser]);
 
     useEffect(() => {
@@ -100,6 +103,7 @@ function MyTickets() {
         appendTicketsRef.current = false;
         skipTicketsFetchRef.current = false;
         setPage(1);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTab]);
 
     // Загрузка текущего пользователя через централизованный кэш (auth.ts)

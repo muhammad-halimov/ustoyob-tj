@@ -5,7 +5,8 @@
  */
 
 import type { Province, City, Occupation, Category, District } from '../entities';
-import type { Unit } from '../entities/api/Ticket';
+import type { AppealReason } from '../entities';
+import type { Unit } from '../entities';
 import { universalApiRequest } from './apiUtils';
 import type { LocaleType } from './apiUtils';
 import { getStorageItem, getDefaultLocale } from './storageUtils';
@@ -61,60 +62,70 @@ function createCachedFetcher<T>(
     opts: FetcherOpts = {},
     cacheDuration = CACHE_DURATION,
 ) {
-    let cache: CacheEntry<T> | null = null;
-    let inFlight: Promise<T[]> | null = null;
+    const cache    = new Map<string, CacheEntry<T>>();
+    const inFlight = new Map<string, Promise<T[]>>();
 
-    async function fetcher(locale?: string): Promise<T[]> {
+    async function fetcher(locale?: string, params?: string): Promise<T[]> {
         const targetLocale = opts.locale !== undefined
             ? (opts.locale === false ? 'fixed' : opts.locale)
             : normalizeLocale(locale || getCurrentLocale());
 
-        if (cache && cache.locale === targetLocale && Date.now() - cache.timestamp < cacheDuration) {
-            return cache.data;
+        const cacheKey    = params ? `${targetLocale}:${params}` : targetLocale;
+        const fullEndpoint = params
+            ? `${endpoint}${endpoint.includes('?') ? '&' : '?'}${params}`
+            : endpoint;
+
+        const cached = cache.get(cacheKey);
+        if (cached && cached.locale === targetLocale && Date.now() - cached.timestamp < cacheDuration) {
+            return cached.data;
         }
 
-        if (inFlight) return inFlight;
+        const existing = inFlight.get(cacheKey);
+        if (existing) return existing;
 
-        inFlight = (async (): Promise<T[]> => {
+        const promise = (async (): Promise<T[]> => {
             try {
                 const apiLocale = opts.locale !== undefined ? opts.locale : (targetLocale as LocaleType);
-                const raw = await universalApiRequest(endpoint, { locale: apiLocale, requiresAuth: opts.requiresAuth });
+                const raw = await universalApiRequest(fullEndpoint, { locale: apiLocale, requiresAuth: opts.requiresAuth });
                 const items = toArray<T>(raw);
-                cache = { data: items, locale: targetLocale, timestamp: Date.now() };
+                cache.set(cacheKey, { data: items, locale: targetLocale, timestamp: Date.now() });
                 return items;
             } catch (error) {
-                console.error(`[dataCache] Error fetching ${endpoint}:`, error);
+                console.error(`[dataCache] Error fetching ${fullEndpoint}:`, error);
                 return [];
             } finally {
-                inFlight = null;
+                inFlight.delete(cacheKey);
             }
         })();
 
-        return inFlight;
+        inFlight.set(cacheKey, promise);
+        return promise;
     }
 
-    fetcher.clearCache = (): void => { cache = null; };
+    fetcher.clearCache = (): void => { cache.clear(); inFlight.clear(); };
     return fetcher;
 }
 
 // ─── Загрузчики ──────────────────────────────────────────────────────────────
 
-export const getProvinces   = createCachedFetcher<Province>('/api/provinces');
-export const getCities      = createCachedFetcher<City>('/api/cities');
-export const getOccupations = createCachedFetcher<Occupation>('/api/occupations?itemsPerPage=500');
-export const getCategories  = createCachedFetcher<Category>('/api/categories',  { requiresAuth: false }, STATIC_CACHE_DURATION);
-export const getDistricts   = createCachedFetcher<District>('/api/districts',   {}, STATIC_CACHE_DURATION);
-export const getUnits       = createCachedFetcher<Unit>('/api/units',           { locale: false }, STATIC_CACHE_DURATION);
+export const getProvinces      = createCachedFetcher<Province>('/api/provinces');
+export const getCities         = createCachedFetcher<City>('/api/cities');
+export const getOccupations    = createCachedFetcher<Occupation>('/api/occupations?itemsPerPage=500');
+export const getCategories     = createCachedFetcher<Category>('/api/categories',       { requiresAuth: false }, STATIC_CACHE_DURATION);
+export const getDistricts      = createCachedFetcher<District>('/api/districts',        {}, STATIC_CACHE_DURATION);
+export const getUnits          = createCachedFetcher<Unit>('/api/units',                { locale: false }, STATIC_CACHE_DURATION);
+export const getAppealReasons  = createCachedFetcher<AppealReason>('/api/appeal-reasons');
 
 // ─── Управление кешем ────────────────────────────────────────────────────────
 
-export const clearCache = (type?: 'provinces' | 'cities' | 'occupations' | 'categories' | 'districts' | 'units'): void => {
-    if (!type || type === 'provinces')   getProvinces.clearCache();
-    if (!type || type === 'cities')      getCities.clearCache();
-    if (!type || type === 'occupations') getOccupations.clearCache();
-    if (!type || type === 'categories')  getCategories.clearCache();
-    if (!type || type === 'districts')   getDistricts.clearCache();
-    if (!type || type === 'units')       getUnits.clearCache();
+export const clearCache = (type?: 'provinces' | 'cities' | 'occupations' | 'categories' | 'districts' | 'units' | 'appealReasons'): void => {
+    if (!type || type === 'provinces')    getProvinces.clearCache();
+    if (!type || type === 'cities')       getCities.clearCache();
+    if (!type || type === 'occupations')  getOccupations.clearCache();
+    if (!type || type === 'categories')   getCategories.clearCache();
+    if (!type || type === 'districts')    getDistricts.clearCache();
+    if (!type || type === 'units')        getUnits.clearCache();
+    if (!type || type === 'appealReasons') getAppealReasons.clearCache();
 };
 
 export const preloadData = async (): Promise<void> => {
@@ -126,4 +137,4 @@ export const preloadData = async (): Promise<void> => {
     }
 };
 
-export type { Province, City, Occupation, Category, District, Unit };
+export type { Province, City, Occupation, Category, District, Unit, AppealReason };

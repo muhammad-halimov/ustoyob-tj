@@ -1,32 +1,46 @@
-import {useState, useEffect, useCallback} from 'react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { getAuthToken, getUserRole, getUserData } from '../../../utils/authUtils';
-import { useLanguageChange } from '../../../hooks';
-import { createChatWithAuthor, getChatsMe, persistRespondedTicketId, getPersistedRespondedTicketIds } from '../../../utils/chatUtils';
+import {useCallback, useEffect, useState} from 'react';
+import {useLocation, useNavigate, useParams} from 'react-router-dom';
+import {getAuthToken, getUserData, getUserRole} from '../../../utils/authUtils';
+import {useLanguageChange, useShowMore} from '../../../hooks';
+import {
+    createChatWithAuthor,
+    getChatsMe,
+    getPersistedRespondedTicketIds,
+    persistRespondedTicketId
+} from '../../../utils/chatUtils';
 import Status from '../../../shared/ui/Modal/Status';
 import Feedback from '../../../shared/ui/Modal/Feedback';
 
-import { EmptyState } from '../../../widgets/EmptyState';
-import { ROUTES } from '../../../app/routers/routes';
+import {EmptyState} from '../../../widgets/EmptyState';
+import {ROUTES} from '../../../app/routers/routes';
 import styles from './Category.module.scss';
-import { Card } from '../../../shared/ui/Ticket/Card/Card';
-import { ServiceTypeFilter } from '../../../widgets/Sorting/TypeFilter';
-import { SortingFilter } from '../../../widgets/Sorting/CriteriaFilter';
-import { useTranslation } from 'react-i18next';
+import {Card} from '../../../shared/ui/Ticket/Card/Card';
+import {ServiceTypeFilter} from '../../../widgets/Sorting/TypeFilter';
+import {SortingFilter} from '../../../widgets/Sorting/CriteriaFilter';
+import {useTranslation} from 'react-i18next';
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
-import { getOccupations } from '../../../utils/dataCacheUtils';
-import { truncateText } from '../../../utils/textUtils';
-import { ShowMore } from '../../../shared/ui/Button/ShowMore/ShowMore';
-import { SelectSearch } from '../../../shared/ui/SelectSearch';
-import { getPageSize } from '../../../utils/pageSizeUtils';
-import { parsePagedResponse, ticketToTicketView, getTicketFullAddress, getTicketShortAddress, universalApiRequest } from '../../../utils/apiUtils';
-import { useShowMore } from '../../../hooks';
-import type { Ticket, TicketView } from '../../../entities';
-import type { Occupation } from '../../../entities';
-import { API_BASE_URL } from '../../../utils/configUtils';
-import { getSessionJSON, getSessionItem, setSessionItem, setSessionJSON, getStorageItem } from '../../../utils/storageUtils';
-import { resolveApiError } from '../../../utils/appMessagesUtils';
-
+import {getOccupations} from '../../../utils/dataCacheUtils';
+import {textHelper, truncateText} from '../../../utils/textUtils';
+import {ShowMore} from '../../../shared/ui/Button/ShowMore/ShowMore';
+import {SelectSearch} from '../../../shared/ui/SelectSearch';
+import {getPageSize} from '../../../utils/pageSizeUtils';
+import {
+    getTicketFullAddress,
+    getTicketShortAddress,
+    parsePagedResponse,
+    ticketToTicketView,
+    universalApiRequest
+} from '../../../utils/apiUtils';
+import type {Occupation, Ticket, TicketView} from '../../../entities';
+import {API_BASE_URL} from '../../../utils/configUtils';
+import {
+    getSessionItem,
+    getSessionJSON,
+    getStorageItem,
+    setSessionItem,
+    setSessionJSON
+} from '../../../utils/storageUtils';
+import {resolveApiError} from '../../../utils/appMessagesUtils';
 
 
 /**
@@ -63,7 +77,7 @@ function Category() {
                 setSessionItem(`cat-name-${id}`, found.title);
                 return found.title;
             }
-        } catch {}
+        } catch { /* empty */ }
         return '';
     });
     const [userRole, setUserRole] = useState<'client' | 'master' | null>(null);
@@ -96,8 +110,7 @@ function Category() {
         if (!token) return;
         (async () => {
             try {
-                const data = await getChatsMe();
-                const chats: any[] = data;
+                const chats: any[] = await getChatsMe();
                 const ids = new Set<number>();
                 chats.forEach((chat: any) => {
                     const t = chat.ticket;
@@ -164,6 +177,7 @@ function Category() {
             fetchCategoryName();
             fetchOccupations();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
 
     // Отслеживаем изменения роли и перезагружаем данные
@@ -211,6 +225,7 @@ function Category() {
                 console.log('⏳ Category - Waiting for userRole to load from localStorage...');
             }
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userRole, id, locale, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter, page, selectedSubcategory]);
 
     const fetchCategoryName = async () => {
@@ -254,33 +269,6 @@ function Category() {
         }
     };
 
-    // Функция для очистки текста
-    const cleanText = useCallback((text: string): string => {
-        if (!text) return '';
-
-        let cleaned = text
-            .replace(/&nbsp;/g, ' ')
-            .replace(/&amp;/g, '&')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/&quot;/g, '"')
-            .replace(/&#039;/g, "'")
-            .replace(/&hellip;/g, '...')
-            .replace(/&mdash;/g, '—')
-            .replace(/&laquo;/g, '«')
-            .replace(/&raquo;/g, '»');
-
-        cleaned = cleaned.replace(/&[a-z]+;/g, ' ');
-        cleaned = cleaned.replace(/<[^>]*>/g, '');
-
-        cleaned = cleaned
-            .replace(/\s+/g, ' ')
-            .replace(/\n\s*\n/g, '\n')
-            .trim();
-
-        return cleaned;
-    }, []);
-
     // Функция для получения полного адреса
     const getFullAddress = getTicketFullAddress;
 
@@ -323,7 +311,7 @@ function Category() {
                 return;
             }
 
-            // Если есть токен но роль еще не загрузилась - ждем
+            // Если есть токен, но роль еще не загрузилась - ждем
             if (token && userRole === null) {
                 console.log('⏳ Category - Waiting for userRole to load...');
                 setIsLoading(false);
@@ -695,7 +683,7 @@ function Category() {
                             key={ticket.id}
                             ticketId={ticket.id}
                             title={ticket.title}
-                            description={cleanText(ticket.description)}
+                            description={textHelper(ticket.description)}
                             price={ticket.price}
                             unit={ticket.unit}
                             address={ticket.fullAddress ?? ticket.address}

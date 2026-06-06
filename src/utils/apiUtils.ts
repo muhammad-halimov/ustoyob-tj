@@ -1,4 +1,4 @@
-import { getAuthToken, handleUnauthorized, getUserData } from './authUtils';
+import { getAuthToken, handleUnauthorized } from './authUtils';
 import { ApiError } from './appMessagesUtils';
 import { getDefaultLocale } from './storageUtils';
 import i18n from 'i18next';
@@ -38,7 +38,7 @@ const appendLocale = (url: string, locale: LocaleType): string => {
  * - On HTTP 401 it tries to refresh the token once and retries the original request.
  *   If refresh fails it throws, leaving the caller to handle the error.
  * - Throws on any non-2xx response.
- * - Returns the parsed JSON body, or `null` for empty responses (204 / no body).
+ * - Returns the parsed JSON body, or `null` for empty responses (204 / Empty body).
  */
 export const universalApiRequest = async (endpoint: string, options: ApiRequestOptions = {}): Promise<any> => {
     const locale = options.locale !== false ? (options.locale ?? getDefaultLocale()) : null;
@@ -107,12 +107,6 @@ const throwApiError = async (response: Response): Promise<never> => {
     }
     throw new ApiError(code, message, response.status);
 };
-
-/** @deprecated Use universalApiRequest instead */
-export const makeApiRequest = universalApiRequest;
-
-export const getCurrentUserId = (): number | null => getUserData()?.id ?? null;
-
 /**
  * Parses a paged API response into items and a `hasMore` flag.
  *

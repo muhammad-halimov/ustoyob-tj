@@ -34,6 +34,7 @@ export interface FeedbackModalProps {
 
 import { API_BASE_URL } from '../../../../utils/configUtils';
 import { universalApiRequest } from '../../../../utils/apiUtils';
+import { getAppealReasons } from '../../../../utils/dataCacheUtils';
 
 const Feedback: React.FC<FeedbackModalProps> = ({
     mode,
@@ -121,6 +122,7 @@ const Feedback: React.FC<FeedbackModalProps> = ({
         if (isOpen && isReview && isAuthenticated && showServiceSelector && targetUserId) {
             fetchServices();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, isReview, isAuthenticated, showServiceSelector, targetUserId]);
 
     // --- Complaint effects ---
@@ -131,15 +133,33 @@ const Feedback: React.FC<FeedbackModalProps> = ({
             : effectiveComplaintType === 'review' ? 'review'
             : effectiveComplaintType === 'user' ? 'overall'
             : 'ticket';
-        universalApiRequest(`/api/appeal-reasons?applicableTo=${type}`, { locale: locale as any })
-            .then((data: any) => setReasons((Array.isArray(data) ? data : (data['hydra:member'] ?? [])).map((r: any) => ({ id: r.id, code: r.code, title: r.title }))))
-            .catch(() => setReasons([]));
+        const authRequired = !!getAuthToken();
+
+        const requests: Promise<AppealReason[]>[] = [
+            getAppealReasons(locale, `applicableTo=${type}&authRequired=${authRequired}`),
+        ];
+        if (type !== 'overall') {
+            requests.push(getAppealReasons(locale, `applicableTo=overall&authRequired=${authRequired}`));
+        }
+        // authenticated users also get the public (non-auth-required) overall reasons
+        if (authRequired) {
+            requests.push(getAppealReasons(locale, `applicableTo=overall&authRequired=false`));
+        }
+        Promise.all(requests).then((arrays) => {
+            const seen = new Set<number>();
+            const merged: AppealReason[] = [];
+            for (const r of arrays.flat()) {
+                if (!seen.has(r.id)) { seen.add(r.id); merged.push(r); }
+            }
+            setReasons(merged);
+        }).catch(() => setReasons([]));
     }, [isOpen, isReview, effectiveComplaintType]);
 
     React.useEffect(() => {
         if (!isOpen || isReview) return;
         if (targetUserId && !ticketId) fetchTickets();
         if (ticketId) setSelectedTicketId(ticketId);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, isReview, targetUserId, ticketId]);
 
     // --- Review helpers ---
@@ -300,7 +320,7 @@ const Feedback: React.FC<FeedbackModalProps> = ({
                 }
                 showStatus('success', t('reviewModal.successMessage'));
             } catch (reviewErr: any) {
-                const status = reviewErr?.status ?? 0;
+                const status = reviewErr?.http ?? reviewErr?.status ?? 0;
                 let errorMessage = t('reviewModal.errorDefault');
                 if (status === 409) errorMessage = t('reviewModal.errorAlreadyReviewed');
                 else if (status === 400) errorMessage = t('reviewModal.errorInvalidData');
@@ -350,10 +370,10 @@ const Feedback: React.FC<FeedbackModalProps> = ({
                 }
                 showStatus('success', t('complaintModal.successMessage'));
             } catch (complaintErr: any) {
-                const status = complaintErr?.status ?? 0;
+                const status = complaintErr?.http ?? complaintErr?.status ?? 0;
                 let errorMessage = t('complaintModal.errorDefault');
                 if (status === 404) errorMessage = t('complaintModal.errorNotFound');
-                else if (status === 403) errorMessage = t('complaintModal.errorNoAccess');
+                else if (status === 403 || status === 401) errorMessage = t('complaintModal.errorNoAccess');
                 showStatus('error', errorMessage);
             }
         } catch {

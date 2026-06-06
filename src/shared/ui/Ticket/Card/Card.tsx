@@ -129,6 +129,7 @@ export function Card({
     if (shouldUseManagedFavorites && ticketId) {
       managedFavorites.checkFavoriteStatus();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shouldUseManagedFavorites, ticketId]);
 
   // Выбираем источник данных для избранного
