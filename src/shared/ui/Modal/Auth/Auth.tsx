@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useLanguageChange } from '../../../../hooks';
 import styles from './Auth.module.scss';
@@ -20,6 +21,7 @@ import { Clear } from '../../Button/Clear/Clear';
 import type { TelegramUserData as TelegramWidgetData } from '../../../../entities/api/OAuth';
 import type { OAuthProviderName, User, Occupation, Category } from '../../../../entities';
 import { API_BASE_URL } from '../../../../utils/configUtils';
+import { ROUTES } from '../../../../app/routers/routes';
 import { universalApiRequest } from '../../../../utils/apiUtils';
 import { resolveApiError, ApiError } from '../../../../utils/appMessagesUtils';
 import { setSessionItem, getSessionItem, removeSessionItem, removeSessionItems, removeStorageItems, getStorageJSON } from '../../../../utils/storageUtils';
@@ -125,7 +127,7 @@ const validatePassword = (password: string, t: any): { isValid: boolean; message
  * and calls `onLoginSuccess` to notify the parent.
  */
 const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => {
-    const { t } = useTranslation('components');
+    const { t } = useTranslation(['components', 'common']);
     useLanguageChange(); // Для обновления категорий при смене языка
     const [currentState, setCurrentState] = useState<AuthModalStateType>(AuthModalState.WELCOME);
     const [categories, setCategories] = useState<Category[]>([]);
@@ -1339,6 +1341,17 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                         </div>
                     )}
                 </div>
+
+                <p className={styles.legalNote}>
+                    {t('auth.agreeToTerms')}{' '}
+                    <Link to={ROUTES.TERMS_OF_USE} className={styles.legalLink} onClick={handleClose}>
+                        {t('common:footer.termsOfUse')}
+                    </Link>
+                    {' '}{t('auth.and')}{' '}
+                    <Link to={ROUTES.PRIVACY_POLICY} className={styles.legalLink} onClick={handleClose}>
+                        {t('common:footer.privacyPolicy')}
+                    </Link>
+                </p>
 
                 <button
                     type="submit"

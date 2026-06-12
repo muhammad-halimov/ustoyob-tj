@@ -467,7 +467,9 @@
     "savePassword": "Сохранить пароль",
     "passwordMismatch": "Пароли не совпадают",
     "errorOccurred": "Произошла ошибка. Попробуйте ещё раз.",
-    "otpInvalidOrExpired": "Неверный или истёкший код"
+    "otpInvalidOrExpired": "Неверный или истёкший код",
+    "agreeToTerms": "Регистрируясь, вы соглашаетесь с",
+    "and": "и"
   },
   "statusModal": {
     "successTitle": "Успешно!",

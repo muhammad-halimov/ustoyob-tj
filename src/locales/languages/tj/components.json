@@ -465,7 +465,9 @@
     "savePassword": "Рамзро захира кунед",
     "passwordMismatch": "Рамзҳо мувофиқат намекунанд",
     "errorOccurred": "Хатогӣ рух дод. Лутфан дубора кӯшиш кунед.",
-    "otpInvalidOrExpired": "Рамзи нодуруст ё мӯҳлати гузашта"
+    "otpInvalidOrExpired": "Рамзи нодуруст ё мӯҳлати гузашта",
+    "agreeToTerms": "Бо қайд гирифтан, шумо розӣ мешавед бо",
+    "and": "ва"
   },
   "statusModal": {
     "successTitle": "Муваффақият!",

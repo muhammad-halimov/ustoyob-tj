@@ -467,7 +467,9 @@
     "savePassword": "Save password",
     "passwordMismatch": "Passwords do not match",
     "errorOccurred": "An error occurred. Please try again.",
-    "otpInvalidOrExpired": "Invalid or expired code"
+    "otpInvalidOrExpired": "Invalid or expired code",
+    "agreeToTerms": "By registering, you agree to our",
+    "and": "and"
   },
   "statusModal": {
     "successTitle": "Success!",
