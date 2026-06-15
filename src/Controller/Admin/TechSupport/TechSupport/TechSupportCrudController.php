@@ -3,6 +3,7 @@
 namespace App\Controller\Admin\TechSupport\TechSupport;
 
 use App\Controller\Admin\TechSupport\TechSupportMessage\TechSupportMessageCrudController;
+use App\Controller\Admin\Extra\MultipleImageCrudController;
 use App\Entity\TechSupport\TechSupport;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
@@ -83,6 +84,12 @@ class TechSupportCrudController extends AbstractCrudController
         yield CollectionField::new('techSupportMessages', 'Сообщения')
             ->addCssClass('messages-field')
             ->useEntryCrudForm(TechSupportMessageCrudController::class)
+            ->hideOnIndex()
+            ->setColumns(12)
+            ->setRequired(false);
+
+        yield CollectionField::new('images', 'Галерея изображений')
+            ->useEntryCrudForm(MultipleImageCrudController::class)
             ->hideOnIndex()
             ->setColumns(12)
             ->setRequired(false);

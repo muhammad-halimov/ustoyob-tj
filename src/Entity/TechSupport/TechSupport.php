@@ -15,10 +15,13 @@ use App\Controller\Api\CRUD\GET\TechSupport\TechSupport\ApiGetTechSupportControl
 use App\Controller\Api\CRUD\GET\TechSupport\TechSupport\ApiUserApiTechSupportController;
 use App\Controller\Api\CRUD\PATCH\TechSupport\TechSupport\ApiAssignTechSupportController;
 use App\Controller\Api\CRUD\PATCH\TechSupport\TechSupport\ApiPatchTechSupportController;
+use App\Controller\Api\CRUD\POST\Image\Image\ApiPostUniversalImageController;
 use App\Controller\Api\CRUD\POST\TechSupport\TechSupport\ApiPostTechSupportController;
+use App\Dto\Image\ImageInput;
 use App\Dto\TechSupport\TechSupportAssignInput;
 use App\Dto\TechSupport\TechSupportInput;
 use App\Dto\TechSupport\TechSupportPostInput;
+use App\Entity\Contract\HasImagesInterface;
 use App\Entity\Extra\MultipleImage;
 use App\Entity\Trait\Readable\AppealReasonTrait;
 use App\Entity\Trait\Readable\CreatedAtTrait;
@@ -96,19 +99,29 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
             normalizationContext: ['groups' => G::OPS_TECH_SUPPORT],
             input: TechSupportAssignInput::class,
         ),
+        // Автор / администрант: загрузить фото напрямую к тикету (multipart/form-data, поле: imageFile[]).
+        new Post(
+            uriTemplate: '/tech-supports/{id}/upload-images',
+            inputFormats: ['multipart' => ['multipart/form-data']],
+            requirements: ['id' => '\d+'],
+            controller: ApiPostUniversalImageController::class,
+            normalizationContext: ['groups' => G::OPS_TECH_SUPPORT],
+            input: ImageInput::class,
+        ),
     ],
     paginationClientItemsPerPage: true,
     paginationEnabled: true,
     paginationItemsPerPage: 25,
     paginationMaximumItemsPerPage: 50,
 )]
-class TechSupport
+class TechSupport implements HasImagesInterface
 {
     use CreatedAtTrait, UpdatedAtTrait, TitleTrait, DescriptionTrait, PriorityTrait, AppealReasonTrait;
 
     public function __construct()
     {
         $this->techSupportMessages = new ArrayCollection();
+        $this->images              = new ArrayCollection();
     }
 
     public const array STATUSES = [
@@ -183,6 +196,18 @@ class TechSupport
     ])]
     #[ApiProperty(writable: false)]
     private ?string $guestEmail = null;
+
+    /**
+     * Фотографии, прикреплённые напрямую к тикету (не через сообщение).
+     * Загружаются через POST /tech-supports/{id}/upload-images.
+     */
+    #[ORM\OneToMany(targetEntity: MultipleImage::class, mappedBy: 'techSupport', cascade: ['all'], orphanRemoval: true)]
+    #[ORM\OrderBy(['priority' => 'ASC'])]
+    #[Groups([
+        G::TECH_SUPPORT,
+    ])]
+    #[ApiProperty(writable: false)]
+    private Collection $images;
 
     public function getId(): ?int
     {
@@ -265,28 +290,30 @@ class TechSupport
         return $this;
     }
 
-    /**
-     * Returns all MultipleImage objects from all messages, sorted newest first.
-     *
-     * @return MultipleImage[]
-     */
-    #[Groups([
-        G::TECH_SUPPORT,
-    ])]
-    #[SerializedName('images')]
-    #[ApiProperty(writable: false)]
-    public function getImages(): array
+    /** @return Collection<int, MultipleImage> */
+    public function getImages(): Collection
     {
-        $images = [];
+        return $this->images;
+    }
 
-        foreach ($this->techSupportMessages as $techSupportMessage) {
-            foreach ($techSupportMessage->getImages() as $image) {
-                $images[] = $image;
+    public function addImage(MultipleImage $image): static
+    {
+        if (!$this->images->contains($image)) {
+            $this->images->add($image);
+            $image->setTechSupport($this);
+        }
+
+        return $this;
+    }
+
+    public function removeImage(MultipleImage $image): static
+    {
+        if ($this->images->removeElement($image)) {
+            if ($image->getTechSupport() === $this) {
+                $image->setTechSupport(null);
             }
         }
 
-        usort($images, fn(MultipleImage $a, MultipleImage $b) => $b->getCreatedAt() <=> $a->getCreatedAt());
-
-        return $images;
+        return $this;
     }
 }

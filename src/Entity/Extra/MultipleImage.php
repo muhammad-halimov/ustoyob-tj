@@ -7,6 +7,7 @@ use App\Entity\Appeal\Appeal\Appeal;
 use App\Entity\Chat\ChatMessage;
 use App\Entity\Gallery\Gallery;
 use App\Entity\Review\Review;
+use App\Entity\TechSupport\TechSupport;
 use App\Entity\TechSupport\TechSupportMessage;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Trait\Readable\CreatedAtTrait;
@@ -122,6 +123,13 @@ class MultipleImage
     private ?TechSupportMessage $techSupportMessage = null;
 
     /**
+     * Изображение прикреплённое напрямую к тикету техподдержки (не через сообщение).
+     */
+    #[ORM\ManyToOne(cascade: ['persist'], inversedBy: 'images')]
+    #[ApiProperty(writable: false)]
+    private ?TechSupport $techSupport = null;
+
+    /**
      * Изображение прикреплённое к отзыву.
      */
     #[ORM\ManyToOne(cascade: ['persist'], inversedBy: 'images')]
@@ -196,6 +204,18 @@ class MultipleImage
     public function setTechSupportMessage(?TechSupportMessage $techSupportMessage): static
     {
         $this->techSupportMessage = $techSupportMessage;
+
+        return $this;
+    }
+
+    public function getTechSupport(): ?TechSupport
+    {
+        return $this->techSupport;
+    }
+
+    public function setTechSupport(?TechSupport $techSupport): static
+    {
+        $this->techSupport = $techSupport;
 
         return $this;
     }

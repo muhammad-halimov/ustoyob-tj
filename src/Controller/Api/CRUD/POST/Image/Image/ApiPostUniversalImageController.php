@@ -9,6 +9,7 @@ use App\Entity\Chat\ChatMessage;
 use App\Entity\Extra\MultipleImage;
 use App\Entity\Gallery\Gallery;
 use App\Entity\Review\Review;
+use App\Entity\TechSupport\TechSupport;
 use App\Entity\TechSupport\TechSupportMessage;
 use App\Entity\Ticket\Ticket;
 use App\Entity\Trait\Readable\G;
@@ -49,6 +50,7 @@ class ApiPostUniversalImageController extends AbstractApiHelperController
             $entity instanceof User               => $entity,
             $entity instanceof Review             => $entity->getClient() ?? $entity->getMaster(),
             $entity instanceof TechSupportMessage => $entity->getAuthor() ?? $entity->getTechSupport()?->getAdministrant(),
+            $entity instanceof TechSupport        => $entity->getAuthor() ?? $entity->getAdministrant(),
             $entity instanceof ChatMessage        => $entity->getAuthor() ?? $entity->getChat()?->getReplyAuthor(),
             $entity instanceof Ticket             => $entity->getAuthor() ?? $entity->getMaster(),
             $entity instanceof Appeal             => $entity->getAuthor(),
@@ -118,6 +120,7 @@ class ApiPostUniversalImageController extends AbstractApiHelperController
                 $entity instanceof User               => [$entity],
                 $entity instanceof Review             => [$entity->getClient(), $entity->getMaster()],
                 $entity instanceof TechSupportMessage => [$entity->getAuthor(), $entity->getTechSupport()?->getAdministrant()],
+                $entity instanceof TechSupport        => [$entity->getAuthor(), $entity->getAdministrant()],
                 $entity instanceof Ticket             => [$entity->getAuthor(), $entity->getMaster()],
                 default                               => [],
             };
