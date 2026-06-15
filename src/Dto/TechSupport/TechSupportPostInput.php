@@ -10,4 +10,7 @@ class TechSupportPostInput
     public ?AppealReason $reason      = null;
     public ?string       $priority    = null;
     public ?string       $description = null;
+    // Обязателен только для неавторизованных пользователей (гостей).
+    // Авторизованным пользователям email не нужен — контакт идёт через аккаунт.
+    public ?string       $guestEmail  = null;
 }

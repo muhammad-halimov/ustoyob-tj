@@ -31,6 +31,8 @@ class ApiRateLimitSubscriber implements EventSubscriberInterface
         private readonly RateLimiterFactory $otpSendLimiter,
         #[Target('api_confirm_account.limiter')]
         private readonly RateLimiterFactory $confirmAccountLimiter,
+        #[Target('api_guest_ticket.limiter')]
+        private readonly RateLimiterFactory $guestTicketLimiter,
     ) {}
 
     public static function getSubscribedEvents(): array
@@ -53,6 +55,11 @@ class ApiRateLimitSubscriber implements EventSubscriberInterface
             '/confirm-account/', '/confirm-account-tokenless/' => $this->confirmAccountLimiter->create($ip),
             default => null,
         };
+
+        // Для создания тикета проверяем и метод (POST), чтобы не задеть GET /api/tech-supports (admin).
+        if ($limiter === null && $path === '/api/tech-supports' && $request->isMethod('POST')) {
+            $limiter = $this->guestTicketLimiter->create($ip);
+        }
 
         if ($limiter !== null && !$limiter->consume(1)->isAccepted()) {
             throw new TooManyRequestsHttpException(60, 'Too many requests. Please try again later.');

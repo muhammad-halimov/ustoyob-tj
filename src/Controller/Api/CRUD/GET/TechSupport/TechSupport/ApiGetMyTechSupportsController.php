@@ -20,11 +20,10 @@ class ApiGetMyTechSupportsController extends AbstractApiGetSelfController
 
     protected function fetchSelf(User $user): object|array|null
     {
-        $results = $this->techSupportRepository->findTechSupportsByUser($user)->getQuery()->getResult();
-
-        if (empty($results)) {
-            $results = $this->techSupportRepository->findTechSupportsByAdmin($user)->getQuery()->getResult();
-        }
+        // Раньше было два отдельных запроса с логикой "либо/либо":
+        // если у пользователя есть тикеты как у автора — возвращались только они,
+        // а тикеты где он администрант — терялись. Теперь один запрос с OR.
+        $results = $this->techSupportRepository->findTechSupportsByUserOrAdmin($user)->getQuery()->getResult();
 
         return $results ?: null;
     }

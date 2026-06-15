@@ -2,10 +2,14 @@
 
 namespace App\Dto\TechSupport;
 
-use App\Entity\TechSupport\TechSupport;
-
+/**
+ * DTO для PATCH /tech-support-messages/{id}.
+ *
+ * Поле techSupport было удалено: раньше контроллер брал тикет из тела запроса,
+ * что позволяло передать чужой techSupportId и обойти проверку доступа.
+ * Теперь тикет берётся непосредственно из самого сообщения в БД.
+ */
 class TechSupportMessagePatchInput
 {
-    public ?TechSupport $techSupport = null;
-    public ?string      $description = null;
+    public ?string $description = null;
 }

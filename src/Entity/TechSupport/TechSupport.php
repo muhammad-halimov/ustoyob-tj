@@ -4,15 +4,21 @@ namespace App\Entity\TechSupport;
 
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\Post;
 use App\Controller\Api\CRUD\GET\TechSupport\TechSupport\ApiAdminApiTechSupportController;
+use App\Controller\Api\CRUD\GET\TechSupport\TechSupport\ApiGetAllTechSupportsController;
 use App\Controller\Api\CRUD\GET\TechSupport\TechSupport\ApiGetMyTechSupportsController;
+use App\Controller\Api\CRUD\GET\TechSupport\TechSupport\ApiGetTechSupportController;
 use App\Controller\Api\CRUD\GET\TechSupport\TechSupport\ApiUserApiTechSupportController;
+use App\Controller\Api\CRUD\PATCH\TechSupport\TechSupport\ApiAssignTechSupportController;
 use App\Controller\Api\CRUD\PATCH\TechSupport\TechSupport\ApiPatchTechSupportController;
 use App\Controller\Api\CRUD\POST\TechSupport\TechSupport\ApiPostTechSupportController;
+use App\Dto\TechSupport\TechSupportAssignInput;
 use App\Dto\TechSupport\TechSupportInput;
+use App\Dto\TechSupport\TechSupportPostInput;
 use App\Entity\Extra\MultipleImage;
 use App\Entity\Trait\Readable\AppealReasonTrait;
 use App\Entity\Trait\Readable\CreatedAtTrait;
@@ -33,32 +39,62 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
     operations: [
+        // ROLE_ADMIN: список всех тикетов в системе. Опционально ?status= фильтр.
+        new GetCollection(
+            uriTemplate: '/tech-supports',
+            controller: ApiGetAllTechSupportsController::class,
+            normalizationContext: ['groups' => G::OPS_TECH_SUPPORT],
+        ),
+        // Любой авторизованный: мои тикеты (где я автор ИЛИ администрант).
         new GetCollection(
             uriTemplate: '/tech-supports/me',
             controller: ApiGetMyTechSupportsController::class,
             normalizationContext: ['groups' => G::OPS_TECH_SUPPORT],
         ),
+        // ROLE_ADMIN: тикеты конкретного пользователя по его ID.
         new GetCollection(
             uriTemplate: '/tech-supports/user/{id}',
+            requirements: ['id' => '\d+'],
             controller: ApiUserApiTechSupportController::class,
             normalizationContext: ['groups' => G::OPS_TECH_SUPPORT],
         ),
+        // ROLE_ADMIN: тикеты, назначенные на конкретного администратора по его ID.
         new GetCollection(
             uriTemplate: '/tech-supports/admin/{id}',
+            requirements: ['id' => '\d+'],
             controller: ApiAdminApiTechSupportController::class,
             normalizationContext: ['groups' => G::OPS_TECH_SUPPORT],
         ),
+        // Автор / администрант / ROLE_ADMIN: получить один тикет по ID.
+        new Get(
+            uriTemplate: '/tech-supports/{id}',
+            requirements: ['id' => '\d+'],
+            controller: ApiGetTechSupportController::class,
+            normalizationContext: ['groups' => G::OPS_TECH_SUPPORT],
+        ),
+        // Авторизованный или гость (без токена): создать новый тикет.
+        // Гость обязан передать guestEmail для обратной связи.
         new Post(
             uriTemplate: '/tech-supports',
             controller: ApiPostTechSupportController::class,
             normalizationContext: ['groups' => G::OPS_TECH_SUPPORT],
+            input: TechSupportPostInput::class,
         ),
+        // Автор / администрант: изменить статус тикета (по правилам машины состояний).
         new Patch(
             uriTemplate: '/tech-supports/{id}',
             requirements: ['id' => '\d+'],
             controller: ApiPatchTechSupportController::class,
             normalizationContext: ['groups' => G::OPS_TECH_SUPPORT],
             input: TechSupportInput::class,
+        ),
+        // ROLE_ADMIN: назначить администранта на тикет. Тело: { "administrant": <userId> }.
+        new Patch(
+            uriTemplate: '/tech-supports/{id}/assign',
+            requirements: ['id' => '\d+'],
+            controller: ApiAssignTechSupportController::class,
+            normalizationContext: ['groups' => G::OPS_TECH_SUPPORT],
+            input: TechSupportAssignInput::class,
         ),
     ],
     paginationClientItemsPerPage: true,
@@ -136,6 +172,18 @@ class TechSupport
     #[ApiProperty(writable: false)]
     private ?User $author = null;
 
+    /**
+     * Email гостевого пользователя (не авторизован).
+     * Заполняется только когда тикет создаётся без JWT-токена.
+     * Нужен, чтобы администратор мог связаться с пользователем по почте.
+     */
+    #[ORM\Column(length: 255, nullable: true)]
+    #[Groups([
+        G::TECH_SUPPORT,
+    ])]
+    #[ApiProperty(writable: false)]
+    private ?string $guestEmail = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -203,6 +251,17 @@ class TechSupport
     public function setStatus(?string $status): static
     {
         $this->status = $status;
+        return $this;
+    }
+
+    public function getGuestEmail(): ?string
+    {
+        return $this->guestEmail;
+    }
+
+    public function setGuestEmail(?string $guestEmail): static
+    {
+        $this->guestEmail = $guestEmail;
         return $this;
     }
 

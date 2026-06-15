@@ -90,6 +90,7 @@ class AppMessages
     const string SUBCATEGORY_NOT_IN_CATEGORY    = 'subcategory_not_in_category';
     const string NOTHING_CHANGING               = 'nothing_changing';
     const string WRONG_TECH_SUPPORT_STATUS      = 'wrong_tech_support_status';
+    const string INVALID_EMAIL                  = 'invalid_email';
 
     // ── Appeal ────────────────────────────────────────────────────────────────
     const string APPEAL_TICKET_MISMATCH         = 'appeal_ticket_mismatch';
@@ -211,6 +212,7 @@ class AppMessages
         self::SUBCATEGORY_NOT_IN_CATEGORY    => ['http' => 422, 'messages' => ['tj' => 'Зербахш ба ин бахш тааллуқ надорад',                                                       'eng' => "Subcategory doesn't belong to this category",                  'ru' => 'Подкатегория не принадлежит данной категории']],
         self::NOTHING_CHANGING               => ['http' => 400, 'messages' => ['tj' => 'Ягон тағирот нест',                                                                        'eng' => 'Nothing to change',                                            'ru' => 'Нечего изменять']],
         self::WRONG_TECH_SUPPORT_STATUS      => ['http' => 400, 'messages' => ['tj' => 'Навъи ҳолати нодуруст. Форматҳо [new, renewed, in_progress, resolved, closed]',           'eng' => 'Wrong status type. Formats [new, renewed, in_progress, resolved, closed]', 'ru' => 'Неверный тип статуса. Форматы [new, renewed, in_progress, resolved, closed]']],
+        self::INVALID_EMAIL                  => ['http' => 400, 'messages' => ['tj' => 'Почтаи электронӣ нодуруст аст',                                                            'eng' => 'Invalid email address',                                        'ru' => 'Некорректный адрес электронной почты']],
         // Appeal
         self::APPEAL_TICKET_MISMATCH         => ['http' => 400, 'messages' => ['tj' => 'Билети ҷавобгар мувофиқ нест',                                                             'eng' => "Respondent's ticket doesn't match",                            'ru' => 'Билет ответчика не совпадает']],
         self::APPEAL_CHAT_MISMATCH           => ['http' => 400, 'messages' => ['tj' => 'Чати ҷавобгар мувофиқ нест',                                                               'eng' => "Respondent's chat doesn't match",                              'ru' => 'Чат ответчика не совпадает']],

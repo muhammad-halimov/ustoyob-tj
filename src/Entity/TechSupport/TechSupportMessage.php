@@ -69,7 +69,7 @@ class TechSupportMessage
 
     public function __toString(): string
     {
-        return $this->text ?? "TS message #$this->id";
+        return $this->description ?? "TS message #$this->id";
     }
 
     #[ORM\Id]

@@ -68,7 +68,6 @@ class TechSupportCrudController extends AbstractCrudController
 
         yield AssociationField::new('author', 'Клиент / Мастер')
             ->setQueryBuilder($this->nonAdminQb())
-            ->setRequired(true)
             ->setColumns(3);
 
         yield AssociationField::new('administrant', 'Исполнитель / Админ')

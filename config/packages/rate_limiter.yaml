@@ -17,3 +17,10 @@ framework:
             policy: 'fixed_window'
             limit: 10
             interval: '1 hour'
+
+        # 5 создания тикетов в час с одного IP
+        # Защита от спама анонимных обращений в техподдержку
+        api_guest_ticket:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '1 hour'

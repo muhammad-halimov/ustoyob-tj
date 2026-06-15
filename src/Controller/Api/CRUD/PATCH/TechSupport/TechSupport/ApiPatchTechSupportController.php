@@ -41,19 +41,56 @@ class ApiPatchTechSupportController extends AbstractApiPatchController
         return null;
     }
 
+    /**
+     * Таблица допустимых переходов статуса (машина состояний).
+     *
+     * Формат: [текущий статус => [новый статус => 'кто может перевести']]
+     *   'admin'  — только ROLE_ADMIN
+     *   'author' — только автор тикета (пользователь, который его создал)
+     *
+     * Переходы:
+     *   new         → in_progress (админ берёт в работу)
+     *   new         → closed      (админ закрывает без ответа)
+     *   renewed     → in_progress (админ взял повторно открытый тикет)
+     *   renewed     → closed      (админ закрывает)
+     *   in_progress → resolved    (админ отмечает как решённое)
+     *   in_progress → closed      (админ закрывает)
+     *   resolved    → renewed     (автор не согласен — переоткрывает тикет)
+     *   resolved    → closed      (админ закрывает)
+     *   closed      → (нет, терминальный статус)
+     */
+    private const array TRANSITIONS = [
+        'new'         => ['in_progress' => 'admin', 'closed' => 'admin'],
+        'renewed'     => ['in_progress' => 'admin', 'closed' => 'admin'],
+        'in_progress' => ['resolved'    => 'admin', 'closed' => 'admin'],
+        'resolved'    => ['renewed'     => 'author', 'closed' => 'admin'],
+    ];
+
     protected function applyChanges(object $entity, User $bearer, object $dto): ?JsonResponse
     {
         /** @var TechSupport $entity */
         /** @var TechSupportInput $dto */
-        $statusParam = $dto->status;
+        $newStatus = $dto->status;
 
-        if (!$statusParam || !in_array($statusParam, array_values(TechSupport::STATUSES), true))
+        // Сначала проверяем, что новый статус вообще существует в системе.
+        if (!$newStatus || !in_array($newStatus, array_values(TechSupport::STATUSES), true))
             return $this->errorJson(AppMessages::WRONG_TECH_SUPPORT_STATUS);
 
-        if ($statusParam === 'in_progress' && !in_array('ROLE_ADMIN', $bearer->getRoles(), true))
-            return $this->errorJson(AppMessages::EXTRA_DENIED);
+        // Смотрим, допустимый ли переход из текущего статуса в новый.
+        // Если текущего статуса нет в таблице (например, 'closed') — переходов нет.
+        $allowed = self::TRANSITIONS[$entity->getStatus()] ?? [];
 
-        $entity->setStatus($statusParam);
+        if (!isset($allowed[$newStatus]))
+            return $this->errorJson(AppMessages::WRONG_TECH_SUPPORT_STATUS);
+
+        $isAdmin  = in_array('ROLE_ADMIN', $bearer->getRoles(), true);
+        $isAuthor = $entity->getAuthor() === $bearer;
+
+        // Проверяем, есть ли у пользователя право на этот конкретный переход.
+        if ($allowed[$newStatus] === 'admin'  && !$isAdmin)  return $this->errorJson(AppMessages::EXTRA_DENIED);
+        if ($allowed[$newStatus] === 'author' && !$isAuthor) return $this->errorJson(AppMessages::EXTRA_DENIED);
+
+        $entity->setStatus($newStatus);
 
         return null;
     }
