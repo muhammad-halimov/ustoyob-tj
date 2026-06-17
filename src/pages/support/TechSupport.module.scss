@@ -1,0 +1,18 @@
+@use '../../app/styles/variables' as vars;
+@use 'sass:map';
+
+.container {
+  max-width: 1150px;
+  margin: 0 auto;
+  padding: map.get(vars.$spacing, 8) map.get(vars.$spacing, 4);
+  min-height: 60vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.title {
+  font-size: map.get(vars.$font-sizes, '2xl');
+  color: map.get(vars.$colors, text-black);
+  font-weight: 600;
+}

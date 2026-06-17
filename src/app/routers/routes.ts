@@ -25,6 +25,9 @@ export const ROUTES = {
     PRIVACY_POLICY: '/legal/privacy-policy',
     TERMS_OF_USE: '/legal/terms-of-use',
     PUBLIC_OFFER: '/legal/public-offer',
+
+    // Поддержка
+    TECH_SUPPORT: '/support',
     
     // Auth
     CONFIRM_ACCOUNT: (token: string) => `/confirm-account/${token}`,
@@ -54,6 +57,7 @@ export const ROUTE_PATTERNS = {
     PRIVACY_POLICY: 'legal/privacy-policy',
     TERMS_OF_USE: 'legal/terms-of-use',
     PUBLIC_OFFER: 'legal/public-offer',
+    TECH_SUPPORT: 'support',
 
     // Auth
     CONFIRM_ACCOUNT: '/confirm-account/:token',

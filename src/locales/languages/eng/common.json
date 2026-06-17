@@ -48,7 +48,8 @@
   "footer": {
     "privacyPolicy": "Privacy Policy",
     "termsOfUse": "Terms of Use",
-    "publicOffer": "Public Offer"
+    "publicOffer": "Public Offer",
+    "techSupport": "Tech Support"
   },
   "legal": {
     "notFound": "Document not found",

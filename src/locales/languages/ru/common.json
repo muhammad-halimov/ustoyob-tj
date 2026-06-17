@@ -48,7 +48,8 @@
   "footer": {
     "privacyPolicy": "Политика конфиденциальности",
     "termsOfUse": "Условия использования",
-    "publicOffer": "Публичная оферта"
+    "publicOffer": "Публичная оферта",
+    "techSupport": "Техническая поддержка"
   },
   "legal": {
     "notFound": "Документ не найден",

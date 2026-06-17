@@ -21,6 +21,10 @@ function Footer() {
                     <Link to={ROUTES.PUBLIC_OFFER} className={styles.link}>
                         {t('footer.publicOffer', 'Публичная оферта')}
                     </Link>
+                    <span className={styles.separator}>•</span>
+                    <Link to={ROUTES.TECH_SUPPORT} className={styles.link}>
+                        {t('footer.techSupport', 'Техническая поддержка')}
+                    </Link>
                 </div>
             </div>
         </footer>
