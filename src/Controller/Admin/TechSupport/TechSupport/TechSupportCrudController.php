@@ -49,11 +49,14 @@ class TechSupportCrudController extends AbstractCrudController
 
         yield TextField::new('title', 'Заголовок')
             ->setRequired(true)
-            ->setColumns(6);
+            ->setColumns(4);
 
         yield AssociationField::new('reason', 'Категория талона')
-            ->setColumns(6)
+            ->setColumns(4)
             ->setRequired(false);
+
+        yield TextField::new('guestEmail', 'Гостевая эл. почта')
+            ->setColumns(4);
 
         yield ChoiceField::new('status', 'Статус')
             ->setColumns(3)
