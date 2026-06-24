@@ -6,7 +6,7 @@ use App\Entity\Geography\Abstract\AddressComponent;
 use App\Entity\Legal\Legal;
 use App\Entity\Ticket\Category;
 use App\Entity\Ticket\Unit;
-use App\Entity\Trait\Readable\AppealReasonTrait;
+use App\Entity\Appeal\Reason\AppealReason;
 use App\Entity\Trait\Readable\CreatedAtTrait;
 use App\Entity\Trait\Readable\DescriptionTrait;
 use App\Entity\Trait\Readable\G;
@@ -22,7 +22,7 @@ use Symfony\Component\Serializer\Attribute\Ignore;
 #[ORM\Entity(repositoryClass: TranslationRepository::class)]
 class Translation
 {
-    use UpdatedAtTrait, CreatedAtTrait, TitleTrait, DescriptionTrait, AppealReasonTrait;
+    use UpdatedAtTrait, CreatedAtTrait, TitleTrait, DescriptionTrait;
 
     public function __toString(): string
     {
@@ -81,6 +81,15 @@ class Translation
     #[ORM\JoinColumn(name: 'legal_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Ignore]
     private ?Legal $legal = null;
+
+    /**
+     * Обратная сторона AppealReason::$translations.
+     * Объявлено здесь напрямую (не через AppealReasonTrait) чтобы указать inversedBy.
+     */
+    #[ORM\ManyToOne(inversedBy: 'translations')]
+    #[ORM\JoinColumn(name: 'reason_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    #[Ignore]
+    private ?AppealReason $reason = null;
 
     public function getId(): ?int
     {
@@ -155,6 +164,17 @@ class Translation
     public function setLegal(?Legal $legal): static
     {
         $this->legal = $legal;
+        return $this;
+    }
+
+    public function getReason(): ?AppealReason
+    {
+        return $this->reason;
+    }
+
+    public function setReason(?AppealReason $reason): static
+    {
+        $this->reason = $reason;
         return $this;
     }
 }

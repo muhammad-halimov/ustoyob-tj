@@ -7,6 +7,7 @@ use ApiPlatform\Doctrine\Orm\Filter\ExistsFilter;
 use ApiPlatform\Doctrine\Orm\Filter\RangeFilter;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
@@ -198,6 +199,19 @@ class Ticket implements HasImagesInterface
         G::CHATS,
     ])]
     private ?bool $active = null;
+
+    /**
+     * Признак одобрения тикета администратором.
+     * По умолчанию false — не виден в публичных коллекциях до одобрения.
+     * Исключение: GET /tickets/me возвращает собственные тикеты независимо от этого поля.
+     */
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    #[Groups([
+        G::MASTER_TICKETS,
+        G::CLIENT_TICKETS,
+    ])]
+    #[ApiProperty(writable: false)]
+    private bool $approved = false;
 
     #[ORM\Column(options: ['default' => 0])]
     #[Groups([
@@ -691,6 +705,17 @@ class Ticket implements HasImagesInterface
     public function decrementReviewsCount(): static
     {
         if ($this->reviewsCount > 0) $this->reviewsCount--;
+        return $this;
+    }
+
+    public function getApproved(): bool
+    {
+        return $this->approved;
+    }
+
+    public function setApproved(bool $approved): static
+    {
+        $this->approved = $approved;
         return $this;
     }
 

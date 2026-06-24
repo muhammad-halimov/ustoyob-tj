@@ -118,7 +118,7 @@ class MultipleImage
     /**
      * Изображение прикреплённое к сообщению техподдержки.
      */
-    #[ORM\ManyToOne(cascade: ['persist'], inversedBy: 'image')]
+    #[ORM\ManyToOne(cascade: ['persist'], inversedBy: 'images')]
     #[ApiProperty(writable: false)]
     private ?TechSupportMessage $techSupportMessage = null;
 
