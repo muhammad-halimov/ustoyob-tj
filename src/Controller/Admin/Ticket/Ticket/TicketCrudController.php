@@ -54,6 +54,10 @@ class TicketCrudController extends AbstractCrudController
         yield IdField::new('id')
             ->hideOnForm();
 
+        yield BooleanField::new('approved', 'Одобрено')
+            ->addCssClass("form-switch")
+            ->setColumns(2);
+
         yield BooleanField::new('active', 'Актуально')
             ->addCssClass("form-switch")
             ->setColumns(2);
@@ -64,7 +68,7 @@ class TicketCrudController extends AbstractCrudController
 
         yield BooleanField::new('negotiableBudget', 'Договорная цена')
             ->addCssClass("form-switch")
-            ->setColumns(8);
+            ->setColumns(6);
 
         yield AssociationField::new('author', 'Клиент')
             ->setQueryBuilder($this->nonAdminQb())
