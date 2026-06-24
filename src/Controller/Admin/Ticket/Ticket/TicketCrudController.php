@@ -54,6 +54,10 @@ class TicketCrudController extends AbstractCrudController
         yield IdField::new('id')
             ->hideOnForm();
 
+        yield BooleanField::new('approved', 'Одобрено')
+            ->addCssClass("form-switch")
+            ->setColumns(2);
+
         yield BooleanField::new('active', 'Актуально')
             ->addCssClass("form-switch")
             ->setColumns(2);
