@@ -32,7 +32,7 @@ class NotifyTechSupportTelegramBotService extends AbstractTechSupportNotificatio
             "🆕 Новая заявка в ТП\n\n" .
             "📌 <b>{$techSupport->getTitle()}</b>\n" .
             "📂 {$this->reason($techSupport)} | 📊 {$this->status($techSupport)} | ⚡ {$this->priority($techSupport)}\n" .
-            "👤 {$techSupport->getAuthor()->getEmail()}\n" .
+            "👤 " . ($techSupport->getAuthor()?->getEmail() ?? $techSupport->getGuestEmail() ?? 'Гость') . "\n" .
             "📝 {$desc}\n" .
             "💬 {$techSupport->getTechSupportMessages()->count()} сообщ. | 🖼 {$imgs} фото\n\n" .
             "🔗 <a href='{$this->techSupportAdminUrl($techSupport)}'>Открыть в админке</a>";

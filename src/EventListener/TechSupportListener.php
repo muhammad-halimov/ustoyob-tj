@@ -57,10 +57,11 @@ readonly class TechSupportListener
      */
     public function postPersist(TechSupport $techSupport): void
     {
-        if (!in_array('ROLE_ADMIN', $techSupport->getAdministrant()->getRoles())) return;
+        $admin = $techSupport->getAdministrant();
+        if ($admin === null || !in_array('ROLE_ADMIN', $admin->getRoles())) return;
 
-        $this->telegramNotifier->sendTechSupportNotification(user: $techSupport->getAdministrant(), techSupport: $techSupport);
-        $this->emailNotifier->sendTechSupportNotification(user: $techSupport->getAdministrant(), techSupport: $techSupport);
+        $this->telegramNotifier->sendTechSupportNotification(user: $admin, techSupport: $techSupport);
+        $this->emailNotifier->sendTechSupportNotification(user: $admin, techSupport: $techSupport);
     }
 
     /**
@@ -69,10 +70,11 @@ readonly class TechSupportListener
      */
     public function postUpdate(TechSupport $techSupport): void
     {
-        if (!in_array('ROLE_ADMIN', $techSupport->getAdministrant()->getRoles())) return;
+        $admin = $techSupport->getAdministrant();
+        if ($admin === null || !in_array('ROLE_ADMIN', $admin->getRoles())) return;
 
-        $this->telegramNotifier->sendTechSupportNotification(user: $techSupport->getAdministrant(), techSupport: $techSupport);
-        $this->emailNotifier->sendTechSupportNotification(user: $techSupport->getAdministrant(), techSupport: $techSupport);
+        $this->telegramNotifier->sendTechSupportNotification(user: $admin, techSupport: $techSupport);
+        $this->emailNotifier->sendTechSupportNotification(user: $admin, techSupport: $techSupport);
     }
 
     /**

@@ -20,7 +20,8 @@ class NotifyTechSupportEmailService extends AbstractTechSupportNotificationServi
         $siteName = $this->siteName();
         $title    = htmlspecialchars($techSupport->getTitle(), ENT_QUOTES, 'UTF-8');
         $desc     = htmlspecialchars($techSupport->getDescription(), ENT_QUOTES, 'UTF-8');
-        $author   = htmlspecialchars($techSupport->getAuthor()->getEmail(), ENT_QUOTES, 'UTF-8');
+        $authorId = $techSupport->getAuthor()?->getEmail() ?? $techSupport->getGuestEmail() ?? 'Гость';
+        $author   = htmlspecialchars($authorId, ENT_QUOTES, 'UTF-8');
         $msgs     = $techSupport->getTechSupportMessages()->count();
         $imgs     = $techSupport->getTechSupportMessages()->first()
             ? $techSupport->getTechSupportMessages()->first()->getImages()->count()
@@ -29,7 +30,7 @@ class NotifyTechSupportEmailService extends AbstractTechSupportNotificationServi
         return $this->sendEmail(
             to:      $user->getEmail(),
             subject: "Новая заявка в ТП | {$siteName}",
-            text:    "Новая заявка в ТП\n\n{$techSupport->getTitle()}\n{$this->reason($techSupport)} | {$this->status($techSupport)} | {$this->priority($techSupport)}\n{$techSupport->getAuthor()->getEmail()} | {$msgs} сообщ. | {$imgs} фото\n\n{$techSupport->getDescription()}\n\n{$url}",
+            text:    "Новая заявка в ТП\n\n{$techSupport->getTitle()}\n{$this->reason($techSupport)} | {$this->status($techSupport)} | {$this->priority($techSupport)}\n{$author} | {$msgs} сообщ. | {$imgs} фото\n\n{$techSupport->getDescription()}\n\n{$url}",
             html:    $this->htmlEmail(
                 'Новая заявка в ТП',
                 "<p>Заголовок: <strong>{$title}</strong></p>"
