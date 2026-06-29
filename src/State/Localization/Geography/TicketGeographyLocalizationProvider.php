@@ -6,22 +6,22 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\Entity\Ticket\Ticket;
+use App\Entity\User;
 use App\Repository\Ticket\TicketRepository;
 use App\Service\Extra\LocalizationService;
 use App\State\Localization\AbstractLocalizationProvider;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\Security\Core\User\UserInterface;
 
 readonly class TicketGeographyLocalizationProvider extends AbstractLocalizationProvider
 {
     public function __construct(
-        ProviderInterface          $itemProvider,
-        ProviderInterface          $collectionProvider,
-        RequestStack               $requestStack,
-        LocalizationService        $localizationService,
-        private Security           $security,
-        private TicketRepository   $ticketRepository,
+        ProviderInterface   $itemProvider,
+        ProviderInterface   $collectionProvider,
+        RequestStack        $requestStack,
+        LocalizationService $localizationService,
+        private Security    $security,
+        private TicketRepository $ticketRepository,
     ) {
         parent::__construct($itemProvider, $collectionProvider, $requestStack, $localizationService);
     }
@@ -32,38 +32,21 @@ readonly class TicketGeographyLocalizationProvider extends AbstractLocalizationP
     }
 
     /**
-     * Для одиночного GET тикет получаем напрямую из репозитория (минуя extension),
-     * затем применяем правило доступа:
-     *   - approved=true  → доступен всем
-     *   - approved=false → только автору (авторизованному пользователю-владельцу)
-     *   - не существует  → null → 404
-     *
-     * Для коллекций делегируем родителю (с фильтром через extension).
+     * Для одиночного GET: используем findVisibleById — один SQL-запрос с условием
+     *   (approved = true OR author = currentUserId).
+     * Нет lazy loading, нет Security внутри фильтра запроса.
      */
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
     {
         if ($operation instanceof Get) {
-            $id     = $uriVariables['id'] ?? 0;
-            $ticket = $this->ticketRepository->find($id);
+            $id      = (int) ($uriVariables['id'] ?? 0);
+            $user    = $this->security->getUser();
+            $userId  = ($user instanceof User) ? $user->getId() : null;
 
-            error_log("[TicketProvider] id=$id ticket=" . ($ticket ? $ticket->getId() : 'NULL') . " approved=" . ($ticket ? ($ticket->getApproved() ? 'true' : 'false') : 'N/A'));
-            file_put_contents('/tmp/tp_debug.txt', "[TicketProvider] id=$id ticket=" . ($ticket ? $ticket->getId() : 'NULL') . " approved=" . ($ticket ? ($ticket->getApproved() ? 'true' : 'false') : 'N/A') . "\n", FILE_APPEND);
+            $ticket = $this->ticketRepository->findVisibleById($id, $userId);
 
             if (!$ticket instanceof Ticket) {
                 return null;
-            }
-
-            if (!$ticket->getApproved()) {
-                $currentUser = $this->security->getUser();
-                $authorEmail = $ticket->getAuthor()?->getUserIdentifier();
-                $userEmail   = $currentUser?->getUserIdentifier();
-
-                error_log("[TicketProvider] approved=false authorEmail=$authorEmail userEmail=$userEmail");
-                file_put_contents('/tmp/tp_debug.txt', "[TicketProvider] approved=false authorEmail=$authorEmail userEmail=$userEmail\n", FILE_APPEND);
-
-                if (!$currentUser instanceof UserInterface || $authorEmail === null || $authorEmail !== $userEmail) {
-                    return null;
-                }
             }
 
             $locale = $this->requestStack->getCurrentRequest()?->query->get('locale', 'tj') ?? 'tj';
@@ -71,7 +54,6 @@ readonly class TicketGeographyLocalizationProvider extends AbstractLocalizationP
             return $ticket;
         }
 
-        // GetCollection — делегируем родителю (с фильтром через extension).
         return parent::provide($operation, $uriVariables, $context);
     }
 

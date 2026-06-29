@@ -46,4 +46,26 @@ class TicketRepository extends ServiceEntityRepository
 
         return null;
     }
+
+    /**
+     * Возвращает тикет по ID с учётом правил видимости:
+     *   - approved=true  → виден всем
+     *   - approved=false → виден только автору (по userId)
+     *   - null           → тикет не существует или доступ запрещён → 404
+     */
+    public function findVisibleById(int $id, ?int $userId = null): ?Ticket
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->where('t.id = :id')
+            ->setParameter('id', $id);
+
+        if ($userId !== null) {
+            $qb->andWhere('t.approved = true OR t.author = :userId')
+               ->setParameter('userId', $userId);
+        } else {
+            $qb->andWhere('t.approved = true');
+        }
+
+        return $qb->getQuery()->getOneOrNullResult();
+    }
 }
