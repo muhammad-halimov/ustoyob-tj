@@ -43,17 +43,25 @@ readonly class TicketGeographyLocalizationProvider extends AbstractLocalizationP
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
     {
         if ($operation instanceof Get) {
-            $ticket = $this->ticketRepository->find($uriVariables['id'] ?? 0);
+            $id     = $uriVariables['id'] ?? 0;
+            $ticket = $this->ticketRepository->find($id);
+
+            error_log("[TicketProvider] id=$id ticket=" . ($ticket ? $ticket->getId() : 'NULL') . " approved=" . ($ticket ? ($ticket->getApproved() ? 'true' : 'false') : 'N/A'));
+            file_put_contents('/tmp/tp_debug.txt', "[TicketProvider] id=$id ticket=" . ($ticket ? $ticket->getId() : 'NULL') . " approved=" . ($ticket ? ($ticket->getApproved() ? 'true' : 'false') : 'N/A') . "\n", FILE_APPEND);
 
             if (!$ticket instanceof Ticket) {
                 return null;
             }
 
-            // Неодобренный тикет видит только его автор.
             if (!$ticket->getApproved()) {
                 $currentUser = $this->security->getUser();
                 $authorEmail = $ticket->getAuthor()?->getUserIdentifier();
-                if (!$currentUser instanceof UserInterface || $authorEmail === null || $authorEmail !== $currentUser->getUserIdentifier()) {
+                $userEmail   = $currentUser?->getUserIdentifier();
+
+                error_log("[TicketProvider] approved=false authorEmail=$authorEmail userEmail=$userEmail");
+                file_put_contents('/tmp/tp_debug.txt', "[TicketProvider] approved=false authorEmail=$authorEmail userEmail=$userEmail\n", FILE_APPEND);
+
+                if (!$currentUser instanceof UserInterface || $authorEmail === null || $authorEmail !== $userEmail) {
                     return null;
                 }
             }
