@@ -7,31 +7,24 @@ use ApiPlatform\Doctrine\Orm\Extension\QueryItemExtensionInterface;
 use ApiPlatform\Doctrine\Orm\Util\QueryNameGeneratorInterface;
 use ApiPlatform\Metadata\Operation;
 use App\Entity\Ticket\Ticket;
-use App\Entity\User;
 use Doctrine\ORM\QueryBuilder;
-use Symfony\Bundle\SecurityBundle\Security;
 
 /**
  * Doctrine ORM-расширение API Platform: скрывает неодобренные тикеты
- * из всех публичных GET-запросов.
+ * из публичных GET-запросов.
  *
  * Применяется к:
- *   GET /api/tickets          — коллекция: только approved=true
- *   GET /api/tickets/{id}     — один тикет: approved=true ИЛИ автор = текущий пользователь
+ *   GET /api/tickets      — коллекция: только approved=true
+ *   GET /api/tickets/{id} — одиночный: только approved=true
+ *                           (исключение «автор видит свой тикет» обрабатывается
+ *                            в TicketGeographyLocalizationProvider на уровне провайдера)
  *
  * НЕ применяется к:
- *   GET /api/tickets/me       — контроллер использует репозиторий напрямую,
- *                               минуя API Platform query-extensions (намеренно).
- *   PATCH /api/tickets/{id}   — аналогично; владелец всегда может редактировать
- *                               собственный неодобренный тикет.
- *
- * Одобрение устанавливается администратором через EasyAdmin или выделенный
- * admin-эндпоинт. Поле approved = false по умолчанию.
+ *   GET /api/tickets/me   — репозиторий напрямую, extension не вызывается.
+ *   PATCH /api/tickets/{id} — аналогично.
  */
 final class ApprovedTicketExtension implements QueryCollectionExtensionInterface, QueryItemExtensionInterface
 {
-    public function __construct(private readonly Security $security) {}
-
     public function applyToCollection(
         QueryBuilder                $queryBuilder,
         QueryNameGeneratorInterface $queryNameGenerator,
@@ -50,28 +43,7 @@ final class ApprovedTicketExtension implements QueryCollectionExtensionInterface
         ?Operation                  $operation = null,
         array                       $context   = [],
     ): void {
-        if ($resourceClass !== Ticket::class) {
-            return;
-        }
-
-        $alias        = $queryBuilder->getRootAliases()[0];
-        $paramApproved = $queryNameGenerator->generateParameterName('approved');
-        $currentUser  = $this->security->getUser();
-
-        // Если запрашивающий — авторизованный пользователь, показываем тикет
-        // когда он одобрен ИЛИ когда текущий пользователь является его автором.
-        if ($currentUser instanceof User) {
-            $paramAuthor = $queryNameGenerator->generateParameterName('author');
-            $queryBuilder
-                ->andWhere("$alias.approved = :$paramApproved OR $alias.author = :$paramAuthor")
-                ->setParameter($paramApproved, true)
-                ->setParameter($paramAuthor, $currentUser);
-        } else {
-            // Гость видит только одобренные тикеты.
-            $queryBuilder
-                ->andWhere("$alias.approved = :$paramApproved")
-                ->setParameter($paramApproved, true);
-        }
+        $this->addApprovedFilter($queryBuilder, $resourceClass, $queryNameGenerator);
     }
 
     private function addApprovedFilter(
