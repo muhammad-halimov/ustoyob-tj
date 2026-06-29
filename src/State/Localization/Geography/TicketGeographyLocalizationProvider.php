@@ -32,27 +32,38 @@ readonly class TicketGeographyLocalizationProvider extends AbstractLocalizationP
     }
 
     /**
-     * Для одиночного GET: если тикет не найден через стандартный провайдер
-     * (approved=false → null), проверяем — возможно, текущий пользователь его автор.
-     * Автор всегда может видеть свой тикет независимо от статуса одобрения.
+     * Для одиночного GET тикет получаем напрямую из репозитория (минуя extension),
+     * затем применяем правило доступа:
+     *   - approved=true  → доступен всем
+     *   - approved=false → только автору (авторизованному пользователю-владельцу)
+     *   - не существует  → null → 404
+     *
+     * Для коллекций делегируем родителю (с фильтром через extension).
      */
     public function provide(Operation $operation, array $uriVariables = [], array $context = []): object|array|null
     {
-        $result = parent::provide($operation, $uriVariables, $context);
+        if ($operation instanceof Get) {
+            $ticket = $this->ticketRepository->find($uriVariables['id'] ?? 0);
 
-        if ($result === null && $operation instanceof Get) {
-            $currentUser = $this->security->getUser();
-            if ($currentUser instanceof User && isset($uriVariables['id'])) {
-                $ticket = $this->ticketRepository->find($uriVariables['id']);
-                if ($ticket instanceof Ticket && $ticket->getAuthor()?->getId() === $currentUser->getId()) {
-                    $locale = $this->requestStack->getCurrentRequest()?->query->get('locale', 'tj') ?? 'tj';
-                    $this->localize($ticket, $locale);
-                    return $ticket;
+            if (!$ticket instanceof Ticket) {
+                return null;
+            }
+
+            // Неодобренный тикет видит только его автор.
+            if (!$ticket->getApproved()) {
+                $currentUser = $this->security->getUser();
+                if (!$currentUser instanceof User || $ticket->getAuthor()?->getId() !== $currentUser->getId()) {
+                    return null;
                 }
             }
+
+            $locale = $this->requestStack->getCurrentRequest()?->query->get('locale', 'tj') ?? 'tj';
+            $this->localize($ticket, $locale);
+            return $ticket;
         }
 
-        return $result;
+        // GetCollection — делегируем родителю (с фильтром через extension).
+        return parent::provide($operation, $uriVariables, $context);
     }
 
     protected function localize(object $entity, string $locale): void

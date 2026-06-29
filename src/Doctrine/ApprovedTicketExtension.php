@@ -3,27 +3,26 @@
 namespace App\Doctrine;
 
 use ApiPlatform\Doctrine\Orm\Extension\QueryCollectionExtensionInterface;
-use ApiPlatform\Doctrine\Orm\Extension\QueryItemExtensionInterface;
 use ApiPlatform\Doctrine\Orm\Util\QueryNameGeneratorInterface;
 use ApiPlatform\Metadata\Operation;
 use App\Entity\Ticket\Ticket;
 use Doctrine\ORM\QueryBuilder;
 
 /**
- * Doctrine ORM-расширение API Platform: скрывает неодобренные тикеты
- * из публичных GET-запросов.
+ * Doctrine ORM extension: скрывает неодобренные тикеты из коллекций.
  *
- * Применяется к:
- *   GET /api/tickets      — коллекция: только approved=true
- *   GET /api/tickets/{id} — одиночный: только approved=true
- *                           (исключение «автор видит свой тикет» обрабатывается
- *                            в TicketGeographyLocalizationProvider на уровне провайдера)
+ * Применяется ТОЛЬКО к:
+ *   GET /api/tickets  — коллекция: только approved=true
+ *
+ * Item-запросы (GET /api/tickets/{id}) намеренно НЕ фильтруются здесь:
+ * логика «автор видит свой неодобренный тикет» реализована в
+ * TicketGeographyLocalizationProvider.
  *
  * НЕ применяется к:
  *   GET /api/tickets/me   — репозиторий напрямую, extension не вызывается.
  *   PATCH /api/tickets/{id} — аналогично.
  */
-final class ApprovedTicketExtension implements QueryCollectionExtensionInterface, QueryItemExtensionInterface
+final class ApprovedTicketExtension implements QueryCollectionExtensionInterface
 {
     public function applyToCollection(
         QueryBuilder                $queryBuilder,
@@ -31,25 +30,6 @@ final class ApprovedTicketExtension implements QueryCollectionExtensionInterface
         string                      $resourceClass,
         ?Operation                  $operation = null,
         array                       $context   = [],
-    ): void {
-        $this->addApprovedFilter($queryBuilder, $resourceClass, $queryNameGenerator);
-    }
-
-    public function applyToItem(
-        QueryBuilder                $queryBuilder,
-        QueryNameGeneratorInterface $queryNameGenerator,
-        string                      $resourceClass,
-        array                       $identifiers,
-        ?Operation                  $operation = null,
-        array                       $context   = [],
-    ): void {
-        $this->addApprovedFilter($queryBuilder, $resourceClass, $queryNameGenerator);
-    }
-
-    private function addApprovedFilter(
-        QueryBuilder                $queryBuilder,
-        string                      $resourceClass,
-        QueryNameGeneratorInterface $queryNameGenerator,
     ): void {
         if ($resourceClass !== Ticket::class) {
             return;
@@ -63,4 +43,3 @@ final class ApprovedTicketExtension implements QueryCollectionExtensionInterface
             ->setParameter($param, true);
     }
 }
-
