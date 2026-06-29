@@ -16,7 +16,7 @@ class ApiPostTechSupportController extends AbstractApiPostController
 
     protected function getInputClass(): string { return TechSupportPostInput::class; }
 
-    protected function setSerializationGroups(): array { return G::OPS_TECH_SUPPORT; }
+    protected function setSerializationGroups(): array { return G::OPS_TECH_SUPPORT_POST; }
 
     // Разрешаем анонимный доступ: пользователь мог забыть пароль / потерять доступ к аккаунту.
     // Гостю достаточно указать email — администратор свяжется с ним по почте.

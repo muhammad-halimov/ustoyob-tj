@@ -170,7 +170,7 @@ class TechSupport implements HasImagesInterface
     #[ORM\ManyToOne(inversedBy: 'techSupports')]
     #[ORM\JoinColumn(name: 'administrant_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     #[Groups([
-        G::TECH_SUPPORT,
+        G::TECH_SUPPORT_ADMIN,
         G::TECH_SUPPORT_MESSAGES,
     ])]
     #[ApiProperty(writable: false)]

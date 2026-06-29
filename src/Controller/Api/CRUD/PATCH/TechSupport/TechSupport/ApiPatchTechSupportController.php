@@ -19,7 +19,7 @@ class ApiPatchTechSupportController extends AbstractApiPatchController
         private readonly LocalizationService $localizationService,
     ) {}
 
-    protected function setSerializationGroups(): array { return G::OPS_TECH_SUPPORT; }
+    protected function setSerializationGroups(): array { return G::OPS_TECH_SUPPORT_POST; }
 
     protected function getUserGrade(): string { return 'double'; }
 

@@ -62,6 +62,7 @@ final class G
     // ─── TechSupport contexts ──────────────────────────────────────────────
 
     const string TECH_SUPPORT          = 'techSupport:read';
+    const string TECH_SUPPORT_ADMIN    = 'techSupport:admin:read';
     const string TECH_SUPPORT_MESSAGES = 'techSupportMessages:read';
 
     // ─── Geography contexts ────────────────────────────────────────────────
@@ -109,8 +110,9 @@ final class G
     const array OPS_CHATS        = [self::CHATS];
     const array OPS_CHAT_MSGS    = [self::CHAT_MESSAGES];
 
-    const array OPS_TECH_SUPPORT = [self::TECH_SUPPORT];
-    const array OPS_TECH_MSGS    = [self::TECH_SUPPORT_MESSAGES];
+    const array OPS_TECH_SUPPORT      = [self::TECH_SUPPORT, self::TECH_SUPPORT_ADMIN];
+    const array OPS_TECH_SUPPORT_POST = [self::TECH_SUPPORT];
+    const array OPS_TECH_MSGS         = [self::TECH_SUPPORT_MESSAGES];
 
     const array OPS_GALLERIES    = [self::GALLERIES];
     const array OPS_FAVORITES    = [self::FAVORITES];
