@@ -6,12 +6,12 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\Entity\Ticket\Ticket;
-use App\Entity\User;
 use App\Repository\Ticket\TicketRepository;
 use App\Service\Extra\LocalizationService;
 use App\State\Localization\AbstractLocalizationProvider;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 readonly class TicketGeographyLocalizationProvider extends AbstractLocalizationProvider
 {
@@ -52,7 +52,8 @@ readonly class TicketGeographyLocalizationProvider extends AbstractLocalizationP
             // Неодобренный тикет видит только его автор.
             if (!$ticket->getApproved()) {
                 $currentUser = $this->security->getUser();
-                if (!$currentUser instanceof User || $ticket->getAuthor()?->getId() !== $currentUser->getId()) {
+                $authorEmail = $ticket->getAuthor()?->getUserIdentifier();
+                if (!$currentUser instanceof UserInterface || $authorEmail === null || $authorEmail !== $currentUser->getUserIdentifier()) {
                     return null;
                 }
             }
