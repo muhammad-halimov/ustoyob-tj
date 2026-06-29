@@ -4,17 +4,27 @@ namespace App\State\Localization\Geography;
 
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\Operation;
+use ApiPlatform\State\ProviderInterface;
 use App\Entity\Ticket\Ticket;
 use App\Entity\User;
 use App\Repository\Ticket\TicketRepository;
+use App\Service\Extra\LocalizationService;
 use App\State\Localization\AbstractLocalizationProvider;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 readonly class TicketGeographyLocalizationProvider extends AbstractLocalizationProvider
 {
-    // Дополнительные зависимости инжектируются через services.yaml (именованные аргументы).
-    public Security          $security;
-    public TicketRepository  $ticketRepository;
+    public function __construct(
+        ProviderInterface          $itemProvider,
+        ProviderInterface          $collectionProvider,
+        RequestStack               $requestStack,
+        LocalizationService        $localizationService,
+        private Security           $security,
+        private TicketRepository   $ticketRepository,
+    ) {
+        parent::__construct($itemProvider, $collectionProvider, $requestStack, $localizationService);
+    }
 
     protected function supports(object $entity): bool
     {
