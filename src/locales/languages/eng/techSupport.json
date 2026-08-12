@@ -3,7 +3,8 @@
   "pageSubtitle": "Describe your issue and we will do our best to help",
   "tabs": {
     "create": "New Request",
-    "my": "My Requests"
+    "my": "My Requests",
+    "allTickets": "All Requests"
   },
   "myTickets": {
     "empty": "You have no support requests yet",
@@ -13,6 +14,7 @@
     "noTitle": "No subject",
     "noResults": "No requests match the selected filters",
     "resetFilters": "Reset filters",
+    "searchPlaceholder": "Search requests",
     "table": {
       "title": "Subject",
       "category": "Category",
@@ -52,6 +54,9 @@
     "send": "Send",
     "noMessages": "No replies yet",
     "bannedNotice": "This ticket has been banned — it's read-only now, sending messages and files is disabled.",
+    "bannedNoticeAdmin": "This ticket is banned for its author — they can't send messages or files anymore, but as an admin you can still reply.",
+    "editTicket": "Edit request",
+    "editError": "Failed to save changes",
     "media": "Media",
     "openGallery": "Open gallery",
     "mediaThumbnail": "Image {{index}}"
@@ -88,5 +93,6 @@
   },
   "success": "Your request has been received. We will contact you shortly.",
   "error": "Failed to submit the request. Please try again.",
-  "loadError": "Failed to load support categories."
+  "loadError": "Failed to load support categories.",
+  "adminCreateDisabled": "The administrator role is currently active — submitting a request is not recommended."
 }

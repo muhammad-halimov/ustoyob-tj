@@ -28,6 +28,11 @@ export interface TicketView {
     masterId?: number;
     isInSelectedCity?: boolean;
     active?: boolean;
+    /** Admin-gated visibility — only ever `false` on the owner's own tickets (`/tickets/me`); the
+     *  public collection doesn't return unapproved tickets at all. See API_REFERENCE.md §4. */
+    approved?: boolean;
+    /** EasyAdmin-only, never writable here — same visibility caveat as `approved`. */
+    banned?: boolean;
     userRating?: number;
     userReviewCount?: number;
     responsesCount?: number;

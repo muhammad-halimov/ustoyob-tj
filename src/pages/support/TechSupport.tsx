@@ -1,15 +1,15 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type * as React from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import styles from './TechSupport.module.scss';
 import { universalApiRequest } from '../../utils/apiUtils';
 import { getAppealReasons, getMyTechSupports } from '../../utils/dataCacheUtils';
 import { uploadPhotos, formatTechSupportImageUrl } from '../../utils/imageUtils';
-import { isAuthenticated, getUserData } from '../../utils/authUtils';
+import { isAuthenticated, getUserData, isAdmin } from '../../utils/authUtils';
 import { openMercureSource } from '../../utils/mercureUtils';
 import { textHelper } from '../../utils/textUtils';
-import { getFormattedDate } from '../../utils/timeUtils';
+import { getFormattedDateTime } from '../../utils/timeUtils';
 import { Marquee } from '../../shared/ui/Text/Marquee';
 import { SelectSearch } from '../../shared/ui/SelectSearch';
 import Grid, { type PhotoItem } from '../../shared/ui/Photo/Grid';
@@ -18,12 +18,14 @@ import Status from '../../shared/ui/Modal/Status';
 import { EmptyState } from '../../widgets/EmptyState';
 import { EditActions } from '../profile/shared/ui/EditActions/EditActions';
 import { Tabs } from '../../shared/ui/Tabs';
+import { InfoBanner } from '../../shared/ui/Banner/InfoBanner/InfoBanner';
 import { useLanguageChange } from '../../hooks';
 import { TechSupportSortingFilter } from '../../widgets/Sorting/TechSupportCriteriaFilter';
 import TechSupportThread from './thread/TechSupportThread';
-import { IoPencilOutline, IoListOutline, IoPricetagOutline } from 'react-icons/io5';
+import { IoPencilOutline, IoListOutline, IoPricetagOutline, IoInformationCircleOutline } from 'react-icons/io5';
 import {
     TECH_SUPPORT_STATUSES,
+    PRIORITY_KEYS,
     getLastActivityAt,
     getUnreadCount,
     STATUS_ICONS,
@@ -37,8 +39,6 @@ import type { TechSupportSortOrder } from '../../types/common';
 type SupportTab = 'create' | 'my';
 type SortField = 'createdAt' | 'updatedAt';
 
-const PRIORITY_KEYS = ['1', '2', '3', '4'] as const;
-
 export interface TechSupportProps {
     /** When true, skips the outer container padding and page title (used when embedded in tabs). */
     embedded?: boolean;
@@ -46,12 +46,15 @@ export interface TechSupportProps {
 
 function TechSupport({ embedded = false }: TechSupportProps) {
     const { t } = useTranslation('techSupport');
-    const navigate = useNavigate();
     const isAuth = isAuthenticated();
     const currentUserId = getUserData()?.id;
+    // Admins don't file their own support tickets here — the "create" tab stays visible
+    // (so the tab bar doesn't shift under them) but shows a notice instead of the form, and
+    // "my tickets" is relabeled "all tickets" since that's the queue they actually work from.
+    const isAdminUser = isAdmin();
     const formRef = useRef<HTMLFormElement>(null);
 
-    const [activeTab, setActiveTab] = useState<SupportTab>('create');
+    const [activeTab, setActiveTab] = useState<SupportTab>(() => isAdminUser ? 'my' : 'create');
 
     // Deep-linked open ticket — ?ticket=<id>. Pushed (not replaced) so the header's
     // universal Back button (which pops window.history) closes it back to the table.
@@ -73,6 +76,9 @@ function TechSupport({ embedded = false }: TechSupportProps) {
     const [filterReason, setFilterReason] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
     const [filterPriority, setFilterPriority] = useState('');
+    // Free-text search — same for admin ("all tickets") and regular users, matches
+    // whatever's actually visible in the row (title/description/category).
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Form fields
     const [title, setTitle] = useState('');
@@ -288,6 +294,16 @@ function TechSupport({ embedded = false }: TechSupportProps) {
         if (filterStatus) list = list.filter(ticket => ticket.status === filterStatus);
         if (filterPriority) list = list.filter(ticket => String(ticket.priority ?? '') === filterPriority);
 
+        const query = searchQuery.trim().toLowerCase();
+        if (query) {
+            list = list.filter(ticket => {
+                const reasonTitle = (ticket.reason?.id != null ? reasonTitleById.get(ticket.reason.id) : undefined) ?? ticket.reason?.title ?? '';
+                return (ticket.title ?? '').toLowerCase().includes(query)
+                    || (ticket.description ?? '').toLowerCase().includes(query)
+                    || reasonTitle.toLowerCase().includes(query);
+            });
+        }
+
         return [...list].sort((a, b) => {
             // "updatedAt" sorts by last activity (ticket's own updatedAt, or its latest
             // message if that's more recent) rather than the raw field — see getLastActivityAt.
@@ -297,9 +313,10 @@ function TechSupport({ embedded = false }: TechSupportProps) {
             const bTime = bValue ? new Date(bValue).getTime() : 0;
             return sortOrder === 'newest' ? bTime - aTime : aTime - bTime;
         });
-    }, [myTickets, filterReason, filterStatus, filterPriority, sortField, sortOrder]);
+    }, [myTickets, filterReason, filterStatus, filterPriority, searchQuery, reasonTitleById, sortField, sortOrder]);
 
     const resetFilters = () => {
+        setSearchQuery('');
         setFilterReason('');
         setFilterStatus('');
         setFilterPriority('');
@@ -409,7 +426,7 @@ function TechSupport({ embedded = false }: TechSupportProps) {
 
     const supportTabs = [
         { key: 'create' as SupportTab, icon: <IoPencilOutline />, label: t('tabs.create') },
-        ...(isAuth ? [{ key: 'my' as SupportTab, icon: <IoListOutline />, label: t('tabs.my') }] : []),
+        ...(isAuth ? [{ key: 'my' as SupportTab, icon: <IoListOutline />, label: isAdminUser ? t('tabs.allTickets') : t('tabs.my') }] : []),
     ];
 
     return (
@@ -432,19 +449,31 @@ function TechSupport({ embedded = false }: TechSupportProps) {
                     {activeTab === 'my' ? (
                         <div className={styles.myTicketsSection}>
                             {myTickets.length > 0 && (
-                                <TechSupportSortingFilter
-                                    sortOrder={sortOrder}
-                                    filterReason={filterReason}
-                                    filterStatus={filterStatus}
-                                    filterPriority={filterPriority}
-                                    reasonOptions={reasonFilterOptions}
-                                    statusOptions={statusFilterOptions}
-                                    priorityOptions={priorityFilterOptions}
-                                    onSortChange={setSortOrder}
-                                    onReasonChange={setFilterReason}
-                                    onStatusChange={setFilterStatus}
-                                    onPriorityChange={setFilterPriority}
-                                />
+                                <>
+                                    <div className={styles.ticketsSearchBar}>
+                                        <SelectSearch
+                                            altMode
+                                            options={[]}
+                                            value={searchQuery}
+                                            onChange={setSearchQuery}
+                                            placeholder={t('myTickets.searchPlaceholder')}
+                                        />
+                                    </div>
+
+                                    <TechSupportSortingFilter
+                                        sortOrder={sortOrder}
+                                        filterReason={filterReason}
+                                        filterStatus={filterStatus}
+                                        filterPriority={filterPriority}
+                                        reasonOptions={reasonFilterOptions}
+                                        statusOptions={statusFilterOptions}
+                                        priorityOptions={priorityFilterOptions}
+                                        onSortChange={setSortOrder}
+                                        onReasonChange={setFilterReason}
+                                        onStatusChange={setFilterStatus}
+                                        onPriorityChange={setFilterPriority}
+                                    />
+                                </>
                             )}
 
                             {loadingMyTickets && myTickets.length === 0 ? (
@@ -622,12 +651,12 @@ function TechSupport({ embedded = false }: TechSupportProps) {
                                                 })()}
                                             </div>
                                             <div className={styles.ticketCell} data-label={t('myTickets.table.created')}>
-                                                {ticket.createdAt ? getFormattedDate(ticket.createdAt) : '—'}
+                                                {ticket.createdAt ? getFormattedDateTime(ticket.createdAt) : '—'}
                                             </div>
                                             <div className={styles.ticketCell} data-label={t('myTickets.table.updated')}>
                                                 {(() => {
                                                     const lastActivity = getLastActivityAt(ticket);
-                                                    return lastActivity ? getFormattedDate(lastActivity) : '—';
+                                                    return lastActivity ? getFormattedDateTime(lastActivity) : '—';
                                                 })()}
                                             </div>
                                         </div>
@@ -637,6 +666,13 @@ function TechSupport({ embedded = false }: TechSupportProps) {
                         </div>
                     ) : (
                         <div className={styles.formWrapper}>
+
+                        {isAdminUser && (
+                            <InfoBanner
+                                icon={<IoInformationCircleOutline />}
+                                message={t('adminCreateDisabled')}
+                            />
+                        )}
 
                         <form ref={formRef} onSubmit={handleFormSubmit} className={styles.form} noValidate>
 
@@ -726,8 +762,8 @@ function TechSupport({ embedded = false }: TechSupportProps) {
                             <div className={styles.submitSection}>
                                 <EditActions
                                     onSave={submitForm}
-                                    onCancel={() => navigate(-1)}
-                                    saveDisabled={isSubmitting}
+                                    onCancel={resetForm}
+                                    saveDisabled={isSubmitting || isAdminUser}
                                     className={styles.editActionsLarge}
                                 />
                             </div>

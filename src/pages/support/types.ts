@@ -72,6 +72,10 @@ export interface SupportTicket {
 
 export const TECH_SUPPORT_STATUSES: TechSupportStatus[] = ['new', 'renewed', 'in_progress', 'resolved', 'closed', 'banned'];
 
+// '1'..'4' — see TechSupport.PRIORITIES in API_REFERENCE.md §11. Shared between the create
+// form's priority picker and the admin edit-ticket picker (TechSupportThread) so both stay in sync.
+export const PRIORITY_KEYS = ['1', '2', '3', '4'] as const;
+
 /** Shared between the tickets table and the thread header so both badge sets stay in sync. */
 export const STATUS_ICONS: Record<TechSupportStatus, ComponentType> = {
     new: IoAddCircleOutline,

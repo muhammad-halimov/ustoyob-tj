@@ -236,6 +236,8 @@ export const ticketToTicketView = (ticket: Ticket): TicketView => {
         subcategory: ticket.subcategory?.title,
         type: ticket.service ? 'master' : 'client',
         active: ticket.active,
+        approved: ticket.approved,
+        banned: ticket.banned,
         userRating: (ticket.service ? ticket.master?.rating : ticket.author?.rating) || 0,
         userReviewCount: ticket.reviewsCount || 0,
         responsesCount: ticket.responsesCount,

@@ -38,6 +38,13 @@
     gap: 8px;
   }
 
+  &_type_badges {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
   &_ticketType {
     background: var(--color-background-btn);
     color: var(--color-primary-text-white);
@@ -46,6 +53,24 @@
     font-size: 12px;
     font-weight: 500;
   }
+
+  // Same icon-pill language as TechSupport's status badges — kept here rather than shared
+  // since this module has its own color tokens and neither page imports the other's styles.
+  &_statusBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+
+    svg { width: 14px; height: 14px; flex-shrink: 0; }
+  }
+
+  &_status_unapproved { background: rgba(230, 162, 40, 0.14); color: #B87400; }
+  &_status_banned { background: rgba(139, 0, 0, 0.16); color: #8B0000; }
 
   &_edit_button {
     background: none;

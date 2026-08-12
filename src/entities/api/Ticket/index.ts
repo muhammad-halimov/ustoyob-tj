@@ -17,6 +17,10 @@ export type Ticket = {
     unit?: Unit | string;
     service: boolean;
     active: boolean;
+    /** Read-only — admin-gated public visibility. See API_REFERENCE.md §4. */
+    approved?: boolean;
+    /** Read-only, EasyAdmin-only (ROLE_SUPER_ADMIN) — never writable via this API. See API_REFERENCE.md §4. */
+    banned?: boolean;
     urgent?: boolean;
     /** Manual sort order for a master's own service listings (drag-reorder on the profile page). */
     priority?: number;

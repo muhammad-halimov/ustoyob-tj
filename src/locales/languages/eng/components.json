@@ -36,7 +36,9 @@
     "defaultClient": "Client",
     "negotiablePrice": "Negotiable price",
     "respond": "Respond",
-    "responded": "Applied"
+    "responded": "Applied",
+    "notApproved": "Not approved",
+    "banned": "Banned"
   },
   "validation": {
     "required": "This field is required",

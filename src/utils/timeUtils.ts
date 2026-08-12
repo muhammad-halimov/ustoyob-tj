@@ -17,6 +17,23 @@ export const getFormattedDate = (dateString?: string): string => {
 };
 
 /**
+ * Formats a date string as 'DD.MM.YYYY - HH:MM' (24-hour, ru-RU) — `getFormattedDate` plus
+ * a fixed 24h time-of-day, for contexts that need more precision than the date alone
+ * (tickets/messages tables, thread timestamps). Locale/hour12 are pinned explicitly rather
+ * than left to the browser default — otherwise an en-US runtime renders "7:03 PM" instead
+ * of "19:03". Unlike `getFormattedDate`, returns '' for missing/invalid input rather than
+ * fabricating "now" — callers pick their own empty-state fallback
+ * (`date ? getFormattedDateTime(date) : '—'`), same convention used everywhere else here.
+ */
+export const getFormattedDateTime = (dateString?: string): string => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '';
+    const time = date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', hour12: false });
+    return `${getFormattedDate(dateString)} - ${time}`;
+};
+
+/**
  * Formats a date string using i18n month names from the `components:time.months` key.
  * Returns the date as "D Month YYYY" (e.g. "5 января 2024").
  * Falls back gracefully if the date is invalid or already contains translated month names.

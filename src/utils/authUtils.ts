@@ -172,6 +172,17 @@ export const setUserData = (data: User): void => {
     setStorageJSON(STORAGE_KEYS.USER_DATA, data);
 };
 
+/**
+ * True when the cached user has `ROLE_ADMIN` or `ROLE_SUPER_ADMIN` — the latter is a
+ * superset that satisfies every `ROLE_ADMIN`-only check too (API_REFERENCE.md §3).
+ * Cheap/synchronous (reads the cached `/users/me` snapshot, not a fresh request) — fine
+ * for UI gating, but the API itself is still the source of truth for anything sensitive.
+ */
+export const isAdmin = (): boolean => {
+    const roles = getUserData()?.roles ?? [];
+    return roles.includes('ROLE_ADMIN') || roles.includes('ROLE_SUPER_ADMIN');
+};
+
 // ============ Работа с email пользователя ============
 export const setUserEmail = (email: string): void => {
     setItem(STORAGE_KEYS.USER_EMAIL, email);

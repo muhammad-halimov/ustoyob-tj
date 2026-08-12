@@ -35,14 +35,22 @@
   flex-wrap: wrap;
 }
 
-// Toggles MediaSidebar — only rendered once the thread actually has attachments. Pinned to
-// the right edge of `.threadMeta`, after the status/priority/category badges.
+// Groups the trailing controls (media toggle, admin edit toggle/EditActions) and pins the
+// whole cluster to the right edge of `.threadMeta`, after the status/priority/category badges.
+.threadMetaActions {
+  display: flex;
+  align-items: center;
+  gap: map.get(vars.$spacing, 2);
+  margin-left: auto;
+}
+
+// Toggles MediaSidebar (or, reused as-is, the admin ticket-edit mode) — only rendered once
+// there's something to toggle (attachments present / caller is admin).
 .mediaToggleBtn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
-  margin-left: auto;
   padding: 6px map.get(vars.$spacing, 3);
   border-radius: map.get(vars.$border-radius, base);
   background: var(--color-background-all);
@@ -56,6 +64,49 @@
   svg { width: 18px; height: 18px; }
 
   &:hover { background: var(--color-stroke); }
+}
+
+// ─── Admin ticket-fields editing ──────────────────────────────
+// Replaces the read-only title/badges/description with inputs in place, same spot they
+// normally render in — no separate edit page/modal.
+.editTitleInput {
+  font-size: map.get(vars.$font-sizes, xl);
+  font-weight: 600;
+  color: var(--color-text-black);
+  background: var(--color-background-all);
+  border: 1px solid var(--color-stroke);
+  border-radius: map.get(vars.$border-radius, base);
+  padding: 6px map.get(vars.$spacing, 3);
+  width: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
+
+  &:focus { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+// Bounds each status/priority/category SelectSearch to a reasonable width instead of
+// stretching to `.threadMeta`'s full row (SelectSearch defaults to width:100%).
+.editField {
+  min-width: 160px;
+  max-width: 220px;
+}
+
+.editTextarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: map.get(vars.$spacing, 3);
+  background: var(--color-background-all);
+  border: 1px solid var(--color-stroke);
+  border-radius: map.get(vars.$border-radius, base);
+  font-size: map.get(vars.$font-sizes, base);
+  font-family: inherit;
+  color: var(--color-text-primary);
+  resize: vertical;
+
+  &::placeholder { color: var(--color-text-placeholder); }
+  &:focus { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
 }
 
 .badge {

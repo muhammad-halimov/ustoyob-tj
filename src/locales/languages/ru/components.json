@@ -36,7 +36,9 @@
     "defaultClient": "Заказчик",
     "negotiablePrice": "Цена договорная",
     "respond": "Откликнуться",
-    "responded": "Откликнулся"
+    "responded": "Откликнулся",
+    "notApproved": "Не подтверждено",
+    "banned": "Заблокировано"
   },
   "validation": {
     "required": "Это поле обязательно",

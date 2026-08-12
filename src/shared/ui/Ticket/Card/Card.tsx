@@ -12,7 +12,7 @@ import {Carousel} from '../../Photo/Carousel';
 import {Toggle} from '../../Button/Toggle/Toggle';
 import {ActionsDropdown} from '../../../../widgets/ActionsDropdown';
 import Status from '../../Modal/Status';
-import {IoChatbubbleEllipsesOutline, IoCheckmarkCircle} from 'react-icons/io5';
+import {IoChatbubbleEllipsesOutline, IoCheckmarkCircle, IoTimeOutline, IoBanOutline} from 'react-icons/io5';
 import type {TicketView} from '../../../../entities';
 
 export interface AnnouncementCardProps extends Omit<TicketView, 'id' | 'price' | 'type' | 'category' | 'timeAgo'> {
@@ -92,6 +92,8 @@ export function Card({
   onReviewClick,
   viewsCount,
   responsesCount,
+  approved,
+  banned,
 }: AnnouncementCardProps) {
   const { t, i18n } = useTranslation(['components', 'ticket', 'common']);
   const [, forceUpdate] = useState({});
@@ -200,11 +202,24 @@ export function Card({
         message={errorMessage || ''}
       />
       <div className={styles.card_top_controls}>
-        {displayTicketType && (
-          <div className={styles.card_ticketType}>
-            {displayTicketType}
-          </div>
-        )}
+        <div className={styles.card_type_badges}>
+          {displayTicketType && (
+            <div className={styles.card_ticketType}>
+              {displayTicketType}
+            </div>
+          )}
+          {banned ? (
+            <span className={`${styles.card_statusBadge} ${styles.card_status_banned}`}>
+              <IoBanOutline />
+              {t('app.banned')}
+            </span>
+          ) : approved === false && (
+            <span className={`${styles.card_statusBadge} ${styles.card_status_unapproved}`}>
+              <IoTimeOutline />
+              {t('app.notApproved')}
+            </span>
+          )}
+        </div>
         <div className={styles.card_top_actions}>
           {showActiveToggle && (
             <div
@@ -217,6 +232,7 @@ export function Card({
                 checked={isActive}
                 onChange={onActiveToggle!}
                 label={isActive ? 'Активно' : 'Неактивно'}
+                disabled={banned}
               />
             </div>
           )}
