@@ -1550,6 +1550,27 @@
   }
 }
 
+// Overlays the message list (inside .chatContent, which is position:relative) instead of
+// sitting in normal flow between .chatHeader and .chatContent — both children of .chatArea,
+// which has its own solid background (var(--color-background-primary)); sitting between them
+// meant the banner's margin just revealed *that* panel behind it, not the message list, i.e.
+// it read as "boxed in" rather than floating. InfoBanner itself no longer sets margin/width
+// (see InfoBanner.module.scss), so flush top/left/right is enough — no overrides needed for
+// those. Background is forced opaque + `!important`: InfoBanner's own background (translucent
+// in dark mode) and this rule are two separate CSS Modules files with equal selector
+// specificity, so which one wins a tie is load-order dependent — without `!important`,
+// messages scrolling underneath showed right through it.
+.blockedBanner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  margin: 15px;
+  z-index: 20; // above .chatMessages content and .chatInput (z-index: 10)
+  border-radius: 0 0 12px 12px;
+  background: var(--color-background-primary) !important;
+}
+
 // ===== ФОТО САЙДБАР =====
 .chatContent {
   display: flex;

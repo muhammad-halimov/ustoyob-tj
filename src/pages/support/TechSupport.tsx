@@ -671,6 +671,7 @@ function TechSupport({ embedded = false }: TechSupportProps) {
                             <InfoBanner
                                 icon={<IoInformationCircleOutline />}
                                 message={t('adminCreateDisabled')}
+                                className={styles.adminNotice}
                             />
                         )}
 

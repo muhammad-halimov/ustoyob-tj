@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { getAuthToken } from '../../../utils/authUtils';
 import { InfoBanner } from '../../../shared/ui/Banner/InfoBanner/InfoBanner';
+import styles from './AuthBanner.module.scss';
 
 interface AuthBannerProps {
     message?: string;
@@ -30,6 +31,7 @@ export const AuthBanner: React.FC<AuthBannerProps> = ({
             message={message ?? t('authBannerMessage')}
             buttonLabel={buttonLabel ?? t('authBannerBtn')}
             onButtonClick={onLoginClick}
+            className={styles.banner}
         />
     );
 };

@@ -11,6 +11,7 @@ import {
     setUserEmail,
     setUserRole,
     setUserOccupation,
+    isAdmin,
 } from '../../../../utils/authUtils';
 import { getOccupations } from '../../../../utils/dataCacheUtils';
 import { DateWidget } from '../../../../widgets/DateWidget/DateWidget';
@@ -844,10 +845,18 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         }
         handleClose();
         window.dispatchEvent(new Event('login'));
-        
-        // Перезагружаем страницу после авторизации
+
+        // Админ попадает сразу на очередь заявок ТП (там же сам решает вкладку "Все заявки"
+        // по роли), а не туда, где он листал сайт до входа — обычные пользователи как и раньше
+        // просто перезагружают текущую страницу.
+        const adminRedirect = isAdmin() ? ROUTES.TECH_SUPPORT : null;
+
         setTimeout(() => {
-            window.location.reload();
+            if (adminRedirect) {
+                window.location.href = adminRedirect;
+            } else {
+                window.location.reload();
+            }
         }, 100);
     };
 

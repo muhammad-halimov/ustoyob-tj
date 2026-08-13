@@ -1,0 +1,6 @@
+// InfoBanner itself no longer sets margin/width (a shared atom shouldn't dictate its own
+// external spacing) — AuthBanner's own normal-flow placement (PhonesSection,
+// SocialNetworksSection) still wants the old 20px vertical gap.
+.banner {
+  margin: 20px 0;
+}

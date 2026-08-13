@@ -9,7 +9,7 @@ import { PageLoader } from '../../widgets/PageLoader';
 import { EmptyState } from '../../widgets/EmptyState';
 import styles from "./Chat.module.scss";
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { IoSend, IoAttach, IoImages, IoArchiveOutline, IoArrowUpCircleOutline, IoWarningOutline, IoPencilSharp, IoTrashSharp, IoArrowUndoSharp, IoChatbubblesOutline, IoChevronDown } from "react-icons/io5";
+import { IoSend, IoAttach, IoImages, IoArchiveOutline, IoArrowUpCircleOutline, IoWarningOutline, IoBanOutline, IoPencilSharp, IoTrashSharp, IoArrowUndoSharp, IoChatbubblesOutline, IoChevronDown } from "react-icons/io5";
 import { Preview, usePreview } from '../../shared/ui/Photo/Preview';
 import { MediaSidebar } from '../../shared/ui/Photo/MediaSidebar/MediaSidebar';
 import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
@@ -23,7 +23,10 @@ import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore';
 import { SelectSearch } from '../../shared/ui/SelectSearch';
 import { getPageSize } from '../../utils/pageSizeUtils';
 import { parsePagedResponse, universalApiRequest } from '../../utils/apiUtils';
+import { resolveApiError } from '../../utils/appMessagesUtils';
 import { useShowMore } from '../../hooks';
+import { fetchBlacklistEntries, blockUser as blockUserApi, unblockUser as unblockUserApi } from '../../hooks/useBlacklist';
+import { InfoBanner } from '../../shared/ui/Banner/InfoBanner/InfoBanner';
 import { Marquee } from '../../shared/ui/Text/Marquee';
 import type { User as ApiUser } from '../../entities/api/User';
 import type { Chat as ApiChat, ChatMessage as ApiMessage } from '../../entities/api/Chat';
@@ -636,6 +639,9 @@ function Chat() {
             return typeof data.id === 'number' ? data.id : false;
         } catch (err) {
             console.error(t('chat.messageError'), err);
+            // Surfaces e.g. "user_blocked" (they've blocked you — asymmetric, §10) with the
+            // server's own localized text instead of failing silently.
+            setError(resolveApiError(err, t('chat.messageError')));
             return false;
         }
     }, [t]);
@@ -1175,6 +1181,45 @@ function Chat() {
     const currentInterlocutor = currentChat ? getInterlocutorFromChat(currentChat) : null;
     const showChatArea = selectedChat !== null && currentInterlocutor !== null;
 
+    // Блокировка (§10) — асимметричная и chat-only: блокировка останавливает ЕГО сообщения
+    // вам, но не наоборот. Загружается целиком один раз (не per-chat), чтобы одним и тем же
+    // состоянием пользоваться и в шапке открытого чата, и в дропдауне каждой строки сайдбара
+    // (per-row хук здесь невозможен — хуки нельзя вызывать внутри .map()).
+    const [blockedUsers, setBlockedUsers] = useState<Map<number, number>>(new Map()); // userId -> blacklist entry id
+
+    const refreshBlockedUsers = useCallback(async () => {
+        try {
+            const entries = await fetchBlacklistEntries();
+            setBlockedUsers(new Map(entries.filter(e => e.user).map(e => [e.user!.id, e.id])));
+        } catch {
+            // Non-critical — block/unblock actions still work, just won't reflect status until retried.
+        }
+    }, []);
+
+    useEffect(() => {
+        if (currentUser) refreshBlockedUsers();
+    }, [currentUser, refreshBlockedUsers]);
+
+    const toggleBlockUser = useCallback(async (userId: number, userName: string) => {
+        const existingEntryId = blockedUsers.get(userId);
+        try {
+            if (existingEntryId) {
+                await unblockUserApi(existingEntryId);
+                setBlockedUsers(prev => {
+                    const next = new Map(prev);
+                    next.delete(userId);
+                    return next;
+                });
+            } else {
+                if (!window.confirm(t('chat.blockConfirm', { name: userName }))) return;
+                const entry = await blockUserApi(userId);
+                setBlockedUsers(prev => new Map(prev).set(userId, entry.id));
+            }
+        } catch (err) {
+            setError(resolveApiError(err));
+        }
+    }, [blockedUsers, t]);
+
     // Пока загружается - показать загрузку
     if (isLoading) {
         return <PageLoader text={t('chat.loadingChats')} />;
@@ -1295,6 +1340,12 @@ function Chat() {
                                                     onClick: () => setSidebarComplaintTarget({ chatId: chat.id, interlocutorId: interlocutor.id, ticketId: chat.ticket?.id }),
                                                     danger: true,
                                                 },
+                                                {
+                                                    icon: <IoBanOutline />,
+                                                    label: blockedUsers.has(interlocutor.id) ? t('chat.unblockUser') : t('chat.blockUser'),
+                                                    onClick: () => toggleBlockUser(interlocutor.id, getTranslatedFullName(interlocutor)),
+                                                    danger: !blockedUsers.has(interlocutor.id),
+                                                },
                                             ]}
                                         />
                                     </div>
@@ -1393,12 +1444,26 @@ function Chat() {
                                             hidden: !currentInterlocutor,
                                             danger: true,
                                         },
+                                        {
+                                            icon: <IoBanOutline />,
+                                            label: currentInterlocutor && blockedUsers.has(currentInterlocutor.id) ? t('chat.unblockUser') : t('chat.blockUser'),
+                                            onClick: () => currentInterlocutor && toggleBlockUser(currentInterlocutor.id, getTranslatedFullName(currentInterlocutor)),
+                                            hidden: !currentInterlocutor,
+                                            danger: !(currentInterlocutor && blockedUsers.has(currentInterlocutor.id)),
+                                        },
                                     ]}
                                 />
                             </div>
                         </div>
 
                         <div className={styles.chatContent}>
+                            {currentInterlocutor && blockedUsers.has(currentInterlocutor.id) && (
+                                <InfoBanner
+                                    icon={<IoBanOutline />}
+                                    message={t('chat.blockedBanner', { name: getTranslatedFullName(currentInterlocutor) })}
+                                    className={styles.blockedBanner}
+                                />
+                            )}
                             <div className={styles.chatMessages} ref={messagesContainerRef}>
                                 {messages.length === 0 ? (
                                     <div className={styles.noMessages}>

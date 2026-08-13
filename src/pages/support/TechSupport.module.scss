@@ -37,6 +37,12 @@
   position: relative;
 }
 
+// InfoBanner itself no longer sets margin (a shared atom shouldn't dictate its own external
+// spacing) — restores the vertical gap for this normal-flow placement, above the form.
+.adminNotice {
+  margin: 0 0 map.get(vars.$spacing, 5);
+}
+
 .form {
   background: var(--color-background-primary);
   border-radius: map.get(vars.$border-radius, lg);
