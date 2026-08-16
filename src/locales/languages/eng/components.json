@@ -134,6 +134,8 @@
     "fileNotImage": "File {{filename}} is not an image",
     "authRequired": "Authorization required",
     "deleteConfirm": "Are you sure you want to delete this message?",
+    "deleteImage": "Delete photo",
+    "deleteImageConfirm": "Delete this photo?",
     "loadingChats": "Loading chats...",
     "loadingMessages": "Loading messages...",
     "errorLoadingChats": "Error loading chats",

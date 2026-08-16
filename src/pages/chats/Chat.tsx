@@ -701,6 +701,29 @@ function Chat() {
         }
     }, [selectedChat]);
 
+    // One-off delete straight from the MediaSidebar panel (no need to open full edit mode just
+    // to drop one screenshot) — same "images: remaining" PATCH mechanism as `editMessageOnServer`,
+    // just against whichever message actually owns the picked thumbnail. MediaSidebar only ever
+    // offers this on images whose `deletable` we set to true (own messages), so no extra
+    // ownership check is needed here.
+    const deleteChatImage = useCallback(async (image: { id: number | string }) => {
+        if (!window.confirm(t('chat.deleteImageConfirm'))) return;
+        const owningMessage = messages.find(m => (m.images ?? []).some(img => img.id === image.id));
+        if (!owningMessage) return;
+        try {
+            const remaining = (owningMessage.images ?? []).filter(img => img.id !== image.id).map(img => ({ id: img.id, image: img.name }));
+            await universalApiRequest(`/api/chat-messages/${owningMessage.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: { images: remaining },
+                locale: false,
+            });
+            if (selectedChat) await fetchChatMessages(selectedChat);
+        } catch (err) {
+            console.error('Error deleting image:', err);
+        }
+    }, [messages, selectedChat, fetchChatMessages, t]);
+
     // Загрузка файлов к конкретному сообщению
     const uploadFilesToMessage = useCallback(async (messageId: number, files: File[]): Promise<void> => {
         if (files.length === 0) return;
@@ -1588,13 +1611,21 @@ function Chat() {
 
                             {/* Боковая панель с миниатюрами фото */}
                             <MediaSidebar
-                                images={chatImages.map(img => ({ id: img.id, url: img.imageUrl }))}
+                                images={chatImages.map(img => ({
+                                    id: img.id,
+                                    url: img.imageUrl,
+                                    // Own uploads only — same "each side manages their own" rule as the
+                                    // inline message edit (pencil icon), just reachable from the panel too.
+                                    deletable: !!currentUser && img.author?.id === currentUser.id,
+                                }))}
                                 isOpen={isPhotoSidebarOpen}
                                 onClose={() => setIsPhotoSidebarOpen(false)}
                                 onOpenGallery={index => photoGallery.openGallery(index)}
                                 title={`${t('chat.photos')} (${chatImages.length})`}
                                 galleryButtonLabel="Открыть галерею"
                                 thumbnailAlt={index => t('chat.thumbnail', { index: index + 1 })}
+                                onDeleteImage={deleteChatImage}
+                                deleteButtonLabel={t('chat.deleteImage')}
                             />
                         </div>
 

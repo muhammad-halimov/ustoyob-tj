@@ -134,6 +134,8 @@
     "fileNotImage": "Файли {{filename}} акс нест",
     "authRequired": "Санҷиши ҳаққониӣ лозим аст",
     "deleteConfirm": "Оё шумо мутмаин ҳастед, ки мехоҳед паёмро нест кунед?",
+    "deleteImage": "Тасвирро нест кунед",
+    "deleteImageConfirm": "Ин тасвир нест карда шавад?",
     "loadingChats": "Чатҳо бор мешаванд...",
     "loadingMessages": "Паёмҳо бор мешаванд...",
     "errorLoadingChats": "Хатои боркунии чатҳо",

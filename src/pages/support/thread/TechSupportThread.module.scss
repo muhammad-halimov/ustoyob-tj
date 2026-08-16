@@ -272,6 +272,32 @@
   opacity: 0.75;
 }
 
+// Own-message edit toggle (text + photo removal, see `startEditMessage`) — only ever shown
+// next to a message the current user actually wrote, mirroring Chat's isMine-gated edit icon.
+.messageEditBtn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  border-radius: map.get(vars.$border-radius, sm);
+  transition: background-color 0.2s ease, color 0.2s ease;
+
+  svg { width: 14px; height: 14px; }
+
+  &:hover { background: var(--color-background-all); color: var(--color-primary); }
+}
+
+.messageEditActions {
+  flex-shrink: 0;
+}
+
 .messageBody {
   color: var(--color-text-primary);
   font-size: map.get(vars.$font-sizes, base);

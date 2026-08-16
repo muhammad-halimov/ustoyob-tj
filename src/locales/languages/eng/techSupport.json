@@ -60,10 +60,13 @@
     "bannedNotice": "This ticket has been banned — it's read-only now, sending messages and files is disabled.",
     "bannedNoticeAdmin": "This ticket is banned for its author — they can't send messages or files anymore, but as an admin you can still reply.",
     "editTicket": "Edit request",
+    "editMessage": "Edit message",
     "editError": "Failed to save changes",
     "media": "Media",
     "openGallery": "Open gallery",
-    "mediaThumbnail": "Image {{index}}"
+    "mediaThumbnail": "Image {{index}}",
+    "deleteImage": "Delete photo",
+    "deleteImageConfirm": "Delete this photo?"
   },
   "form": {
     "titleLabel": "Subject",

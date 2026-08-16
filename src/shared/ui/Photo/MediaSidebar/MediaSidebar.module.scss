@@ -193,3 +193,28 @@
     height: 22px;
   }
 }
+
+// Deliberately *not* tied to hover like `.thumbnailOverlay` (the eye icon there is purely
+// decorative — the whole thumbnail is already clickable) — a delete action needs to actually
+// be reachable on touch devices, which never trigger `:hover` at all.
+.deleteBtn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 1;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  border: none;
+  border-radius: 50%;
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 0.15s;
+
+  svg { width: 13px; height: 13px; }
+
+  &:hover { background: rgba(220, 53, 69, 0.9); }
+}

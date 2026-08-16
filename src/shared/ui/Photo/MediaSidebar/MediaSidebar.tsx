@@ -1,10 +1,12 @@
-import { IoImages, IoEye } from 'react-icons/io5';
+import { IoImages, IoEye, IoTrashOutline } from 'react-icons/io5';
 import { Clear } from '../../Button/Clear/Clear';
 import styles from './MediaSidebar.module.scss';
 
 export interface MediaSidebarImage {
     id: number | string;
     url: string;
+    /** True when the current viewer is allowed to delete this specific image (their own upload) — offers the trash button on it when `onDeleteImage` is also given. */
+    deletable?: boolean;
 }
 
 export interface MediaSidebarProps {
@@ -23,6 +25,15 @@ export interface MediaSidebarProps {
     fallbackImageSrc?: string;
     /** Lets a consumer size/position the panel for its own layout (e.g. bound it to a shorter thread view). */
     className?: string;
+    /**
+     * Deletes one image directly from the panel — shown only on thumbnails whose `deletable`
+     * is true (the caller decides ownership: chat message author, tech-support ticket/message
+     * author, etc.). Omit to keep the panel read-only, e.g. for a viewer with nothing here to
+     * delete. The caller does the actual PATCH/refetch; this just reports which one was picked.
+     */
+    onDeleteImage?: (image: MediaSidebarImage) => void;
+    /** Already-translated title/aria-label for the per-thumbnail delete button. */
+    deleteButtonLabel?: string;
 }
 
 /**
@@ -42,6 +53,8 @@ export function MediaSidebar({
     thumbnailAlt,
     fallbackImageSrc = '/img/icons/misc/fonTest5.png',
     className,
+    onDeleteImage,
+    deleteButtonLabel,
 }: MediaSidebarProps) {
     if (images.length === 0) return null;
 
@@ -73,6 +86,17 @@ export function MediaSidebar({
                             <div className={styles.thumbnailOverlay}>
                                 <IoEye />
                             </div>
+                            {image.deletable && onDeleteImage && (
+                                <button
+                                    type="button"
+                                    className={styles.deleteBtn}
+                                    onClick={e => { e.stopPropagation(); onDeleteImage(image); }}
+                                    title={deleteButtonLabel}
+                                    aria-label={deleteButtonLabel}
+                                >
+                                    <IoTrashOutline />
+                                </button>
+                            )}
                         </div>
                     ))}
                 </div>

@@ -134,6 +134,8 @@
     "fileNotImage": "Файл {{filename}} не является изображением",
     "authRequired": "Необходима авторизация",
     "deleteConfirm": "Вы уверены, что хотите удалить сообщение?",
+    "deleteImage": "Удалить фото",
+    "deleteImageConfirm": "Удалить это фото?",
     "loadingChats": "Загрузка чатов...",
     "loadingMessages": "Загрузка сообщений...",
     "errorLoadingChats": "Ошибка загрузки чатов",

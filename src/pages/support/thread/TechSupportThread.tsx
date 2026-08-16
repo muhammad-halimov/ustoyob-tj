@@ -11,7 +11,7 @@ import { decodeHtmlEntities } from '../../../utils/textUtils';
 import { getAppealReasons, getMyTechSupports } from '../../../utils/dataCacheUtils';
 import { openMercureSource } from '../../../utils/mercureUtils';
 import { useLanguageChange } from '../../../hooks';
-import Grid, { type PhotoItem } from '../../../shared/ui/Photo/Grid';
+import Grid, { type PhotoItem, buildOrderedImagePayload } from '../../../shared/ui/Photo/Grid';
 import { Preview, usePreview } from '../../../shared/ui/Photo/Preview';
 import { MediaSidebar } from '../../../shared/ui/Photo/MediaSidebar/MediaSidebar';
 import { SelectSearch } from '../../../shared/ui/SelectSearch';
@@ -41,6 +41,14 @@ interface TechSupportThreadProps {
 }
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB — same cap as Chat's attach flow
+
+// Always chronological by `createdAt`, never by `updatedAt` — editing an old message (see
+// `saveEditMessage`) bumps its `updatedAt`, and if that were ever used for ordering (a GET
+// response isn't guaranteed to keep insertion order once a row's been touched) the edited
+// message would jump to the bottom as if it were brand new. Chat.tsx sorts its own message
+// list by `createdAt` for the same reason — mirrored here.
+const sortMessagesByCreatedAt = (messages: TechSupportMessage[]): TechSupportMessage[] =>
+    [...messages].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
 /**
  * Message thread for a single tech-support ticket — a full-width ticket/reply view
@@ -87,6 +95,18 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     const [editReasonIri, setEditReasonIri] = useState('');
     const [editPriority, setEditPriority] = useState('');
     const [editStatus, setEditStatus] = useState('');
+    // Admin-only per §11 (author's PATCH silently no-ops every field but `status`) — lets the
+    // original request's screenshots be pruned the same way title/description already can be.
+    const [editImages, setEditImages] = useState<PhotoItem[]>([]);
+
+    // Own-message edit mode (either side — whoever actually wrote the message, mirrors Chat's
+    // isMine-gated edit) — text + photo removal for a single already-sent reply. Admins don't
+    // get this (they don't touch other people's message text) — their reach over other
+    // people's photos is MediaSidebar-only, see `sentImages`/`deleteSentImage` below.
+    const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
+    const [isSavingMessage, setIsSavingMessage] = useState(false);
+    const [editMessageText, setEditMessageText] = useState('');
+    const [editMessagePhotos, setEditMessagePhotos] = useState<PhotoItem[]>([]);
 
     // Marks every unread reply on this ticket as read server-side (§11: `author != caller &&
     // readAt == null`). Fire-and-forget — a failure here just leaves the tickets-list bubble
@@ -99,7 +119,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
         try {
             setError('');
             const data: SupportTicket = await universalApiRequest(`/api/tech-supports/${ticketId}`);
-            setTicket(data);
+            setTicket({ ...data, messages: sortMessagesByCreatedAt(data.messages ?? []) });
             // Viewing the thread marks everything currently in it as read — clears the
             // "new messages" bubble on the tickets list for this ticket.
             markThreadRead();
@@ -183,7 +203,9 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                             setTicket(prev => {
                                 if (!prev) return prev;
                                 if ((prev.messages ?? []).some(m => m.id === msg.id)) return prev;
-                                return { ...prev, messages: [...(prev.messages ?? []), msg] };
+                                // Re-sorted, not just appended — SSE delivery order isn't
+                                // guaranteed to match `createdAt` order under all conditions.
+                                return { ...prev, messages: sortMessagesByCreatedAt([...(prev.messages ?? []), msg]) };
                             });
                             // Thread is open — the incoming message is read the moment it arrives.
                             // (No-op server-side if it happens to be our own echoed-back message.)
@@ -193,7 +215,9 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                             // e.g. just-appended via "created" above) `messages` list instead of
                             // trusting whatever snapshot rode along with the status change.
                             const updated = data as SupportTicket;
-                            setTicket(prev => (prev ? { ...prev, ...updated, messages: prev.messages ?? updated.messages } : updated));
+                            setTicket(prev => (prev
+                                ? { ...prev, ...updated, messages: prev.messages ?? sortMessagesByCreatedAt(updated.messages ?? []) }
+                                : { ...updated, messages: sortMessagesByCreatedAt(updated.messages ?? []) }));
                         }
                     } catch {
                         // ignore malformed events
@@ -347,6 +371,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
         setEditReasonIri(ticket.reason?.id != null ? `/api/appeal-reasons/${ticket.reason.id}` : '');
         setEditPriority(ticket.priority != null ? String(ticket.priority) : '');
         setEditStatus(statusKey ?? '');
+        setEditImages((ticket.images ?? []).map(img => ({ type: 'existing' as const, id: img.id, image: img.image })));
         setIsEditingTicket(true);
     };
 
@@ -355,6 +380,29 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     const saveEditTicket = async () => {
         setIsSavingTicket(true);
         try {
+            // New files first (so their ids exist server-side), then re-fetch the ticket's own
+            // image list to learn those ids before computing what to keep/drop — same two-step
+            // dance as Chat's message edit (upload → refetch → buildOrderedImagePayload).
+            const newFiles = editImages.filter((p): p is Extract<PhotoItem, { type: 'new' }> => p.type === 'new').map(p => p.file);
+            if (newFiles.length > 0) {
+                try {
+                    await uploadPhotos('tech-supports', ticketId, newFiles);
+                } catch {
+                    // Non-critical — the rest of the edit still saves either way.
+                }
+            }
+            let currentImages: { id: number; image: string }[] = ticket?.images ?? [];
+            if (newFiles.length > 0) {
+                try {
+                    const fresh: SupportTicket = await universalApiRequest(`/api/tech-supports/${ticketId}`, { locale: false });
+                    currentImages = fresh.images ?? [];
+                } catch {
+                    // Falls back to the pre-upload snapshot — newly uploaded files just won't
+                    // be prunable until the next edit in that (unlikely) case.
+                }
+            }
+            const orderedImages = buildOrderedImagePayload(editImages, currentImages);
+
             await universalApiRequest(`/api/tech-supports/${ticketId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/merge-patch+json' },
@@ -364,6 +412,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                     ...(editReasonIri ? { reason: editReasonIri } : {}),
                     ...(editPriority ? { priority: editPriority } : {}),
                     ...(editStatus ? { status: editStatus } : {}),
+                    images: orderedImages,
                 },
                 locale: false,
             });
@@ -379,21 +428,126 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
         }
     };
 
+    // Own-message edit — mirrors Chat's `editMessageOnServer`: whoever actually wrote the
+    // reply (author or admin, whichever it was) can go back and drop an attached screenshot,
+    // same "each side manages their own content" model as chat.
+    const startEditMessage = (msg: TechSupportMessage) => {
+        setEditMessageText(msg.description ?? '');
+        setEditMessagePhotos((msg.images ?? []).map(img => ({ type: 'existing' as const, id: img.id, image: img.image })));
+        setEditingMessageId(msg.id);
+    };
+
+    const cancelEditMessage = () => {
+        setEditingMessageId(null);
+        setEditMessagePhotos([]);
+    };
+
+    const saveEditMessage = async () => {
+        if (editingMessageId == null) return;
+        setIsSavingMessage(true);
+        try {
+            const newFiles = editMessagePhotos.filter((p): p is Extract<PhotoItem, { type: 'new' }> => p.type === 'new').map(p => p.file);
+            if (newFiles.length > 0) {
+                try {
+                    await uploadPhotos('tech-support-messages', editingMessageId, newFiles);
+                } catch {
+                    // Non-critical — text/photo removal below still saves either way.
+                }
+            }
+
+            const existingBeforeSave = ticket?.messages?.find(m => m.id === editingMessageId)?.images ?? [];
+            let currentImages: { id: number; image: string }[] = existingBeforeSave;
+            if (newFiles.length > 0) {
+                try {
+                    const fresh: TechSupportMessage = await universalApiRequest(`/api/tech-support-messages/${editingMessageId}`, { locale: false });
+                    currentImages = fresh.images ?? [];
+                } catch {
+                    // Falls back to the pre-upload snapshot — newly uploaded files just won't
+                    // be prunable until the next edit in that (unlikely) case.
+                }
+            }
+            const orderedImages = buildOrderedImagePayload(editMessagePhotos, currentImages);
+
+            await universalApiRequest(`/api/tech-support-messages/${editingMessageId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/merge-patch+json' },
+                body: { description: editMessageText.trim(), images: orderedImages },
+                locale: false,
+            });
+            await fetchTicket();
+            cancelEditMessage();
+        } catch {
+            setError(t('thread.editError'));
+        } finally {
+            setIsSavingMessage(false);
+        }
+    };
+
     // Flattened list of every already-uploaded image in the thread (original request +
     // each message — two different upload folders, see imageUtils.ts) — feeds both the
     // full-screen gallery and the MediaSidebar thumbnail panel, so clicking any sent
     // attachment (inline or from the sidebar) opens the gallery at the right position.
+    // Each item also carries where it came from + whether the viewer may delete it straight
+    // from the sidebar (see `deleteSentImage`). Admins can drop anything, anywhere in the
+    // thread (§11: they're the moderators here) — ticket-level images only for an admin
+    // either way, since author's PATCH silently no-ops `images` regardless. A non-admin can
+    // only delete images off their own messages, same "each side manages their own" rule as
+    // the inline per-message edit pencil.
+    type SentImageSource = { type: 'ticket' } | { type: 'message'; messageId: number };
     const sentImages = useMemo(() => {
         if (!ticket) return [];
-        const items: { id: number; url: string }[] = (ticket.images ?? []).map(img => ({ id: img.id, url: formatTechSupportImageUrl(img.image) }));
-        (ticket.messages ?? []).forEach(m => (m.images ?? []).forEach(img => items.push({ id: img.id, url: formatTechSupportMessageImageUrl(img.image) })));
+        const items: { id: number; url: string; deletable: boolean; source: SentImageSource }[] =
+            (ticket.images ?? []).map(img => ({ id: img.id, url: formatTechSupportImageUrl(img.image), deletable: isAdminUser, source: { type: 'ticket' } }));
+        (ticket.messages ?? []).forEach(m => {
+            const mine = !!currentUserId && m.author?.id === currentUserId;
+            (m.images ?? []).forEach(img => items.push({ id: img.id, url: formatTechSupportMessageImageUrl(img.image), deletable: isAdminUser || mine, source: { type: 'message', messageId: m.id } }));
+        });
         return items;
-    }, [ticket]);
+    }, [ticket, isAdminUser, currentUserId]);
     const sentImageUrls = useMemo(() => sentImages.map(img => img.url), [sentImages]);
     const sentGallery = usePreview({ images: sentImageUrls });
     const openSentImage = (url: string) => {
         const index = sentImageUrls.indexOf(url);
         sentGallery.openGallery(index >= 0 ? index : 0);
+    };
+
+    // One-off delete straight from the sidebar (no need to enter the full inline edit mode
+    // just to drop a single screenshot). Takes a plain MediaSidebarImage (that's the shared
+    // component's callback shape) and looks its `source` back up from `sentImages` by id,
+    // rather than widening MediaSidebar's own type for one caller's needs.
+    //
+    // Two different mechanisms depending on who's deleting (§14/§15 of API_REFERENCE.md):
+    // - Admin: `DELETE /api/multiple-images/{id}` — ROLE_ADMIN-only, no ownership check at
+    //   all, deletes by the photo's own id regardless of which entity (ticket or *any*
+    //   message, even one the admin didn't write) owns it. This is what actually makes
+    //   "admin deletes any photo" work — the PATCH-with-remaining-images route below is
+    //   restricted to the entity's own author/participant, so an admin PATCHing someone
+    //   else's message to prune its images 403s.
+    // - Non-admin: PATCH-with-remaining-images on their own message, same mechanism as
+    //   `saveEditMessage` — the only route available to them, and the only one that needs
+    //   `source` at all now.
+    const deleteSentImage = async (image: { id: number | string }) => {
+        if (!ticket || !window.confirm(t('thread.deleteImageConfirm'))) return;
+        try {
+            if (isAdminUser) {
+                await universalApiRequest(`/api/multiple-images/${image.id}`, { method: 'DELETE', locale: false });
+            } else {
+                const source = sentImages.find(i => i.id === image.id)?.source;
+                if (!source || source.type !== 'message') return;
+                const msg = ticket.messages?.find(m => m.id === source.messageId);
+                const remaining = (msg?.images ?? []).filter(img => img.id !== image.id).map(img => ({ id: img.id, image: img.image }));
+                await universalApiRequest(`/api/tech-support-messages/${source.messageId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/merge-patch+json' },
+                    body: { images: remaining },
+                    locale: false,
+                });
+            }
+            await fetchTicket();
+            getMyTechSupports.clearCache();
+        } catch {
+            setError(t('thread.editError'));
+        }
     };
 
     return (
@@ -557,7 +711,16 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                             ) : (
                                 <div className={styles.messageBody}>{decodeHtmlEntities(ticket.description)}</div>
                             )}
-                            {(ticket.images ?? []).length > 0 && (
+                            {isEditingTicket ? (
+                                <Grid
+                                    photos={editImages}
+                                    onChange={setEditImages}
+                                    getImageUrl={formatTechSupportImageUrl}
+                                    inputId="ts-thread-edit-ticket-photos"
+                                    photoAlt={t('form.photoAlt')}
+                                    disabled={isSavingTicket}
+                                />
+                            ) : (ticket.images ?? []).length > 0 && (
                                 <div className={styles.messageImages}>
                                     {ticket.images!.map(img => {
                                         const url = formatTechSupportImageUrl(img.image);
@@ -596,6 +759,8 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                             const displayName = isMine ? (myName || authorName) : authorName;
                             const authorLabel = displayName ? `${displayName} (${roleTag})` : roleTag;
 
+                            const isEditingThisMessage = editingMessageId === msg.id;
+
                             return (
                                 <div key={msg.id} className={`${styles.message} ${isMine ? styles.messageMine : styles.messageSupport}`}>
                                     <div className={styles.messageHeader}>
@@ -604,23 +769,66 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                                             <Marquee text={authorLabel} alwaysScroll threshold={16} />
                                         </span>
                                         <span className={styles.messageTime}>{getFormattedDateTime(msg.createdAt)}</span>
+                                        {isMine && (
+                                            isEditingThisMessage ? (
+                                                <EditActions
+                                                    onSave={saveEditMessage}
+                                                    onCancel={cancelEditMessage}
+                                                    saveDisabled={isSavingMessage}
+                                                    className={styles.messageEditActions}
+                                                />
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    className={styles.messageEditBtn}
+                                                    onClick={() => startEditMessage(msg)}
+                                                    aria-label={t('thread.editMessage')}
+                                                    title={t('thread.editMessage')}
+                                                >
+                                                    <IoPencilOutline />
+                                                </button>
+                                            )
+                                        )}
                                     </div>
-                                    {msg.description && <div className={styles.messageBody}>{decodeHtmlEntities(msg.description)}</div>}
-                                    {(msg.images ?? []).length > 0 && (
-                                        <div className={styles.messageImages}>
-                                            {msg.images.map(img => {
-                                                const url = formatTechSupportMessageImageUrl(img.image);
-                                                return (
-                                                    <img
-                                                        key={img.id}
-                                                        src={url}
-                                                        alt=""
-                                                        className={styles.messageImage}
-                                                        onClick={() => openSentImage(url)}
-                                                    />
-                                                );
-                                            })}
-                                        </div>
+                                    {isEditingThisMessage ? (
+                                        <>
+                                            <textarea
+                                                className={styles.editTextarea}
+                                                value={editMessageText}
+                                                onChange={e => setEditMessageText(e.target.value)}
+                                                placeholder={t('thread.placeholder')}
+                                                rows={3}
+                                                disabled={isSavingMessage}
+                                            />
+                                            <Grid
+                                                photos={editMessagePhotos}
+                                                onChange={setEditMessagePhotos}
+                                                getImageUrl={formatTechSupportMessageImageUrl}
+                                                inputId={`ts-thread-edit-message-${msg.id}-photos`}
+                                                photoAlt={t('form.photoAlt')}
+                                                disabled={isSavingMessage}
+                                            />
+                                        </>
+                                    ) : (
+                                        <>
+                                            {msg.description && <div className={styles.messageBody}>{decodeHtmlEntities(msg.description)}</div>}
+                                            {(msg.images ?? []).length > 0 && (
+                                                <div className={styles.messageImages}>
+                                                    {msg.images.map(img => {
+                                                        const url = formatTechSupportMessageImageUrl(img.image);
+                                                        return (
+                                                            <img
+                                                                key={img.id}
+                                                                src={url}
+                                                                alt=""
+                                                                className={styles.messageImage}
+                                                                onClick={() => openSentImage(url)}
+                                                            />
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                             );
@@ -641,6 +849,8 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                         galleryButtonLabel={t('thread.openGallery')}
                         thumbnailAlt={index => t('thread.mediaThumbnail', { index: index + 1 })}
                         className={styles.mediaSidebar}
+                        onDeleteImage={deleteSentImage}
+                        deleteButtonLabel={t('thread.deleteImage')}
                     />
                     </div>
 
