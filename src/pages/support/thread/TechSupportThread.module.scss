@@ -88,8 +88,27 @@
 // Bounds each status/priority/category SelectSearch to a reasonable width instead of
 // stretching to `.threadMeta`'s full row (SelectSearch defaults to width:100%).
 .editField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   min-width: 160px;
   max-width: 220px;
+}
+
+// Wraps the title `<input>` the same way `.editField` wraps each SelectSearch, so it gets
+// the same label-above-field annotation instead of being the only unlabeled edit control.
+.editTitleField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+// Annotation above each edit field — SelectSearch's own placeholder disappears once a value
+// is picked, so without this the field becomes unlabeled the moment it's filled in.
+.editFieldLabel {
+  font-size: map.get(vars.$font-sizes, base);
+  font-weight: 600;
+  color: var(--color-text-secondary);
 }
 
 .editTextarea {
@@ -124,6 +143,29 @@
   gap: 4px;
 
   svg { width: 14px; height: 14px; flex-shrink: 0; }
+}
+
+// Spells out which field a badge is ("Статус:", "Приоритет:", "Категория:") instead of
+// leaving that to the icon + a hover-only `title` — not obvious at a glance, especially for
+// the author's own view, which never sees the equivalent labeled edit-mode fields (those are
+// admin-only). Dimmer + lighter weight than the value itself so it reads as a caption, not a
+// second value competing with it.
+.badgeLabel {
+  font-weight: 400;
+  opacity: 0.75;
+  flex-shrink: 0;
+}
+
+// Category/counterpart badges carry free-text (an AppealReason title, a person's full name) —
+// unlike status/priority, which are always short, bounded enum labels. The cap belongs on the
+// value itself (`.badgeMarquee`), not the whole badge — capping the badge counted the
+// `.badgeLabel` prefix ("Категория:"/"Исполнитель:") against the same budget, which left so
+// little room for the actual value that it scrolled constantly even for perfectly normal,
+// previously-fine-fitting text. This way the label always shows in full and only a genuinely
+// long value gets truncated.
+.badgeMarquee {
+  max-width: 200px;
+  min-width: 0;
 }
 
 .status_new { background: rgba(58, 84, 218, 0.12); color: #3A54DA; }
@@ -196,18 +238,35 @@
   align-items: center;
   gap: map.get(vars.$spacing, 2);
   margin-bottom: map.get(vars.$spacing, 2);
+
+  // Role icon (executor/author) in front of the name — same annotate-on-hover pattern as the
+  // status/priority/category badges above, via its native `title` attribute.
+  > svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    color: var(--color-text-secondary);
+  }
 }
 
 .messageAuthorName {
   font-size: map.get(vars.$font-sizes, sm);
   font-weight: 600;
   color: var(--color-text-black);
+  // Shrinks first when the (name + role tag) label is long — `.messageTime` keeps its
+  // natural width instead of getting squeezed out, and Marquee inside gets an actual
+  // bound to scroll against instead of just growing past the message card's edge.
+  flex: 1;
+  min-width: 0;
 }
 
 .messageMine .messageAuthorName { color: var(--color-primary); }
 .messageSupport .messageAuthorName { color: #1F9D5D; }
+.messageMine .messageHeader > svg { color: var(--color-primary); }
+.messageSupport .messageHeader > svg { color: #1F9D5D; }
 
 .messageTime {
+  flex-shrink: 0;
   font-size: map.get(vars.$font-sizes, xs);
   color: var(--color-text-secondary);
   opacity: 0.75;

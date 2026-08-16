@@ -179,8 +179,21 @@ export const setUserData = (data: User): void => {
  * for UI gating, but the API itself is still the source of truth for anything sensitive.
  */
 export const isAdmin = (): boolean => {
-    const roles = getUserData()?.roles ?? [];
-    return roles.includes('ROLE_ADMIN') || roles.includes('ROLE_SUPER_ADMIN');
+    const roles = getUserData()?.roles;
+    // `roles` has turned up in practice as a plain object with numeric-string keys —
+    // {"0":"ROLE_SUPER_ADMIN","1":"ROLE_ADMIN","3":"ROLE_USER"} — instead of a real array
+    // (looks like an array that had an item removed via `delete arr[i]` somewhere upstream,
+    // leaving a hole, then got `{...spread}` into a plain object). `Object.values()` reads
+    // the role strings correctly either way — real array or this object shape — where
+    // `Array.isArray` + `.includes` would silently no-op on the object and miss every admin.
+    if (roles == null || typeof roles !== 'object') return false;
+    // Normalized (lowercase, underscores stripped) rather than an exact-string match — same
+    // defensive style as the role checks in Auth.tsx. Backend role spelling has turned up
+    // inconsistent in practice (seen: `ROLE_SUPERADMIN` with no underscore, vs. the
+    // `ROLE_SUPER_ADMIN` API_REFERENCE.md documents), so match on either variant instead of
+    // silently missing admins over a spelling difference.
+    const normalized = Object.values(roles).map(r => String(r).toLowerCase().replace(/_/g, ''));
+    return normalized.includes('roleadmin') || normalized.includes('rolesuperadmin');
 };
 
 // ============ Работа с email пользователя ============

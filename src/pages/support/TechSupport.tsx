@@ -18,7 +18,7 @@ import Status from '../../shared/ui/Modal/Status';
 import { EmptyState } from '../../widgets/EmptyState';
 import { EditActions } from '../profile/shared/ui/EditActions/EditActions';
 import { Tabs } from '../../shared/ui/Tabs';
-import { InfoBanner } from '../../shared/ui/Banner/InfoBanner/InfoBanner';
+import { InfoBanner } from '../../widgets/Banners/InfoBanner/InfoBanner';
 import { useLanguageChange } from '../../hooks';
 import { TechSupportSortingFilter } from '../../widgets/Sorting/TechSupportCriteriaFilter';
 import TechSupportThread from './thread/TechSupportThread';
@@ -176,16 +176,32 @@ function TechSupport({ embedded = false }: TechSupportProps) {
             inboxSourceRef.current = source;
             source.onmessage = (event) => {
                 try {
-                    const { type, data }: { type: string; data: TechSupportMessage & { techSupport?: { id: number } } } = JSON.parse(event.data);
-                    if (type !== 'created') return;
-                    const ticketId = data.techSupport?.id;
-                    if (!ticketId) return;
+                    const { type, data } = JSON.parse(event.data) as {
+                        type: string;
+                        data: (TechSupportMessage & { techSupport?: { id: number } }) | SupportTicket;
+                    };
 
-                    setMyTickets(prev => prev.map(ticket => {
-                        if (ticket.id !== ticketId) return ticket;
-                        if ((ticket.messages ?? []).some(m => m.id === data.id)) return ticket;
-                        return { ...ticket, messages: [...(ticket.messages ?? []), data] };
-                    }));
+                    if (type === 'created') {
+                        const msg = data as TechSupportMessage & { techSupport?: { id: number } };
+                        const ticketId = msg.techSupport?.id;
+                        if (!ticketId) return;
+
+                        setMyTickets(prev => prev.map(ticket => {
+                            if (ticket.id !== ticketId) return ticket;
+                            if ((ticket.messages ?? []).some(m => m.id === msg.id)) return ticket;
+                            return { ...ticket, messages: [...(ticket.messages ?? []), msg] };
+                        }));
+                    } else if (type === 'updated') {
+                        // Status changed elsewhere (own self-transition on another tab, or an
+                        // admin action) — same instant sync the open-thread view gets, but here
+                        // for every row in the table at once, without needing to open any of them.
+                        const updated = data as SupportTicket;
+                        if (updated?.id == null) return;
+
+                        setMyTickets(prev => prev.map(ticket => (
+                            ticket.id === updated.id ? { ...ticket, ...updated, messages: ticket.messages ?? updated.messages } : ticket
+                        )));
+                    }
                 } catch {
                     // ignore malformed events
                 }
@@ -206,6 +222,17 @@ function TechSupport({ embedded = false }: TechSupportProps) {
             inboxSourceRef.current = null;
         };
     }, [isAuth, startInboxSSE]);
+
+    // Keeps the tickets table in sync the instant something changes inside an open thread —
+    // an admin's inline edit-save, or a reply auto-reopening a closed/resolved ticket (see
+    // TechSupportThread) — instead of leaving this row stale until the next full
+    // /tech-supports/me refetch (cache-clearing alone only affects *future* loads, not the
+    // list already sitting in state here).
+    const handleTicketChange = useCallback((updated: SupportTicket) => {
+        setMyTickets(prev => prev.some(t => t.id === updated.id)
+            ? prev.map(t => (t.id === updated.id ? { ...t, ...updated } : t))
+            : prev);
+    }, []);
 
     // TechSupportThread marks a ticket's messages read server-side the moment it's opened,
     // but marking read doesn't emit a Mercure event (§11) — so mirror that locally here too,
@@ -439,7 +466,7 @@ function TechSupport({ embedded = false }: TechSupportProps) {
             )}
 
             {openTicketId ? (
-                <TechSupportThread ticketId={openTicketId} />
+                <TechSupportThread ticketId={openTicketId} onTicketChange={handleTicketChange} />
             ) : (
                 <>
                     <div className={styles.tabsWrapper}>

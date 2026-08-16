@@ -26,7 +26,7 @@ import { parsePagedResponse, universalApiRequest } from '../../utils/apiUtils';
 import { resolveApiError } from '../../utils/appMessagesUtils';
 import { useShowMore } from '../../hooks';
 import { fetchBlacklistEntries, blockUser as blockUserApi, unblockUser as unblockUserApi } from '../../hooks/useBlacklist';
-import { InfoBanner } from '../../shared/ui/Banner/InfoBanner/InfoBanner';
+import { InfoBanner } from '../../widgets/Banners/InfoBanner/InfoBanner';
 import { Marquee } from '../../shared/ui/Text/Marquee';
 import type { User as ApiUser } from '../../entities/api/User';
 import type { Chat as ApiChat, ChatMessage as ApiMessage } from '../../entities/api/Chat';

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type * as React from 'react';
 import { useTranslation } from 'react-i18next';
-import { IoSend, IoAttach, IoPricetagOutline, IoImages, IoBanOutline, IoPencilOutline } from 'react-icons/io5';
+import { IoSend, IoAttach, IoPricetagOutline, IoImages, IoBanOutline, IoPencilOutline, IoPersonOutline, IoHeadsetOutline } from 'react-icons/io5';
 import styles from './TechSupportThread.module.scss';
 import { universalApiRequest } from '../../../utils/apiUtils';
 import { getUserData, isAdmin } from '../../../utils/authUtils';
@@ -15,6 +15,7 @@ import Grid, { type PhotoItem } from '../../../shared/ui/Photo/Grid';
 import { Preview, usePreview } from '../../../shared/ui/Photo/Preview';
 import { MediaSidebar } from '../../../shared/ui/Photo/MediaSidebar/MediaSidebar';
 import { SelectSearch } from '../../../shared/ui/SelectSearch';
+import { Marquee } from '../../../shared/ui/Text/Marquee';
 import { EditActions } from '../../profile/shared/ui/EditActions/EditActions';
 import { EmptyState } from '../../../widgets/EmptyState';
 import {
@@ -30,6 +31,13 @@ import {
 
 interface TechSupportThreadProps {
     ticketId: number;
+    /**
+     * Fired every time the local `ticket` state changes (initial load, admin edit-save, a
+     * reply auto-reopening a closed/resolved ticket, …) — lets the parent tickets table
+     * (TechSupport.tsx) mirror the change into its own list state instantly, instead of
+     * only finding out on its next full refetch.
+     */
+    onTicketChange?: (ticket: SupportTicket) => void;
 }
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB — same cap as Chat's attach flow
@@ -42,7 +50,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB — same cap as Chat's attach fl
  * building blocks rather than reinventing them.
  * Not real-time (no SSE/polling) by design, unlike the full Chat page.
  */
-function TechSupportThread({ ticketId }: TechSupportThreadProps) {
+function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps) {
     const { t } = useTranslation('techSupport');
     const currentUserId = getUserData()?.id;
     // Admin-only ticket-fields editing (§11: PATCH accepts title/reason/priority/description/
@@ -142,9 +150,20 @@ function TechSupportThread({ ticketId }: TechSupportThreadProps) {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }, [ticket?.messages?.length]);
 
+    // Mirrors every local ticket change straight back to the parent's tickets table (see
+    // `onTicketChange` doc) — covers the initial load, admin edit-save, and the
+    // reply-reopens-a-closed-ticket flow alike, since all three just update `ticket` here.
+    useEffect(() => {
+        if (ticket) onTicketChange?.(ticket);
+    }, [ticket, onTicketChange]);
+
     // Real-time delivery — subscribe to this ticket's private Mercure topic (§11) so
-    // support replies show up instantly instead of waiting for a manual refresh.
-    // Only "created" events are ever published (no edit/delete), so that's all we handle.
+    // support replies *and* status changes show up instantly instead of waiting for a manual
+    // refresh. Two event types on this topic: "created" (new TechSupportMessage) and "updated"
+    // (the TechSupport entity itself, fired only on an actual status change — admin action or
+    // an author self-transition like resolved/closed → renewed). Editing/deleting a message,
+    // or PATCHing non-status fields alone, emit nothing — those still rely on the explicit
+    // refetch after saveEditTicket / marking read.
     useEffect(() => {
         let cancelled = false;
         let source: EventSource | null = null;
@@ -157,17 +176,25 @@ function TechSupportThread({ ticketId }: TechSupportThreadProps) {
                 source = openMercureSource([`tech-support:${ticketId}`], token);
                 source.onmessage = (event) => {
                     try {
-                        const { type, data }: { type: string; data: TechSupportMessage } = JSON.parse(event.data);
-                        if (type !== 'created') return;
+                        const { type, data } = JSON.parse(event.data) as { type: string; data: TechSupportMessage | SupportTicket };
 
-                        setTicket(prev => {
-                            if (!prev) return prev;
-                            if ((prev.messages ?? []).some(m => m.id === data.id)) return prev;
-                            return { ...prev, messages: [...(prev.messages ?? []), data] };
-                        });
-                        // Thread is open — the incoming message is read the moment it arrives.
-                        // (No-op server-side if it happens to be our own echoed-back message.)
-                        markThreadRead();
+                        if (type === 'created') {
+                            const msg = data as TechSupportMessage;
+                            setTicket(prev => {
+                                if (!prev) return prev;
+                                if ((prev.messages ?? []).some(m => m.id === msg.id)) return prev;
+                                return { ...prev, messages: [...(prev.messages ?? []), msg] };
+                            });
+                            // Thread is open — the incoming message is read the moment it arrives.
+                            // (No-op server-side if it happens to be our own echoed-back message.)
+                            markThreadRead();
+                        } else if (type === 'updated') {
+                            // Full TechSupport payload — keep our own (possibly further-ahead,
+                            // e.g. just-appended via "created" above) `messages` list instead of
+                            // trusting whatever snapshot rode along with the status change.
+                            const updated = data as SupportTicket;
+                            setTicket(prev => (prev ? { ...prev, ...updated, messages: prev.messages ?? updated.messages } : updated));
+                        }
                     } catch {
                         // ignore malformed events
                     }
@@ -218,6 +245,22 @@ function TechSupportThread({ ticketId }: TechSupportThreadProps) {
                 }
             }
 
+            // Replying to a closed/resolved ticket reopens it — either side (author or admin)
+            // picking the conversation back up means it isn't actually settled anymore.
+            if (statusKey === 'closed' || statusKey === 'resolved') {
+                try {
+                    await universalApiRequest(`/api/tech-supports/${ticketId}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/merge-patch+json' },
+                        body: { status: 'renewed' },
+                        locale: false,
+                    });
+                    getMyTechSupports.clearCache();
+                } catch {
+                    // Non-critical — the message itself already went through either way.
+                }
+            }
+
             setMessage('');
             setPhotos([]);
             await fetchTicket();
@@ -246,18 +289,38 @@ function TechSupportThread({ ticketId }: TechSupportThreadProps) {
     const administrantName = ticket?.administrant
         ? `${ticket.administrant.surname ?? ''} ${ticket.administrant.name ?? ''}`.trim()
         : '';
+    const ticketAuthorName = ticket?.author
+        ? `${ticket.author.surname ?? ''} ${ticket.author.name ?? ''}`.trim()
+        : '';
+    // Counterpart info shown next to status/priority/category: an author looking at their own
+    // ticket cares who's handling it ("Исполнитель"), an admin cares who filed it ("Автор").
+    const counterpartLabel = isAdminUser ? t('thread.authorRole') : t('thread.executorRole');
+    const counterpartName = isAdminUser ? ticketAuthorName : administrantName;
     // Terminal status — API_REFERENCE.md §11: author/guest posting is 403'd server-side once
     // banned, so the composer is replaced with a read-only notice. Admins are exempt — they're
     // the only ones still allowed to post messages/images on a banned ticket per the same doc.
     const isBanned = statusKey === 'banned';
     const canReply = !isBanned || isAdminUser;
 
-    // Current user's own name, for "имя (роль)" labels on your own replies — getUserData()
-    // returns the full cached profile, not just the id.
+    // Current user's own name, prefixed onto "Имя (Вы - роль)" on your own replies —
+    // getUserData() returns the full cached profile, not just the id.
     const myName = useMemo(() => {
         const me = getUserData();
         return me ? `${me.surname ?? ''} ${me.name ?? ''}`.trim() : '';
     }, []);
+
+    // Per-message role, for the message-header label ("Имя (Исполнитель)" / "Имя (Автор)").
+    // Matched against the ticket's own author/administrant ids rather than just mirroring the
+    // opposite of the viewer's own role — a ticket can be replied to by more than one admin
+    // account, so "not the ticket author" isn't reliably "the admin who's assigned to it".
+    // Falls back to the binary assumption only when neither id is known (e.g. a stale/partial
+    // ticket payload).
+    const getMessageRole = useCallback((msgAuthorId?: number | null): 'admin' | 'author' | null => {
+        if (msgAuthorId == null) return null;
+        if (ticket?.author?.id === msgAuthorId) return 'author';
+        if (ticket?.administrant?.id === msgAuthorId) return 'admin';
+        return null;
+    }, [ticket?.author?.id, ticket?.administrant?.id]);
 
     // Admin ticket-fields editing — option lists. Category is scoped to `applicableTo=support`
     // (see `fetchSupportReasons`), same restriction as the create form's picker — a ticket's
@@ -339,21 +402,27 @@ function TechSupportThread({ ticketId }: TechSupportThreadProps) {
                 {ticket && (
                     <div className={styles.threadHeaderInfo}>
                         {isEditingTicket ? (
-                            <input
-                                type="text"
-                                className={styles.editTitleInput}
-                                value={editTitle}
-                                onChange={e => setEditTitle(e.target.value)}
-                                placeholder={t('form.titlePlaceholder')}
-                                disabled={isSavingTicket}
-                            />
+                            <div className={styles.editTitleField} title={t('myTickets.table.title')}>
+                                <span className={styles.editFieldLabel}>{t('myTickets.table.title')}</span>
+                                <input
+                                    type="text"
+                                    className={styles.editTitleInput}
+                                    value={editTitle}
+                                    onChange={e => setEditTitle(e.target.value)}
+                                    placeholder={t('form.titlePlaceholder')}
+                                    disabled={isSavingTicket}
+                                />
+                            </div>
                         ) : (
-                            <h2 className={styles.threadTitle}>{ticket.title || t('myTickets.noTitle')}</h2>
+                            <h2 className={styles.threadTitle}>
+                                <Marquee text={ticket.title || t('myTickets.noTitle')} alwaysScroll threshold={16} />
+                            </h2>
                         )}
                         <div className={styles.threadMeta}>
                             {isEditingTicket ? (
                                 <>
-                                    <div className={styles.editField}>
+                                    <div className={styles.editField} title={t('myTickets.table.status')}>
+                                        <span className={styles.editFieldLabel}>{t('myTickets.table.status')}</span>
                                         <SelectSearch
                                             options={statusEditOptions}
                                             value={editStatus}
@@ -362,7 +431,8 @@ function TechSupportThread({ ticketId }: TechSupportThreadProps) {
                                             disabled={isSavingTicket}
                                         />
                                     </div>
-                                    <div className={styles.editField}>
+                                    <div className={styles.editField} title={t('myTickets.table.priority')}>
+                                        <span className={styles.editFieldLabel}>{t('myTickets.table.priority')}</span>
                                         <SelectSearch
                                             options={priorityEditOptions}
                                             value={editPriority}
@@ -371,7 +441,8 @@ function TechSupportThread({ ticketId }: TechSupportThreadProps) {
                                             disabled={isSavingTicket}
                                         />
                                     </div>
-                                    <div className={styles.editField}>
+                                    <div className={styles.editField} title={t('myTickets.table.category')}>
+                                        <span className={styles.editFieldLabel}>{t('myTickets.table.category')}</span>
                                         <SelectSearch
                                             options={reasonEditOptions}
                                             value={editReasonIri}
@@ -384,28 +455,41 @@ function TechSupportThread({ ticketId }: TechSupportThreadProps) {
                             ) : (
                                 <>
                                     {statusKey && (
-                                        <span className={`${styles.badge} ${styles.statusBadge} ${styles[`status_${statusKey}`] ?? ''}`}>
+                                        <span
+                                            className={`${styles.badge} ${styles.statusBadge} ${styles[`status_${statusKey}`] ?? ''}`}
+                                            title={t('myTickets.table.status')}
+                                        >
                                             {StatusIcon && <StatusIcon />}
+                                            <span className={styles.badgeLabel}>{t('myTickets.table.status')}:</span>
                                             {statusLabel}
                                         </span>
                                     )}
                                     {priorityKey && (
-                                        <span className={`${styles.badge} ${styles.statusBadge} ${styles[`priority_${priorityKey}`] ?? ''}`}>
+                                        <span
+                                            className={`${styles.badge} ${styles.statusBadge} ${styles[`priority_${priorityKey}`] ?? ''}`}
+                                            title={t('myTickets.table.priority')}
+                                        >
                                             {PriorityIcon && <PriorityIcon />}
+                                            <span className={styles.badgeLabel}>{t('myTickets.table.priority')}:</span>
                                             {t(`priority.${priorityKey}`)}
                                         </span>
                                     )}
                                     {(() => {
                                         const reasonTitle = (ticket.reason?.id != null ? reasonTitleById.get(ticket.reason.id) : undefined) ?? ticket.reason?.title;
                                         return reasonTitle && (
-                                            <span className={`${styles.badge} ${styles.statusBadge}`}>
+                                            <span className={`${styles.badge} ${styles.statusBadge}`} title={t('myTickets.table.category')}>
                                                 <IoPricetagOutline />
-                                                {reasonTitle}
+                                                <span className={styles.badgeLabel}>{t('myTickets.table.category')}:</span>
+                                                <Marquee text={reasonTitle} className={styles.badgeMarquee} alwaysScroll threshold={16} />
                                             </span>
                                         );
                                     })()}
-                                    {administrantName && (
-                                        <span className={styles.reasonTag}>{t('thread.support')}: {administrantName}</span>
+                                    {counterpartName && (
+                                        <span className={`${styles.badge} ${styles.statusBadge}`} title={`${counterpartLabel}: ${counterpartName}`}>
+                                            {isAdminUser ? <IoPersonOutline /> : <IoHeadsetOutline />}
+                                            <span className={styles.badgeLabel}>{counterpartLabel}:</span>
+                                            <Marquee text={counterpartName} className={styles.badgeMarquee} alwaysScroll threshold={16} />
+                                        </span>
                                     )}
                                 </>
                             )}
@@ -496,16 +580,29 @@ function TechSupportThread({ ticketId }: TechSupportThreadProps) {
                             const authorName = msg.author
                                 ? `${msg.author.surname ?? ''} ${msg.author.name ?? ''}`.trim()
                                 : '';
-                            // Name shown next to the role, not instead of it — falls back to
-                            // just the role label when the name isn't known.
-                            const authorLabel = isMine
-                                ? (myName ? `${myName} (${t('thread.you')})` : t('thread.you'))
-                                : (authorName ? `${authorName} (${t('thread.support')})` : t('thread.support'));
+                            // Role by ticket membership (author/administrant id match), falling
+                            // back to the binary "not me ⇒ the other side" guess only when that's
+                            // unresolvable — see getMessageRole above.
+                            const msgRole = getMessageRole(msg.author?.id) ?? (isMine
+                                ? (isAdminUser ? 'admin' : 'author')
+                                : (isAdminUser ? 'author' : 'admin'));
+                            const RoleIcon = msgRole === 'admin' ? IoHeadsetOutline : IoPersonOutline;
+                            // Name always shown, own messages just get the "Вы - роль" variant
+                            // of the tag instead of the plain role name — "Админ Админов (Вы -
+                            // исполнитель)", not a bare "Вы - исполнитель" with the name dropped.
+                            const roleTag = isMine
+                                ? (msgRole === 'admin' ? t('thread.youExecutor') : t('thread.youAuthor'))
+                                : (msgRole === 'admin' ? t('thread.executorRole') : t('thread.authorRole'));
+                            const displayName = isMine ? (myName || authorName) : authorName;
+                            const authorLabel = displayName ? `${displayName} (${roleTag})` : roleTag;
 
                             return (
                                 <div key={msg.id} className={`${styles.message} ${isMine ? styles.messageMine : styles.messageSupport}`}>
                                     <div className={styles.messageHeader}>
-                                        <span className={styles.messageAuthorName}>{authorLabel}</span>
+                                        <RoleIcon title={msgRole === 'admin' ? t('thread.executorRole') : t('thread.authorRole')} />
+                                        <span className={styles.messageAuthorName}>
+                                            <Marquee text={authorLabel} alwaysScroll threshold={16} />
+                                        </span>
                                         <span className={styles.messageTime}>{getFormattedDateTime(msg.createdAt)}</span>
                                     </div>
                                     {msg.description && <div className={styles.messageBody}>{decodeHtmlEntities(msg.description)}</div>}
