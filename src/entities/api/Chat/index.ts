@@ -16,7 +16,13 @@ export type Chat = {
     id: number;
     author: User;
     replyAuthor: User;
-    messages: ChatMessage[];
+    // No `messages` field anymore — was a single unbounded array on the Chat entity itself,
+    // now served separately (paginated, newest first) via `GET /api/chats/{id}/messages` —
+    // see Chat.tsx's `fetchChatMessages`/`loadOlderMessages`. In its place, two fields the
+    // backend now computes and keeps current server-side (never travel over Mercure — an SSE
+    // event just means "refetch", see `startInboxSSE`):
+    lastMessage?: ChatMessage | null;
+    unreadCount?: number;
     ticket?: Ticket | null;
     active?: boolean;
     isArchived?: boolean;

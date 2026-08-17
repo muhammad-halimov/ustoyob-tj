@@ -3419,6 +3419,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                     initialRating={editingReview.rating}
                     initialText={editingReview.description}
                     initialImages={editingReview.images}
+                    initialCreatedAt={editingReview.createdAt}
                 />
             )}
 

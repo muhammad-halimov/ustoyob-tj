@@ -9,7 +9,7 @@ import { PageLoader } from '../../widgets/PageLoader';
 import { EmptyState } from '../../widgets/EmptyState';
 import styles from "./Chat.module.scss";
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { IoSend, IoAttach, IoImages, IoArchiveOutline, IoArrowUpCircleOutline, IoWarningOutline, IoBanOutline, IoPencilSharp, IoTrashSharp, IoArrowUndoSharp, IoChatbubblesOutline, IoChevronDown } from "react-icons/io5";
+import { IoSend, IoAttach, IoImages, IoArchiveOutline, IoArrowUpCircleOutline, IoWarningOutline, IoBanOutline, IoTrashOutline, IoPencilSharp, IoTrashSharp, IoArrowUndoSharp, IoChatbubblesOutline, IoChevronDown } from "react-icons/io5";
 import { Preview, usePreview } from '../../shared/ui/Photo/Preview';
 import { MediaSidebar } from '../../shared/ui/Photo/MediaSidebar/MediaSidebar';
 import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
@@ -48,6 +48,11 @@ function Chat() {
     const [chats, setChats] = useState<ApiChat[]>([]);
     const { page: chatPage, appendRef: appendChatsRef, skipFetchRef: skipChatFetchRef, setHasMore: setChatHasMore, showMoreProps: chatsShowMoreProps } = useShowMore<ApiChat>(setChats);
     const [messages, setMessages] = useState<Message[]>([]);
+    // Pagination over GET /chats/{id}/messages (§5, newest-first) for the open thread — reset
+    // to page 1 / hasMore false whenever `selectedChat` changes, see that effect below.
+    const [messagesPage, setMessagesPage] = useState(1);
+    const [hasMoreMessages, setHasMoreMessages] = useState(false);
+    const [isLoadingMoreMessages, setIsLoadingMoreMessages] = useState(false);
     const [newMessage, setNewMessage] = useState("");
     const [isLoading, setIsLoading] = useState(true);
     const [isLoadingMoreChats, setIsLoadingMoreChats] = useState(false);
@@ -72,6 +77,10 @@ function Chat() {
     const [editingPhotoItems, setEditingPhotoItems] = useState<PhotoItem[]>([]);
 
     const messagesContainerRef = useRef<HTMLDivElement>(null);
+    /** Set by `loadOlderMessages` right before it prepends — tells the auto-scroll-to-bottom
+     *  effect below to sit this one out, since `loadOlderMessages` restores scroll position
+     *  itself (the viewer just asked to look at history, not jump back to the latest message). */
+    const skipAutoScrollRef = useRef(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const presenceSourceRef = useRef<EventSource | null>(null);
     const inboxSourceRef = useRef<EventSource | null>(null);
@@ -84,6 +93,13 @@ function Chat() {
     const selectedChatIdRef = useRef<number | null>(null);
     /** Always points to the latest processActiveChatMessage to avoid stale closures in inbox SSE. */
     const processActiveChatMessageRef = useRef<((type: string, data: ApiMessage | { id: number; chatId: number }, chatId: number) => void) | null>(null);
+    /** Always points to the latest fetchChats — inbox SSE debounces into this instead of
+     *  putting `fetchChats` in its own deps (would resubscribe the whole EventSource on every
+     *  fetchChats identity change). */
+    const fetchChatsRef = useRef<((silent?: boolean) => Promise<void>) | null>(null);
+    /** Debounces inbox SSE events (created/updated/deleted, several can land in a burst — e.g.
+     *  the other side sending 3 messages in a row) into a single `GET /chats/me` refetch. */
+    const chatsRefreshDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const messageInputRef = useRef<HTMLInputElement>(null);
 
     const [searchParams] = useSearchParams();
@@ -149,6 +165,13 @@ function Chat() {
     // Обработка выбранного чата
     useEffect(() => {
         selectedChatIdRef.current = selectedChat;
+        // Stale pagination state from whichever chat was open before shouldn't leak into the
+        // next one — loadChatData/fetchChatMessages below always (re)fetches page 1 anyway,
+        // but resetting here keeps `hasMoreMessages` honest for the instant between selecting
+        // a new chat and that fetch resolving (so a stray scroll can't trigger `loadOlderMessages`
+        // against the wrong chat).
+        setMessagesPage(1);
+        setHasMoreMessages(false);
         if (selectedChat) {
             console.log('Loading chat data for:', selectedChat);
             loadChatData(selectedChat);
@@ -198,8 +221,13 @@ function Chat() {
         }
     }, []);
 
-    // Прокрутка к последнему сообщению
+    // Прокрутка к последнему сообщению — skipped once right after `loadOlderMessages` prepends
+    // older history, which restores the scroll position itself instead.
     useEffect(() => {
+        if (skipAutoScrollRef.current) {
+            skipAutoScrollRef.current = false;
+            return;
+        }
         scrollToBottom();
     }, [messages, scrollToBottom]);
 
@@ -253,6 +281,46 @@ function Chat() {
     );
     const editingGallery = usePreview({ images: editingAllPreviews });
 
+    // One ApiMessage → one view-model Message, shared by the initial/refresh load below and
+    // `loadOlderMessages`' pagination so the mapping only lives in one place.
+    const mapApiMessageToView = useCallback((msg: ApiMessage): Message => {
+        const createdAt = msg.createdAt ? new Date(msg.createdAt) : new Date();
+        const updatedAt = msg.updatedAt ? new Date(msg.updatedAt) : null;
+        const isEdited = !!(updatedAt && msg.createdAt && updatedAt.getTime() - new Date(msg.createdAt).getTime() > 1000);
+        return {
+            id: msg.id,
+            sender: msg.author.id === currentUser?.id ? "me" : "other",
+            name: getTranslatedFullName(msg.author),
+            text: msg.description,
+            type: 'text' as const,
+            time: createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            createdAt: createdAt.toISOString(),
+            edited: isEdited,
+            readAt: msg.readAt ?? null,
+            replyTo: msg.replyTo ? {
+                id: msg.replyTo.id,
+                text: msg.replyTo.description,
+                name: getTranslatedFullName(msg.replyTo.author)
+            } : undefined,
+            images: (msg.images || []).map(img => ({
+                id: img.id,
+                url: getImageUrl(img.image),
+                name: img.image
+            }))
+        };
+    }, [currentUser, getImageUrl, getTranslatedFullName]);
+
+    /**
+     * Loads a chat's metadata + its most recent page of messages — used both for opening a
+     * chat and for the "refetch after I just sent/edited/deleted something" refresh. Always
+     * page 1 (§5: newest first) — same "clean latest snapshot" behavior the old code had when
+     * it refetched the (previously unbounded, always-complete) embedded `messages` array
+     * wholesale. The one real difference: if the viewer had scrolled up and loaded older pages
+     * via `loadOlderMessages`, this collapses the thread back down to just the latest page —
+     * an acceptable rough edge (that history is still one more "load older" click away) given
+     * the alternative (merging pages) risks bleeding one chat's messages into another's view
+     * when switching chats, since this same function handles both cases.
+     */
     const fetchChatMessages = useCallback(async (chatId: number) => {
         try {
             const token = getAuthToken();
@@ -271,79 +339,95 @@ function Chat() {
                 isArchived: chatData.active === false
             };
 
-                setChats(prev => {
-                    const chatIndex = prev.findIndex(c => c.id === chatId);
-                    if (chatIndex === -1) {
-                        return [...prev, chatDataWithArchive];
-                    }
-                    const newChats = [...prev];
-                    newChats[chatIndex] = {
-                        ...newChats[chatIndex],
-                        ...chatDataWithArchive,
-                        messages: chatData.messages || [],
-                    };
-                    return newChats;
-                });
-
-                if (currentUser) {
-                    // Каждое ApiMessage → один Message с вложенными изображениями
-                    const serverItems: Message[] = (chatData.messages || []).map(msg => {
-                        const createdAt = msg.createdAt ? new Date(msg.createdAt) : new Date();
-                        const updatedAt = msg.updatedAt ? new Date(msg.updatedAt) : null;
-                        const isEdited = !!(updatedAt && msg.createdAt && updatedAt.getTime() - new Date(msg.createdAt).getTime() > 1000);
-                        return {
-                            id: msg.id,
-                            sender: msg.author.id === currentUser.id ? "me" : "other",
-                            name: getTranslatedFullName(msg.author),
-                            text: msg.description,
-                            type: 'text' as const,
-                            time: createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                            createdAt: createdAt.toISOString(),
-                            edited: isEdited,
-                            readAt: msg.readAt ?? null,
-                            replyTo: msg.replyTo ? {
-                                id: msg.replyTo.id,
-                                text: msg.replyTo.description,
-                                name: getTranslatedFullName(msg.replyTo.author)
-                            } : undefined,
-                            images: (msg.images || []).map(img => ({
-                                id: img.id,
-                                url: getImageUrl(img.image),
-                                name: img.image
-                            }))
-                        };
-                    });
-
-                    // Миниатюры для боковой панели — берём из плоского списка chatData.images
-                    const allThumbnails: ChatImageThumbnail[] = (chatData.images || []).map(img => ({
-                        id: img.id,
-                        imageUrl: getImageUrl(img.image),
-                        author: img.author,
-                        createdAt: img.createdAt || new Date().toISOString()
-                    }));
-                    allThumbnails.sort((a, b) =>
-                        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-                    );
-                    setChatImages(allThumbnails);
-
-                    setMessages(prev => {
-                        // Сохраняем только локальные pending/uploading сообщения
-                        const localMessages = prev.filter(msg => msg.isLocal &&
-                            (msg.status === 'pending' || msg.status === 'uploading'));
-
-                        const combined = [...localMessages, ...serverItems];
-                        combined.sort((a, b) => {
-                            const timeA = a.createdAt ? new Date(a.createdAt).getTime() : (a.isLocal ? a.id : 0);
-                            const timeB = b.createdAt ? new Date(b.createdAt).getTime() : (b.isLocal ? b.id : 0);
-                            return timeA - timeB;
-                        });
-                        return combined;
-                    });
+            setChats(prev => {
+                const chatIndex = prev.findIndex(c => c.id === chatId);
+                if (chatIndex === -1) {
+                    return [...prev, chatDataWithArchive];
                 }
+                const newChats = [...prev];
+                newChats[chatIndex] = { ...newChats[chatIndex], ...chatDataWithArchive };
+                return newChats;
+            });
+
+            if (currentUser) {
+                const pageSize = getPageSize();
+                const responseData = await universalApiRequest(`/api/chats/${chatId}/messages?page=1&itemsPerPage=${pageSize}`, { locale: false });
+                const { items: pageMessages, hasMore } = parsePagedResponse<ApiMessage>(responseData, 1, pageSize);
+                setMessagesPage(1);
+                setHasMoreMessages(hasMore);
+
+                // Reversed — the endpoint returns newest-first, the thread renders oldest→newest.
+                const serverItems: Message[] = pageMessages.map(mapApiMessageToView).reverse();
+
+                // Миниатюры для боковой панели — берём из плоского списка chatData.images
+                // (still present — `Chat.images` is unaffected by the `messages` field removal).
+                const allThumbnails: ChatImageThumbnail[] = (chatData.images || []).map(img => ({
+                    id: img.id,
+                    imageUrl: getImageUrl(img.image),
+                    author: img.author,
+                    createdAt: img.createdAt || new Date().toISOString()
+                }));
+                allThumbnails.sort((a, b) =>
+                    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                );
+                setChatImages(allThumbnails);
+
+                setMessages(prev => {
+                    // Сохраняем только локальные pending/uploading сообщения
+                    const localMessages = prev.filter(msg => msg.isLocal &&
+                        (msg.status === 'pending' || msg.status === 'uploading'));
+
+                    const combined = [...localMessages, ...serverItems];
+                    combined.sort((a, b) => {
+                        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : (a.isLocal ? a.id : 0);
+                        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : (b.isLocal ? b.id : 0);
+                        return timeA - timeB;
+                    });
+                    return combined;
+                });
+            }
         } catch (err) {
             console.error('Error fetching chat messages:', err);
         }
-    }, [currentUser, getImageUrl, getTranslatedFullName]);
+    }, [currentUser, getImageUrl, mapApiMessageToView]);
+
+    /**
+     * Pages further back in the same open chat — fetches the next-older page (§5: page 1 is
+     * always the newest N, so "older" means incrementing) and prepends it, preserving scroll
+     * position so the viewport doesn't jump. Dedupes by id defensively (a message landing via
+     * Mercure between page loads could otherwise show up twice).
+     */
+    const loadOlderMessages = useCallback(async (chatId: number) => {
+        if (isLoadingMoreMessages || !hasMoreMessages) return;
+        setIsLoadingMoreMessages(true);
+        try {
+            const nextPage = messagesPage + 1;
+            const pageSize = getPageSize();
+            const responseData = await universalApiRequest(`/api/chats/${chatId}/messages?page=${nextPage}&itemsPerPage=${pageSize}`, { locale: false });
+            const { items: pageMessages, hasMore } = parsePagedResponse<ApiMessage>(responseData, nextPage, pageSize);
+            const olderItems: Message[] = pageMessages.map(mapApiMessageToView).reverse();
+
+            const container = messagesContainerRef.current;
+            const prevScrollHeight = container?.scrollHeight ?? 0;
+
+            skipAutoScrollRef.current = true;
+            setMessages(prev => {
+                const existingIds = new Set(prev.map(m => m.id));
+                const newOnes = olderItems.filter(m => !existingIds.has(m.id));
+                return [...newOnes, ...prev];
+            });
+            setMessagesPage(nextPage);
+            setHasMoreMessages(hasMore);
+
+            requestAnimationFrame(() => {
+                if (container) container.scrollTop = container.scrollHeight - prevScrollHeight;
+            });
+        } catch (err) {
+            console.error('Error loading older messages:', err);
+        } finally {
+            setIsLoadingMoreMessages(false);
+        }
+    }, [messagesPage, hasMoreMessages, isLoadingMoreMessages, mapApiMessageToView]);
 
     const markChatAsRead = useCallback(async (chatId: number) => {
         try {
@@ -525,29 +609,16 @@ function Chat() {
                         processActiveChatMessageRef.current?.(type, data, chatId);
                     }
 
-                    // Also update sidebar chat list for unread counts / last message
-                    if (type === 'created') {
-                        setChats(prev => prev.map(chat => {
-                            if (chat.id !== chatId) return chat;
-                            const msgs = chat.messages || [];
-                            if (msgs.some(m => m.id === data.id)) return chat;
-                            return { ...chat, messages: [...msgs, data] };
-                        }));
-                    } else if (type === 'updated') {
-                        setChats(prev => prev.map(chat => {
-                            if (chat.id !== chatId) return chat;
-                            const msgs = (chat.messages || []).map(m =>
-                                m.id === data.id ? { ...m, readAt: data.readAt } : m
-                            );
-                            return { ...chat, messages: msgs };
-                        }));
-                    } else if (type === 'deleted') {
-                        const del = data as unknown as { id: number; chatId: number };
-                        setChats(prev => prev.map(chat => {
-                            if (chat.id !== del.chatId) return chat;
-                            return { ...chat, messages: (chat.messages || []).filter(m => m.id !== del.id) };
-                        }));
-                    }
+                    // `unreadCount`/`lastMessage` are server-computed and never travel over
+                    // Mercure (backend note, §5) — this event only means "something changed",
+                    // so refetch GET /chats/me to pick up the real values instead of guessing
+                    // from `data`. Debounced: a burst of events (e.g. 3 messages sent in a row)
+                    // collapses into one refetch instead of one per event.
+                    if (chatsRefreshDebounceRef.current) clearTimeout(chatsRefreshDebounceRef.current);
+                    chatsRefreshDebounceRef.current = setTimeout(() => {
+                        chatsRefreshDebounceRef.current = null;
+                        fetchChatsRef.current?.(true);
+                    }, 300);
                 } catch { /* ignore parse errors */ }
             };
             es.onerror = () => { /* EventSource auto-reconnects */ };
@@ -601,6 +672,10 @@ function Chat() {
             if (inboxSourceRef.current) {
                 inboxSourceRef.current.close();
                 inboxSourceRef.current = null;
+            }
+            if (chatsRefreshDebounceRef.current) {
+                clearTimeout(chatsRefreshDebounceRef.current);
+                chatsRefreshDebounceRef.current = null;
             }
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -707,7 +782,7 @@ function Chat() {
     // offers this on images whose `deletable` we set to true (own messages), so no extra
     // ownership check is needed here.
     const deleteChatImage = useCallback(async (image: { id: number | string }) => {
-        if (!window.confirm(t('chat.deleteImageConfirm'))) return;
+        if (!window.confirm(t('chat.deleteImageConfirm')) || !selectedChat) return;
         const owningMessage = messages.find(m => (m.images ?? []).some(img => img.id === image.id));
         if (!owningMessage) return;
         try {
@@ -715,10 +790,13 @@ function Chat() {
             await universalApiRequest(`/api/chat-messages/${owningMessage.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/merge-patch+json' },
-                body: { images: remaining },
+                // `chat` is required here even though the message id alone should be enough to
+                // resolve it — same as `editMessageOnServer` below. Omitting it 404s with
+                // `chat_not_found` instead of just patching the message directly.
+                body: { chat: `/api/chats/${selectedChat}`, images: remaining },
                 locale: false,
             });
-            if (selectedChat) await fetchChatMessages(selectedChat);
+            await fetchChatMessages(selectedChat);
         } catch (err) {
             console.error('Error deleting image:', err);
         }
@@ -891,12 +969,11 @@ function Chat() {
             const phone1 = (interlocutor.phone1 as string | undefined)?.toLowerCase() || '';
             const phone2 = (interlocutor.phone2 as string | undefined)?.toLowerCase() || '';
             const ticketTitle = chat.ticket?.title?.toLowerCase() || '';
-            const lastMessageText = chat.messages?.length
-                ? chat.messages[chat.messages.length - 1].description?.toLowerCase() || ''
-                : '';
-            const anyMessageText = chat.messages?.some(m =>
-                m.description?.toLowerCase().includes(searchLower)
-            ) || false;
+            // Full message-history search still isn't possible client-side (Chat no longer
+            // embeds `messages`, and fetching every chat's full history just to filter a list
+            // would defeat the point of the paginated endpoint) — but the last message text is
+            // available for free now (`chat.lastMessage`), so at least that much is searchable.
+            const lastMessageText = chat.lastMessage?.description?.toLowerCase() || '';
 
             return fullName.includes(searchLower) ||
                 originalFullName.includes(searchLower) ||
@@ -904,29 +981,12 @@ function Chat() {
                 phone1.includes(searchLower) ||
                 phone2.includes(searchLower) ||
                 ticketTitle.includes(searchLower) ||
-                lastMessageText.includes(searchLower) ||
-                anyMessageText;
+                lastMessageText.includes(searchLower);
         });
 
-        // Сортировка: сначала активные чаты с сообщениями, затем по дате последнего сообщения
-        return filtered.sort((a, b) => {
-            const aHasMessages = a.messages && a.messages.length > 0;
-            const bHasMessages = b.messages && b.messages.length > 0;
-
-            if (aHasMessages && !bHasMessages) return -1;
-            if (!aHasMessages && bHasMessages) return 1;
-
-            if (aHasMessages && bHasMessages) {
-                const aLastMsg = a.messages[a.messages.length - 1];
-                const bLastMsg = b.messages[b.messages.length - 1];
-
-                if (aLastMsg.createdAt && bLastMsg.createdAt) {
-                    return new Date(bLastMsg.createdAt).getTime() - new Date(aLastMsg.createdAt).getTime();
-                }
-            }
-
-            return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-        });
+        // No client-side sort anymore — `GET /chats/me` now comes back pre-sorted (newest
+        // activity first, by last message time / chat creation if there isn't one yet).
+        return filtered;
     }, [chats, searchQuery, activeTab, getInterlocutorFromChat, getTranslatedFullName]);
 
     const getCurrentUser = useCallback(async (): Promise<ApiUser | null> => {
@@ -1003,12 +1063,14 @@ function Chat() {
                         const replyAuthorChanged =
                             existing.replyAuthor?.isOnline !== incoming.replyAuthor?.isOnline ||
                             existing.replyAuthor?.lastSeen !== incoming.replyAuthor?.lastSeen;
-                        const existingUnread = (existing.messages || []).filter(m => !m.readAt).length;
-                        const incomingUnread = (incoming.messages || []).filter(m => !m.readAt).length;
-                        const messagesChanged =
-                            (existing.messages?.length ?? 0) !== (incoming.messages?.length ?? 0) ||
-                            existingUnread !== incomingUnread;
-                        if (authorChanged || replyAuthorChanged || messagesChanged) { changed = true; return incoming; }
+                        // Server-computed, always current as of this request (§5) — a changed
+                        // unread count, a new last message, or its read receipt flipping are
+                        // exactly the cases worth re-rendering this row for.
+                        const activityChanged =
+                            existing.unreadCount !== incoming.unreadCount ||
+                            existing.lastMessage?.id !== incoming.lastMessage?.id ||
+                            existing.lastMessage?.readAt !== incoming.lastMessage?.readAt;
+                        if (authorChanged || replyAuthorChanged || activityChanged) { changed = true; return incoming; }
                         return existing;
                     });
                     return changed ? merged : prev;
@@ -1065,6 +1127,8 @@ function Chat() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [chatIdFromUrl, t, fetchChatMessages, chatPage]);
 
+    useEffect(() => { fetchChatsRef.current = fetchChats; }, [fetchChats]);
+
     // Перезагружаем чаты при смене страницы
     useEffect(() => {
         if (skipChatFetchRef.current) {
@@ -1116,6 +1180,27 @@ function Chat() {
         }
     }, [selectedChat, activeTab, t, fetchChatMessages]);
 
+    // "Delete for me" (§5) — not a hard delete server-side unless the other participant had
+    // already done the same; either way it stops showing up in *our* GET /chats/me right away,
+    // so drop it from local state immediately instead of waiting on the next full refetch —
+    // same instant-update approach as archiving, no page reload needed.
+    const deleteChatForMe = useCallback(async (chatId: number) => {
+        if (!window.confirm(t('chat.deleteChatConfirm'))) return;
+        try {
+            await universalApiRequest(`/api/chats/${chatId}`, { method: 'DELETE', locale: false });
+            setChats(prev => prev.filter(c => c.id !== chatId));
+            if (selectedChat === chatId) {
+                setSelectedChat(null);
+                setMessages([]);
+                setChatImages([]);
+                setIsMobileChatActive(false);
+            }
+        } catch (error) {
+            console.error('Error deleting chat:', error);
+            setError(t('chat.deleteChatError'));
+        }
+    }, [selectedChat, t]);
+
     // ===== ФУНКЦИИ ДЛЯ РАБОТЫ С ФАЙЛАМИ И ФОТО =====
 
     const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1149,28 +1234,21 @@ function Chat() {
         }
     }, [t]);
 
+    // `chat.lastMessage`/`chat.unreadCount` — server-computed, always current as of the
+    // request (never derived from Mercure events, see `startInboxSSE`'s debounced refetch).
     const getLastMessageTime = useCallback((chat: ApiChat) => {
-        const msg = chat.messages?.[chat.messages.length - 1];
-        if (!msg?.createdAt) return "";
-        return new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        if (!chat.lastMessage?.createdAt) return "";
+        return new Date(chat.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }, []);
 
     const getLastMessageText = useCallback((chat: ApiChat) => {
-        const msg = chat.messages?.[chat.messages.length - 1];
+        const msg = chat.lastMessage;
         if (msg?.description) {
             return msg.description.length > 30 ? msg.description.substring(0, 30) + '...' : msg.description;
         }
-
-        // Проверяем есть ли фото в любом из сообщений
-        const hasImages = chat.messages?.some(m => m.images && m.images.length > 0);
-        if (hasImages) {
-            const lastTextMsg = chat.messages?.find(m => m.description && m.description.trim());
-            if (lastTextMsg) {
-                return lastTextMsg.description.length > 30 ? lastTextMsg.description.substring(0, 30) + '...' : lastTextMsg.description;
-            }
+        if (msg?.images && msg.images.length > 0) {
             return `📷 ${t('chat.noPhotoDescription')}`;
         }
-
         return t('chat.noMessages');
     }, [t]);
 
@@ -1337,14 +1415,9 @@ function Chat() {
                                         {!interlocutor.isOnline && interlocutor.lastSeen && !chat.isArchived && (
                                             <div className={styles.lastSeen}>{getLastSeenTime(interlocutor)}</div>
                                         )}
-                                        {(() => {
-                                            const unread = (chat.messages || []).filter(
-                                                m => m.author?.id !== currentUser?.id && !m.readAt
-                                            ).length;
-                                            return unread > 0 ? (
-                                                <div className={styles.unreadBadge}>{unread > 99 ? '99+' : unread}</div>
-                                            ) : null;
-                                        })()}
+                                        {!!chat.unreadCount && chat.unreadCount > 0 && (
+                                            <div className={styles.unreadBadge}>{chat.unreadCount > 99 ? '99+' : chat.unreadCount}</div>
+                                        )}
                                     </div>
                                     <div
                                         className={styles.chatItemMenuWrapper}
@@ -1368,6 +1441,12 @@ function Chat() {
                                                     label: blockedUsers.has(interlocutor.id) ? t('chat.unblockUser') : t('chat.blockUser'),
                                                     onClick: () => toggleBlockUser(interlocutor.id, getTranslatedFullName(interlocutor)),
                                                     danger: !blockedUsers.has(interlocutor.id),
+                                                },
+                                                {
+                                                    icon: <IoTrashOutline />,
+                                                    label: t('chat.deleteChat'),
+                                                    onClick: () => deleteChatForMe(chat.id),
+                                                    danger: true,
                                                 },
                                             ]}
                                         />
@@ -1474,6 +1553,13 @@ function Chat() {
                                             hidden: !currentInterlocutor,
                                             danger: !(currentInterlocutor && blockedUsers.has(currentInterlocutor.id)),
                                         },
+                                        {
+                                            icon: <IoTrashOutline />,
+                                            label: t('chat.deleteChat'),
+                                            onClick: () => currentChat && deleteChatForMe(currentChat.id),
+                                            hidden: !currentChat,
+                                            danger: true,
+                                        },
                                     ]}
                                 />
                             </div>
@@ -1496,6 +1582,16 @@ function Chat() {
                                     </div>
                                 ) : (
                                     <div className={styles.messagesContainer}>
+                                        {hasMoreMessages && (
+                                            <button
+                                                type="button"
+                                                className={styles.loadOlderBtn}
+                                                onClick={() => selectedChat && loadOlderMessages(selectedChat)}
+                                                disabled={isLoadingMoreMessages}
+                                            >
+                                                {isLoadingMoreMessages ? t('chat.loadingMessages') : t('chat.loadOlderMessages')}
+                                            </button>
+                                        )}
                                         {messages.map(msg => {
                                             // Временные локальные ожидающие загрузки файлов
                                             if (msg.type === 'image' && (msg.status === 'pending' || msg.status === 'uploading')) {

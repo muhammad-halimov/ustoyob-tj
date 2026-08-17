@@ -100,6 +100,7 @@
   "reviewsTitle": "Reviews",
   "loadingReviews": "Loading reviews...",
   "noReviews": "No reviews yet",
+  "reviewEditLocked": "This review can no longer be edited — more than 24 hours have passed since it was posted.",
   "ratedLabel": "Rated:",
   "showMore": "Show all",
   "showLess": "Hide",

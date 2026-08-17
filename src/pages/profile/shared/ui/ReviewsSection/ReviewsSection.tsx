@@ -17,6 +17,25 @@ import { ReviewSortingFilter, ReviewSortByType, ReviewTimeFilterType } from '../
 // Экспорт для обратной совместимости
 export type { Review } from '../../../../../entities';
 
+/** Best-effort review date — `createdAt` when present, else parses the display `dd.mm.yyyy`. */
+const parseReviewDate = (review: Review): Date => {
+    if (review.createdAt) return new Date(review.createdAt);
+    if (review.date) {
+        const parts = review.date.split('.');
+        if (parts.length === 3) return new Date(+parts[2], +parts[1] - 1, +parts[0]);
+    }
+    return new Date(0);
+};
+
+// Backend physically rejects PATCH /reviews/{id} past this window — a review that old is
+// "settled" and can't be edited anymore. Blocking it here (before the edit modal even opens)
+// avoids sending a request that's guaranteed to fail.
+const REVIEW_EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
+const isReviewEditLocked = (review: Review): boolean => {
+    const created = parseReviewDate(review).getTime();
+    return created > 0 && Date.now() - created > REVIEW_EDIT_WINDOW_MS;
+};
+
 interface ReviewsSectionProps {
     reviews: Review[];
     reviewsLoading: boolean;
@@ -82,16 +101,6 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
         const yesterdayStart = new Date(todayStart); yesterdayStart.setDate(yesterdayStart.getDate() - 1);
         const weekStart = new Date(todayStart); weekStart.setDate(weekStart.getDate() - 6);
         const monthStart = new Date(todayStart); monthStart.setDate(monthStart.getDate() - 29);
-
-        const parseReviewDate = (review: Review): Date => {
-            if (review.createdAt) return new Date(review.createdAt);
-            // Fallback: parse 'dd.mm.yyyy' display format
-            if (review.date) {
-                const parts = review.date.split('.');
-                if (parts.length === 3) return new Date(+parts[2], +parts[1] - 1, +parts[0]);
-            }
-            return new Date(0);
-        };
 
         let filtered = [...reviews];
 
@@ -211,6 +220,17 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
             console.error('Error deleting review:', error);
             setStatusModal({ isOpen: true, type: 'error', message: t('profile:deleteReviewError', 'Не удалось удалить отзыв') });
         }
+    };
+
+    // Gate in front of `onEditClick` (which just opens the Feedback modal in edit mode) —
+    // blocks "settled" reviews (>24h old, see `isReviewEditLocked`) right at the dropdown
+    // instead of letting the edit modal open only for the PATCH to fail server-side.
+    const handleEditClick = (review: Review) => {
+        if (isReviewEditLocked(review)) {
+            setStatusModal({ isOpen: true, type: 'error', message: t('profile:reviewEditLocked') });
+            return;
+        }
+        onEditClick?.(review);
     };
 
     const isWorkerClickable = () => {
@@ -418,7 +438,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                         <ActionsDropdown
                                             style={{ position: 'absolute', top: '2px', right: '0', zIndex: 2 }}
                                             items={[
-                                                ...(onEditClick ? [{ icon: <IoCreateOutline />, label: t('profile:editBtn'), onClick: () => onEditClick!(review), hidden: !currentUserId || getReviewAuthorId(review) !== currentUserId }] : []),
+                                                ...(onEditClick ? [{ icon: <IoCreateOutline />, label: t('profile:editBtn'), onClick: () => handleEditClick(review), hidden: !currentUserId || getReviewAuthorId(review) !== currentUserId }] : []),
                                                 { icon: <IoTrashOutline />, label: t('profile:deleteReview', 'Удалить'), onClick: () => handleDeleteReview(review.id), danger: true as const, hidden: !currentUserId || getReviewAuthorId(review) !== currentUserId },
                                                 ...(onComplaintClick ? [{ icon: <IoWarningOutline />, label: t('profile:complaint'), onClick: () => onComplaintClick!(review.id, getReviewAuthorId(review) ?? 0), danger: true as const, hidden: !!currentUserId && getReviewAuthorId(review) === currentUserId }] : []),
                                             ]}
@@ -543,7 +563,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                     <ActionsDropdown
                                                         style={{ position: 'absolute', top: '2px', right: '0', zIndex: 2 }}
                                                         items={[
-                                                            ...(onEditClick ? [{ icon: <IoCreateOutline />, label: t('profile:editBtn'), onClick: () => onEditClick!(review), hidden: !currentUserId || getReviewAuthorId(review) !== currentUserId }] : []),
+                                                            ...(onEditClick ? [{ icon: <IoCreateOutline />, label: t('profile:editBtn'), onClick: () => handleEditClick(review), hidden: !currentUserId || getReviewAuthorId(review) !== currentUserId }] : []),
                                                             { icon: <IoTrashOutline />, label: t('profile:deleteReview', 'Удалить'), onClick: () => handleDeleteReview(review.id), danger: true as const, hidden: !currentUserId || getReviewAuthorId(review) !== currentUserId },
                                                             ...(onComplaintClick ? [{ icon: <IoWarningOutline />, label: t('profile:complaint'), onClick: () => onComplaintClick!(review.id, getReviewAuthorId(review) ?? 0), danger: true as const, hidden: !!currentUserId && getReviewAuthorId(review) === currentUserId }] : []),
                                                         ]}
@@ -661,7 +681,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
                                                 <ActionsDropdown
                                                     style={{ position: 'absolute', top: '2px', right: '0', zIndex: 2 }}
                                                     items={[
-                                                        ...(onEditClick ? [{ icon: <IoCreateOutline />, label: t('profile:editBtn'), onClick: () => onEditClick!(review), hidden: !currentUserId || getReviewAuthorId(review) !== currentUserId }] : []),
+                                                        ...(onEditClick ? [{ icon: <IoCreateOutline />, label: t('profile:editBtn'), onClick: () => handleEditClick(review), hidden: !currentUserId || getReviewAuthorId(review) !== currentUserId }] : []),
                                                         { icon: <IoTrashOutline />, label: t('profile:deleteReview', 'Удалить'), onClick: () => handleDeleteReview(review.id), danger: true as const, hidden: !currentUserId || getReviewAuthorId(review) !== currentUserId },
                                                         ...(onComplaintClick ? [{ icon: <IoWarningOutline />, label: t('profile:complaint'), onClick: () => onComplaintClick!(review.id, getReviewAuthorId(review) ?? 0), danger: true as const, hidden: !!currentUserId && getReviewAuthorId(review) === currentUserId }] : []),
                                                     ]}

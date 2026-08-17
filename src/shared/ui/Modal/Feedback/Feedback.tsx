@@ -25,6 +25,9 @@ export interface FeedbackModalProps {
     initialRating?: number;
     initialText?: string;
     initialImages?: Array<{ id: number; image: string }>;
+    /** The review's own `createdAt` — used to lock editing past the 24h window the backend
+     *  enforces (see `isEditLocked` below). Only relevant alongside `editReviewId`. */
+    initialCreatedAt?: string;
     targetUserRole?: 'client' | 'master';
     chatId?: number;
     reviewId?: number;
@@ -54,9 +57,16 @@ const Feedback: React.FC<FeedbackModalProps> = ({
     initialRating,
     initialText,
     initialImages,
+    initialCreatedAt,
 }) => {
     const { t } = useTranslation('components');
     const isReview = mode === 'review';
+
+    // Same 24h window ReviewsSection's dropdown already blocks the "Редактировать" click on —
+    // duplicated here as a safety net for this modal's own submit path, not the only guard.
+    const REVIEW_EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
+    const isEditLocked = isReview && !!editReviewId && !!initialCreatedAt &&
+        (Date.now() - new Date(initialCreatedAt).getTime()) > REVIEW_EDIT_WINDOW_MS;
 
     // --- Common state ---
     const [photos, setPhotos] = useState<PhotoItem[]>([]);
@@ -215,6 +225,7 @@ const Feedback: React.FC<FeedbackModalProps> = ({
 
     // --- Submit: Review ---
     const handleSubmitReview = async () => {
+        if (isEditLocked) { showStatus('error', t('reviewModal.errorTooOldToEdit')); return; }
         if (!reviewText.trim()) { showStatus('error', t('reviewModal.errorCommentRequired')); return; }
         if (selectedStars === 0) { showStatus('error', t('reviewModal.errorRatingRequired')); return; }
         if (!editReviewId && showServiceSelector && !selectedServiceId) { showStatus('error', t('reviewModal.errorServiceRequired')); return; }
@@ -435,6 +446,9 @@ const Feedback: React.FC<FeedbackModalProps> = ({
 
                 <div className={styles.modalContent}>
                     {/* ===== REVIEW FIELDS ===== */}
+                    {isReview && isEditLocked && (
+                        <div className={styles.editLockedNotice}>{t('reviewModal.editLockedNotice')}</div>
+                    )}
                     {isReview && showServiceSelector && (
                         <div className={styles.serviceSection}>
                             <label>{t('reviewModal.selectService')}</label>
@@ -447,7 +461,7 @@ const Feedback: React.FC<FeedbackModalProps> = ({
                                     value={selectedServiceId || ''}
                                     onChange={(e) => setSelectedServiceId(Number(e.target.value))}
                                     className={styles.serviceSelect}
-                                    disabled={isSubmitting}
+                                    disabled={isSubmitting || isEditLocked}
                                 >
                                     <option value="">{t('reviewModal.selectServicePlaceholder')}</option>
                                     {services.map(s => (
@@ -465,7 +479,7 @@ const Feedback: React.FC<FeedbackModalProps> = ({
                                 onChange={(e) => setReviewText(e.target.value)}
                                 placeholder={t('reviewModal.commentPlaceholder')}
                                 className={styles.commentTextarea}
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || isEditLocked}
                             />
                         </div>
                     )}
@@ -565,7 +579,7 @@ const Feedback: React.FC<FeedbackModalProps> = ({
                             onChange={setPhotos}
                             getImageUrl={getReviewImageUrl}
                             onClickPhoto={photoGallery.openGallery}
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || isEditLocked}
                             inputId={isReview ? 'review-photos' : 'complaint-photos'}
                         />
                     </div>
@@ -581,7 +595,7 @@ const Feedback: React.FC<FeedbackModalProps> = ({
                                         type="button"
                                         className={`${styles.star} ${star <= selectedStars ? styles.active : ''}`}
                                         onClick={() => setSelectedStars(star)}
-                                        disabled={isSubmitting}
+                                        disabled={isSubmitting || isEditLocked}
                                     >
                                         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"
                                              xmlns="http://www.w3.org/2000/svg">
@@ -635,7 +649,7 @@ const Feedback: React.FC<FeedbackModalProps> = ({
                     <button
                         className={`${styles.submitButton} ${!isReview ? styles.submitButtonComplaint : ''}`}
                         onClick={isReview ? handleSubmitReview : handleSubmitComplaint}
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || isEditLocked}
                     >
                         <span style={{ visibility: isSubmitting ? 'hidden' : 'visible', display: 'flex', alignItems: 'center' }}>
                             {isReview ? t('reviewModal.submit') : t('complaintModal.submit')}

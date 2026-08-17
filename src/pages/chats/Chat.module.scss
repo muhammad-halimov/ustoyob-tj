@@ -497,6 +497,25 @@
     }
   }
 
+  // Loads the next-older page (§5: GET /chats/{id}/messages, newest-first) — sits at the top
+  // of .messagesContainer as its first flex child, so it's above whatever's currently the
+  // oldest-loaded message.
+  .loadOlderBtn {
+    align-self: center;
+    margin-bottom: 8px;
+    padding: 6px 16px;
+    border: 1px solid var(--color-stroke, #e0e0e0);
+    border-radius: 16px;
+    background: var(--color-background-primary, #fff);
+    color: var(--color-primary, #3A54DA);
+    font-size: 13px;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+
+    &:hover:not(:disabled) { background: var(--color-background-secondary, #f0f0f0); }
+    &:disabled { opacity: 0.6; cursor: default; }
+  }
+
   /* === MESSAGE WRAPPER с кнопками действий === */
   .messageWrapper {
     display: flex;

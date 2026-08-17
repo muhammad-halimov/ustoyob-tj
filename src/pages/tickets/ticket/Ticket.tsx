@@ -1257,6 +1257,7 @@ export function Ticket() {
                     initialRating={editingReview.rating}
                     initialText={editingReview.description}
                     initialImages={editingReview.images}
+                    initialCreatedAt={editingReview.createdAt}
                 />
             )}
 

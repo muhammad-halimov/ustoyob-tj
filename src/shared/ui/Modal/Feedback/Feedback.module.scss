@@ -121,6 +121,17 @@
   font-size: 14px;
 }
 
+// Shown instead of letting the (now-disabled) fields below speak for themselves — a review
+// past the 24h edit window (backend-enforced, see Feedback.tsx's `isEditLocked`).
+.editLockedNotice {
+  padding: 12px 14px;
+  background-color: rgba(220, 53, 69, 0.08);
+  border: 1px solid rgba(220, 53, 69, 0.25);
+  border-radius: 10px;
+  color: #DC3545;
+  font-size: 14px;
+}
+
 .commentTextarea {
   width: 100%;
   min-height: 100px;

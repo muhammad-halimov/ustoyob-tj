@@ -136,8 +136,12 @@
     "deleteConfirm": "Are you sure you want to delete this message?",
     "deleteImage": "Delete photo",
     "deleteImageConfirm": "Delete this photo?",
+    "deleteChat": "Delete chat",
+    "deleteChatConfirm": "Delete this chat? It will only disappear from your own list — the other participant will still see it.",
+    "deleteChatError": "Failed to delete the chat",
     "loadingChats": "Loading chats...",
     "loadingMessages": "Loading messages...",
+    "loadOlderMessages": "Show older messages",
     "errorLoadingChats": "Error loading chats",
     "chatMovedToArchive": "Chat moved to archive",
     "chatRestored": "Chat restored from archive",
@@ -253,7 +257,9 @@
     "successMessage": "Review submitted successfully!",
     "successEditMessage": "Review updated successfully!",
     "errorUnknownRole": "Unknown user role",
-    "errorAlreadyReviewed": "You have already left a review for this user"
+    "errorAlreadyReviewed": "You have already left a review for this user",
+    "errorTooOldToEdit": "This review can no longer be edited — more than 24 hours have passed since it was posted.",
+    "editLockedNotice": "Editing is unavailable: more than 24 hours have passed since this review was posted."
   },
   "complaintModal": {
     "title": "Submit complaint",
