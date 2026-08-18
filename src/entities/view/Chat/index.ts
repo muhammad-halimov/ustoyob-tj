@@ -25,6 +25,8 @@ export interface ChatMessageView {
     createdAt?: string;
     replyTo?: { id: number; text: string; name: string };
     edited?: boolean;
+    /** Soft-deleted via `DELETE /chat-messages/{id}` — render a placeholder, not `text`. */
+    deletedByAuthor?: boolean;
     readAt?: string | null;
     images?: { id: number; url: string; name: string }[];
 }

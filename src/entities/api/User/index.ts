@@ -36,5 +36,7 @@ export type User = {
     phones?: Phone[];
     socialNetworks?: SocialNetwork[];
     oauthProviders?: OAuthProvider[];
+    /** Only present on /users/me; owner-writable via PATCH /users/{id} (§3). */
+    cookiesAgreed?: boolean;
     [key: string]: unknown;
 } & Timestamps;

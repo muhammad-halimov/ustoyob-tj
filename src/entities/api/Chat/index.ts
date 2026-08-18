@@ -9,6 +9,12 @@ export type ChatMessage = {
     chat?: { id: number } | null;
     readAt?: string | null;
     replyTo?: ChatMessage | null;
+    /** True once PATCHed at least once — stays true forever after, never resets. */
+    edited?: boolean;
+    /** True after `DELETE /chat-messages/{id}` — soft delete, the row survives with
+     *  `description` set to a server placeholder and `images` cleared. Render your own
+     *  localized placeholder off this flag instead of trusting `description`'s text. */
+    deletedByAuthor?: boolean;
     images?: Image[];
 } & Timestamps;
 

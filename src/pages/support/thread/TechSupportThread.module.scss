@@ -291,11 +291,37 @@
 
   svg { width: 14px; height: 14px; }
 
-  &:hover { background: var(--color-background-all); color: var(--color-primary); }
+  &:hover:not(:disabled) { background: var(--color-background-all); color: var(--color-primary); }
+  // Past the 15-minute edit window (§11: `edit_window_expired`) — stays visible, greyed out,
+  // instead of disappearing, so it's clear editing *was* possible, just isn't anymore.
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
 }
 
 .messageEditActions {
   flex-shrink: 0;
+}
+
+// Soft-delete (§11) — own author or any admin, same slot as `.messageEditBtn` but tinted red
+// on hover instead of primary, matching Chat's `.deleteMsgBtn`.
+.messageDeleteBtn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  border-radius: map.get(vars.$border-radius, sm);
+  transition: background-color 0.2s ease, color 0.2s ease;
+
+  svg { width: 14px; height: 14px; }
+
+  &:hover:not(:disabled) { background: rgba(220, 53, 69, 0.1); color: #DC3545; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
 .messageBody {
@@ -303,6 +329,25 @@
   font-size: map.get(vars.$font-sizes, base);
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+// Placeholder for a soft-deleted message — own localized string (see `thread.messageDeleted`),
+// never the server's own placeholder text, so it stays in the frontend's translation system
+// instead of depending on the backend's `?locale=`.
+.messageDeletedBody {
+  color: var(--color-text-secondary);
+  font-size: map.get(vars.$font-sizes, base);
+  font-style: italic;
+  opacity: 0.75;
+}
+
+// "(изменено)" — only meaningful once `edited` is a real server field, not the old
+// updatedAt-vs-createdAt heuristic.
+.editedMark {
+  margin-left: 6px;
+  font-size: map.get(vars.$font-sizes, xs);
+  font-style: italic;
+  opacity: 0.7;
 }
 
 .messageImages {

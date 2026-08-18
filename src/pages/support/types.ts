@@ -40,6 +40,12 @@ export interface TechSupportMessage {
     description: string | null;
     /** Set via POST /tech-supports/{id}/read. Marking read doesn't emit a Mercure event — see API_REFERENCE.md §11. */
     readAt?: string | null;
+    /** True once PATCHed at least once — stays true forever after, never resets. */
+    edited?: boolean;
+    /** True after `DELETE /tech-support-messages/{id}` — soft delete, the row survives with
+     *  `description` set to a server placeholder and `images` cleared. Render your own
+     *  localized placeholder off this flag instead of trusting `description`'s text. */
+    deletedByAuthor?: boolean;
     images: TechSupportImage[];
     createdAt: string;
     updatedAt?: string | null;

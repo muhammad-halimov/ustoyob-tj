@@ -3101,7 +3101,16 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             <Auth
                 isOpen={true}
                 onClose={() => navigate(ROUTES.HOME)}
-                onLoginSuccess={() => window.location.reload()}
+                // No onLoginSuccess here (was `() => window.location.reload()`) — that reload
+                // fired synchronously inside handleSuccessfulAuth, racing ahead of its own
+                // setTimeout-gated admin redirect (isAdmin() ? TECH_SUPPORT : reload) and
+                // winning every time, so an admin logging back in through *this* auto-shown
+                // instance (right after logout on /profile, the exact "still on /profile,
+                // modal already open" state) always landed back on /profile instead of
+                // /support. The other <Auth> instance on this page never had this bug because
+                // its onLoginSuccess (handleAuthSuccess) only flips local modal state — leaving
+                // this one's post-login behavior (reload for everyone else, redirect for admins)
+                // entirely to Auth's own handleSuccessfulAuth is what actually fixes it.
             />
         );
     }

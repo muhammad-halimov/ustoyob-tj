@@ -561,13 +561,20 @@
     padding: 0;
     touch-action: manipulation;
 
-    &:hover {
+    &:hover:not(:disabled) {
       background: #e8edff;
       color: #3A54DA;
     }
 
     &:active {
       transform: scale(0.9);
+    }
+
+    // Past the 15-minute edit window (§5: `edit_window_expired`) — stays visible, greyed
+    // out, instead of disappearing, so it's clear editing *was* possible, just isn't anymore.
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
     }
   }
 
@@ -659,6 +666,16 @@
       @media (max-width: 480px) {
         font-size: 13px;
       }
+    }
+
+    // Placeholder for a soft-deleted message (§5) — own localized string
+    // (`chat.messageDeleted`), never the server's own placeholder text, so it stays in the
+    // frontend's translation system instead of depending on the backend's `?locale=`.
+    .deletedMessageText {
+      font-size: 14px;
+      font-style: italic;
+      opacity: 0.65;
+      padding: 12px 16px;
     }
 
     .messageText {

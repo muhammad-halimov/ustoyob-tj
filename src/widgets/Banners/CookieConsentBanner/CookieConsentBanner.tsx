@@ -1,17 +1,28 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import styles from './CookieConsentBanner.module.scss';
 import { getStorageItem, setStorageItem } from '../../../utils/storageUtils';
+import { getAuthToken, getUserData, setUserData } from '../../../utils/authUtils';
+import { universalApiRequest } from '../../../utils/apiUtils';
 
 /**
  * Cookie consent banner.
- * Shown once after a 1-second delay when 'cookieConsent' is absent from localStorage.
- * Accepting stores 'accepted' under that key so the banner is never shown again.
+ * Shown once after a 1-second delay when consent hasn't been recorded yet — for a logged-in
+ * user that means the backend's own `User.cookiesAgreed` (§3, the actual source of truth,
+ * synced across devices), for a guest it falls back to the local-only flag since there's no
+ * user record yet to check. Accepting persists both: the API field (so it stays agreed once
+ * they log in anywhere else) and the local flag (so it doesn't flash again in this browser
+ * before that request resolves, or if they're logged out).
  */
 const CookieConsentBanner: React.FC = () => {
+    const { t } = useTranslation(['common']);
     const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {
-        const isCookieConsentGiven = getStorageItem('cookieConsent');
+        const user = getUserData();
+        const isCookieConsentGiven = getAuthToken()
+            ? !!user?.cookiesAgreed
+            : !!getStorageItem('cookieConsent');
 
         if (!isCookieConsentGiven) {
             const timer = setTimeout(() => {
@@ -25,6 +36,22 @@ const CookieConsentBanner: React.FC = () => {
     const handleAccept = () => {
         setStorageItem('cookieConsent', 'accepted');
         setIsVisible(false);
+
+        const user = getUserData();
+        if (!getAuthToken() || !user?.id) return;
+
+        universalApiRequest(`/api/users/${user.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/merge-patch+json' },
+            body: { cookiesAgreed: true },
+            locale: false,
+        })
+            .then(() => setUserData({ ...user, cookiesAgreed: true }))
+            .catch(() => {
+                // Non-critical — the local flag above already keeps the banner from
+                // reappearing in this browser; worst case it re-asks on the next login
+                // elsewhere, same as before this field existed at all.
+            });
     };
 
     // const handleDecline = () => {
@@ -42,10 +69,9 @@ const CookieConsentBanner: React.FC = () => {
         <div className={styles.cookieBanner}>
             <div className={styles.cookieContent}>
                 <div className={styles.cookieText}>
-                    <h3 className={styles.cookieTitle}>🍪 Мы используем cookies</h3>
+                    <h3 className={styles.cookieTitle}>{t('common:cookieConsent.title')}</h3>
                     <p className={styles.cookieDescription}>
-                        Мы используем Cookies для функционирования сайта.
-                        Нажимая "Принять" вы соглашаетесь с использованием Cookies!
+                        {t('common:cookieConsent.description')}
                         {/*<button*/}
                         {/*    className={styles.learnMoreLink}*/}
                         {/*    onClick={handleLearnMore}*/}
@@ -66,7 +92,7 @@ const CookieConsentBanner: React.FC = () => {
                         className={styles.acceptButton}
                         onClick={handleAccept}
                     >
-                        Принять
+                        {t('common:cookieConsent.accept')}
                     </button>
                 </div>
             </div>

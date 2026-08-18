@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from 'react-i18next';
-import { getAuthToken, fetchCurrentUser } from "../../utils/authUtils";
+import { getAuthToken, fetchCurrentUser, isAdmin } from "../../utils/authUtils";
 import { ROUTES } from '../../app/routers/routes';
 import { smartNameTranslator } from '../../utils/textUtils';
 import Auth from '../../shared/ui/Modal/Auth/Auth';
@@ -33,6 +33,14 @@ import type { Chat as ApiChat, ChatMessage as ApiMessage } from '../../entities/
 import type { ChatImageView as ChatImageThumbnail, ChatMessageView as Message } from '../../entities/view/Chat';
 import { API_BASE_URL } from '../../utils/configUtils';
 
+// Backend physically rejects PATCH /chat-messages/{id} past this window (`edit_window_expired`,
+// 403) — 15 minutes from the message's own `createdAt`. Hiding the pencil once it's expired
+// avoids a "clicked it — turns out you can't" round trip; the server call would still 403 if
+// this were ever bypassed. Doesn't gate delete (soft delete has no time limit).
+const MESSAGE_EDIT_WINDOW_MS = 15 * 60 * 1000;
+const isWithinMessageEditWindow = (createdAt?: string): boolean =>
+    !!createdAt && Date.now() - new Date(createdAt).getTime() < MESSAGE_EDIT_WINDOW_MS;
+
 /**
  * Chat page — full real-time-style messaging interface.
  * - Shows a list of chat threads on the left panel.
@@ -43,6 +51,9 @@ import { API_BASE_URL } from '../../utils/configUtils';
  */
 function Chat() {
     const { t, i18n } = useTranslation(['components', 'common']);
+    // Moderation reach over message deletion (§5/§11 — soft delete is author-only *or* any
+    // admin) — chat itself has no other admin-only affordances, this is the one spot it matters.
+    const isAdminUser = isAdmin();
     const [activeTab, setActiveTab] = useState<"active" | "archive">("active");
     const [selectedChat, setSelectedChat] = useState<number | null>(null);
     const [chats, setChats] = useState<ApiChat[]>([]);
@@ -285,8 +296,6 @@ function Chat() {
     // `loadOlderMessages`' pagination so the mapping only lives in one place.
     const mapApiMessageToView = useCallback((msg: ApiMessage): Message => {
         const createdAt = msg.createdAt ? new Date(msg.createdAt) : new Date();
-        const updatedAt = msg.updatedAt ? new Date(msg.updatedAt) : null;
-        const isEdited = !!(updatedAt && msg.createdAt && updatedAt.getTime() - new Date(msg.createdAt).getTime() > 1000);
         return {
             id: msg.id,
             sender: msg.author.id === currentUser?.id ? "me" : "other",
@@ -295,7 +304,10 @@ function Chat() {
             type: 'text' as const,
             time: createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             createdAt: createdAt.toISOString(),
-            edited: isEdited,
+            // Real fields now (§5) — used to be a heuristic (updatedAt more than a second past
+            // createdAt), which false-positived on things like photo-only-uploaded-later edits.
+            edited: !!msg.edited,
+            deletedByAuthor: !!msg.deletedByAuthor,
             readAt: msg.readAt ?? null,
             replyTo: msg.replyTo ? {
                 id: msg.replyTo.id,
@@ -460,8 +472,11 @@ function Chat() {
         const user = currentUserRef.current;
 
         if (type === 'deleted') {
-            const del = data as { id: number; chatId: number };
-            setMessages(prev => prev.filter(m => m.id !== del.id));
+            // Likely unreachable now — DELETE is a soft delete (§5), which flows through the
+            // same update path as an edit, so a delete elsewhere probably arrives as 'updated'
+            // with `deletedByAuthor: true` rather than this. Kept as a defensive fallback in
+            // case it ever does fire — refetch instead of filtering the message out locally,
+            // since it isn't actually gone, just flips to the deleted-placeholder render.
             fetchChatMessages(chatId);
             return;
         }
@@ -469,32 +484,9 @@ function Chat() {
         if (!user) return;
 
         const apiMsg = data as ApiMessage;
-        const createdAt = apiMsg.createdAt ? new Date(apiMsg.createdAt) : new Date();
-        const updatedAt = apiMsg.updatedAt ? new Date(apiMsg.updatedAt) : null;
-        const isEdited = !!(updatedAt && apiMsg.createdAt &&
-            updatedAt.getTime() - new Date(apiMsg.createdAt).getTime() > 1000);
-
-        const msg: Message = {
-            id: apiMsg.id,
-            sender: apiMsg.author.id === user.id ? 'me' : 'other',
-            name: getTranslatedFullName(apiMsg.author),
-            text: apiMsg.description,
-            type: 'text' as const,
-            time: createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            createdAt: createdAt.toISOString(),
-            edited: isEdited,
-            readAt: apiMsg.readAt ?? null,
-            replyTo: apiMsg.replyTo ? {
-                id: apiMsg.replyTo.id,
-                text: apiMsg.replyTo.description,
-                name: getTranslatedFullName(apiMsg.replyTo.author)
-            } : undefined,
-            images: (apiMsg.images || []).map(img => ({
-                id: img.id,
-                url: getImageUrl(img.image),
-                name: img.image
-            }))
-        };
+        // Same mapping as the initial/paginated load — keeps `edited`/`deletedByAuthor` (real
+        // fields now, §5) and everything else consistent instead of a second hand-rolled copy.
+        const msg: Message = mapApiMessageToView(apiMsg);
 
         if (type === 'created') {
             setMessages(prev => {
@@ -533,7 +525,7 @@ function Chat() {
                 return merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
             });
         }
-    }, [fetchChatMessages, getTranslatedFullName, getImageUrl, markChatAsRead]);
+    }, [fetchChatMessages, getImageUrl, markChatAsRead, mapApiMessageToView]);
 
     useEffect(() => { processActiveChatMessageRef.current = processActiveChatMessage; }, [processActiveChatMessage]);
 
@@ -721,6 +713,13 @@ function Chat() {
         }
     }, [t]);
 
+    // Soft delete (§5) — the row survives server-side with `description` replaced by a fixed
+    // placeholder and `images` cleared; `deletedByAuthor: true` is what the render below keys
+    // off of, not that placeholder text (kept out of the translation system on purpose — see
+    // `chat.messageDeleted`). Available to the message's own author, or any admin (moderation,
+    // same reach as photo moderation elsewhere) — re-deleting an already-deleted message is a
+    // no-op 204, so nothing extra is needed against double-clicks beyond the button just
+    // disappearing once `deletedByAuthor` is true.
     const deleteMessage = useCallback(async (messageId: number) => {
         if (!window.confirm(t('chat.deleteConfirm'))) {
             return;
@@ -728,17 +727,31 @@ function Chat() {
 
         try {
             await universalApiRequest(`/api/chat-messages/${messageId}`, { method: 'DELETE', locale: false });
-            setMessages(prev => prev.filter(msg => msg.id !== messageId));
+            const deletedImageIds = new Set(messages.find(m => m.id === messageId)?.images?.map(img => img.id) ?? []);
+            setMessages(prev => prev.map(msg =>
+                msg.id === messageId ? { ...msg, text: '', deletedByAuthor: true, images: [] } : msg
+            ));
+            // The photo sidebar (§5: `Chat.images` aggregates across messages) needs the same
+            // prune — the server just cleared this message's own images too, so its thumbnails
+            // would otherwise linger there until the next full refetch.
+            if (deletedImageIds.size > 0) {
+                setChatImages(prev => prev.filter(img => !deletedImageIds.has(img.id)));
+            }
         } catch (err) {
             console.error('Error deleting message:', err);
+            setError(resolveApiError(err, t('chat.deleteMessageError')));
         }
-    }, [t]);
+    }, [t, messages]);
 
+    // Throws on failure now instead of swallowing to a bare `false` — the shared edit
+    // mechanism (§5/§11) can 403/400/410 here (edit_window_expired, edit_too_different,
+    // message_already_deleted), each worth its own message via resolveApiError at the call
+    // site instead of a silent no-op that left the composer sitting there with no feedback.
     const editMessageOnServer = useCallback(async (
         messageId: number,
         newText: string,
         photoItems: PhotoItem[]
-    ): Promise<boolean> => {
+    ): Promise<void> => {
         const newFiles = (photoItems.filter(p => p.type === 'new') as Array<{ type: 'new'; file: File; previewUrl: string }>).map(p => p.file);
 
         const fetchMessageImages = async (id: number): Promise<Array<{ id: number; image: string }>> => {
@@ -750,30 +763,24 @@ function Chat() {
             }
         };
 
-        try {
-            const token = getAuthToken();
-            if (!token || !selectedChat) return false;
+        const token = getAuthToken();
+        if (!token || !selectedChat) return;
 
-            if (newFiles.length > 0) {
-                for (const file of newFiles) {
-                    await uploadPhotos('chat-messages', messageId, [file], token);
-                }
+        if (newFiles.length > 0) {
+            for (const file of newFiles) {
+                await uploadPhotos('chat-messages', messageId, [file], token);
             }
-
-            const currentImages = await fetchMessageImages(messageId);
-            const orderedImages = buildOrderedImagePayload(photoItems, currentImages);
-
-            await universalApiRequest(`/api/chat-messages/${messageId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/merge-patch+json' },
-                body: { description: newText, chat: `/api/chats/${selectedChat}`, images: orderedImages },
-                locale: false,
-            });
-            return true;
-        } catch (err) {
-            console.error('Error editing message:', err);
-            return false;
         }
+
+        const currentImages = await fetchMessageImages(messageId);
+        const orderedImages = buildOrderedImagePayload(photoItems, currentImages);
+
+        await universalApiRequest(`/api/chat-messages/${messageId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/merge-patch+json' },
+            body: { description: newText, chat: `/api/chats/${selectedChat}`, images: orderedImages },
+            locale: false,
+        });
     }, [selectedChat]);
 
     // One-off delete straight from the MediaSidebar panel (no need to open full edit mode just
@@ -840,14 +847,14 @@ function Chat() {
         if (editingMessage) {
             setIsUploading(true);
             try {
-                const success = await editMessageOnServer(editingMessage.id, newMessage, editingPhotoItems);
-                if (success) {
-                    setEditingMessage(null);
-                    setEditingPhotoItems([]);
-                    setNewMessage("");
-                    // Обновляем сообщение принудительно (SSE может не успеть с фото)
-                    await fetchChatMessages(selectedChat);
-                }
+                await editMessageOnServer(editingMessage.id, newMessage, editingPhotoItems);
+                setEditingMessage(null);
+                setEditingPhotoItems([]);
+                setNewMessage("");
+                // Обновляем сообщение принудительно (SSE может не успеть с фото)
+                await fetchChatMessages(selectedChat);
+            } catch (err) {
+                setError(resolveApiError(err, t('chat.messageError')));
             } finally {
                 setIsUploading(false);
             }
@@ -1624,6 +1631,12 @@ function Chat() {
                                                 );
                                             }
 
+                                            const isDeleted = !!msg.deletedByAuthor;
+                                            const isMine = msg.sender === 'me' && !msg.isLocal;
+                                            const showEditButton = isMine && !isDeleted;
+                                            const isEditWindowExpired = !isWithinMessageEditWindow(msg.createdAt);
+                                            const canDeleteThisMessage = (isMine || isAdminUser) && !msg.isLocal && !isDeleted;
+
                                             return (
                                                 <div
                                                     key={msg.id}
@@ -1633,59 +1646,75 @@ function Chat() {
                                                         {msg.sender === "other" && (
                                                             <div className={styles.messageName}>{msg.name}</div>
                                                         )}
-                                                        {msg.replyTo && (
-                                                            <div className={styles.replyQuote}>
-                                                                <div className={styles.replyQuoteName}>{msg.replyTo.name}</div>
-                                                                <div className={styles.replyQuoteText}>
-                                                                    {msg.replyTo.text.length > 80 ? msg.replyTo.text.substring(0, 80) + '…' : msg.replyTo.text}
-                                                                </div>
+                                                        {isDeleted ? (
+                                                            <div className={styles.messageContent}>
+                                                                <div className={styles.deletedMessageText}>{t('chat.messageDeleted')}</div>
+                                                                <div className={styles.messageTime}>{msg.time}</div>
                                                             </div>
-                                                        )}
-                                                        {msg.images && msg.images.length > 0 && (
-                                                            <div className={`${styles.messageImagesGrid} ${msg.images.length === 1 ? styles.messageImages1 : msg.images.length === 2 ? styles.messageImages2 : styles.messageImages3}`}>
-                                                                {msg.images.map((img) => (
-                                                                    <img
-                                                                        key={img.id}
-                                                                        src={img.url}
-                                                                        alt=""
-                                                                        className={styles.messageGridImage}
-                                                                        onClick={() => {
-                                                                            const galleryIdx = chatImages.findIndex(ci => ci.imageUrl === img.url);
-                                                                            photoGallery.openGallery(galleryIdx >= 0 ? galleryIdx : 0);
-                                                                        }}
-                                                                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                                                                    />
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                        <div className={styles.messageContent}>
-                                                            {msg.text && <div className={styles.messageText}>{msg.text}</div>}
-                                                            <div className={styles.messageTime}>
-                                                                {msg.time}
-                                                                {msg.edited && <span className={styles.editedBadge}> • изм.</span>}
-                                                                {msg.sender === 'me' && !msg.isLocal && (
-                                                                    <span className={msg.readAt ? styles.tickRead : styles.tickSent}>
-                                                                        {msg.readAt ? '✓✓' : '✓'}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div className={styles.messageActions}>
-                                                        <button className={styles.actionBtn} onClick={() => { setReplyToMessage(msg); messageInputRef.current?.focus(); }} title="Ответить">
-                                                            <IoArrowUndoSharp />
-                                                        </button>
-                                                        {msg.sender === "me" && !msg.isLocal && (
+                                                        ) : (
                                                             <>
-                                                                <button className={styles.actionBtn} onClick={() => { setEditingMessage(msg); setNewMessage(msg.text); setEditingPhotoItems((msg.images || []).map(img => ({ type: 'existing' as const, id: img.id, image: img.name }))); messageInputRef.current?.focus(); }} title="Редактировать">
-                                                                    <IoPencilSharp />
-                                                                </button>
-                                                                <button className={`${styles.actionBtn} ${styles.deleteMsgBtn}`} onClick={() => deleteMessage(msg.id)} title="Удалить">
-                                                                    <IoTrashSharp />
-                                                                </button>
+                                                                {msg.replyTo && (
+                                                                    <div className={styles.replyQuote}>
+                                                                        <div className={styles.replyQuoteName}>{msg.replyTo.name}</div>
+                                                                        <div className={styles.replyQuoteText}>
+                                                                            {msg.replyTo.text.length > 80 ? msg.replyTo.text.substring(0, 80) + '…' : msg.replyTo.text}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                                {msg.images && msg.images.length > 0 && (
+                                                                    <div className={`${styles.messageImagesGrid} ${msg.images.length === 1 ? styles.messageImages1 : msg.images.length === 2 ? styles.messageImages2 : styles.messageImages3}`}>
+                                                                        {msg.images.map((img) => (
+                                                                            <img
+                                                                                key={img.id}
+                                                                                src={img.url}
+                                                                                alt=""
+                                                                                className={styles.messageGridImage}
+                                                                                onClick={() => {
+                                                                                    const galleryIdx = chatImages.findIndex(ci => ci.imageUrl === img.url);
+                                                                                    photoGallery.openGallery(galleryIdx >= 0 ? galleryIdx : 0);
+                                                                                }}
+                                                                                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                                                                            />
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                                <div className={styles.messageContent}>
+                                                                    {msg.text && <div className={styles.messageText}>{msg.text}</div>}
+                                                                    <div className={styles.messageTime}>
+                                                                        {msg.time}
+                                                                        {msg.edited && <span className={styles.editedBadge}> {t('chat.editedBadge')}</span>}
+                                                                        {msg.sender === 'me' && !msg.isLocal && (
+                                                                            <span className={msg.readAt ? styles.tickRead : styles.tickSent}>
+                                                                                {msg.readAt ? '✓✓' : '✓'}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
                                                             </>
                                                         )}
                                                     </div>
+                                                    {!isDeleted && (
+                                                        <div className={styles.messageActions}>
+                                                            <button className={styles.actionBtn} onClick={() => { setReplyToMessage(msg); messageInputRef.current?.focus(); }} title={t('chat.reply')}>
+                                                                <IoArrowUndoSharp />
+                                                            </button>
+                                                            {showEditButton && (
+                                                                <button
+                                                                    className={styles.actionBtn}
+                                                                    onClick={() => { setEditingMessage(msg); setNewMessage(msg.text); setEditingPhotoItems((msg.images || []).map(img => ({ type: 'existing' as const, id: img.id, image: img.name }))); messageInputRef.current?.focus(); }}
+                                                                    disabled={isEditWindowExpired}
+                                                                    title={isEditWindowExpired ? t('chat.editWindowExpired') : t('chat.editMessage')}
+                                                                >
+                                                                    <IoPencilSharp />
+                                                                </button>
+                                                            )}
+                                                            {canDeleteThisMessage && (
+                                                                <button className={`${styles.actionBtn} ${styles.deleteMsgBtn}`} onClick={() => deleteMessage(msg.id)} title={t('chat.deleteMessage')}>
+                                                                    <IoTrashSharp />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             );
                                         })}

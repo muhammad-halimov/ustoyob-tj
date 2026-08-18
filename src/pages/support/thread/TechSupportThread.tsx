@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type * as React from 'react';
 import { useTranslation } from 'react-i18next';
-import { IoSend, IoAttach, IoPricetagOutline, IoImages, IoBanOutline, IoPencilOutline, IoPersonOutline, IoHeadsetOutline } from 'react-icons/io5';
+import { IoSend, IoAttach, IoPricetagOutline, IoImages, IoBanOutline, IoPencilOutline, IoPersonOutline, IoHeadsetOutline, IoTrashOutline } from 'react-icons/io5';
 import styles from './TechSupportThread.module.scss';
 import { universalApiRequest } from '../../../utils/apiUtils';
+import { resolveApiError } from '../../../utils/appMessagesUtils';
 import { getUserData, isAdmin } from '../../../utils/authUtils';
 import { getFormattedDateTime } from '../../../utils/timeUtils';
 import { uploadPhotos, formatTechSupportImageUrl, formatTechSupportMessageImageUrl } from '../../../utils/imageUtils';
@@ -49,6 +50,17 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB — same cap as Chat's attach fl
 // list by `createdAt` for the same reason — mirrored here.
 const sortMessagesByCreatedAt = (messages: TechSupportMessage[]): TechSupportMessage[] =>
     [...messages].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+// Backend physically rejects PATCH /tech-support-messages/{id} past this window
+// (`edit_window_expired`, 403) — 15 minutes from the message's own `createdAt`, same as
+// ChatMessage. Hiding the pencil once it's expired avoids a "clicked it — turns out you
+// can't" round trip; the server call would still 403 if this were ever bypassed. Doesn't
+// gate delete (soft delete has no time limit) and doesn't replicate the separate
+// `tech_support_message_edit_locked` rule (author locked out once the operator reacted) —
+// that one's left to the server's own 403, surfaced via `resolveApiError`.
+const MESSAGE_EDIT_WINDOW_MS = 15 * 60 * 1000;
+const isWithinMessageEditWindow = (createdAt: string): boolean =>
+    Date.now() - new Date(createdAt).getTime() < MESSAGE_EDIT_WINDOW_MS;
 
 /**
  * Message thread for a single tech-support ticket — a full-width ticket/reply view
@@ -107,6 +119,9 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     const [isSavingMessage, setIsSavingMessage] = useState(false);
     const [editMessageText, setEditMessageText] = useState('');
     const [editMessagePhotos, setEditMessagePhotos] = useState<PhotoItem[]>([]);
+    // Soft delete (§11) — author of the message, or any admin (moderation). In-flight id only
+    // (no confirm-then-nothing state needed) — the button disables itself while its own call runs.
+    const [deletingMessageId, setDeletingMessageId] = useState<number | null>(null);
 
     // Marks every unread reply on this ticket as read server-side (§11: `author != caller &&
     // readAt == null`). Fire-and-forget — a failure here just leaves the tickets-list bubble
@@ -476,10 +491,33 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
             });
             await fetchTicket();
             cancelEditMessage();
-        } catch {
-            setError(t('thread.editError'));
+        } catch (err) {
+            // Surfaces the specific reason instead of a generic failure — §11's shared edit
+            // mechanism can 403/400/410 here (edit_window_expired, edit_too_different,
+            // message_already_deleted, tech_support_message_edit_locked), each with its own
+            // catalogue message via resolveApiError instead of one flat "couldn't save".
+            setError(resolveApiError(err, t('thread.editError')));
         } finally {
             setIsSavingMessage(false);
+        }
+    };
+
+    // Soft delete (§11) — the row survives server-side with `description` replaced by a fixed
+    // placeholder and `images` cleared; `deletedByAuthor: true` is what the render below keys
+    // off of instead of trusting that placeholder's text (kept out of the translation system).
+    // Available to the message's own author, or any admin (moderation) — re-deleting an
+    // already-deleted message is a no-op 204, so no extra guard needed against double-clicks
+    // beyond disabling the button while one is in flight.
+    const deleteMessage = async (messageId: number) => {
+        if (!window.confirm(t('thread.deleteMessageConfirm'))) return;
+        setDeletingMessageId(messageId);
+        try {
+            await universalApiRequest(`/api/tech-support-messages/${messageId}`, { method: 'DELETE', locale: false });
+            await fetchTicket();
+        } catch (err) {
+            setError(resolveApiError(err, t('thread.deleteMessageError')));
+        } finally {
+            setDeletingMessageId(null);
         }
     };
 
@@ -760,6 +798,11 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                             const authorLabel = displayName ? `${displayName} (${roleTag})` : roleTag;
 
                             const isEditingThisMessage = editingMessageId === msg.id;
+                            const isDeleted = !!msg.deletedByAuthor;
+                            const showEditButton = isMine && !isDeleted;
+                            const isEditWindowExpired = !isWithinMessageEditWindow(msg.createdAt);
+                            const canDeleteThisMessage = (isMine || isAdminUser) && !isDeleted;
+                            const isDeletingThisMessage = deletingMessageId === msg.id;
 
                             return (
                                 <div key={msg.id} className={`${styles.message} ${isMine ? styles.messageMine : styles.messageSupport}`}>
@@ -768,29 +811,49 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                                         <span className={styles.messageAuthorName}>
                                             <Marquee text={authorLabel} alwaysScroll threshold={16} />
                                         </span>
-                                        <span className={styles.messageTime}>{getFormattedDateTime(msg.createdAt)}</span>
-                                        {isMine && (
-                                            isEditingThisMessage ? (
-                                                <EditActions
-                                                    onSave={saveEditMessage}
-                                                    onCancel={cancelEditMessage}
-                                                    saveDisabled={isSavingMessage}
-                                                    className={styles.messageEditActions}
-                                                />
-                                            ) : (
-                                                <button
-                                                    type="button"
-                                                    className={styles.messageEditBtn}
-                                                    onClick={() => startEditMessage(msg)}
-                                                    aria-label={t('thread.editMessage')}
-                                                    title={t('thread.editMessage')}
-                                                >
-                                                    <IoPencilOutline />
-                                                </button>
-                                            )
+                                        <span className={styles.messageTime}>
+                                            {getFormattedDateTime(msg.createdAt)}
+                                            {!isDeleted && msg.edited && <span className={styles.editedMark}>{t('thread.edited')}</span>}
+                                        </span>
+                                        {isEditingThisMessage ? (
+                                            <EditActions
+                                                onSave={saveEditMessage}
+                                                onCancel={cancelEditMessage}
+                                                saveDisabled={isSavingMessage}
+                                                className={styles.messageEditActions}
+                                            />
+                                        ) : (
+                                            <>
+                                                {showEditButton && (
+                                                    <button
+                                                        type="button"
+                                                        className={styles.messageEditBtn}
+                                                        onClick={() => startEditMessage(msg)}
+                                                        disabled={isEditWindowExpired}
+                                                        aria-label={t('thread.editMessage')}
+                                                        title={isEditWindowExpired ? t('thread.editWindowExpired') : t('thread.editMessage')}
+                                                    >
+                                                        <IoPencilOutline />
+                                                    </button>
+                                                )}
+                                                {canDeleteThisMessage && (
+                                                    <button
+                                                        type="button"
+                                                        className={styles.messageDeleteBtn}
+                                                        onClick={() => deleteMessage(msg.id)}
+                                                        disabled={isDeletingThisMessage}
+                                                        aria-label={t('thread.deleteMessage')}
+                                                        title={t('thread.deleteMessage')}
+                                                    >
+                                                        <IoTrashOutline />
+                                                    </button>
+                                                )}
+                                            </>
                                         )}
                                     </div>
-                                    {isEditingThisMessage ? (
+                                    {isDeleted ? (
+                                        <div className={styles.messageDeletedBody}>{t('thread.messageDeleted')}</div>
+                                    ) : isEditingThisMessage ? (
                                         <>
                                             <textarea
                                                 className={styles.editTextarea}

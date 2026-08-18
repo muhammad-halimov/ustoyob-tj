@@ -94,6 +94,11 @@
     "linkExpired": "Link has expired or is invalid",
     "error": "An error occurred during activation"
   },
+  "cookieConsent": {
+    "title": "🍪 We use cookies",
+    "description": "We use cookies to make the site work. By staying on the site, you agree to our use of cookies.",
+    "accept": "Accept"
+  },
   "select": "Select...",
   "search": "Search...",
   "clear": "Clear",
