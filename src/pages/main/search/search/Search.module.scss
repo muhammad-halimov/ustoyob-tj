@@ -30,7 +30,7 @@
 }
 
 .search {
-  max-width: 1549px;
+  // max-width: 1549px;
   background: map.get(vars.$colors, background-primary);
   border-radius: map.get(vars.$border-radius, xl);
   padding: map.get(vars.$spacing, 5);

@@ -51,6 +51,17 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB — same cap as Chat's attach fl
 const sortMessagesByCreatedAt = (messages: TechSupportMessage[]): TechSupportMessage[] =>
     [...messages].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
+// §11/§14: `images` on every one of these Patch DTOs (`TechSupportPatchInput`,
+// `TechSupportMessagePatchInput`, and every other entity's) is documented as
+// `{ image: string }[]` — filename only, matched/reordered/pruned by filename, no `id`
+// anywhere in the shape. `buildOrderedImagePayload`'s `{ id, image }` return is convenient
+// for the client-side PhotoItem bookkeeping (drag-reorder keys, dedup) but was going out on
+// the wire as-is with the extra `id` — which is what was actually silently swallowing every
+// photo add/remove here (title/description saved fine, images never did): strip it down to
+// the documented shape right before it's sent.
+const toImagePayload = (images: { image: string }[]): { image: string }[] =>
+    images.map(({ image }) => ({ image }));
+
 // Backend physically rejects PATCH /tech-support-messages/{id} past this window
 // (`edit_window_expired`, 403) — 15 minutes from the message's own `createdAt`, same as
 // ChatMessage. Hiding the pencil once it's expired avoids a "clicked it — turns out you
@@ -61,6 +72,15 @@ const sortMessagesByCreatedAt = (messages: TechSupportMessage[]): TechSupportMes
 const MESSAGE_EDIT_WINDOW_MS = 15 * 60 * 1000;
 const isWithinMessageEditWindow = (createdAt: string): boolean =>
     Date.now() - new Date(createdAt).getTime() < MESSAGE_EDIT_WINDOW_MS;
+
+// §11: `title`/`description`/`images` on `PATCH /tech-supports/{id}` share the same
+// isPastEditWindow() mechanism, but a 24h window (like Review's) instead of the message
+// window above — and, unlike `reason`/`priority` (admin-only, no time limit), it applies
+// equally to the author and an admin. Same "hide once it's expired" reasoning as the message
+// pencil — the server would still 403 `edit_window_expired` if this were ever bypassed.
+const TICKET_EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
+const isWithinTicketEditWindow = (createdAt?: string): boolean =>
+    !!createdAt && Date.now() - new Date(createdAt).getTime() < TICKET_EDIT_WINDOW_MS;
 
 /**
  * Message thread for a single tech-support ticket — a full-width ticket/reply view
@@ -73,8 +93,11 @@ const isWithinMessageEditWindow = (createdAt: string): boolean =>
 function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps) {
     const { t } = useTranslation('techSupport');
     const currentUserId = getUserData()?.id;
-    // Admin-only ticket-fields editing (§11: PATCH accepts title/reason/priority/description/
-    // status for admins, silently no-ops everything but `status` for the author).
+    // §11: PATCH /tech-supports/{id} — author gets `status` (state machine) + `title`/
+    // `description`/`images` (24h edit window, see TICKET_EDIT_WINDOW_MS below); admin gets
+    // all of that plus `reason`/`priority`, unrestricted by time. `isAdminUser` alone still
+    // decides the reason/priority/status editing UI further down (see canEditTicket for the
+    // combined "can this viewer open the ticket editor at all" gate).
     const isAdminUser = isAdmin();
 
     const [ticket, setTicket] = useState<SupportTicket | null>(null);
@@ -91,6 +114,10 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     const [supportReasons, setSupportReasons] = useState<AppealReason[]>([]);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    /** A 'created' SSE event for the other side's message can arrive before their images are
+     *  attached (images upload separately, after the message itself is created) — this
+     *  schedules one delayed `fetchTicket` to pick up any photos that land shortly after. */
+    const messageImagesRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const [message, setMessage] = useState('');
     const [photos, setPhotos] = useState<PhotoItem[]>([]);
@@ -99,7 +126,9 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     const composePreviewUrls = photos.filter((p): p is Extract<PhotoItem, { type: 'new' }> => p.type === 'new').map(p => p.previewUrl);
     const composeGallery = usePreview({ images: composePreviewUrls });
 
-    // Admin edit mode — title/description/reason/priority/status, populated from `ticket` on entry.
+    // Ticket edit mode — title/description/reason/priority/status, populated from `ticket` on
+    // entry. Reachable by an admin any time, or the ticket's own author within the 24h window
+    // (see canEditTicket) — reason/priority/status stay admin-only once inside, see the JSX.
     const [isEditingTicket, setIsEditingTicket] = useState(false);
     const [isSavingTicket, setIsSavingTicket] = useState(false);
     const [editTitle, setEditTitle] = useState('');
@@ -107,8 +136,8 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     const [editReasonIri, setEditReasonIri] = useState('');
     const [editPriority, setEditPriority] = useState('');
     const [editStatus, setEditStatus] = useState('');
-    // Admin-only per §11 (author's PATCH silently no-ops every field but `status`) — lets the
-    // original request's screenshots be pruned the same way title/description already can be.
+    // Available to whoever can open the editor at all (see canEditTicket) — lets the original
+    // request's screenshots be pruned the same way title/description already can be.
     const [editImages, setEditImages] = useState<PhotoItem[]>([]);
 
     // Own-message edit mode (either side — whoever actually wrote the message, mirrors Chat's
@@ -193,12 +222,15 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     }, [ticket, onTicketChange]);
 
     // Real-time delivery — subscribe to this ticket's private Mercure topic (§11) so
-    // support replies *and* status changes show up instantly instead of waiting for a manual
-    // refresh. Two event types on this topic: "created" (new TechSupportMessage) and "updated"
-    // (the TechSupport entity itself, fired only on an actual status change — admin action or
-    // an author self-transition like resolved/closed → renewed). Editing/deleting a message,
-    // or PATCHing non-status fields alone, emit nothing — those still rely on the explicit
-    // refetch after saveEditTicket / marking read.
+    // support replies, status changes, and the ticket's own photo set all show up instantly
+    // instead of waiting for a manual refresh. Three event types on this topic: "created" (new
+    // TechSupportMessage), "updated" (the TechSupport entity itself, fired only on an actual
+    // status change — admin action or an author self-transition like resolved/closed →
+    // renewed), and "images_updated" (the ticket's own — not a message's — photo set changed:
+    // upload, PATCH-detach, or admin moderation delete). Editing/deleting a message's text, or
+    // a message's own photos changing, still emit nothing (§11 explicitly excludes
+    // TechSupportMessage photos from images_updated) — those still rely on the explicit
+    // refetch after saveEditTicket / marking read / the delayed refetch below.
     useEffect(() => {
         let cancelled = false;
         let source: EventSource | null = null;
@@ -225,6 +257,18 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                             // Thread is open — the incoming message is read the moment it arrives.
                             // (No-op server-side if it happens to be our own echoed-back message.)
                             markThreadRead();
+                            // Images upload separately, after the message itself is created — a
+                            // reply from the other side can show up here before its photos do.
+                            // Refetch shortly after to pick them up once they land (our own
+                            // messages already self-heal via the explicit fetchTicket() in
+                            // handleSend, so skip re-fetching for those).
+                            if (msg.author?.id !== currentUserId) {
+                                if (messageImagesRefreshTimeoutRef.current) clearTimeout(messageImagesRefreshTimeoutRef.current);
+                                messageImagesRefreshTimeoutRef.current = setTimeout(() => {
+                                    messageImagesRefreshTimeoutRef.current = null;
+                                    fetchTicket();
+                                }, 1800);
+                            }
                         } else if (type === 'updated') {
                             // Full TechSupport payload — keep our own (possibly further-ahead,
                             // e.g. just-appended via "created" above) `messages` list instead of
@@ -233,6 +277,13 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                             setTicket(prev => (prev
                                 ? { ...prev, ...updated, messages: prev.messages ?? sortMessagesByCreatedAt(updated.messages ?? []) }
                                 : { ...updated, messages: sortMessagesByCreatedAt(updated.messages ?? []) }));
+                        } else if (type === 'images_updated') {
+                            // §11: the ticket's own photo set changed elsewhere (another
+                            // viewer's upload/edit, or admin moderation) — only `images` is
+                            // trustworthy off this event, everything else (esp. `messages`)
+                            // stays exactly what we already have.
+                            const updated = data as SupportTicket;
+                            setTicket(prev => (prev ? { ...prev, images: updated.images ?? [] } : prev));
                         }
                     } catch {
                         // ignore malformed events
@@ -247,7 +298,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
             cancelled = true;
             source?.close();
         };
-    }, [ticketId, markThreadRead]);
+    }, [ticketId, markThreadRead, fetchTicket, currentUserId]);
 
     const triggerFileInput = () => fileInputRef.current?.click();
 
@@ -340,6 +391,19 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     // the only ones still allowed to post messages/images on a banned ticket per the same doc.
     const isBanned = statusKey === 'banned';
     const canReply = !isBanned || isAdminUser;
+    // §11: the ticket-content edit form (title/description/images, + reason/priority/status for
+    // admins) — an admin can always open it (reason/priority/status aren't time-limited); the
+    // author only gets it while the 24h content-edit window is still open. Past that, an author
+    // has nothing left to change here — reopening a closed/resolved ticket already happens
+    // automatically on reply (see handleSend), not through this form.
+    const isTicketAuthor = !!currentUserId && !!ticket?.author && ticket.author.id === currentUserId;
+    const isTicketEditWindowOpen = !!ticket && isWithinTicketEditWindow(ticket.createdAt);
+    const canEditTicket = isAdminUser || (isTicketAuthor && isTicketEditWindowOpen);
+    // title/description/images specifically are gated by the 24h window for *both* roles
+    // (§11 — unlike reason/priority/status, which stay unrestricted for an admin). An admin
+    // opening the editor on a ticket older than 24h still gets reason/priority/status, just
+    // not these three — sending them anyway would 403 edit_window_expired even unchanged.
+    const canEditTicketContent = isTicketEditWindowOpen;
 
     // Current user's own name, prefixed onto "Имя (Вы - роль)" on your own replies —
     // getUserData() returns the full cached profile, not just the id.
@@ -360,6 +424,21 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
         if (ticket?.administrant?.id === msgAuthorId) return 'admin';
         return null;
     }, [ticket?.author?.id, ticket?.administrant?.id]);
+
+    // §11, TechSupportMessage-only: once the operator has "reacted" to a message — read it
+    // (`readAt` set) or posted anything afterward — the *appellant* (ticket author) is locked
+    // out of editing/deleting its content, including its photos, via
+    // ApiPatchTechSupportMessageController::checkOwnership (403 tech_support_message_edit_locked).
+    // The administrant editing their own messages isn't subject to this. Predicting it
+    // client-side (instead of only finding out from the 403) lets the pencil/delete controls
+    // reflect it up front rather than looking like they silently do nothing.
+    const isMessageLockedForAuthor = useCallback((msg: TechSupportMessage): boolean => {
+        if (msg.readAt != null) return true;
+        const msgTime = new Date(msg.createdAt).getTime();
+        return (ticket?.messages ?? []).some(m =>
+            getMessageRole(m.author?.id) === 'admin' && new Date(m.createdAt).getTime() > msgTime
+        );
+    }, [ticket?.messages, getMessageRole]);
 
     // Admin ticket-fields editing — option lists. Category is scoped to `applicableTo=support`
     // (see `fetchSupportReasons`), same restriction as the create form's picker — a ticket's
@@ -395,39 +474,57 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     const saveEditTicket = async () => {
         setIsSavingTicket(true);
         try {
-            // New files first (so their ids exist server-side), then re-fetch the ticket's own
-            // image list to learn those ids before computing what to keep/drop — same two-step
-            // dance as Chat's message edit (upload → refetch → buildOrderedImagePayload).
-            const newFiles = editImages.filter((p): p is Extract<PhotoItem, { type: 'new' }> => p.type === 'new').map(p => p.file);
-            if (newFiles.length > 0) {
-                try {
-                    await uploadPhotos('tech-supports', ticketId, newFiles);
-                } catch {
-                    // Non-critical — the rest of the edit still saves either way.
+            // title/description/images only get touched — let alone sent — while the 24h
+            // window is open; past it they're not even rendered as inputs (see the JSX), and
+            // sending them anyway (even unchanged) would 403 edit_window_expired for both
+            // roles. An admin past the window can still be here for reason/priority/status.
+            let orderedImages: { id: number; image: string }[] | null = null;
+            if (canEditTicketContent) {
+                // New files first (so their ids exist server-side), then re-fetch the
+                // ticket's own image list to learn those ids before computing what to
+                // keep/drop — same two-step dance as Chat's message edit (upload → refetch →
+                // buildOrderedImagePayload).
+                const newFiles = editImages.filter((p): p is Extract<PhotoItem, { type: 'new' }> => p.type === 'new').map(p => p.file);
+                if (newFiles.length > 0) {
+                    try {
+                        await uploadPhotos('tech-supports', ticketId, newFiles);
+                    } catch {
+                        // Non-critical — the rest of the edit still saves either way.
+                    }
                 }
-            }
-            let currentImages: { id: number; image: string }[] = ticket?.images ?? [];
-            if (newFiles.length > 0) {
-                try {
-                    const fresh: SupportTicket = await universalApiRequest(`/api/tech-supports/${ticketId}`, { locale: false });
-                    currentImages = fresh.images ?? [];
-                } catch {
-                    // Falls back to the pre-upload snapshot — newly uploaded files just won't
-                    // be prunable until the next edit in that (unlikely) case.
+                let currentImages: { id: number; image: string }[] = ticket?.images ?? [];
+                if (newFiles.length > 0) {
+                    try {
+                        const fresh: SupportTicket = await universalApiRequest(`/api/tech-supports/${ticketId}`, { locale: false });
+                        currentImages = fresh.images ?? [];
+                    } catch {
+                        // Falls back to the pre-upload snapshot — newly uploaded files just won't
+                        // be prunable until the next edit in that (unlikely) case.
+                    }
                 }
+                orderedImages = buildOrderedImagePayload(editImages, currentImages);
             }
-            const orderedImages = buildOrderedImagePayload(editImages, currentImages);
 
             await universalApiRequest(`/api/tech-supports/${ticketId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/merge-patch+json' },
                 body: {
-                    title: editTitle.trim(),
-                    description: editDescription.trim(),
-                    ...(editReasonIri ? { reason: editReasonIri } : {}),
-                    ...(editPriority ? { priority: editPriority } : {}),
-                    ...(editStatus ? { status: editStatus } : {}),
-                    images: orderedImages,
+                    ...(canEditTicketContent ? {
+                        title: editTitle.trim(),
+                        description: editDescription.trim(),
+                        images: toImagePayload(orderedImages ?? []),
+                    } : {}),
+                    // reason/priority stay admin-only (§11) — the author's edit form doesn't
+                    // even render these fields (see isEditingTicket && isAdminUser below), so
+                    // editReasonIri/editPriority would just be echoing back the unchanged
+                    // ticket values for them; skip sending either to be explicit about it.
+                    ...(isAdminUser && editReasonIri ? { reason: editReasonIri } : {}),
+                    ...(isAdminUser && editPriority ? { priority: editPriority } : {}),
+                    // Only sent when it's an actual transition — resending the current value
+                    // isn't a "change" the state machine needs to see, and an author is only
+                    // allowed the resolved/closed → renewed self-transition anyway (§11);
+                    // anything else from them 403s (extra_denied).
+                    ...(editStatus && editStatus !== statusKey ? { status: editStatus } : {}),
                 },
                 locale: false,
             });
@@ -436,8 +533,11 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
             // should see the edit instead of the snapshot from before it.
             getMyTechSupports.clearCache();
             setIsEditingTicket(false);
-        } catch {
-            setError(t('thread.editError'));
+        } catch (err) {
+            // Surfaces the specific reason (e.g. edit_window_expired past the 24h mark, or
+            // extra_denied on a disallowed status transition) instead of one flat failure —
+            // same as saveEditMessage below.
+            setError(resolveApiError(err, t('thread.editError')));
         } finally {
             setIsSavingTicket(false);
         }
@@ -459,6 +559,19 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
 
     const saveEditMessage = async () => {
         if (editingMessageId == null) return;
+
+        // Saving with no text and no photos left would produce a genuinely empty message —
+        // a ghost bubble with nothing in it. Offer to delete the message outright instead of
+        // silently letting that PATCH through.
+        if (!editMessageText.trim() && editMessagePhotos.length === 0) {
+            if (window.confirm(t('thread.emptyMessagePhotoDeleteConfirm'))) {
+                const idToDelete = editingMessageId;
+                cancelEditMessage();
+                await deleteMessage(idToDelete, true);
+            }
+            return;
+        }
+
         setIsSavingMessage(true);
         try {
             const newFiles = editMessagePhotos.filter((p): p is Extract<PhotoItem, { type: 'new' }> => p.type === 'new').map(p => p.file);
@@ -486,7 +599,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
             await universalApiRequest(`/api/tech-support-messages/${editingMessageId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/merge-patch+json' },
-                body: { description: editMessageText.trim(), images: orderedImages },
+                body: { description: editMessageText.trim(), images: toImagePayload(orderedImages) },
                 locale: false,
             });
             await fetchTicket();
@@ -508,8 +621,8 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     // Available to the message's own author, or any admin (moderation) — re-deleting an
     // already-deleted message is a no-op 204, so no extra guard needed against double-clicks
     // beyond disabling the button while one is in flight.
-    const deleteMessage = async (messageId: number) => {
-        if (!window.confirm(t('thread.deleteMessageConfirm'))) return;
+    const deleteMessage = async (messageId: number, skipConfirm = false) => {
+        if (!skipConfirm && !window.confirm(t('thread.deleteMessageConfirm'))) return;
         setDeletingMessageId(messageId);
         try {
             await universalApiRequest(`/api/tech-support-messages/${messageId}`, { method: 'DELETE', locale: false });
@@ -527,21 +640,29 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     // attachment (inline or from the sidebar) opens the gallery at the right position.
     // Each item also carries where it came from + whether the viewer may delete it straight
     // from the sidebar (see `deleteSentImage`). Admins can drop anything, anywhere in the
-    // thread (§11: they're the moderators here) — ticket-level images only for an admin
-    // either way, since author's PATCH silently no-ops `images` regardless. A non-admin can
-    // only delete images off their own messages, same "each side manages their own" rule as
-    // the inline per-message edit pencil.
+    // thread (§11: they're the moderators here, and `images` isn't time-limited for them the
+    // way title/description are — wait, it is now, see TICKET_EDIT_WINDOW_MS — but their
+    // route is DELETE /multiple-images/{id}, which has no ownership/time check at all). The
+    // ticket author can drop their own original-request photos while the 24h edit window is
+    // open (§11: `images` shares that window), and drop images off their own messages same as
+    // always — same "each side manages their own" rule as the inline per-message edit pencil.
     type SentImageSource = { type: 'ticket' } | { type: 'message'; messageId: number };
     const sentImages = useMemo(() => {
         if (!ticket) return [];
+        const canDeleteTicketImages = isAdminUser || (isTicketAuthor && isTicketEditWindowOpen);
         const items: { id: number; url: string; deletable: boolean; source: SentImageSource }[] =
-            (ticket.images ?? []).map(img => ({ id: img.id, url: formatTechSupportImageUrl(img.image), deletable: isAdminUser, source: { type: 'ticket' } }));
+            (ticket.images ?? []).map(img => ({ id: img.id, url: formatTechSupportImageUrl(img.image), deletable: canDeleteTicketImages, source: { type: 'ticket' } }));
         (ticket.messages ?? []).forEach(m => {
             const mine = !!currentUserId && m.author?.id === currentUserId;
-            (m.images ?? []).forEach(img => items.push({ id: img.id, url: formatTechSupportMessageImageUrl(img.image), deletable: isAdminUser || mine, source: { type: 'message', messageId: m.id } }));
+            // Same appellant-only operator-reacted lock as the inline edit pencil (§11) —
+            // mirrored here so the sidebar's trash icon doesn't offer something the PATCH
+            // would 403 tech_support_message_edit_locked on. isAdminUser bypasses it entirely
+            // (the lock only ever gates the appellant, never the administrant).
+            const deletableAsMine = mine && !isMessageLockedForAuthor(m);
+            (m.images ?? []).forEach(img => items.push({ id: img.id, url: formatTechSupportMessageImageUrl(img.image), deletable: isAdminUser || deletableAsMine, source: { type: 'message', messageId: m.id } }));
         });
         return items;
-    }, [ticket, isAdminUser, currentUserId]);
+    }, [ticket, isAdminUser, isTicketAuthor, isTicketEditWindowOpen, currentUserId, isMessageLockedForAuthor]);
     const sentImageUrls = useMemo(() => sentImages.map(img => img.url), [sentImages]);
     const sentGallery = usePreview({ images: sentImageUrls });
     const openSentImage = (url: string) => {
@@ -554,37 +675,68 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     // component's callback shape) and looks its `source` back up from `sentImages` by id,
     // rather than widening MediaSidebar's own type for one caller's needs.
     //
-    // Two different mechanisms depending on who's deleting (§14/§15 of API_REFERENCE.md):
+    // Three different mechanisms depending on who's deleting and what (§11/§14/§15 of
+    // API_REFERENCE.md):
     // - Admin: `DELETE /api/multiple-images/{id}` — ROLE_ADMIN-only, no ownership check at
     //   all, deletes by the photo's own id regardless of which entity (ticket or *any*
     //   message, even one the admin didn't write) owns it. This is what actually makes
-    //   "admin deletes any photo" work — the PATCH-with-remaining-images route below is
+    //   "admin deletes any photo" work — the PATCH-with-remaining-images routes below are
     //   restricted to the entity's own author/participant, so an admin PATCHing someone
-    //   else's message to prune its images 403s.
-    // - Non-admin: PATCH-with-remaining-images on their own message, same mechanism as
-    //   `saveEditMessage` — the only route available to them, and the only one that needs
-    //   `source` at all now.
+    //   else's message (or a ticket they don't own) to prune its images 403s.
+    // - Non-admin, ticket-level photo: PATCH-with-remaining-images on the ticket itself
+    //   (`images` is part of `TechSupportPatchInput`, author-writable within the 24h edit
+    //   window — same window `sentImages`' `deletable` flag already gates this on).
+    // - Non-admin, message-level photo: PATCH-with-remaining-images on their own message,
+    //   same mechanism as `saveEditMessage`.
     const deleteSentImage = async (image: { id: number | string }) => {
-        if (!ticket || !window.confirm(t('thread.deleteImageConfirm'))) return;
+        if (!ticket) return;
+
+        const source = sentImages.find(i => i.id === image.id)?.source;
+
+        // Deleting the last photo off a message that already has no text would leave a
+        // completely empty message behind — offer to delete the message outright instead of
+        // producing that. Checked regardless of who's deleting (admin moderation shouldn't
+        // orphan a message any more than the author removing their own last photo should).
+        if (source?.type === 'message') {
+            const msg = ticket.messages?.find(m => m.id === source.messageId);
+            const hasText = !!msg?.description?.trim() && !msg.deletedByAuthor;
+            const remainingCount = (msg?.images ?? []).filter(img => img.id !== image.id).length;
+            if (!hasText && remainingCount === 0) {
+                if (!window.confirm(t('thread.emptyMessagePhotoDeleteConfirm'))) return;
+                await deleteMessage(source.messageId, true);
+                return;
+            }
+        }
+
+        if (!window.confirm(t('thread.deleteImageConfirm'))) return;
         try {
             if (isAdminUser) {
                 await universalApiRequest(`/api/multiple-images/${image.id}`, { method: 'DELETE', locale: false });
             } else {
-                const source = sentImages.find(i => i.id === image.id)?.source;
-                if (!source || source.type !== 'message') return;
-                const msg = ticket.messages?.find(m => m.id === source.messageId);
-                const remaining = (msg?.images ?? []).filter(img => img.id !== image.id).map(img => ({ id: img.id, image: img.image }));
-                await universalApiRequest(`/api/tech-support-messages/${source.messageId}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/merge-patch+json' },
-                    body: { images: remaining },
-                    locale: false,
-                });
+                if (!source) return;
+                if (source.type === 'ticket') {
+                    const remaining = (ticket.images ?? []).filter(img => img.id !== image.id).map(img => ({ id: img.id, image: img.image }));
+                    await universalApiRequest(`/api/tech-supports/${ticketId}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/merge-patch+json' },
+                        body: { images: toImagePayload(remaining) },
+                        locale: false,
+                    });
+                } else {
+                    const msg = ticket.messages?.find(m => m.id === source.messageId);
+                    const remaining = (msg?.images ?? []).filter(img => img.id !== image.id).map(img => ({ id: img.id, image: img.image }));
+                    await universalApiRequest(`/api/tech-support-messages/${source.messageId}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/merge-patch+json' },
+                        body: { images: toImagePayload(remaining) },
+                        locale: false,
+                    });
+                }
             }
             await fetchTicket();
             getMyTechSupports.clearCache();
-        } catch {
-            setError(t('thread.editError'));
+        } catch (err) {
+            setError(resolveApiError(err, t('thread.editError')));
         }
     };
 
@@ -593,7 +745,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
             <div className={styles.threadHeader}>
                 {ticket && (
                     <div className={styles.threadHeaderInfo}>
-                        {isEditingTicket ? (
+                        {isEditingTicket && canEditTicketContent ? (
                             <div className={styles.editTitleField} title={t('myTickets.table.title')}>
                                 <span className={styles.editFieldLabel}>{t('myTickets.table.title')}</span>
                                 <input
@@ -611,7 +763,11 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                             </h2>
                         )}
                         <div className={styles.threadMeta}>
-                            {isEditingTicket ? (
+                            {/* reason/priority/status editing stays admin-only (§11, no time
+                                limit for them) — an author editing within the 24h window still
+                                sees these as the plain read-only badges below, just with an
+                                editable title/description/images underneath. */}
+                            {isEditingTicket && isAdminUser ? (
                                 <>
                                     <div className={styles.editField} title={t('myTickets.table.status')}>
                                         <span className={styles.editFieldLabel}>{t('myTickets.table.status')}</span>
@@ -699,7 +855,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                                         <span>{sentImages.length}</span>
                                     </button>
                                 )}
-                                {isAdminUser && (
+                                {canEditTicket && (
                                     isEditingTicket ? (
                                         <EditActions
                                             onSave={saveEditTicket}
@@ -709,7 +865,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                                     ) : (
                                         <button
                                             type="button"
-                                            className={styles.mediaToggleBtn}
+                                            className={`${styles.mediaToggleBtn} ${styles.editToggleBtn}`}
                                             onClick={startEditTicket}
                                             aria-label={t('thread.editTicket')}
                                             title={t('thread.editTicket')}
@@ -737,7 +893,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                                 <span className={styles.messageAuthorName}>{t('thread.originalRequest')}</span>
                                 <span className={styles.messageTime}>{getFormattedDateTime(ticket.createdAt)}</span>
                             </div>
-                            {isEditingTicket ? (
+                            {isEditingTicket && canEditTicketContent ? (
                                 <textarea
                                     className={styles.editTextarea}
                                     value={editDescription}
@@ -749,7 +905,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                             ) : (
                                 <div className={styles.messageBody}>{decodeHtmlEntities(ticket.description)}</div>
                             )}
-                            {isEditingTicket ? (
+                            {isEditingTicket && canEditTicketContent ? (
                                 <Grid
                                     photos={editImages}
                                     onChange={setEditImages}
@@ -801,6 +957,10 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                             const isDeleted = !!msg.deletedByAuthor;
                             const showEditButton = isMine && !isDeleted;
                             const isEditWindowExpired = !isWithinMessageEditWindow(msg.createdAt);
+                            // Appellant-only lock (§11) — the administrant editing their own
+                            // messages (isAdminUser, also covered by isMine when it's their own)
+                            // isn't subject to this, only the ticket's own author.
+                            const isLockedByOperator = !isAdminUser && isMine && isMessageLockedForAuthor(msg);
                             const canDeleteThisMessage = (isMine || isAdminUser) && !isDeleted;
                             const isDeletingThisMessage = deletingMessageId === msg.id;
 
@@ -829,9 +989,13 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                                                         type="button"
                                                         className={styles.messageEditBtn}
                                                         onClick={() => startEditMessage(msg)}
-                                                        disabled={isEditWindowExpired}
+                                                        disabled={isEditWindowExpired || isLockedByOperator}
                                                         aria-label={t('thread.editMessage')}
-                                                        title={isEditWindowExpired ? t('thread.editWindowExpired') : t('thread.editMessage')}
+                                                        title={
+                                                            isLockedByOperator ? t('thread.editLockedByOperator')
+                                                                : isEditWindowExpired ? t('thread.editWindowExpired')
+                                                                    : t('thread.editMessage')
+                                                        }
                                                     >
                                                         <IoPencilOutline />
                                                     </button>

@@ -433,6 +433,8 @@
     "firstName": "Имя",
     "lastName": "Фамилия",
     "enterPassword": "Введите пароль",
+    "showPassword": "Показать пароль",
+    "hidePassword": "Скрыть пароль",
     "enterEmail": "Введите email",
     "enterFirstName": "Введите имя",
     "enterLastName": "Введите фамилию",

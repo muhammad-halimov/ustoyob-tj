@@ -111,6 +111,10 @@ function Chat() {
     /** Debounces inbox SSE events (created/updated/deleted, several can land in a burst — e.g.
      *  the other side sending 3 messages in a row) into a single `GET /chats/me` refetch. */
     const chatsRefreshDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    /** A 'created' SSE event for another author's message can arrive before their images are
+     *  attached (two-step create-then-upload-images flow) — this schedules one delayed
+     *  `fetchChatMessages` to pick up any photos that land shortly after. */
+    const messageImagesRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const messageInputRef = useRef<HTMLInputElement>(null);
 
     const [searchParams] = useSearchParams();
@@ -499,7 +503,17 @@ function Chat() {
                     (a, b) => new Date(a.createdAt!).getTime() - new Date(b.createdAt!).getTime()
                 );
             });
-            if (msg.sender === 'other') markChatAsRead(chatId);
+            if (msg.sender === 'other') {
+                markChatAsRead(chatId);
+                // Images upload separately, after the message itself is created — the
+                // 'created' event here can predate them. Refetch shortly after to pick up
+                // photos that attach a moment later (see comment on the ref above).
+                if (messageImagesRefreshTimeoutRef.current) clearTimeout(messageImagesRefreshTimeoutRef.current);
+                messageImagesRefreshTimeoutRef.current = setTimeout(() => {
+                    messageImagesRefreshTimeoutRef.current = null;
+                    fetchChatMessages(chatId);
+                }, 1800);
+            }
             if (apiMsg.images && apiMsg.images.length > 0) {
                 const newThumbs: ChatImageThumbnail[] = apiMsg.images.map(img => ({
                     id: img.id,

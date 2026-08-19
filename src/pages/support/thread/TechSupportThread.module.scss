@@ -66,6 +66,13 @@
   &:hover { background: var(--color-stroke); }
 }
 
+// Same button, but for the ticket-edit pencil specifically — kept neutral gray instead of
+// `.mediaToggleBtn`'s accent blue, so it doesn't read as "unread/active" like the media-count
+// toggle next to it.
+.editToggleBtn {
+  color: var(--color-text-secondary);
+}
+
 // ─── Admin ticket-fields editing ──────────────────────────────
 // Replaces the read-only title/badges/description with inputs in place, same spot they
 // normally render in — no separate edit page/modal.

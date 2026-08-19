@@ -433,6 +433,8 @@
     "firstName": "First Name",
     "lastName": "Last Name",
     "enterPassword": "Enter password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
     "enterEmail": "Enter email",
     "enterFirstName": "Enter first name",
     "enterLastName": "Enter last name",

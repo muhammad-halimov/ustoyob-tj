@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { IoEyeOutline, IoEyeOffOutline } from 'react-icons/io5';
 import { useLanguageChange } from '../../../../hooks';
 import styles from './Auth.module.scss';
 import {
@@ -153,6 +154,13 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         message: ''
     });
     const [showPasswordRequirements, setShowPasswordRequirements] = useState(false);
+    // Per-field show/hide toggle for the eye icon — keyed by input `name` (password,
+    // confirmPassword, newPassword). Only one screen (and so one instance of each name) is
+    // ever mounted at a time, so a flat map is enough without any screen-scoping.
+    const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
+    const togglePasswordVisibility = (field: string) => {
+        setVisiblePasswords(prev => ({ ...prev, [field]: !prev[field] }));
+    };
 
     // Эффект для валидации пароля при изменении
     useEffect(() => {
@@ -1031,29 +1039,51 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 <h2>{t('auth.newPasswordTitle')}</h2>
 
                 <div className={styles.inputGroup}>
-                    <input
-                        type="password"
-                        name="newPassword"
-                        value={formData.newPassword}
-                        onChange={handleInputChange}
-                        required
-                        minLength={8}
-                        disabled={isLoading}
-                        placeholder={t('auth.enterNewPassword')}
-                    />
+                    <div className={styles.passwordFieldWrapper}>
+                        <input
+                            type={visiblePasswords.newPassword ? 'text' : 'password'}
+                            name="newPassword"
+                            value={formData.newPassword}
+                            onChange={handleInputChange}
+                            required
+                            minLength={8}
+                            disabled={isLoading}
+                            placeholder={t('auth.enterNewPassword')}
+                        />
+                        <button
+                            type="button"
+                            className={styles.passwordToggleBtn}
+                            onClick={() => togglePasswordVisibility('newPassword')}
+                            aria-label={visiblePasswords.newPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+                            title={visiblePasswords.newPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+                        >
+                            {visiblePasswords.newPassword ? <IoEyeOffOutline /> : <IoEyeOutline />}
+                        </button>
+                    </div>
                 </div>
 
                 <div className={styles.inputGroup}>
-                    <input
-                        type="password"
-                        name="confirmPassword"
-                        value={formData.confirmPassword}
-                        onChange={handleInputChange}
-                        required
-                        minLength={8}
-                        disabled={isLoading}
-                        placeholder={t('auth.confirmPassword')}
-                    />
+                    <div className={styles.passwordFieldWrapper}>
+                        <input
+                            type={visiblePasswords.confirmPassword ? 'text' : 'password'}
+                            name="confirmPassword"
+                            value={formData.confirmPassword}
+                            onChange={handleInputChange}
+                            required
+                            minLength={8}
+                            disabled={isLoading}
+                            placeholder={t('auth.confirmPassword')}
+                        />
+                        <button
+                            type="button"
+                            className={styles.passwordToggleBtn}
+                            onClick={() => togglePasswordVisibility('confirmPassword')}
+                            aria-label={visiblePasswords.confirmPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+                            title={visiblePasswords.confirmPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+                        >
+                            {visiblePasswords.confirmPassword ? <IoEyeOffOutline /> : <IoEyeOutline />}
+                        </button>
+                    </div>
                 </div>
 
                 <button type="submit" className={styles.primaryButton} disabled={isLoading}>
@@ -1116,15 +1146,26 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                     />
                 </div>
                 <div className={styles.inputGroup}>
-                    <input
-                        type="password"
-                        name="password"
-                        value={formData.password}
-                        onChange={handleInputChange}
-                        required
-                        disabled={isLoading}
-                        placeholder={t('auth.enterPassword')}
-                    />
+                    <div className={styles.passwordFieldWrapper}>
+                        <input
+                            type={visiblePasswords.password ? 'text' : 'password'}
+                            name="password"
+                            value={formData.password}
+                            onChange={handleInputChange}
+                            required
+                            disabled={isLoading}
+                            placeholder={t('auth.enterPassword')}
+                        />
+                        <button
+                            type="button"
+                            className={styles.passwordToggleBtn}
+                            onClick={() => togglePasswordVisibility('password')}
+                            aria-label={visiblePasswords.password ? t('auth.hidePassword') : t('auth.showPassword')}
+                            title={visiblePasswords.password ? t('auth.hidePassword') : t('auth.showPassword')}
+                        >
+                            {visiblePasswords.password ? <IoEyeOffOutline /> : <IoEyeOutline />}
+                        </button>
+                    </div>
                 </div>
 
                 <button
@@ -1295,21 +1336,32 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 </div>
 
                 <div className={styles.inputGroup}>
-                    <input
-                        type="password"
-                        name="password"
-                        value={formData.password}
-                        onChange={handleInputChange}
-                        required
-                        disabled={isLoading}
-                        placeholder={t('auth.createPassword')}
-                        onFocus={() => setShowPasswordRequirements(true)}
-                        onBlur={() => {
-                            if (passwordValidation.isValid) {
-                                setShowPasswordRequirements(false);
-                            }
-                        }}
-                    />
+                    <div className={styles.passwordFieldWrapper}>
+                        <input
+                            type={visiblePasswords.password ? 'text' : 'password'}
+                            name="password"
+                            value={formData.password}
+                            onChange={handleInputChange}
+                            required
+                            disabled={isLoading}
+                            placeholder={t('auth.createPassword')}
+                            onFocus={() => setShowPasswordRequirements(true)}
+                            onBlur={() => {
+                                if (passwordValidation.isValid) {
+                                    setShowPasswordRequirements(false);
+                                }
+                            }}
+                        />
+                        <button
+                            type="button"
+                            className={styles.passwordToggleBtn}
+                            onClick={() => togglePasswordVisibility('password')}
+                            aria-label={visiblePasswords.password ? t('auth.hidePassword') : t('auth.showPassword')}
+                            title={visiblePasswords.password ? t('auth.hidePassword') : t('auth.showPassword')}
+                        >
+                            {visiblePasswords.password ? <IoEyeOffOutline /> : <IoEyeOutline />}
+                        </button>
+                    </div>
                     {showPasswordRequirements && (
                         <div className={styles.passwordRequirements}>
                             <p>{t('auth.passwordRequirements')}</p>
@@ -1335,15 +1387,26 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 </div>
 
                 <div className={styles.inputGroup}>
-                    <input
-                        type="password"
-                        name="confirmPassword"
-                        value={formData.confirmPassword}
-                        onChange={handleInputChange}
-                        required
-                        disabled={isLoading}
-                        placeholder={t('auth.confirmPassword')}
-                    />
+                    <div className={styles.passwordFieldWrapper}>
+                        <input
+                            type={visiblePasswords.confirmPassword ? 'text' : 'password'}
+                            name="confirmPassword"
+                            value={formData.confirmPassword}
+                            onChange={handleInputChange}
+                            required
+                            disabled={isLoading}
+                            placeholder={t('auth.confirmPassword')}
+                        />
+                        <button
+                            type="button"
+                            className={styles.passwordToggleBtn}
+                            onClick={() => togglePasswordVisibility('confirmPassword')}
+                            aria-label={visiblePasswords.confirmPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+                            title={visiblePasswords.confirmPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+                        >
+                            {visiblePasswords.confirmPassword ? <IoEyeOffOutline /> : <IoEyeOutline />}
+                        </button>
+                    </div>
                     {formData.confirmPassword && formData.password !== formData.confirmPassword && (
                         <div className={styles.passwordError}>
                             Пароли не совпадают

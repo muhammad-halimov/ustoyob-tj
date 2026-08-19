@@ -62,6 +62,7 @@
     "editTicket": "Аризаро таҳрир кунед",
     "editMessage": "Паёмро таҳрир кунед",
     "editWindowExpired": "Таҳрир танҳо дар давоми 15 дақиқа пас аз ирсол дастрас аст",
+    "editLockedByOperator": "Оператор аллакай хондааст ё ҷавоб додааст — таҳрир баста аст",
     "deleteMessage": "Паёмро нест кунед",
     "deleteMessageConfirm": "Ин паём нест карда шавад?",
     "deleteMessageError": "Паём нест карда нашуд",
@@ -72,7 +73,8 @@
     "openGallery": "Галереяро кушоед",
     "mediaThumbnail": "Тасвир {{index}}",
     "deleteImage": "Тасвирро нест кунед",
-    "deleteImageConfirm": "Ин тасвир нест карда шавад?"
+    "deleteImageConfirm": "Ин тасвир нест карда шавад?",
+    "emptyMessagePhotoDeleteConfirm": "Ин охирин акс дар паёми бе матн аст — пас аз нест кардан паём холӣ мемонад. Ба ҷои он тамоми паём нест карда шавад?"
   },
   "form": {
     "titleLabel": "Мавзӯи мурочиат",

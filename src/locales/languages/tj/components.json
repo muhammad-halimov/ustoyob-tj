@@ -433,6 +433,8 @@
     "firstName": "Ном",
     "lastName": "Насаб",
     "enterPassword": "Рамзи уборро ворид кунед",
+    "showPassword": "Рамзро нишон диҳед",
+    "hidePassword": "Рамзро пинҳон кунед",
     "enterEmail": "Почтаро ворид кунед",
     "enterFirstName": "Номро ворид кунед",
     "enterLastName": "Насабро ворид кунед",

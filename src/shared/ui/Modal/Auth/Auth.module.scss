@@ -716,6 +716,36 @@
   }
 }
 
+// Wraps just the `<input>` + eye button (not the helper dropdown/error text that sometimes
+// follows as a sibling in `.inputGroup`) — `top: 50%` on the button then always centers
+// against the input's own height instead of a guessed pixel offset.
+.passwordFieldWrapper {
+  position: relative;
+
+  input {
+    padding-right: 44px; // room for the icon so it never sits on top of typed text
+  }
+}
+
+.passwordToggleBtn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: #888;
+
+  svg { width: 20px; height: 20px; }
+
+  &:hover { color: #3A54DA; }
+}
+
 .passwordValid {
   color: #28a745;
   font-size: 13px;

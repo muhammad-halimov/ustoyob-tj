@@ -253,8 +253,17 @@ function TechSupport({ embedded = false }: TechSupportProps) {
                 };
             }));
         }
+        // Admin convenience: `getMyTechSupports` has a 60s cache TTL (dataCacheUtils.ts), so
+        // the table could still show a stale snapshot for up to a minute after other tickets
+        // changed elsewhere while the admin was inside a thread. Force a fresh fetch the moment
+        // they land back on the table (closedTicketId != null, openTicketId now null) instead
+        // of waiting out the cache — only for the admin's "all tickets" table, not every
+        // regular author bouncing in and out of their own couple of tickets.
+        if (isAdminUser && closedTicketId != null && openTicketId == null) {
+            fetchMyTickets(true);
+        }
         prevOpenTicketIdRef.current = openTicketId;
-    }, [openTicketId, currentUserId]);
+    }, [openTicketId, currentUserId, isAdminUser, fetchMyTickets]);
 
     // Reason/category titles (like Category/Occupation/etc.) are localized server-side —
     // they don't update just because i18next's UI strings do, so re-fetch on language switch.
