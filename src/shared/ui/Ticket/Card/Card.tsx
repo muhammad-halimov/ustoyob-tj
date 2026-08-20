@@ -231,7 +231,7 @@ export function Card({
               <Toggle
                 checked={isActive}
                 onChange={onActiveToggle!}
-                label={isActive ? 'Активно' : 'Неактивно'}
+                label={isActive ? t('app.active') : t('app.inactive')}
                 disabled={banned}
               />
             </div>

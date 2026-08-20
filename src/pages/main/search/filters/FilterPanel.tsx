@@ -73,8 +73,8 @@ function FilterPanel({
     // Функция для получения подкатегорий для выбранной категории
     const getFilteredOccupations = () => {
         if (!localFilters.category) return [];
-        return occupations.filter(occupation => 
-            occupation.categories?.some(cat => cat.id.toString() === localFilters.category)
+        return occupations.filter(occupation =>
+            occupation.category?.id.toString() === localFilters.category
         );
     };
 

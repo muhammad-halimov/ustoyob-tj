@@ -59,6 +59,28 @@ body {
   min-height: 100vh;
 }
 
+// Sticky footer — `.app` is Layout.tsx's root wrapper around Header/main/Footer. Without
+// this, main just renders at its natural content height and the footer sits right after it —
+// fine on a tall page, but on a short one it leaves a gap of bare background below the footer
+// instead of the footer sitting flush at the bottom of the screen.
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+
+  main {
+    flex: 1;
+    // Lets a page *fill* (not just occupy) the space above the footer if it wants to — a
+    // flex item's default min-height:auto refuses to shrink below its content otherwise,
+    // which a page like Chat needs (own internal scroll instead of the whole page
+    // overflowing). Plain-content pages are unaffected: they don't ask for 100% height
+    // anywhere, so they still just render at natural size same as always.
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+}
+
 // Глобальные стили для темизации
 :root {
   // Анимации для переходов между темами

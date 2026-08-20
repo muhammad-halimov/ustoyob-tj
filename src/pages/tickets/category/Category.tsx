@@ -228,14 +228,14 @@ function Category() {
         try {
             const occupationsData = await getOccupations();
             
-            const formatted: Occupation[] = occupationsData.filter((occ: Occupation) => 
-                occ.categories?.some(cat => cat.id.toString() === id) || false
+            const formatted: Occupation[] = occupationsData.filter((occ: Occupation) =>
+                occ.category?.id.toString() === id
             ).map((occ) => ({
                 id: occ.id,
                 title: occ.title,
                 image: occ.image,
                 priority: occ.priority,
-                categories: occ.categories || []
+                category: occ.category ?? null
             }));
 
             // Сортируем по priority (по возрастанию), элементы без priority — в конец

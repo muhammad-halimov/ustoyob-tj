@@ -1,8 +1,11 @@
 $font-family: Geologica, sans-serif;
 
+// This is a `@use`d SCSS partial, not a plain stylesheet — this rule compiles into every
+// page's CSS exactly once regardless of who imports it, so keep it minimal. No margin here:
+// a margin-bottom on body adds scrollable space below the footer that the sticky-footer rule
+// in index.scss can't close — footer would never actually sit flush at the bottom.
 body {
   font-family: Geologica, sans-serif;
-  margin-bottom: 100px;
 }
 
 // CSS Custom Properties для темизации

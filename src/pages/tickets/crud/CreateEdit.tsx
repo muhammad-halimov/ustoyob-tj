@@ -147,8 +147,8 @@ const CreateEdit = () => {
     // Фильтруем occupations при изменении категории
     useEffect(() => {
         if (selectedCategory && occupations.length > 0) {
-            const filtered = occupations.filter(occ => 
-                occ.categories?.some(cat => cat.id === selectedCategory)
+            const filtered = occupations.filter(occ =>
+                occ.category?.id === selectedCategory
             );
             filtered.sort((a, b) => (a.priority ?? Infinity) - (b.priority ?? Infinity));
             setFilteredOccupations(filtered);

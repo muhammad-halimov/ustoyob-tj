@@ -501,14 +501,14 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     const fetchOccupations = useCallback(async () => {
         try {
             const occupationsData = await getOccupations();
-            const formatted: Occupation[] = occupationsData.map((occ: { 
-                id: number; 
-                title: string; 
-                categories?: { id: number; title: string }[] 
+            const formatted: Occupation[] = occupationsData.map((occ: {
+                id: number;
+                title: string;
+                category?: { id: number; title: string } | null;
             }) => ({
                 id: occ.id,
                 title: occ.title,
-                categories: occ.categories || []
+                category: occ.category ?? null
             }));
 
             setOccupations(formatted);

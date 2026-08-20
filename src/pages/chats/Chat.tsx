@@ -92,6 +92,14 @@ function Chat() {
      *  effect below to sit this one out, since `loadOlderMessages` restores scroll position
      *  itself (the viewer just asked to look at history, not jump back to the latest message). */
     const skipAutoScrollRef = useRef(false);
+    /** Set whenever `selectedChat` changes — tells the auto-scroll-to-bottom effect below that
+     *  the next `messages` population is a chat switch (jump straight to the bottom, no visible
+     *  animation) rather than a new message arriving in an already-open conversation (smooth
+     *  scroll is the nice touch there). Without this, opening any chat with more than a
+     *  screenful of history played the *entire* smooth scroll-to-bottom animation every time —
+     *  which reads as "the window growing/changing height" while it's actually just the message
+     *  list sliding underneath a container that never resized at all. */
+    const justSwitchedChatRef = useRef(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const presenceSourceRef = useRef<EventSource | null>(null);
     const inboxSourceRef = useRef<EventSource | null>(null);
@@ -180,6 +188,7 @@ function Chat() {
     // Обработка выбранного чата
     useEffect(() => {
         selectedChatIdRef.current = selectedChat;
+        justSwitchedChatRef.current = true;
         // Stale pagination state from whichever chat was open before shouldn't leak into the
         // next one — loadChatData/fetchChatMessages below always (re)fetches page 1 anyway,
         // but resetting here keeps `hasMoreMessages` honest for the instant between selecting
@@ -229,21 +238,27 @@ function Chat() {
         }
     }, [chatIdFromUrl]);
 
-    const scrollToBottom = useCallback(() => {
+    const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
         const container = messagesContainerRef.current;
         if (container) {
-            container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+            container.scrollTo({ top: container.scrollHeight, behavior });
         }
     }, []);
 
     // Прокрутка к последнему сообщению — skipped once right after `loadOlderMessages` prepends
-    // older history, which restores the scroll position itself instead.
+    // older history, which restores the scroll position itself instead. Instant (not smooth)
+    // the first time a newly-selected chat's messages land — playing the whole smooth-scroll
+    // animation on every chat open (however long its history is) looked like the container
+    // itself resizing; a real new message arriving in an already-open chat still gets the
+    // smooth scroll.
     useEffect(() => {
         if (skipAutoScrollRef.current) {
             skipAutoScrollRef.current = false;
             return;
         }
-        scrollToBottom();
+        const isChatSwitch = justSwitchedChatRef.current;
+        justSwitchedChatRef.current = false;
+        scrollToBottom(isChatSwitch ? 'instant' : 'smooth');
     }, [messages, scrollToBottom]);
 
     // Указатель "прокрутить вниз" — показываем, когда пользователь читает историю
@@ -1829,6 +1844,13 @@ function Chat() {
                                 onKeyPress={handleKeyPress}
                                 disabled={isUploading}
                                 onFocus={() => {
+                                    // Mobile-keyboard-only (matches this file's other window.innerWidth <= 960
+                                    // checks) — this pins body in place while the on-screen keyboard is open so
+                                    // iOS/Android don't jump-scroll the page. Had no device guard before, so it
+                                    // was also firing on desktop on every composer click — body flipping to
+                                    // position:fixed there produced exactly the "height changes" jump, for
+                                    // nothing (desktop has no on-screen keyboard to compensate for).
+                                    if (window.innerWidth > 960) return;
                                     const meta = document.querySelector('meta[name="viewport"]');
                                     if (meta) meta.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1');
                                     // Блокируем скролл страницы пока открыта клавиатура
@@ -1838,6 +1860,7 @@ function Chat() {
                                     document.body.style.width = '100%';
                                 }}
                                 onBlur={() => {
+                                    if (window.innerWidth > 960) return;
                                     const meta = document.querySelector('meta[name="viewport"]');
                                     if (meta) meta.setAttribute('content', 'width=device-width, initial-scale=1');
                                     // Восстанавливаем скролл

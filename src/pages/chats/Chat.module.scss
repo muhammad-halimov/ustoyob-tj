@@ -4,19 +4,45 @@
 
 .chatPageWrapper {
   max-width: 1150px;
+  width: 100%;
   margin: 0 auto;
   padding: 40px 0;
 
   @media (max-width: 1250px) {
     padding: 40px 20px;
   }
+
+  // Desktop only (≥961px — matches .chat's own ≤960px mobile breakpoint exactly, no gap/
+  // overlap between the two).
+  //
+  // Explicit viewport-relative height, same pattern mobile already used successfully below
+  // (calc(100dvh - 200px)) — NOT flex:1 filling whatever `main` has left. Tried the flex:1
+  // route first; it looked right on paper but doesn't actually work: `.app`'s `min-height:
+  // 100vh` (index.scss) never gives `main`'s flex:1 chain a *definite* size to distribute —
+  // min-height, unlike height, doesn't establish one. With .noChat's few words that gap was
+  // invisible (nothing needed the space), but the instant a real conversation's messages
+  // loaded, every level (main → this → .chat → .chatArea → .chatMessages) fell back to
+  // sizing off *content* instead of available space, so the whole page grew to fit every
+  // message instead of bounding and scrolling internally — confirmed by reproducing it
+  // standalone against the real compiled CSS outside of React entirely. 190px ≈ the desktop
+  // header's own height. Mobile is untouched — its own ≤960px rules below are unaffected.
+  @media (min-width: 961px) {
+    height: calc(100dvh - 190px);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    box-sizing: border-box;
+  }
 }
 
 .chat {
   display: flex;
-  height: calc(100vh - 160px);
-  max-height: 760px;
   gap: 27px;
+
+  @media (min-width: 961px) {
+    flex: 1;
+    min-height: 0;
+  }
 
   @media (max-width: 960px) {
     gap: 0;
