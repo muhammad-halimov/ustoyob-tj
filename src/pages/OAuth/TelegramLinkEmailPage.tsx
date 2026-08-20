@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type * as React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ROUTES } from '../../app/routers/routes';
+import { ROUTES, API_ROUTES } from '../../app/routers/routes';
 import Status from '../../shared/ui/Modal/Status';
 import { PageLoader } from '../../widgets/PageLoader';
 import { useTheme } from '../../contexts';
@@ -46,7 +46,7 @@ const TelegramLinkEmailPage = () => {
         setError('');
 
         try {
-            const data: BackendAuthCallbackResponse = await universalApiRequest('/api/auth/telegram/link-email', {
+            const data: BackendAuthCallbackResponse = await universalApiRequest(API_ROUTES.AUTH_TELEGRAM_LINK_EMAIL, {
                 method: 'POST',
                 body: { temp_token: tempToken, email },
                 requiresAuth: false,
@@ -120,7 +120,7 @@ const TelegramLinkEmailPage = () => {
         setError('');
 
         try {
-            const data: BackendAuthCallbackResponse = await universalApiRequest('/api/auth/telegram/link-email', {
+            const data: BackendAuthCallbackResponse = await universalApiRequest(API_ROUTES.AUTH_TELEGRAM_LINK_EMAIL, {
                 method: 'POST',
                 body: { temp_token: tempToken },
                 requiresAuth: false,

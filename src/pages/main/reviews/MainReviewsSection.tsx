@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ROUTES } from '../../../app/routers/routes';
+import { ROUTES, API_ROUTES } from '../../../app/routers/routes';
 import { smartNameTranslator } from '../../../utils/textUtils';
 import { Swiper, SwiperSlide } from "swiper/react";
 import styles from './MainReviewsSection.module.scss';
@@ -37,7 +37,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
         try {
             setLoading(true);
             const pageSize = getPageSize();
-            const data = await universalApiRequest(`/api/reviews?page=${currentPage}&itemsPerPage=${pageSize}`, { requiresAuth: false });
+            const data = await universalApiRequest(`${API_ROUTES.REVIEWS}?page=${currentPage}&itemsPerPage=${pageSize}`, { requiresAuth: false });
             const { items: reviewsData, hasMore: fetchedHasMore } = parsePagedResponse<any>(data, currentPage, pageSize);
             const sortedReviews = reviewsData.sort((a: any, b: any) => {
                 const dateA = new Date(a.createdAt || 0).getTime();

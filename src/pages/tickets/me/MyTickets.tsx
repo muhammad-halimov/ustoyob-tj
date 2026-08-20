@@ -2,7 +2,7 @@ import {useState, useEffect, useCallback} from 'react';
 import type * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { ROUTES } from '../../../app/routers/routes';
+import { ROUTES, API_ROUTES } from '../../../app/routers/routes';
 import { getAuthToken, fetchCurrentUser } from '../../../utils/authUtils';
 import { useLanguageChange } from '../../../hooks';
 import styles from './MyTickets.module.scss';
@@ -143,7 +143,7 @@ function MyTickets() {
             // Получаем тикеты с пагинацией и фильтром по active
             const pageSize = getPageSize();
             const activeParam = `&active=${activeTab === 'active' ? 'true' : 'false'}`;
-            const responseData = await universalApiRequest(`/api/tickets/me?${activeParam.slice(1)}&page=${page}&itemsPerPage=${pageSize}`);
+            const responseData = await universalApiRequest(`${API_ROUTES.TICKETS_ME}?${activeParam.slice(1)}&page=${page}&itemsPerPage=${pageSize}`);
             let ticketsData: Ticket[];
 
                 if (Array.isArray(responseData)) {
@@ -277,7 +277,7 @@ function MyTickets() {
 
         try {
             const newActiveStatus = !currentActive;
-            await universalApiRequest(`/api/tickets/${ticketId}`, {
+            await universalApiRequest(API_ROUTES.TICKET_BY_ID(ticketId), {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/merge-patch+json' },
                 body: { active: newActiveStatus },

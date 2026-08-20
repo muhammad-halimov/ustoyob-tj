@@ -38,6 +38,7 @@ export interface FeedbackModalProps {
 import { API_BASE_URL } from '../../../../utils/configUtils';
 import { universalApiRequest } from '../../../../utils/apiUtils';
 import { getAppealReasons } from '../../../../utils/dataCacheUtils';
+import { API_ROUTES } from '../../../../app/routers/routes';
 
 const Feedback: React.FC<FeedbackModalProps> = ({
     mode,
@@ -178,8 +179,8 @@ const Feedback: React.FC<FeedbackModalProps> = ({
             setLoadingServices(true);
             const userRole = getUserRole();
             const endpoint = userRole === 'client'
-                ? `/api/tickets?service=true&active=true&exists[author]=false&exists[master]=true&master=${targetUserId}`
-                : `/api/tickets?service=false&active=true&exists[master]=false&exists[author]=true&author=${targetUserId}`;
+                ? `${API_ROUTES.TICKETS}?service=true&active=true&exists[author]=false&exists[master]=true&master=${targetUserId}`
+                : `${API_ROUTES.TICKETS}?service=false&active=true&exists[master]=false&exists[author]=true&author=${targetUserId}`;
             const data: any = await universalApiRequest(endpoint);
             const arr: any[] = Array.isArray(data) ? data : (data['hydra:member'] ?? []);
             setServices(arr.map(t => ({ id: t.id, title: t.title || 'Без названия' })));
@@ -194,7 +195,7 @@ const Feedback: React.FC<FeedbackModalProps> = ({
 
     const fetchReviewCount = async (userId: number): Promise<number> => {
         try {
-            const data: any = await universalApiRequest(`/api/reviews?exists[ticket]=true&exists[master]=true&exists[client]=true&master=${userId}`);
+            const data: any = await universalApiRequest(`${API_ROUTES.REVIEWS}?exists[ticket]=true&exists[master]=true&exists[client]=true&master=${userId}`);
             const arr: any[] = Array.isArray(data) ? data : (data['hydra:member'] ?? []);
             return arr.filter(r => r.master?.id === userId || r.client?.id === userId).length;
         } catch {
@@ -209,8 +210,8 @@ const Feedback: React.FC<FeedbackModalProps> = ({
             const userRole = getUserRole();
             const resolvedTargetRole = targetUserRole ?? (userRole === 'client' ? 'master' : 'client');
             const endpoint = resolvedTargetRole === 'master'
-                ? `/api/tickets?service=true&active=true&exists[master]=true&master=${targetUserId}`
-                : `/api/tickets?service=false&active=true&exists[author]=true&author=${targetUserId}`;
+                ? `${API_ROUTES.TICKETS}?service=true&active=true&exists[master]=true&master=${targetUserId}`
+                : `${API_ROUTES.TICKETS}?service=false&active=true&exists[author]=true&author=${targetUserId}`;
             const data: any = await universalApiRequest(endpoint);
             const arr: any[] = Array.isArray(data) ? data : (data['hydra:member'] ?? []);
             setTickets(arr.map(t => ({ id: t.id, title: t.title || 'Без названия' })));
@@ -228,7 +229,11 @@ const Feedback: React.FC<FeedbackModalProps> = ({
         if (isEditLocked) { showStatus('error', t('reviewModal.errorTooOldToEdit')); return; }
         if (!reviewText.trim()) { showStatus('error', t('reviewModal.errorCommentRequired')); return; }
         if (selectedStars === 0) { showStatus('error', t('reviewModal.errorRatingRequired')); return; }
-        if (!editReviewId && showServiceSelector && !selectedServiceId) { showStatus('error', t('reviewModal.errorServiceRequired')); return; }
+        const reviewTicketId = showServiceSelector ? selectedServiceId : ticketId;
+        if (!editReviewId && !reviewTicketId) {
+            showStatus('error', t(showServiceSelector ? 'reviewModal.errorServiceRequired' : 'reviewModal.errorTicketRequired'));
+            return;
+        }
 
         setIsSubmitting(true);
         try {
@@ -258,7 +263,7 @@ const Feedback: React.FC<FeedbackModalProps> = ({
                 }
 
                 // 3. Re-fetch review to get updated image list (old + newly uploaded)
-                const freshReview = await universalApiRequest(`/api/reviews/${editReviewId}`).catch(() => null);
+                const freshReview = await universalApiRequest(API_ROUTES.REVIEW_BY_ID(editReviewId)).catch(() => null);
                 const allCurrentImages: Array<{ id: number; image: string }> = (freshReview as any)?.images || [];
 
                 // 4. Build sorted final images list preserving user order
@@ -274,7 +279,7 @@ const Feedback: React.FC<FeedbackModalProps> = ({
                     })
                     .filter((x): x is { id: number; image: string } => x !== null);
 
-                await universalApiRequest(`/api/reviews/${editReviewId}`, {
+                await universalApiRequest(API_ROUTES.REVIEW_BY_ID(editReviewId), {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/merge-patch+json' },
                     body: { rating: selectedStars, description: reviewText, images: finalImages },
@@ -293,29 +298,30 @@ const Feedback: React.FC<FeedbackModalProps> = ({
             const currentUserId = getCurrentUserId();
             if (!currentUserId) { showStatus('error', t('reviewModal.errorUserNotFound')); return; }
             if (currentUserId === targetUserId) { showStatus('error', t('reviewModal.errorSelfReview')); return; }
+            if (!reviewTicketId) { showStatus('error', t('reviewModal.errorTicketRequired')); return; }
 
             interface ReviewData { type: string; rating: number; description: string; ticket: string; master?: string; client?: string; }
             const reviewData: ReviewData = {
                 type: '',
                 rating: selectedStars,
                 description: reviewText,
-                ticket: `/api/tickets/${showServiceSelector && selectedServiceId ? selectedServiceId : ticketId}`,
+                ticket: API_ROUTES.TICKET_BY_ID(reviewTicketId),
             };
             if (userRole === 'master') {
                 reviewData.type = 'client';
-                reviewData.master = `/api/users/${currentUserId}`;
-                reviewData.client = `/api/users/${targetUserId}`;
+                reviewData.master = API_ROUTES.USER_BY_ID(currentUserId);
+                reviewData.client = API_ROUTES.USER_BY_ID(targetUserId);
             } else if (userRole === 'client') {
                 reviewData.type = 'master';
-                reviewData.client = `/api/users/${currentUserId}`;
-                reviewData.master = `/api/users/${targetUserId}`;
+                reviewData.client = API_ROUTES.USER_BY_ID(currentUserId);
+                reviewData.master = API_ROUTES.USER_BY_ID(targetUserId);
             } else {
                 showStatus('error', t('reviewModal.errorUnknownRole'));
                 return;
             }
 
             try {
-                const reviewResponse: any = await universalApiRequest('/api/reviews', {
+                const reviewResponse: any = await universalApiRequest(API_ROUTES.REVIEWS, {
                     method: 'POST',
                     body: reviewData,
                     locale: false,
@@ -361,15 +367,15 @@ const Feedback: React.FC<FeedbackModalProps> = ({
                 type: effectiveComplaintType,
                 title,
                 description,
-                reason: `/api/appeal-reasons/${reason}`,
-                respondent: `/api/users/${targetUserId}`,
+                reason: API_ROUTES.APPEAL_REASON_BY_ID(reason),
+                respondent: API_ROUTES.USER_BY_ID(targetUserId),
             };
-            if (selectedTicketId) complaintData.ticket = `/api/tickets/${selectedTicketId}`;
-            if (chatId) complaintData.chat = `/api/chats/${chatId}`;
-            if (reviewId) complaintData.review = `/api/reviews/${reviewId}`;
+            if (selectedTicketId) complaintData.ticket = API_ROUTES.TICKET_BY_ID(selectedTicketId);
+            if (chatId) complaintData.chat = API_ROUTES.CHAT_BY_ID(chatId);
+            if (reviewId) complaintData.review = API_ROUTES.REVIEW_BY_ID(reviewId);
 
             try {
-                const complaintResponse: any = await universalApiRequest('/api/appeals', {
+                const complaintResponse: any = await universalApiRequest(API_ROUTES.APPEALS, {
                     method: 'POST',
                     body: complaintData,
                     locale: false,

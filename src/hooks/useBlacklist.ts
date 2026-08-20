@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { getAuthToken } from '../utils/authUtils';
 import { universalApiRequest } from '../utils/apiUtils';
 import { resolveApiError } from '../utils/appMessagesUtils';
+import { API_ROUTES } from '../app/routers/routes';
 
 // Flat entry returned by GET /api/black-lists/me — a block is always exactly one user now,
 // no `type`/`ticket` variant (redesigned, see API_REFERENCE.md §10).
@@ -34,7 +35,7 @@ export const fetchBlacklistEntries = async (): Promise<BlackListEntry[]> => {
     }
 
     if (!_blacklistPromise) {
-        _blacklistPromise = universalApiRequest('/api/black-lists/me', { locale: false }).then((data: any) => {
+        _blacklistPromise = universalApiRequest(API_ROUTES.BLACKLIST_ME, { locale: false }).then((data: any) => {
             const entries: BlackListEntry[] = data['hydra:member'] ?? (Array.isArray(data) ? data : []);
             _blacklistCache = { data: entries, timestamp: Date.now() };
             _blacklistPromise = null;
@@ -50,9 +51,9 @@ export const fetchBlacklistEntries = async (): Promise<BlackListEntry[]> => {
 
 /** POST /api/black-lists — blocks a user, returns the created entry. */
 export const blockUser = (userId: number): Promise<BlackListEntry> =>
-    universalApiRequest('/api/black-lists', {
+    universalApiRequest(API_ROUTES.BLACKLIST, {
         method: 'POST',
-        body: { user: `/api/users/${userId}` },
+        body: { user: API_ROUTES.USER_BY_ID(userId) },
         locale: false,
     }).then((entry: BlackListEntry) => {
         invalidateBlacklistCache();
@@ -61,7 +62,7 @@ export const blockUser = (userId: number): Promise<BlackListEntry> =>
 
 /** DELETE /api/black-lists/{entryId} — unblocks. */
 export const unblockUser = (entryId: number): Promise<void> =>
-    universalApiRequest(`/api/black-lists/${entryId}`, { method: 'DELETE', locale: false }).then(() => {
+    universalApiRequest(API_ROUTES.BLACKLIST_BY_ID(entryId), { method: 'DELETE', locale: false }).then(() => {
         invalidateBlacklistCache();
     });
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { ROUTES } from '../../app/routers/routes';
+import { ROUTES, API_ROUTES } from '../../app/routers/routes';
 import Status from '../../shared/ui/Modal/Status';
 import { PageLoader } from '../../widgets/PageLoader';
 import { useTranslation } from 'react-i18next';
@@ -14,7 +14,6 @@ import {
     getAuthToken,
 } from '../../utils/authUtils';
 import type { TelegramUserData, BackendAuthCallbackResponse } from '../../entities';
-import { API_BASE_URL } from '../../utils/configUtils';
 import { universalApiRequest } from '../../utils/apiUtils';
 import { resolveApiError } from '../../utils/appMessagesUtils';
 import { getStorageItem, setStorageItem, removeStorageItem, getSessionItem, removeSessionItem, removeSessionItems } from '../../utils/storageUtils';
@@ -100,7 +99,7 @@ const TelegramCallbackPage = () => {
                     if (telegramData.last_name) linkBody.last_name = telegramData.last_name;
                     if (telegramData.username)  linkBody.username  = telegramData.username;
                     if (telegramData.photo_url) linkBody.photo_url = telegramData.photo_url;
-                    const linkData = await universalApiRequest('/api/profile/oauth/link', {
+                    const linkData = await universalApiRequest(API_ROUTES.PROFILE_OAUTH_LINK, {
                         method: 'POST',
                         body: linkBody,
                         locale: false,
@@ -146,10 +145,10 @@ const TelegramCallbackPage = () => {
                 };
 
                 if (savedRole === 'master' && savedSpecialty) {
-                    requestData.occupation = `${API_BASE_URL}/api/occupations/${savedSpecialty}`;
+                    requestData.occupation = API_ROUTES.OCCUPATION_BY_ID(savedSpecialty);
                 }
 
-                const data: BackendAuthCallbackResponse = await universalApiRequest('/api/auth/telegram/callback', {
+                const data: BackendAuthCallbackResponse = await universalApiRequest(API_ROUTES.AUTH_PROVIDER_CALLBACK('telegram'), {
                     method: 'POST',
                     body: requestData,
                     requiresAuth: false,

@@ -9,6 +9,7 @@ import { IoCheckmarkCircleOutline, IoCloseCircleOutline } from 'react-icons/io5'
 import styles from './ServicesSection.module.scss';
 import { Marquee } from '../../../../../shared/ui/Text/Marquee';
 import { formatLocalizedDate } from '../../../../../utils/timeUtils';
+import { TicketStatusBadge } from '../../../../../shared/ui/Ticket/StatusBadge/TicketStatusBadge';
 
 interface ServicesSectionProps {
     services: Ticket[];
@@ -72,11 +73,14 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
 
     const renderServiceItem = (service: Ticket) => {
         const titleText = service.title;
-        const unitText = typeof service.unit === 'string'
+        const rawUnitText = typeof service.unit === 'string'
             ? service.unit
             : (typeof service.unit === 'object' && service.unit && 'title' in service.unit
                 ? String((service.unit as { title: unknown }).title)
-                : t('profile:unitDefault'));
+                : '');
+        const unitText = rawUnitText && rawUnitText !== 'N/A' && rawUnitText.toLowerCase() !== 'tjs'
+            ? rawUnitText
+            : t('common:app.notSpecified');
         const budget = typeof service.budget === 'number' ? service.budget : 0;
         const priceText = (service.negotiableBudget && !budget)
             ? t('components:app.negotiablePrice')
@@ -99,6 +103,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                     />
                 </div>
                 <div className={styles.service_content}>
+                    <TicketStatusBadge approved={service.approved} banned={service.banned} />
                     <div className={styles.service_header}>
                         <div className={styles.service_title}><Marquee text={titleText} alwaysScroll /></div>
                         <div className={styles.service_price}>

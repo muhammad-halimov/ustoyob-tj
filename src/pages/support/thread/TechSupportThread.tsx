@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { IoSend, IoAttach, IoPricetagOutline, IoImages, IoBanOutline, IoPencilOutline, IoPersonOutline, IoHeadsetOutline, IoTrashOutline } from 'react-icons/io5';
 import styles from './TechSupportThread.module.scss';
 import { universalApiRequest } from '../../../utils/apiUtils';
+import { API_ROUTES } from '../../../app/routers/routes';
 import { resolveApiError } from '../../../utils/appMessagesUtils';
 import { getUserData, isAdmin } from '../../../utils/authUtils';
 import { getFormattedDateTime } from '../../../utils/timeUtils';
@@ -156,13 +157,13 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     // readAt == null`). Fire-and-forget — a failure here just leaves the tickets-list bubble
     // stale until the next successful call, nothing in this view depends on the result.
     const markThreadRead = useCallback(() => {
-        universalApiRequest(`/api/tech-supports/${ticketId}/read`, { method: 'POST', locale: false }).catch(() => {});
+        universalApiRequest(API_ROUTES.TECH_SUPPORT_READ(ticketId), { method: 'POST', locale: false }).catch(() => {});
     }, [ticketId]);
 
     const fetchTicket = useCallback(async () => {
         try {
             setError('');
-            const data: SupportTicket = await universalApiRequest(`/api/tech-supports/${ticketId}`);
+            const data: SupportTicket = await universalApiRequest(API_ROUTES.TECH_SUPPORT_BY_ID(ticketId));
             setTicket({ ...data, messages: sortMessagesByCreatedAt(data.messages ?? []) });
             // Viewing the thread marks everything currently in it as read — clears the
             // "new messages" bubble on the tickets list for this ticket.
@@ -237,7 +238,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
 
         (async () => {
             try {
-                const { token } = await universalApiRequest(`/api/tech-supports/${ticketId}/subscribe`, { locale: false }) as { token: string | null };
+                const { token } = await universalApiRequest(API_ROUTES.TECH_SUPPORT_SUBSCRIBE(ticketId), { locale: false }) as { token: string | null };
                 if (cancelled || !token) return;
 
                 source = openMercureSource([`tech-support:${ticketId}`], token);
@@ -318,10 +319,10 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
         if ((!text && photos.length === 0) || isSending || !canReply) return;
         setIsSending(true);
         try {
-            const body: Record<string, string> = { techSupport: `/api/tech-supports/${ticketId}` };
+            const body: Record<string, string> = { techSupport: API_ROUTES.TECH_SUPPORT_BY_ID(ticketId) };
             if (text) body.description = text;
 
-            const result: TechSupportMessage = await universalApiRequest('/api/tech-support-messages', {
+            const result: TechSupportMessage = await universalApiRequest(API_ROUTES.TECH_SUPPORT_MESSAGES_CREATE, {
                 method: 'POST',
                 body,
             });
@@ -339,7 +340,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
             // picking the conversation back up means it isn't actually settled anymore.
             if (statusKey === 'closed' || statusKey === 'resolved') {
                 try {
-                    await universalApiRequest(`/api/tech-supports/${ticketId}`, {
+                    await universalApiRequest(API_ROUTES.TECH_SUPPORT_BY_ID(ticketId), {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/merge-patch+json' },
                         body: { status: 'renewed' },
@@ -446,7 +447,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     // it just won't appear pre-selected here unless changed. Priority/status come from the
     // shared constants (types.ts) that back the create form / tickets-table filters.
     const reasonEditOptions = useMemo(
-        () => supportReasons.map(r => ({ value: `/api/appeal-reasons/${r.id}`, label: r.title })),
+        () => supportReasons.map(r => ({ value: API_ROUTES.APPEAL_REASON_BY_ID(r.id), label: r.title })),
         [supportReasons],
     );
     const priorityEditOptions = useMemo(
@@ -462,7 +463,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
         if (!ticket) return;
         setEditTitle(ticket.title ?? '');
         setEditDescription(ticket.description ?? '');
-        setEditReasonIri(ticket.reason?.id != null ? `/api/appeal-reasons/${ticket.reason.id}` : '');
+        setEditReasonIri(ticket.reason?.id != null ? API_ROUTES.APPEAL_REASON_BY_ID(ticket.reason.id) : '');
         setEditPriority(ticket.priority != null ? String(ticket.priority) : '');
         setEditStatus(statusKey ?? '');
         setEditImages((ticket.images ?? []).map(img => ({ type: 'existing' as const, id: img.id, image: img.image })));
@@ -495,7 +496,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                 let currentImages: { id: number; image: string }[] = ticket?.images ?? [];
                 if (newFiles.length > 0) {
                     try {
-                        const fresh: SupportTicket = await universalApiRequest(`/api/tech-supports/${ticketId}`, { locale: false });
+                        const fresh: SupportTicket = await universalApiRequest(API_ROUTES.TECH_SUPPORT_BY_ID(ticketId), { locale: false });
                         currentImages = fresh.images ?? [];
                     } catch {
                         // Falls back to the pre-upload snapshot — newly uploaded files just won't
@@ -505,7 +506,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                 orderedImages = buildOrderedImagePayload(editImages, currentImages);
             }
 
-            await universalApiRequest(`/api/tech-supports/${ticketId}`, {
+            await universalApiRequest(API_ROUTES.TECH_SUPPORT_BY_ID(ticketId), {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/merge-patch+json' },
                 body: {
@@ -587,7 +588,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
             let currentImages: { id: number; image: string }[] = existingBeforeSave;
             if (newFiles.length > 0) {
                 try {
-                    const fresh: TechSupportMessage = await universalApiRequest(`/api/tech-support-messages/${editingMessageId}`, { locale: false });
+                    const fresh: TechSupportMessage = await universalApiRequest(API_ROUTES.TECH_SUPPORT_MESSAGE_BY_ID(editingMessageId), { locale: false });
                     currentImages = fresh.images ?? [];
                 } catch {
                     // Falls back to the pre-upload snapshot — newly uploaded files just won't
@@ -596,7 +597,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
             }
             const orderedImages = buildOrderedImagePayload(editMessagePhotos, currentImages);
 
-            await universalApiRequest(`/api/tech-support-messages/${editingMessageId}`, {
+            await universalApiRequest(API_ROUTES.TECH_SUPPORT_MESSAGE_BY_ID(editingMessageId), {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/merge-patch+json' },
                 body: { description: editMessageText.trim(), images: toImagePayload(orderedImages) },
@@ -625,7 +626,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
         if (!skipConfirm && !window.confirm(t('thread.deleteMessageConfirm'))) return;
         setDeletingMessageId(messageId);
         try {
-            await universalApiRequest(`/api/tech-support-messages/${messageId}`, { method: 'DELETE', locale: false });
+            await universalApiRequest(API_ROUTES.TECH_SUPPORT_MESSAGE_BY_ID(messageId), { method: 'DELETE', locale: false });
             await fetchTicket();
         } catch (err) {
             setError(resolveApiError(err, t('thread.deleteMessageError')));
@@ -711,12 +712,12 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
         if (!window.confirm(t('thread.deleteImageConfirm'))) return;
         try {
             if (isAdminUser) {
-                await universalApiRequest(`/api/multiple-images/${image.id}`, { method: 'DELETE', locale: false });
+                await universalApiRequest(API_ROUTES.MULTIPLE_IMAGE_BY_ID(image.id), { method: 'DELETE', locale: false });
             } else {
                 if (!source) return;
                 if (source.type === 'ticket') {
                     const remaining = (ticket.images ?? []).filter(img => img.id !== image.id).map(img => ({ id: img.id, image: img.image }));
-                    await universalApiRequest(`/api/tech-supports/${ticketId}`, {
+                    await universalApiRequest(API_ROUTES.TECH_SUPPORT_BY_ID(ticketId), {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/merge-patch+json' },
                         body: { images: toImagePayload(remaining) },
@@ -725,7 +726,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                 } else {
                     const msg = ticket.messages?.find(m => m.id === source.messageId);
                     const remaining = (msg?.images ?? []).filter(img => img.id !== image.id).map(img => ({ id: img.id, image: img.image }));
-                    await universalApiRequest(`/api/tech-support-messages/${source.messageId}`, {
+                    await universalApiRequest(API_ROUTES.TECH_SUPPORT_MESSAGE_BY_ID(source.messageId), {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/merge-patch+json' },
                         body: { images: toImagePayload(remaining) },

@@ -22,8 +22,7 @@ import { PageLoader } from '../../../../widgets/PageLoader';
 import { Clear } from '../../Button/Clear/Clear';
 import type { TelegramUserData as TelegramWidgetData } from '../../../../entities/api/OAuth';
 import type { OAuthProviderName, User, Occupation, Category } from '../../../../entities';
-import { API_BASE_URL } from '../../../../utils/configUtils';
-import { ROUTES } from '../../../../app/routers/routes';
+import { ROUTES, API_ROUTES } from '../../../../app/routers/routes';
 import { universalApiRequest } from '../../../../utils/apiUtils';
 import { resolveApiError, ApiError } from '../../../../utils/appMessagesUtils';
 import { setSessionItem, getSessionItem, removeSessionItem, removeSessionItems, removeStorageItems, getStorageJSON } from '../../../../utils/storageUtils';
@@ -259,7 +258,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             }
 
             // Получаем URL для OAuth
-            universalApiRequest(`/api/auth/${provider}/url`, {
+            universalApiRequest(API_ROUTES.AUTH_PROVIDER_URL(provider), {
                 requiresAuth: false,
                 locale: false,
             })
@@ -398,10 +397,10 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
 
             // Если выбрана роль специалиста и есть специальность
             if (savedRole === 'master' && savedSpecialty) {
-                requestData.occupation = `${API_BASE_URL}/api/occupations/${savedSpecialty}`;
+                requestData.occupation = API_ROUTES.OCCUPATION_BY_ID(savedSpecialty);
             }
 
-            const data: OAuthUserResponse = await universalApiRequest('/api/auth/telegram/callback', {
+            const data: OAuthUserResponse = await universalApiRequest(API_ROUTES.AUTH_PROVIDER_CALLBACK('telegram'), {
                 method: 'POST',
                 body: requestData,
                 requiresAuth: false,
@@ -531,7 +530,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
 
     const fetchUserData = async (): Promise<void> => {
         try {
-            const userData: any = await universalApiRequest('/api/users/me', { locale: false });
+            const userData: any = await universalApiRequest(API_ROUTES.USERS_ME, { locale: false });
             console.log('🔥🔥🔥 User data from /me endpoint:', userData);
 
                 // Сохраняем данные пользователя
@@ -602,7 +601,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
 
             console.log('Login attempt with:', loginData);
 
-            const data: LoginResponse = await universalApiRequest('/api/authentication_token', {
+            const data: LoginResponse = await universalApiRequest(API_ROUTES.AUTHENTICATION_TOKEN, {
                 method: 'POST',
                 body: loginData,
                 requiresAuth: false,
@@ -698,7 +697,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
 
         // Добавляем occupation для специальности специалиста, если выбрана
         if (formData.role === 'master' && formData.specialty) {
-            userData.occupation = [`${API_BASE_URL}/api/occupations/${formData.specialty}`];
+            userData.occupation = [API_ROUTES.OCCUPATION_BY_ID(formData.specialty)];
             console.log('Adding occupation for specialist:', userData.occupation);
         }
 
@@ -706,7 +705,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
 
         try {
             // 1. Регистрируем пользователя
-            await universalApiRequest('/api/users', {
+            await universalApiRequest(API_ROUTES.USERS, {
                 method: 'POST',
                 body: userData,
                 requiresAuth: false,
@@ -714,7 +713,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             });
 
             // 2. Логинимся после регистрации
-            const loginData: LoginResponse = await universalApiRequest('/api/authentication_token', {
+            const loginData: LoginResponse = await universalApiRequest(API_ROUTES.AUTHENTICATION_TOKEN, {
                 method: 'POST',
                 body: { email, password: formData.password },
                 requiresAuth: false,
@@ -744,7 +743,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
 
             // 6. Пытаемся получить данные пользователя (может вернуть 403 до подтверждения)
             try {
-                const userData: any = await universalApiRequest('/api/users/me', { locale: false });
+                const userData: any = await universalApiRequest(API_ROUTES.USERS_ME, { locale: false });
                 console.log('User data after registration:', userData);
 
                 setUserData(userData);
@@ -792,7 +791,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             console.log('Trying to grant role:', roleValue);
 
             try {
-                await universalApiRequest('/api/users/grant-role', {
+                await universalApiRequest(API_ROUTES.USERS_GRANT_ROLE, {
                     method: 'POST',
                     body: { role: roleValue },
                     locale: false,
@@ -812,7 +811,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 for (const altRole of alternativeRoleValues) {
                     console.log('Trying alternative role:', altRole);
                     try {
-                        await universalApiRequest('/api/users/grant-role', {
+                        await universalApiRequest(API_ROUTES.USERS_GRANT_ROLE, {
                             method: 'POST',
                             body: { role: altRole },
                             locale: false,
@@ -914,7 +913,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         setIsLoading(true);
         setError('');
         try {
-            await universalApiRequest('/api/change-password/send-otp/', {
+            await universalApiRequest(API_ROUTES.CHANGE_PASSWORD_SEND_OTP, {
                 method: 'POST',
                 body: { email: formData.email },
                 requiresAuth: false,
@@ -944,7 +943,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         setIsLoading(true);
         setError('');
         try {
-            await universalApiRequest('/api/change-password/', {
+            await universalApiRequest(API_ROUTES.CHANGE_PASSWORD, {
                 method: 'POST',
                 body: { email: formData.email, code: formData.code, newPassword: formData.newPassword },
                 requiresAuth: false,
@@ -1533,7 +1532,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
             }
             console.log('Completing Telegram auth for role:', selectedRole);
 
-            const data: TelegramAuthResponse = await universalApiRequest('/api/auth/telegram/complete', {
+            const data: TelegramAuthResponse = await universalApiRequest(API_ROUTES.AUTH_TELEGRAM_COMPLETE, {
                 method: 'POST',
                 body: { userData: telegramUserData, role: selectedRole },
                 requiresAuth: false,

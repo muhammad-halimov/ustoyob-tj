@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useTranslation } from 'react-i18next';
 import { getAuthToken, fetchCurrentUser, isAdmin } from "../../utils/authUtils";
-import { ROUTES } from '../../app/routers/routes';
+import { API_ROUTES, ROUTES } from '../../app/routers/routes';
 import { smartNameTranslator } from '../../utils/textUtils';
 import Auth from '../../shared/ui/Modal/Auth/Auth';
 import Feedback from '../../shared/ui/Modal/Feedback';
@@ -361,7 +361,7 @@ function Chat() {
             }
 
             console.log('Fetching messages for chat:', chatId);
-            const chatData: ApiChat = await universalApiRequest(`/api/chats/${chatId}`, { locale: false });
+            const chatData: ApiChat = await universalApiRequest(API_ROUTES.CHAT_BY_ID(chatId), { locale: false });
             console.log('Chat data received:', chatData);
 
             // Добавляем вычисляемое поле isArchived
@@ -382,7 +382,7 @@ function Chat() {
 
             if (currentUser) {
                 const pageSize = getPageSize();
-                const responseData = await universalApiRequest(`/api/chats/${chatId}/messages?page=1&itemsPerPage=${pageSize}`, { locale: false });
+                const responseData = await universalApiRequest(`${API_ROUTES.CHAT_MESSAGES(chatId)}?page=1&itemsPerPage=${pageSize}`, { locale: false });
                 const { items: pageMessages, hasMore } = parsePagedResponse<ApiMessage>(responseData, 1, pageSize);
                 setMessagesPage(1);
                 setHasMoreMessages(hasMore);
@@ -434,7 +434,7 @@ function Chat() {
         try {
             const nextPage = messagesPage + 1;
             const pageSize = getPageSize();
-            const responseData = await universalApiRequest(`/api/chats/${chatId}/messages?page=${nextPage}&itemsPerPage=${pageSize}`, { locale: false });
+            const responseData = await universalApiRequest(`${API_ROUTES.CHAT_MESSAGES(chatId)}?page=${nextPage}&itemsPerPage=${pageSize}`, { locale: false });
             const { items: pageMessages, hasMore } = parsePagedResponse<ApiMessage>(responseData, nextPage, pageSize);
             const olderItems: Message[] = pageMessages.map(mapApiMessageToView).reverse();
 
@@ -462,7 +462,7 @@ function Chat() {
 
     const markChatAsRead = useCallback(async (chatId: number) => {
         try {
-            await universalApiRequest(`/api/chats/${chatId}/read`, { method: 'POST', locale: false });
+            await universalApiRequest(API_ROUTES.CHAT_READ(chatId), { method: 'POST', locale: false });
         } catch {
             // fire-and-forget — ошибка не критична
         }
@@ -610,7 +610,7 @@ function Chat() {
         const token = getAuthToken();
         if (!token) return;
         try {
-            const { token: mercureToken, topics } = await universalApiRequest('/api/chats/inbox-token', { locale: false }) as { token: string | null; topics: string[] };
+            const { token: mercureToken, topics } = await universalApiRequest(API_ROUTES.CHATS_INBOX_TOKEN, { locale: false }) as { token: string | null; topics: string[] };
             if (!mercureToken || !topics?.length) return;
 
             const es = openMercureSource(topics, mercureToken);
@@ -655,8 +655,8 @@ function Chat() {
     useEffect(() => {
         if (!currentUser) return;
 
-        const doPing = () => universalApiRequest('/api/users/ping', { method: 'POST', locale: false }).catch(() => {});
-        const markOffline = () => universalApiRequest('/api/users/offline', { method: 'POST', locale: false, keepalive: true }).catch(() => {});
+        const doPing = () => universalApiRequest(API_ROUTES.USERS_PING, { method: 'POST', locale: false }).catch(() => {});
+        const markOffline = () => universalApiRequest(API_ROUTES.USERS_OFFLINE, { method: 'POST', locale: false, keepalive: true }).catch(() => {});
 
         doPing();
         heartbeatIntervalRef.current = setInterval(doPing, 10_000);
@@ -722,12 +722,12 @@ function Chat() {
 
     const sendMessageToServer = useCallback(async (chatId: number, messageText: string, replyToId?: number): Promise<number | false> => {
         try {
-            const data: any = await universalApiRequest('/api/chat-messages', {
+            const data: any = await universalApiRequest(API_ROUTES.CHAT_MESSAGES_CREATE, {
                 method: 'POST',
                 body: {
                     description: messageText,
-                    chat: `/api/chats/${chatId}`,
-                    ...(replyToId ? { replyTo: `/api/chat-messages/${replyToId}` } : {})
+                    chat: API_ROUTES.CHAT_BY_ID(chatId),
+                    ...(replyToId ? { replyTo: API_ROUTES.CHAT_MESSAGE_BY_ID(replyToId) } : {})
                 },
                 locale: false,
             });
@@ -755,7 +755,7 @@ function Chat() {
         }
 
         try {
-            await universalApiRequest(`/api/chat-messages/${messageId}`, { method: 'DELETE', locale: false });
+            await universalApiRequest(API_ROUTES.CHAT_MESSAGE_BY_ID(messageId), { method: 'DELETE', locale: false });
             const deletedImageIds = new Set(messages.find(m => m.id === messageId)?.images?.map(img => img.id) ?? []);
             setMessages(prev => prev.map(msg =>
                 msg.id === messageId ? { ...msg, text: '', deletedByAuthor: true, images: [] } : msg
@@ -785,7 +785,7 @@ function Chat() {
 
         const fetchMessageImages = async (id: number): Promise<Array<{ id: number; image: string }>> => {
             try {
-                const messageData = await universalApiRequest(`/api/chat-messages/${id}`, { locale: false }) as ApiMessage;
+                const messageData = await universalApiRequest(API_ROUTES.CHAT_MESSAGE_BY_ID(id), { locale: false }) as ApiMessage;
                 return (messageData.images || []).map(img => ({ id: img.id, image: img.image }));
             } catch {
                 return [];
@@ -804,10 +804,10 @@ function Chat() {
         const currentImages = await fetchMessageImages(messageId);
         const orderedImages = buildOrderedImagePayload(photoItems, currentImages);
 
-        await universalApiRequest(`/api/chat-messages/${messageId}`, {
+        await universalApiRequest(API_ROUTES.CHAT_MESSAGE_BY_ID(messageId), {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/merge-patch+json' },
-            body: { description: newText, chat: `/api/chats/${selectedChat}`, images: orderedImages },
+            body: { description: newText, chat: API_ROUTES.CHAT_BY_ID(selectedChat), images: orderedImages },
             locale: false,
         });
     }, [selectedChat]);
@@ -823,13 +823,13 @@ function Chat() {
         if (!owningMessage) return;
         try {
             const remaining = (owningMessage.images ?? []).filter(img => img.id !== image.id).map(img => ({ id: img.id, image: img.name }));
-            await universalApiRequest(`/api/chat-messages/${owningMessage.id}`, {
+            await universalApiRequest(API_ROUTES.CHAT_MESSAGE_BY_ID(owningMessage.id), {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/merge-patch+json' },
                 // `chat` is required here even though the message id alone should be enough to
                 // resolve it — same as `editMessageOnServer` below. Omitting it 404s with
                 // `chat_not_found` instead of just patching the message directly.
-                body: { chat: `/api/chats/${selectedChat}`, images: remaining },
+                body: { chat: API_ROUTES.CHAT_BY_ID(selectedChat), images: remaining },
                 locale: false,
             });
             await fetchChatMessages(selectedChat);
@@ -861,7 +861,7 @@ function Chat() {
         if (chatToSend?.isArchived) {
             const token = getAuthToken();
             if (token) {
-        universalApiRequest(`/api/chats/${selectedChat}`, {
+        universalApiRequest(API_ROUTES.CHAT_BY_ID(selectedChat), {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/merge-patch+json' },
                     body: { active: true },
@@ -1054,7 +1054,7 @@ function Chat() {
 
             console.log('Fetching chats with token...');
             const pageSize = getPageSize();
-            const responseData: any = await universalApiRequest(`/api/chats/me?page=${chatPage}&itemsPerPage=${pageSize}`, { locale: false });
+            const responseData: any = await universalApiRequest(`${API_ROUTES.CHATS_ME}?page=${chatPage}&itemsPerPage=${pageSize}`, { locale: false });
 
             let chatsData: ApiChat[] = [];
 
@@ -1188,7 +1188,7 @@ function Chat() {
                 return;
             }
 
-            await universalApiRequest(`/api/chats/${chatId}`, {
+            await universalApiRequest(API_ROUTES.CHAT_BY_ID(chatId), {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/merge-patch+json' },
                 body: { active: !archive },
@@ -1223,7 +1223,7 @@ function Chat() {
     const deleteChatForMe = useCallback(async (chatId: number) => {
         if (!window.confirm(t('chat.deleteChatConfirm'))) return;
         try {
-            await universalApiRequest(`/api/chats/${chatId}`, { method: 'DELETE', locale: false });
+            await universalApiRequest(API_ROUTES.CHAT_BY_ID(chatId), { method: 'DELETE', locale: false });
             setChats(prev => prev.filter(c => c.id !== chatId));
             if (selectedChat === chatId) {
                 setSelectedChat(null);

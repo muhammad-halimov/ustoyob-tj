@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type * as React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ROUTES } from '../../../app/routers/routes';
+import { ROUTES, API_ROUTES } from '../../../app/routers/routes';
 import styles from './CreateEdit.module.scss';
 import { getAuthToken, getUserRole, getUserData } from '../../../utils/authUtils';
 import Address, { AddressValue, buildAddressData } from '../../../shared/ui/Address/Selector';
@@ -225,7 +225,7 @@ const CreateEdit = () => {
     const fetchTicketData = async (ticketId: number) => {
         try {
             setIsLoading(true);
-            const data = await universalApiRequest(`/api/tickets/${ticketId}`);
+            const data = await universalApiRequest(API_ROUTES.TICKET_BY_ID(ticketId));
 
             // Преобразуем данные API в формат TicketFormData
             const formattedData: TicketFormData = {
@@ -348,16 +348,16 @@ const CreateEdit = () => {
                     budget: budgetValue,
                     negotiableBudget,
                     active: true,
-                    category: `/api/categories/${selectedCategory}`,
-                    subcategory: selectedSubcategory ? `/api/occupations/${selectedSubcategory}` : null,
-                    unit: selectedUnit ? `/api/units/${selectedUnit}` : null,
+                    category: API_ROUTES.CATEGORY_BY_ID(selectedCategory),
+                    subcategory: selectedSubcategory ? API_ROUTES.OCCUPATION_BY_ID(selectedSubcategory) : null,
+                    unit: selectedUnit ? `${API_ROUTES.UNITS}/${selectedUnit}` : null,
                     address: addressData,
-                    author: `/api/users/${userId}`,
+                    author: API_ROUTES.USER_BY_ID(userId),
                     service: role === 'master',
-                    master: role === 'master' ? `/api/users/${userId}` : null
+                    master: role === 'master' ? API_ROUTES.USER_BY_ID(userId) : null
                 };
 
-                const ticketDataResponse = await universalApiRequest('/api/tickets', {
+                const ticketDataResponse = await universalApiRequest(API_ROUTES.TICKETS, {
                     method: 'POST',
                     body: ticketData,
                 });
@@ -398,7 +398,7 @@ const CreateEdit = () => {
                 }
 
                 // 3. Перечитываем тикет, чтобы получить ID только что загруженных фото
-                const freshTicket = await universalApiRequest(`/api/tickets/${serviceData.id}`).catch(() => null);
+                const freshTicket = await universalApiRequest(API_ROUTES.TICKET_BY_ID(serviceData.id)).catch(() => null);
                 const allCurrentImages: Image[] = freshTicket?.images || [];
 
                 // Новые = те, которых не было раньше (в порядке вставки = порядок загрузки)
@@ -412,14 +412,14 @@ const CreateEdit = () => {
                     budget: budgetValue,
                     negotiableBudget,
                     service: true,
-                    category: `/api/categories/${selectedCategory}`,
-                    subcategory: selectedSubcategory ? `/api/occupations/${selectedSubcategory}` : null,
-                    unit: selectedUnit ? `/api/units/${selectedUnit}` : null,
+                    category: API_ROUTES.CATEGORY_BY_ID(selectedCategory),
+                    subcategory: selectedSubcategory ? API_ROUTES.OCCUPATION_BY_ID(selectedSubcategory) : null,
+                    unit: selectedUnit ? `${API_ROUTES.UNITS}/${selectedUnit}` : null,
                     address: addressData,
                     images: finalImages.map(img => ({ id: img.id, image: img.image })),
                 };
 
-                await universalApiRequest(`/api/tickets/${serviceData.id}`, {
+                await universalApiRequest(API_ROUTES.TICKET_BY_ID(serviceData.id), {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/merge-patch+json' },
                     body: updateData,

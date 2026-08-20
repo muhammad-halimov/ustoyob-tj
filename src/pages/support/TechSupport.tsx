@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import styles from './TechSupport.module.scss';
 import { universalApiRequest } from '../../utils/apiUtils';
+import { API_ROUTES } from '../../app/routers/routes';
 import { getAppealReasons, getMyTechSupports } from '../../utils/dataCacheUtils';
 import { uploadPhotos, formatTechSupportImageUrl } from '../../utils/imageUtils';
 import { isAuthenticated, getUserData, isAdmin } from '../../utils/authUtils';
@@ -169,7 +170,7 @@ function TechSupport({ embedded = false }: TechSupportProps) {
         inboxSourceRef.current?.close();
         inboxSourceRef.current = null;
         try {
-            const { token, topics } = await universalApiRequest('/api/tech-supports/inbox-token', { locale: false }) as { token: string | null; topics: string[] };
+            const { token, topics } = await universalApiRequest(API_ROUTES.TECH_SUPPORTS_INBOX_TOKEN, { locale: false }) as { token: string | null; topics: string[] };
             if (!token || !topics?.length) return;
 
             const source = openMercureSource(topics, token);
@@ -279,7 +280,7 @@ function TechSupport({ embedded = false }: TechSupportProps) {
     }));
 
     const reasonOptions = reasons.map(r => ({
-        value: `/api/appeal-reasons/${r.id}`,
+        value: API_ROUTES.APPEAL_REASON_BY_ID(r.id),
         label: r.title,
     }));
 
@@ -419,7 +420,7 @@ function TechSupport({ embedded = false }: TechSupportProps) {
                 payload.guestEmail = guestEmail.trim();
             }
 
-            const result: SupportTicket = await universalApiRequest('/api/tech-supports', {
+            const result: SupportTicket = await universalApiRequest(API_ROUTES.TECH_SUPPORTS, {
                 method: 'POST',
                 body: payload,
             });

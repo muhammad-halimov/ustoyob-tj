@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ROUTES } from '../../app/routers/routes';
+import { ROUTES, API_ROUTES } from '../../app/routers/routes';
 import { PageLoader } from '../../widgets/PageLoader';
 import Status from '../../shared/ui/Modal/Status';
 import { useTranslation } from 'react-i18next';
@@ -28,7 +28,7 @@ const ConfirmAccountPage = () => {
 
         const confirm = async () => {
             try {
-                await universalApiRequest('/api/confirm-account/', {
+                await universalApiRequest(API_ROUTES.CONFIRM_ACCOUNT, {
                     method: 'POST',
                     body: { token },
                     requiresAuth: false,

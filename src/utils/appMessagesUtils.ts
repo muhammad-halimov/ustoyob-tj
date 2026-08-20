@@ -16,6 +16,7 @@
 
 import { getDefaultLocale } from './storageUtils';
 import { API_BASE_URL } from './configUtils';
+import { API_ROUTES } from '../app/routers/routes';
 import type { LocaleType } from './apiUtils';
 import i18n from 'i18next';
 
@@ -50,7 +51,7 @@ export const loadAppMessages = (locale?: LocaleType, force = false): Promise<voi
 
     if (_loadPromise && !force) return _loadPromise;
 
-    _loadPromise = fetch(`${API_BASE_URL}/api/app-messages?locale=${targetLocale}`)
+    _loadPromise = fetch(`${API_BASE_URL}${API_ROUTES.APP_MESSAGES}?locale=${targetLocale}`)
         .then(res => {
             if (!res.ok) throw new Error(`app-messages fetch failed: ${res.status}`);
             return res.json();

@@ -2,7 +2,7 @@ import {type ChangeEvent, useCallback, useEffect, useRef, useState, Dispatch, Se
 import type * as React from 'react';
 import {Navigate, useNavigate, useParams} from 'react-router-dom';
 import {getAuthToken, getUserData, getUserRole, logout} from '../../utils/authUtils';
-import {ROUTES} from '../../app/routers/routes';
+import {API_ROUTES, ROUTES} from '../../app/routers/routes';
 import styles from './Profile.module.scss';
 import {useTranslation} from 'react-i18next';
 import {useTheme} from '../../contexts';
@@ -192,7 +192,7 @@ function Profile() {
             controller.abort(); // отменяем предыдущий незавершённый запрос, если он ещё летит
             controller = new AbortController();
             setLinkedProvidersLoading(true);
-            universalApiRequest('/api/profile/oauth/providers', { locale: false, signal: controller.signal })
+            universalApiRequest(API_ROUTES.PROFILE_OAUTH_PROVIDERS, { locale: false, signal: controller.signal })
                 .then(data => setLinkedProviders(Array.isArray(data) ? data : ((data as any).providers ?? [])))
                 .catch(() => {})
                 .finally(() => setLinkedProvidersLoading(false));
@@ -269,7 +269,7 @@ function Profile() {
             document.body.appendChild(overlay);
             return;
         }
-        universalApiRequest(`/api/auth/${provider}/url`, { requiresAuth: false, locale: false })
+        universalApiRequest(API_ROUTES.AUTH_PROVIDER_URL(provider), { requiresAuth: false, locale: false })
             .then(data => {
                 setSessionItem('oauthMode', 'link');
                 // На мобильных нативное приложение открывает callback в новой вкладке,
@@ -290,7 +290,7 @@ function Profile() {
 
     const handleUnlinkProvider = async (provider: string) => {
         try {
-            const data: any = await universalApiRequest(`/api/profile/oauth/unlink/${provider}`, {
+            const data: any = await universalApiRequest(API_ROUTES.PROFILE_OAUTH_UNLINK(provider), {
                 method: 'DELETE',
                 locale: false,
             });
@@ -328,7 +328,7 @@ function Profile() {
 
         (async () => {
             try {
-                const data: any = await universalApiRequest('/api/favorites/me', { locale: false });
+                const data: any = await universalApiRequest(API_ROUTES.FAVORITES_ME, { locale: false });
                 const entries: Array<{ id: number; type: string; user: { id: number } | null }> =
                     data['hydra:member'] ?? (Array.isArray(data) ? data : []);
                 const match = entries.find(e => e.type === 'user' && e.user?.id === Number(profileData.id));
@@ -422,7 +422,7 @@ function Profile() {
     // Функция загрузки доступных социальных сетей
     const fetchAvailableSocialNetworks = async () => {
         try {
-            const data = await universalApiRequest('/api/users/social-networks', { requiresAuth: false }) as LocalAvailableSocialNetwork[];
+            const data = await universalApiRequest(API_ROUTES.USERS_SOCIAL_NETWORKS, { requiresAuth: false }) as LocalAvailableSocialNetwork[];
             setAvailableSocialNetworks(data);
             console.log('Available social networks loaded:', data);
         } catch (error) {
@@ -627,13 +627,13 @@ function Profile() {
             });
 
             console.log('Sending social networks PATCH request...');
-            console.log('URL:', `/api/users/${profileData.id}`);
+            console.log('URL:', API_ROUTES.USER_BY_ID(profileData.id));
             console.log('Data to send:', JSON.stringify({
                 socialNetworks: socialNetworksData
             }, null, 2));
 
             // Используем правильный Content-Type как указано в API
-            const updatedData: any = await universalApiRequest(`/api/users/${profileData.id}`, {
+            const updatedData: any = await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id), {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/merge-patch+json' },
                 body: { socialNetworks: socialNetworksData },
@@ -696,7 +696,7 @@ function Profile() {
         // Преобразуем каждое поле из объекта в IRI-строку
         if (address.province) {
             if (typeof address.province === 'object' && address.province.id) {
-                iriAddress.province = `/api/provinces/${address.province.id}`;
+                iriAddress.province = API_ROUTES.PROVINCE_BY_ID(address.province.id);
             } else if (typeof address.province === 'string') {
                 iriAddress.province = address.province;
             }
@@ -704,7 +704,7 @@ function Profile() {
         
         if (address.city) {
             if (typeof address.city === 'object' && address.city.id) {
-                iriAddress.city = `/api/cities/${address.city.id}`;
+                iriAddress.city = API_ROUTES.CITY_BY_ID(address.city.id);
             } else if (typeof address.city === 'string') {
                 iriAddress.city = address.city;
             }
@@ -712,7 +712,7 @@ function Profile() {
         
         if (address.suburb) {
             if (typeof address.suburb === 'object' && address.suburb.id) {
-                iriAddress.suburb = `/api/suburbs/${address.suburb.id}`;
+                iriAddress.suburb = API_ROUTES.SUBURB_BY_ID(address.suburb.id);
             } else if (typeof address.suburb === 'string') {
                 iriAddress.suburb = address.suburb;
             }
@@ -720,7 +720,7 @@ function Profile() {
         
         if (address.district) {
             if (typeof address.district === 'object' && address.district.id) {
-                iriAddress.district = `/api/districts/${address.district.id}`;
+                iriAddress.district = API_ROUTES.DISTRICT_BY_ID(address.district.id);
             } else if (typeof address.district === 'string') {
                 iriAddress.district = address.district;
             }
@@ -728,7 +728,7 @@ function Profile() {
         
         if (address.settlement) {
             if (typeof address.settlement === 'object' && address.settlement.id) {
-                iriAddress.settlement = `/api/settlements/${address.settlement.id}`;
+                iriAddress.settlement = API_ROUTES.SETTLEMENT_BY_ID(address.settlement.id);
             } else if (typeof address.settlement === 'string') {
                 iriAddress.settlement = address.settlement;
             }
@@ -736,7 +736,7 @@ function Profile() {
         
         if (address.community) {
             if (typeof address.community === 'object' && address.community.id) {
-                iriAddress.community = `/api/communities/${address.community.id}`;
+                iriAddress.community = API_ROUTES.COMMUNITY_BY_ID(address.community.id);
             } else if (typeof address.community === 'string') {
                 iriAddress.community = address.community;
             }
@@ -744,7 +744,7 @@ function Profile() {
         
         if (address.village) {
             if (typeof address.village === 'object' && address.village.id) {
-                iriAddress.village = `/api/villages/${address.village.id}`;
+                iriAddress.village = API_ROUTES.VILLAGE_BY_ID(address.village.id);
             } else if (typeof address.village === 'string') {
                 iriAddress.village = address.village;
             }
@@ -812,7 +812,7 @@ function Profile() {
             }
 
             // Получаем текущие данные пользователя
-            const userData: User = await universalApiRequest(`/api/users/${profileData.id}`) as User;
+            const userData: User = await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id)) as User;
             const currentAddresses = userData.addresses || [];
 
             const addressIndex = editingAddress.startsWith('new-') 
@@ -843,7 +843,7 @@ function Profile() {
             }
 
             // Отправляем на сервер
-            await universalApiRequest(`/api/users/${profileData.id}`, {
+            await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id), {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/merge-patch+json' },
                 body: { addresses: updatedAddresses },
@@ -852,7 +852,7 @@ function Profile() {
 
             // Получаем обновленные данные пользователя
             const currentLocale = getStorageItem('i18nextLng') || 'ru';
-            const updatedUserData: User = await universalApiRequest(`/api/users/${profileData.id}`, { locale: currentLocale as any }) as User;
+            const updatedUserData: User = await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id), { locale: currentLocale as any }) as User;
             const updatedAddressesFromServer = updatedUserData.addresses || [];
 
             // Преобразуем адреса в формат для отображения
@@ -921,7 +921,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
 
         // Отправляем на сервер
         try {
-            await universalApiRequest(`/api/users/${profileData.id}`, {
+            await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id), {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/merge-patch+json' },
                 body: { addresses: updatedAddresses },
@@ -998,7 +998,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         }
 
         // GET actual server-side phones to avoid stale state
-        const userData: any = await universalApiRequest(`/api/users/${profileData.id}`);
+            const userData: any = await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id));
         const serverPhones: { id: number; phone: string; main: boolean }[] = userData.phones || [];
 
         let phonesPayload;
@@ -1017,7 +1017,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         }
 
         try {
-            await universalApiRequest(`/api/users/${profileData.id}`, {
+            await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id), {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/merge-patch+json' },
                 body: { phones: phonesPayload },
@@ -1058,7 +1058,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         rawPhonesRef.current = serverPhones.filter(p => String(p.id) !== phoneId);
 
         try {
-            await universalApiRequest(`/api/users/${profileData.id}`, {
+            await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id), {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/merge-patch+json' },
                 body: { phones: phonesPayload },
@@ -1095,7 +1095,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         const newValue = !profileData.canWorkRemotely;
 
         try {
-            await universalApiRequest(`/api/users/${profileData.id}`, {
+            await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id), {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/merge-patch+json' },
                 body: { atHome: newValue },
@@ -1160,7 +1160,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
 
             // Определяем endpoint: /api/users/me для приватного или /api/users/:id для публичного
             const currentLocale = getStorageItem('i18nextLng') || 'ru';
-            const userPath = userId ? `/api/users/${userId}` : '/api/users/me';
+            const userPath = userId ? API_ROUTES.USER_BY_ID(userId) : API_ROUTES.USERS_ME;
 
             // Загружаем данные пользователя + географию + профессии параллельно
             const [userData, pRaw, cRaw, dRaw, localizedOccupations] = await Promise.all([
@@ -1454,8 +1454,8 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
 
             console.log(`Fetching reviews for ${userRole} ID:`, profileData.id);
             const endpoint = userRole === 'client' 
-                ? `/api/reviews?exists[ticket]=true&exists[master]=true&exists[client]=true&type=client&client=${profileData.id}`
-                : `/api/reviews?exists[ticket]=true&exists[master]=true&exists[client]=true&type=master&master=${profileData.id}`;
+                ? `${API_ROUTES.REVIEWS}?exists[ticket]=true&exists[master]=true&exists[client]=true&type=client&client=${profileData.id}`
+                : `${API_ROUTES.REVIEWS}?exists[ticket]=true&exists[master]=true&exists[client]=true&type=master&master=${profileData.id}`;
             const pageSize = getPageSize();
             const paginatedEndpoint = `${endpoint}&page=${reviewsPage}&itemsPerPage=${pageSize}`;
             console.log(`Trying endpoint: ${paginatedEndpoint}`);
@@ -1639,9 +1639,18 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             const pageSize = getPageSize();
             // order[priority] reflects the drag-reorder from handleReorderServices below —
             // matches the persisted manual order instead of the collection's default order.
-            const endpoint = userRole === 'client'
-                ? `/api/tickets?locale=${getStorageItem('i18nextLng') || 'ru'}&service=false&exists[master]=false&exists[author]=true&author=${profileData.id}&order[priority]=asc&page=${servicesPage}&itemsPerPage=${pageSize}`
-                : `/api/tickets?locale=${getStorageItem('i18nextLng') || 'ru'}&service=true&exists[author]=false&exists[master]=true&master=${profileData.id}&order[priority]=asc&page=${servicesPage}&itemsPerPage=${pageSize}`;
+            const serviceParams = new URLSearchParams({
+                locale: getStorageItem('i18nextLng') || 'ru',
+                service: userRole === 'client' ? 'false' : 'true',
+                'order[priority]': 'asc',
+                page: String(servicesPage),
+                itemsPerPage: String(pageSize),
+            });
+            const endpoint = readOnly
+                ? `${API_ROUTES.TICKETS}?${serviceParams.toString()}&${userRole === 'client'
+                    ? `exists[master]=false&exists[author]=true&author=${profileData.id}`
+                    : `exists[author]=false&exists[master]=true&master=${profileData.id}`}`
+                : `${API_ROUTES.TICKETS_ME}?${serviceParams.toString()}`;
             console.log(`Trying endpoint: ${endpoint}`);
 
             let servicesRaw: any;
@@ -1684,10 +1693,12 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                     budget: service.budget || 0,
                     price: service.budget || 0,
                     negotiableBudget: service.negotiableBudget ?? false,
-                    unit: service.unit || 'сомони',
+                    unit: service.unit || undefined,
                     service: service.service ?? true,
                     createdAt: service.createdAt,
                     active: service.active !== false,
+                    approved: service.approved,
+                    banned: service.banned,
                     priority: service.priority ?? undefined,
                     images: serviceImages,
                 };
@@ -1799,7 +1810,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
     const getUserGallery = async (_token: string): Promise<Gallery | null> => {
         try {
             console.log('Fetching user gallery via /api/galleries/me...');
-            const galleriesData: any = await universalApiRequest('/api/galleries/me', { locale: false });
+            const galleriesData: any = await universalApiRequest(API_ROUTES.GALLERIES_ME, { locale: false });
             console.log('Galleries data:', galleriesData);
             
             let galleryArray: Gallery[] = [];
@@ -1890,7 +1901,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
 
             // Отправляем PATCH запрос с обновленным массивом
             try {
-                await universalApiRequest(`/api/galleries/${galleryId}`, {
+                await universalApiRequest(API_ROUTES.GALLERY_BY_ID(galleryId), {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/merge-patch+json' },
                     body: { images: updatedImages },
@@ -1959,7 +1970,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
 
             // Отправляем PATCH запрос с пустым массивом изображений
             try {
-                await universalApiRequest(`/api/galleries/${galleryId}`, {
+                await universalApiRequest(API_ROUTES.GALLERY_BY_ID(galleryId), {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/merge-patch+json' },
                     body: { images: [] },
@@ -2002,7 +2013,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
 
             let responseData: any;
             try {
-                responseData = await universalApiRequest('/api/galleries', {
+                responseData = await universalApiRequest(API_ROUTES.GALLERIES, {
                     method: 'POST',
                     body: { images: [] },
                     locale: false,
@@ -2061,7 +2072,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                 // Публичный профиль — грузим галерею по ID пользователя, без токена
                 let data: any;
                 try {
-                    data = await universalApiRequest(`/api/galleries?user=${userId}`, { requiresAuth: false, locale: false });
+                    data = await universalApiRequest(`${API_ROUTES.GALLERIES}?user=${userId}`, { requiresAuth: false, locale: false });
                 } catch {
                     setProfileData(prev => prev ? { ...prev, workExamples: [] } : null);
                     return;
@@ -2163,7 +2174,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
     const fetchUserAvatar = async () => {
         try {
             const currentLocale = getStorageItem('i18nextLng') || 'ru';
-            const userPath = userId ? `/api/users/${userId}` : '/api/users/me';
+            const userPath = userId ? API_ROUTES.USER_BY_ID(userId) : API_ROUTES.USERS_ME;
             const userData: any = await universalApiRequest(userPath, { locale: currentLocale as any });
             const avatarUrl = (userData.image || userData.imageExternalUrl)
                 ? getAuthorAvatar(userData)
@@ -2182,7 +2193,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             // Обрабатываем occupation в разных форматах
             if (edu.occupation) {
                 if (typeof edu.occupation === 'string') {
-                    // occupation как IRI строка "/api/occupations/4"
+                    // occupation как IRI строка API-ресурса
                     const occupationId = parseInt(edu.occupation.split('/').pop() || '0');
                     const foundOccupation = resolvedOccupations.find(occ => occ.id === occupationId);
                     specialty = foundOccupation?.title || '';
@@ -2242,7 +2253,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
 
             // Обработка специальности
             if (updatedData.specialties !== undefined) {
-                apiData.occupation = updatedData.specialties.map(o => `/api/occupations/${o.id}`);
+                apiData.occupation = updatedData.specialties.map(o => API_ROUTES.OCCUPATION_BY_ID(o.id));
             }
 
             // Обработка пола
@@ -2262,7 +2273,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             }
 
             console.log('Sending update data:', apiData);
-            await universalApiRequest(`/api/users/${profileData.id}`, {
+            await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id), {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/merge-patch+json' },
                 body: apiData,
@@ -2291,10 +2302,10 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                     occupationIri = edu.occupation;
                 } else if (Array.isArray(edu.occupation) && edu.occupation.length > 0) {
                     // Массив объектов - берем первый элемент и преобразуем в IRI
-                    occupationIri = `/api/occupations/${edu.occupation[0].id}`;
+                    occupationIri = API_ROUTES.OCCUPATION_BY_ID(edu.occupation[0].id);
                 } else if (typeof edu.occupation === 'object' && 'id' in edu.occupation) {
                     // Единичный объект - преобразуем в IRI
-                    occupationIri = `/api/occupations/${edu.occupation.id}`;
+                    occupationIri = API_ROUTES.OCCUPATION_BY_ID(edu.occupation.id);
                 }
             }
             
@@ -2334,7 +2345,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         // Подготавливаем данные для обновления/создания
         let occupationIri: string | undefined = undefined;
         if (educationForm.selectedSpecialty) {
-            occupationIri = `/api/occupations/${educationForm.selectedSpecialty}`;
+            occupationIri = API_ROUTES.OCCUPATION_BY_ID(educationForm.selectedSpecialty);
         }
 
         const parsedId = parseInt(educationId);
@@ -2365,7 +2376,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         // Update the ref synchronously before PATCH so concurrent ops see the new state
         rawEducationRef.current = normalizedEducation;
 
-        await universalApiRequest(`/api/users/${profileData.id}`, {
+        await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id), {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/merge-patch+json' },
             body: { education: normalizedEducation },
@@ -2419,7 +2430,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         console.log('Sending normalized education array:', updatedEducationArray);
 
         try {
-            await universalApiRequest(`/api/users/${profileData.id}`, {
+            await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id), {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/merge-patch+json' },
                     body: { education: updatedEducationArray },
@@ -2504,7 +2515,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                 .filter(Boolean) as Education[];
             const normalized = normalizeEducationArray(reordered);
             rawEducationRef.current = normalized;
-            await universalApiRequest(`/api/users/${profileData.id}`, {
+            await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id), {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/merge-patch+json' },
                 body: { education: normalized },
@@ -2529,7 +2540,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             rawAddressesRef.current = newAddresses
                 .map(localAddr => serverAddresses.find((sa: Address) => sa.id?.toString() === localAddr.id))
                 .filter((a): a is Address => !!a);
-            await universalApiRequest(`/api/users/${profileData.id}`, {
+            await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id), {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/merge-patch+json' },
                 body: { addresses: reordered },
@@ -2555,7 +2566,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                 main: p.main,
             }));
 
-            await universalApiRequest(`/api/users/${profileData.id}`, {
+            await universalApiRequest(API_ROUTES.USER_BY_ID(profileData.id), {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/merge-patch+json' },
                 body: { phones: phonesPayload },
@@ -2581,7 +2592,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                 .map(id => gallery.images?.find(img => img.id === id))
                 .filter(Boolean);
 
-            await universalApiRequest(`/api/galleries/${gallery.id}`, {
+            await universalApiRequest(API_ROUTES.GALLERY_BY_ID(gallery.id), {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/merge-patch+json' },
                 body: { images: reordered.map(img => ({ image: img!.image })) },
@@ -2612,7 +2623,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             // fail-one-fail-all behaviour, which would leave the rest silently unpatched too.
             const results = await Promise.allSettled(
                 reindexed.map(service =>
-                    universalApiRequest(`/api/tickets/${service.id}`, {
+                    universalApiRequest(API_ROUTES.TICKET_BY_ID(service.id), {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/merge-patch+json' },
                         body: { priority: service.priority },
@@ -2884,7 +2895,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         }
 
         const fallbackSources = [
-            profileData.avatar?.includes("uploads/") ? `${API_BASE_URL}/api/${profileData.id}/profile-photo` : null,
+            profileData.avatar?.includes("uploads/") ? `${API_BASE_URL}${API_ROUTES.USER_PROFILE_PHOTO(profileData.id)}` : null,
             profileData.avatar?.includes("uploads/") ? `/uploads/avatars/${profileData.avatar.split("/").pop()}` : null,
             "/img/icons/misc/fonTest6.png"
         ].filter(Boolean) as string[];
@@ -3047,7 +3058,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         try {
             if (isProfileLiked && profileEntryId) {
                 // Unlike — DELETE /api/favorites/{entryId}
-                await universalApiRequest(`/api/favorites/${profileEntryId}`, {
+                await universalApiRequest(API_ROUTES.FAVORITE_BY_ID(profileEntryId), {
                     method: 'DELETE',
                     locale: false,
                 });
@@ -3057,9 +3068,9 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             } else {
                 // Like — POST /api/favorites { user: IRI }
                 try {
-                    const entry: any = await universalApiRequest('/api/favorites', {
+                    const entry: any = await universalApiRequest(API_ROUTES.FAVORITES, {
                         method: 'POST',
-                        body: { user: `/api/users/${profileData.id}` },
+                        body: { user: API_ROUTES.USER_BY_ID(profileData.id) },
                         locale: false,
                     });
                     setIsProfileLiked(true);
@@ -3068,7 +3079,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                 } catch (postErr: any) {
                     if (postErr?.status === 409) {
                         // Already in favorites — re-fetch to get entryId
-                        const data: any = await universalApiRequest('/api/favorites/me', { locale: false });
+                        const data: any = await universalApiRequest(API_ROUTES.FAVORITES_ME, { locale: false });
                         const entries: Array<{ id: number; type: string; user: { id: number } | null }> =
                             data['hydra:member'] ?? [];
                         const match = entries.find(e => e.type === 'user' && e.user?.id === Number(profileData.id));

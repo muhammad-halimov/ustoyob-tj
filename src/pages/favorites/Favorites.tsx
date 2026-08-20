@@ -2,7 +2,7 @@ import {useEffect, useRef, useState} from 'react';
 import {getAuthToken, getUserData, getUserRole} from '../../utils/authUtils';
 import styles from './Favorite.module.scss';
 import {useNavigate} from 'react-router-dom';
-import {ROUTES} from '../../app/routers/routes';
+import {ROUTES, API_ROUTES} from '../../app/routers/routes';
 import {
     createChatWithAuthor,
     getChatsMe,
@@ -261,8 +261,8 @@ function Favorites() {
         const token = getAuthToken();
         if (!token) return;
 
-        const doPing = () => universalApiRequest('/api/users/ping', { method: 'POST', locale: false }).catch(() => {});
-        const markOffline = () => universalApiRequest('/api/users/offline', { method: 'POST', locale: false, keepalive: true }).catch(() => {});
+        const doPing = () => universalApiRequest(API_ROUTES.USERS_PING, { method: 'POST', locale: false }).catch(() => {});
+        const markOffline = () => universalApiRequest(API_ROUTES.USERS_OFFLINE, { method: 'POST', locale: false, keepalive: true }).catch(() => {});
 
         doPing();
         heartbeatRef.current = setInterval(doPing, 30_000);
@@ -332,7 +332,7 @@ function Favorites() {
 
     const fetchTicketDetails = async (ticketId: number): Promise<FavoriteTicketView | null> => {
         try {
-            const ticket: Ticket = await universalApiRequest(`/api/tickets/${ticketId}`);
+            const ticket: Ticket = await universalApiRequest(API_ROUTES.TICKET_BY_ID(ticketId));
 
             const isMasterTicket = ticket.service;
             const userType = isMasterTicket ? 'master' : 'client';
@@ -384,7 +384,7 @@ function Favorites() {
 
     const fetchUserProfile = async (userId: number): Promise<FavoriteUserView | null> => {
         try {
-            const u: User = await universalApiRequest(`/api/users/${userId}`, { requiresAuth: false });
+            const u: User = await universalApiRequest(API_ROUTES.USER_BY_ID(userId), { requiresAuth: false });
             const isMaster = u.roles?.includes('ROLE_MASTER') ?? false;
             return {
                 entryId: 0,
@@ -443,7 +443,7 @@ function Favorites() {
             // Авторизованные — новый flat-list API
             const pageSize = getPageSize();
             const currentPage = pageOverride ?? page;
-            const rawData = await universalApiRequest(`/api/favorites/me?page=${currentPage}&itemsPerPage=${pageSize}`);
+            const rawData = await universalApiRequest(`${API_ROUTES.FAVORITES_ME}?page=${currentPage}&itemsPerPage=${pageSize}`);
             const { items: entries, hasMore: fetchedHasMore } = parsePagedResponse<FavoriteEntry>(rawData, currentPage, pageSize);
 
                 const tickets: FavoriteTicketView[] = [];
@@ -565,7 +565,7 @@ function Favorites() {
 
         setIsLikeLoading(userId);
         try {
-            await universalApiRequest(`/api/favorites/${entry.entryId}`, { method: 'DELETE', locale: false });
+            await universalApiRequest(API_ROUTES.FAVORITE_BY_ID(entry.entryId), { method: 'DELETE', locale: false });
             setFavoriteUserViews(prev => prev.filter(u => u.id !== userId));
             window.dispatchEvent(new Event('favoritesUpdated'));
         } catch (err) {
@@ -589,7 +589,7 @@ function Favorites() {
         if (!entry) return;
 
         try {
-            await universalApiRequest(`/api/favorites/${entry.entryId}`, { method: 'DELETE', locale: false });
+            await universalApiRequest(API_ROUTES.FAVORITE_BY_ID(entry.entryId), { method: 'DELETE', locale: false });
             setLikedTickets(prev => prev.filter(id => id !== ticketId));
             setFavoriteTicketViews(prev => prev.filter(t => t.id !== ticketId));
             window.dispatchEvent(new Event('favoritesUpdated'));
@@ -614,9 +614,9 @@ function Favorites() {
 
         setIsLikeLoading(ticketId);
         try {
-            await universalApiRequest('/api/favorites', {
+            await universalApiRequest(API_ROUTES.FAVORITES, {
                 method: 'POST',
-                body: { ticket: `/api/tickets/${ticketId}` },
+                body: { ticket: API_ROUTES.TICKET_BY_ID(ticketId) },
                 locale: false,
             });
             setLikedTickets(prev => [...prev, ticketId]);

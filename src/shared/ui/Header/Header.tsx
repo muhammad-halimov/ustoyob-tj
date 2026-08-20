@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import styles from "./Header.module.scss";
-import { ROUTES } from '../../../app/routers/routes';
+import { ROUTES, API_ROUTES } from '../../../app/routers/routes';
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {getAuthToken, fetchCurrentUser, invalidateCurrentUserCache} from "../../../utils/authUtils";
 import { useTranslation } from 'react-i18next';
@@ -228,7 +228,7 @@ function Header({ onOpenAuthModal }: HeaderProps) {
         }
 
         try {
-            await universalApiRequest('/api/confirm-account-tokenless/', {
+            await universalApiRequest(API_ROUTES.CONFIRM_ACCOUNT_TOKENLESS, {
                 method: 'POST',
                 locale: false,
             });

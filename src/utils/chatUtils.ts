@@ -6,6 +6,7 @@ import type { Chat } from '../entities';
 import type { HydraResponse } from '../entities';
 import type { User } from '../entities';
 import { getSessionJSON, setSessionJSON } from './storageUtils';
+import { API_ROUTES } from '../app/routers/routes';
 
 const RESPONDED_IDS_KEY = 'respondedTicketIds';
 
@@ -58,12 +59,12 @@ export const createChatWithAuthor = async (replyAuthorId: number, ticketId?: num
     }
 
     const chatData: { replyAuthor: string; ticket?: string } = {
-        replyAuthor: `/api/users/${replyAuthorId}`,
+        replyAuthor: API_ROUTES.USER_BY_ID(replyAuthorId),
     };
-    if (ticketId) chatData.ticket = `/api/tickets/${ticketId}`;
+    if (ticketId) chatData.ticket = API_ROUTES.TICKET_BY_ID(ticketId);
 
     try {
-        const rawResponse = await universalApiRequest('/api/chats', {
+        const rawResponse = await universalApiRequest(API_ROUTES.CHATS, {
             method: 'POST',
             body: chatData,
             locale: false,
@@ -84,7 +85,7 @@ export const checkUserStatus = async (userId: number): Promise<{ approved: boole
     try {
         const token = getAuthToken();
         if (!token) return { approved: false, active: false };
-        const userData: User = await universalApiRequest(`/api/users/${userId}`, { locale: false });
+        const userData: User = await universalApiRequest(API_ROUTES.USER_BY_ID(userId), { locale: false });
         return {
             approved: userData.approved !== false,
             active: userData.active !== false,
@@ -109,7 +110,7 @@ export const getChatsMe = async (): Promise<Chat[]> => {
     }
     if (_chatsMePromise) return _chatsMePromise;
 
-    _chatsMePromise = universalApiRequest('/api/chats/me', { locale: false }).then((responseData) => {
+    _chatsMePromise = universalApiRequest(API_ROUTES.CHATS_ME, { locale: false }).then((responseData) => {
         let chatsArray: Chat[] = [];
         if (Array.isArray(responseData)) {
             chatsArray = responseData;

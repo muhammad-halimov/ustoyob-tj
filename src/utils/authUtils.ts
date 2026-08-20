@@ -1,6 +1,7 @@
 // utils/auth.ts
 import {API_BASE_URL} from './configUtils';
 import type {Occupation, User} from '../entities';
+import { API_ROUTES } from '../app/routers/routes';
 import {
     getStorageItem,
     setStorageItem,
@@ -60,13 +61,13 @@ const performLogout = async (token: string, wait: boolean = true): Promise<void>
 
     try {
         // Сначала инвалидируем токен
-        await fetch(`${API_BASE_URL}/api/invalidate_token`, {
+        await fetch(`${API_BASE_URL}${API_ROUTES.INVALIDATE_TOKEN}`, {
             method: 'POST',
             credentials: 'include'
         });
         
         // Затем выполняем logout
-        await fetch(`${API_BASE_URL}/api/logout`, {
+        await fetch(`${API_BASE_URL}${API_ROUTES.LOGOUT}`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` },
             credentials: 'include',
@@ -212,7 +213,7 @@ export const setUserOccupation = (occupation: Occupation[]): void => {
  */
 export const refreshToken = async (): Promise<boolean> => {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/refresh_token`, {
+        const response = await fetch(`${API_BASE_URL}${API_ROUTES.REFRESH_TOKEN}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -332,7 +333,7 @@ export const fetchCurrentUser = async (): Promise<User | null> => {
 
     _mePromise = (async () => {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/users/me`, {
+            const response = await fetch(`${API_BASE_URL}${API_ROUTES.USERS_ME}`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     Accept: 'application/json',
@@ -351,7 +352,7 @@ export const fetchCurrentUser = async (): Promise<User | null> => {
                 if (!refreshed) return null;
                 const newToken = getAuthToken();
                 if (!newToken) return null;
-                const retryResp = await fetch(`${API_BASE_URL}/api/users/me`, {
+                const retryResp = await fetch(`${API_BASE_URL}${API_ROUTES.USERS_ME}`, {
                     headers: {
                         Authorization: `Bearer ${newToken}`,
                         Accept: 'application/json',

@@ -12,7 +12,7 @@ import Status from '../../../shared/ui/Modal/Status';
 import Feedback from '../../../shared/ui/Modal/Feedback';
 
 import {EmptyState} from '../../../widgets/EmptyState';
-import {ROUTES} from '../../../app/routers/routes';
+import {ROUTES, API_ROUTES} from '../../../app/routers/routes';
 import styles from './Category.module.scss';
 import {Card} from '../../../shared/ui/Ticket/Card/Card';
 import {ServiceTypeFilter} from '../../../widgets/Sorting/TypeFilter';
@@ -212,7 +212,7 @@ function Category() {
 
     const fetchCategoryName = async () => {
         try {
-            const categoryData = await universalApiRequest(`/api/categories/${id}`);
+            const categoryData = await universalApiRequest(API_ROUTES.CATEGORY_BY_ID(id!));
             const title =
                 categoryData?.title ||
                 (Array.isArray(categoryData) ? categoryData[0]?.title : null) ||
@@ -301,7 +301,7 @@ function Category() {
                 serviceParam = '&service=false';
             }
             const pageSize = getPageSize();
-            const endpoint = `/api/tickets?active=true&category=${id}&page=${page}&itemsPerPage=${pageSize}${serviceParam}${selectedSubcategory ? `&subcategory=${selectedSubcategory}` : ''}${currentUserId ? `&author.id[ne]=${currentUserId}&master.id[ne]=${currentUserId}` : ''}`;
+            const endpoint = `${API_ROUTES.TICKETS}?active=true&category=${id}&page=${page}&itemsPerPage=${pageSize}${serviceParam}${selectedSubcategory ? `&subcategory=${selectedSubcategory}` : ''}${currentUserId ? `&author.id[ne]=${currentUserId}&master.id[ne]=${currentUserId}` : ''}`;
 
             let ticketsData: Ticket[] = [];
             let fetchedHasMore = false;

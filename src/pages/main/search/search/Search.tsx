@@ -14,7 +14,7 @@ import type {
 import {getAuthToken, getUserData, getUserRole} from "../../../../utils/authUtils";
 import {parsePagedResponse, universalApiRequest} from '../../../../utils/apiUtils';
 import {useNavigate} from "react-router-dom";
-import {ROUTES} from '../../../../app/routers/routes';
+import {ROUTES, API_ROUTES} from '../../../../app/routers/routes';
 import {textHelper} from "../../../../utils/textUtils";
 import {useTranslation} from 'react-i18next';
 import {useLanguageChange, useShowMore} from "../../../../hooks";
@@ -191,7 +191,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     // Функция для извлечения городов из существующих тикетов
     const extractCitiesFromTickets = useCallback(async () => {
         try {
-            const ticketsData = await universalApiRequest('/api/tickets?active=true&itemsPerPage=100');
+            const ticketsData = await universalApiRequest(`${API_ROUTES.TICKETS}?active=true&itemsPerPage=100`);
             let tickets: ApiTicket[] = [];
 
             if (Array.isArray(ticketsData)) {
@@ -588,7 +588,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
             params.append('page', String(pageOverride ?? page));
             params.append('itemsPerPage', String(pageSize));
 
-            const responseData = await universalApiRequest(`/api/tickets?${params.toString()}`);
+            const responseData = await universalApiRequest(`${API_ROUTES.TICKETS}?${params.toString()}`);
             let ticketsData: ApiTicket[];
             const { items: parsedTickets, hasMore: fetchedHasMore } = parsePagedResponse<ApiTicket>(responseData, pageOverride ?? page, pageSize);
             ticketsData = parsedTickets;

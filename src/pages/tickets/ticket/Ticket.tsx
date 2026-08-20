@@ -16,7 +16,7 @@ import Feedback from '../../../shared/ui/Modal/Feedback';
 import { Carousel } from '../../../shared/ui/Photo/Carousel';
 import { Marquee } from '../../../shared/ui/Text/Marquee';
 import {useFavorites} from '../../../hooks/useFavorites.ts';
-import {ROUTES} from '../../../app/routers/routes';
+import {ROUTES, API_ROUTES} from '../../../app/routers/routes';
 import {ReviewsSection} from '../../profile/shared/ui/ReviewsSection';
 import {SocialNetworksSection} from '../../profile/shared/ui/SocialNetworksSection';
 import {PhonesSection} from '../../profile/shared/ui/PhonesSection';
@@ -32,6 +32,7 @@ import { getTicketFullAddress, parsePagedResponse, universalApiRequest } from '.
 import { useShowMore } from '../../../hooks';
 import { API_BASE_URL } from '../../../utils/configUtils';
 import { resolveApiError } from '../../../utils/appMessagesUtils';
+import { TicketStatusBadge } from '../../../shared/ui/Ticket/StatusBadge/TicketStatusBadge';
 
 /**
  * Ticket detail page.
@@ -221,7 +222,7 @@ export function Ticket() {
 
             console.log('Fetching ticket with ID:', ticketId);
 
-            const responseData = await universalApiRequest(`/api/tickets/${ticketId}`);
+            const responseData = await universalApiRequest(API_ROUTES.TICKET_BY_ID(ticketId!));
 
             // API может возвращать как объект, так и массив с одним элементом
         let ticketData: ApiTicket;
@@ -341,6 +342,8 @@ export function Ticket() {
                 rating: userRating,
                 authorImage: displayUserImage || undefined,
                 active: ticketData.active,
+                approved: ticketData.approved,
+                banned: ticketData.banned,
                 hasEducation: hasEducation || false,
                 negotiableBudget: ticketData.negotiableBudget,
                 isService: ticketData.service,
@@ -401,7 +404,7 @@ export function Ticket() {
         try {
             setIsTogglingActive(true);
             const newActiveStatus = !isTicketActive;
-            await universalApiRequest(`/api/tickets/${order.id}`, {
+            await universalApiRequest(API_ROUTES.TICKET_BY_ID(order.id), {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/merge-patch+json' },
                 body: { active: newActiveStatus },
@@ -524,7 +527,7 @@ export function Ticket() {
     };
 
     const getUserInfoWithoutAuth = async (userId: number): Promise<any> => {
-        return universalApiRequest(`/api/users/${userId}`, { requiresAuth: false, locale: false });
+        return universalApiRequest(API_ROUTES.USER_BY_ID(userId), { requiresAuth: false, locale: false });
     };
     
     // Проверяем существующие чаты пользователя
@@ -609,7 +612,7 @@ export function Ticket() {
             // Формируем правильный эндпоинт
             const serviceParam = isService ? 'true' : 'false';
             const pageSize = getPageSize();
-            const data = await universalApiRequest(`/api/reviews?ticket.service=${serviceParam}&exists[ticket]=true&exists[master]=true&exists[client]=true&ticket=${order.id}&page=${reviewsPage}&itemsPerPage=${pageSize}`);
+            const data = await universalApiRequest(`${API_ROUTES.REVIEWS}?ticket.service=${serviceParam}&exists[ticket]=true&exists[master]=true&exists[client]=true&ticket=${order.id}&page=${reviewsPage}&itemsPerPage=${pageSize}`);
             const { items: reviewsData, hasMore: fetchedHasMore } = parsePagedResponse(data, reviewsPage, pageSize);
             
             console.log('=== Ticket Reviews Debug ===');
@@ -748,7 +751,7 @@ export function Ticket() {
                 params.append('author.id[ne]', String(currentUserId));
                 params.append('master.id[ne]', String(currentUserId));
             }
-            let data: ApiTicket[] = await universalApiRequest(`/api/tickets?${params.toString()}`);
+            let data: ApiTicket[] = await universalApiRequest(`${API_ROUTES.TICKETS}?${params.toString()}`);
                 
                 // Если вернул Hydra формат
                 if (!Array.isArray(data) && (data as any)['hydra:member']) {
@@ -832,6 +835,7 @@ export function Ticket() {
                     <h1 className={styles.orderTitle}>
                         <Marquee text={order.title} alwaysScroll />
                     </h1>
+                    <TicketStatusBadge approved={order.approved} banned={order.banned} />
                     <div className={styles.controlsGroup}>
                         {currentUserId === order.authorId ? (
                             <div className={styles.ownerControls}>

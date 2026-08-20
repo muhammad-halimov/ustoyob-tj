@@ -4,6 +4,7 @@ import { getStorageJSON, setStorageJSON } from '../utils/storageUtils';
 import type { LocalStorageFavorites } from '../entities';
 import { universalApiRequest } from '../utils/apiUtils';
 import { resolveApiError } from '../utils/appMessagesUtils';
+import { API_ROUTES } from '../app/routers/routes';
 
 // Flat entry returned by GET /api/favorites/me (hydra:member)
 interface FavoriteEntry {
@@ -63,7 +64,7 @@ export const useFavorites = ({ itemId, itemType, onSuccess, onError }: UseFavori
         }
 
         if (!_favoritesPromise) {
-            _favoritesPromise = universalApiRequest('/api/favorites/me', { locale: false }).then((data: any) => {
+            _favoritesPromise = universalApiRequest(API_ROUTES.FAVORITES_ME, { locale: false }).then((data: any) => {
                 const entries: FavoriteEntry[] = data['hydra:member'] ?? (Array.isArray(data) ? data : []);
                 _favoritesCache = { data: entries, timestamp: Date.now() };
                 _favoritesPromise = null;
@@ -125,7 +126,7 @@ export const useFavorites = ({ itemId, itemType, onSuccess, onError }: UseFavori
         if (isLiked && entryId) {
             setIsLikeLoading(true);
             try {
-                await universalApiRequest(`/api/favorites/${entryId}`, {
+                await universalApiRequest(API_ROUTES.FAVORITE_BY_ID(entryId), {
                     method: 'DELETE',
                     locale: false,
                 });
@@ -146,10 +147,10 @@ export const useFavorites = ({ itemId, itemType, onSuccess, onError }: UseFavori
         setIsLikeLoading(true);
         try {
             const body = itemType === 'ticket'
-                ? { ticket: `/api/tickets/${itemId}` }
-                : { user: `/api/users/${itemId}` };
+                ? { ticket: API_ROUTES.TICKET_BY_ID(itemId) }
+                : { user: API_ROUTES.USER_BY_ID(itemId) };
 
-            const newEntry: FavoriteEntry = await universalApiRequest('/api/favorites', {
+            const newEntry: FavoriteEntry = await universalApiRequest(API_ROUTES.FAVORITES, {
                 method: 'POST',
                 body,
                 locale: false,

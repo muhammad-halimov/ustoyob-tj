@@ -4,6 +4,7 @@ import styles from './CookieConsentBanner.module.scss';
 import { getStorageItem, setStorageItem } from '../../../utils/storageUtils';
 import { getAuthToken, getUserData, setUserData } from '../../../utils/authUtils';
 import { universalApiRequest } from '../../../utils/apiUtils';
+import { API_ROUTES } from '../../../app/routers/routes';
 
 /**
  * Cookie consent banner.
@@ -40,7 +41,7 @@ const CookieConsentBanner: React.FC = () => {
         const user = getUserData();
         if (!getAuthToken() || !user?.id) return;
 
-        universalApiRequest(`/api/users/${user.id}`, {
+        universalApiRequest(API_ROUTES.USER_BY_ID(user.id), {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/merge-patch+json' },
             body: { cookiesAgreed: true },

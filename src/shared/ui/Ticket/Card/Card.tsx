@@ -12,8 +12,9 @@ import {Carousel} from '../../Photo/Carousel';
 import {Toggle} from '../../Button/Toggle/Toggle';
 import {ActionsDropdown} from '../../../../widgets/ActionsDropdown';
 import Status from '../../Modal/Status';
-import {IoChatbubbleEllipsesOutline, IoCheckmarkCircle, IoTimeOutline, IoBanOutline} from 'react-icons/io5';
+import {IoChatbubbleEllipsesOutline, IoCheckmarkCircle} from 'react-icons/io5';
 import type {TicketView} from '../../../../entities';
+import {TicketStatusBadge} from '../StatusBadge/TicketStatusBadge';
 
 export interface AnnouncementCardProps extends Omit<TicketView, 'id' | 'price' | 'type' | 'category' | 'timeAgo'> {
   // overrides for type incompatibilities
@@ -208,17 +209,7 @@ export function Card({
               {displayTicketType}
             </div>
           )}
-          {banned ? (
-            <span className={`${styles.card_statusBadge} ${styles.card_status_banned}`}>
-              <IoBanOutline />
-              {t('app.banned')}
-            </span>
-          ) : approved === false && (
-            <span className={`${styles.card_statusBadge} ${styles.card_status_unapproved}`}>
-              <IoTimeOutline />
-              {t('app.notApproved')}
-            </span>
-          )}
+          <TicketStatusBadge approved={approved} banned={banned} />
         </div>
         <div className={styles.card_top_actions}>
           {showActiveToggle && (

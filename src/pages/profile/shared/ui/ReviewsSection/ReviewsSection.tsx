@@ -11,6 +11,7 @@ import { getAuthorAvatar } from '../../../../../utils/imageUtils';
 import { ActionsDropdown } from '../../../../../widgets/ActionsDropdown';
 import { IoWarningOutline, IoCreateOutline, IoTrashOutline } from 'react-icons/io5';
 import { universalApiRequest } from '../../../../../utils/apiUtils';
+import { API_ROUTES } from '../../../../../app/routers/routes';
 import Status from '../../../../../shared/ui/Modal/Status';
 import { ReviewSortingFilter, ReviewSortByType, ReviewTimeFilterType } from '../../../../../widgets/Sorting/ReviewCriteriaFilter';
 
@@ -213,7 +214,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
     const handleDeleteReview = async (reviewId: number) => {
         if (!window.confirm(t('profile:deleteReviewConfirm', 'Вы уверены, что хотите удалить отзыв?'))) return;
         try {
-            await universalApiRequest(`/api/reviews/${reviewId}`, { method: 'DELETE' });
+            await universalApiRequest(API_ROUTES.REVIEW_BY_ID(reviewId), { method: 'DELETE' });
             setStatusModal({ isOpen: true, type: 'success', message: t('profile:deleteReviewSuccess', 'Отзыв успешно удалён') });
             onRefresh?.();
         } catch (error) {

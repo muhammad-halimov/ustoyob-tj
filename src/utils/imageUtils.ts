@@ -1,5 +1,6 @@
 import { API_BASE_URL } from './configUtils';
 import { universalApiRequest } from './apiUtils';
+import { API_ROUTES } from '../app/routers/routes';
 
 // ─── Форматирование URL изображений ──────────────────────────
 const buildImageUrl = (imagePath: string, defaultFolder: string): string => {
@@ -38,7 +39,7 @@ export const uploadPhotos = async (
         formData.append('imageFile[]', file);
     }
 
-    return universalApiRequest(`/api/${endpoint}/${id}/upload-images`, {
+    return universalApiRequest(API_ROUTES.UPLOAD_IMAGES(endpoint, id), {
         method: 'POST',
         body: formData,
         headers: guestToken ? { 'X-Guest-Access-Token': guestToken } : undefined,

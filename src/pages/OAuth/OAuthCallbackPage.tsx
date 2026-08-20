@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ROUTES } from '../../app/routers/routes';
+import { ROUTES, API_ROUTES } from '../../app/routers/routes';
 import Status from '../../shared/ui/Modal/Status';
 import { PageLoader } from '../../widgets/PageLoader';
 import { useTranslation } from 'react-i18next';
@@ -99,7 +99,7 @@ const OAuthCallbackPage = () => {
                         setLoading(false);
                         return;
                     }
-                    const linkData = await universalApiRequest('/api/profile/oauth/link', {
+                    const linkData = await universalApiRequest(API_ROUTES.PROFILE_OAUTH_LINK, {
                         method: 'POST',
                         body: { provider: detectedProvider, code, state },
                         locale: false,
@@ -149,7 +149,7 @@ const OAuthCallbackPage = () => {
                 removeSessionItem(`${detectedProvider}CsrfState`);
 
                 // Отправляем только code и state — сервер вернёт status 200 (существующий) или 204 (новый)
-                const callbackData: BackendAuthCallbackResponse = await universalApiRequest(`/api/auth/${detectedProvider}/callback`, {
+                const callbackData: BackendAuthCallbackResponse = await universalApiRequest(API_ROUTES.AUTH_PROVIDER_CALLBACK(detectedProvider), {
                     method: 'POST',
                     body: { code, state },
                     requiresAuth: false,
@@ -225,7 +225,7 @@ const OAuthCallbackPage = () => {
             setGrantingRole(true);
             try {
                 const roleValue = role === 'master' ? 'ROLE_MASTER' : 'ROLE_CLIENT';
-                await universalApiRequest('/api/users/grant-role', {
+                await universalApiRequest(API_ROUTES.USERS_GRANT_ROLE, {
                     method: 'POST',
                     body: { role: roleValue },
                     locale: false,

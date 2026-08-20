@@ -6,7 +6,7 @@ import {useLanguageChange} from '../../../hooks';
 import {Card} from '../../../shared/ui/Ticket/Card/Card';
 import styles from './Recommendations.module.scss';
 import {useTranslation} from 'react-i18next';
-import {ROUTES} from '../../../app/routers/routes';
+import {API_ROUTES, ROUTES} from '../../../app/routers/routes';
 import {
     createChatWithAuthor,
     getChatsMe,
@@ -127,7 +127,12 @@ function Recommendations({
             console.log('Recommendations - Current user ID:', currentUserId);
             console.log('Recommendations - Token exists:', !!token);
             
-            const endpoint = `/api/tickets?active=true&page=1&itemsPerPage=${RECS_PAGE_SIZE}${currentUserId ? `&author.id[ne]=${currentUserId}&master.id[ne]=${currentUserId}` : ''}`;
+            const params = new URLSearchParams({ active: 'true', page: '1', itemsPerPage: String(RECS_PAGE_SIZE) });
+            if (currentUserId) {
+                params.set('author.id[ne]', String(currentUserId));
+                params.set('master.id[ne]', String(currentUserId));
+            }
+            const endpoint = `${API_ROUTES.TICKETS}?${params.toString()}`;
 
             const responseData = await universalApiRequest(endpoint);
             let data: Ticket[];

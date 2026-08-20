@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getAuthToken } from '../utils/authUtils';
 import { universalApiRequest, parsePagedResponse } from '../utils/apiUtils';
 import { openMercureSource } from '../utils/mercureUtils';
+import { API_ROUTES } from '../app/routers/routes';
 
 interface ChatListEntry {
     unreadCount?: number;
@@ -27,7 +28,7 @@ export const useUnreadChatsCount = () => {
             return;
         }
         try {
-            const responseData = await universalApiRequest(`/api/chats/me?page=1&itemsPerPage=${CHATS_PAGE_SIZE}`, { locale: false });
+            const responseData = await universalApiRequest(`${API_ROUTES.CHATS_ME}?page=1&itemsPerPage=${CHATS_PAGE_SIZE}`, { locale: false });
             const { items } = parsePagedResponse<ChatListEntry>(responseData, 1, CHATS_PAGE_SIZE);
             const total = items.reduce((sum, chat) => sum + (chat.unreadCount ?? 0), 0);
             setUnreadCount(total);
@@ -48,7 +49,7 @@ export const useUnreadChatsCount = () => {
         let cancelled = false;
         (async () => {
             try {
-                const { token: mercureToken, topics } = await universalApiRequest('/api/chats/inbox-token', { locale: false }) as { token: string | null; topics: string[] };
+                const { token: mercureToken, topics } = await universalApiRequest(API_ROUTES.CHATS_INBOX_TOKEN, { locale: false }) as { token: string | null; topics: string[] };
                 if (cancelled || !mercureToken || !topics?.length) return;
 
                 const es = openMercureSource(topics, mercureToken);
