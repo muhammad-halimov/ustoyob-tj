@@ -205,6 +205,7 @@ function FilterPanel({
                                     placeholder={t('filters.priceFrom')}
                                     value={localFilters.minPrice}
                                     onChange={e => handlePriceChange('minPrice', e.target.value)}
+                                    onWheel={(e) => e.currentTarget.blur()}
                                     disabled={localFilters.negotiablePrice}
                                 />
                             </div>
@@ -214,6 +215,7 @@ function FilterPanel({
                                     placeholder={t('filters.priceTo')}
                                     value={localFilters.maxPrice}
                                     onChange={e => handlePriceChange('maxPrice', e.target.value)}
+                                    onWheel={(e) => e.currentTarget.blur()}
                                     disabled={localFilters.negotiablePrice}
                                 />
                             </div>

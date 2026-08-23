@@ -122,6 +122,7 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
                         placeholder={t('profile:startYear')}
                         value={educationForm.startYear}
                         onChange={(e) => onEducationFormChange('startYear', e.target.value)}
+                        onWheel={(e) => e.currentTarget.blur()}
                         min="1900"
                         max={new Date().getFullYear()}
                     />
@@ -133,6 +134,7 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
                         placeholder={t('profile:endYear')}
                         value={educationForm.endYear}
                         onChange={(e) => onEducationFormChange('endYear', e.target.value)}
+                        onWheel={(e) => e.currentTarget.blur()}
                         min={parseInt(educationForm.startYear) || 1900}
                         max={new Date().getFullYear()}
                         disabled={educationForm.currentlyStudying}

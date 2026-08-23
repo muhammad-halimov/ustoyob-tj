@@ -530,6 +530,9 @@ const CreateEdit = () => {
                                     name="budget"
                                     value={serviceData.budget}
                                     onChange={(e) => setServiceData(prev => ({...prev, budget: e.target.value}))}
+                                    // Браузеры меняют значение number-инпута на wheel-событие, если он в фокусе —
+                                    // юзер скроллит страницу после ввода цены и она незаметно уменьшается/увеличивается.
+                                    onWheel={(e) => e.currentTarget.blur()}
                                     placeholder="0"
                                     className={styles.budgetInput}
                                     min="1"
