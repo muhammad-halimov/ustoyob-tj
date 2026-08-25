@@ -232,7 +232,7 @@ const TelegramCallbackPage = () => {
             type="error"
             isOpen={!!error}
             onClose={() => navigate(ROUTES.HOME)}
-            message={t('oauth.tryLater')}
+            message={error || t('oauth.tryLater')}
         />
     );
 };

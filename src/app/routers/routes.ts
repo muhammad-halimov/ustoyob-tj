@@ -173,6 +173,7 @@ export const ROUTE_PATTERNS = {
     TERMS_OF_USE: 'legal/terms-of-use',
     PUBLIC_OFFER: 'legal/public-offer',
     TECH_SUPPORT: 'support',
+    NOT_FOUND: '*',
 
     // Auth
     CONFIRM_ACCOUNT: '/confirm-account/:token',

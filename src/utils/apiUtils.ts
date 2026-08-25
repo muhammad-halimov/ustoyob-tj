@@ -102,6 +102,13 @@ export const universalApiRequest = async (endpoint: string, options: ApiRequestO
 /**
  * Parses the response body (if JSON) to extract the `code` field and throws
  * an ApiError.  Falls back to a generic error when the body cannot be parsed.
+ *
+ * Two backend error shapes are in play: most app errors go through AppMessages
+ * and carry `{ code, message }`; anything thrown as a raw Symfony HttpException
+ * (e.g. every OAuth service — see InstagramOAuthService::exchangeCodeForTokens)
+ * gets serialised by API Platform as RFC7807 problem+json — `{ title, detail,
+ * status, type }`, no `code`/`message` at all. Without the `detail` fallback
+ * below, that second shape silently degrades to "400 Bad Request".
  */
 const throwApiError = async (response: Response): Promise<never> => {
     let code = 'unknown_error';
@@ -110,6 +117,8 @@ const throwApiError = async (response: Response): Promise<never> => {
         const body = await response.clone().json();
         if (body?.code) code = String(body.code);
         if (body?.message) message = String(body.message);
+        else if (body?.detail) message = String(body.detail);
+        else if (body?.title) message = String(body.title);
     } catch {
         // body is not JSON — keep defaults
     }

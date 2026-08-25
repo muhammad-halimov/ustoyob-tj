@@ -61,6 +61,11 @@
   "error": {
     "title": "Error"
   },
+  "notFound": {
+    "title": "Page not found",
+    "subtitle": "This page doesn't exist, or it was moved or deleted.",
+    "goHome": "Go Home"
+  },
   "oauth": {
     "loading": "Authorizing...",
     "pleaseWait": "Please wait",

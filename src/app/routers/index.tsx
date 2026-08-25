@@ -13,6 +13,7 @@ import OAuthRedirectPage from "../../pages/OAuth/OAuthRedirectPage";
 import TelegramCallbackPage from "../../pages/OAuth/TelegramCallbackPage";
 import { Legal } from "../../pages/legal";
 import ConfirmAccountPage from "../../pages/auth/ConfirmAccountPage";
+import NotFound from "../../pages/notFound/NotFound";
 import { ROUTE_PATTERNS } from './routes';
 
 /**
@@ -48,6 +49,9 @@ const router = createBrowserRouter([
             { path: ROUTE_PATTERNS.TERMS_OF_USE, element: <Legal /> },
             { path: ROUTE_PATTERNS.PUBLIC_OFFER, element: <Legal /> },
             { path: ROUTE_PATTERNS.TECH_SUPPORT, element: <Legal /> },
+
+            // 404 — держим последним, чтобы не перехватывать реальные роуты выше
+            { path: ROUTE_PATTERNS.NOT_FOUND, element: <NotFound /> },
         ],
     },
     {
