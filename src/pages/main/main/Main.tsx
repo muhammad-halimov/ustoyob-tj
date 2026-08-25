@@ -13,6 +13,7 @@ import Auth from "../../../shared/ui/Modal/Auth/Auth";
 import Status from "../../../shared/ui/Modal/Status/Status";
 import { Performers } from "../performers/Performers.tsx";
 import type { PerformerItem } from "../performers/Performers.tsx";
+import { HowItWorks } from "./HowItWorks.tsx";
 import CookieConsentBanner from "../../../widgets/Banners/CookieConsentBanner/CookieConsentBanner";
 
 import type { TicketView } from '../../../entities';
@@ -179,6 +180,8 @@ export function MainPage({ onOpenAuthModal }: MainPageProps) {
                         getButtonText={item => item.id === 1 ? t('pages.main.postTicket') : t('pages.main.postService')}
                         onItemClick={item => handleAdBtnClick(item.id === 1 ? "client" : "master")}
                     />
+
+                    <HowItWorks />
 
                     <div className={styles.searchMasters}>
                         {/* MOBILE SLIDER */}

@@ -1,0 +1,120 @@
+@use '../../../app/styles/variables' as vars;
+@use 'sass:map';
+
+.card {
+  @include vars.Container;
+  margin: 20px auto 35px;
+  padding: 25px 26px;
+  background-color: map.get(vars.$colors, primary-text-white);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: map.get(vars.$spacing, 6);
+  box-sizing: border-box;
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: map.get(vars.$spacing, 2);
+  min-width: 0;
+}
+
+.title {
+  font-size: 30px;
+  margin: 0;
+  color: map.get(vars.$colors, text-black);
+}
+
+.subtitle {
+  font-size: 16px;
+  margin: 0 0 map.get(vars.$spacing, 3);
+  color: map.get(vars.$colors, text-gray);
+  max-width: 480px;
+}
+
+.illustration {
+  // Переиспользует .badge из StepsNotice как тизер-иллюстрацию карточки — та же
+  // визуальная система, что и в самой модалке (и что и у Instagram-нотиса).
+  flex-shrink: 0;
+  margin: 0;
+
+  svg:not([class]) {
+    width: 44px !important;
+    height: 44px !important;
+    padding: 14px !important;
+  }
+}
+
+.modalButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  padding: map.get(vars.$spacing, 3) map.get(vars.$spacing, 4);
+  background: map.get(vars.$colors, actual-blue);
+  color: map.get(vars.$colors, primary-text-white);
+  border: none;
+  border-radius: map.get(vars.$border-radius, base);
+  font-size: map.get(vars.$font-sizes, 'base');
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  -webkit-tap-highlight-color: transparent;
+
+  &:hover {
+    background: #2a44ca;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(58, 84, 218, 0.3);
+  }
+
+  &:active {
+    background: #2a44ca;
+    transform: scale(0.98);
+    box-shadow: none;
+  }
+}
+
+@media screen and (max-width: 1200px) {
+  .card {
+    margin-left: 20px;
+    margin-right: 20px;
+    width: calc(100% - 40px);
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .card {
+    flex-direction: column;
+    text-align: center;
+    padding: 24px 20px;
+  }
+
+  .info {
+    align-items: center;
+  }
+
+  .title {
+    font-size: 22px;
+  }
+
+  .subtitle {
+    font-size: 14px;
+  }
+}
+
+:global(html[data-theme="dark"]) {
+  .card {
+    background: var(--color-background-primary);
+  }
+
+  .title {
+    color: var(--color-text-primary);
+  }
+
+  .subtitle {
+    color: var(--color-text-secondary);
+  }
+}

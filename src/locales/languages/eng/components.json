@@ -362,7 +362,10 @@
     "main": {
       "categories": "Categories",
       "postTicket": "Post a ticket",
-      "postService": "Post a service"
+      "postService": "Post a service",
+      "howItWorksTitle": "How it works",
+      "howItWorksSubtitle": "Post a request in a couple of minutes and get responses from masters",
+      "howItWorksButton": "See how"
     },
     "favorites": {
       "noFavorites": "You don't have any favorite orders yet",
@@ -480,6 +483,13 @@
     "registerViaFacebook": "Register with Facebook",
     "registerViaInstagram": "Register with Instagram", 
     "registerViaTelegram": "Register with Telegram",
+    "instagramNoticeTitle": "A Professional Instagram account is required",
+    "instagramNoticeText": "Instagram no longer allows signing in with personal accounts. To continue, switch your account to Business or Creator — it's free and takes a couple of minutes.",
+    "instagramNoticeStep1": "Open Instagram → your profile",
+    "instagramNoticeStep2": "Menu (☰) → Settings and privacy",
+    "instagramNoticeStep3": "Account type and tools → Switch to professional account",
+    "instagramNoticeStep4": "Choose \"Business\" or \"Creator\" and finish the setup",
+    "instagramNoticeContinue": "Got it, continue",
     "forgotPasswordTitle": "Password recovery",
     "sendCode": "Send code",
     "enterCode": "Enter code",
@@ -494,6 +504,15 @@
     "otpInvalidOrExpired": "Invalid or expired code",
     "agreeToTerms": "By registering, you agree to our",
     "and": "and"
+  },
+  "howToPost": {
+    "title": "How to post a listing",
+    "text": "Post a request in a couple of minutes — masters will reach out themselves, just pick the right one.",
+    "step1": "Tap \"Post a ticket\" and choose a service category",
+    "step2": "Describe the task and set a budget — or mark it \"negotiable\"",
+    "step3": "Add photos and an address if it matters for the job",
+    "step4": "Publish — masters will start replying in chat",
+    "continue": "Got it"
   },
   "statusModal": {
     "successTitle": "Success!",

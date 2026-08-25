@@ -1,0 +1,81 @@
+@use '../../../../app/styles/variables' as vars;
+@use 'sass:map';
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: map.get(vars.$spacing, 4);
+}
+
+.content {
+  background: map.get(vars.$colors, background-primary);
+  border-radius: map.get(vars.$border-radius, lg);
+  padding: map.get(vars.$spacing, 8);
+  width: 100%;
+  max-width: 480px;
+  position: relative;
+  box-shadow: 0 8px 32px map.get(vars.$colors, shadow);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.closeButton {
+  position: absolute;
+  top: map.get(vars.$spacing, 4);
+  right: map.get(vars.$spacing, 4);
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: map.get(vars.$colors, color-icons);
+  min-width: 30px;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+
+  &:hover {
+    color: map.get(vars.$colors, text-black);
+    background: map.get(vars.$colors, hover-with-borderBtn);
+    border-radius: 50%;
+  }
+
+  &:active {
+    color: map.get(vars.$colors, text-black);
+    background: map.get(vars.$colors, hover-with-borderBtn);
+    border-radius: 50%;
+    transform: scale(0.9);
+  }
+}
+
+@media screen and (max-width: 550px) {
+  .content {
+    padding: 20px;
+    max-width: 335px;
+  }
+}
+
+:global(html[data-theme="dark"]) {
+  .content {
+    background: var(--color-background-primary);
+    color: var(--color-text-primary);
+  }
+
+  .closeButton {
+    color: var(--color-text-secondary);
+
+    &:hover {
+      color: var(--color-text-primary);
+      background: var(--color-background-all);
+    }
+  }
+}

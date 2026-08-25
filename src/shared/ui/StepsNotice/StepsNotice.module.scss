@@ -1,0 +1,108 @@
+@use '../../../app/styles/variables' as vars;
+@use 'sass:map';
+
+.notice {
+  h2 {
+    margin-bottom: map.get(vars.$spacing, 4);
+    font-size: map.get(vars.$font-sizes, '2xl');
+    color: map.get(vars.$colors, text-black);
+    text-align: center;
+    font-weight: 600;
+  }
+}
+
+.badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: map.get(vars.$spacing, 3);
+  margin: 0 auto map.get(vars.$spacing, 6);
+
+  svg {
+    width: 34px;
+    height: 34px;
+    padding: 10px;
+    box-sizing: content-box;
+    border-radius: 50%;
+    background: map.get(vars.$colors, background-btn2);
+    color: map.get(vars.$colors, actual-blue);
+  }
+}
+
+/* Small connector icon between two full-size badge icons (e.g. a swap arrow) — attach
+   directly via className from a consumer of StepsNotice. */
+.badgeConnector {
+  width: 18px !important;
+  height: 18px !important;
+  padding: 0 !important;
+  background: none !important;
+  color: map.get(vars.$colors, color-icons) !important;
+}
+
+.text {
+  text-align: center;
+  color: map.get(vars.$colors, text-gray);
+  font-size: map.get(vars.$font-sizes, sm);
+  line-height: 1.5;
+  margin: 0 0 map.get(vars.$spacing, 6);
+}
+
+.steps {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: map.get(vars.$spacing, 3);
+  margin: 0 0 map.get(vars.$spacing, 6);
+  padding: 0;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: map.get(vars.$spacing, 3);
+    padding: map.get(vars.$spacing, 3);
+    border-radius: map.get(vars.$border-radius, base);
+    background: map.get(vars.$colors, background-btn2);
+    font-size: map.get(vars.$font-sizes, sm);
+    color: map.get(vars.$colors, text-black);
+    line-height: 1.4;
+  }
+}
+
+.stepIcon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: map.get(vars.$colors, background-primary);
+  color: map.get(vars.$colors, actual-blue);
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .badge svg {
+    width: 28px;
+    height: 28px;
+  }
+
+  .steps li {
+    padding: map.get(vars.$spacing, 2) map.get(vars.$spacing, 3);
+    font-size: 13px;
+  }
+}
+
+:global(html[data-theme="dark"]) {
+  .notice h2 {
+    color: var(--color-text-primary);
+  }
+
+  .steps li {
+    color: var(--color-text-primary);
+  }
+}

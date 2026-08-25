@@ -94,18 +94,25 @@
     font-size: map.get(vars.$font-sizes, base);
   }
 
+  // Единое место для размера/раскладки OAuth-иконок (Google/Facebook/Instagram/Telegram) —
+  // раньше max-width:62px стоял только у telegram/google, а мобильный оверрайд ниже менял
+  // ширину только у facebook/google, из-за чего 4 кнопки на деле были рассинхронизированы
+  // по размеру. Теперь все четыре — одинаковый img-размер, одна точка правки.
   .socialButtons {
     width: 100%;
     display: flex;
     justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: map.get(vars.$spacing, 4);
+    margin: map.get(vars.$spacing, 5) 0;
 
-    .telegramButton, .googleButton {
-      max-width: 62px;
-      //margin-right: map.get(vars.$spacing, 5);
+    button {
       cursor: pointer;
     }
 
     img {
+      display: block;
       width: 64px;
       height: 64px;
     }
@@ -243,17 +250,23 @@
 
 /* Primary button */
 .primaryButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
-  padding: map.get(vars.$spacing, 3);
+  min-height: 48px;
+  padding: map.get(vars.$spacing, 3) map.get(vars.$spacing, 4);
   background: map.get(vars.$colors, actual-blue);
   color: map.get(vars.$colors, primary-text-white);
   border: none;
   border-radius: map.get(vars.$border-radius, base);
   font-size: map.get(vars.$font-sizes, 'base');
-  font-weight: 400;
+  font-weight: 600;
   cursor: pointer;
   margin: 15px auto;
   user-select: none;
+  transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  -webkit-tap-highlight-color: transparent;
 
   &:hover:not(:disabled) {
     background: #2a44ca;
@@ -275,19 +288,30 @@
 
 /* Secondary button */
 .secondaryButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
-  padding: map.get(vars.$spacing, 3);
+  min-height: 48px;
+  padding: map.get(vars.$spacing, 3) map.get(vars.$spacing, 4);
   background: map.get(vars.$colors, background-primary);
   color: map.get(vars.$colors, actual-blue);
   border: 2px solid map.get(vars.$colors, actual-blue);
   border-radius: map.get(vars.$border-radius, base);
   font-size: map.get(vars.$font-sizes, 'base');
+  font-weight: 600;
   cursor: pointer;
   margin: 0 auto;
+  transition: background-color 0.2s, transform 0.2s;
+  -webkit-tap-highlight-color: transparent;
 
   &:hover:not(:disabled) {
     background: map.get(vars.$colors, hover-with-borderBtn);
     transform: translateY(-1px);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.98);
   }
 
   &:disabled {
@@ -299,34 +323,56 @@
 .links {
   display: flex;
   flex-direction: column;
-  gap: map.get(vars.$spacing, 4);
+  gap: map.get(vars.$spacing, 2);
   align-items: center;
   margin-top: map.get(vars.$spacing, 6);
+}
+
+/* "Нет аккаунта? Зарегистрируйтесь!" — статичный текст вопроса + кликабельный .linkButton
+   рядом, единой строкой с переносом как единое целое, а не разрывом посреди фразы. */
+.registerPrompt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0 map.get(vars.$spacing, 1);
+  text-align: center;
 
   .promptText {
     font-size: map.get(vars.$font-sizes, 'base');
+    color: map.get(vars.$colors, text-gray);
   }
 }
 
 .linkButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: none;
   color: map.get(vars.$colors, actual-blue);
   cursor: pointer;
   font-size: map.get(vars.$font-sizes, 'base');
-  font-weight: 500;
-  transition: color 0.2s;
+  font-weight: 600;
+  line-height: 1.3;
+  border-radius: map.get(vars.$border-radius, base);
+  // Достаточный тап-таргет под мобильные (~44px) вместо голого текста без хитбокса.
+  padding: 10px 14px;
+  min-height: 44px;
+  transition: background-color 0.2s, color 0.2s;
   text-decoration: none;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
 
   &:hover:not(:disabled) {
     color: #2a44ca;
-    text-decoration: underline;
+    background: map.get(vars.$colors, filters-btn-hover);
   }
 
   &:active:not(:disabled) {
     color: #2a44ca;
-    opacity: 0.8;
+    background: map.get(vars.$colors, filters-btn-hover);
+    transform: scale(0.97);
   }
 
   &:disabled {
@@ -337,6 +383,7 @@
   span {
     color: map.get(vars.$colors, text-who);
     margin-right: map.get(vars.$spacing, 1);
+    font-weight: 400;
   }
 }
 
@@ -346,18 +393,31 @@
   color: map.get(vars.$colors, color-icons);
   text-align: center;
   margin-bottom: map.get(vars.$spacing, 2);
-  line-height: 1.5;
+  // Достаточный line-height, чтобы при переносе на 2-3 строки (особенно на узких экранах)
+  // соседние строки не наезжали друг на друга и не мешали точному тапу по ссылке.
+  line-height: 2;
 }
 
 .legalLink {
+  display: inline-block;
   color: map.get(vars.$colors, actual-blue);
   text-decoration: none;
   font-weight: 500;
+  // Небольшой, но реальный хитбокс вместо голого текста — почти не меняет раскладку
+  // (ссылка инлайновая, внутри абзаца), но тапать на мобильном заметно проще.
+  padding: 4px 3px;
+  margin: -4px -3px;
+  border-radius: map.get(vars.$border-radius, sm);
   transition: color 0.2s;
 
   &:hover {
     color: #2a44ca;
-    text-decoration: underline;
+    background: map.get(vars.$colors, filters-btn-hover);
+  }
+
+  &:active {
+    color: #2a44ca;
+    background: map.get(vars.$colors, filters-btn-hover);
   }
 }
 
@@ -386,6 +446,7 @@
 .modal_forgot_password { max-width: 520px; }
 .modal_verify_code { max-width: 520px; }
 .modal_new_password { max-width: 520px; }
+.modal_instagram_notice { max-width: 520px; }
 
 @media screen and (max-width: 550px) {
   .modal_welcome {
@@ -396,6 +457,7 @@
   .modal_forgot_password { max-width: 335px; }
   .modal_verify_code { max-width: 335px; }
   .modal_new_password { max-width: 335px; }
+  .modal_instagram_notice { max-width: 335px; }
 
   .roleSelector {
     width: 100%;
@@ -407,15 +469,30 @@
     padding: 20px;
   }
 
-  .facebookButton img,
-  .googleButton img {
-    width: 70%;
+  // Все 4 OAuth-иконки уменьшаются вместе и пропорционально (см. комментарий у базового
+  // .form .socialButtons) — раньше только Google/Facebook ужимались (нестрого, через
+  // width:70% без height, что ещё и растягивало картинку), а Instagram/Telegram
+  // оставались полноразмерными.
+  .form .socialButtons {
+    gap: map.get(vars.$spacing, 3);
+
+    img {
+      width: 48px;
+      height: 48px;
+    }
   }
 
-  .facebookButton ,
-  .googleButton  {
-    margin-right: 0 !important;
-    max-width: unset !important;
+  // Full-width только для самостоятельных ссылок-действий (прямые дети .links —
+  // "Не помню пароль", "Назад" и т.п.). Ссылка внутри .registerPrompt ("Нет аккаунта?
+  // Зарегистрируйтесь!") должна остаться частью одной строки, а не падать на full-width
+  // и переноситься под текст вопроса.
+  .links > .linkButton {
+    width: 100%;
+    padding: 10px 12px;
+  }
+
+  .legalNote {
+    padding: 0 map.get(vars.$spacing, 2);
   }
 }
 
@@ -505,11 +582,6 @@
     transform: scale(0.9);
     opacity: 0.8;
   }
-
-  img {
-    width: 64px;
-    height: 64px;
-  }
 }
 
 .telegramWidgetContainer {
@@ -522,12 +594,6 @@
   }
 }
 
-.socialButtons {
-  display: flex;
-  gap: 15px;
-  justify-content: center;
-  margin: 20px 0;
-}
 
 // Добавьте эти стили в ваш файл
 
@@ -567,6 +633,17 @@
   background: none;
   border: none;
   cursor: pointer;
+  user-select: none;
+
+  &:active:not(:disabled) {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 
 .passwordRequirements {

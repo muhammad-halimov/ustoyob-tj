@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ROUTES, API_ROUTES } from '../../app/routers/routes';
 import Status from '../../shared/ui/Modal/Status';
+import { InstagramProfessionalNotice } from '../../shared/ui/InstagramProfessionalNotice';
 import { PageLoader } from '../../widgets/PageLoader';
 import { useTranslation } from 'react-i18next';
 import { Performers } from '../main/performers/Performers';
@@ -45,6 +46,13 @@ const OAuthCallbackPage = () => {
     const [grantingRole, setGrantingRole] = useState(false);
     const [provider, setProvider] = useState<OAuthProviderName | null>(null);
     const [isLinkMode, setIsLinkMode] = useState(false);
+    // Meta закрыла Basic Display API (04.12.2024) — у Personal-аккаунтов нет официального
+    // способа авторизоваться через Instagram API with Instagram Login, конвертация кодом
+    // невозможна. Бэкенд ловит это на попытке забрать профиль и возвращает отдельный код
+    // AppMessages::OAUTH_INSTAGRAM_PROFESSIONAL_REQUIRED (см. InstagramOAuthService)
+    // вместо generic "не удалось обменять код" — показываем те же шаги переключения, что
+    // и в Auth.tsx до старта флоу, а не голый текст ошибки.
+    const [instagramProfessionalRequired, setInstagramProfessionalRequired] = useState(false);
     const { t } = useTranslation(['common', 'components']);
 
     useEffect(() => {
@@ -206,8 +214,16 @@ const OAuthCallbackPage = () => {
 
             } catch (err) {
                 console.error(`${detectedProvider} OAuth error:`, err);
-                setError(resolveApiError(err));
-                setTimeout(() => navigate(ROUTES.HOME), 3000);
+                const message = resolveApiError(err);
+                // Ответ приходит как сырой BadRequestHttpException (RFC7807 detail, без
+                // отдельного machine-readable code) — "Professional" остаётся нетронутым
+                // латиницей во всех трёх локалях сообщения, надёжный маркер именно этого кейса.
+                if (detectedProvider === 'instagram' && message.includes('Professional')) {
+                    setInstagramProfessionalRequired(true);
+                } else {
+                    setError(message);
+                    setTimeout(() => navigate(ROUTES.HOME), 3000);
+                }
             } finally {
                 setLoading(false);
             }
@@ -275,6 +291,24 @@ const OAuthCallbackPage = () => {
                     <path d="M14 27l8 8 16-16" stroke="#4caf50" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 <p style={{ fontWeight: 'bold', fontSize: '18px', color: '#2e7d32', margin: 0 }}>{t('oauth.success')}</p>
+            </div>
+        );
+    }
+
+    if (instagramProfessionalRequired) {
+        return (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--color-background-all)', padding: '20px' }}>
+                <div style={{ width: '100%', maxWidth: '420px', background: 'var(--color-background-primary)', borderRadius: '16px', padding: '32px 24px', boxShadow: '0 8px 32px var(--color-shadow)' }}>
+                    <InstagramProfessionalNotice>
+                        <button
+                            type="button"
+                            onClick={() => navigate(ROUTES.HOME)}
+                            style={{ width: '100%', minHeight: '48px', padding: '12px 16px', background: 'var(--color-actual-blue)', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 600, cursor: 'pointer' }}
+                        >
+                            {t('oauth.backToHome')}
+                        </button>
+                    </InstagramProfessionalNotice>
+                </div>
             </div>
         );
     }
