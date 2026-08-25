@@ -19,6 +19,11 @@
   background: map.get(vars.$colors, background-primary);
   border-radius: map.get(vars.$border-radius, lg);
   padding: map.get(vars.$spacing, 8);
+  // Больше отступа сверху, чем по бокам/снизу — .closeButton абсолютно спозиционирован
+  // (top/right: spacing4, ~30px сам по себе) поверх контента, а не в отдельном "хедере".
+  // Без запаса контент, начинающийся сразу с широкого ряда иконок (см. StepsNotice.badge),
+  // на узких экранах визуально наезжает на крестик.
+  padding-top: 52px;
   width: 100%;
   max-width: 480px;
   position: relative;
@@ -60,6 +65,7 @@
 @media screen and (max-width: 550px) {
   .content {
     padding: 20px;
+    padding-top: 48px;
     max-width: 335px;
   }
 }

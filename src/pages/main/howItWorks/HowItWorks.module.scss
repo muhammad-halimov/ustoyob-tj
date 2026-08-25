@@ -87,21 +87,39 @@
 
 @media screen and (max-width: 768px) {
   .card {
+    // Соседи (Performers-слайдер сверху, "Свежие объявления" снизу) уже добавляют
+    // собственные крупные margin/padding на мобильном — 20px/35px здесь поверх них
+    // складывались в ~90-110px пустого пространства с каждой стороны блока.
+    margin: 8px auto 16px;
     flex-direction: column;
     text-align: center;
-    padding: 24px 20px;
+    padding: 20px;
+    gap: map.get(vars.$spacing, 4);
   }
 
   .info {
     align-items: center;
+    gap: map.get(vars.$spacing, 1);
   }
 
   .title {
-    font-size: 22px;
+    font-size: 20px;
   }
 
   .subtitle {
     font-size: 14px;
+    margin-bottom: map.get(vars.$spacing, 2);
+  }
+
+  .illustration {
+    margin-top: map.get(vars.$spacing, 1);
+  }
+}
+
+@media screen and (max-width: 400px) {
+  .illustration svg:not([class]) {
+    width: 40px !important;
+    height: 40px !important;
   }
 }
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { IoAddCircleOutline, IoDocumentTextOutline, IoChatbubblesOutline, IoArrowForwardOutline, IoPlayOutline } from 'react-icons/io5';
-import { Add } from '../../../shared/ui/Button/Header/Add/Add';
+import { Add } from '../../../shared/ui/Button/Header/Add/Add.tsx';
 import { InfoModal } from '../../../shared/ui/Modal/InfoModal';
 import { StepsNotice } from '../../../shared/ui/StepsNotice';
 import stepsNoticeStyles from '../../../shared/ui/StepsNotice/StepsNotice.module.scss';

@@ -106,8 +106,10 @@
   .performersMobile {
     display: block !important;
     padding: 0 20px;
-    margin: 40px auto;
-    padding-bottom: 50px;
+    // Дополнительно к этому margin — сам свайпер (.performersSwiper) уже резервирует
+    // padding-bottom:35px под точки пагинации, так что здесь не нужно много сверху
+    // такого же расстояния — раньше оно давало ~90px пустоты до следующего блока.
+    margin: 20px auto;
   }
 
   .performers_orders {

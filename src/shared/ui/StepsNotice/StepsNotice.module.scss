@@ -13,9 +13,10 @@
 
 .badge {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: map.get(vars.$spacing, 3);
+  gap: map.get(vars.$spacing, 2) map.get(vars.$spacing, 3);
   margin: 0 auto map.get(vars.$spacing, 6);
 
   svg {
