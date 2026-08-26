@@ -186,23 +186,6 @@
   }
 }
 
-.specialty_select {
-  width: 100%;
-  padding: 12px;
-  background-color: #F2F2F5;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  font-size: 16px;
-  cursor: pointer;
-  transition: border-color 0.2s ease;
-
-  &:focus {
-    outline: none;
-    border-color: #3A54DA;
-    box-shadow: 0 0 0 2px rgba(58, 84, 218, 0.1);
-  }
-}
-
 .year_group {
   display: flex;
   gap: 15px;

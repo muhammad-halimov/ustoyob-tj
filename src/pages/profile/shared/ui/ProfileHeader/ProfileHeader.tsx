@@ -332,17 +332,15 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                                     <div className={styles.subinfo}>
                                         {editingField === 'gender' ? (
                                             <div className={styles.gender_edit_container}>
-                                                <select
+                                                <SelectSearch
+                                                    options={[
+                                                        { value: 'male', label: t('profile:genderMale') },
+                                                        { value: 'female', label: t('profile:genderFemale') },
+                                                    ]}
                                                     value={tempValue}
-                                                    onChange={(e) => onTempValueChange(e.target.value)}
-                                                    onKeyDown={(e) => onInputKeyPress(e, 'gender')}
-                                                    className={styles.specialty_select}
-                                                    autoFocus
-                                                >
-                                                    <option value="">{t('profile:genderNotSpecified')}</option>
-                                                    <option value="male">{t('profile:genderMale')}</option>
-                                                    <option value="female">{t('profile:genderFemale')}</option>
-                                                </select>
+                                                    onChange={onTempValueChange}
+                                                    placeholder={t('profile:genderNotSpecified')}
+                                                />
                                                 <EditActions onSave={() => onInputSave('gender')} onCancel={onEditCancel} />
                                             </div>
                                         ) : editingField === 'dateOfBirth' ? (

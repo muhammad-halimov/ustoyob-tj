@@ -7,6 +7,7 @@ import PageLoader from '../../../../../widgets/PageLoader/PageLoader';
 import { ProfileSection } from '../ProfileSection';
 import styles from './EducationSection.module.scss';
 import { EditActions } from '../EditActions/EditActions';
+import { SelectSearch } from '../../../../../shared/ui/SelectSearch';
 import type { EducationItem } from '../../../../../entities';
 
 interface EducationSectionProps {
@@ -99,20 +100,16 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
             </div>
             <div className={styles.form_group}>
                 <label>{t('profile:specialty')}</label>
-                <select
-                    className={styles.specialty_select}
-                    value={educationForm.selectedSpecialty || ''}
-                    onChange={(e) => {
-                        const selectedId = parseInt(e.target.value);
-                        setEducationForm(prev => ({ ...prev, selectedSpecialty: selectedId || undefined }));
+                <SelectSearch
+                    options={occupations.map(occupation => ({ value: String(occupation.id), label: occupation.title }))}
+                    value={educationForm.selectedSpecialty ? String(educationForm.selectedSpecialty) : ''}
+                    onChange={(val) => {
+                        const selectedId = val ? parseInt(val) : undefined;
+                        setEducationForm(prev => ({ ...prev, selectedSpecialty: selectedId }));
                     }}
-                >
-                    <option value="">{t('profile:selectSpecialty')}</option>
-                    {occupationsLoading && <option disabled>{t('profile:loadingSpecialties')}</option>}
-                    {occupations.map(occupation => (
-                        <option key={occupation.id} value={occupation.id}>{occupation.title}</option>
-                    ))}
-                </select>
+                    placeholder={t('profile:selectSpecialty')}
+                    loading={occupationsLoading}
+                />
             </div>
             <div className={styles.year_group}>
                 <div className={styles.form_group}>

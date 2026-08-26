@@ -6,6 +6,7 @@ import { SectionActions } from '../../../../../shared/ui/SectionActions';
 import { AuthBanner } from '../../../../../widgets/Banners/AuthBanner/AuthBanner';
 import { ProfileSection } from '../ProfileSection';
 import { EditActions } from '../EditActions/EditActions';
+import { SelectSearch } from '../../../../../shared/ui/SelectSearch';
 import styles from './SocialNetworksSection.module.scss';
 import type { AvailableSocialNetwork, SocialNetworkConfig, UISocialNetwork } from '../../../../../entities';
 
@@ -264,20 +265,15 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
                 <div style={{ width: '100%' }}>
                     <div className={styles.social_network_select}>
                         <label>{t('profile:selectNetwork')}</label>
-                        <select
-                            value={selectedNewNetwork}
-                            onChange={(e) => setSelectedNewNetwork(e.target.value)}
-                        >
-                            <option value="">{t('profile:selectPlaceholder')}</option>
-                            {getAvailableNetworks().map((availableNetwork: AvailableSocialNetwork) => {
+                        <SelectSearch
+                            options={getAvailableNetworks().map((availableNetwork: AvailableSocialNetwork) => {
                                 const config = SOCIAL_NETWORK_CONFIG[availableNetwork.network] || { label: availableNetwork.network, icon: '🌐' };
-                                return (
-                                    <option key={availableNetwork.id} value={availableNetwork.network}>
-                                        {config.icon} {config.label}
-                                    </option>
-                                );
+                                return { value: availableNetwork.network, label: `${config.icon} ${config.label}` };
                             })}
-                        </select>
+                            value={selectedNewNetwork}
+                            onChange={setSelectedNewNetwork}
+                            placeholder={t('profile:selectPlaceholder')}
+                        />
                     </div>
                     <EditActions
                         onSave={onAddSocialNetwork}

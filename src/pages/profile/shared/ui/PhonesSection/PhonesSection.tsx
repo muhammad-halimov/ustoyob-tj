@@ -8,6 +8,7 @@ import PageLoader from '../../../../../widgets/PageLoader/PageLoader';
 import { ProfileSection } from '../ProfileSection';
 import styles from './PhonesSection.module.scss';
 import { EditActions } from '../EditActions/EditActions';
+import { SelectSearch } from '../../../../../shared/ui/SelectSearch';
 import type { Phone } from '../../../../../entities';
 
 interface PhonesSectionProps {
@@ -156,14 +157,15 @@ export const PhonesSection: React.FC<PhonesSectionProps> = ({
                     <div className={styles.edit_form}>
                         <div className={styles.form_group}>
                             <label>{t('profile:phoneType')}</label>
-                            <select
+                            <SelectSearch
+                                options={[
+                                    { value: 'tj', label: t('profile:phoneTypeTj') },
+                                    { value: 'international', label: t('profile:phoneTypeInt') },
+                                ]}
                                 value={phoneForm.type}
-                                onChange={(e) => setPhoneForm(prev => ({ ...prev, type: e.target.value as 'tj' | 'international' }))}
+                                onChange={(val) => setPhoneForm(prev => ({ ...prev, type: val as 'tj' | 'international' }))}
                                 disabled
-                            >
-                                <option value="tj">{t('profile:phoneTypeTj')}</option>
-                                <option value="international">{t('profile:phoneTypeInt')}</option>
-                            </select>
+                            />
                         </div>
                         <div className={styles.form_group}>
                             <label>{t('profile:phoneNumber')}</label>
@@ -187,16 +189,19 @@ export const PhonesSection: React.FC<PhonesSectionProps> = ({
                     <div className={styles.edit_form}>
                         <div className={styles.form_group}>
                             <label>{t('profile:phoneType')}</label>
-                            <select
+                            <SelectSearch
+                                // SelectSearch не умеет частично отключать опции (в отличие от <option disabled>) —
+                                // вместо серого недоступного пункта просто не показываем уже занятый тип.
+                                options={[
+                                    ...(phones.some(p => p.countryCode === '+992') ? [] : [{ value: 'tj', label: t('profile:phoneTypeTj') }]),
+                                    ...(phones.some(p => p.countryCode !== '+992') ? [] : [{ value: 'international', label: t('profile:phoneTypeIntTj') }]),
+                                ]}
                                 value={phoneForm.type}
-                                onChange={(e) => {
-                                    const type = e.target.value as 'tj' | 'international';
+                                onChange={(val) => {
+                                    const type = (val || 'tj') as 'tj' | 'international';
                                     setPhoneForm({ type, number: type === 'tj' ? '+992' : '+' });
                                 }}
-                            >
-                                <option value="tj" disabled={phones.some(p => p.countryCode === '+992')}>{t('profile:phoneTypeTj')}</option>
-                                <option value="international" disabled={phones.some(p => p.countryCode !== '+992')}>{t('profile:phoneTypeIntTj')}</option>
-                            </select>
+                            />
                         </div>
                         <div className={styles.form_group}>
                             <label>{t('profile:phoneNumber')}</label>
