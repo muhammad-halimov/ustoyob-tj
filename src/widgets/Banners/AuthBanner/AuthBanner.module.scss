@@ -1,6 +1,9 @@
 // InfoBanner itself no longer sets margin/width (a shared atom shouldn't dictate its own
 // external spacing) — AuthBanner's own normal-flow placement (PhonesSection,
-// SocialNetworksSection) still wants the old 20px vertical gap.
+// SocialNetworksSection) still wants the old 20px vertical gap AND full width: those
+// sections' .section uses align-items:flex-start (not stretch), so without an explicit
+// width here the banner just shrink-wraps to its content instead of filling the row.
 .banner {
+  width: 100%;
   margin: 20px 0;
 }

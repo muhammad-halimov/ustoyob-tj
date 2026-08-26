@@ -31,8 +31,9 @@ import { getPageSize } from '../../../utils/pageSizeUtils';
 import { getTicketFullAddress, parsePagedResponse, universalApiRequest } from '../../../utils/apiUtils';
 import { useShowMore } from '../../../hooks';
 import { API_BASE_URL } from '../../../utils/configUtils';
-import { resolveApiError } from '../../../utils/appMessagesUtils';
+import { resolveApiError, ApiError } from '../../../utils/appMessagesUtils';
 import { TicketStatusBadge } from '../../../shared/ui/Ticket/StatusBadge/TicketStatusBadge';
+import NotFound from '../../notFound/NotFound';
 
 /**
  * Ticket detail page.
@@ -47,6 +48,10 @@ export function Ticket() {
     const [order, setOrder] = useState<TicketView | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    // Отдельно от generic error — реальное "тикета не существует" (пустой массив в ответе,
+    // либо честный HTTP 404 от TICKET_BY_ID), а не сетевая/серверная ошибка или "неактивно
+    // и вы не владелец". Только этот случай рендерит общую страницу NotFound.
+    const [notFound, setNotFound] = useState(false);
 
     const [rating, setRating] = useState<number>(0);
 
@@ -219,6 +224,7 @@ export function Ticket() {
         try {
             setIsLoading(true);
             setError(null);
+            setNotFound(false);
 
             console.log('Fetching ticket with ID:', ticketId);
 
@@ -229,7 +235,7 @@ export function Ticket() {
         
         if (Array.isArray(responseData)) {
             if (responseData.length === 0) {
-                setError(t('ticket:ticketNotFound'));
+                setNotFound(true);
                 return;
             }
             ticketData = responseData[0];
@@ -380,7 +386,11 @@ export function Ticket() {
         } catch (error) {
             const fetchTime = Date.now();
             console.error(`[${fetchTime}] fetchOrder ERROR for ticket:`, error);
-            setError(t('ticket:loadError'));
+            if (error instanceof ApiError && error.http === 404) {
+                setNotFound(true);
+            } else {
+                setError(t('ticket:loadError'));
+            }
         } finally {
             const fetchTime = Date.now();
             console.log(`[${fetchTime}] fetchOrder COMPLETED, setting isLoading to false`);
@@ -816,14 +826,10 @@ export function Ticket() {
     }));
 
     if (isLoading) return <PageLoader text={t('ticket:loading')} />;
+    if (notFound || !order) return <NotFound />;
     if (error) return (
         <div className={styles.error}>
             <p>{error}</p>
-        </div>
-    );
-    if (!order) return (
-        <div className={styles.error}>
-            <p>{t('ticket:notFound')}</p>
         </div>
     );
 
