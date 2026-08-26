@@ -42,7 +42,7 @@
 }
 
 // Адаптивные стили
-@media screen and (max-width: 768px) {
+@media screen and (max-width: 860px) {
   .footer {
     padding: 20px;
   }
@@ -59,13 +59,13 @@
 }
 
 // Header's fixed bottom tab bar (.mobile_header) overlays the viewport from here down
-// (≤960px, wider than this file's own ≤768px breakpoint above) — without room reserved for
+// (≤960px, wider than this file's own ≤860px breakpoint above) — without room reserved for
 // it, the footer's own links (Tech Support included) end up sitting underneath it,
 // unreachable/unclickable now that the footer is pinned flush to the bottom of a short page.
 // ~64px ≈ the tab bar's own content height (24px icons + 3px gap + ~10px labels + 16px
 // vertical ul padding + 1px border-top), rounded up for safety. Deliberately after the
-// ≤768px block above so it wins over that block's `padding: 20px` shorthand too, not just
-// the untouched 768–960px range.
+// ≤860px block above so it wins over that block's `padding: 20px` shorthand too, not just
+// the untouched 860–960px range.
 @media screen and (max-width: 960px) {
   .footer {
     padding-bottom: calc(20px + 64px);

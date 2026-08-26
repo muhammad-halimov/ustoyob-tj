@@ -6,6 +6,7 @@ import { Marquee } from '../../../../../shared/ui/Text/Marquee';
 import { DateWidget } from '../../../../../widgets/DateWidget/DateWidget';
 import styles from './ProfileHeader.module.scss';
 import { EditActions } from '../EditActions/EditActions';
+import { SelectSearch } from '../../../../../shared/ui/SelectSearch';
 import { Preview, usePreview } from '../../../../../shared/ui/Photo/Preview';
 import { ActionsDropdown } from '../../../../../widgets/ActionsDropdown';
 import { IoStarOutline, IoWarningOutline } from 'react-icons/io5';
@@ -26,7 +27,6 @@ interface ProfileHeaderProps {
     selectedSpecialties?: string[];
     occupations: Occupation[];
     fileInputRef?: RefObject<HTMLInputElement | null>;
-    specialtyInputRef?: RefObject<HTMLSelectElement | null>;
     isLoading: boolean;
     isAvatarUploading?: boolean;
     readOnly?: boolean;
@@ -68,7 +68,6 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     selectedSpecialties = [],
     occupations,
     fileInputRef,
-    specialtyInputRef,
     isLoading,
     isAvatarUploading = false,
     readOnly = false,
@@ -187,7 +186,12 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
 
     return (
         <>
-        <div className={styles.profile_content}>
+        {/* profile_content_raised: пока идёт редактирование специальностей, SelectSearch может
+            открыть свой абсолютно спозиционированный дропдаун — .profile_content сам создаёт
+            стекинг-контекст (position:relative + z-index), так что дропдаун внутри всё равно
+            рисуется не выше z-index:1 всей карточки и обрезается/перекрывается соседней
+            секцией ниже (LinkedAccountsSection и т.п.). Поднимаем контекст на время редактирования. */}
+        <div className={`${styles.profile_content}${editingField === 'specialty' ? ` ${styles.profile_content_raised}` : ''}`}>
             {onLogout && (
                 <div className={styles.logout_row} onClick={(e) => e.stopPropagation()}>
                     <button className={styles.logout_btn} onClick={onLogout}>
@@ -424,60 +428,48 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                     {userRole === 'master' && (
                         <div className={styles.specialty_row}>
                             {editingField === 'specialty' ? (
-                                <div className={styles.specialty_edit_container}>
-                                    <div className={styles.specialty_edit_form}>
-                                        {/* Список выбранных специальностей */}
-                                        {currentSelectedSpecialties.length > 0 && (
-                                            <div className={styles.selected_specialties}>
-                                                {currentSelectedSpecialties.map((spec, index) => (
-                                                    <div key={index} className={styles.specialty_tag}>
-                                                        <span>{spec}</span>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleRemoveSpecialty(spec)}
-                                                            className={styles.remove_specialty_btn}
-                                                            aria-label="Удалить специальность"
-                                                        >
-                                                            ×
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-
-                                        {/* Селект для добавления новой специальности */}
-                                        <div className={styles.add_specialty_container}>
-                                            <select
-                                                key={`specialty-select-${currentSelectedSpecialties.length}`}
-                                                ref={specialtyInputRef ?? null}
-                                                value={tempValue}
-                                                onChange={(e) => onTempValueChange(e.target.value)}
-                                                className={styles.specialty_select}
-                                            >
-                                                <option value="">{t('profile:addSpecialty')}</option>
-                                                {occupations
-                                                    .filter(occupation => !currentSelectedSpecialties.includes(occupation.title))
-                                                    .map(occupation => (
-                                                        <option
-                                                            key={occupation.id}
-                                                            value={occupation.title}
-                                                        >
-                                                            {occupation.title}
-                                                        </option>
-                                                    ))}
-                                            </select>
-                                            <button
-                                                type="button"
-                                                className={styles.add_specialty_btn}
-                                                onClick={handleAddSpecialty}
-                                                disabled={!tempValue.trim()}
-                                            >
-                                                {t('profile:addBtn')}
-                                            </button>
+                                <div className={styles.specialty_edit_form}>
+                                    {/* Список выбранных специальностей */}
+                                    {currentSelectedSpecialties.length > 0 && (
+                                        <div className={styles.selected_specialties}>
+                                            {currentSelectedSpecialties.map((spec, index) => (
+                                                <div key={index} className={styles.specialty_tag}>
+                                                    <span>{spec}</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRemoveSpecialty(spec)}
+                                                        className={styles.remove_specialty_btn}
+                                                        aria-label="Удалить специальность"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </div>
+                                            ))}
                                         </div>
-                                    </div>
+                                    )}
 
-                                    <EditActions onSave={onSpecialtySave} onCancel={onEditCancel} saveDisabled={isLoading || currentSelectedSpecialties.length === 0} />
+                                    {/* Селект для добавления новой специальности + сохранить/отменить —
+                                        одной строкой, чтобы EditActions стоял вплотную к «Добавить», а не
+                                        улетал к правому краю всего блока (см. старую .specialty_edit_container). */}
+                                    <div className={styles.add_specialty_container}>
+                                        <SelectSearch
+                                            options={occupations
+                                                .filter(occupation => !currentSelectedSpecialties.includes(occupation.title))
+                                                .map(occupation => ({ value: occupation.title, label: occupation.title }))}
+                                            value={tempValue}
+                                            onChange={onTempValueChange}
+                                            placeholder={t('profile:addSpecialty')}
+                                        />
+                                        <button
+                                            type="button"
+                                            className={styles.add_specialty_btn}
+                                            onClick={handleAddSpecialty}
+                                            disabled={!tempValue.trim()}
+                                        >
+                                            {t('profile:addBtn')}
+                                        </button>
+                                        <EditActions onSave={onSpecialtySave} onCancel={onEditCancel} saveDisabled={isLoading || currentSelectedSpecialties.length === 0} />
+                                    </div>
                                 </div>
                             ) : (
                                 <div className={styles.specialty_with_icon}>

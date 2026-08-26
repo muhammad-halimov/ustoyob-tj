@@ -136,7 +136,6 @@ function Profile() {
     const [isWorkAreasRefreshing, setIsWorkAreasRefreshing] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const workExampleInputRef = useRef<HTMLInputElement>(null);
-    const specialtyInputRef = useRef<HTMLSelectElement>(null);
     // Refs that mirror server-side array state to avoid redundant GET requests before PATCH
     // and prevent read-modify-write race conditions on rapid mutations.
     const rawEducationRef = useRef<Education[]>([]);
@@ -3149,7 +3148,6 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                     selectedSpecialties={selectedSpecialties}
                     occupations={occupations}
                     fileInputRef={fileInputRef}
-                    specialtyInputRef={specialtyInputRef}
                     isLoading={isLoading}
                     isAvatarUploading={isAvatarUploading}
                     readOnly={readOnly}
