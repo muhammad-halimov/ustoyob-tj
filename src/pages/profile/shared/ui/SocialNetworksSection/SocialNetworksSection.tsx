@@ -287,6 +287,7 @@ export const SocialNetworksSection: React.FC<SocialNetworksSectionProps> = ({
                     onAdd={() => setShowAddSocialNetwork(true)}
                     onDeleteAll={onResetSocialNetworks}
                     showDeleteAll={socialNetworks.length > 0}
+                    deleteAllAsReset
                     addTitle={t('profile:addSocialNetworks')}
                     deleteAllTitle={t('profile:deleteAllNetworksTitle')}
                     deleteAllText={t('profile:deleteAllPhotos')}

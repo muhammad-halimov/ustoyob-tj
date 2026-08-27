@@ -34,6 +34,7 @@ import {EmptyState} from '../../../../widgets/EmptyState';
 import Status from '../../../../shared/ui/Modal/Status';
 import Feedback from '../../../../shared/ui/Modal/Feedback';
 import {Clear} from '../../../../shared/ui/Button/Clear/Clear';
+import {Reset} from '../../../../shared/ui/Button/Reset/Reset';
 import {ShowMore} from '../../../../shared/ui/Button/ShowMore/ShowMore';
 import {getPageSize} from '../../../../utils/pageSizeUtils';
 import {formatProfileImageUrl, formatTicketImageUrl} from '../../../../utils/imageUtils';
@@ -1254,7 +1255,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                 <FilterPanel
                     key={filterResetCount}
                     showFilters={showFilters}
-                    setShowFilters={setShowFilters}
+                    setShowFilters={handleFilterToggle}
                     onApply={handleApply}
                     filters={filters}
                     onResetFilters={handleResetFilters}
@@ -1293,12 +1294,10 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
                                 )}
                                 {filters.rating && <span className={styles.filter_tag}>{filters.rating}+ звезд</span>}
                                 {filters.reviewCount && <span className={styles.filter_tag}>{filters.reviewCount}+ отзывов</span>}
-                                <button
-                                    className={styles.clear_filters_btn}
+                                <Reset
+                                    label={t('search.clearFilters')}
                                     onClick={handleResetFilters}
-                                >
-                                    {t('search.clearFilters')}
-                                </button>
+                                />
                             </div>
                         )}
 

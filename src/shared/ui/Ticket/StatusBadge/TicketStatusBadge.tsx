@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { IoBanOutline, IoTimeOutline } from 'react-icons/io5';
+import { Marquee } from '../../Text/Marquee';
 import styles from './TicketStatusBadge.module.scss';
 
 interface TicketStatusBadgeProps {
@@ -14,7 +15,7 @@ export function TicketStatusBadge({ approved, banned }: TicketStatusBadgeProps) 
         return (
             <span className={`${styles.badge} ${styles.banned}`}>
                 <IoBanOutline />
-                {t('app.banned')}
+                <Marquee text={t('app.banned')} alwaysScroll />
             </span>
         );
     }
@@ -23,7 +24,7 @@ export function TicketStatusBadge({ approved, banned }: TicketStatusBadgeProps) 
         return (
             <span className={`${styles.badge} ${styles.unapproved}`}>
                 <IoTimeOutline />
-                {t('app.notApproved')}
+                <Marquee text={t('app.notApproved')} alwaysScroll />
             </span>
         );
     }

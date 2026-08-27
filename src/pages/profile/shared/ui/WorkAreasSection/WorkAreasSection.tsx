@@ -143,13 +143,13 @@ export const WorkAreasSection: React.FC<WorkAreasSectionProps> = ({
                 renderEditItem={() => (
                     <div className={styles.edit_form}>
                         <Address value={addressForm} onChange={setAddressForm} required={true} />
-                        <EditActions onSave={handleSave} onCancel={onEditAddressCancel} className={styles.edit_actions_geo} />
+                        <EditActions onSave={handleSave} onCancel={onEditAddressCancel} />
                     </div>
                 )}
                 renderNewForm={() => (
                     <div className={styles.edit_form}>
                         <Address value={addressForm} onChange={setAddressForm} required={true} />
-                        <EditActions onSave={handleSave} onCancel={onEditAddressCancel} className={styles.edit_actions_geo} />
+                        <EditActions onSave={handleSave} onCancel={onEditAddressCancel} />
                     </div>
                 )}
             />

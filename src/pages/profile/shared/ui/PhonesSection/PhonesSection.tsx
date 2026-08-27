@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { IoCallOutline } from 'react-icons/io5';
 import { getAuthToken } from '../../../../../utils/authUtils';
 import { Marquee } from '../../../../../shared/ui/Text/Marquee';
 import { AuthBanner } from '../../../../../widgets/Banners/AuthBanner/AuthBanner';
@@ -165,20 +166,28 @@ export const PhonesSection: React.FC<PhonesSectionProps> = ({
                                 value={phoneForm.type}
                                 onChange={(val) => setPhoneForm(prev => ({ ...prev, type: val as 'tj' | 'international' }))}
                                 disabled
+                                noSearch
                             />
                         </div>
                         <div className={styles.form_group}>
                             <label>{t('profile:phoneNumber')}</label>
-                            <input
-                                type="tel"
-                                placeholder={phoneForm.type === 'tj' ? '+992XXXXXXXXX' : '+XXXXXXXXXXX'}
+                            <SelectSearch
+                                altMode
+                                altIcon={<IoCallOutline />}
+                                // Крестик скрыт, пока в поле только дефолтный префикс ("+992"/"+") —
+                                // очищать по сути ещё нечего. Как только введены реальные цифры,
+                                // крестик появляется как обычно.
+                                hideClear={phoneForm.number === '+992' || phoneForm.number === '+'}
+                                options={[]}
                                 value={phoneForm.number}
-                                onChange={(e) => {
-                                    let value = e.target.value;
-                                    if (!value.startsWith('+')) value = '+' + value;
+                                onChange={(val) => {
+                                    // altMode — свободный текст (не type="tel"), сам по себе принимает
+                                    // что угодно — оставляем только "+" и цифры.
+                                    let value = '+' + val.replace(/\D/g, '');
                                     if (phoneForm.type === 'tj' && !value.startsWith('+992')) value = '+992';
                                     setPhoneForm(prev => ({ ...prev, number: value }));
                                 }}
+                                placeholder={phoneForm.type === 'tj' ? '+992XXXXXXXXX' : '+XXXXXXXXXXX'}
                             />
                         </div>
                         {/* suppress unused phone param lint */}
@@ -201,20 +210,30 @@ export const PhonesSection: React.FC<PhonesSectionProps> = ({
                                     const type = (val || 'tj') as 'tj' | 'international';
                                     setPhoneForm({ type, number: type === 'tj' ? '+992' : '+' });
                                 }}
+                                // Тип всегда должен быть выбран — очищать тут нечего.
+                                hideClear
+                                noSearch
                             />
                         </div>
                         <div className={styles.form_group}>
                             <label>{t('profile:phoneNumber')}</label>
-                            <input
-                                type="tel"
-                                placeholder={phoneForm.type === 'tj' ? '+992XXXXXXXXX' : '+XXXXXXXXXXX'}
+                            <SelectSearch
+                                altMode
+                                altIcon={<IoCallOutline />}
+                                // Крестик скрыт, пока в поле только дефолтный префикс ("+992"/"+") —
+                                // очищать по сути ещё нечего. Как только введены реальные цифры,
+                                // крестик появляется как обычно.
+                                hideClear={phoneForm.number === '+992' || phoneForm.number === '+'}
+                                options={[]}
                                 value={phoneForm.number}
-                                onChange={(e) => {
-                                    let value = e.target.value;
-                                    if (!value.startsWith('+')) value = '+' + value;
+                                onChange={(val) => {
+                                    // altMode — свободный текст (не type="tel"), сам по себе принимает
+                                    // что угодно — оставляем только "+" и цифры.
+                                    let value = '+' + val.replace(/\D/g, '');
                                     if (phoneForm.type === 'tj' && !value.startsWith('+992')) value = '+992';
                                     setPhoneForm(prev => ({ ...prev, number: value }));
                                 }}
+                                placeholder={phoneForm.type === 'tj' ? '+992XXXXXXXXX' : '+XXXXXXXXXXX'}
                             />
                         </div>
                         <EditActions onSave={handleSave} onCancel={onEditPhoneCancel} />

@@ -177,18 +177,17 @@
   height: 60px;
 }
 
+// Без своего padding — раньше 16px тут складывались с 20px внешней карточки
+// (.section из ProfileSection), и отступ снизу до края карточки выходил заметно больше,
+// чем у Образования/Соц.сетей (те через ProfileSection вообще без своей внутренней
+// прокладки). Карточка и так даёт 20px со всех сторон — этого достаточно.
 .edit_form {
   width: 100%;
-  padding: 16px 0;
   border-bottom: 1px solid #e8e8e8;
 
   &:last-child {
     border-bottom: none;
   }
-}
-
-.edit_actions_geo {
-  margin-top: 12px;
 }
 
 .form_actions {

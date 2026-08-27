@@ -95,6 +95,16 @@
   height: 15px;
   flex-shrink: 0;
   color: var(--color-icons);
+  // Когда это <span> вокруг переданной иконки (altIcon), а не <svg> напрямую —
+  // сама иконка (например, из react-icons) должна заполнить те же 15x15.
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  svg {
+    width: 100%;
+    height: 100%;
+  }
 }
 
 .altInput {
@@ -138,17 +148,15 @@
   overflow: hidden;
 }
 
-// ── Крестик внутри триггера ───────────────────────────────────────────────────
-.clearBtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+// ── Крестик (рендерится через shared Button/Clear — и в триггере, и в
+// alt-режиме) — нестинг под родителем даёт специфичность, нужную чтобы
+// перебить базовые стили самого Clear-компонента (Clear.module.scss).
+.trigger .clearBtn,
+.altWrap .clearBtn {
   width: 36px;
   height: 36px;
   margin: -8px -4px -8px 0;
   color: var(--color-icons);
-  cursor: pointer;
 
   svg {
     width: 24px;

@@ -64,48 +64,10 @@
   gap: 16px;
 }
 
-.titleInput {
-  width: 100%;
-  padding: 12px 16px;
-  background-color: #F2F2F5;
-  border-radius: 8px;
-  font-size: 24px;
-  border: none;
-
-  &::placeholder {
-    color: #999;
-  }
-
-  &:focus {
-    outline: none;
-  }
-}
-
 .categorySection {
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-
-.categorySelect {
-  width: 100%;
-  padding: 12px 16px;
-  background-color: #F2F2F5;
-  border-radius: 8px;
-  font-size: 24px;
-  border: none;
-  appearance: none;
-  cursor: pointer;
-  color: #585858;
-
-  &:focus {
-    outline: none;
-  }
-
-  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%236c757d' stroke-width='2'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 16px center;
-  background-size: 12px 8px;
 }
 
 /* Адресная секция */
@@ -450,44 +412,14 @@
 
 .budgetField:first-child {
   flex: 1;
-}
-
-.budgetInput {
-  width: 100%;
-  padding: 12px 16px;
-  border: none;
-  border-radius: 10px;
-  font-size: 24px;
-  background: #F2F2F5;
-
-  &:focus {
-    outline: none;
-    border: 2px solid #3A54DA;
-  }
+  // Без этого флекс-айтем не сжимается уже своего контента (дефолтный min-width:auto) —
+  // цена упирается в собственную минимальную ширину раньше, чем в неё стоит упираться,
+  // и не отдаёт место соседней колонке юнита.
+  min-width: 0;
 }
 
 .budgetField:last-child {
   flex: 0 0 180px;
-}
-
-.unitSelect {
-  width: 100%;
-  max-width: 180px;
-  padding: 12px 16px;
-  border-radius: 10px;
-  background: #F2F2F5;
-  color: #585858;
-  font-size: 24px;
-  appearance: none;
-  background-image: url('data:image/svg+xml;utf8,<svg fill="%233A54DA" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 16px;
-  border: none;
-
-  &:focus {
-    outline: none;
-  }
 }
 
 /* Фотографии - единая сетка для существующих и новых */
@@ -722,14 +654,6 @@
     font-size: 18px;
   }
 
-  .titleInput,
-  .categorySelect,
-  .budgetInput,
-  .unitSelect {
-    font-size: 16px;
-    padding: 10px 14px;
-  }
-
   .province_grid,
   .city_grid,
   .district_grid,
@@ -772,6 +696,17 @@
         font-size: 16px;
       }
     }
+  }
+
+  // Юнит держит фиксированную flex-basis (180px → 140px на ≤768px) с flex-shrink:0 —
+  // сама не сжимается, но вместе с min-width:0 у цены (см. .budgetField:first-child)
+  // ряд помещается: цена дожимается до своего минимума, юнит остаётся в строке рядом.
+  .budgetRow {
+    gap: 8px;
+  }
+
+  .budgetField:last-child {
+    flex: 0 0 110px;
   }
 
   .existingPhotoGrid,
@@ -894,11 +829,6 @@
     color: var(--color-text-primary);
   }
 
-  .titleInput,
-  .categorySelect {
-    background-color: var(--color-background-all);
-    color: var(--color-text-primary);
-  }
 
   .province_card,
   .city_card {
@@ -949,17 +879,6 @@
   .budgetSection h3,
   .budgetSection h2 {
     color: var(--color-text-primary);
-  }
-
-  .budgetInput,
-  .unitSelect {
-    background-color: var(--color-background-all);
-    border-color: var(--color-stroke);
-    color: var(--color-text-primary);
-
-    option {
-      background-color: var(--color-background-all);
-    }
   }
 
   .descriptionSection h2 {

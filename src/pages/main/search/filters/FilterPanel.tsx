@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { SelectSearch, SelectOption } from '../../../../shared/ui/SelectSearch';
 import PageLoader from '../../../../widgets/PageLoader/PageLoader';
 import { Toggle } from '../../../../shared/ui/Button/Toggle/Toggle';
+import { Reset } from '../../../../shared/ui/Button/Reset/Reset';
+import { Clear } from '../../../../shared/ui/Button/Clear/Clear';
 import type { Occupation, Category, FilterState } from '../../../../entities';
 import type { Province } from '../../../../entities';
 import { getCities, getDistricts } from '../../../../utils/dataCacheUtils';
@@ -23,6 +25,7 @@ interface FilterPanelProps {
 
 function FilterPanel({
                          showFilters,
+                         setShowFilters,
                          onApply,
                          filters,
                          onResetFilters,
@@ -187,12 +190,19 @@ function FilterPanel({
         onResetFilters();
     };
 
+    // Дублирует функцию кнопки Clear из Search: сбрасывает фильтры и закрывает панель
+    const handleClearAndClose = () => {
+        handleCancel();
+        setShowFilters(false);
+    };
+
     return (
         <>
             {showFilters && (
                 <div className={styles.filters_panel}>
                     <div className={styles.filters_header}>
                         <h2>{t('filters.title')}</h2>
+                        <Clear className={styles.filter_clear_btn} onClick={handleClearAndClose} />
                     </div>
 
                     {/* Цена */}
@@ -309,9 +319,7 @@ function FilterPanel({
                     </div>
 
                     <div className={styles.filter_actions}>
-                        <button className={styles.cancel_btn} onClick={handleCancel}>
-                            {t('filters.cancel')}
-                        </button>
+                        <Reset label={t('filters.reset')} onClick={handleCancel} className={styles.cancel_btn} />
                         <button className={styles.apply_btn} onClick={handleApplyFilters} disabled={isApplying}>
                             {isApplying
                                 ? <PageLoader fullPage={false} compact primary asSpan />

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { IoSchoolOutline, IoCalendarOutline } from 'react-icons/io5';
 import { Marquee } from '../../../../../shared/ui/Text/Marquee';
 import { Toggle } from '../../../../../shared/ui/Button/Toggle/Toggle';
 import Status from '../../../../../shared/ui/Modal/Status';
@@ -91,11 +92,13 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
         <>
             <div className={styles.form_group}>
                 <label>{t('profile:institution')} *</label>
-                <input
-                    type="text"
-                    placeholder={t('profile:institutionPlaceholder')}
+                <SelectSearch
+                    altMode
+                    altIcon={<IoSchoolOutline />}
+                    options={[]}
                     value={educationForm.institution}
-                    onChange={(e) => onEducationFormChange('institution', e.target.value)}
+                    onChange={(val) => onEducationFormChange('institution', val)}
+                    placeholder={t('profile:institutionPlaceholder')}
                 />
             </div>
             <div className={styles.form_group}>
@@ -114,26 +117,26 @@ export const EducationSection: React.FC<EducationSectionProps> = ({
             <div className={styles.year_group}>
                 <div className={styles.form_group}>
                     <label>{t('profile:startYear')} *</label>
-                    <input
-                        type="number"
-                        placeholder={t('profile:startYear')}
+                    <SelectSearch
+                        altMode
+                        altIcon={<IoCalendarOutline />}
+                        options={[]}
                         value={educationForm.startYear}
-                        onChange={(e) => onEducationFormChange('startYear', e.target.value)}
-                        onWheel={(e) => e.currentTarget.blur()}
-                        min="1900"
-                        max={new Date().getFullYear()}
+                        // altMode — свободный текст, нет нативной number-клавиатуры/min/max —
+                        // подчищаем вручную до цифр, как раньше делал type="number".
+                        onChange={(val) => onEducationFormChange('startYear', val.replace(/\D/g, ''))}
+                        placeholder={t('profile:startYear')}
                     />
                 </div>
                 <div className={styles.form_group}>
                     <label>{t('profile:endYear')}</label>
-                    <input
-                        type="number"
-                        placeholder={t('profile:endYear')}
+                    <SelectSearch
+                        altMode
+                        altIcon={<IoCalendarOutline />}
+                        options={[]}
                         value={educationForm.endYear}
-                        onChange={(e) => onEducationFormChange('endYear', e.target.value)}
-                        onWheel={(e) => e.currentTarget.blur()}
-                        min={parseInt(educationForm.startYear) || 1900}
-                        max={new Date().getFullYear()}
+                        onChange={(val) => onEducationFormChange('endYear', val.replace(/\D/g, ''))}
+                        placeholder={t('profile:endYear')}
                         disabled={educationForm.currentlyStudying}
                     />
                 </div>

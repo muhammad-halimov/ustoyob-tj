@@ -164,6 +164,7 @@ export const WorkExamplesSection: React.FC<WorkExamplesSectionProps> = ({
                         onAdd={() => !isGalleryOperating && workExampleInputRef.current?.click()}
                         onDeleteAll={onDeleteAllWorkExamples}
                         showDeleteAll={workExamples.length > 0}
+                        deleteAllAsReset
                         addTitle={t('profile:addPhotosTitle')}
                         deleteAllTitle={t('profile:deleteAllPhotosTitle')}
                         deleteAllText={t('profile:deleteAllPhotos')}

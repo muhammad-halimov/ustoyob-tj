@@ -15,6 +15,9 @@
 }
 
 .filters_header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 25px;
   padding-bottom: 15px;
 
@@ -23,6 +26,12 @@
     font-weight: 400;
     color: map.get(vars.$colors, text-black);
     margin: 0;
+  }
+
+  // Clear — общий shared-компонент, оставляем его в дефолтном виде
+  // (Clear.module.scss), сюда добавляем только раскладку.
+  .filter_clear_btn {
+    flex-shrink: 0;
   }
 }
 
@@ -126,46 +135,33 @@
 
 .filter_actions {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   gap: map.get(vars.$spacing, 4);
   margin-top: map.get(vars.$spacing, 6);
 
-  button {
-    flex: 1;
-    padding: map.get(vars.$spacing, 4);
-    border: none;
-    border-radius: map.get(vars.$border-radius, base);
-    font-size: map.get(vars.$font-sizes, base);
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
+  // Reset — общий shared-компонент, оставляем его в дефолтном виде
+  // (Reset.module.scss), сюда добавляем только раскладку.
+  .cancel_btn {
+    flex-shrink: 0;
   }
 
   .apply_btn {
+    width: 100%;
+    max-width: 141px;
+    padding: map.get(vars.$spacing, 4);
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
     background: map.get(vars.$colors, actual-blue);
     color: map.get(vars.$colors, primary-text-white);
     font-weight: 600;
     font-size: map.get(vars.$font-sizes, base);
     letter-spacing: 0.02em;
     border-radius: map.get(vars.$border-radius, lg);
-    max-width: 141px;
 
     &:hover {
       background: map.get(vars.$colors, actual-blue);
-    }
-  }
-
-  .cancel_btn {
-    background: map.get(vars.$colors, color-stroke);
-    color: map.get(vars.$colors, text-black);
-    font-weight: 600;
-    font-size: map.get(vars.$font-sizes, base);
-    letter-spacing: 0.02em;
-    border-radius: map.get(vars.$border-radius, lg);
-    max-width: 141px;
-
-    &:hover {
-      background: map.get(vars.$colors, hover-with-borderBtn);
     }
   }
 }
@@ -326,8 +322,7 @@
   }
 
   .filter_actions {
-    .apply_btn,
-    .cancel_btn {
+    .apply_btn {
       padding: 12px !important;
     }
   }
@@ -415,13 +410,6 @@
     background: var(--color-background-all);
 
     span:first-child {
-      color: var(--color-text-black);
-    }
-  }
-
-  .filter_actions {
-    .cancel_btn {
-      background: var(--color-background-all);
       color: var(--color-text-black);
     }
   }

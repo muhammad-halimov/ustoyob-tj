@@ -149,7 +149,7 @@ export const getCities         = createCachedFetcher<City>(API_ROUTES.CITIES);
 export const getOccupations    = createCachedFetcher<Occupation>(`${API_ROUTES.OCCUPATIONS}?itemsPerPage=500`);
 export const getCategories     = createCachedFetcher<Category>(API_ROUTES.CATEGORIES,       { requiresAuth: false }, STATIC_CACHE_DURATION);
 export const getDistricts      = createCachedFetcher<District>(API_ROUTES.DISTRICTS,        {}, STATIC_CACHE_DURATION);
-export const getUnits          = createCachedFetcher<Unit>(API_ROUTES.UNITS,                { locale: false }, STATIC_CACHE_DURATION);
+export const getUnits          = createCachedFetcher<Unit>(API_ROUTES.UNITS,                {}, STATIC_CACHE_DURATION);
 export const getAppealReasons  = createCachedFetcher<AppealReason>(API_ROUTES.APPEAL_REASONS);
 export const getLegalDocuments = createCachedFetcher<LegalDocument>(API_ROUTES.LEGAL_DOCUMENTS, {}, STATIC_CACHE_DURATION);
 /** Own tech-support tickets — short TTL since it's the user's own mutable data (see TechSupport.tsx). */

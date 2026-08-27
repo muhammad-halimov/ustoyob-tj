@@ -59,7 +59,9 @@
     "goHome": "Go Home"
   },
   "error": {
-    "title": "Error"
+    "title": "Something went wrong",
+    "subtitle": "An unexpected error occurred. Try going back to the homepage and repeating the action.",
+    "goHome": "Go Home"
   },
   "notFound": {
     "title": "Page not found",

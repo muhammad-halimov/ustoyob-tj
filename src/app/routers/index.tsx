@@ -14,6 +14,7 @@ import TelegramCallbackPage from "../../pages/OAuth/TelegramCallbackPage";
 import { Legal } from "../../pages/legal";
 import ConfirmAccountPage from "../../pages/auth/ConfirmAccountPage";
 import NotFound from "../../pages/notFound/NotFound";
+import RouteErrorBoundary from "../../pages/errorBoundary/RouteErrorBoundary";
 import { ROUTE_PATTERNS } from './routes';
 
 /**
@@ -27,6 +28,11 @@ const router = createBrowserRouter([
     {
         path: ROUTE_PATTERNS.HOME,
         element: <Layout />,
+        // Только на проде: без errorElement необработанная ошибка рендера в любой
+        // дочерней странице падает в дефолтный фолбэк react-router — "💿 Hey developer"
+        // с сырым стектрейсом, который в деве как раз и нужен для отладки. На проде это
+        // должен увидеть не разработчик, а пользователь — значит человеческий экран.
+        errorElement: import.meta.env.PROD ? <RouteErrorBoundary /> : undefined,
         children: [
             // Main pages
             { index: true, element: <MainPage /> },
@@ -54,37 +60,47 @@ const router = createBrowserRouter([
             { path: ROUTE_PATTERNS.NOT_FOUND, element: <NotFound /> },
         ],
     },
+    // Эти роуты — отдельные top-level записи без общего родителя с Layout, так что
+    // errorElement там выше не действует — каждой нужен свой (см. комментарий у Layout).
     {
         path: ROUTE_PATTERNS.AUTH_GOOGLE,
         element: <OAuthRedirectPage />,
+        errorElement: import.meta.env.PROD ? <RouteErrorBoundary /> : undefined,
     },
     {
         path: ROUTE_PATTERNS.AUTH_GOOGLE_CALLBACK,
         element: <OAuthCallbackPage />,
+        errorElement: import.meta.env.PROD ? <RouteErrorBoundary /> : undefined,
     },
     {
         path: ROUTE_PATTERNS.AUTH_FACEBOOK,
         element: <OAuthRedirectPage />,
+        errorElement: import.meta.env.PROD ? <RouteErrorBoundary /> : undefined,
     },
     {
         path: ROUTE_PATTERNS.AUTH_FACEBOOK_CALLBACK,
         element: <OAuthCallbackPage />,
+        errorElement: import.meta.env.PROD ? <RouteErrorBoundary /> : undefined,
     },
     {
         path: ROUTE_PATTERNS.AUTH_INSTAGRAM,
         element: <OAuthRedirectPage />,
+        errorElement: import.meta.env.PROD ? <RouteErrorBoundary /> : undefined,
     },
     {
         path: ROUTE_PATTERNS.AUTH_INSTAGRAM_CALLBACK,
         element: <OAuthCallbackPage />,
+        errorElement: import.meta.env.PROD ? <RouteErrorBoundary /> : undefined,
     },
     {
         path: ROUTE_PATTERNS.AUTH_TELEGRAM_CALLBACK,
         element: <TelegramCallbackPage />,
+        errorElement: import.meta.env.PROD ? <RouteErrorBoundary /> : undefined,
     },
     {
         path: ROUTE_PATTERNS.CONFIRM_ACCOUNT,
         element: <ConfirmAccountPage />,
+        errorElement: import.meta.env.PROD ? <RouteErrorBoundary /> : undefined,
     },
 ]);
 

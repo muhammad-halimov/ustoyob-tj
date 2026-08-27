@@ -3,6 +3,7 @@ import type * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Marquee } from '../Text/Marquee';
 import PageLoader from '../../../widgets/PageLoader/PageLoader';
+import { Clear } from '../Button/Clear/Clear';
 import styles from './SelectSearch.module.scss';
 
 export interface SelectOption<T = unknown> {
@@ -35,6 +36,22 @@ interface SelectSearchProps<T = unknown> {
      * обычный текстовый input с иконкой поиска и кнопкой очистки.
      */
     altMode?: boolean;
+    /**
+     * Кастомная иконка для altMode вместо лупы по умолчанию — например, значок
+     * денег для поля цены. Рендерится как есть (размер/цвет — на совести вызывающего).
+     */
+    altIcon?: React.ReactNode;
+    /**
+     * Скрывает кнопку очистки (×) даже когда value непустой — для полей, у которых
+     * value никогда не бывает по-настоящему "пустым" по смыслу (например, номер
+     * телефона всегда содержит хотя бы префикс "+992"), и очистка не имеет смысла.
+     */
+    hideClear?: boolean;
+    /**
+     * Скрывает поле поиска внутри дропдауна — для коротких списков (2-3 варианта),
+     * где поиск не нужен и только занимает место.
+     */
+    noSearch?: boolean;
 }
 
 export function SelectSearch<T = unknown>({
@@ -47,6 +64,9 @@ export function SelectSearch<T = unknown>({
     disabled = false,
     showSearchIcon = false,
     altMode = false,
+    altIcon,
+    hideClear = false,
+    noSearch = false,
     loading = false,
     onKeyDown,
 }: SelectSearchProps<T>) {
@@ -84,10 +104,10 @@ export function SelectSearch<T = unknown>({
 
     // Фокус на поиск при открытии
     useEffect(() => {
-        if (open) {
+        if (open && !noSearch) {
             setTimeout(() => searchRef.current?.focus(), 0);
         }
-    }, [open]);
+    }, [open, noSearch]);
 
     const handleToggle = useCallback(() => {
         if (disabled) return;
@@ -103,8 +123,7 @@ export function SelectSearch<T = unknown>({
         setQuery('');
     }, [onChange]);
 
-    const handleClear = useCallback((e: React.MouseEvent) => {
-        e.stopPropagation();
+    const handleClear = useCallback(() => {
         onChange('', undefined);
         setOpen(false);
         setQuery('');
@@ -136,10 +155,14 @@ export function SelectSearch<T = unknown>({
                 className={`${styles.wrapper} ${disabled ? styles.disabled : ''} ${className ?? ''}`}
             >
                 <div className={styles.altWrap}>
-                    <svg className={styles.altSearchIcon} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.4"/>
-                        <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-                    </svg>
+                    {altIcon ? (
+                        <span className={styles.altSearchIcon}>{altIcon}</span>
+                    ) : (
+                        <svg className={styles.altSearchIcon} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.4"/>
+                            <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                        </svg>
+                    )}
                     <div className={styles.altInputWrap}>
                         <input
                             type="text"
@@ -158,18 +181,12 @@ export function SelectSearch<T = unknown>({
                             </div>
                         )}
                     </div>
-                    {value && !disabled && (
-                        <span
-                            role="button"
-                            aria-label={t('clear')}
+                    {value && !disabled && !hideClear && (
+                        <Clear
+                            ariaLabel={t('clear')}
                             className={styles.clearBtn}
-                            onMouseDown={e => { e.preventDefault(); onChange(''); }}
-                        >
-                            <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <circle cx="8" cy="8" r="7.5" stroke="currentColor" strokeWidth="1.2"/>
-                                <path d="M5.5 5.5L10.5 10.5M10.5 5.5L5.5 10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                            </svg>
-                        </span>
+                            onClick={() => onChange('')}
+                        />
                     )}
                 </div>
             </div>
@@ -181,12 +198,21 @@ export function SelectSearch<T = unknown>({
             ref={containerRef}
             className={`${styles.wrapper} ${open ? styles.open : ''} ${disabled ? styles.disabled : ''} ${className ?? ''}`}
         >
-            {/* Триггер */}
-            <button
-                type="button"
+            {/* Триггер. div вместо button — чтобы кнопка Clear (см. ниже) могла
+                валидно вкладываться внутрь (button внутри button недопустим в HTML). */}
+            <div
+                role="button"
+                tabIndex={disabled ? -1 : 0}
+                aria-disabled={disabled || undefined}
                 className={styles.trigger}
                 onClick={handleToggle}
-                disabled={disabled}
+                onKeyDown={(e) => {
+                    if (disabled) return;
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleToggle();
+                    }
+                }}
                 aria-haspopup="listbox"
                 aria-expanded={open}
             >
@@ -202,18 +228,12 @@ export function SelectSearch<T = unknown>({
                         : resolvedPlaceholder
                     }
                 </div>
-                {value && !disabled && (
-                    <span
-                        role="button"
-                        aria-label={t('clear')}
+                {value && !disabled && !hideClear && (
+                    <Clear
+                        ariaLabel={t('clear')}
                         className={styles.clearBtn}
-                        onMouseDown={handleClear}
-                    >
-                        <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="8" cy="8" r="7.5" stroke="currentColor" strokeWidth="1.2"/>
-                            <path d="M5.5 5.5L10.5 10.5M10.5 5.5L5.5 10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                        </svg>
-                    </span>
+                        onClick={handleClear}
+                    />
                 )}
                 <svg
                     className={`${styles.chevron} ${open ? styles.chevronUp : ''}`}
@@ -223,39 +243,41 @@ export function SelectSearch<T = unknown>({
                 >
                     <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-            </button>
+            </div>
 
             {/* Дропдаун */}
             {open && (
                 <div className={styles.dropdown} role="listbox">
                     {/* Поле поиска */}
-                    <div className={styles.searchWrap}>
-                        <svg className={styles.searchIconInner} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.4"/>
-                            <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-                        </svg>
-                        <input
-                            ref={searchRef}
-                            type="text"
-                            className={styles.searchInput}
-                            placeholder={resolvedSearchPlaceholder}
-                            value={query}
-                            onChange={e => setQuery(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                        />
-                        {query && (
-                            <button
-                                type="button"
-                                className={styles.searchClear}
-                                onClick={() => setQuery('')}
-                                aria-label={t('clearSearch')}
-                            >
-                                <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                                </svg>
-                            </button>
-                        )}
-                    </div>
+                    {!noSearch && (
+                        <div className={styles.searchWrap}>
+                            <svg className={styles.searchIconInner} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.4"/>
+                                <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                            </svg>
+                            <input
+                                ref={searchRef}
+                                type="text"
+                                className={styles.searchInput}
+                                placeholder={resolvedSearchPlaceholder}
+                                value={query}
+                                onChange={e => setQuery(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                            />
+                            {query && (
+                                <button
+                                    type="button"
+                                    className={styles.searchClear}
+                                    onClick={() => setQuery('')}
+                                    aria-label={t('clearSearch')}
+                                >
+                                    <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                                    </svg>
+                                </button>
+                            )}
+                        </div>
+                    )}
 
                     {/* Список вариантов */}
                     <ul className={styles.list}>

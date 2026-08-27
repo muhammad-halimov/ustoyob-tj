@@ -1,0 +1,13 @@
+@use '../../app/styles/variables' as vars;
+
+// Рендерится вместо всего дерева роутов начиная с уровня, где стоит errorElement (Layout
+// туда не входит — значит без хедера/футера), поэтому в отличие от NotFound это
+// полноценная страница на весь экран, а не контент внутри общего layout.
+.container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  background: var(--color-background-all);
+}

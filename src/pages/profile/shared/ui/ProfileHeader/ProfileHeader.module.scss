@@ -210,10 +210,16 @@
 }
 
 .name_edit_container {
+  // Раньше EditActions стоял в этом же ряду рядом с полями имени (align-items:flex-end,
+  // строкой) — единственное место в профиле с такой раскладкой, не совпадает с тем, как
+  // EditActions лежит везде остальном (Телефоны, Соц.сети, Образование) — своей строкой
+  // ниже поля/полей, по центру. Приводим к тому же виду.
+  // Без gap здесь: в flex (в отличие от обычного block-потока) соседние margin не
+  // схлопываются — gap + собственный margin-top у EditActions сложились бы вместе,
+  // и отступ "от пола" опять поплыл бы, но уже в другую сторону.
   display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
   width: 100%;
 }
 
@@ -394,18 +400,19 @@
   margin-top: 8px;
 }
 
+// Поле + EditActions своей строкой ниже (по центру) — тот же паттерн, что в
+// Телефонах/Соц.сетях/Образовании, а не строкой рядом с полем. Без gap — отступ уже
+// даёт margin-top самого EditActions (flex gap + margin не схлопываются, сложились бы).
 .gender_edit_container {
   display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: nowrap;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 .dob_edit_container {
   display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: nowrap;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 .dob_date_input {
@@ -557,11 +564,6 @@
     padding: 4px 6px;
   }
 
-  .name_edit_container {
-    flex-wrap: wrap;
-    align-items: flex-start;
-  }
-
   .name_split_inputs {
     flex-direction: column;
     width: 100%;
@@ -575,13 +577,6 @@
   .full_name_edit {
     width: 100%;
     padding: 0 20px;
-  }
-
-  // EditActions sits below inputs and is centered on mobile
-  .name_edit_container > :last-child {
-    width: 100%;
-    display: flex;
-    justify-content: center;
   }
 }
 

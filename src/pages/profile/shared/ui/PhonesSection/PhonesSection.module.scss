@@ -117,9 +117,12 @@
   }
 }
 
+// Без своего padding — раньше 16px тут складывались с 20px внешней карточки
+// (.section из ProfileSection), и отступ снизу до края карточки выходил заметно больше,
+// чем у Образования/Соц.сетей (те через ProfileSection вообще без своей внутренней
+// прокладки). Карточка и так даёт 20px со всех сторон — этого достаточно.
 .edit_form {
   width: 100%;
-  padding: 16px 0;
   border-bottom: 1px solid #e8e8e8;
 
   &:last-child {
@@ -138,31 +141,6 @@
     font-size: 16px;
   }
 
-  input, select {
-    width: 100%;
-    padding: 12px;
-    background-color: #F2F2F5;
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
-    font-size: 16px;
-    transition: border-color 0.2s ease;
-
-    &:focus {
-      outline: none;
-      border-color: #3A54DA;
-      box-shadow: 0 0 0 2px rgba(58, 84, 218, 0.1);
-    }
-
-    &:disabled {
-      background-color: #f5f5f5;
-      color: #999;
-      cursor: not-allowed;
-    }
-  }
-
-  select {
-    cursor: pointer;
-  }
 }
 
 .form_actions {
@@ -283,13 +261,6 @@
 
   .form_group {
     label {
-      color: var(--color-text-primary);
-    }
-
-    input,
-    select {
-      background-color: var(--color-background-all);
-      border-color: var(--color-stroke);
       color: var(--color-text-primary);
     }
   }

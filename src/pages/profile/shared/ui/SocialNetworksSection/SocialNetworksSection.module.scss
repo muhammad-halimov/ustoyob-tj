@@ -521,11 +521,15 @@
   }
 }
 
+// EditActions своей строкой ниже поля (по центру) — как в остальном профиле
+// (Телефоны, Образование, форма добавления соцсети чуть ниже в этом же файле),
+// а не рядом с полем в одном ряду. Без gap — отступ от поля даёт margin-top самого
+// EditActions (flex gap + margin не схлопываются, сложились бы); у .validation_error
+// свой margin-top, так что и с ним разрыв не потеряется.
 .social_network_edit {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
   width: 100%;
   margin-top: 4px;
 }
@@ -807,11 +811,6 @@
     min-height: 38px;
   }
 
-  .social_network_edit {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
   .social_edit_buttons {
     align-self: flex-end;
   }
@@ -849,11 +848,6 @@
 
   .copy_icon, .edit_icon, .delete_icon {
     padding: 2px;
-  }
-
-  .social_network_edit {
-    flex-direction: column;
-    align-items: stretch;
   }
 
   .social_edit_buttons {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type * as React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { IoCash } from 'react-icons/io5';
 import { ROUTES, API_ROUTES } from '../../../app/routers/routes';
 import styles from './CreateEdit.module.scss';
 import { getAuthToken, getUserRole, getUserData } from '../../../utils/authUtils';
@@ -463,14 +464,12 @@ const CreateEdit = () => {
                 <div className={styles.section}>
                     <h2>{t('createEdit:serviceNameLabel')}</h2>
                     <div className={styles.serviceSection}>
-                        <input
-                            type="text"
-                            name="title"
+                        <SelectSearch
+                            altMode
+                            options={[]}
                             value={serviceData.title}
-                            onChange={(e) => setServiceData(prev => ({...prev, title: e.target.value}))}
+                            onChange={(val) => setServiceData(prev => ({...prev, title: val}))}
                             placeholder={t('createEdit:serviceNamePlaceholder')}
-                            className={styles.titleInput}
-                            required
                         />
                     </div>
                 </div>
@@ -525,35 +524,26 @@ const CreateEdit = () => {
                         </div>
                         <div className={styles.budgetRow}>
                             <div className={`${styles.budgetField} ${negotiableBudget ? styles.budgetFieldDisabled : ''}`}>
-                                <input
-                                    type="number"
-                                    name="budget"
+                                <SelectSearch
+                                    altMode
+                                    altIcon={<IoCash />}
+                                    options={[]}
                                     value={serviceData.budget}
-                                    onChange={(e) => setServiceData(prev => ({...prev, budget: e.target.value}))}
-                                    // Браузеры меняют значение number-инпута на wheel-событие, если он в фокусе —
-                                    // юзер скроллит страницу после ввода цены и она незаметно уменьшается/увеличивается.
-                                    onWheel={(e) => e.currentTarget.blur()}
+                                    // Свободный текст altMode не даёт нативной number-клавиатуры/валидации —
+                                    // подчищаем вручную до цифр, как раньше делал type="number".
+                                    onChange={(val) => setServiceData(prev => ({...prev, budget: val.replace(/\D/g, '')}))}
                                     placeholder="0"
-                                    className={styles.budgetInput}
-                                    min="1"
                                     disabled={negotiableBudget}
-                                    required={!negotiableBudget}
                                 />
                             </div>
                             <div className={`${styles.budgetField} ${negotiableBudget ? styles.budgetFieldDisabled : ''}`}>
-                                <select
-                                    className={styles.unitSelect}
-                                    value={selectedUnit || ''}
-                                    onChange={(e) => setSelectedUnit(Number(e.target.value))}
+                                <SelectSearch
+                                    options={units.map(unit => ({ value: String(unit.id), label: unit.title }))}
+                                    value={selectedUnit ? String(selectedUnit) : ''}
+                                    onChange={(val) => setSelectedUnit(val ? Number(val) : null)}
+                                    placeholder={t('createEdit:unitPlaceholder')}
                                     disabled={negotiableBudget}
-                                >
-                                    <option value="">{t('createEdit:unitPlaceholder')}</option>
-                                    {units.map(unit => (
-                                        <option key={unit.id} value={unit.id}>
-                                            {unit.title}
-                                        </option>
-                                    ))}
-                                </select>
+                                />
                             </div>
                         </div>
                     </div>
