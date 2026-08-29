@@ -717,12 +717,13 @@ function TechSupport({ embedded = false }: TechSupportProps) {
                             {/* Subject */}
                             <div className={styles.section}>
                                 <h2>{t('form.titleLabel')}</h2>
-                                <input
-                                    type="text"
-                                    className={styles.textInput}
+                                <SelectSearch
+                                    altMode
+                                    hideIcon
+                                    options={[]}
                                     placeholder={t('form.titlePlaceholder')}
                                     value={title}
-                                    onChange={e => setTitle(e.target.value)}
+                                    onChange={setTitle}
                                     disabled={isSubmitting}
                                 />
                             </div>
@@ -756,12 +757,14 @@ function TechSupport({ embedded = false }: TechSupportProps) {
                             {!isAuth && (
                                 <div className={styles.section}>
                                     <h2>{t('form.emailLabel')}</h2>
-                                    <input
-                                        type="email"
-                                        className={styles.textInput}
+                                    <SelectSearch
+                                        altMode
+                                        hideIcon
+                                        options={[]}
+                                        inputType="email"
                                         placeholder={t('form.emailPlaceholder')}
                                         value={guestEmail}
-                                        onChange={e => setGuestEmail(e.target.value)}
+                                        onChange={setGuestEmail}
                                         disabled={isSubmitting}
                                     />
                                 </div>

@@ -362,7 +362,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
         }
     };
 
-    const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {
             e.preventDefault();
             handleSend();
@@ -1113,13 +1113,15 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                                     <IoAttach />
                                 </button>
 
-                                <input
-                                    type="text"
-                                    placeholder={t('thread.placeholder')}
+                                <SelectSearch
+                                    altMode
+                                    hideIcon
+                                    options={[]}
                                     className={styles.inputField}
+                                    placeholder={t('thread.placeholder')}
                                     value={message}
-                                    onChange={e => setMessage(e.target.value)}
-                                    onKeyPress={handleKeyPress}
+                                    onChange={setMessage}
+                                    onKeyDown={handleKeyDown}
                                     disabled={isSending}
                                 />
 

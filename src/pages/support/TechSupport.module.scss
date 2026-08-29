@@ -63,32 +63,6 @@
   }
 }
 
-.textInput {
-  width: 100%;
-  padding: 12px 16px;
-  background-color: var(--color-background-all);
-  border: none;
-  border-radius: map.get(vars.$border-radius, base);
-  font-size: map.get(vars.$font-sizes, base);
-  color: var(--color-text-primary);
-  font-family: inherit;
-  box-sizing: border-box;
-
-  &::placeholder {
-    color: var(--color-text-placeholder);
-  }
-
-  &:focus {
-    outline: 2px solid var(--color-primary);
-    outline-offset: -2px;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-}
-
 .textarea {
   width: 100%;
   padding: 12px 16px;

@@ -437,26 +437,13 @@
   &:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
+// SelectSearch (altMode) уже несёт собственное оформление поля — раньше здесь
+// была рамка-подложка вокруг голого <input>. flex/min-width остаются: без
+// min-width:0 поле не сжимается меньше своего содержимого в этом узком ряду
+// (attach-кнопка + поле + send-кнопка) и вылезает за пределы контейнера.
 .inputField {
   flex: 1;
   min-width: 0;
-  padding: 12px 16px;
-  background-color: var(--color-background-all);
-  border: none;
-  border-radius: map.get(vars.$border-radius, base);
-  font-size: map.get(vars.$font-sizes, base);
-  color: var(--color-text-primary);
-  font-family: inherit;
-  box-sizing: border-box;
-
-  &::placeholder { color: var(--color-text-placeholder); }
-
-  &:focus {
-    outline: 2px solid var(--color-primary);
-    outline-offset: -2px;
-  }
-
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
 .sendBtn {
