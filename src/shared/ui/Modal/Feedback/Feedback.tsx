@@ -5,6 +5,7 @@ import { getStorageItem } from '../../../../utils/storageUtils';
 import Auth from '../Auth/Auth';
 import Status from '../Status';
 import { Toggle } from '../../Button/Toggle/Toggle';
+import { SelectSearch } from '../../SelectSearch';
 import Grid, { PhotoItem } from '../../Photo/Grid';
 import { Preview, usePreview } from '../../Photo/Preview';
 import { uploadPhotos } from '../../../../utils/imageUtils';
@@ -463,17 +464,14 @@ const Feedback: React.FC<FeedbackModalProps> = ({
                             ) : services.length === 0 ? (
                                 <div className={styles.noServices}>{t('reviewModal.noServices')}</div>
                             ) : (
-                                <select
-                                    value={selectedServiceId || ''}
-                                    onChange={(e) => setSelectedServiceId(Number(e.target.value))}
-                                    className={styles.serviceSelect}
+                                <SelectSearch
+                                    value={selectedServiceId != null ? String(selectedServiceId) : ''}
+                                    onChange={(value) => setSelectedServiceId(value ? Number(value) : null)}
+                                    placeholder={t('reviewModal.selectServicePlaceholder')}
+                                    options={services.map(s => ({ value: String(s.id), label: s.title }))}
                                     disabled={isSubmitting || isEditLocked}
-                                >
-                                    <option value="">{t('reviewModal.selectServicePlaceholder')}</option>
-                                    {services.map(s => (
-                                        <option key={s.id} value={s.id}>{s.title}</option>
-                                    ))}
-                                </select>
+                                    hideClear
+                                />
                             )}
                         </div>
                     )}
@@ -507,17 +505,14 @@ const Feedback: React.FC<FeedbackModalProps> = ({
                             ) : tickets.length === 0 ? (
                                 <div className={styles.noTickets}>{t('complaintModal.noTickets')}</div>
                             ) : (
-                                <select
-                                    value={selectedTicketId || ''}
-                                    onChange={(e) => setSelectedTicketId(Number(e.target.value))}
-                                    className={styles.ticketSelect}
+                                <SelectSearch
+                                    value={selectedTicketId != null ? String(selectedTicketId) : ''}
+                                    onChange={(value) => setSelectedTicketId(value ? Number(value) : null)}
+                                    placeholder={t('complaintModal.selectTicketPlaceholder')}
+                                    options={tickets.map(ticket => ({ value: String(ticket.id), label: ticket.title }))}
                                     disabled={isSubmitting}
-                                >
-                                    <option value="">{t('complaintModal.selectTicketPlaceholder')}</option>
-                                    {tickets.map(ticket => (
-                                        <option key={ticket.id} value={ticket.id}>{ticket.title}</option>
-                                    ))}
-                                </select>
+                                    hideClear
+                                />
                             )}
                         </div>
                     )}
@@ -525,29 +520,27 @@ const Feedback: React.FC<FeedbackModalProps> = ({
                     {!isReview && (
                         <div className={styles.reasonSection}>
                             <label>{t('complaintModal.selectReason')}</label>
-                            <select
+                            <SelectSearch
                                 value={reason}
-                                onChange={(e) => setReason(e.target.value)}
-                                className={styles.reasonSelect}
+                                onChange={(value) => setReason(value)}
+                                placeholder={t('complaintModal.selectReasonPlaceholder')}
+                                options={reasons.map(r => ({ value: String(r.id), label: r.title }))}
                                 disabled={isSubmitting}
-                            >
-                                <option value="">{t('complaintModal.selectReasonPlaceholder')}</option>
-                                {reasons.map(r => (
-                                    <option key={r.id} value={r.id}>{r.title}</option>
-                                ))}
-                            </select>
+                                hideClear
+                            />
                         </div>
                     )}
 
                     {!isReview && (
                         <div className={styles.titleSection}>
                             <label>{t('complaintModal.complaintTitle')}</label>
-                            <input
-                                type="text"
+                            <SelectSearch
+                                altMode
+                                hideIcon
+                                options={[]}
                                 value={title}
-                                onChange={(e) => setTitle(e.target.value)}
+                                onChange={setTitle}
                                 placeholder={t('complaintModal.titlePlaceholder')}
-                                className={styles.titleInput}
                                 disabled={isSubmitting}
                             />
                         </div>

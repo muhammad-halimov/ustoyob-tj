@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type * as React from 'react';
 import { useTranslation } from 'react-i18next';
+import { IoEyeOutline, IoEyeOffOutline } from 'react-icons/io5';
 import { Marquee } from '../Text/Marquee';
 import PageLoader from '../../../widgets/PageLoader/PageLoader';
 import { Clear } from '../Button/Clear/Clear';
@@ -29,6 +30,12 @@ interface SelectSearchProps<T = unknown> {
     showSearchIcon?: boolean;
     /** onKeyDown для altMode input */
     onKeyDown?: React.KeyboardEventHandler<HTMLInputElement>;
+    /** onWheel для altMode input — например, снять фокус у type="number", чтобы скролл мыши не менял значение. */
+    onWheel?: React.WheelEventHandler<HTMLInputElement>;
+    /** onFocus для altMode input — вызывается вместе с внутренней логикой (снятие blur-маскировки) */
+    onFocus?: () => void;
+    /** onBlur для altMode input — вызывается вместе с внутренней логикой (blur-маскировка) */
+    onBlur?: () => void;
     /** Показывает спиннер загрузки вместо триггера */
     loading?: boolean;
     /**
@@ -52,6 +59,27 @@ interface SelectSearchProps<T = unknown> {
      * где поиск не нужен и только занимает место.
      */
     noSearch?: boolean;
+    /** Скрывает иконку слева в altMode — для полей без сопутствующей иконки (имя, email, пароль). */
+    hideIcon?: boolean;
+    /** Нативный type для input в altMode ('text' | 'email' | 'tel' и т.п.). Игнорируется при isPassword. По умолчанию 'text'. */
+    inputType?: string;
+    /**
+     * Режим пароля для altMode: input переключается между type="password"/"text" через
+     * встроенную кнопку-глаз (вместо кнопки очистки) и не показывает значение в
+     * замаркированном (blurred) оверлее — иначе пароль был бы виден в открытом виде,
+     * пока поле не в фокусе.
+     */
+    isPassword?: boolean;
+    /** name для input в altMode — нужен для автозаполнения браузера и менеджеров паролей. */
+    name?: string;
+    /** autoComplete для input в altMode (например "new-password", "current-password", "email"). */
+    autoComplete?: string;
+    /** required для input в altMode — нативная валидация работает и здесь, инпут остаётся настоящим и видимым. */
+    required?: boolean;
+    /** maxLength для input в altMode. */
+    maxLength?: number;
+    /** minLength для input в altMode. */
+    minLength?: number;
 }
 
 export function SelectSearch<T = unknown>({
@@ -67,8 +95,19 @@ export function SelectSearch<T = unknown>({
     altIcon,
     hideClear = false,
     noSearch = false,
+    hideIcon = false,
+    inputType = 'text',
+    isPassword = false,
+    name,
+    autoComplete,
+    required,
+    maxLength,
+    minLength,
     loading = false,
     onKeyDown,
+    onWheel,
+    onFocus,
+    onBlur,
 }: SelectSearchProps<T>) {
     const { t } = useTranslation('common');
     const resolvedPlaceholder = placeholder ?? t('select');
@@ -76,6 +115,7 @@ export function SelectSearch<T = unknown>({
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
     const [altFocused, setAltFocused] = useState(false);
+    const [passwordVisible, setPasswordVisible] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const searchRef = useRef<HTMLInputElement>(null);
 
@@ -155,38 +195,62 @@ export function SelectSearch<T = unknown>({
                 className={`${styles.wrapper} ${disabled ? styles.disabled : ''} ${className ?? ''}`}
             >
                 <div className={styles.altWrap}>
-                    {altIcon ? (
+                    {!hideIcon && (altIcon ? (
                         <span className={styles.altSearchIcon}>{altIcon}</span>
                     ) : (
                         <svg className={styles.altSearchIcon} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.4"/>
                             <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
                         </svg>
-                    )}
+                    ))}
                     <div className={styles.altInputWrap}>
                         <input
-                            type="text"
-                            className={`${styles.altInput} ${value && !altFocused ? styles.altInputBlurred : ''}`}
-                            placeholder=""
+                            type={isPassword ? (passwordVisible ? 'text' : 'password') : inputType}
+                            className={`${styles.altInput} ${value && !altFocused && !isPassword ? styles.altInputBlurred : ''}`}
+                            // В обычном режиме плейсхолдер рисует Marquee-оверлей ниже (умеет
+                            // скроллить длинный текст) — тут placeholder пустой, чтобы не дублировать.
+                            // Для пароля оверлей не рендерится (см. ниже), поэтому нужен нативный.
+                            placeholder={isPassword ? resolvedPlaceholder : ''}
                             value={value}
                             disabled={disabled}
+                            name={name}
+                            autoComplete={autoComplete}
+                            required={required}
+                            maxLength={maxLength}
+                            minLength={minLength}
                             onChange={e => onChange(e.target.value)}
                             onKeyDown={onKeyDown}
-                            onFocus={() => setAltFocused(true)}
-                            onBlur={() => setAltFocused(false)}
+                            onWheel={onWheel}
+                            onFocus={() => { setAltFocused(true); onFocus?.(); }}
+                            onBlur={() => { setAltFocused(false); onBlur?.(); }}
                         />
-                        {!altFocused && (
+                        {/* Оверлей с плейсхолдером/значением скрыт для пароля — иначе он показал бы
+                            символы пароля открытым текстом поверх замаркированного инпута. */}
+                        {!altFocused && !isPassword && (
                             <div className={styles.altPlaceholder}>
                                 <Marquee text={value || resolvedPlaceholder} alwaysScroll={!!value} />
                             </div>
                         )}
                     </div>
-                    {value && !disabled && !hideClear && (
+                    {isPassword ? (
                         <Clear
-                            ariaLabel={t('clear')}
+                            ariaLabel={passwordVisible ? t('hidePassword') : t('showPassword')}
                             className={styles.clearBtn}
-                            onClick={() => onChange('')}
+                            onClick={() => setPasswordVisible(v => !v)}
+                            icon={passwordVisible ? <IoEyeOffOutline /> : <IoEyeOutline />}
                         />
+                    ) : (
+                        // Кнопка держится в DOM всегда (когда !hideClear), просто прячется через
+                        // visibility — если монтировать/размонтировать её по наличию value, ширина
+                        // flex-строки altWrap меняется в момент первого же символа, и текст/курсор
+                        // дёргается влево.
+                        !hideClear && (
+                            <Clear
+                                ariaLabel={t('clear')}
+                                className={`${styles.clearBtn} ${value && !disabled ? '' : styles.clearBtnHidden}`}
+                                onClick={() => onChange('')}
+                            />
+                        )
                     )}
                 </div>
             </div>
@@ -228,10 +292,12 @@ export function SelectSearch<T = unknown>({
                         : resolvedPlaceholder
                     }
                 </div>
-                {value && !disabled && !hideClear && (
+                {/* См. комментарий у altMode-варианта этой кнопки — держим в DOM, прячем
+                    через visibility, чтобы выбор/сброс опции не сдвигал ширину лейбла. */}
+                {!hideClear && (
                     <Clear
                         ariaLabel={t('clear')}
-                        className={styles.clearBtn}
+                        className={`${styles.clearBtn} ${value && !disabled ? '' : styles.clearBtnHidden}`}
                         onClick={handleClear}
                     />
                 )}

@@ -210,21 +210,27 @@ function FilterPanel({
                         <h3>{t('filters.price')}</h3>
                         <div className={styles.price_inputs}>
                             <div className={styles.price_input}>
-                                <input
-                                    type="number"
+                                <SelectSearch
+                                    altMode
+                                    hideIcon
+                                    options={[]}
+                                    inputType="number"
                                     placeholder={t('filters.priceFrom')}
                                     value={localFilters.minPrice}
-                                    onChange={e => handlePriceChange('minPrice', e.target.value)}
+                                    onChange={value => handlePriceChange('minPrice', value)}
                                     onWheel={(e) => e.currentTarget.blur()}
                                     disabled={localFilters.negotiablePrice}
                                 />
                             </div>
                             <div className={styles.price_input}>
-                                <input
-                                    type="number"
+                                <SelectSearch
+                                    altMode
+                                    hideIcon
+                                    options={[]}
+                                    inputType="number"
                                     placeholder={t('filters.priceTo')}
                                     value={localFilters.maxPrice}
-                                    onChange={e => handlePriceChange('maxPrice', e.target.value)}
+                                    onChange={value => handlePriceChange('maxPrice', value)}
                                     onWheel={(e) => e.currentTarget.blur()}
                                     disabled={localFilters.negotiablePrice}
                                 />

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import styles from './SortingFilter.module.scss';
 import { Reset } from '../../../shared/ui/Button/Reset/Reset';
+import { SelectSearch } from '../../../shared/ui/SelectSearch';
 import type { SortByType, SecondarySortByType, TimeFilterType } from '../../../types/common';
 
 interface SortingFilterProps {
@@ -39,58 +40,61 @@ export const SortingFilter = ({
             {open && (
                 <div className={styles.sort_filter_items}>
             <div className={styles.sort_filter_item}>
-                <label htmlFor="sortBy">{t('sorting.primarySort')}</label>
-                <select
-                    id="sortBy"
+                <label>{t('sorting.primarySort')}</label>
+                <SelectSearch
+                    noSearch
+                    hideClear
                     value={sortBy}
-                    onChange={(e) => onSortChange(e.target.value as SortByType)}
-                    className={styles.select}
-                >
-                    <option value="newest">{t('sorting.newest')}</option>
-                    <option value="oldest">{t('sorting.oldest')}</option>
-                    <option value="price-asc">{t('sorting.priceAsc')}</option>
-                    <option value="price-desc">{t('sorting.priceDesc')}</option>
-                    <option value="reviews-asc">{t('sorting.reviewsAsc')}</option>
-                    <option value="reviews-desc">{t('sorting.reviewsDesc')}</option>
-                    <option value="rating-asc">{t('sorting.ratingAsc')}</option>
-                    <option value="rating-desc">{t('sorting.ratingDesc')}</option>
-                </select>
+                    onChange={(value) => onSortChange(value as SortByType)}
+                    options={[
+                        { value: 'newest', label: t('sorting.newest') },
+                        { value: 'oldest', label: t('sorting.oldest') },
+                        { value: 'price-asc', label: t('sorting.priceAsc') },
+                        { value: 'price-desc', label: t('sorting.priceDesc') },
+                        { value: 'reviews-asc', label: t('sorting.reviewsAsc') },
+                        { value: 'reviews-desc', label: t('sorting.reviewsDesc') },
+                        { value: 'rating-asc', label: t('sorting.ratingAsc') },
+                        { value: 'rating-desc', label: t('sorting.ratingDesc') },
+                    ]}
+                />
             </div>
 
             <div className={styles.sort_filter_item}>
-                <label htmlFor="secondarySortBy">{t('sorting.secondarySort')}</label>
-                <select
-                    id="secondarySortBy"
+                <label>{t('sorting.secondarySort')}</label>
+                <SelectSearch
+                    noSearch
+                    hideClear
                     value={secondarySortBy}
-                    onChange={(e) => onSecondarySortChange(e.target.value as SecondarySortByType)}
-                    className={styles.select}
-                >
-                    <option value="none">{t('sorting.none')}</option>
-                    <option value="newest">{t('sorting.newest')}</option>
-                    <option value="oldest">{t('sorting.oldest')}</option>
-                    <option value="price-asc">{t('sorting.priceAsc')}</option>
-                    <option value="price-desc">{t('sorting.priceDesc')}</option>
-                    <option value="reviews-asc">{t('sorting.reviewsAsc')}</option>
-                    <option value="reviews-desc">{t('sorting.reviewsDesc')}</option>
-                    <option value="rating-asc">{t('sorting.ratingAsc')}</option>
-                    <option value="rating-desc">{t('sorting.ratingDesc')}</option>
-                </select>
+                    onChange={(value) => onSecondarySortChange(value as SecondarySortByType)}
+                    options={[
+                        { value: 'none', label: t('sorting.none') },
+                        { value: 'newest', label: t('sorting.newest') },
+                        { value: 'oldest', label: t('sorting.oldest') },
+                        { value: 'price-asc', label: t('sorting.priceAsc') },
+                        { value: 'price-desc', label: t('sorting.priceDesc') },
+                        { value: 'reviews-asc', label: t('sorting.reviewsAsc') },
+                        { value: 'reviews-desc', label: t('sorting.reviewsDesc') },
+                        { value: 'rating-asc', label: t('sorting.ratingAsc') },
+                        { value: 'rating-desc', label: t('sorting.ratingDesc') },
+                    ]}
+                />
             </div>
 
             <div className={styles.sort_filter_item}>
-                <label htmlFor="timeFilter">{t('sorting.timePeriod')}</label>
-                <select
-                    id="timeFilter"
+                <label>{t('sorting.timePeriod')}</label>
+                <SelectSearch
+                    noSearch
+                    hideClear
                     value={timeFilter}
-                    onChange={(e) => onTimeFilterChange(e.target.value as TimeFilterType)}
-                    className={styles.select}
-                >
-                    <option value="all">{t('sorting.all')}</option>
-                    <option value="today">{t('sorting.today')}</option>
-                    <option value="yesterday">{t('sorting.yesterday')}</option>
-                    <option value="week">{t('sorting.week')}</option>
-                    <option value="month">{t('sorting.month')}</option>
-                </select>
+                    onChange={(value) => onTimeFilterChange(value as TimeFilterType)}
+                    options={[
+                        { value: 'all', label: t('sorting.all') },
+                        { value: 'today', label: t('sorting.today') },
+                        { value: 'yesterday', label: t('sorting.yesterday') },
+                        { value: 'week', label: t('sorting.week') },
+                        { value: 'month', label: t('sorting.month') },
+                    ]}
+                />
             </div>
 
             <div className={styles.sort_filter_footer}>

@@ -88,29 +88,6 @@
 
 // ===== REVIEW-specific =====
 
-.serviceSelect {
-  width: 100%;
-  padding: 12px;
-  margin-top: 4px;
-  background-color: #F2F2F5;
-  border-radius: 10px;
-  border: none;
-  font-family: inherit;
-  font-size: 14px;
-  color: #333;
-  cursor: pointer;
-
-  &:focus {
-    outline: none;
-    background-color: #e8e8eb;
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-}
-
 .loadingServices,
 .noServices {
   padding: 12px;
@@ -202,29 +179,6 @@
 
 // ===== COMPLAINT-specific =====
 
-.ticketSelect,
-.reasonSelect {
-  width: 100%;
-  padding: 12px;
-  background-color: #F2F2F5;
-  border-radius: 10px;
-  border: none;
-  font-family: inherit;
-  font-size: 14px;
-  color: #333;
-  cursor: pointer;
-
-  &:focus {
-    outline: none;
-    background-color: #e8e8eb;
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-}
-
 .loadingTickets,
 .noTickets {
   padding: 12px;
@@ -233,31 +187,6 @@
   text-align: center;
   color: #666;
   font-size: 14px;
-}
-
-.titleInput {
-  width: 100%;
-  padding: 12px;
-  background-color: #F2F2F5;
-  border-radius: 10px;
-  border: none;
-  font-family: inherit;
-  font-size: 14px;
-  color: #333;
-
-  &:focus {
-    outline: none;
-    background-color: #e8e8eb;
-  }
-
-  &::placeholder {
-    color: #999;
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
 }
 
 .descriptionTextarea {
@@ -432,23 +361,6 @@
     color: var(--color-text-primary);
   }
 
-  .serviceSelect,
-  .ticketSelect,
-  .reasonSelect {
-    background-color: var(--color-background-all);
-    color: var(--color-text-primary);
-    border-color: var(--color-stroke);
-
-    option {
-      background-color: var(--color-background-all);
-      color: var(--color-text-primary);
-    }
-
-    &:focus {
-      background-color: var(--color-background-secondary);
-    }
-  }
-
   .loadingServices,
   .noServices,
   .loadingTickets,
@@ -462,19 +374,6 @@
     background-color: var(--color-background-all);
     color: var(--color-text-primary);
     border-color: var(--color-stroke);
-
-    &::placeholder {
-      color: var(--color-text-secondary);
-    }
-
-    &:focus {
-      background-color: var(--color-background-secondary);
-    }
-  }
-
-  .titleInput {
-    background-color: var(--color-background-all);
-    color: var(--color-text-primary);
 
     &::placeholder {
       color: var(--color-text-secondary);

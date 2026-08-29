@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import styles from '../CriteriaFilter/SortingFilter.module.scss';
 import { Reset } from '../../../shared/ui/Button/Reset/Reset';
+import { SelectSearch } from '../../../shared/ui/SelectSearch';
 import type { TechSupportSortOrder } from '../../../types/common';
 
 export interface TechSupportFilterOption {
@@ -61,58 +62,49 @@ export const TechSupportSortingFilter = ({
             {open && (
                 <div className={styles.sort_filter_items}>
                     <div className={styles.sort_filter_item}>
-                        <label htmlFor="ts-sort">{t('myTickets.filters.sort')}</label>
-                        <select
-                            id="ts-sort"
+                        <label>{t('myTickets.filters.sort')}</label>
+                        <SelectSearch
+                            noSearch
+                            hideClear
                             value={sortOrder}
-                            onChange={e => onSortChange(e.target.value as TechSupportSortOrder)}
-                            className={styles.select}
-                        >
-                            <option value="newest">{t('myTickets.filters.sortNewest')}</option>
-                            <option value="oldest">{t('myTickets.filters.sortOldest')}</option>
-                        </select>
+                            onChange={value => onSortChange(value as TechSupportSortOrder)}
+                            options={[
+                                { value: 'newest', label: t('myTickets.filters.sortNewest') },
+                                { value: 'oldest', label: t('myTickets.filters.sortOldest') },
+                            ]}
+                        />
                     </div>
 
                     <div className={styles.sort_filter_item}>
-                        <label htmlFor="ts-category">{t('myTickets.filters.category')}</label>
-                        <select
-                            id="ts-category"
+                        <label>{t('myTickets.filters.category')}</label>
+                        <SelectSearch
+                            hideClear
                             value={filterReason}
-                            onChange={e => onReasonChange(e.target.value)}
-                            className={styles.select}
-                        >
-                            {reasonOptions.map(opt => (
-                                <option key={opt.value} value={opt.value}>{opt.label}</option>
-                            ))}
-                        </select>
+                            onChange={value => onReasonChange(value)}
+                            options={reasonOptions}
+                        />
                     </div>
 
                     <div className={styles.sort_filter_item}>
-                        <label htmlFor="ts-status">{t('myTickets.filters.status')}</label>
-                        <select
-                            id="ts-status"
+                        <label>{t('myTickets.filters.status')}</label>
+                        <SelectSearch
+                            noSearch
+                            hideClear
                             value={filterStatus}
-                            onChange={e => onStatusChange(e.target.value)}
-                            className={styles.select}
-                        >
-                            {statusOptions.map(opt => (
-                                <option key={opt.value} value={opt.value}>{opt.label}</option>
-                            ))}
-                        </select>
+                            onChange={value => onStatusChange(value)}
+                            options={statusOptions}
+                        />
                     </div>
 
                     <div className={styles.sort_filter_item}>
-                        <label htmlFor="ts-priority">{t('myTickets.filters.priority')}</label>
-                        <select
-                            id="ts-priority"
+                        <label>{t('myTickets.filters.priority')}</label>
+                        <SelectSearch
+                            noSearch
+                            hideClear
                             value={filterPriority}
-                            onChange={e => onPriorityChange(e.target.value)}
-                            className={styles.select}
-                        >
-                            {priorityOptions.map(opt => (
-                                <option key={opt.value} value={opt.value}>{opt.label}</option>
-                            ))}
-                        </select>
+                            onChange={value => onPriorityChange(value)}
+                            options={priorityOptions}
+                        />
                     </div>
 
                     <div className={styles.sort_filter_footer}>

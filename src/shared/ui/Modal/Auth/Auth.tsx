@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { IoEyeOutline, IoEyeOffOutline } from 'react-icons/io5';
 import { InstagramProfessionalNotice } from '../../InstagramProfessionalNotice';
 import { useLanguageChange } from '../../../../hooks';
 import styles from './Auth.module.scss';
@@ -21,6 +20,7 @@ import { Marquee } from '../../Text/Marquee';
 import Status from '../Status';
 import { PageLoader } from '../../../../widgets/PageLoader';
 import { Clear } from '../../Button/Clear/Clear';
+import { SelectSearch } from '../../SelectSearch';
 import type { TelegramUserData as TelegramWidgetData } from '../../../../entities/api/OAuth';
 import type { OAuthProviderName, User, Occupation, Category } from '../../../../entities';
 import { ROUTES, API_ROUTES } from '../../../../app/routers/routes';
@@ -161,13 +161,6 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         message: ''
     });
     const [showPasswordRequirements, setShowPasswordRequirements] = useState(false);
-    // Per-field show/hide toggle for the eye icon — keyed by input `name` (password,
-    // confirmPassword, newPassword). Only one screen (and so one instance of each name) is
-    // ever mounted at a time, so a flat map is enough without any screen-scoping.
-    const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
-    const togglePasswordVisibility = (field: string) => {
-        setVisiblePasswords(prev => ({ ...prev, [field]: !prev[field] }));
-    };
 
     // Эффект для валидации пароля при изменении
     useEffect(() => {
@@ -521,9 +514,9 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         };
     };
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        const name = e.target.name as keyof FormData;
-        const value = e.target.value;
+    // Обновляет одно поле formData — используется вместо onChange-события, так как
+    // SelectSearch (altMode) отдаёт в onChange готовое значение, а не e.target.name/value.
+    const handleFieldChange = (name: keyof FormData) => (value: string) => {
         setFormData(prev => ({
             ...prev,
             [name]: value
@@ -675,6 +668,14 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
 
         if (!email) {
             setError('Для регистрации требуется email. Телефон не поддерживается для входа.');
+            setIsLoading(false);
+            return;
+        }
+
+        // SelectSearch (в отличие от нативного <select>) не поддерживает атрибут
+        // required — раньше это ограничение навешивал браузер, теперь проверяем сами.
+        if (formData.role === 'master' && !formData.specialty) {
+            setError(t('auth.selectSpecialty'));
             setIsLoading(false);
             return;
         }
@@ -981,11 +982,14 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 <h2>{t('auth.forgotPasswordTitle')}</h2>
 
                 <div className={styles.inputGroup}>
-                    <input
-                        type="email"
+                    <SelectSearch
+                        altMode
+                        options={[]}
+                        hideIcon
+                        inputType="email"
                         name="email"
                         value={formData.email}
-                        onChange={handleInputChange}
+                        onChange={handleFieldChange('email')}
                         required
                         disabled={isLoading}
                         placeholder={t('auth.enterEmail')}
@@ -1018,11 +1022,13 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 <p className={styles.infoText}>{t('auth.codeSentTo')} <strong>{formData.email}</strong></p>
 
                 <div className={styles.inputGroup}>
-                    <input
-                        type="text"
+                    <SelectSearch
+                        altMode
+                        options={[]}
+                        hideIcon
                         name="code"
                         value={formData.code}
-                        onChange={handleInputChange}
+                        onChange={handleFieldChange('code')}
                         required
                         maxLength={6}
                         disabled={isLoading}
@@ -1054,51 +1060,37 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 <h2>{t('auth.newPasswordTitle')}</h2>
 
                 <div className={styles.inputGroup}>
-                    <div className={styles.passwordFieldWrapper}>
-                        <input
-                            type={visiblePasswords.newPassword ? 'text' : 'password'}
-                            name="newPassword"
-                            value={formData.newPassword}
-                            onChange={handleInputChange}
-                            required
-                            minLength={8}
-                            disabled={isLoading}
-                            placeholder={t('auth.enterNewPassword')}
-                        />
-                        <button
-                            type="button"
-                            className={styles.passwordToggleBtn}
-                            onClick={() => togglePasswordVisibility('newPassword')}
-                            aria-label={visiblePasswords.newPassword ? t('auth.hidePassword') : t('auth.showPassword')}
-                            title={visiblePasswords.newPassword ? t('auth.hidePassword') : t('auth.showPassword')}
-                        >
-                            {visiblePasswords.newPassword ? <IoEyeOffOutline /> : <IoEyeOutline />}
-                        </button>
-                    </div>
+                    <SelectSearch
+                        altMode
+                        options={[]}
+                        hideIcon
+                        isPassword
+                        name="newPassword"
+                        autoComplete="new-password"
+                        value={formData.newPassword}
+                        onChange={handleFieldChange('newPassword')}
+                        required
+                        minLength={8}
+                        disabled={isLoading}
+                        placeholder={t('auth.enterNewPassword')}
+                    />
                 </div>
 
                 <div className={styles.inputGroup}>
-                    <div className={styles.passwordFieldWrapper}>
-                        <input
-                            type={visiblePasswords.confirmPassword ? 'text' : 'password'}
-                            name="confirmPassword"
-                            value={formData.confirmPassword}
-                            onChange={handleInputChange}
-                            required
-                            minLength={8}
-                            disabled={isLoading}
-                            placeholder={t('auth.confirmPassword')}
-                        />
-                        <button
-                            type="button"
-                            className={styles.passwordToggleBtn}
-                            onClick={() => togglePasswordVisibility('confirmPassword')}
-                            aria-label={visiblePasswords.confirmPassword ? t('auth.hidePassword') : t('auth.showPassword')}
-                            title={visiblePasswords.confirmPassword ? t('auth.hidePassword') : t('auth.showPassword')}
-                        >
-                            {visiblePasswords.confirmPassword ? <IoEyeOffOutline /> : <IoEyeOutline />}
-                        </button>
-                    </div>
+                    <SelectSearch
+                        altMode
+                        options={[]}
+                        hideIcon
+                        isPassword
+                        name="confirmPassword"
+                        autoComplete="new-password"
+                        value={formData.confirmPassword}
+                        onChange={handleFieldChange('confirmPassword')}
+                        required
+                        minLength={8}
+                        disabled={isLoading}
+                        placeholder={t('auth.confirmPassword')}
+                    />
                 </div>
 
                 <button type="submit" className={styles.primaryButton} disabled={isLoading}>
@@ -1150,37 +1142,34 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 <h2>{t('auth.entrance')}</h2>
 
                 <div className={styles.inputGroup}>
-                    <input
-                        type="email"
+                    <SelectSearch
+                        altMode
+                        options={[]}
+                        hideIcon
+                        inputType="email"
                         name="email"
+                        autoComplete="email"
                         value={formData.email}
-                        onChange={handleInputChange}
+                        onChange={handleFieldChange('email')}
                         required
                         disabled={isLoading}
                         placeholder={t('auth.enterEmail')}
                     />
                 </div>
                 <div className={styles.inputGroup}>
-                    <div className={styles.passwordFieldWrapper}>
-                        <input
-                            type={visiblePasswords.password ? 'text' : 'password'}
-                            name="password"
-                            value={formData.password}
-                            onChange={handleInputChange}
-                            required
-                            disabled={isLoading}
-                            placeholder={t('auth.enterPassword')}
-                        />
-                        <button
-                            type="button"
-                            className={styles.passwordToggleBtn}
-                            onClick={() => togglePasswordVisibility('password')}
-                            aria-label={visiblePasswords.password ? t('auth.hidePassword') : t('auth.showPassword')}
-                            title={visiblePasswords.password ? t('auth.hidePassword') : t('auth.showPassword')}
-                        >
-                            {visiblePasswords.password ? <IoEyeOffOutline /> : <IoEyeOutline />}
-                        </button>
-                    </div>
+                    <SelectSearch
+                        altMode
+                        options={[]}
+                        hideIcon
+                        isPassword
+                        name="password"
+                        autoComplete="current-password"
+                        value={formData.password}
+                        onChange={handleFieldChange('password')}
+                        required
+                        disabled={isLoading}
+                        placeholder={t('auth.enterPassword')}
+                    />
                 </div>
 
                 <button
@@ -1285,22 +1274,28 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
 
                 <div className={styles.nameRow}>
                     <div className={styles.inputGroup}>
-                        <input
-                            type="text"
+                        <SelectSearch
+                            altMode
+                            options={[]}
+                            hideIcon
                             name="firstName"
+                            autoComplete="given-name"
                             value={formData.firstName}
-                            onChange={handleInputChange}
+                            onChange={handleFieldChange('firstName')}
                             required
                             disabled={isLoading}
                             placeholder={t('auth.enterFirstName')}
                         />
                     </div>
                     <div className={styles.inputGroup}>
-                        <input
-                            type="text"
+                        <SelectSearch
+                            altMode
+                            options={[]}
+                            hideIcon
                             name="lastName"
+                            autoComplete="family-name"
                             value={formData.lastName}
-                            onChange={handleInputChange}
+                            onChange={handleFieldChange('lastName')}
                             required
                             disabled={isLoading}
                             placeholder={t('auth.enterLastName')}
@@ -1319,31 +1314,29 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
 
                 {formData.role === 'master' && (
                     <div className={styles.inputGroup}>
-                        <div className={styles.selectWrapper}>
-                            <select
-                                name="specialty"
-                                value={formData.specialty}
-                                onChange={handleInputChange}
-                                required={formData.role === 'master'}
-                                disabled={isLoading}
-                            >
-                                <option value="">{t('auth.selectSpecialty')}</option>
-                                {categories.map(category => (
-                                    <option key={category.id} value={category.id}>
-                                        {category.title}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                        <SelectSearch
+                            value={formData.specialty}
+                            onChange={handleFieldChange('specialty')}
+                            placeholder={t('auth.selectSpecialty')}
+                            options={categories.map(category => ({
+                                value: String(category.id),
+                                label: category.title,
+                            }))}
+                            disabled={isLoading}
+                        />
                     </div>
                 )}
 
                 <div className={styles.inputGroup}>
-                    <input
-                        type="email"
+                    <SelectSearch
+                        altMode
+                        options={[]}
+                        hideIcon
+                        inputType="email"
                         name="phoneOrEmail"
+                        autoComplete="email"
                         value={formData.phoneOrEmail}
-                        onChange={handleInputChange}
+                        onChange={handleFieldChange('phoneOrEmail')}
                         required
                         disabled={isLoading}
                         placeholder="example@mail.com"
@@ -1351,32 +1344,25 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 </div>
 
                 <div className={styles.inputGroup}>
-                    <div className={styles.passwordFieldWrapper}>
-                        <input
-                            type={visiblePasswords.password ? 'text' : 'password'}
-                            name="password"
-                            value={formData.password}
-                            onChange={handleInputChange}
-                            required
-                            disabled={isLoading}
-                            placeholder={t('auth.createPassword')}
-                            onFocus={() => setShowPasswordRequirements(true)}
-                            onBlur={() => {
-                                if (passwordValidation.isValid) {
-                                    setShowPasswordRequirements(false);
-                                }
-                            }}
-                        />
-                        <button
-                            type="button"
-                            className={styles.passwordToggleBtn}
-                            onClick={() => togglePasswordVisibility('password')}
-                            aria-label={visiblePasswords.password ? t('auth.hidePassword') : t('auth.showPassword')}
-                            title={visiblePasswords.password ? t('auth.hidePassword') : t('auth.showPassword')}
-                        >
-                            {visiblePasswords.password ? <IoEyeOffOutline /> : <IoEyeOutline />}
-                        </button>
-                    </div>
+                    <SelectSearch
+                        altMode
+                        options={[]}
+                        hideIcon
+                        isPassword
+                        name="password"
+                        autoComplete="new-password"
+                        value={formData.password}
+                        onChange={handleFieldChange('password')}
+                        required
+                        disabled={isLoading}
+                        placeholder={t('auth.createPassword')}
+                        onFocus={() => setShowPasswordRequirements(true)}
+                        onBlur={() => {
+                            if (passwordValidation.isValid) {
+                                setShowPasswordRequirements(false);
+                            }
+                        }}
+                    />
                     {showPasswordRequirements && (
                         <div className={styles.passwordRequirements}>
                             <p>{t('auth.passwordRequirements')}</p>
@@ -1402,26 +1388,19 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 </div>
 
                 <div className={styles.inputGroup}>
-                    <div className={styles.passwordFieldWrapper}>
-                        <input
-                            type={visiblePasswords.confirmPassword ? 'text' : 'password'}
-                            name="confirmPassword"
-                            value={formData.confirmPassword}
-                            onChange={handleInputChange}
-                            required
-                            disabled={isLoading}
-                            placeholder={t('auth.confirmPassword')}
-                        />
-                        <button
-                            type="button"
-                            className={styles.passwordToggleBtn}
-                            onClick={() => togglePasswordVisibility('confirmPassword')}
-                            aria-label={visiblePasswords.confirmPassword ? t('auth.hidePassword') : t('auth.showPassword')}
-                            title={visiblePasswords.confirmPassword ? t('auth.hidePassword') : t('auth.showPassword')}
-                        >
-                            {visiblePasswords.confirmPassword ? <IoEyeOffOutline /> : <IoEyeOutline />}
-                        </button>
-                    </div>
+                    <SelectSearch
+                        altMode
+                        options={[]}
+                        hideIcon
+                        isPassword
+                        name="confirmPassword"
+                        autoComplete="new-password"
+                        value={formData.confirmPassword}
+                        onChange={handleFieldChange('confirmPassword')}
+                        required
+                        disabled={isLoading}
+                        placeholder={t('auth.confirmPassword')}
+                    />
                     {formData.confirmPassword && formData.password !== formData.confirmPassword && (
                         <div className={styles.passwordError}>
                             Пароли не совпадают

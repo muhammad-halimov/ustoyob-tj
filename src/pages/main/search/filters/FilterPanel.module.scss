@@ -49,34 +49,14 @@
 .price_inputs {
   display: flex;
   gap: map.get(vars.$spacing, 3);
-  background-color: map.get(vars.$colors, color-stroke);
-  padding: map.get(vars.$spacing, 3);
-  border-radius: 10px;
 
+  // SelectSearch (altMode) уже несёт собственное оформление поля —
+  // раньше здесь была серая рамка-подложка вокруг голых <input>.
   .price_input {
     flex: 1;
-
-    input {
-      width: 100%;
-      padding: map.get(vars.$spacing, 4);
-      border: none;
-      border-radius: map.get(vars.$border-radius, base);
-      font-size: map.get(vars.$font-sizes, 'xl');
-      background: map.get(vars.$colors, primary-text-white);
-      color: map.get(vars.$colors, text-black);
-
-      &::placeholder {
-        color: map.get(vars.$colors, text-placeholder);
-        letter-spacing: 0.02em;
-        font-size: map.get(vars.$font-sizes, 'base');
-      }
-
-      &:focus {
-        outline: none;
-        border-color: map.get(vars.$colors, actual-blue);
-        box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.1);
-      }
-    }
+    // Без этого flex-item не сжимается меньше min-content всего SelectSearch —
+    // два поля в ряд суммарно шире контейнера и вылезают за панель.
+    min-width: 0;
   }
 }
 
@@ -389,15 +369,6 @@
   .characteristic_item .characteristic_title h3,
   .characteristic_item .characteristic_title span {
     color: var(--color-text-black);
-  }
-
-  .price_inputs {
-    background-color: var(--color-background-all);
-
-    .price_input input {
-      background: var(--color-background-primary);
-      color: var(--color-text-black);
-    }
   }
 
   .category_select select {

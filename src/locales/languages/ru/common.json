@@ -110,5 +110,7 @@
   "search": "Поиск...",
   "clear": "Очистить",
   "clearSearch": "Очистить поиск",
-  "noResults": "Ничего не найдено"
+  "noResults": "Ничего не найдено",
+  "showPassword": "Показать пароль",
+  "hidePassword": "Скрыть пароль"
 }

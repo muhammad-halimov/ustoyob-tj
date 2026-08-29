@@ -110,5 +110,7 @@
   "search": "Search...",
   "clear": "Clear",
   "clearSearch": "Clear search",
-  "noResults": "Nothing found"
+  "noResults": "Nothing found",
+  "showPassword": "Show password",
+  "hidePassword": "Hide password"
 }

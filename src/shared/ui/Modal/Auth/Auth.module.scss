@@ -179,65 +179,6 @@
 /* Input/Select */
 .inputGroup {
   margin-bottom: map.get(vars.$spacing, 3);
-
-  .selectWrapper {
-    position: relative;
-
-    &::after {
-      content: "▾";
-      position: absolute;
-      right: map.get(vars.$spacing, 4);
-      top: 50%;
-      transform: translateY(-50%);
-      pointer-events: none;
-      font-size: map.get(vars.$font-sizes, 'base');
-      color: map.get(vars.$colors, color-icons);
-    }
-  }
-
-  select {
-    width: 100%;
-    padding: map.get(vars.$spacing, 4);
-    background-color: map.get(vars.$colors, background-btn2);
-    color: map.get(vars.$colors, text-black);
-    border-radius: map.get(vars.$border-radius, base);
-    font-size: map.get(vars.$font-sizes, 'base');
-    transition: all 0.2s ease;
-    appearance: none;
-    cursor: pointer;
-    border: none;
-
-    &:focus {
-      outline: none;
-      background-color: map.get(vars.$colors, background-primary);
-      box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.1);
-    }
-
-    option {
-      background: map.get(vars.$colors, background-primary);
-    }
-  }
-
-  input {
-    width: 100%;
-    padding: map.get(vars.$spacing, 4);
-    background-color: map.get(vars.$colors, background-btn2);
-    color: map.get(vars.$colors, text-black);
-    border: none;
-    border-radius: map.get(vars.$border-radius, base);
-    font-size: map.get(vars.$font-sizes, 'base');
-
-    &:focus {
-      outline: none;
-      background-color: map.get(vars.$colors, background-primary);
-      box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.1);
-    }
-
-    &::placeholder {
-      color: map.get(vars.$colors, text-placeholder);
-      font-size: map.get(vars.$font-sizes, 'base');
-    }
-  }
 }
 
 .nameRow {
@@ -717,110 +658,6 @@
 .inputGroup {
   position: relative;
   margin-bottom: 16px;
-
-  &.hasError {
-    input {
-      border-color: #dc3545;
-      background-color: #fff5f5;
-
-      &:focus {
-        border-color: #dc3545;
-        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
-      }
-    }
-  }
-
-  input {
-    width: 100%;
-    padding: 12px 16px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    font-size: 16px;
-    transition: all 0.2s ease;
-    box-sizing: border-box;
-
-    &:focus {
-      outline: none;
-      border-color: #3A54DA;
-      box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.1);
-    }
-
-
-    &:disabled {
-      background-color: #f8f9fa;
-      cursor: not-allowed;
-    }
-  }
-
-  .selectWrapper {
-    position: relative;
-
-    &::after {
-      content: "▾";
-      position: absolute;
-      right: 16px;
-      top: 50%;
-      transform: translateY(-50%);
-      pointer-events: none;
-      font-size: 16px;
-      color: #888;
-    }
-
-    select {
-      width: 100%;
-      padding: 12px 16px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      font-size: 16px;
-      transition: all 0.2s ease;
-      box-sizing: border-box;
-      appearance: none;
-      cursor: pointer;
-      background-color: inherit;
-      color: inherit;
-
-      &:focus {
-        outline: none;
-        border-color: #3A54DA;
-        box-shadow: 0 0 0 3px rgba(58, 84, 218, 0.1);
-      }
-
-      &:disabled {
-        background-color: #f8f9fa;
-        cursor: not-allowed;
-      }
-    }
-  }
-}
-
-// Wraps just the `<input>` + eye button (not the helper dropdown/error text that sometimes
-// follows as a sibling in `.inputGroup`) — `top: 50%` on the button then always centers
-// against the input's own height instead of a guessed pixel offset.
-.passwordFieldWrapper {
-  position: relative;
-
-  input {
-    padding-right: 44px; // room for the icon so it never sits on top of typed text
-  }
-}
-
-.passwordToggleBtn {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  border: none;
-  padding: 4px;
-  cursor: pointer;
-  color: #888;
-
-  svg { width: 20px; height: 20px; }
-
-  &:hover { color: #3A54DA; }
 }
 
 .passwordValid {
@@ -921,22 +758,6 @@
 
       &:hover:not(.roleButtonActive) {
         background: var(--color-background-secondary);
-      }
-    }
-  }
-
-  .inputGroup {
-    select,
-    input {
-      background-color: var(--color-background-all);
-      color: var(--color-text-primary);
-
-      &:focus {
-        background-color: var(--color-background-primary);
-      }
-
-      option {
-        background: var(--color-background-primary);
       }
     }
   }

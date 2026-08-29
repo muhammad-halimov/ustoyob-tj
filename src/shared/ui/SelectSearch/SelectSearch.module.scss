@@ -6,6 +6,10 @@
   display: inline-flex;
   align-items: center;
   width: 100%;
+  // Без этого — как flex-item в узких раскладках (например, два поля "Цена" в ряд
+  // в FilterPanel) — wrapper не сжимается меньше своего содержимого (включая
+  // всегда смонтированную, просто невидимую, кнопку Clear) и вылезает за контейнер.
+  min-width: 0;
 
   &.disabled {
     opacity: 0.5;
@@ -118,6 +122,15 @@
   color: var(--color-text-primary);
   position: relative;
   z-index: 1;
+  // Прячем нативные стрелки для type="number" — своей визуальной роли (кроме
+  // спама пикселями) они не несут, а с Marquee-оверлеем поверх выглядят вразнобой.
+  -moz-appearance: textfield;
+
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
 
   &::placeholder {
     color: var(--color-text-placeholder);
@@ -166,6 +179,13 @@
   &:hover {
     color: var(--color-text-primary);
   }
+}
+
+// Прячет крестик, не убирая его из потока — иначе появление/исчезновение
+// кнопки при первом/последнем символе меняет ширину соседнего поля и текст
+// дёргается в сторону.
+.clearBtnHidden {
+  visibility: hidden;
 }
 
 // ── Дропдаун ─────────────────────────────────────────────────────────────────

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import styles from '../CriteriaFilter/SortingFilter.module.scss';
 import { Toggle } from '../../../shared/ui/Button/Toggle/Toggle';
 import { Reset } from '../../../shared/ui/Button/Reset/Reset';
+import { SelectSearch } from '../../../shared/ui/SelectSearch';
 import type { ReviewSortByType, ReviewTimeFilterType } from '../../../types/common';
 export type { ReviewSortByType, ReviewTimeFilterType };
 
@@ -41,34 +42,36 @@ export const ReviewSortingFilter = ({
             {open && (
                 <div className={styles.sort_filter_items}>
             <div className={styles.sort_filter_item} style={{ flex: '45 1 0' }}>
-                <label htmlFor="reviewSortBy">{t('reviewSorting.sort')}</label>
-                <select
-                    id="reviewSortBy"
+                <label>{t('reviewSorting.sort')}</label>
+                <SelectSearch
+                    noSearch
+                    hideClear
                     value={sortBy}
-                    onChange={(e) => onSortChange(e.target.value as ReviewSortByType)}
-                    className={styles.select}
-                >
-                    <option value="newest">{t('reviewSorting.newest')}</option>
-                    <option value="oldest">{t('reviewSorting.oldest')}</option>
-                    <option value="rating-high">{t('reviewSorting.ratingHigh')}</option>
-                    <option value="rating-low">{t('reviewSorting.ratingLow')}</option>
-                </select>
+                    onChange={(value) => onSortChange(value as ReviewSortByType)}
+                    options={[
+                        { value: 'newest', label: t('reviewSorting.newest') },
+                        { value: 'oldest', label: t('reviewSorting.oldest') },
+                        { value: 'rating-high', label: t('reviewSorting.ratingHigh') },
+                        { value: 'rating-low', label: t('reviewSorting.ratingLow') },
+                    ]}
+                />
             </div>
 
             <div className={styles.sort_filter_item} style={{ flex: '45 1 0' }}>
-                <label htmlFor="reviewTimeFilter">{t('reviewSorting.timePeriod')}</label>
-                <select
-                    id="reviewTimeFilter"
+                <label>{t('reviewSorting.timePeriod')}</label>
+                <SelectSearch
+                    noSearch
+                    hideClear
                     value={timeFilter}
-                    onChange={(e) => onTimeFilterChange(e.target.value as ReviewTimeFilterType)}
-                    className={styles.select}
-                >
-                    <option value="all">{t('reviewSorting.all')}</option>
-                    <option value="today">{t('reviewSorting.today')}</option>
-                    <option value="yesterday">{t('reviewSorting.yesterday')}</option>
-                    <option value="week">{t('reviewSorting.week')}</option>
-                    <option value="month">{t('reviewSorting.month')}</option>
-                </select>
+                    onChange={(value) => onTimeFilterChange(value as ReviewTimeFilterType)}
+                    options={[
+                        { value: 'all', label: t('reviewSorting.all') },
+                        { value: 'today', label: t('reviewSorting.today') },
+                        { value: 'yesterday', label: t('reviewSorting.yesterday') },
+                        { value: 'week', label: t('reviewSorting.week') },
+                        { value: 'month', label: t('reviewSorting.month') },
+                    ]}
+                />
             </div>
 
             <div className={styles.sort_filter_item} style={{ flex: '10 1 0', minWidth: 'unset' }}>
