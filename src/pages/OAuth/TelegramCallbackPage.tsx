@@ -127,6 +127,10 @@ const TelegramCallbackPage = () => {
                 const savedSpecialty = getSessionItem('pendingTelegramSpecialty');
 
                 // Подготавливаем запрос на бекенд
+                // hash/authDate обязательны с 27.08.2026 — бэкенд проверяет
+                // подпись виджета (TelegramHashVerifierService) вместо
+                // прежнего живого запроса к Bot API, который ломался для
+                // любого пользователя, ни разу не писавшего боту.
                 const requestData: {
                     id: number;
                     firstName: string;
@@ -135,13 +139,17 @@ const TelegramCallbackPage = () => {
                     photoUrl?: string;
                     role: string;
                     occupation?: string;
+                    hash: string;
+                    authDate: number;
                 } = {
                     id: telegramData.id,
                     firstName: telegramData.first_name,
                     lastName: telegramData.last_name,
                     username: telegramData.username,
                     photoUrl: telegramData.photo_url,
-                    role: savedRole
+                    role: savedRole,
+                    hash: telegramData.hash!,
+                    authDate: telegramData.auth_date!,
                 };
 
                 if (savedRole === 'master' && savedSpecialty) {
