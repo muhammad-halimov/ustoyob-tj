@@ -186,6 +186,9 @@
 
   .inputGroup {
     flex: 1;
+    // Без этого flex-item не сжимается меньше min-content всего SelectSearch —
+    // поля имя/фамилия суммарно шире ряда и вылезают за форму.
+    min-width: 0;
   }
 }
 

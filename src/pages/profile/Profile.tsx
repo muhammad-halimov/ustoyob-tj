@@ -51,6 +51,7 @@ import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/Cooki
 import Status from '../../shared/ui/Modal/Status';
 import Feedback from '../../shared/ui/Modal/Feedback';
 import Auth from '../../shared/ui/Modal/Auth/Auth';
+import { InstagramProfessionalNotice } from '../../shared/ui/InstagramProfessionalNotice';
 import { getAuthorAvatar } from '../../utils/imageUtils';
 import { getFormattedDate } from '../../utils/timeUtils';
 import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore';
@@ -127,6 +128,9 @@ function Profile() {
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [showErrorModal, setShowErrorModal] = useState(false);
     const [modalMessage, setModalMessage] = useState('');
+    // Instagram-only pre-linking notice (см. handleLinkProvider) — same explanation as
+    // Auth.tsx's AuthModalState.INSTAGRAM_NOTICE, just gating the link flow instead of login.
+    const [showInstagramLinkNotice, setShowInstagramLinkNotice] = useState(false);
     const [occupations, setOccupations] = useState<Occupation[]>([]);
     const [occupationsLoading, setOccupationsLoading] = useState(false);
     const [isSocialNetworksRefreshing, setIsSocialNetworksRefreshing] = useState(false);
@@ -221,7 +225,37 @@ function Profile() {
         };
     }, [readOnly]);
 
+    // Actually kicks off the provider OAuth redirect for linking — split out of
+    // handleLinkProvider so the Instagram notice below can defer it until the user
+    // confirms, instead of firing straight away like google/facebook do.
+    const startProviderOAuthLink = (provider: string) => {
+        universalApiRequest(API_ROUTES.AUTH_PROVIDER_URL(provider), { requiresAuth: false, locale: false })
+            .then(data => {
+                setSessionItem('oauthMode', 'link');
+                // На мобильных нативное приложение открывает callback в новой вкладке,
+                // где sessionStorage пустой. Сохраняем mode по state-параметру в localStorage.
+                try {
+                    const stateParam = new URL(data.url).searchParams.get('state');
+                    if (stateParam) setStorageItem(`oauth_mode_${stateParam}`, 'link');
+                } catch { /* url parse error ignored */ }
+                // Проверяем протокол перед редиректом (защита от open redirect)
+                try {
+                    const parsed = new URL(data.url);
+                    if (!['https:', 'http:'].includes(parsed.protocol)) return;
+                } catch { return; }
+                window.location.href = data.url;
+            })
+            .catch(() => {});
+    };
+
     const handleLinkProvider = (provider: string) => {
+        // Instagram больше не пускает через личные аккаунты (только Business/Creator) —
+        // как и в Auth.tsx, объясняем это и просим подтверждения до похода на Meta,
+        // вместо того чтобы сразу редиректить и ловить там невнятный отказ.
+        if (provider === 'instagram') {
+            setShowInstagramLinkNotice(true);
+            return;
+        }
         if (provider === 'telegram') {
             // Показываем всплывающий виджет Telegram (как в Auth)
             setSessionItem('oauthMode', 'link');
@@ -268,23 +302,7 @@ function Profile() {
             document.body.appendChild(overlay);
             return;
         }
-        universalApiRequest(API_ROUTES.AUTH_PROVIDER_URL(provider), { requiresAuth: false, locale: false })
-            .then(data => {
-                setSessionItem('oauthMode', 'link');
-                // На мобильных нативное приложение открывает callback в новой вкладке,
-                // где sessionStorage пустой. Сохраняем mode по state-параметру в localStorage.
-                try {
-                    const stateParam = new URL(data.url).searchParams.get('state');
-                    if (stateParam) setStorageItem(`oauth_mode_${stateParam}`, 'link');
-                } catch { /* url parse error ignored */ }
-                // Проверяем протокол перед редиректом (защита от open redirect)
-                try {
-                    const parsed = new URL(data.url);
-                    if (!['https:', 'http:'].includes(parsed.protocol)) return;
-                } catch { return; }
-                window.location.href = data.url;
-            })
-            .catch(() => {});
+        startProviderOAuthLink(provider);
     };
 
     const handleUnlinkProvider = async (provider: string) => {
@@ -3460,6 +3478,31 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                 onClose={() => setShowErrorModal(false)}
                 message={modalMessage}
             />
+
+            {showInstagramLinkNotice && (
+                <div className={styles.modalOverlay} onClick={() => setShowInstagramLinkNotice(false)}>
+                    <div className={styles.instagramNoticeCard} onClick={e => e.stopPropagation()}>
+                        <InstagramProfessionalNotice>
+                            <div className={styles.instagramNoticeActions}>
+                                <button
+                                    type="button"
+                                    className={styles.instagramNoticeContinueBtn}
+                                    onClick={() => { setShowInstagramLinkNotice(false); startProviderOAuthLink('instagram'); }}
+                                >
+                                    {t('components:auth.instagramNoticeContinue')}
+                                </button>
+                                <button
+                                    type="button"
+                                    className={styles.instagramNoticeBackBtn}
+                                    onClick={() => setShowInstagramLinkNotice(false)}
+                                >
+                                    {t('common:app.back')}
+                                </button>
+                            </div>
+                        </InstagramProfessionalNotice>
+                    </div>
+                </div>
+            )}
 
             <CookieConsentBanner/>
         </div>

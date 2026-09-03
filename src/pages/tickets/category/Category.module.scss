@@ -174,6 +174,9 @@
 
     .subcategory_search {
       flex: 1;
+      // Без этого flex-item не сжимается меньше min-content всего SelectSearch —
+      // поле вылезает за правый край шапки/панели (тот же баг, что был у "Цена").
+      min-width: 0;
 
       .search_input_wrapper {
         position: relative;
@@ -226,19 +229,20 @@
   }
 
   .subcategory_item {
-    display: flex;
-    flex-wrap: wrap;
+    // Grid, not flex-wrap+calc(%-gap): mixing the `gap` property with a manually
+    // shrunk flex-basis double-subtracts spacing, so a full row falls short of
+    // 100% width and leaves a dead gap on the right. Grid columns divide the
+    // container exactly, and an incomplete last row's items sit in their own
+    // column starting from the left automatically — no separate rule needed.
+    display: grid;
+    grid-template-columns: repeat(6, 1fr); // 6 колонок на больших экранах
     gap: 16px;
-    justify-content: flex-start;
 
     .subcategory_item_step {
       background-color: map.get(vars.$colors, primary-text-white);
       padding: 16px 12px;
       text-align: center;
       border-radius: 16px;
-      //min-width: 180px;
-      flex: 1 1 calc(16.666% - 16px); // 6 колонок на больших экранах
-      max-width: calc(16.666% - 16px);
       cursor: pointer;
       box-sizing: border-box;
       border: 2px solid transparent;
@@ -448,10 +452,7 @@
 @media screen and (max-width: 1440px) {
   .subcategories {
     .subcategory_item {
-      .subcategory_item_step {
-        flex: 1 1 calc(20% - 16px); // 5 колонок
-        max-width: calc(20% - 16px);
-      }
+      grid-template-columns: repeat(5, 1fr); // 5 колонок
     }
   }
 }
@@ -469,10 +470,7 @@
     }
 
     .subcategory_item {
-      .subcategory_item_step {
-        flex: 1 1 calc(25% - 16px); // 4 колонки
-        max-width: calc(25% - 16px);
-      }
+      grid-template-columns: repeat(4, 1fr); // 4 колонки
     }
   }
 }
@@ -480,11 +478,9 @@
 @media screen and (max-width: 768px) {
   .subcategories {
     .subcategory_item {
-      .subcategory_item_step {
-        flex: 1 1 calc(33.333% - 16px); // 3 колонки
-        max-width: calc(33.333% - 16px);
-        min-width: 140px;
+      grid-template-columns: repeat(3, 1fr); // 3 колонки
 
+      .subcategory_item_step {
         img {
           max-width: 48px;
           max-height: 48px;
@@ -530,14 +526,10 @@
     }
 
     .subcategory_item {
-      display: grid;
       grid-template-columns: repeat(2, 1fr);
       gap: 12px;
 
       .subcategory_item_step {
-        max-width: unset !important;
-        min-width: unset !important;
-        flex: unset !important;
         padding: 12px 8px;
         min-height: 100px;
         display: flex;
