@@ -8,9 +8,16 @@ interface EditActionsProps {
     onCancel: () => void;
     saveDisabled?: boolean;
     className?: string;
+    /**
+     * Когда EditActions стоит в одном ряду с соседними контролами (например, кнопкой
+     * «Добавить» в форме специальности) вместо отдельной строки под полем — отключает
+     * встроенный margin-top: 20px (он рассчитан только на второй случай, в первом он
+     * тянет ✓/✕ вниз относительно соседей по ряду).
+     */
+    inline?: boolean;
 }
 
-export const EditActions: React.FC<EditActionsProps> = ({ onSave, onCancel, saveDisabled, className }) => {
+export const EditActions: React.FC<EditActionsProps> = ({ onSave, onCancel, saveDisabled, className, inline = false }) => {
     const { t } = useTranslation('profile');
     const [isSaving, setIsSaving] = useState(false);
 
@@ -25,7 +32,7 @@ export const EditActions: React.FC<EditActionsProps> = ({ onSave, onCancel, save
     };
 
     return (
-        <div className={`${styles.edit_actions}${className ? ` ${className}` : ''}`}>
+        <div className={`${styles.edit_actions}${inline ? ` ${styles.edit_actions_inline}` : ''}${className ? ` ${className}` : ''}`}>
             <button
                 type="button"
                 className={styles.save_btn}

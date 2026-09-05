@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { InstagramProfessionalNotice } from '../../InstagramProfessionalNotice';
+import { InstagramLinkNotice } from '../InstagramLinkNotice';
 import { useLanguageChange } from '../../../../hooks';
 import styles from './Auth.module.scss';
 import {
@@ -37,10 +37,6 @@ const AuthModalState = {
     NEW_PASSWORD: 'new_password',
     CONFIRM_EMAIL: 'confirm_email',
     TELEGRAM_ROLE_SELECT: 'telegram_role_select',
-    // Промежуточный экран перед реальным стартом Instagram OAuth — Instagram больше не
-    // пускает через личные аккаунты, только Business/Creator (см. instagramNotice* в
-    // components.json). Не ошибка, а превентивное объяснение до похода на Meta.
-    INSTAGRAM_NOTICE: 'instagram_notice'
 } as const;
 
 type AuthModalStateType = typeof AuthModalState[keyof typeof AuthModalState];
@@ -136,9 +132,10 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
     const { t } = useTranslation(['components', 'common']);
     useLanguageChange(); // Для обновления категорий при смене языка
     const [currentState, setCurrentState] = useState<AuthModalStateType>(AuthModalState.WELCOME);
-    // Куда вернуться с экрана INSTAGRAM_NOTICE по кнопке "Назад" — кнопка Instagram есть
-    // и на LOGIN, и на REGISTER, назад должно вести туда, откуда реально пришли.
-    const [instagramNoticeReturnState, setInstagramNoticeReturnState] = useState<AuthModalStateType>(AuthModalState.LOGIN);
+    // Instagram-заглушка теперь отдельная модалка (shared/ui/Modal/InstagramLinkNotice)
+    // поверх текущего экрана (LOGIN/REGISTER) — не отдельный currentState, так что
+    // возвращаться никуда не нужно, экран под ней просто остаётся как был.
+    const [showInstagramNotice, setShowInstagramNotice] = useState(false);
     const [categories, setCategories] = useState<Category[]>([]);
     const [formData, setFormData] = useState<FormData>({
         email: '',
@@ -248,14 +245,6 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
-    // Instagram больше не пускает через личные аккаунты (только Business/Creator) — вместо
-    // того чтобы сразу гнать на Meta и ловить там невнятный отказ, показываем объяснение
-    // с шагами переключения и продолжаем только по явному подтверждению пользователя.
-    const openInstagramNotice = (from: AuthModalStateType) => {
-        setInstagramNoticeReturnState(from);
-        setCurrentState(AuthModalState.INSTAGRAM_NOTICE);
-    };
 
     // Общая функция для начала OAuth авторизации
     const handleOAuthStart = (provider: OAuthProviderName) => {
@@ -1204,7 +1193,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                     <button
                         type="button"
                         className={styles.instagramButton}
-                        onClick={() => openInstagramNotice(AuthModalState.LOGIN)}
+                        onClick={() => setShowInstagramNotice(true)}
                         disabled={isLoading}
                         title={t('auth.loginViaInstagram')}
                     >
@@ -1451,7 +1440,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                     <button
                         type="button"
                         className={styles.instagramButton}
-                        onClick={() => openInstagramNotice(AuthModalState.REGISTER)}
+                        onClick={() => setShowInstagramNotice(true)}
                         disabled={isLoading}
                         title={t('auth.registerViaInstagram')}
                     >
@@ -1594,34 +1583,6 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         );
     };
 
-    const renderInstagramNoticeScreen = () => {
-        return (
-            <div className={styles.form}>
-                <InstagramProfessionalNotice>
-                    <button
-                        type="button"
-                        className={styles.primaryButton}
-                        onClick={() => handleOAuthStart('instagram')}
-                        disabled={isLoading}
-                    >
-                        {isLoading ? <PageLoader fullPage={false} compact /> : t('auth.instagramNoticeContinue')}
-                    </button>
-
-                    <div className={styles.links}>
-                        <button
-                            type="button"
-                            className={styles.linkButton}
-                            onClick={() => setCurrentState(instagramNoticeReturnState)}
-                            disabled={isLoading}
-                        >
-                            {t('common:app.back')}
-                        </button>
-                    </div>
-                </InstagramProfessionalNotice>
-            </div>
-        );
-    };
-
     const renderContent = () => {
         switch (currentState) {
             case AuthModalState.WELCOME:
@@ -1634,8 +1595,6 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                 return renderConfirmEmailScreen();
             case AuthModalState.TELEGRAM_ROLE_SELECT:
                 return renderTelegramRoleSelectScreen();
-            case AuthModalState.INSTAGRAM_NOTICE:
-                return renderInstagramNoticeScreen();
             case AuthModalState.FORGOT_PASSWORD:
                 return renderForgotPasswordScreen();
             case AuthModalState.VERIFY_CODE:
@@ -1652,21 +1611,29 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
     }
 
     return (
-        <div className={styles.modalOverlay} onClick={handleOverlayClick}>
-            <div
-                className={`${styles.modalContent} ${styles[`modal_${currentState}`]}`}
-                onClick={(e) => e.stopPropagation()}
-            >
-                <Clear className={styles.closeButton} onClick={handleClose} />
-                {renderContent()}
+        <>
+            <div className={styles.modalOverlay} onClick={handleOverlayClick}>
+                <div
+                    className={`${styles.modalContent} ${styles[`modal_${currentState}`]}`}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <Clear className={styles.closeButton} onClick={handleClose} />
+                    {renderContent()}
+                </div>
+                <Status
+                    type="error"
+                    isOpen={!!error}
+                    onClose={() => setError('')}
+                    message={error}
+                />
             </div>
-            <Status
-                type="error"
-                isOpen={!!error}
-                onClose={() => setError('')}
-                message={error}
+            <InstagramLinkNotice
+                isOpen={showInstagramNotice}
+                onClose={() => setShowInstagramNotice(false)}
+                onContinue={() => { setShowInstagramNotice(false); handleOAuthStart('instagram'); }}
+                isLoading={isLoading}
             />
-        </div>
+        </>
     );
 };
 

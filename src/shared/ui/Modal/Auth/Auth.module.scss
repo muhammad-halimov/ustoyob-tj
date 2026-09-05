@@ -183,6 +183,7 @@
 
 .nameRow {
   display: flex;
+  gap: map.get(vars.$spacing, 3);
 
   .inputGroup {
     flex: 1;
@@ -390,7 +391,6 @@
 .modal_forgot_password { max-width: 520px; }
 .modal_verify_code { max-width: 520px; }
 .modal_new_password { max-width: 520px; }
-.modal_instagram_notice { max-width: 520px; }
 
 @media screen and (max-width: 550px) {
   .modal_welcome {
@@ -401,7 +401,6 @@
   .modal_forgot_password { max-width: 335px; }
   .modal_verify_code { max-width: 335px; }
   .modal_new_password { max-width: 335px; }
-  .modal_instagram_notice { max-width: 335px; }
 
   .roleSelector {
     width: 100%;

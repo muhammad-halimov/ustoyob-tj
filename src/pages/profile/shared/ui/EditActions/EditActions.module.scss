@@ -2,13 +2,28 @@
     display: flex;
     gap: 6px;
     flex-shrink: 0;
-    justify-content: center;
+    // flex-start, не center: в большинстве мест EditActions стоит под полем на всю ширину
+    // родителя (Телефоны/Соц.сети/Образование, тикеты и т.д.) и должен начинаться от
+    // левого края поля над ним, а не съезжать в середину строки.
+    // Исключение — ProfileHeader (name/gender/dob/specialty на мобильной раскладке):
+    // там вся секция и так центрирована по ширине карточки, и левый край поля совпадает
+    // с левым краем экрана — flex-start смотрелся сиротливо сбоку. Эти конкретные вызовы
+    // переопределяют через className (см. ProfileHeader.module.scss .edit_actions_center).
+    justify-content: flex-start;
     // Единый отступ сверху прямо в самом компоненте — раньше этот зазор зависел от того,
     // какой margin/padding случайно был у последнего элемента над кнопками в каждой
     // конкретной секции (Address, Toggle, инпут и т.д.), поэтому расстояние "от пола"
     // плавало от места к месту. Теперь оно одинаковое везде, где используется EditActions,
     // без плясок с className в каждом вызывающем компоненте.
     margin-top: 20px;
+}
+
+// См. проп `inline` в EditActions.tsx — сбрасывает верхний отступ для случая, когда
+// EditActions стоит в одном ряду с соседями (align-items: center эту пару сантиметров
+// не съедает: асимметричный margin-top без margin-bottom всё равно сдвигает контент
+// вниз при центрировании по кросс-оси).
+.edit_actions_inline {
+    margin-top: 0;
 }
 
 .save_btn {
@@ -19,14 +34,16 @@
     height: 34px;
     border-radius: 50%;
     border: none;
-    background: #3A54DA;
+    // var(...), не хардкод #3A54DA — в тёмной теме акцентный синий на тон светлее
+    // (--color-actual-blue: #5A6BDE), а фиксированный хекс никогда бы не переключился.
+    background: var(--color-actual-blue);
     color: white;
     cursor: pointer;
-    transition: background 0.2s ease;
+    transition: opacity 0.2s ease;
     flex-shrink: 0;
 
-    &:hover {
-        background: #2a44ca;
+    &:hover:not(:disabled) {
+        opacity: 0.85;
     }
 
     &:disabled {
@@ -42,15 +59,17 @@
     width: 34px;
     height: 34px;
     border-radius: 50%;
-    border: 1px solid #ddd;
-    background: #f5f5f5;
-    color: #666;
+    // Раньше были захардкожены светлые цвета (#f5f5f5/#ddd/#666) без единого
+    // упоминания тёмной темы — в дарк-моде кнопка светилась белым кругом посреди
+    // тёмного интерфейса. Токены ниже уже переключаются сами через :root[data-theme].
+    border: 1px solid var(--color-stroke);
+    background: var(--color-background-secondary);
+    color: var(--color-text-secondary);
     cursor: pointer;
     transition: all 0.2s ease;
     flex-shrink: 0;
 
     &:hover {
-        background: #e8e8e8;
-        border-color: #ccc;
+        background: var(--color-hover-with-border-btn);
     }
 }

@@ -286,31 +286,39 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                                     <div className={styles.name_split_inputs}>
                                         <label className={styles.name_input_group}>
                                             <span className={styles.name_input_label}>{t('profile:surnamePlaceholder')}</span>
-                                            <input
-                                                name='surname_input'
-                                                type="text"
+                                            <SelectSearch
+                                                altMode
+                                                options={[]}
+                                                hideIcon
+                                                name="surname_input"
+                                                autoComplete="family-name"
                                                 value={surnameInput}
-                                                onChange={(e) => handleSurnameChange(e.target.value)}
+                                                onChange={handleSurnameChange}
                                                 onKeyDown={(e) => onInputKeyPress(e, 'fullName')}
-                                                className={styles.name_input}
                                                 placeholder={t('profile:surnamePlaceholder')}
-                                                autoFocus
                                             />
                                         </label>
                                         <label className={styles.name_input_group}>
                                             <span className={styles.name_input_label}>{t('profile:firstNamePlaceholder')}</span>
-                                            <input
-                                                name='name_input'
-                                                type="text"
+                                            <SelectSearch
+                                                altMode
+                                                options={[]}
+                                                hideIcon
+                                                name="name_input"
+                                                autoComplete="given-name"
                                                 value={firstNameInput}
-                                                onChange={(e) => handleFirstNameChange(e.target.value)}
+                                                onChange={handleFirstNameChange}
                                                 onKeyDown={(e) => onInputKeyPress(e, 'fullName')}
-                                                className={styles.name_input}
                                                 placeholder={t('profile:firstNamePlaceholder')}
                                             />
                                         </label>
                                     </div>
-                                    <EditActions onSave={() => onInputSave('fullName')} onCancel={onEditCancel} />
+                                    <EditActions
+                                        onSave={() => onInputSave('fullName')}
+                                        onCancel={onEditCancel}
+                                        className={styles.edit_actions_center}
+                                        inline
+                                    />
                                 </div>
                             </div>
                         ) : (
@@ -318,7 +326,11 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                                 <div className={styles.name_info}>
                                     <div className={styles.name_container}>
                                         <div className={styles.name}>
-                                            <Marquee text={translatedFullName} alwaysScroll />
+                                            {/* Без alwaysScroll: имя длиннее контейнера не бегает бесконечно
+                                                (в скриншоте это всегда случайный кадр посреди анимации —
+                                                выглядит как обрезанный/сломанный текст), а стоит статично
+                                                и прокручивается только по hover, как везде. */}
+                                            <Marquee text={translatedFullName} />
                                         </div>
                                         {!readOnly && <button
                                             className={styles.edit_icon}
@@ -340,8 +352,13 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                                                     value={tempValue}
                                                     onChange={onTempValueChange}
                                                     placeholder={t('profile:genderNotSpecified')}
+                                                    className={styles.gender_select}
                                                 />
-                                                <EditActions onSave={() => onInputSave('gender')} onCancel={onEditCancel} />
+                                                <EditActions
+                                                    onSave={() => onInputSave('gender')}
+                                                    onCancel={onEditCancel}
+                                                    inline
+                                                />
                                             </div>
                                         ) : editingField === 'dateOfBirth' ? (
                                             <div className={styles.dob_edit_container}>
@@ -351,7 +368,11 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                                                     className={styles.dob_date_input}
                                                     max={new Date().toISOString().split('T')[0]}
                                                 />
-                                                <EditActions onSave={() => onInputSave('dateOfBirth')} onCancel={onEditCancel} />
+                                                <EditActions
+                                                    onSave={() => onInputSave('dateOfBirth')}
+                                                    onCancel={onEditCancel}
+                                                    inline
+                                                />
                                             </div>
                                         ) : (
                                             <>
@@ -400,7 +421,9 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                                                         + {t('profile:dobPrefix')}
                                                     </div>
                                                 )}
-                                                {email && (
+                                                {/* Email — только на своём профиле. На чужом это чужой контакт,
+                                                    который незачем светить публично. */}
+                                                {email && !readOnly && (
                                                     <div className={styles.email_tag}>
                                                         <a href={`mailto:${email}`}><Marquee text={email} alwaysScroll /></a>
                                                     </div>
@@ -466,7 +489,13 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                                         >
                                             {t('profile:addBtn')}
                                         </button>
-                                        <EditActions onSave={onSpecialtySave} onCancel={onEditCancel} saveDisabled={isLoading || currentSelectedSpecialties.length === 0} />
+                                        <EditActions
+                                            onSave={onSpecialtySave}
+                                            onCancel={onEditCancel}
+                                            saveDisabled={isLoading || currentSelectedSpecialties.length === 0}
+                                            className={styles.edit_actions_center}
+                                            inline
+                                        />
                                     </div>
                                 </div>
                             ) : (

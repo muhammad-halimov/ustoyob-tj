@@ -862,6 +862,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                                             onSave={saveEditTicket}
                                             onCancel={cancelEditTicket}
                                             saveDisabled={isSavingTicket}
+                                            inline
                                         />
                                     ) : (
                                         <button
@@ -982,6 +983,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                                                 onCancel={cancelEditMessage}
                                                 saveDisabled={isSavingMessage}
                                                 className={styles.messageEditActions}
+                                                inline
                                             />
                                         ) : (
                                             <>

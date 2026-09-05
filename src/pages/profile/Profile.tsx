@@ -51,7 +51,7 @@ import CookieConsentBanner from "../../widgets/Banners/CookieConsentBanner/Cooki
 import Status from '../../shared/ui/Modal/Status';
 import Feedback from '../../shared/ui/Modal/Feedback';
 import Auth from '../../shared/ui/Modal/Auth/Auth';
-import { InstagramProfessionalNotice } from '../../shared/ui/InstagramProfessionalNotice';
+import { InstagramLinkNotice } from '../../shared/ui/Modal/InstagramLinkNotice';
 import { getAuthorAvatar } from '../../utils/imageUtils';
 import { getFormattedDate } from '../../utils/timeUtils';
 import { ShowMore } from '../../shared/ui/Button/ShowMore/ShowMore';
@@ -3479,30 +3479,11 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                 message={modalMessage}
             />
 
-            {showInstagramLinkNotice && (
-                <div className={styles.modalOverlay} onClick={() => setShowInstagramLinkNotice(false)}>
-                    <div className={styles.instagramNoticeCard} onClick={e => e.stopPropagation()}>
-                        <InstagramProfessionalNotice>
-                            <div className={styles.instagramNoticeActions}>
-                                <button
-                                    type="button"
-                                    className={styles.instagramNoticeContinueBtn}
-                                    onClick={() => { setShowInstagramLinkNotice(false); startProviderOAuthLink('instagram'); }}
-                                >
-                                    {t('components:auth.instagramNoticeContinue')}
-                                </button>
-                                <button
-                                    type="button"
-                                    className={styles.instagramNoticeBackBtn}
-                                    onClick={() => setShowInstagramLinkNotice(false)}
-                                >
-                                    {t('common:app.back')}
-                                </button>
-                            </div>
-                        </InstagramProfessionalNotice>
-                    </div>
-                </div>
-            )}
+            <InstagramLinkNotice
+                isOpen={showInstagramLinkNotice}
+                onClose={() => setShowInstagramLinkNotice(false)}
+                onContinue={() => { setShowInstagramLinkNotice(false); startProviderOAuthLink('instagram'); }}
+            />
 
             <CookieConsentBanner/>
         </div>

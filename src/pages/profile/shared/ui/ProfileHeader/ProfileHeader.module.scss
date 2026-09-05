@@ -131,7 +131,15 @@
   color: #000;
   line-height: 1.2;
   width: fit-content;
-  max-width: 420px;
+  // Раньше был жёсткий max-width: 420px — почти впритык под "Фирдавси Абулкосим"
+  // при 36px, поэтому длинные ФИ обрезались на последней букве даже когда рядом
+  // в ряду было полно свободного места. .name — flex-item в .name_container
+  // (display:flex), а .name_container сам растянут на всю ширину .name_info
+  // (flex:1 в цепочке до самого края карточки) — значит реальный лимит и так
+  // задаёт сама раскладка. min-width:0 — чтобы flex-shrink мог сжать имя до
+  // этого реального лимита (без него nowrap-текст не сжимается ниже своей
+  // полной ширины и вместо аккуратной обрезки просто вылезает за пределы ряда).
+  min-width: 0;
   overflow: hidden;
   white-space: nowrap;
 }
@@ -171,19 +179,6 @@
   }
 }
 
-.name_input {
-  padding: 4px 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 24px;
-  font-weight: 600;
-
-  &:focus {
-    outline: none;
-    border-color: #007bff;
-  }
-}
-
 .edit_icon {
   background: none;
   border: none;
@@ -210,17 +205,20 @@
 }
 
 .name_edit_container {
-  // Раньше EditActions стоял в этом же ряду рядом с полями имени (align-items:flex-end,
-  // строкой) — единственное место в профиле с такой раскладкой, не совпадает с тем, как
-  // EditActions лежит везде остальном (Телефоны, Соц.сети, Образование) — своей строкой
-  // ниже поля/полей, по центру. Приводим к тому же виду.
-  // Без gap здесь: в flex (в отличие от обычного block-потока) соседние margin не
-  // схлопываются — gap + собственный margin-top у EditActions сложились бы вместе,
-  // и отступ "от пола" опять поплыл бы, но уже в другую сторону.
+  // Десктоп: EditActions в одном ряду справа от полей ФИО — тот же паттерн, что у
+  // gender_edit_container/dob_edit_container. align-items:center — оба элемента ряда
+  // это теперь просто поля ввода (лейблы ФАМИЛИЯ/ИМЯ выведены из потока, см.
+  // name_input_label ниже) и кнопки, без разнобоя из-за лейбла над одним из них.
+  // margin-top резервирует место под лейблы сверху — раз они position:absolute и не
+  // в потоке, без этого отступа они бы наезжали на то, что стоит рядом с именем.
+  // На мобилке поля фамилии/имени складываются в столбик на всю ширину
+  // (см. name_split_inputs), места сбоку под кнопки уже нет — там раскладка
+  // возвращается в столбик (см. медиа-запрос ниже).
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  align-items: center;
+  gap: 8px;
   width: 100%;
+  margin-top: 18px;
 }
 
 .name_split_inputs {
@@ -228,70 +226,41 @@
   gap: 8px;
   flex: 1;
   min-width: 0;
-  align-items: flex-end;
+  align-items: center;
 }
 
 .name_input_group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  // Лейбл — position:absolute (см. name_input_label), в потоке остаётся только сам
+  // SelectSearch, поэтому высота этого блока — это ровно высота поля, без гадания,
+  // сколько места сверху занимает лейбл.
+  position: relative;
   flex: 1;
   min-width: 0;
 }
 
 .name_input_label {
+  position: absolute;
+  bottom: 100%;
+  left: 2px;
+  margin-bottom: 4px;
   font-size: 11px;
   font-weight: 500;
   color: var(--color-text-secondary, #888);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  padding-left: 2px;
   white-space: nowrap;
 }
 
-.name_edit_actions {
-  display: flex;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.name_edit_save {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: none;
-  background: #3A54DA;
-  color: white;
-  cursor: pointer;
-  transition: background 0.2s ease;
-  flex-shrink: 0;
-
-  &:hover {
-    background: #2a44ca;
-  }
-}
-
-.name_edit_cancel {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 1px solid #ddd;
-  background: #f5f5f5;
-  color: #666;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-
-  &:hover {
-    background: #e8e8e8;
-    border-color: #ccc;
-  }
+// Общий оверрайд для всех мест в ProfileHeader, где EditActions стоит под полем(ями),
+// занимающим(и) всю ширину секции (ФИО, пол, дата рождения, специальность на мобильной
+// раскладке) — сама секция уже центрирована по ширине карточки, поэтому глобальный
+// flex-start (см. EditActions.module.scss) здесь сознательно переопределяется на center,
+// иначе кнопки ✓/✕ жались к левому краю экрана, выбиваясь из центрированной колонки.
+// !important — иначе исход спора двух classname с равной специфичностью (edit_actions
+// из EditActions.module.scss и этот класс отсюда) зависел бы от порядка импорта
+// CSS-модулей в сборке, а не от разметки.
+.edit_actions_center {
+  justify-content: center !important;
 }
 
 .avatar_section {
@@ -400,19 +369,28 @@
   margin-top: 8px;
 }
 
-// Поле + EditActions своей строкой ниже (по центру) — тот же паттерн, что в
-// Телефонах/Соц.сетях/Образовании, а не строкой рядом с полем. Без gap — отступ уже
-// даёт margin-top самого EditActions (flex gap + margin не схлопываются, сложились бы).
+// Пол и дата рождения — компактные поля (не на всю ширину секции, в отличие от
+// ФИО), поэтому EditActions здесь не отдельной строкой снизу, а в одном ряду справа
+// от поля — тот же паттерн, что у specialty (add_specialty_container, inline).
+// flex:1 у gender_select/dob_date_input (см. ниже) растягивает поле, а ✓/✕
+// (flex-shrink:0) остаются прижаты к правому краю ряда.
 .gender_edit_container {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.gender_select {
+  flex: 1;
+  min-width: 0;
 }
 
 .dob_edit_container {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .dob_date_input {
@@ -518,6 +496,14 @@
     align-items: center;
   }
 
+  // center, не flex-start — контент должен идти по центру карточки вслед за
+  // аватаром, а не липнуть к левому краю. width:100% здесь всё равно нужен (не
+  // fit-content): без него каждый ряд (name_row/subinfo/specialty_row) сжимался
+  // бы до своего контента и центрировался БЫ ОТДЕЛЬНО, СВОИМ родителем — при
+  // разной ширине контента (имя / кластер тегов / один бейдж специальности) это
+  // давало три разных "центра" вместо одного общего. width:100% + justify-content:center
+  // убирает разницу: все три ряда занимают всю ширину колонки и центрируют своё
+  // содержимое относительно одной и той же оси.
   .name_row {
     justify-content: center;
     width: 100%;
@@ -533,6 +519,7 @@
 
   .specialty_row {
     justify-content: center;
+    width: 100%;
   }
 
   .name {
@@ -559,9 +546,12 @@
     margin-left: 0;
   }
 
-  .name_input {
-    font-size: 18px;
-    padding: 4px 6px;
+  // Возвращаем name_edit_container в столбик — на мобилке поля фамилии/имени сами
+  // складываются в столбик на всю ширину (см. .name_split_inputs ниже), места
+  // в ряду под EditActions уже нет.
+  .name_edit_container {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .name_split_inputs {
@@ -724,6 +714,10 @@
   display: flex;
   gap: 12px;
   align-items: center;
+  // Без wrap ряд тегов (пол/дата рождения/email) не сжимается — на узком десктопном
+  // окне или с длинным email он просто вылезает за карточку и обрезается вместо
+  // переноса на вторую строку.
+  flex-wrap: wrap;
   margin-top: 4px;
   font-size: 14px;
   color: #666;
@@ -865,8 +859,14 @@
 
 @media (max-width: 850px) {
   .subinfo {
+    // center — теги идут по центру карточки вслед за аватаром/именем, а не
+    // липнут к левому краю. width:100% (не fit-content) всё равно нужен: он
+    // задаёт ширину, при которой реально происходит перенос строк, и даёт тот
+    // же общий центр, что у name_row/specialty_row (у которых тоже явный
+    // width:100%) — без него subinfo сжался бы до ширины своего контента и
+    // центрировался бы родителем отдельно, на своей ширине.
     justify-content: center;
-    text-align: center;
+    width: 100%;
     max-width: 100%;
     flex-direction: row;
     flex-wrap: wrap;
@@ -1028,12 +1028,6 @@
   .specialty,
   .reviews {
     color: var(--color-text-secondary);
-  }
-
-  .name_input {
-    border-color: var(--color-stroke);
-    color: var(--color-text-primary);
-    background: var(--color-background-primary);
   }
 
 
