@@ -24,12 +24,11 @@ import Status from '../Status';
 import { PageLoader } from '../../../../widgets/PageLoader';
 import { Clear } from '../../Button/Clear/Clear';
 import { SelectSearch } from '../../SelectSearch';
-import type { TelegramUserData as TelegramWidgetData } from '../../../../entities/api/OAuth';
 import type { OAuthProviderName, User, Occupation, Category } from '../../../../entities';
 import { ROUTES, API_ROUTES } from '../../../../app/routers/routes';
 import { universalApiRequest } from '../../../../utils/apiUtils';
 import { resolveApiError, ApiError } from '../../../../utils/appMessagesUtils';
-import { setSessionItem, getSessionItem, removeSessionItem, removeSessionItems, removeStorageItems, getStorageJSON } from '../../../../utils/storageUtils';
+import { setSessionItem, removeSessionItem, removeSessionItems, removeStorageItem, removeStorageItems, getStorageJSON } from '../../../../utils/storageUtils';
 
 const AuthModalState = {
     WELCOME: 'welcome',
@@ -208,6 +207,22 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         };
     }, []);
 
+    // Виджет Telegram (data-auth-url) может вернуть колбэк не в эту же вкладку, а в
+    // новую — так работает мобильное приложение Telegram при подтверждении входа.
+    // TelegramCallbackPage в этом случае пишет сигнал в localStorage (и пытается
+    // закрыться) — здесь подхватываем его, если эта, оригинальная, вкладка ещё жива.
+    useEffect(() => {
+        const onStorage = (e: StorageEvent) => {
+            if (e.key !== 'telegram_login_success') return;
+            removeStorageItem('telegram_login_success');
+            const token = getAuthToken();
+            if (token) handleSuccessfulAuth(token, getUserData()?.email);
+        };
+        window.addEventListener('storage', onStorage);
+        return () => window.removeEventListener('storage', onStorage);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     // Общая функция для начала OAuth авторизации (Google/Facebook/Instagram).
     // Открываем popup, а не window.location.href — полный переход вкладки на
     // домен провайдера как раз и даёт ОС повод перехватить навигацию и увести
@@ -354,71 +369,6 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         }
     };
 
-    // Обработка Telegram Widget callback
-    const handleTelegramWidgetCallback = async (authData: TelegramWidgetData) => {
-        try {
-            setIsLoading(true);
-            setError('');
-
-            console.log('Processing Telegram widget auth data:', authData);
-
-            // Получаем сохраненную роль
-            const savedRole = getSessionItem('pendingTelegramRole') || formData.role;
-            const savedSpecialty = getSessionItem('pendingTelegramSpecialty');
-
-            // Подготавливаем данные для отправки
-            const requestData: {
-                id: number;
-                username?: string;
-                firstName: string;
-                lastName?: string;
-                photoUrl?: string;
-                role: string;
-                occupation?: string;
-            } = {
-                id: authData.id,
-                firstName: authData.first_name,
-                role: savedRole
-            };
-
-            if (authData.username) {
-                requestData.username = authData.username;
-            }
-            if (authData.last_name) {
-                requestData.lastName = authData.last_name;
-            }
-            if (authData.photo_url) {
-                requestData.photoUrl = authData.photo_url;
-            }
-
-            // Если выбрана роль специалиста и есть специальность
-            if (savedRole === 'master' && savedSpecialty) {
-                requestData.occupation = API_ROUTES.OCCUPATION_BY_ID(savedSpecialty);
-            }
-
-            const data: OAuthUserResponse = await universalApiRequest(API_ROUTES.AUTH_PROVIDER_CALLBACK('telegram'), {
-                method: 'POST',
-                body: requestData,
-                requiresAuth: false,
-                locale: false,
-            });
-            console.log('Telegram widget auth completed successfully:', data);
-
-            // Сохраняем данные пользователя
-            saveUserData(data);
-            handleSuccessfulAuth(data.token, data.user.email);
-
-            // Очищаем временные данные
-            removeSessionItems('pendingTelegramRole', 'pendingTelegramSpecialty', 'telegramCsrfState');
-
-        } catch (err) {
-            console.error('Telegram widget callback error:', err);
-            setError(resolveApiError(err, 'Ошибка при завершении авторизации через Telegram'));
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
     // Функция для Telegram Widget
     const handleTelegramAuthClick = () => {
         // Сохраняем роль перед началом авторизации
@@ -451,12 +401,6 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         widgetWrapper.style.minWidth = '350px';
 
         // Кнопка закрытия (Clear-стиль)
-        // Имя коллбэка уникально на каждый показ виджета — если пользователь открыл
-        // окно, закрыл и открыл снова, старый window[callbackName] не должен
-        // случайно сработать повторно/протухшим замыканием.
-        const callbackName = `telegramAuthCallback_${Date.now()}`;
-        const cleanupCallback = () => { delete (window as any)[callbackName]; };
-
         const closeBtn = document.createElement('button');
         closeBtn.type = 'button';
         closeBtn.setAttribute('aria-label', 'Clear');
@@ -473,7 +417,6 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         closeBtn.style.justifyContent = 'center';
         closeBtn.style.padding = '4px';
         closeBtn.onclick = () => {
-            cleanupCallback();
             telegramModalContainer.remove();
         };
 
@@ -481,17 +424,13 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         widgetContainer.id = `telegram-widget-${Date.now()}`;
         widgetContainer.style.marginTop = '20px';
 
-        // data-onauth, не data-auth-url: виджет сам ведёт пользователя через
-        // подтверждение (popup на десктопе, приложение на мобильном) и вызывает
-        // эту функцию с данными пользователя напрямую — без редиректа текущей
-        // страницы и без ухода на отдельный callback-роут, который на мобильном
-        // не гарантированно возвращает в ту же вкладку.
-        (window as any)[callbackName] = (authData: TelegramWidgetData) => {
-            cleanupCallback();
-            telegramModalContainer.remove();
-            handleTelegramWidgetCallback(authData);
-        };
-
+        // data-auth-url, не data-onauth: у telegram-widget.js data-onauth разбирает
+        // строку через eval() (window.__parseFunction) — CSP этого приложения
+        // (script-src без 'unsafe-eval', см. index.html) такой eval блокирует, и
+        // виджет ломается на самой инициализации, кнопка вообще не рендерится.
+        // Возврат к редиректу закрывает вопрос с рендером; устойчивость к тому,
+        // что мобильное приложение может вернуть колбэк в другую вкладку —
+        // на стороне TelegramCallbackPage (localStorage-сигнал), не здесь.
         const script = document.createElement('script');
         script.src = 'https://telegram.org/js/telegram-widget.js?22';
         script.async = true;
@@ -499,7 +438,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         script.setAttribute('data-size', 'large');
         script.setAttribute('data-userpic', 'false');
         script.setAttribute('data-radius', '10');
-        script.setAttribute('data-onauth', `${callbackName}(user)`);
+        script.setAttribute('data-auth-url', `${window.location.origin}/auth/telegram/callback`);
         script.setAttribute('data-request-access', 'write');
 
         widgetContainer.appendChild(script);
@@ -514,7 +453,6 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         // Закрываем при клике за пределами модального окна
         telegramModalContainer.onclick = (e) => {
             if (e.target === telegramModalContainer) {
-                cleanupCallback();
                 telegramModalContainer.remove();
             }
         };

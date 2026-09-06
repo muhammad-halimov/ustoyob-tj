@@ -201,9 +201,19 @@ const TelegramCallbackPage = () => {
 
                     setSuccess(true);
                     setLoading(false);
+                    // На мобильном приложение Telegram может вернуть этот колбэк в
+                    // НОВУЮ вкладку, а не в ту, где была открыта Auth-модалка — сигналим
+                    // localStorage'ом (см. слушатель в Auth.tsx) и пробуем закрыться,
+                    // как уже делает ветка привязки провайдера выше. window.close()
+                    // сработает только если эта вкладка открыта скриптом; если это та
+                    // же вкладка (обычный десктоп) — сработает fallback-навигация.
+                    setStorageItem('telegram_login_success', Date.now().toString());
                     setTimeout(() => {
-                        navigate(ROUTES.HOME);
-                        window.dispatchEvent(new Event('login'));
+                        window.close();
+                        setTimeout(() => {
+                            navigate(ROUTES.HOME);
+                            window.dispatchEvent(new Event('login'));
+                        }, 300);
                     }, 2000);
                 } else {
                     setError(resolveApiError(null, t('oauth.tokenNotReceived')));

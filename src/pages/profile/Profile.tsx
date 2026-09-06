@@ -1,7 +1,7 @@
 import {type ChangeEvent, useCallback, useEffect, useRef, useState, Dispatch, SetStateAction} from 'react';
 import type * as React from 'react';
 import {Navigate, useNavigate, useParams} from 'react-router-dom';
-import {getAuthToken, getUserData, getUserRole, logout, setAuthToken, setAuthTokenExpiry, setUserEmail} from '../../utils/authUtils';
+import {getAuthToken, getUserData, getUserRole, logout} from '../../utils/authUtils';
 import {openOAuthPopup, navigateOAuthPopup, waitForOAuthPopupResult} from '../../utils/oauthPopup';
 import {API_ROUTES, ROUTES} from '../../app/routers/routes';
 import styles from './Profile.module.scss';
@@ -34,7 +34,6 @@ import {
     Address,
 } from '../../entities';
 import type { Image } from '../../entities';
-import type { TelegramUserData } from '../../entities/api/OAuth';
 import { API_BASE_URL } from '../../utils/configUtils';
 
 // Новые компоненты из shared/ui
@@ -284,6 +283,17 @@ function Profile() {
         }
         if (provider === 'telegram') {
             // Показываем всплывающий виджет Telegram (как в Auth)
+            // data-auth-url, не data-onauth — у telegram-widget.js data-onauth
+            // разбирает атрибут через eval() (window.__parseFunction), а наш CSP
+            // (script-src без 'unsafe-eval', см. index.html) такой eval блокирует —
+            // виджет ломается на инициализации, кнопка вообще не рендерится.
+            // Устойчивость к тому, что мобильное приложение может вернуть колбэк в
+            // другую вкладку — на стороне TelegramCallbackPage (localStorage-сигнал).
+            setSessionItem('oauthMode', 'link');
+            // На мобильных нативное приложение открывает callback в новой вкладке,
+            // где sessionStorage пустой — дублируем в localStorage
+            setStorageItem('oauth_mode_telegram', 'link');
+
             const overlay = document.createElement('div');
             overlay.id = 'telegram-link-modal';
             overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999';
@@ -292,14 +302,10 @@ function Profile() {
             const box = document.createElement('div');
             box.style.cssText = `background:${isDark ? '#2a2a2a' : '#fff'};border-radius:16px;padding:32px 28px;min-width:280px;text-align:center;position:relative;box-shadow:0 8px 40px rgba(0,0,0,.3)`;
 
-            // Имя коллбэка уникально на каждый показ — см. тот же приём в Auth.tsx.
-            const callbackName = `telegramLinkCallback_${Date.now()}`;
-            const cleanupCallback = () => { delete (window as any)[callbackName]; };
-
             const close = document.createElement('button');
             close.textContent = '✕';
             close.style.cssText = `position:absolute;top:12px;right:14px;background:none;border:none;font-size:20px;cursor:pointer;color:${isDark ? '#888' : '#999'}`;
-            close.onclick = () => { cleanupCallback(); overlay.remove(); };
+            close.onclick = () => { removeSessionItem('oauthMode'); overlay.remove(); };
 
             const title = document.createElement('p');
             title.textContent = t('oauth.linkTelegramTitle');
@@ -308,57 +314,6 @@ function Profile() {
             const widgetWrap = document.createElement('div');
             widgetWrap.id = `tg-link-widget-${Date.now()}`;
 
-            // data-onauth, не data-auth-url — виджет сам ведёт подтверждение (popup
-            // на десктопе, приложение Telegram на мобильном) и зовёт эту функцию с
-            // данными пользователя напрямую, без редиректа/отдельного callback-роута,
-            // который на мобильном не гарантированно возвращает в ту же вкладку.
-            (window as any)[callbackName] = async (authData: TelegramUserData) => {
-                cleanupCallback();
-                try {
-                    const linkBody: Record<string, unknown> = {
-                        provider: 'telegram',
-                        id: authData.id,
-                        hash: authData.hash,
-                        auth_date: authData.auth_date,
-                        first_name: authData.first_name,
-                    };
-                    if (authData.last_name) linkBody.last_name = authData.last_name;
-                    if (authData.username) linkBody.username = authData.username;
-                    if (authData.photo_url) linkBody.photo_url = authData.photo_url;
-
-                    const linkData: any = await universalApiRequest(API_ROUTES.PROFILE_OAUTH_LINK, {
-                        method: 'POST',
-                        body: linkBody,
-                        locale: false,
-                    });
-
-                    if (linkData.error === 'provider_taken' || linkData.error === 'oauth_provider_taken') {
-                        setModalMessage(linkData.message || t('common:oauth.providerTaken'));
-                        setShowErrorModal(true);
-                    } else if (linkData.error === 'already_linked') {
-                        setModalMessage(linkData.message || t('common:oauth.alreadyLinked'));
-                        setShowErrorModal(true);
-                    } else if (linkData.error) {
-                        setModalMessage(linkData.message || t('common:oauth.tryLater'));
-                        setShowErrorModal(true);
-                    } else {
-                        if (linkData.new_token) {
-                            setAuthToken(linkData.new_token);
-                            const expiryTime = new Date();
-                            expiryTime.setHours(expiryTime.getHours() + 1);
-                            setAuthTokenExpiry(expiryTime.toISOString());
-                        }
-                        if (linkData.new_email) setUserEmail(linkData.new_email);
-                        loadProviders();
-                    }
-                } catch (err) {
-                    setModalMessage(resolveApiError(err, t('common:oauth.tryLater')));
-                    setShowErrorModal(true);
-                } finally {
-                    overlay.remove();
-                }
-            };
-
             const script = document.createElement('script');
             script.src = 'https://telegram.org/js/telegram-widget.js?22';
             script.async = true;
@@ -366,7 +321,7 @@ function Profile() {
             script.setAttribute('data-size', 'large');
             script.setAttribute('data-userpic', 'false');
             script.setAttribute('data-radius', '10');
-            script.setAttribute('data-onauth', `${callbackName}(user)`);
+            script.setAttribute('data-auth-url', `${window.location.origin}/auth/telegram/callback`);
             script.setAttribute('data-request-access', 'write');
 
             widgetWrap.appendChild(script);
@@ -374,7 +329,7 @@ function Profile() {
             box.appendChild(title);
             box.appendChild(widgetWrap);
             overlay.appendChild(box);
-            overlay.onclick = (e: MouseEvent) => { if (e.target === overlay) { cleanupCallback(); overlay.remove(); } };
+            overlay.onclick = (e: MouseEvent) => { if (e.target === overlay) { removeSessionItem('oauthMode'); overlay.remove(); } };
             document.body.appendChild(overlay);
             return;
         }
