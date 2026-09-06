@@ -321,6 +321,10 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
 
                 {/* Mobile слайдер */}
                 <div className={styles.reviews_slider}>
+                    {!loading && reviews.length === 0 && (
+                        <EmptyState title={t('profile:noReviews')} onRefresh={handleRefresh} />
+                    )}
+                    {reviews.length > 0 && (
                     <Swiper
                         spaceBetween={16}
                         slidesPerView={1.2}
@@ -420,6 +424,7 @@ export const MainReviewsSection: React.FC<MainReviewsSectionProps> = ({ classNam
                             </SwiperSlide>
                         ))}
                     </Swiper>
+                    )}
                 </div>
 
                 <ShowMore
