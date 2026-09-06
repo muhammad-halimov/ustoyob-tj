@@ -78,10 +78,10 @@ const OAuthCallbackPage = () => {
         // быть выгружена системой из памяти на время визита в приложение вместе со
         // всем JS-состоянием, так что сигнал слушать некому, и window.close() эту
         // (постороннюю для script) вкладку не закроет. Раз мы всё ещё живы через
-        // пару секунд — значит ни то, ни другое не сработало, и продолжаем сами,
+        // 1.5 секунды — значит ни то, ни другое не сработало, и продолжаем сами,
         // тут же: токен уже в localStorage этой вкладки, так что попадём на
         // залогиненную страницу вместо вечного экрана "успешно".
-        window.setTimeout(() => navigate(fallbackRoute, fallbackOptions), 2500);
+        window.setTimeout(() => navigate(fallbackRoute, fallbackOptions), 1500);
     }, [navigate]);
 
     useEffect(() => {
@@ -92,7 +92,7 @@ const OAuthCallbackPage = () => {
         if (!detectedProvider) {
             setError(t('oauth.unknownProvider'));
             setLoading(false);
-            setTimeout(() => finishOrNavigate({ status: 'error', message: t('oauth.unknownProvider') }, ROUTES.HOME), 3000);
+            setTimeout(() => finishOrNavigate({ status: 'error', message: t('oauth.unknownProvider') }, ROUTES.HOME), 1500);
             return;
         }
 
@@ -111,14 +111,14 @@ const OAuthCallbackPage = () => {
                 const message = `${t('oauth.errorTitle')} (${detectedProvider}): ${decodeURIComponent(errorMsg)}`;
                 setError(message);
                 setLoading(false);
-                setTimeout(() => finishOrNavigate({ status: 'error', message }, ROUTES.HOME), 3000);
+                setTimeout(() => finishOrNavigate({ status: 'error', message }, ROUTES.HOME), 1500);
                 return;
             }
 
             if (!code || !state) {
                 setError(t('oauth.noAuthData'));
                 setLoading(false);
-                setTimeout(() => finishOrNavigate({ status: 'error', message: t('oauth.noAuthData') }, ROUTES.HOME), 3000);
+                setTimeout(() => finishOrNavigate({ status: 'error', message: t('oauth.noAuthData') }, ROUTES.HOME), 1500);
                 return;
             }
 
@@ -168,7 +168,7 @@ const OAuthCallbackPage = () => {
                         setUserEmail(linkData.new_email);
                     }
                     setSuccess(true);
-                    setTimeout(() => finishOrNavigate({ status: 'success' }, ROUTES.PROFILE, { replace: true }), 2000);
+                    setTimeout(() => finishOrNavigate({ status: 'success' }, ROUTES.PROFILE, { replace: true }), 900);
                     return;
                 }
 
@@ -183,7 +183,7 @@ const OAuthCallbackPage = () => {
                     const message = t('oauth.invalidState', 'Invalid OAuth state. Possible CSRF attack.');
                     setError(message);
                     setLoading(false);
-                    setTimeout(() => finishOrNavigate({ status: 'error', message }, ROUTES.HOME), 3000);
+                    setTimeout(() => finishOrNavigate({ status: 'error', message }, ROUTES.HOME), 1500);
                     return;
                 }
                 removeSessionItem(`${detectedProvider}CsrfState`);
@@ -246,14 +246,14 @@ const OAuthCallbackPage = () => {
                             }
                             // На случай мобильного app-switch в другую вкладку, которую
                             // некому слушать (см. комментарий в finishOrNavigate) — если
-                            // за пару секунд эта вкладка не закрылась, продолжаем сами.
-                            window.setTimeout(() => navigate(ROUTES.HOME), 2500);
-                        }, 2000);
+                            // за 1.5 секунды эта вкладка не закрылась, продолжаем сами.
+                            window.setTimeout(() => navigate(ROUTES.HOME), 1500);
+                        }, 900);
                     }
                 } else {
                     const message = resolveApiError(null, t('oauth.tokenNotReceived'));
                     setError(message);
-                    setTimeout(() => finishOrNavigate({ status: 'error', message }, ROUTES.HOME), 3000);
+                    setTimeout(() => finishOrNavigate({ status: 'error', message }, ROUTES.HOME), 1500);
                 }
 
             } catch (err) {
@@ -270,7 +270,7 @@ const OAuthCallbackPage = () => {
                     setError(message);
                 } else {
                     setError(message);
-                    setTimeout(() => finishOrNavigate({ status: 'error', message }, ROUTES.HOME), 3000);
+                    setTimeout(() => finishOrNavigate({ status: 'error', message }, ROUTES.HOME), 1500);
                 }
             } finally {
                 setLoading(false);
@@ -301,9 +301,9 @@ const OAuthCallbackPage = () => {
                     setTimeout(() => window.location.reload(), 100);
                 } else {
                     // На случай мобильного app-switch в другую вкладку, которую некому
-                    // слушать (см. комментарий в finishOrNavigate) — если за пару секунд
+                    // слушать (см. комментарий в finishOrNavigate) — если за 1.5 секунды
                     // эта вкладка не закрылась, продолжаем сами.
-                    window.setTimeout(() => navigate(ROUTES.HOME), 2500);
+                    window.setTimeout(() => navigate(ROUTES.HOME), 1500);
                 }
             } catch (err) {
                 setError(resolveApiError(err));

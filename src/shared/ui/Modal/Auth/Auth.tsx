@@ -16,7 +16,7 @@ import {
     setUserOccupation,
     isAdmin,
 } from '../../../../utils/authUtils';
-import { openOAuthPopup, navigateOAuthPopup, waitForOAuthPopupResult, markOAuthPopupFlow } from '../../../../utils/oauthPopup';
+import { openOAuthPopup, navigateOAuthPopup, waitForOAuthPopupResult, markOAuthPopupFlow, isLikelyMobileOSDevice } from '../../../../utils/oauthPopup';
 import { getOccupations } from '../../../../utils/dataCacheUtils';
 import { DateWidget } from '../../../../widgets/DateWidget/DateWidget';
 import { Marquee } from '../../Text/Marquee';
@@ -224,17 +224,72 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
     }, []);
 
     // Общая функция для начала OAuth авторизации (Google/Facebook/Instagram).
-    // Открываем popup, а не window.location.href — полный переход вкладки на
-    // домен провайдера как раз и даёт ОС повод перехватить навигацию и увести
-    // в нативное приложение вместо страницы в браузере. Popup эту вероятность
-    // не убирает целиком (это по-прежнему решение ОС/провайдера), но не отдаёт
-    // саму нашу вкладку — OAuthCallbackPage внутри popup'а сам сообщает
-    // результат через postMessage и закрывается (см. utils/oauthPopup).
+    //
+    // Десктоп: открываем popup, а не window.location.href — полный переход
+    // вкладки на домен провайдера как раз и даёт ОС повод перехватить навигацию
+    // и увести в нативное приложение вместо страницы в браузере. Popup эту
+    // вероятность не убирает целиком (это по-прежнему решение ОС/провайдера),
+    // но не отдаёт саму нашу вкладку — OAuthCallbackPage внутри popup'а сам
+    // сообщает результат и закрывается (см. utils/oauthPopup).
+    //
+    // Мобильные (iOS/Android): popup здесь не помогает, а вредит. Приложение
+    // Instagram/Facebook всё равно может перехватить переход независимо от
+    // того, popup это или обычная навигация — это решает ОС, не мы — но при
+    // ВОЗВРАТЕ из приложения popup-подход может получить контроль в СОВЕРШЕННО
+    // ДРУГОЙ вкладке, никак не связанной с той, что мы открывали (нет
+    // window.opener, а исходная вкладка вдобавок могла быть выгружена системой
+    // из памяти на время визита в приложение вместе со всем JS-состоянием) —
+    // на практике это две висящие вкладки вместо одной работающей. Обычный
+    // редирект — это как раз тот паттерн, под который заточен возврат из
+    // приложения на мобильных (ОС возвращает именно в ту же вкладку).
     const handleOAuthStart = (provider: OAuthProviderName) => {
         const roleKey = `pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Role`;
         const specialtyKey = `pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Specialty`;
         const csrfKey = `${provider}CsrfState`;
         const providerLabel = provider.charAt(0).toUpperCase() + provider.slice(1);
+
+        if (isLikelyMobileOSDevice()) {
+            try {
+                setSessionItem(roleKey, formData.role);
+                if (formData.role === 'master' && formData.specialty) {
+                    setSessionItem(specialtyKey, formData.specialty);
+                }
+                universalApiRequest(API_ROUTES.AUTH_PROVIDER_URL(provider), {
+                    requiresAuth: false,
+                    locale: false,
+                })
+                    .then((data: any) => {
+                        const redirectUrl = (data as OAuthUrlResponse).url;
+                        let parsed: URL;
+                        try {
+                            parsed = new URL(redirectUrl);
+                        } catch {
+                            setError('Получен некорректный URL для авторизации');
+                            return;
+                        }
+                        if (!['https:', 'http:'].includes(parsed.protocol)) {
+                            setError('Получен некорректный URL для авторизации');
+                            return;
+                        }
+                        const stateFromUrl = parsed.searchParams.get('state');
+                        if (stateFromUrl) {
+                            setSessionItem(csrfKey, stateFromUrl);
+                        }
+                        handleClose();
+                        window.location.href = redirectUrl;
+                    })
+                    .catch(err => {
+                        console.error(`${provider.toUpperCase()} auth error:`, err);
+                        setError(resolveApiError(err, `Ошибка при авторизации через ${providerLabel}`));
+                        removeSessionItems(roleKey, specialtyKey, csrfKey);
+                    });
+            } catch (err) {
+                console.error(`${provider.toUpperCase()} auth error:`, err);
+                setError(resolveApiError(err, `Ошибка при авторизации через ${providerLabel}`));
+                removeSessionItems(roleKey, specialtyKey, csrfKey);
+            }
+            return;
+        }
 
         // Открываем popup синхронно, ДО await/.then() — иначе к моменту, когда
         // придёт ответ с реальным URL, жест пользователя (клик) уже "остынет" и
