@@ -67,8 +67,21 @@ const OAuthCallbackPage = () => {
         fallbackRoute: string,
         fallbackOptions?: { replace?: boolean },
     ) => {
-        if (finishOAuthPopup(oauthStateRef.current, result)) return;
-        navigate(fallbackRoute, fallbackOptions);
+        if (!finishOAuthPopup(oauthStateRef.current, result)) {
+            navigate(fallbackRoute, fallbackOptions);
+            return;
+        }
+        // finishOAuthPopup сам пытается отчитаться опенеру и закрыться, но это не
+        // гарантия: на мобильном при возврате из приложения Instagram/Facebook ОС
+        // иногда открывает СОВСЕМ ДРУГУЮ вкладку, никак не связанную с той, что мы
+        // открывали (window.opener пуст) — а исходная вкладка тем временем могла
+        // быть выгружена системой из памяти на время визита в приложение вместе со
+        // всем JS-состоянием, так что сигнал слушать некому, и window.close() эту
+        // (постороннюю для script) вкладку не закроет. Раз мы всё ещё живы через
+        // пару секунд — значит ни то, ни другое не сработало, и продолжаем сами,
+        // тут же: токен уже в localStorage этой вкладки, так что попадём на
+        // залогиненную страницу вместо вечного экрана "успешно".
+        window.setTimeout(() => navigate(fallbackRoute, fallbackOptions), 2500);
     }, [navigate]);
 
     useEffect(() => {
@@ -229,7 +242,12 @@ const OAuthCallbackPage = () => {
                             if (!finishOAuthPopup(oauthStateRef.current, { status: 'success' })) {
                                 navigate(ROUTES.HOME);
                                 window.dispatchEvent(new Event('login'));
+                                return;
                             }
+                            // На случай мобильного app-switch в другую вкладку, которую
+                            // некому слушать (см. комментарий в finishOrNavigate) — если
+                            // за пару секунд эта вкладка не закрылась, продолжаем сами.
+                            window.setTimeout(() => navigate(ROUTES.HOME), 2500);
                         }, 2000);
                     }
                 } else {
@@ -281,6 +299,11 @@ const OAuthCallbackPage = () => {
                     navigate(ROUTES.HOME);
                     window.dispatchEvent(new Event('login'));
                     setTimeout(() => window.location.reload(), 100);
+                } else {
+                    // На случай мобильного app-switch в другую вкладку, которую некому
+                    // слушать (см. комментарий в finishOrNavigate) — если за пару секунд
+                    // эта вкладка не закрылась, продолжаем сами.
+                    window.setTimeout(() => navigate(ROUTES.HOME), 2500);
                 }
             } catch (err) {
                 setError(resolveApiError(err));
