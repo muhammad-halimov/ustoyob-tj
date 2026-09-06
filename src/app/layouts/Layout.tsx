@@ -84,6 +84,32 @@ export default function Layout() {
         return () => window.removeEventListener('openAuthModal', handler);
     }, []);
 
+    // "Лечим" забытую вкладку. При OAuth через Instagram/Facebook на мобильном
+    // ОС может вернуть из приложения провайдера в СОВСЕМ ДРУГУЮ вкладку, а не в
+    // ту, что была открыта изначально (это решает Android/iOS при резолве
+    // deep-link'а, не наш код — происходит и с popup, и с обычным редиректом
+    // одинаково). Исходная вкладка при этом просто виснет в фоне со старым,
+    // разлогиненным состоянием — а токен от новой вкладки лежит в том же
+    // localStorage. Вместо того чтобы пытаться дотянуться до неё откуда-то ещё
+    // (это физически невозможно — нет API, чтобы одна вкладка достучалась до
+    // другой, не открытой ею самой), просто перепроверяем при возврате на ЛЮБУЮ
+    // вкладку: если авторизация появилась, пока эта была не видна — обновляемся.
+    useEffect(() => {
+        const wasAuthenticated = isAuthenticated();
+        const recheck = () => {
+            if (document.visibilityState !== 'visible') return;
+            if (isAuthenticated() && !wasAuthenticated) {
+                window.location.reload();
+            }
+        };
+        document.addEventListener('visibilitychange', recheck);
+        window.addEventListener('focus', recheck);
+        return () => {
+            document.removeEventListener('visibilitychange', recheck);
+            window.removeEventListener('focus', recheck);
+        };
+    }, []);
+
     if (isOAuthPage) {
         return <Outlet />;
     }
