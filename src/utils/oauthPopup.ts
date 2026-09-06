@@ -142,10 +142,20 @@ export function waitForOAuthPopupResult(popup: Window): Promise<void> {
             // доступны в любом случае.
             let closed = false;
             try { closed = popup.closed; } catch { closed = true; }
-            if (closed) {
+            if (!closed) return;
+
+            window.clearInterval(pollTimer);
+            // finishOAuthPopup пишет сигнал (localStorage/postMessage) и закрывает
+            // окно одним синхронным блоком — а popup только что мог быть на чужом
+            // origin (другой процесс у браузера), так что доставка storage/message
+            // сюда не мгновенна. Без этой паузы опрос иногда замечал закрытие
+            // РАНЬШЕ, чем долетал сигнал, и настоящий успех (например у Facebook)
+            // принимался за ручное закрытие пользователем.
+            setTimeout(() => {
+                if (settled) return;
                 cleanup();
-                if (!settled) reject(new Error('popup_closed'));
-            }
+                reject(new Error('popup_closed'));
+            }, 300);
         }, 500);
 
         window.addEventListener('message', onMessage);
