@@ -2,7 +2,7 @@ import {type ChangeEvent, useCallback, useEffect, useRef, useState, Dispatch, Se
 import type * as React from 'react';
 import {Navigate, useNavigate, useParams} from 'react-router-dom';
 import {getAuthToken, getUserData, getUserRole, logout} from '../../utils/authUtils';
-import {openOAuthPopup, navigateOAuthPopup, waitForOAuthPopupResult} from '../../utils/oauthPopup';
+import {openOAuthPopup, navigateOAuthPopup, waitForOAuthPopupResult, markOAuthPopupFlow} from '../../utils/oauthPopup';
 import {API_ROUTES, ROUTES} from '../../app/routers/routes';
 import styles from './Profile.module.scss';
 import {useTranslation} from 'react-i18next';
@@ -252,7 +252,13 @@ function Profile() {
                 // state-параметру в localStorage на такой случай.
                 try {
                     const stateParam = new URL(data.url).searchParams.get('state');
-                    if (stateParam) setStorageItem(`oauth_mode_${stateParam}`, 'link');
+                    if (stateParam) {
+                        setStorageItem(`oauth_mode_${stateParam}`, 'link');
+                        // Помечаем именно этот state как popup-флоу — OAuthCallbackPage
+                        // сверится с этим по своему state и поймёт, что надо не
+                        // navigate(), а отчитаться нам и закрыться (см. utils/oauthPopup).
+                        markOAuthPopupFlow(stateParam);
+                    }
                 } catch { /* url parse error ignored */ }
                 // Проверяем протокол перед переходом (защита от open redirect)
                 try {

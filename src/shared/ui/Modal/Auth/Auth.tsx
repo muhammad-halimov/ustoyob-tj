@@ -16,7 +16,7 @@ import {
     setUserOccupation,
     isAdmin,
 } from '../../../../utils/authUtils';
-import { openOAuthPopup, navigateOAuthPopup, waitForOAuthPopupResult } from '../../../../utils/oauthPopup';
+import { openOAuthPopup, navigateOAuthPopup, waitForOAuthPopupResult, markOAuthPopupFlow } from '../../../../utils/oauthPopup';
 import { getOccupations } from '../../../../utils/dataCacheUtils';
 import { DateWidget } from '../../../../widgets/DateWidget/DateWidget';
 import { Marquee } from '../../Text/Marquee';
@@ -277,6 +277,10 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                     const stateFromUrl = parsed.searchParams.get('state');
                     if (stateFromUrl) {
                         setSessionItem(csrfKey, stateFromUrl);
+                        // Помечаем именно этот state как popup-флоу — OAuthCallbackPage
+                        // сверится с этим по своему state и поймёт, что надо не
+                        // navigate(), а отчитаться нам и закрыться (см. utils/oauthPopup).
+                        markOAuthPopupFlow(stateFromUrl);
                     }
 
                     navigateOAuthPopup(popup, redirectUrl);

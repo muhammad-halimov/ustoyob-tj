@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ROUTES, API_ROUTES } from '../../app/routers/routes';
 import Status from '../../shared/ui/Modal/Status';
@@ -55,19 +55,19 @@ const OAuthCallbackPage = () => {
     // и в Auth.tsx до старта флоу, а не голый текст ошибки.
     const [instagramProfessionalRequired, setInstagramProfessionalRequired] = useState(false);
     const { t } = useTranslation(['common', 'components']);
+    // state из URL, сохранённый как только распознан — finishOAuthPopup сверяет
+    // его с тем, что Auth.tsx/Profile.tsx пометили перед открытием popup'а (см.
+    // utils/oauthPopup), чтобы понять: это popup-флоу (тогда — отчитаться
+    // опенеру и закрыться) или обычный прямой заход (тогда — navigate() как раньше).
+    // Ref, не state — нужен синхронно внутри колбэков, без лишнего ре-рендера.
+    const oauthStateRef = useRef<string | null>(null);
 
-    // Эта страница теперь чаще всего рендерится не как отдельная навигация, а
-    // внутри popup-окна, открытого Auth.tsx/Profile.tsx (см. utils/oauthPopup) —
-    // тогда вместо navigate() нужно просто сообщить результат окну-опенеру и
-    // закрыться самим. finishOAuthPopup возвращает false, если opener'а нет
-    // (страницу открыли напрямую, не из popup'а) — тогда падаем обратно на
-    // обычную навигацию, как раньше.
     const finishOrNavigate = useCallback((
         result: { status: 'success' } | { status: 'error'; message?: string },
         fallbackRoute: string,
         fallbackOptions?: { replace?: boolean },
     ) => {
-        if (finishOAuthPopup(result)) return;
+        if (finishOAuthPopup(oauthStateRef.current, result)) return;
         navigate(fallbackRoute, fallbackOptions);
     }, [navigate]);
 
@@ -88,6 +88,7 @@ const OAuthCallbackPage = () => {
             // Для Instagram и Facebook
             const code = searchParams.get('code');
             const state = searchParams.get('state');
+            oauthStateRef.current = state;
             const errorParam = searchParams.get('error');
             const errorDescription = searchParams.get('error_description');
 
@@ -225,7 +226,7 @@ const OAuthCallbackPage = () => {
                             // этой же вкладке (fallback-ветка) — в popup'е это событие никто
                             // не услышит, опенер сам разберётся по своему собственному
                             // getAuthToken() после finishOAuthPopup.
-                            if (!finishOAuthPopup({ status: 'success' })) {
+                            if (!finishOAuthPopup(oauthStateRef.current, { status: 'success' })) {
                                 navigate(ROUTES.HOME);
                                 window.dispatchEvent(new Event('login'));
                             }
@@ -276,7 +277,7 @@ const OAuthCallbackPage = () => {
                     locale: false,
                 });
                 setUserRole(role);
-                if (!finishOAuthPopup({ status: 'success' })) {
+                if (!finishOAuthPopup(oauthStateRef.current, { status: 'success' })) {
                     navigate(ROUTES.HOME);
                     window.dispatchEvent(new Event('login'));
                     setTimeout(() => window.location.reload(), 100);
