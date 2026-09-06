@@ -270,7 +270,15 @@ function Profile() {
                 waitForOAuthPopupResult(popup)
                     .then(() => loadProviders())
                     .catch((err: Error) => {
-                        if (err.message === 'popup_closed') return;
+                        // Popup закрылся без сигнала (postMessage/localStorage до нас не
+                        // долетели — например Facebook рвёт оба канала) — не считаем это
+                        // отменой вслепую: перезапрашиваем список привязанных провайдеров
+                        // в любом случае, это дёшево и корректно покажет реальный результат,
+                        // даже если уведомление о завершении так и не пришло.
+                        if (err.message === 'popup_closed') {
+                            loadProviders();
+                            return;
+                        }
                         setModalMessage(resolveApiError(err, t('common:oauth.tryLater')));
                         setShowErrorModal(true);
                     })

@@ -295,8 +295,19 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                             }
                         })
                         .catch((popupErr: Error) => {
-                            // Пользователь просто закрыл popup сам — не ошибка, молча выходим.
-                            if (popupErr.message === 'popup_closed') return;
+                            if (popupErr.message === 'popup_closed') {
+                                // Popup закрылся без сигнала (postMessage/localStorage до нас
+                                // не долетели — например Facebook: обрубает и то, и другое)
+                                // — прежде чем считать это отменой, проверяем реальный
+                                // результат: OAuthCallbackPage внутри popup'а уже успел бы
+                                // записать токен в тот же localStorage, если авторизация
+                                // прошла. Так мы не зависим от того, дошло ли уведомление.
+                                const token = getAuthToken();
+                                if (token) {
+                                    handleSuccessfulAuth(token, getUserData()?.email);
+                                }
+                                return;
+                            }
                             setError(resolveApiError(popupErr, `Ошибка при авторизации через ${providerLabel}`));
                         })
                         .finally(() => {
