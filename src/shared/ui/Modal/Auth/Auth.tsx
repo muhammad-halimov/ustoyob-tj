@@ -5,6 +5,8 @@ import { InstagramLinkNotice } from '../InstagramLinkNotice';
 import { useLanguageChange } from '../../../../hooks';
 import styles from './Auth.module.scss';
 import {
+    getAuthToken,
+    getUserData,
     getUserRole,
     setAuthToken,
     setAuthTokenExpiry,
@@ -14,6 +16,7 @@ import {
     setUserOccupation,
     isAdmin,
 } from '../../../../utils/authUtils';
+import { openOAuthPopup, navigateOAuthPopup, waitForOAuthPopupResult } from '../../../../utils/oauthPopup';
 import { getOccupations } from '../../../../utils/dataCacheUtils';
 import { DateWidget } from '../../../../widgets/DateWidget/DateWidget';
 import { Marquee } from '../../Text/Marquee';
@@ -200,59 +203,39 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         // Слушаем смену языка для перезагрузки категорий
         window.addEventListener('languageChanged', loadCategories);
 
-        // Загружаем скрипт Telegram Widget
-        const loadTelegramWidget = () => {
-            if (document.querySelector('script[src*="telegram-widget"]')) {
-                return;
-            }
-
-            const script = document.createElement('script');
-            script.src = 'https://telegram.org/js/telegram-widget.js?22';
-            script.async = true;
-            script.onload = () => {
-                console.log('Telegram Widget script loaded');
-            };
-            document.body.appendChild(script);
-        };
-
-        loadTelegramWidget();
-
-        // Обработка сообщений от Telegram Widget
-        const handleTelegramAuth = (event: MessageEvent) => {
-            if (event.origin !== 'https://oauth.telegram.org') {
-                return;
-            }
-
-            try {
-                const data = event.data;
-                console.log('Telegram auth data received:', data);
-
-                if (data.event === 'auth_callback') {
-                    const authData: TelegramWidgetData = data.auth;
-                    handleTelegramWidgetCallback(authData);
-                }
-            } catch (err) {
-                console.error('Error processing Telegram auth:', err);
-                setError('Ошибка авторизации через Telegram');
-            }
-        };
-
-        window.addEventListener('message', handleTelegramAuth);
-
         return () => {
-            window.removeEventListener('message', handleTelegramAuth);
             window.removeEventListener('languageChanged', loadCategories);
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Общая функция для начала OAuth авторизации
+    // Общая функция для начала OAuth авторизации (Google/Facebook/Instagram).
+    // Открываем popup, а не window.location.href — полный переход вкладки на
+    // домен провайдера как раз и даёт ОС повод перехватить навигацию и увести
+    // в нативное приложение вместо страницы в браузере. Popup эту вероятность
+    // не убирает целиком (это по-прежнему решение ОС/провайдера), но не отдаёт
+    // саму нашу вкладку — OAuthCallbackPage внутри popup'а сам сообщает
+    // результат через postMessage и закрывается (см. utils/oauthPopup).
     const handleOAuthStart = (provider: OAuthProviderName) => {
+        const roleKey = `pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Role`;
+        const specialtyKey = `pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Specialty`;
+        const csrfKey = `${provider}CsrfState`;
+        const providerLabel = provider.charAt(0).toUpperCase() + provider.slice(1);
+
+        // Открываем popup синхронно, ДО await/.then() — иначе к моменту, когда
+        // придёт ответ с реальным URL, жест пользователя (клик) уже "остынет" и
+        // блокировщик попапов (особенно Safari) молча зарубит window.open.
+        // Как только URL известен — просто донавигируем это же окно.
+        const popup = openOAuthPopup(`oauth_${provider}`);
+        if (!popup) {
+            setError(t('common:oauth.popupBlocked', { provider: providerLabel }));
+            return;
+        }
+
         try {
             // Сохраняем выбранную роль и специальность
-            setSessionItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Role`, formData.role);
+            setSessionItem(roleKey, formData.role);
             if (formData.role === 'master' && formData.specialty) {
-                setSessionItem(`pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Specialty`, formData.specialty);
+                setSessionItem(specialtyKey, formData.specialty);
             }
 
             // Получаем URL для OAuth
@@ -266,41 +249,56 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
                     try {
                         parsed = new URL(redirectUrl);
                     } catch {
+                        popup.close();
                         setError('Получен некорректный URL для авторизации');
                         return;
                     }
                     if (!['https:', 'http:'].includes(parsed.protocol)) {
+                        popup.close();
                         setError('Получен некорректный URL для авторизации');
                         return;
                     }
                     // Сохраняем state из реального redirect URL для CSRF-проверки на callback
                     const stateFromUrl = parsed.searchParams.get('state');
                     if (stateFromUrl) {
-                        setSessionItem(`${provider}CsrfState`, stateFromUrl);
+                        setSessionItem(csrfKey, stateFromUrl);
                     }
-                    handleClose();
-                    window.location.href = redirectUrl;
+
+                    navigateOAuthPopup(popup, redirectUrl);
+                    setIsLoading(true);
+                    waitForOAuthPopupResult(popup)
+                        .then(() => {
+                            // OAuthCallbackPage внутри popup'а уже сохранил токен/юзера/роль
+                            // в localStorage (тот же origin) — просто подхватываем их здесь.
+                            const token = getAuthToken();
+                            if (token) {
+                                handleSuccessfulAuth(token, getUserData()?.email);
+                            }
+                        })
+                        .catch((popupErr: Error) => {
+                            // Пользователь просто закрыл popup сам — не ошибка, молча выходим.
+                            if (popupErr.message === 'popup_closed') return;
+                            setError(resolveApiError(popupErr, `Ошибка при авторизации через ${providerLabel}`));
+                        })
+                        .finally(() => {
+                            setIsLoading(false);
+                            removeSessionItems(roleKey, specialtyKey, csrfKey);
+                        });
                 })
                 .catch(err => {
+                    popup.close();
                     console.error(`${provider.toUpperCase()} auth error:`, err);
-                    setError(resolveApiError(err, `Ошибка при авторизации через ${provider.charAt(0).toUpperCase() + provider.slice(1)}`));
-                    removeSessionItems(
-                        `pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Role`,
-                        `pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Specialty`,
-                        `${provider}CsrfState`
-                    );
+                    setError(resolveApiError(err, `Ошибка при авторизации через ${providerLabel}`));
+                    removeSessionItems(roleKey, specialtyKey, csrfKey);
                 });
 
         } catch (err) {
+            popup.close();
             console.error(`${provider.toUpperCase()} auth error:`, err);
-            setError(resolveApiError(err, `Ошибка при авторизации через ${provider.charAt(0).toUpperCase() + provider.slice(1)}`));
+            setError(resolveApiError(err, `Ошибка при авторизации через ${providerLabel}`));
 
             // Очищаем сохраненные данные при ошибке
-            removeSessionItems(
-                `pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Role`,
-                `pending${provider.charAt(0).toUpperCase() + provider.slice(1)}Specialty`,
-                `${provider}CsrfState`
-            );
+            removeSessionItems(roleKey, specialtyKey, csrfKey);
         }
     };
 
@@ -453,6 +451,12 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         widgetWrapper.style.minWidth = '350px';
 
         // Кнопка закрытия (Clear-стиль)
+        // Имя коллбэка уникально на каждый показ виджета — если пользователь открыл
+        // окно, закрыл и открыл снова, старый window[callbackName] не должен
+        // случайно сработать повторно/протухшим замыканием.
+        const callbackName = `telegramAuthCallback_${Date.now()}`;
+        const cleanupCallback = () => { delete (window as any)[callbackName]; };
+
         const closeBtn = document.createElement('button');
         closeBtn.type = 'button';
         closeBtn.setAttribute('aria-label', 'Clear');
@@ -469,12 +473,24 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         closeBtn.style.justifyContent = 'center';
         closeBtn.style.padding = '4px';
         closeBtn.onclick = () => {
+            cleanupCallback();
             telegramModalContainer.remove();
         };
 
         const widgetContainer = document.createElement('div');
         widgetContainer.id = `telegram-widget-${Date.now()}`;
         widgetContainer.style.marginTop = '20px';
+
+        // data-onauth, не data-auth-url: виджет сам ведёт пользователя через
+        // подтверждение (popup на десктопе, приложение на мобильном) и вызывает
+        // эту функцию с данными пользователя напрямую — без редиректа текущей
+        // страницы и без ухода на отдельный callback-роут, который на мобильном
+        // не гарантированно возвращает в ту же вкладку.
+        (window as any)[callbackName] = (authData: TelegramWidgetData) => {
+            cleanupCallback();
+            telegramModalContainer.remove();
+            handleTelegramWidgetCallback(authData);
+        };
 
         const script = document.createElement('script');
         script.src = 'https://telegram.org/js/telegram-widget.js?22';
@@ -483,7 +499,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         script.setAttribute('data-size', 'large');
         script.setAttribute('data-userpic', 'false');
         script.setAttribute('data-radius', '10');
-        script.setAttribute('data-auth-url', `${window.location.origin}/auth/telegram/callback`);
+        script.setAttribute('data-onauth', `${callbackName}(user)`);
         script.setAttribute('data-request-access', 'write');
 
         widgetContainer.appendChild(script);
@@ -498,6 +514,7 @@ const Auth: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSuccess }) => 
         // Закрываем при клике за пределами модального окна
         telegramModalContainer.onclick = (e) => {
             if (e.target === telegramModalContainer) {
+                cleanupCallback();
                 telegramModalContainer.remove();
             }
         };

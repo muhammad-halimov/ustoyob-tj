@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ROUTES, API_ROUTES } from '../../app/routers/routes';
 import Status from '../../shared/ui/Modal/Status';
@@ -20,6 +20,7 @@ import type { OAuthProviderName, BackendAuthCallbackResponse } from '../../entit
 import { universalApiRequest } from '../../utils/apiUtils';
 import { resolveApiError } from '../../utils/appMessagesUtils';
 import { getStorageItem, removeStorageItem, getSessionItem, removeSessionItem, removeSessionItems } from '../../utils/storageUtils';
+import { finishOAuthPopup } from '../../utils/oauthPopup';
 
 // Определяем провайдер по URL
 const getProviderFromUrl = (pathname: string): OAuthProviderName | null => {
@@ -55,6 +56,21 @@ const OAuthCallbackPage = () => {
     const [instagramProfessionalRequired, setInstagramProfessionalRequired] = useState(false);
     const { t } = useTranslation(['common', 'components']);
 
+    // Эта страница теперь чаще всего рендерится не как отдельная навигация, а
+    // внутри popup-окна, открытого Auth.tsx/Profile.tsx (см. utils/oauthPopup) —
+    // тогда вместо navigate() нужно просто сообщить результат окну-опенеру и
+    // закрыться самим. finishOAuthPopup возвращает false, если opener'а нет
+    // (страницу открыли напрямую, не из popup'а) — тогда падаем обратно на
+    // обычную навигацию, как раньше.
+    const finishOrNavigate = useCallback((
+        result: { status: 'success' } | { status: 'error'; message?: string },
+        fallbackRoute: string,
+        fallbackOptions?: { replace?: boolean },
+    ) => {
+        if (finishOAuthPopup(result)) return;
+        navigate(fallbackRoute, fallbackOptions);
+    }, [navigate]);
+
     useEffect(() => {
         // Определяем провайдер по URL
         const detectedProvider = getProviderFromUrl(window.location.pathname);
@@ -63,7 +79,7 @@ const OAuthCallbackPage = () => {
         if (!detectedProvider) {
             setError(t('oauth.unknownProvider'));
             setLoading(false);
-            setTimeout(() => navigate(ROUTES.HOME), 3000);
+            setTimeout(() => finishOrNavigate({ status: 'error', message: t('oauth.unknownProvider') }, ROUTES.HOME), 3000);
             return;
         }
 
@@ -78,16 +94,17 @@ const OAuthCallbackPage = () => {
             // Обработка ошибок от провайдера
             if (errorParam) {
                 const errorMsg = errorDescription || errorParam;
-                setError(`${t('oauth.errorTitle')} (${detectedProvider}): ${decodeURIComponent(errorMsg)}`);
+                const message = `${t('oauth.errorTitle')} (${detectedProvider}): ${decodeURIComponent(errorMsg)}`;
+                setError(message);
                 setLoading(false);
-                setTimeout(() => navigate(ROUTES.HOME), 3000);
+                setTimeout(() => finishOrNavigate({ status: 'error', message }, ROUTES.HOME), 3000);
                 return;
             }
 
             if (!code || !state) {
                 setError(t('oauth.noAuthData'));
                 setLoading(false);
-                setTimeout(() => navigate(ROUTES.HOME), 3000);
+                setTimeout(() => finishOrNavigate({ status: 'error', message: t('oauth.noAuthData') }, ROUTES.HOME), 3000);
                 return;
             }
 
@@ -103,7 +120,7 @@ const OAuthCallbackPage = () => {
                     setIsLinkMode(true);
                     const jwtToken = getAuthToken();
                     if (!jwtToken) {
-                        setError(t('oauth.notAuthenticated') || 'Not authenticated');
+                        setError(t('oauth.notAuthenticated', 'Not authenticated'));
                         setLoading(false);
                         return;
                     }
@@ -113,12 +130,12 @@ const OAuthCallbackPage = () => {
                         locale: false,
                     });
                     if (linkData.error === 'provider_taken' || linkData.error === 'oauth_provider_taken') {
-                        setError(linkData.message || t('oauth.providerTaken') || 'This account is already linked to another user');
+                        setError(linkData.message || t('oauth.providerTaken', 'This account is already linked to another user'));
                         setLoading(false);
                         return;
                     }
                     if (linkData.error === 'already_linked') {
-                        setError(linkData.message || t('oauth.alreadyLinked') || 'This provider is already linked to your account');
+                        setError(linkData.message || t('oauth.alreadyLinked', 'This provider is already linked to your account'));
                         setLoading(false);
                         return;
                     }
@@ -137,7 +154,7 @@ const OAuthCallbackPage = () => {
                         setUserEmail(linkData.new_email);
                     }
                     setSuccess(true);
-                    setTimeout(() => navigate(ROUTES.PROFILE, { replace: true }), 2000);
+                    setTimeout(() => finishOrNavigate({ status: 'success' }, ROUTES.PROFILE, { replace: true }), 2000);
                     return;
                 }
 
@@ -149,9 +166,10 @@ const OAuthCallbackPage = () => {
                 const savedCsrfState = getSessionItem(`${detectedProvider}CsrfState`);
                 if (savedCsrfState && state !== savedCsrfState) {
                     removeSessionItem(`${detectedProvider}CsrfState`);
-                    setError(t('oauth.invalidState') || 'Invalid OAuth state. Possible CSRF attack.');
+                    const message = t('oauth.invalidState', 'Invalid OAuth state. Possible CSRF attack.');
+                    setError(message);
                     setLoading(false);
-                    setTimeout(() => navigate(ROUTES.HOME), 3000);
+                    setTimeout(() => finishOrNavigate({ status: 'error', message }, ROUTES.HOME), 3000);
                     return;
                 }
                 removeSessionItem(`${detectedProvider}CsrfState`);
@@ -203,13 +221,20 @@ const OAuthCallbackPage = () => {
 
                         setSuccess(true);
                         setTimeout(() => {
-                            navigate(ROUTES.HOME);
-                            window.dispatchEvent(new Event('login'));
+                            // dispatchEvent('login') нужен только когда мы реально живём на
+                            // этой же вкладке (fallback-ветка) — в popup'е это событие никто
+                            // не услышит, опенер сам разберётся по своему собственному
+                            // getAuthToken() после finishOAuthPopup.
+                            if (!finishOAuthPopup({ status: 'success' })) {
+                                navigate(ROUTES.HOME);
+                                window.dispatchEvent(new Event('login'));
+                            }
                         }, 2000);
                     }
                 } else {
-                    setError(resolveApiError(null, t('oauth.tokenNotReceived')));
-                    setTimeout(() => navigate(ROUTES.HOME), 3000);
+                    const message = resolveApiError(null, t('oauth.tokenNotReceived'));
+                    setError(message);
+                    setTimeout(() => finishOrNavigate({ status: 'error', message }, ROUTES.HOME), 3000);
                 }
 
             } catch (err) {
@@ -220,9 +245,13 @@ const OAuthCallbackPage = () => {
                 // латиницей во всех трёх локалях сообщения, надёжный маркер именно этого кейса.
                 if (detectedProvider === 'instagram' && message.includes('Professional')) {
                     setInstagramProfessionalRequired(true);
+                    // Не показываем как error-баннер (есть отдельный экран ниже), но
+                    // держим текст под рукой — на случай popup'а он же уйдёт в сообщение
+                    // finishOAuthPopup, чтобы Auth.tsx мог показать его пользователю.
+                    setError(message);
                 } else {
                     setError(message);
-                    setTimeout(() => navigate(ROUTES.HOME), 3000);
+                    setTimeout(() => finishOrNavigate({ status: 'error', message }, ROUTES.HOME), 3000);
                 }
             } finally {
                 setLoading(false);
@@ -230,7 +259,7 @@ const OAuthCallbackPage = () => {
         };
 
         processCallback();
-    }, [searchParams, navigate, t]);
+    }, [searchParams, navigate, t, finishOrNavigate]);
 
     if (loading) {
         return <PageLoader text={t('oauth.processingVia', { provider: provider === 'google' ? 'Google' : provider === 'instagram' ? 'Instagram' : 'Facebook' })} />;
@@ -247,9 +276,11 @@ const OAuthCallbackPage = () => {
                     locale: false,
                 });
                 setUserRole(role);
-                navigate(ROUTES.HOME);
-                window.dispatchEvent(new Event('login'));
-                setTimeout(() => window.location.reload(), 100);
+                if (!finishOAuthPopup({ status: 'success' })) {
+                    navigate(ROUTES.HOME);
+                    window.dispatchEvent(new Event('login'));
+                    setTimeout(() => window.location.reload(), 100);
+                }
             } catch (err) {
                 setError(resolveApiError(err));
                 setShowRoleSelect(false);
@@ -302,7 +333,7 @@ const OAuthCallbackPage = () => {
                     <InstagramProfessionalNotice>
                         <button
                             type="button"
-                            onClick={() => navigate(ROUTES.HOME)}
+                            onClick={() => finishOrNavigate({ status: 'error', message: error }, ROUTES.HOME)}
                             style={{ width: '100%', minHeight: '48px', padding: '12px 16px', background: 'var(--color-actual-blue)', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: 600, cursor: 'pointer' }}
                         >
                             {t('oauth.backToHome')}
@@ -317,7 +348,7 @@ const OAuthCallbackPage = () => {
         <Status
             type="error"
             isOpen={!!error}
-            onClose={() => navigate(isLinkMode ? ROUTES.PROFILE : ROUTES.HOME)}
+            onClose={() => finishOrNavigate({ status: 'error', message: error }, isLinkMode ? ROUTES.PROFILE : ROUTES.HOME)}
             message={error}
         />
     );

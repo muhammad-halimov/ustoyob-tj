@@ -1,7 +1,8 @@
 import {type ChangeEvent, useCallback, useEffect, useRef, useState, Dispatch, SetStateAction} from 'react';
 import type * as React from 'react';
 import {Navigate, useNavigate, useParams} from 'react-router-dom';
-import {getAuthToken, getUserData, getUserRole, logout} from '../../utils/authUtils';
+import {getAuthToken, getUserData, getUserRole, logout, setAuthToken, setAuthTokenExpiry, setUserEmail} from '../../utils/authUtils';
+import {openOAuthPopup, navigateOAuthPopup, waitForOAuthPopupResult} from '../../utils/oauthPopup';
 import {API_ROUTES, ROUTES} from '../../app/routers/routes';
 import styles from './Profile.module.scss';
 import {useTranslation} from 'react-i18next';
@@ -33,6 +34,7 @@ import {
     Address,
 } from '../../entities';
 import type { Image } from '../../entities';
+import type { TelegramUserData } from '../../entities/api/OAuth';
 import { API_BASE_URL } from '../../utils/configUtils';
 
 // Новые компоненты из shared/ui
@@ -180,6 +182,21 @@ function Profile() {
     const [linkedProvidersLoading, setLinkedProvidersLoading] = useState(false);
 
     // Загружаем привязанные OAuth-провайдеры (только для своей страницы)
+    // Вынесено из эффекта в useCallback — startProviderOAuthLink (popup-флоу для
+    // google/facebook/instagram) вызывает её напрямую после успешного связывания,
+    // ей нужно быть доступной за пределами замыкания эффекта.
+    const providersAbortRef = useRef<AbortController | null>(null);
+    const loadProviders = useCallback(() => {
+        providersAbortRef.current?.abort(); // отменяем предыдущий незавершённый запрос, если он ещё летит
+        const controller = new AbortController();
+        providersAbortRef.current = controller;
+        setLinkedProvidersLoading(true);
+        universalApiRequest(API_ROUTES.PROFILE_OAUTH_PROVIDERS, { locale: false, signal: controller.signal })
+            .then(data => setLinkedProviders(Array.isArray(data) ? data : ((data as any).providers ?? [])))
+            .catch(() => {})
+            .finally(() => setLinkedProvidersLoading(false));
+    }, []);
+
     useEffect(() => {
         // `readOnly` — это `!!id` из URL (свой профиль = /profile, без id), а не признак
         // авторизации. После logout + reload на /profile этот эффект всё равно монтируется
@@ -188,18 +205,6 @@ function Profile() {
         // успевал что-то отменить (это был не гоночный запрос "в полёте", а совершенно
         // новый, отправленный уже разлогиненной страницей).
         if (readOnly || !getAuthToken()) return;
-
-        let controller = new AbortController();
-
-        const loadProviders = () => {
-            controller.abort(); // отменяем предыдущий незавершённый запрос, если он ещё летит
-            controller = new AbortController();
-            setLinkedProvidersLoading(true);
-            universalApiRequest(API_ROUTES.PROFILE_OAUTH_PROVIDERS, { locale: false, signal: controller.signal })
-                .then(data => setLinkedProviders(Array.isArray(data) ? data : ((data as any).providers ?? [])))
-                .catch(() => {})
-                .finally(() => setLinkedProvidersLoading(false));
-        };
 
         loadProviders();
 
@@ -214,38 +219,59 @@ function Profile() {
         // Обрываем запрос сразу при logout, вместо того чтобы дать ему долететь до
         // сервера и вернуться 401'ом уже после инвалидации токена — именно этот
         // «лишний» запрос было видно в devtools сразу после выхода.
-        const onLogout = () => controller.abort();
+        const onLogout = () => providersAbortRef.current?.abort();
 
         window.addEventListener('storage', onStorage);
         window.addEventListener('logout', onLogout);
         return () => {
-            controller.abort();
+            providersAbortRef.current?.abort();
             window.removeEventListener('storage', onStorage);
             window.removeEventListener('logout', onLogout);
         };
-    }, [readOnly]);
+    }, [readOnly, loadProviders]);
 
-    // Actually kicks off the provider OAuth redirect for linking — split out of
-    // handleLinkProvider so the Instagram notice below can defer it until the user
-    // confirms, instead of firing straight away like google/facebook do.
+    // Actually kicks off the provider OAuth link — split out of handleLinkProvider
+    // so the Instagram notice below can defer it until the user confirms, instead
+    // of firing straight away like google/facebook do.
+    // Popup, а не window.location.href — тот и уводил в приложение провайдера
+    // без гарантированного возврата (см. utils/oauthPopup). Popup открываем
+    // синхронно, до await, иначе блокировщик всплывающих окон зарубит его —
+    // жест пользователя (клик) к моменту ответа сервера уже "остыл".
     const startProviderOAuthLink = (provider: string) => {
+        const popup = openOAuthPopup(`oauth_link_${provider}`);
+        if (!popup) {
+            setModalMessage(t('common:oauth.popupBlocked', { provider }));
+            setShowErrorModal(true);
+            return;
+        }
+
         universalApiRequest(API_ROUTES.AUTH_PROVIDER_URL(provider), { requiresAuth: false, locale: false })
             .then(data => {
                 setSessionItem('oauthMode', 'link');
-                // На мобильных нативное приложение открывает callback в новой вкладке,
-                // где sessionStorage пустой. Сохраняем mode по state-параметру в localStorage.
+                // На мобильных нативное приложение может открыть callback в новой
+                // вкладке, где sessionStorage пустой. Сохраняем mode по
+                // state-параметру в localStorage на такой случай.
                 try {
                     const stateParam = new URL(data.url).searchParams.get('state');
                     if (stateParam) setStorageItem(`oauth_mode_${stateParam}`, 'link');
                 } catch { /* url parse error ignored */ }
-                // Проверяем протокол перед редиректом (защита от open redirect)
+                // Проверяем протокол перед переходом (защита от open redirect)
                 try {
                     const parsed = new URL(data.url);
-                    if (!['https:', 'http:'].includes(parsed.protocol)) return;
-                } catch { return; }
-                window.location.href = data.url;
+                    if (!['https:', 'http:'].includes(parsed.protocol)) { popup.close(); return; }
+                } catch { popup.close(); return; }
+
+                navigateOAuthPopup(popup, data.url);
+                waitForOAuthPopupResult(popup)
+                    .then(() => loadProviders())
+                    .catch((err: Error) => {
+                        if (err.message === 'popup_closed') return;
+                        setModalMessage(resolveApiError(err, t('common:oauth.tryLater')));
+                        setShowErrorModal(true);
+                    })
+                    .finally(() => removeSessionItem('oauthMode'));
             })
-            .catch(() => {});
+            .catch(() => { popup.close(); });
     };
 
     const handleLinkProvider = (provider: string) => {
@@ -258,11 +284,6 @@ function Profile() {
         }
         if (provider === 'telegram') {
             // Показываем всплывающий виджет Telegram (как в Auth)
-            setSessionItem('oauthMode', 'link');
-            // На мобильных нативное приложение открывает callback в новой вкладке,
-            // где sessionStorage пустой — дублируем в localStorage
-            setStorageItem('oauth_mode_telegram', 'link');
-
             const overlay = document.createElement('div');
             overlay.id = 'telegram-link-modal';
             overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999';
@@ -271,10 +292,14 @@ function Profile() {
             const box = document.createElement('div');
             box.style.cssText = `background:${isDark ? '#2a2a2a' : '#fff'};border-radius:16px;padding:32px 28px;min-width:280px;text-align:center;position:relative;box-shadow:0 8px 40px rgba(0,0,0,.3)`;
 
+            // Имя коллбэка уникально на каждый показ — см. тот же приём в Auth.tsx.
+            const callbackName = `telegramLinkCallback_${Date.now()}`;
+            const cleanupCallback = () => { delete (window as any)[callbackName]; };
+
             const close = document.createElement('button');
             close.textContent = '✕';
             close.style.cssText = `position:absolute;top:12px;right:14px;background:none;border:none;font-size:20px;cursor:pointer;color:${isDark ? '#888' : '#999'}`;
-            close.onclick = () => { removeSessionItem('oauthMode'); overlay.remove(); };
+            close.onclick = () => { cleanupCallback(); overlay.remove(); };
 
             const title = document.createElement('p');
             title.textContent = t('oauth.linkTelegramTitle');
@@ -283,6 +308,57 @@ function Profile() {
             const widgetWrap = document.createElement('div');
             widgetWrap.id = `tg-link-widget-${Date.now()}`;
 
+            // data-onauth, не data-auth-url — виджет сам ведёт подтверждение (popup
+            // на десктопе, приложение Telegram на мобильном) и зовёт эту функцию с
+            // данными пользователя напрямую, без редиректа/отдельного callback-роута,
+            // который на мобильном не гарантированно возвращает в ту же вкладку.
+            (window as any)[callbackName] = async (authData: TelegramUserData) => {
+                cleanupCallback();
+                try {
+                    const linkBody: Record<string, unknown> = {
+                        provider: 'telegram',
+                        id: authData.id,
+                        hash: authData.hash,
+                        auth_date: authData.auth_date,
+                        first_name: authData.first_name,
+                    };
+                    if (authData.last_name) linkBody.last_name = authData.last_name;
+                    if (authData.username) linkBody.username = authData.username;
+                    if (authData.photo_url) linkBody.photo_url = authData.photo_url;
+
+                    const linkData: any = await universalApiRequest(API_ROUTES.PROFILE_OAUTH_LINK, {
+                        method: 'POST',
+                        body: linkBody,
+                        locale: false,
+                    });
+
+                    if (linkData.error === 'provider_taken' || linkData.error === 'oauth_provider_taken') {
+                        setModalMessage(linkData.message || t('common:oauth.providerTaken'));
+                        setShowErrorModal(true);
+                    } else if (linkData.error === 'already_linked') {
+                        setModalMessage(linkData.message || t('common:oauth.alreadyLinked'));
+                        setShowErrorModal(true);
+                    } else if (linkData.error) {
+                        setModalMessage(linkData.message || t('common:oauth.tryLater'));
+                        setShowErrorModal(true);
+                    } else {
+                        if (linkData.new_token) {
+                            setAuthToken(linkData.new_token);
+                            const expiryTime = new Date();
+                            expiryTime.setHours(expiryTime.getHours() + 1);
+                            setAuthTokenExpiry(expiryTime.toISOString());
+                        }
+                        if (linkData.new_email) setUserEmail(linkData.new_email);
+                        loadProviders();
+                    }
+                } catch (err) {
+                    setModalMessage(resolveApiError(err, t('common:oauth.tryLater')));
+                    setShowErrorModal(true);
+                } finally {
+                    overlay.remove();
+                }
+            };
+
             const script = document.createElement('script');
             script.src = 'https://telegram.org/js/telegram-widget.js?22';
             script.async = true;
@@ -290,7 +366,7 @@ function Profile() {
             script.setAttribute('data-size', 'large');
             script.setAttribute('data-userpic', 'false');
             script.setAttribute('data-radius', '10');
-            script.setAttribute('data-auth-url', `${window.location.origin}/auth/telegram/callback`);
+            script.setAttribute('data-onauth', `${callbackName}(user)`);
             script.setAttribute('data-request-access', 'write');
 
             widgetWrap.appendChild(script);
@@ -298,7 +374,7 @@ function Profile() {
             box.appendChild(title);
             box.appendChild(widgetWrap);
             overlay.appendChild(box);
-            overlay.onclick = (e: MouseEvent) => { if (e.target === overlay) { removeSessionItem('oauthMode'); overlay.remove(); } };
+            overlay.onclick = (e: MouseEvent) => { if (e.target === overlay) { cleanupCallback(); overlay.remove(); } };
             document.body.appendChild(overlay);
             return;
         }
