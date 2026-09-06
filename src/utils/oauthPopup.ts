@@ -178,7 +178,12 @@ export function finishOAuthPopup(state: string | null | undefined, result: Omit<
     const message: OAuthPopupResult = { source: OAUTH_POPUP_MESSAGE_SOURCE, ...result } as OAuthPopupResult;
 
     try {
-        localStorage.setItem(RESULT_STORAGE_KEY, JSON.stringify(message));
+        // ts — не для чтения, а чтобы значение ГАРАНТИРОВАННО отличалось от
+        // прошлого раза. Без него два одинаковых успешных входа подряд пишут
+        // побайтово идентичную строку — а браузер не генерирует событие
+        // `storage`, если новое значение равно старому. Именно это молча душило
+        // сигнал при повторном тестировании: opener просто никогда не узнавал.
+        localStorage.setItem(RESULT_STORAGE_KEY, JSON.stringify({ ...message, ts: Date.now() }));
     } catch { /* private mode / storage disabled — postMessage below is our other shot */ }
 
     if (window.opener && !window.opener.closed) {
@@ -187,7 +192,14 @@ export function finishOAuthPopup(state: string | null | undefined, result: Omit<
 
     // window.close() закрывает именно ЭТО окно — это разрешение живёт на самом
     // окне (было открыто скриптом или нет), а не на связи с opener'ом, поэтому
-    // работает даже когда opener уже недоступен из-за COOP.
-    try { window.close(); } catch { /* браузер отказал — маловероятно, но не критично */ }
+    // в теории работает даже когда opener уже недоступен из-за COOP. На практике
+    // некоторые браузеры молча отказывают в close() окну, которое успело
+    // сходить на чужой origin (facebook.com и обратно) — трюк с window.open('',
+    // '_self') перед close() восстанавливает у окна статус "открыто скриптом" и
+    // существенно повышает шанс, что закрытие реально пройдёт.
+    try {
+        window.open('', '_self');
+        window.close();
+    } catch { /* браузер всё равно отказал — не критично, opener сам разберётся по сигналу выше */ }
     return true;
 }
