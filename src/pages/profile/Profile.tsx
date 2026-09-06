@@ -2,7 +2,7 @@ import {type ChangeEvent, useCallback, useEffect, useRef, useState, Dispatch, Se
 import type * as React from 'react';
 import {Navigate, useNavigate, useParams} from 'react-router-dom';
 import {getAuthToken, getUserData, getUserRole, logout} from '../../utils/authUtils';
-import {openOAuthPopup, navigateOAuthPopup, waitForOAuthPopupResult, markOAuthPopupFlow, isLikelyMobileOSDevice} from '../../utils/oauthPopup';
+import {openOAuthPopup, navigateOAuthPopup, waitForOAuthPopupResult, markOAuthPopupFlow} from '../../utils/oauthPopup';
 import {API_ROUTES, ROUTES} from '../../app/routers/routes';
 import styles from './Profile.module.scss';
 import {useTranslation} from 'react-i18next';
@@ -232,35 +232,11 @@ function Profile() {
     // Actually kicks off the provider OAuth link — split out of handleLinkProvider
     // so the Instagram notice below can defer it until the user confirms, instead
     // of firing straight away like google/facebook do.
-    //
-    // Десктоп: popup, а не window.location.href — тот уводил в приложение
-    // провайдера без гарантированного возврата (см. utils/oauthPopup). Popup
-    // открываем синхронно, до await, иначе блокировщик всплывающих окон
-    // зарубит его — жест пользователя (клик) к моменту ответа сервера уже "остыл".
-    //
-    // Мобильные (iOS/Android): popup тут не помогает, а вредит — возврат из
-    // приложения провайдера может прийти в СОВЕРШЕННО ДРУГУЮ вкладку без всякой
-    // связи с той, что мы открывали (см. подробный комментарий в Auth.tsx у
-    // handleOAuthStart) — обычный редирект здесь надёжнее.
+    // Popup, а не window.location.href — тот и уводил в приложение провайдера
+    // без гарантированного возврата (см. utils/oauthPopup). Popup открываем
+    // синхронно, до await, иначе блокировщик всплывающих окон зарубит его —
+    // жест пользователя (клик) к моменту ответа сервера уже "остыл".
     const startProviderOAuthLink = (provider: string) => {
-        if (isLikelyMobileOSDevice()) {
-            universalApiRequest(API_ROUTES.AUTH_PROVIDER_URL(provider), { requiresAuth: false, locale: false })
-                .then(data => {
-                    setSessionItem('oauthMode', 'link');
-                    try {
-                        const stateParam = new URL(data.url).searchParams.get('state');
-                        if (stateParam) setStorageItem(`oauth_mode_${stateParam}`, 'link');
-                    } catch { /* url parse error ignored */ }
-                    try {
-                        const parsed = new URL(data.url);
-                        if (!['https:', 'http:'].includes(parsed.protocol)) return;
-                    } catch { return; }
-                    window.location.href = data.url;
-                })
-                .catch(() => {});
-            return;
-        }
-
         const popup = openOAuthPopup(`oauth_link_${provider}`);
         if (!popup) {
             setModalMessage(t('common:oauth.popupBlocked', { provider }));

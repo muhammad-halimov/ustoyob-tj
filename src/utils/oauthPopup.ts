@@ -1,28 +1,16 @@
 /**
  * Shared plumbing for running Google/Facebook/Instagram OAuth in a popup window
- * instead of a full top-level redirect (`window.location.href`) — DESKTOP ONLY,
- * see `isLikelyMobileOSDevice` below for why.
+ * instead of a full top-level redirect (`window.location.href`).
  *
- * On desktop, a full-page redirect risks getting "stuck" if anything about the
- * exchange goes sideways (no easy way back to the app that started it) — a
- * popup keeps OUR tab alive and in place the whole time, so we don't depend on
- * the provider handing navigation back to any particular tab — our own
- * `OAuthCallbackPage`, running inside the popup, just reports the result back
- * and closes itself.
- *
- * On MOBILE this backfires. iOS/Android can hand the whole flow off to the
- * provider's native app (Instagram/Facebook) regardless of popup vs redirect —
- * that part was never ours to control — but when it hands control back, it can
- * do so into a BRAND NEW tab that has no relation whatsoever to the popup we
- * opened (no `window.opener`, nothing) — and the ORIGINAL tab holding the
- * "waiting for popup" promise may itself have been discarded from memory by
- * the OS while the app was in the foreground, wiping out its JS state
- * entirely. There is no message/storage channel that reaches a tab like that:
- * it's simply gone. A plain top-level redirect doesn't have this problem —
- * it's the pattern iOS/Android app hand-off is actually designed around
- * (return control to the SAME tab that initiated the request), which is
- * exactly why every major site still uses it for mobile web OAuth. So: popup
- * on desktop, plain redirect on mobile — see call sites in Auth.tsx/Profile.tsx.
+ * A full-page redirect to the provider's authorize URL is exactly what lets the
+ * mobile OS intercept the navigation (Universal Links / App Links) and hand the
+ * whole flow off to the provider's native app instead of showing it in-browser —
+ * and once that happens, coming back to our tab isn't reliably in our control.
+ * A popup doesn't eliminate that OS-level interception outright (still their
+ * call, not ours), but it does keep OUR tab alive and in place the whole time,
+ * so we don't depend on the provider handing navigation back to the exact same
+ * tab — our own `OAuthCallbackPage`, running inside the popup, just reports the
+ * result back and closes itself.
  *
  * "Am I running inside a popup we opened?" is decided via the OAuth `state`
  * param, not any window-intrinsic property. We tried `window.name` first —
@@ -202,21 +190,4 @@ export function finishOAuthPopup(state: string | null | undefined, result: Omit<
     // работает даже когда opener уже недоступен из-за COOP.
     try { window.close(); } catch { /* браузер отказал — маловероятно, но не критично */ }
     return true;
-}
-
-/**
- * Best-effort "is this iOS/Android" check — see the file header for why popup
- * OAuth is desktop-only. `userAgentData.mobile` (Client Hints) is preferred
- * where available (Chromium); Safari/Firefox don't support it, so we fall
- * back to a plain user-agent sniff. Neither is bulletproof (iPadOS reports as
- * desktop Safari by default, UA strings can be spoofed) — that's fine here,
- * a false negative just means that device gets the popup path, which only
- * degrades gracefully (worst case, the same tab-fragmentation this function
- * exists to avoid) rather than breaking anything.
- */
-export function isLikelyMobileOSDevice(): boolean {
-    if (typeof navigator === 'undefined') return false;
-    const uaData = (navigator as unknown as { userAgentData?: { mobile?: boolean } }).userAgentData;
-    if (uaData && typeof uaData.mobile === 'boolean') return uaData.mobile;
-    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
