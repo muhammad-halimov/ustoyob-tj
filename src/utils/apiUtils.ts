@@ -211,7 +211,7 @@ export const getTicketShortAddress = (ticket: Ticket): string => {
 // ─── Маппинг Ticket → TicketView ───────────────────────────
 
 /** Извлекает данные автора тикета (мастер или заказчик) */
-export const getTicketAuthor = (ticket: Ticket): { name: string; id: number; imageSrc?: string } => {
+export const getTicketAuthor = (ticket: Ticket): { name: string; id: string | number; imageSrc?: string } => {
     const person = ticket.service ? ticket.master : ticket.author;
     const name = `${person?.surname || ''} ${person?.name || ''}`.trim()
         || (ticket.service ? i18n.t('ticket:specialist') : i18n.t('ticket:customer'));

@@ -151,7 +151,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     const fetchProvinces = useCallback(async () => {
         try {
             const data = await getProvinces();
-            const formatted: Province[] = data.map((p: { id: number; title: string }) => ({
+            const formatted: Province[] = data.map((p: { id: string | number; title: string }) => ({
                 id: p.id,
                 title: p.title,
             }));
@@ -166,7 +166,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     const fetchCities = useCallback(async () => {
         try {
             const citiesData = await getCities();
-            const formatted: City[] = citiesData.map((city: { id: number; title: string }) => ({
+            const formatted: City[] = citiesData.map((city: { id: string | number; title: string }) => ({
                 id: city.id,
                 title: city.title
             }));
@@ -503,9 +503,9 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         try {
             const occupationsData = await getOccupations();
             const formatted: Occupation[] = occupationsData.map((occ: {
-                id: number;
+                id: string | number;
                 title: string;
-                category?: { id: number; title: string } | null;
+                category?: { id: string | number; title: string } | null;
             }) => ({
                 id: occ.id,
                 title: occ.title,
@@ -899,17 +899,17 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
     }, [searchQuery, filters, userRole, fetchAllTickets, onSearchResults, showOnlyServices, showOnlyAnnouncements, sortBy, secondarySortBy, timeFilter]);
 
     // Обработчики событий
-    const handleCardClick = useCallback((ticketId?: number) => {
+    const handleCardClick = useCallback((ticketId?: string | number) => {
         if (!ticketId) return;
         navigate(ROUTES.TICKET_BY_ID(ticketId));
     }, [navigate]);
 
     // Состояния для отклика на карточку (без перехода)
-    const [respondedTickets, setRespondedTickets] = useState<Set<number>>(() => getPersistedRespondedTicketIds());
-    const [respondingTicketId, setRespondingTicketId] = useState<number | null>(null);
+    const [respondedTickets, setRespondedTickets] = useState<Set<string | number>>(() => getPersistedRespondedTicketIds());
+    const [respondingTicketId, setRespondingTicketId] = useState<string | number | null>(null);
     const [respondModal, setRespondModal] = useState<{ open: boolean; type: 'success' | 'error'; message: string }>({ open: false, type: 'success', message: '' });
-    const [cardReviewTarget, setCardReviewTarget] = useState<{ authorId: number; ticketId: number } | null>(null);
-    const [cardComplaintTarget, setCardComplaintTarget] = useState<{ authorId: number; ticketId: number } | null>(null);
+    const [cardReviewTarget, setCardReviewTarget] = useState<{ authorId: string | number; ticketId: string | number } | null>(null);
+    const [cardComplaintTarget, setCardComplaintTarget] = useState<{ authorId: string | number; ticketId: string | number } | null>(null);
 
     // Проверяем существующие чаты при монтировании и мержим с персистентными id
     useEffect(() => {
@@ -918,10 +918,10 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         (async () => {
             try {
                 const chats: any[] = await getChatsMe();
-                const ids = new Set<number>();
+                const ids = new Set<string | number>();
                 chats.forEach((chat: any) => {
                     const t = chat.ticket;
-                    const id = t?.id ?? (() => { const m = String(t?.['@id'] || '').match(/\/\d+$/); return m ? parseInt(m[0].slice(1)) : null; })();
+                    const id = t?.id ?? (() => { const m = String(t?.['@id'] || '').match(/\/([^/]+)$/); return m ? m[1] : null; })();
                     if (id) ids.add(id);
                 });
                 const merged = new Set([...getPersistedRespondedTicketIds(), ...ids]);
@@ -930,7 +930,7 @@ export default function Search({ onSearchResults, onFilterToggle }: SearchProps)
         })();
     }, []);
 
-    const handleRespondCard = useCallback(async (ticketId: number, authorId: number) => {
+    const handleRespondCard = useCallback(async (ticketId: string | number, authorId: string | number) => {
         const token = getAuthToken();
         if (!token) {
             window.dispatchEvent(new CustomEvent('openAuthModal'));

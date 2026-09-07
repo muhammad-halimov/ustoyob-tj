@@ -18,20 +18,20 @@ export interface FeedbackModalProps {
     onClose: () => void;
     onSuccess: (message: string) => void;
     onError?: (message: string) => void;
-    targetUserId: number;
-    ticketId?: number;
+    targetUserId: string | number;
+    ticketId?: string | number;
     onReviewSubmitted?: (reviewCount: number) => void;
     showServiceSelector?: boolean;
-    editReviewId?: number;
+    editReviewId?: string | number;
     initialRating?: number;
     initialText?: string;
-    initialImages?: Array<{ id: number; image: string }>;
+    initialImages?: Array<{ id: string | number; image: string }>;
     /** The review's own `createdAt` — used to lock editing past the 24h window the backend
      *  enforces (see `isEditLocked` below). Only relevant alongside `editReviewId`. */
     initialCreatedAt?: string;
     targetUserRole?: 'client' | 'master';
-    chatId?: number;
-    reviewId?: number;
+    chatId?: string | number;
+    reviewId?: string | number;
     complaintType?: 'ticket' | 'chat' | 'review' | 'user';
     showUserComplaintToggle?: boolean;
 }
@@ -82,7 +82,7 @@ const Feedback: React.FC<FeedbackModalProps> = ({
     const [reviewText, setReviewText] = useState('');
     const [selectedStars, setSelectedStars] = useState(0);
     const [services, setServices] = useState<Pick<Ticket, 'id' | 'title'>[]>([]);
-    const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
+    const [selectedServiceId, setSelectedServiceId] = useState<string | number | null>(null);
     const [loadingServices, setLoadingServices] = useState(false);
 
     // --- Complaint state ---
@@ -91,7 +91,7 @@ const Feedback: React.FC<FeedbackModalProps> = ({
     const [description, setDescription] = useState('');
     const [reason, setReason] = useState('');
     const [tickets, setTickets] = useState<Pick<Ticket, 'id' | 'title'>[]>([]);
-    const [selectedTicketId, setSelectedTicketId] = useState<number | null>(ticketId ?? null);
+    const [selectedTicketId, setSelectedTicketId] = useState<string | number | null>(ticketId ?? null);
     const [loadingTickets, setLoadingTickets] = useState(false);
     const [isUserComplaint, setIsUserComplaint] = useState(false);
 
@@ -158,7 +158,7 @@ const Feedback: React.FC<FeedbackModalProps> = ({
             requests.push(getAppealReasons(locale, `applicableTo=overall&authRequired=false`));
         }
         Promise.all(requests).then((arrays) => {
-            const seen = new Set<number>();
+            const seen = new Set<string | number>();
             const merged: AppealReason[] = [];
             for (const r of arrays.flat()) {
                 if (!seen.has(r.id)) { seen.add(r.id); merged.push(r); }
@@ -192,9 +192,9 @@ const Feedback: React.FC<FeedbackModalProps> = ({
         }
     };
 
-    const getCurrentUserId = (): number | null => getUserData()?.id ?? null;
+    const getCurrentUserId = (): string | number | null => getUserData()?.id ?? null;
 
-    const fetchReviewCount = async (userId: number): Promise<number> => {
+    const fetchReviewCount = async (userId: string | number): Promise<number> => {
         try {
             const data: any = await universalApiRequest(`${API_ROUTES.REVIEWS}?exists[ticket]=true&exists[master]=true&exists[client]=true&master=${userId}`);
             const arr: any[] = Array.isArray(data) ? data : (data['hydra:member'] ?? []);
@@ -466,7 +466,9 @@ const Feedback: React.FC<FeedbackModalProps> = ({
                             ) : (
                                 <SelectSearch
                                     value={selectedServiceId != null ? String(selectedServiceId) : ''}
-                                    onChange={(value) => setSelectedServiceId(value ? Number(value) : null)}
+                                    // id теперь UUID-строка (см. guides/UUID_MIGRATION_GUIDE.md) — Number(uuid)
+                                    // даёт NaN и тихо ломает выбор услуги. Сохраняем строкой как есть.
+                                    onChange={(value) => setSelectedServiceId(value || null)}
                                     placeholder={t('reviewModal.selectServicePlaceholder')}
                                     options={services.map(s => ({ value: String(s.id), label: s.title }))}
                                     disabled={isSubmitting || isEditLocked}
@@ -507,7 +509,9 @@ const Feedback: React.FC<FeedbackModalProps> = ({
                             ) : (
                                 <SelectSearch
                                     value={selectedTicketId != null ? String(selectedTicketId) : ''}
-                                    onChange={(value) => setSelectedTicketId(value ? Number(value) : null)}
+                                    // id теперь UUID-строка (см. guides/UUID_MIGRATION_GUIDE.md) — Number(uuid)
+                                    // даёт NaN и тихо ломает выбор тикета. Сохраняем строкой как есть.
+                                    onChange={(value) => setSelectedTicketId(value || null)}
                                     placeholder={t('complaintModal.selectTicketPlaceholder')}
                                     options={tickets.map(ticket => ({ value: String(ticket.id), label: ticket.title }))}
                                     disabled={isSubmitting}

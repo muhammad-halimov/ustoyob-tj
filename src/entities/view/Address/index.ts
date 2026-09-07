@@ -1,12 +1,12 @@
 // ─── Формовая модель адреса (модель виджета выбора) ───────────
 export interface AddressValueView {
-    provinceId: number | null;
-    cityId: number | null;
-    suburbIds: number[];
-    districtIds: number[];
-    settlementId: number | null;
-    communityId: number | null;
-    villageId: number | null;
+    provinceId: string | number | null;
+    cityId: string | number | null;
+    suburbIds: (string | number)[];
+    districtIds: (string | number)[];
+    settlementId: string | number | null;
+    communityId: string | number | null;
+    villageId: string | number | null;
 }
 
 export interface AddressDataView {

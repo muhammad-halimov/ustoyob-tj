@@ -93,7 +93,7 @@ function Profile() {
     const [editingEducation, setEditingEducation] = useState<string | null>(null);
     const [educationForm, setEducationForm] = useState<{
         institution: string;
-        selectedSpecialty?: number;
+        selectedSpecialty?: string | number;
         startYear: string;
         endYear: string;
         currentlyStudying: boolean;
@@ -119,8 +119,8 @@ function Profile() {
     const [isMobile, setIsMobile] = useState(false);
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [showComplaintModal, setShowComplaintModal] = useState(false);
-    const [complaintReviewId, setComplaintReviewId] = useState<number | null>(null);
-    const [complaintReviewAuthorId, setComplaintReviewAuthorId] = useState<number | null>(null);
+    const [complaintReviewId, setComplaintReviewId] = useState<string | number | null>(null);
+    const [complaintReviewAuthorId, setComplaintReviewAuthorId] = useState<string | number | null>(null);
     const [isReviewComplaintOpen, setIsReviewComplaintOpen] = useState(false);
     const [showEditReviewModal, setShowEditReviewModal] = useState(false);
     const [editingReview, setEditingReview] = useState<ReviewType | null>(null);
@@ -159,7 +159,7 @@ function Profile() {
     // Состояния лайка/избранного на публичном профиле
     const [isProfileLiked, setIsProfileLiked] = useState(false);
     const [isProfileLikeLoading, setIsProfileLikeLoading] = useState(false);
-    const [profileEntryId, setProfileEntryId] = useState<number | null>(null); // FavoriteEntry id for DELETE
+    const [profileEntryId, setProfileEntryId] = useState<string | number | null>(null); // FavoriteEntry id for DELETE
     
     // Состояния для адресов
     const [editingAddress, setEditingAddress] = useState<string | null>(null);
@@ -380,10 +380,10 @@ function Profile() {
         const token = getAuthToken();
         if (!token) {
             // Проверяем localStorage для неавторизованных пользователей
-            const parsed = getStorageJSON<{ users?: number[] }>('favorites');
+            const parsed = getStorageJSON<{ users?: (string | number)[] }>('favorites');
             if (parsed) {
-                const users: number[] = Array.isArray(parsed.users) ? parsed.users : [];
-                setIsProfileLiked(users.includes(Number(profileData.id)));
+                const users: (string | number)[] = Array.isArray(parsed.users) ? parsed.users : [];
+                setIsProfileLiked(users.includes(profileData.id));
             }
             return;
         }
@@ -391,9 +391,9 @@ function Profile() {
         (async () => {
             try {
                 const data: any = await universalApiRequest(API_ROUTES.FAVORITES_ME, { locale: false });
-                const entries: Array<{ id: number; type: string; user: { id: number } | null }> =
+                const entries: Array<{ id: string | number; type: string; user: { id: string | number } | null }> =
                     data['hydra:member'] ?? (Array.isArray(data) ? data : []);
-                const match = entries.find(e => e.type === 'user' && e.user?.id === Number(profileData.id));
+                const match = entries.find(e => e.type === 'user' && e.user?.id === profileData.id);
                 setIsProfileLiked(!!match);
                 setProfileEntryId(match?.id ?? null);
             } catch { /* silent */ }
@@ -1901,7 +1901,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         }
     };
 
-    const handleDeleteWorkExample = async (workExampleId: number) => {
+    const handleDeleteWorkExample = async (workExampleId: string | number) => {
         console.log('Delete triggered for ID:', workExampleId);
 
         if (!profileData?.id) return;
@@ -2069,7 +2069,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         }
     };
 
-    const createUserGallery = async (_token: string): Promise<number | null> => {
+    const createUserGallery = async (_token: string): Promise<string | number | null> => {
         try {
             console.log('Creating new gallery...');
 
@@ -2247,7 +2247,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         }
     };
 
-    const transformEducation = (education: Education[], occupationsList?: { id: number; title: string }[]): EducationItem[] => {
+    const transformEducation = (education: Education[], occupationsList?: { id: string | number; title: string }[]): EducationItem[] => {
         const resolvedOccupations = occupationsList && occupationsList.length > 0 ? occupationsList : occupations;
         return education.map(edu => {
             let specialty = '';
@@ -2255,9 +2255,11 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             // Обрабатываем occupation в разных форматах
             if (edu.occupation) {
                 if (typeof edu.occupation === 'string') {
-                    // occupation как IRI строка API-ресурса
-                    const occupationId = parseInt(edu.occupation.split('/').pop() || '0');
-                    const foundOccupation = resolvedOccupations.find(occ => occ.id === occupationId);
+                    // occupation как IRI строка API-ресурса.
+                    // id теперь UUID-строка (см. guides/UUID_MIGRATION_GUIDE.md) — parseInt() дал бы
+                    // NaN и find() тихо ничего бы не находил. Сравниваем последний сегмент IRI строкой.
+                    const occupationId = edu.occupation.split('/').pop() || '';
+                    const foundOccupation = resolvedOccupations.find(occ => String(occ.id) === occupationId);
                     specialty = foundOccupation?.title || '';
                 } else if (Array.isArray(edu.occupation)) {
                     // occupation как массив объектов
@@ -2410,7 +2412,6 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             occupationIri = API_ROUTES.OCCUPATION_BY_ID(educationForm.selectedSpecialty);
         }
 
-        const parsedId = parseInt(educationId);
         const educationData: Record<string, unknown> = {
             title: updatedEducation.institution,
             beginning: parseInt(updatedEducation.startYear) || new Date().getFullYear(),
@@ -2419,9 +2420,13 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             ...(occupationIri && { occupation: occupationIri })
         };
 
-        // Только добавляем id если это обновление существующей записи
-        if (!isNaN(parsedId)) {
-            educationData.id = parsedId;
+        // Только добавляем id если это обновление существующей записи ("new-..." — ещё
+        // не сохранённая на бэке запись, для неё id подставлять нельзя).
+        // id теперь UUID-строка (см. guides/UUID_MIGRATION_GUIDE.md) — parseInt(uuid) давал
+        // NaN, isNaN(...) было всегда true, и id никогда не подставлялся для существующих
+        // записей, из-за чего бэкенд создавал дубликат вместо обновления.
+        if (!educationId.startsWith('new-')) {
+            educationData.id = educationId;
         }
 
         console.log('Education data to save:', educationData);
@@ -3014,17 +3019,17 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         return smartNameTranslator(fullName, i18n.language as 'ru' | 'tj' | 'eng');
     };
 
-    const handleClientProfileClick = (clientId: number) => {
+    const handleClientProfileClick = (clientId: string | number) => {
         console.log('Navigating to client profile:', clientId);
         navigate(ROUTES.PROFILE_BY_ID(clientId));
     };
 
-    const handleMasterProfileClick = (masterId: number) => {
+    const handleMasterProfileClick = (masterId: string | number) => {
         console.log('Navigating to master profile:', masterId);
         navigate(ROUTES.PROFILE_BY_ID(masterId));
     };
 
-    const handleServiceClick = (ticketId: number) => {
+    const handleServiceClick = (ticketId: string | number) => {
         console.log('Navigating to ticket:', ticketId);
         navigate(ROUTES.TICKET_BY_ID(ticketId));
     };
@@ -3090,7 +3095,7 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
             return;
         }
         if (!profileData?.id) return;
-        const chat = await createChatWithAuthor(Number(profileData.id));
+        const chat = await createChatWithAuthor(profileData.id);
         if (chat) {
             navigate(`${ROUTES.CHATS}?chatId=${chat.id}`);
         }
@@ -3104,8 +3109,8 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
         // Неавторизованный пользователь — сохраняем в localStorage
         if (!token) {
             const parsed = getStorageJSON<Record<string, unknown>>('favorites') ?? {};
-            const users: number[] = Array.isArray(parsed.users) ? parsed.users as number[] : [];
-            const userId = Number(profileData.id);
+            const users: (string | number)[] = Array.isArray(parsed.users) ? parsed.users as (string | number)[] : [];
+            const userId = profileData.id;
             const nowLiked = users.includes(userId);
             const updatedUsers = nowLiked
                 ? users.filter(id => id !== userId)
@@ -3142,9 +3147,9 @@ rawAddressesRef.current = currentAddresses.filter((addr: Address) => addr.id?.to
                     if (postErr?.status === 409) {
                         // Already in favorites — re-fetch to get entryId
                         const data: any = await universalApiRequest(API_ROUTES.FAVORITES_ME, { locale: false });
-                        const entries: Array<{ id: number; type: string; user: { id: number } | null }> =
+                        const entries: Array<{ id: string | number; type: string; user: { id: string | number } | null }> =
                             data['hydra:member'] ?? [];
-                        const match = entries.find(e => e.type === 'user' && e.user?.id === Number(profileData.id));
+                        const match = entries.find(e => e.type === 'user' && e.user?.id === profileData.id);
                         if (match) { setIsProfileLiked(true); setProfileEntryId(match.id); }
                     }
                 }

@@ -3,7 +3,7 @@
  * Не путать с Occupation (специальность/подкатегория).
  */
 export interface Category {
-    id: number;
+    id: string | number;
     title: string;
     description?: string;
     image?: string;

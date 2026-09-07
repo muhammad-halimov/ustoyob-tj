@@ -16,12 +16,12 @@ interface EducationSectionProps {
     editingEducation: string | null;
     educationForm: {
         institution: string;
-        selectedSpecialty?: number;
+        selectedSpecialty?: string | number;
         startYear: string;
         endYear: string;
         currentlyStudying: boolean;
     };
-    occupations: { id: number; title: string }[];
+    occupations: { id: string | number; title: string }[];
     occupationsLoading: boolean;
     readOnly?: boolean;
     onAddEducation: () => void;
@@ -32,7 +32,7 @@ interface EducationSectionProps {
     onDeleteEducation: (educationId: string) => Promise<void>;
     setEducationForm: React.Dispatch<React.SetStateAction<{
         institution: string;
-        selectedSpecialty?: number;
+        selectedSpecialty?: string | number;
         startYear: string;
         endYear: string;
         currentlyStudying: boolean;

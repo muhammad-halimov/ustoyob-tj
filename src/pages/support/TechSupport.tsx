@@ -372,7 +372,7 @@ function TechSupport({ embedded = false }: TechSupportProps) {
         }
     };
 
-    const handleOpenTicket = (id: number) => {
+    const handleOpenTicket = (id: string | number) => {
         setSearchParams(prev => {
             const next = new URLSearchParams(prev);
             next.set('ticket', String(id));

@@ -7,15 +7,16 @@ import { resolveApiError } from '../utils/appMessagesUtils';
 import { API_ROUTES } from '../app/routers/routes';
 
 // Flat entry returned by GET /api/favorites/me (hydra:member)
+// id теперь UUID-строка (см. guides/UUID_MIGRATION_GUIDE.md)
 interface FavoriteEntry {
-    id: number;
+    id: string | number;
     type: 'user' | 'ticket';
-    user: { id: number } | null;
-    ticket: { id: number } | null;
+    user: { id: string | number } | null;
+    ticket: { id: string | number } | null;
 }
 
 interface UseFavoritesProps {
-    itemId: number;
+    itemId: string | number;
     itemType: 'ticket' | 'user';
     onSuccess?: () => void;
     onError?: (message: string) => void;
@@ -37,7 +38,7 @@ const invalidateFavoritesCache = () => {
 export const useFavorites = ({ itemId, itemType, onSuccess, onError }: UseFavoritesProps) => {
     const [isLiked, setIsLiked] = useState(false);
     const [isLikeLoading, setIsLikeLoading] = useState(false);
-    const [entryId, setEntryId] = useState<number | null>(null); // FavoriteEntry id for DELETE
+    const [entryId, setEntryId] = useState<string | number | null>(null); // FavoriteEntry id for DELETE
 
     const loadLocalStorageFavorites = (): LocalStorageFavorites => {
         try {

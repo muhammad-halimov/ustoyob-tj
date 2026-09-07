@@ -1,6 +1,6 @@
 // ─── Телефон (бэк: App\Entity\User\Phone) ────────────────────
 export interface Phone {
-    id: number;
+    id: string | number;
     phone?: string;
     countryCode?: string;
     main?: boolean;

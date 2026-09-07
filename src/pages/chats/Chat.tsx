@@ -55,7 +55,7 @@ function Chat() {
     // admin) — chat itself has no other admin-only affordances, this is the one spot it matters.
     const isAdminUser = isAdmin();
     const [activeTab, setActiveTab] = useState<"active" | "archive">("active");
-    const [selectedChat, setSelectedChat] = useState<number | null>(null);
+    const [selectedChat, setSelectedChat] = useState<string | number | null>(null);
     const [chats, setChats] = useState<ApiChat[]>([]);
     const { page: chatPage, appendRef: appendChatsRef, skipFetchRef: skipChatFetchRef, setHasMore: setChatHasMore, showMoreProps: chatsShowMoreProps } = useShowMore<ApiChat>(setChats);
     const [messages, setMessages] = useState<Message[]>([]);
@@ -77,7 +77,7 @@ function Chat() {
     const [searchQuery, setSearchQuery] = useState("");
     const [isPhotoSidebarOpen, setIsPhotoSidebarOpen] = useState(false);
     const [showComplaintModal, setShowComplaintModal] = useState(false);
-    const [sidebarComplaintTarget, setSidebarComplaintTarget] = useState<{ chatId: number; interlocutorId: number; ticketId?: number } | null>(null);
+    const [sidebarComplaintTarget, setSidebarComplaintTarget] = useState<{ chatId: string | number; interlocutorId: string | number; ticketId?: string | number } | null>(null);
 
     // Состояния для миниатюр и модального окна фото
     const [chatImages, setChatImages] = useState<ChatImageThumbnail[]>([]);
@@ -104,14 +104,14 @@ function Chat() {
     const presenceSourceRef = useRef<EventSource | null>(null);
     const inboxSourceRef = useRef<EventSource | null>(null);
     const currentUserRef = useRef<ApiUser | null>(null);
-    const startPresenceSSERef = useRef<((interlocutorId: number) => void) | null>(null);
+    const startPresenceSSERef = useRef<((interlocutorId: string | number) => void) | null>(null);
     const startInboxSSERef = useRef<(() => Promise<void>) | null>(null);
     const heartbeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const chatsRef = useRef<ApiChat[]>([]);
     /** Tracks which chat is currently open so the inbox SSE can route messages to setMessages. */
-    const selectedChatIdRef = useRef<number | null>(null);
+    const selectedChatIdRef = useRef<string | number | null>(null);
     /** Always points to the latest processActiveChatMessage to avoid stale closures in inbox SSE. */
-    const processActiveChatMessageRef = useRef<((type: string, data: ApiMessage | { id: number; chatId: number }, chatId: number) => void) | null>(null);
+    const processActiveChatMessageRef = useRef<((type: string, data: ApiMessage | { id: string | number; chatId: string | number }, chatId: string | number) => void) | null>(null);
     /** Always points to the latest fetchChats — inbox SSE debounces into this instead of
      *  putting `fetchChats` in its own deps (would resubscribe the whole EventSource on every
      *  fetchChats identity change). */
@@ -232,9 +232,10 @@ function Chat() {
     // Обработка chatId из URL
     useEffect(() => {
         if (chatIdFromUrl) {
-            const chatId = parseInt(chatIdFromUrl);
-            console.log('Chat ID from URL:', chatId);
-            setSelectedChat(chatId);
+            // chatId теперь UUID-строка (см. guides/UUID_MIGRATION_GUIDE.md) — parseInt() дал бы
+            // NaN, и открытие чата по ссылке из URL тихо ломалось бы. Используем строку как есть.
+            console.log('Chat ID from URL:', chatIdFromUrl);
+            setSelectedChat(chatIdFromUrl);
         }
     }, [chatIdFromUrl]);
 
@@ -352,7 +353,7 @@ function Chat() {
      * the alternative (merging pages) risks bleeding one chat's messages into another's view
      * when switching chats, since this same function handles both cases.
      */
-    const fetchChatMessages = useCallback(async (chatId: number) => {
+    const fetchChatMessages = useCallback(async (chatId: string | number) => {
         try {
             const token = getAuthToken();
             if (!token) {
@@ -410,8 +411,8 @@ function Chat() {
 
                     const combined = [...localMessages, ...serverItems];
                     combined.sort((a, b) => {
-                        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : (a.isLocal ? a.id : 0);
-                        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : (b.isLocal ? b.id : 0);
+                        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : (a.isLocal ? 0 : 0);
+                        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : (b.isLocal ? 0 : 0);
                         return timeA - timeB;
                     });
                     return combined;
@@ -428,7 +429,7 @@ function Chat() {
      * position so the viewport doesn't jump. Dedupes by id defensively (a message landing via
      * Mercure between page loads could otherwise show up twice).
      */
-    const loadOlderMessages = useCallback(async (chatId: number) => {
+    const loadOlderMessages = useCallback(async (chatId: string | number) => {
         if (isLoadingMoreMessages || !hasMoreMessages) return;
         setIsLoadingMoreMessages(true);
         try {
@@ -460,7 +461,7 @@ function Chat() {
         }
     }, [messagesPage, hasMoreMessages, isLoadingMoreMessages, mapApiMessageToView]);
 
-    const markChatAsRead = useCallback(async (chatId: number) => {
+    const markChatAsRead = useCallback(async (chatId: string | number) => {
         try {
             await universalApiRequest(API_ROUTES.CHAT_READ(chatId), { method: 'POST', locale: false });
         } catch {
@@ -472,7 +473,7 @@ function Chat() {
      * Loads initial messages and marks the chat as read.
      * Real-time delivery is handled by the shared inbox SSE — no per-chat EventSource needed.
      */
-    const loadChatData = useCallback(async (chatId: number) => {
+    const loadChatData = useCallback(async (chatId: string | number) => {
         setIsChatLoading(true);
         await fetchChatMessages(chatId);
         await markChatAsRead(chatId);
@@ -485,8 +486,8 @@ function Chat() {
      */
     const processActiveChatMessage = useCallback((
         type: string,
-        data: ApiMessage | { id: number; chatId: number },
-        chatId: number,
+        data: ApiMessage | { id: string | number; chatId: string | number },
+        chatId: string | number,
     ) => {
         const user = currentUserRef.current;
 
@@ -559,7 +560,7 @@ function Chat() {
     useEffect(() => { processActiveChatMessageRef.current = processActiveChatMessage; }, [processActiveChatMessage]);
 
 
-    const startPresenceSSE = useCallback((interlocutorId: number) => {
+    const startPresenceSSE = useCallback((interlocutorId: string | number) => {
         if (presenceSourceRef.current) {
             presenceSourceRef.current.close();
             presenceSourceRef.current = null;
@@ -720,7 +721,7 @@ function Chat() {
         }
     }, [currentUser]);
 
-    const sendMessageToServer = useCallback(async (chatId: number, messageText: string, replyToId?: number): Promise<number | false> => {
+    const sendMessageToServer = useCallback(async (chatId: string | number, messageText: string, replyToId?: string | number): Promise<string | number | false> => {
         try {
             const data: any = await universalApiRequest(API_ROUTES.CHAT_MESSAGES_CREATE, {
                 method: 'POST',
@@ -749,7 +750,7 @@ function Chat() {
     // same reach as photo moderation elsewhere) — re-deleting an already-deleted message is a
     // no-op 204, so nothing extra is needed against double-clicks beyond the button just
     // disappearing once `deletedByAuthor` is true.
-    const deleteMessage = useCallback(async (messageId: number) => {
+    const deleteMessage = useCallback(async (messageId: string | number) => {
         if (!window.confirm(t('chat.deleteConfirm'))) {
             return;
         }
@@ -777,13 +778,13 @@ function Chat() {
     // message_already_deleted), each worth its own message via resolveApiError at the call
     // site instead of a silent no-op that left the composer sitting there with no feedback.
     const editMessageOnServer = useCallback(async (
-        messageId: number,
+        messageId: string | number,
         newText: string,
         photoItems: PhotoItem[]
     ): Promise<void> => {
         const newFiles = (photoItems.filter(p => p.type === 'new') as Array<{ type: 'new'; file: File; previewUrl: string }>).map(p => p.file);
 
-        const fetchMessageImages = async (id: number): Promise<Array<{ id: number; image: string }>> => {
+        const fetchMessageImages = async (id: string | number): Promise<Array<{ id: string | number; image: string }>> => {
             try {
                 const messageData = await universalApiRequest(API_ROUTES.CHAT_MESSAGE_BY_ID(id), { locale: false }) as ApiMessage;
                 return (messageData.images || []).map(img => ({ id: img.id, image: img.image }));
@@ -839,7 +840,7 @@ function Chat() {
     }, [messages, selectedChat, fetchChatMessages, t]);
 
     // Загрузка файлов к конкретному сообщению
-    const uploadFilesToMessage = useCallback(async (messageId: number, files: File[]): Promise<void> => {
+    const uploadFilesToMessage = useCallback(async (messageId: string | number, files: File[]): Promise<void> => {
         if (files.length === 0) return;
         const token = getAuthToken();
         if (!token) return;
@@ -1121,7 +1122,8 @@ function Chat() {
             } else {
                 // Preserve the URL-specific chat if it's not in the new response (race condition with newly created chats)
                 if (chatIdFromUrl) {
-                    const urlChatId = parseInt(chatIdFromUrl);
+                    // chatId теперь UUID-строка — см. комментарий выше про parseInt()/NaN.
+                    const urlChatId = chatIdFromUrl;
                     setChats(prev => {
                         if (!chatsData.some(c => c.id === urlChatId)) {
                             const preserved = prev.find(c => c.id === urlChatId);
@@ -1144,7 +1146,8 @@ function Chat() {
             }
 
             if (chatIdFromUrl) {
-                const chatId = parseInt(chatIdFromUrl);
+                // chatId теперь UUID-строка — см. комментарий выше про parseInt()/NaN.
+                const chatId = chatIdFromUrl;
                 const chatExists = chatsData.some(chat => chat.id === chatId);
                 if (chatExists) {
                     setSelectedChat(chatId);
@@ -1177,7 +1180,7 @@ function Chat() {
 
 
     // ===== ФУНКЦИИ ДЛЯ АРХИВАЦИИ ЧАТОВ =====
-    const archiveChat = useCallback(async (chatId: number, archive: boolean = true) => {
+    const archiveChat = useCallback(async (chatId: string | number, archive: boolean = true) => {
         if (archive) {
             if (!window.confirm(t('chat.archiveConfirm'))) return;
         }
@@ -1220,7 +1223,7 @@ function Chat() {
     // already done the same; either way it stops showing up in *our* GET /chats/me right away,
     // so drop it from local state immediately instead of waiting on the next full refetch —
     // same instant-update approach as archiving, no page reload needed.
-    const deleteChatForMe = useCallback(async (chatId: number) => {
+    const deleteChatForMe = useCallback(async (chatId: string | number) => {
         if (!window.confirm(t('chat.deleteChatConfirm'))) return;
         try {
             await universalApiRequest(API_ROUTES.CHAT_BY_ID(chatId), { method: 'DELETE', locale: false });
@@ -1288,7 +1291,7 @@ function Chat() {
         return t('chat.noMessages');
     }, [t]);
 
-    const handleChatSelect = useCallback((chatId: number) => {
+    const handleChatSelect = useCallback((chatId: string | number) => {
         console.log('Selecting chat:', chatId);
         setSelectedChat(chatId);
         if (window.innerWidth <= 960) {
@@ -1322,7 +1325,7 @@ function Chat() {
     // вам, но не наоборот. Загружается целиком один раз (не per-chat), чтобы одним и тем же
     // состоянием пользоваться и в шапке открытого чата, и в дропдауне каждой строки сайдбара
     // (per-row хук здесь невозможен — хуки нельзя вызывать внутри .map()).
-    const [blockedUsers, setBlockedUsers] = useState<Map<number, number>>(new Map()); // userId -> blacklist entry id
+    const [blockedUsers, setBlockedUsers] = useState<Map<string | number, string | number>>(new Map()); // userId -> blacklist entry id
 
     const refreshBlockedUsers = useCallback(async () => {
         try {
@@ -1337,7 +1340,7 @@ function Chat() {
         if (currentUser) refreshBlockedUsers();
     }, [currentUser, refreshBlockedUsers]);
 
-    const toggleBlockUser = useCallback(async (userId: number, userName: string) => {
+    const toggleBlockUser = useCallback(async (userId: string | number, userName: string) => {
         const existingEntryId = blockedUsers.get(userId);
         try {
             if (existingEntryId) {

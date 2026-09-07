@@ -1,7 +1,7 @@
 import type { User } from '../User';
 
 export interface OAuthProvider {
-    id?: number;
+    id?: string | number;
     provider: 'google' | 'facebook' | 'instagram' | 'telegram';
     providerId?: string;
     linkedAt?: string;

@@ -51,12 +51,12 @@ interface ReviewsSectionProps {
     getReviewerAvatarUrl?: (review: Review) => string;
     getClientName: (review: Review) => string;
     getMasterName: (review: Review) => string;
-    onClientProfileClick: (clientId: number) => void;
-    onMasterProfileClick?: (masterId: number) => void;
-    onServiceClick?: (ticketId: number) => void;
-    getReviewImageIndex: (reviewIndex: number, imageIndex: number) => number;    onComplaintClick?: (reviewId: number, authorId: number) => void;
+    onClientProfileClick: (clientId: string | number) => void;
+    onMasterProfileClick?: (masterId: string | number) => void;
+    onServiceClick?: (ticketId: string | number) => void;
+    getReviewImageIndex: (reviewIndex: number, imageIndex: number) => number;    onComplaintClick?: (reviewId: string | number, authorId: string | number) => void;
     onRefresh?: () => void;
-    currentUserId?: number;
+    currentUserId?: string | number;
     onEditClick?: (review: Review) => void;
     footerSlot?: React.ReactNode;
 }
@@ -88,7 +88,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
     const [sortBy, setSortBy] = useState<ReviewSortByType>('newest');
     const [timeFilter, setTimeFilter] = useState<ReviewTimeFilterType>('all');
     const [withPhotosOnly, setWithPhotosOnly] = useState(false);
-    const [expandedReviews, setExpandedReviews] = useState<Record<number, boolean>>({});
+    const [expandedReviews, setExpandedReviews] = useState<Record<string, boolean>>({});
     const [statusModal, setStatusModal] = useState<{ isOpen: boolean; type: 'success' | 'error'; message: string }>(
         { isOpen: false, type: 'success', message: '' }
     );
@@ -208,10 +208,10 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
         }
     };
 
-    const getReviewAuthorId = (review: Review): number | undefined =>
+    const getReviewAuthorId = (review: Review): string | number | undefined =>
         userRole === 'master' ? review.client?.id : review.master?.id;
 
-    const handleDeleteReview = async (reviewId: number) => {
+    const handleDeleteReview = async (reviewId: string | number) => {
         if (!window.confirm(t('profile:deleteReviewConfirm', 'Вы уверены, что хотите удалить отзыв?'))) return;
         try {
             await universalApiRequest(API_ROUTES.REVIEW_BY_ID(reviewId), { method: 'DELETE' });
@@ -245,7 +245,7 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
     const getPlainReviewText = (review: Review) =>
         review.description ? review.description.replace(/<[^>]*>/g, '') : '';
 
-    const isReviewExpanded = (review: Review) => expandedReviews[review.id];
+    const isReviewExpanded = (review: Review) => expandedReviews[String(review.id)];
 
     const renderReviewDescription = (review: Review, previewLength = maxLength) => {
         if (!review.description) return null;

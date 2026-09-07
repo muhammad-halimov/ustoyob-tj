@@ -32,7 +32,7 @@ import {
 } from '../types';
 
 interface TechSupportThreadProps {
-    ticketId: number;
+    ticketId: string | number;
     /**
      * Fired every time the local `ticket` state changes (initial load, admin edit-save, a
      * reply auto-reopening a closed/resolved ticket, …) — lets the parent tickets table
@@ -107,7 +107,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     // `ticket.reason.title` comes embedded in the ticket response and doesn't seem to respect
     // ?locale= the way a direct GET /api/appeal-reasons?locale= does — look the title up by id
     // from that (correctly locale-fetched, cached) list instead, same fix as the tickets table.
-    const [reasonTitleById, setReasonTitleById] = useState<Map<number, string>>(new Map());
+    const [reasonTitleById, setReasonTitleById] = useState<Map<string | number, string>>(new Map());
     // Scoped list for the admin edit dropdown — only `applicableTo=support` reasons are valid
     // choices when editing (same restriction as the create form's picker in TechSupport.tsx).
     // Separate from `reasonTitleById` above, which stays unscoped on purpose to resolve
@@ -145,13 +145,13 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     // isMine-gated edit) — text + photo removal for a single already-sent reply. Admins don't
     // get this (they don't touch other people's message text) — their reach over other
     // people's photos is MediaSidebar-only, see `sentImages`/`deleteSentImage` below.
-    const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
+    const [editingMessageId, setEditingMessageId] = useState<string | number | null>(null);
     const [isSavingMessage, setIsSavingMessage] = useState(false);
     const [editMessageText, setEditMessageText] = useState('');
     const [editMessagePhotos, setEditMessagePhotos] = useState<PhotoItem[]>([]);
     // Soft delete (§11) — author of the message, or any admin (moderation). In-flight id only
     // (no confirm-then-nothing state needed) — the button disables itself while its own call runs.
-    const [deletingMessageId, setDeletingMessageId] = useState<number | null>(null);
+    const [deletingMessageId, setDeletingMessageId] = useState<string | number | null>(null);
 
     // Marks every unread reply on this ticket as read server-side (§11: `author != caller &&
     // readAt == null`). Fire-and-forget — a failure here just leaves the tickets-list bubble
@@ -419,7 +419,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     // account, so "not the ticket author" isn't reliably "the admin who's assigned to it".
     // Falls back to the binary assumption only when neither id is known (e.g. a stale/partial
     // ticket payload).
-    const getMessageRole = useCallback((msgAuthorId?: number | null): 'admin' | 'author' | null => {
+    const getMessageRole = useCallback((msgAuthorId?: string | number | null): 'admin' | 'author' | null => {
         if (msgAuthorId == null) return null;
         if (ticket?.author?.id === msgAuthorId) return 'author';
         if (ticket?.administrant?.id === msgAuthorId) return 'admin';
@@ -479,7 +479,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
             // window is open; past it they're not even rendered as inputs (see the JSX), and
             // sending them anyway (even unchanged) would 403 edit_window_expired for both
             // roles. An admin past the window can still be here for reason/priority/status.
-            let orderedImages: { id: number; image: string }[] | null = null;
+            let orderedImages: { id: string | number; image: string }[] | null = null;
             if (canEditTicketContent) {
                 // New files first (so their ids exist server-side), then re-fetch the
                 // ticket's own image list to learn those ids before computing what to
@@ -493,7 +493,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
                         // Non-critical — the rest of the edit still saves either way.
                     }
                 }
-                let currentImages: { id: number; image: string }[] = ticket?.images ?? [];
+                let currentImages: { id: string | number; image: string }[] = ticket?.images ?? [];
                 if (newFiles.length > 0) {
                     try {
                         const fresh: SupportTicket = await universalApiRequest(API_ROUTES.TECH_SUPPORT_BY_ID(ticketId), { locale: false });
@@ -585,7 +585,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
             }
 
             const existingBeforeSave = ticket?.messages?.find(m => m.id === editingMessageId)?.images ?? [];
-            let currentImages: { id: number; image: string }[] = existingBeforeSave;
+            let currentImages: { id: string | number; image: string }[] = existingBeforeSave;
             if (newFiles.length > 0) {
                 try {
                     const fresh: TechSupportMessage = await universalApiRequest(API_ROUTES.TECH_SUPPORT_MESSAGE_BY_ID(editingMessageId), { locale: false });
@@ -622,7 +622,7 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     // Available to the message's own author, or any admin (moderation) — re-deleting an
     // already-deleted message is a no-op 204, so no extra guard needed against double-clicks
     // beyond disabling the button while one is in flight.
-    const deleteMessage = async (messageId: number, skipConfirm = false) => {
+    const deleteMessage = async (messageId: string | number, skipConfirm = false) => {
         if (!skipConfirm && !window.confirm(t('thread.deleteMessageConfirm'))) return;
         setDeletingMessageId(messageId);
         try {
@@ -647,11 +647,11 @@ function TechSupportThread({ ticketId, onTicketChange }: TechSupportThreadProps)
     // ticket author can drop their own original-request photos while the 24h edit window is
     // open (§11: `images` shares that window), and drop images off their own messages same as
     // always — same "each side manages their own" rule as the inline per-message edit pencil.
-    type SentImageSource = { type: 'ticket' } | { type: 'message'; messageId: number };
+    type SentImageSource = { type: 'ticket' } | { type: 'message'; messageId: string | number };
     const sentImages = useMemo(() => {
         if (!ticket) return [];
         const canDeleteTicketImages = isAdminUser || (isTicketAuthor && isTicketEditWindowOpen);
-        const items: { id: number; url: string; deletable: boolean; source: SentImageSource }[] =
+        const items: { id: string | number; url: string; deletable: boolean; source: SentImageSource }[] =
             (ticket.images ?? []).map(img => ({ id: img.id, url: formatTechSupportImageUrl(img.image), deletable: canDeleteTicketImages, source: { type: 'ticket' } }));
         (ticket.messages ?? []).forEach(m => {
             const mine = !!currentUserId && m.author?.id === currentUserId;

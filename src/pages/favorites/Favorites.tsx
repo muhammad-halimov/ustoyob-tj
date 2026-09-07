@@ -56,8 +56,8 @@ function Favorites() {
     const [isLoading, setIsLoading] = useState(true);
     const [isFavoritesRefreshing, setIsFavoritesRefreshing] = useState(false);
     const [activeTab, setActiveTab] = useState<'orders' | 'masters'>('orders');
-    const [_likedTickets, setLikedTickets] = useState<number[]>([]);
-    const [isLikeLoading, setIsLikeLoading] = useState<number | null>(null);
+    const [_likedTickets, setLikedTickets] = useState<(string | number)[]>([]);
+    const [isLikeLoading, setIsLikeLoading] = useState<string | number | null>(null);
     const { page, setPage, appendRef: appendFavRef, skipFetchRef: skipFavFetchRef, setHasMore, showMoreProps: favShowMoreProps } = useShowMore<any>(() => {}, { initialSkip: true });
     const ticketsPerPageRef = useRef<number[]>([]);
     const usersPerPageRef = useRef<number[]>([]);
@@ -90,8 +90,8 @@ function Favorites() {
         };
     }, []);
     // Состояния отклика
-    const [respondedTickets, setRespondedTickets] = useState<Set<number>>(() => getPersistedRespondedTicketIds());
-    const [respondingTicketId, setRespondingTicketId] = useState<number | null>(null);
+    const [respondedTickets, setRespondedTickets] = useState<Set<string | number>>(() => getPersistedRespondedTicketIds());
+    const [respondingTicketId, setRespondingTicketId] = useState<string | number | null>(null);
     const [respondModal, setRespondModal] = useState<{ open: boolean; type: 'success' | 'error'; message: string }>({ open: false, type: 'success', message: '' });
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -141,10 +141,10 @@ function Favorites() {
             (async () => {
                 try {
                     const chats: any[] = await getChatsMe();
-                    const ids = new Set<number>();
+                    const ids = new Set<string | number>();
                     chats.forEach((chat: any) => {
                         const t = chat.ticket;
-                        const cid = t?.id ?? (() => { const m = String(t?.['@id'] || '').match(/\/\d+$/); return m ? parseInt(m[0].slice(1)) : null; })();
+                        const cid = t?.id ?? (() => { const m = String(t?.['@id'] || '').match(/\/([^/]+)$/); return m ? m[1] : null; })();
                         if (cid) ids.add(cid);
                     });
                     const merged = new Set([...getPersistedRespondedTicketIds(), ...ids]);
@@ -155,7 +155,7 @@ function Favorites() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const handleRespondCard = async (ticketId: number, authorId: number) => {
+    const handleRespondCard = async (ticketId: string | number, authorId: string | number) => {
         const token = getAuthToken();
         if (!token) {
             window.dispatchEvent(new CustomEvent('openAuthModal'));
@@ -187,13 +187,13 @@ function Favorites() {
 
     // Состояния для модального окна отзыва
     const [showReviewModal, setShowReviewModal] = useState(false);
-    const [selectedMasterId, setSelectedMasterId] = useState<number | null>(null);
-    const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
+    const [selectedMasterId, setSelectedMasterId] = useState<string | number | null>(null);
+    const [selectedTicketId, setSelectedTicketId] = useState<string | number | null>(null);
 
     // Состояния для модального окна жалобы
     const [showComplaintModal, setShowComplaintModal] = useState(false);
-    const [complaintUserId, setComplaintUserId] = useState<number | null>(null);
-    const [complaintTicketId, setComplaintTicketId] = useState<number | null>(null);
+    const [complaintUserId, setComplaintUserId] = useState<string | number | null>(null);
+    const [complaintTicketId, setComplaintTicketId] = useState<string | number | null>(null);
 
     const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const fetchFavoritesRef = useRef<(pageOverride?: number) => Promise<void>>(null!);
@@ -330,7 +330,7 @@ function Favorites() {
     };
 
 
-    const fetchTicketDetails = async (ticketId: number): Promise<FavoriteTicketView | null> => {
+    const fetchTicketDetails = async (ticketId: string | number): Promise<FavoriteTicketView | null> => {
         try {
             const ticket: Ticket = await universalApiRequest(API_ROUTES.TICKET_BY_ID(ticketId));
 
@@ -382,7 +382,7 @@ function Favorites() {
     // Алиас для обратной совместимости с вызовами для неавторизованных
     const fetchTicketDetailsForUnauthorized = fetchTicketDetails;
 
-    const fetchUserProfile = async (userId: number): Promise<FavoriteUserView | null> => {
+    const fetchUserProfile = async (userId: string | number): Promise<FavoriteUserView | null> => {
         try {
             const u: User = await universalApiRequest(API_ROUTES.USER_BY_ID(userId), { requiresAuth: false });
             const isMaster = u.roles?.includes('ROLE_MASTER') ?? false;
@@ -542,7 +542,7 @@ function Favorites() {
     fetchFavoritesRef.current = fetchFavorites as () => Promise<void>;
 
     // Удалить / добавить пользователя в избранное
-    const handleLikeUser = async (userId: number) => {
+    const handleLikeUser = async (userId: string | number) => {
         const token = getAuthToken();
 
         // Неавторизованный: сохраняем в localStorage
@@ -575,13 +575,13 @@ function Favorites() {
         }
     };
 
-    const handleCardClick = (authorId?: number, ticketId?: number) => {
+    const handleCardClick = (authorId?: string | number, ticketId?: string | number) => {
         if (!authorId || !ticketId) return;
         navigate(ROUTES.TICKET_BY_ID(ticketId));
     };
 
     // Удалить тикет из избранного — DELETE /api/favorites/{entryId}
-    const handleUnlikeTicket = async (ticketId: number) => {
+    const handleUnlikeTicket = async (ticketId: string | number) => {
         const token = getAuthToken();
         if (!token) return;
 
@@ -599,7 +599,7 @@ function Favorites() {
     };
 
     // Добавить тикет в избранное — POST /api/favorites { ticket: IRI }
-    const handleTicketLike = async (ticketId: number) => {
+    const handleTicketLike = async (ticketId: string | number) => {
         const token = getAuthToken();
         if (!token) {
             window.dispatchEvent(new CustomEvent('openAuthModal'));
@@ -635,10 +635,10 @@ function Favorites() {
     };
 
     // Для неавторизованных пользователей
-    const handleTicketLikeUnauthorized = async (ticketId: number) => {
+    const handleTicketLikeUnauthorized = async (ticketId: string | number) => {
         const localFavorites = loadLocalStorageFavorites();
         const isCurrentlyLiked = localFavorites.tickets.includes(ticketId);
-        let updatedTickets: number[];
+        let updatedTickets: (string | number)[];
 
         if (isCurrentlyLiked) {
             updatedTickets = localFavorites.tickets.filter(id => id !== ticketId);
@@ -655,7 +655,7 @@ function Favorites() {
         window.dispatchEvent(new Event('favoritesUpdated'));
     };
 
-    const handleTicketLikeWrapper = (ticketId: number) => {
+    const handleTicketLikeWrapper = (ticketId: string | number) => {
         const token = getAuthToken();
         if (!token) {
             handleTicketLikeUnauthorized(ticketId);
@@ -668,7 +668,7 @@ function Favorites() {
 
 
 
-    const handleMasterChat = async (authorId: number) => {
+    const handleMasterChat = async (authorId: string | number) => {
         const token = getAuthToken();
         if (!token) {
             window.dispatchEvent(new CustomEvent('openAuthModal'));
@@ -687,7 +687,7 @@ function Favorites() {
     };
 
     // Функции для модального окна отзыва
-    const handleMasterReview = (masterId: number) => {
+    const handleMasterReview = (masterId: string | number) => {
         const token = getAuthToken();
         if (!token) {
             window.dispatchEvent(new CustomEvent('openAuthModal'));
@@ -698,7 +698,7 @@ function Favorites() {
         setShowReviewModal(true);
     };
 
-    const handleComplaintUser = (userId: number, ticketId?: number) => {
+    const handleComplaintUser = (userId: string | number, ticketId?: string | number) => {
         const token = getAuthToken();
         if (!token) {
             window.dispatchEvent(new CustomEvent('openAuthModal'));

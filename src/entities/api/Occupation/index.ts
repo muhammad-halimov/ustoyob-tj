@@ -1,7 +1,7 @@
 import type { Category } from '../Category';
 
 export interface Occupation {
-    id: number;
+    id: string | number;
     title: string;
     description?: string;
     slug?: string;

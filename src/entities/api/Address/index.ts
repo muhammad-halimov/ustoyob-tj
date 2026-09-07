@@ -1,33 +1,33 @@
 // ─── Географические сущности (бэк: Geography\*) ─────────────
 export interface Province {
-    id: number;
+    id: string | number;
     title: string;
     slug?: string;
     [key: string]: unknown;
 }
 
 export interface City {
-    id: number;
+    id: string | number;
     title: string;
     slug?: string;
     province?: Province;
-    provinceId?: number;
+    provinceId?: string | number;
     image?: string;
     suburbs?: Suburb[];
     [key: string]: unknown;
 }
 
 export interface Suburb {
-    id: number;
+    id: string | number;
     title: string;
     slug?: string;
     city?: City;
-    cityId?: number;
+    cityId?: string | number;
     [key: string]: unknown;
 }
 
 export interface District {
-    id: number;
+    id: string | number;
     title?: string;
     slug?: string;
     province?: Province;
@@ -38,7 +38,7 @@ export interface District {
 }
 
 export interface Settlement {
-    id: number;
+    id: string | number;
     title: string;
     slug?: string;
     village?: Village[];
@@ -46,14 +46,14 @@ export interface Settlement {
 }
 
 export interface Community {
-    id: number;
+    id: string | number;
     title: string;
     slug?: string;
     [key: string]: unknown;
 }
 
 export interface Village {
-    id: number;
+    id: string | number;
     title: string;
     slug?: string;
     [key: string]: unknown;
@@ -61,7 +61,7 @@ export interface Village {
 
 // ─── Адрес (бэк: App\Entity\Geography\Abstract\Address) ────────────────
 export interface Address {
-    id: number;
+    id: string | number;
     title?: string;
     province?: Province | null;
     city?: City | null;

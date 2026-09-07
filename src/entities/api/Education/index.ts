@@ -1,7 +1,7 @@
 import type { Occupation } from '../Occupation';
 
 export interface Education {
-    id: number;
+    id: string | number;
     title?: string;
     beginning?: number;
     ending?: number;

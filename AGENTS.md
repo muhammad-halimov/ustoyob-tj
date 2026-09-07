@@ -284,4 +284,5 @@ npm run lint    # ESLint check
 - **Vite Config**: `vite.config.ts` (dev proxy, plugins, esbuild options)
 - **Styling Guide**: `guides/` directory (dark theme, i18n, optimization, etc.)
 - **OAuth Integration**: `guides/OAUTH_INTEGRATION.md`, page at `src/pages/OAuth/`
+- **UUID Migration (backend ids int→string, 09.2026)**: `guides/UUID_MIGRATION_GUIDE.md` — read before touching any code that parses an id out of an IRI (`\d+` regexes) or coerces an id with `Number()`/`parseInt()`
 

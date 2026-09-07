@@ -255,7 +255,7 @@ function MyTickets() {
         }
     };
 
-    const handleCardClick = useCallback((ticketId?: number, authorId?: number, masterId?: number) => {
+    const handleCardClick = useCallback((ticketId?: string | number, authorId?: string | number, masterId?: string | number) => {
         if (!ticketId) return;
         // Авторизация проверена в начале компонента
         if (authorId || masterId) navigate(ROUTES.TICKET_BY_ID(ticketId));
@@ -265,7 +265,7 @@ function MyTickets() {
         // Авторизация проверена в начале компонента
         navigate(ROUTES.TICKET_CREATE);
     };
-    const handleToggleTicketActive = async (e: React.ChangeEvent<HTMLInputElement>, ticketId: number, currentActive: boolean) => {
+    const handleToggleTicketActive = async (e: React.ChangeEvent<HTMLInputElement>, ticketId: string | number, currentActive: boolean) => {
         e.stopPropagation();
 
         const token = getAuthToken();
@@ -299,7 +299,7 @@ function MyTickets() {
         }
     };
 
-    const handleEditTicket = async (e: React.MouseEvent, ticketId: number) => {
+    const handleEditTicket = async (e: React.MouseEvent, ticketId: string | number) => {
         e.stopPropagation();
 
         const token = getAuthToken();

@@ -7,8 +7,8 @@ import { API_ROUTES } from '../app/routers/routes';
 // Flat entry returned by GET /api/black-lists/me — a block is always exactly one user now,
 // no `type`/`ticket` variant (redesigned, see API_REFERENCE.md §10).
 export interface BlackListEntry {
-    id: number;
-    user: { id: number } | null;
+    id: string | number;
+    user: { id: string | number } | null;
 }
 
 // Module-level cache to deduplicate concurrent /api/black-lists/me requests — shared by
@@ -50,7 +50,7 @@ export const fetchBlacklistEntries = async (): Promise<BlackListEntry[]> => {
 };
 
 /** POST /api/black-lists — blocks a user, returns the created entry. */
-export const blockUser = (userId: number): Promise<BlackListEntry> =>
+export const blockUser = (userId: string | number): Promise<BlackListEntry> =>
     universalApiRequest(API_ROUTES.BLACKLIST, {
         method: 'POST',
         body: { user: API_ROUTES.USER_BY_ID(userId) },
@@ -61,13 +61,13 @@ export const blockUser = (userId: number): Promise<BlackListEntry> =>
     });
 
 /** DELETE /api/black-lists/{entryId} — unblocks. */
-export const unblockUser = (entryId: number): Promise<void> =>
+export const unblockUser = (entryId: string | number): Promise<void> =>
     universalApiRequest(API_ROUTES.BLACKLIST_BY_ID(entryId), { method: 'DELETE', locale: false }).then(() => {
         invalidateBlacklistCache();
     });
 
 interface UseBlacklistProps {
-    userId: number;
+    userId: string | number;
     onSuccess?: (blocked: boolean) => void;
     onError?: (message: string) => void;
 }
@@ -84,7 +84,7 @@ interface UseBlacklistProps {
 export const useBlacklist = ({ userId, onSuccess, onError }: UseBlacklistProps) => {
     const [isBlocked, setIsBlocked] = useState(false);
     const [isBlockLoading, setIsBlockLoading] = useState(false);
-    const [entryId, setEntryId] = useState<number | null>(null);
+    const [entryId, setEntryId] = useState<string | number | null>(null);
 
     const checkBlockedStatus = useCallback(async () => {
         if (!userId) {

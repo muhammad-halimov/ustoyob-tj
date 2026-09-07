@@ -11,29 +11,29 @@ import { API_ROUTES } from '../app/routers/routes';
 const RESPONDED_IDS_KEY = 'respondedTicketIds';
 
 /** Persists a responded ticket ID to sessionStorage so it survives page navigations. */
-export const persistRespondedTicketId = (ticketId: number): void => {
-    const existing = getSessionJSON<number[]>(RESPONDED_IDS_KEY) ?? [];
+export const persistRespondedTicketId = (ticketId: string | number): void => {
+    const existing = getSessionJSON<(string | number)[]>(RESPONDED_IDS_KEY) ?? [];
     if (!existing.includes(ticketId)) {
         setSessionJSON(RESPONDED_IDS_KEY, [...existing, ticketId]);
     }
 };
 
 /** Reads all persisted responded ticket IDs from sessionStorage. */
-export const getPersistedRespondedTicketIds = (): Set<number> =>
-    new Set(getSessionJSON<number[]>(RESPONDED_IDS_KEY) ?? []);
+export const getPersistedRespondedTicketIds = (): Set<string | number> =>
+    new Set(getSessionJSON<(string | number)[]>(RESPONDED_IDS_KEY) ?? []);
 
 /** Stub — previously contained modal initialisation logic that was removed. Kept for backwards-compat imports. */
 export const initChatModals = () => {
 };
 
-// Извлекает числовой id из объекта: сначала проверяет числовое поле id,
-// затем парсит IRI вида "/api/chats/123"
-const extractId = (obj: any): number | undefined => {
-    if (obj?.id) return typeof obj.id === 'number' ? obj.id : parseInt(String(obj.id));
+// Извлекает id (string или number) из объекта: сначала проверяет поле id,
+// затем парсит IRI вида "/api/chats/{id}" (any format — UUID или число)
+const extractId = (obj: any): string | number | undefined => {
+    if (obj?.id) return obj.id;
     const iri = obj?.['@id'];
     if (iri) {
-        const match = String(iri).match(/\/(\d+)$/);
-        if (match) return parseInt(match[1]);
+        const match = String(iri).match(/\/([^/]+)$/);
+        if (match) return match[1];
     }
     return undefined;
 };
@@ -42,11 +42,11 @@ const extractId = (obj: any): number | undefined => {
  * Creates a new chat with the given user (replyAuthor), or returns the
  * existing chat if one already exists between the current user and replyAuthorId.
  *
- * @param replyAuthorId  ID of the user to start a chat with
- * @param ticketId       Optional: link the chat to a specific ticket
+ * @param replyAuthorId  ID of the user to start a chat with (string UUID or number)
+ * @param ticketId       Optional: link the chat to a specific ticket (string UUID or number)
  * @throws Error when the target user is inactive or the API call fails
  */
-export const createChatWithAuthor = async (replyAuthorId: number, ticketId?: number): Promise<Chat | null> => {
+export const createChatWithAuthor = async (replyAuthorId: string | number, ticketId?: string | number): Promise<Chat | null> => {
     const token = getAuthToken();
     if (!token) return null;
 
@@ -81,7 +81,7 @@ export const createChatWithAuthor = async (replyAuthorId: number, ticketId?: num
  * Checks whether the given user is approved and active before allowing
  * chat creation.  Returns { approved: false, active: false } on any error.
  */
-export const checkUserStatus = async (userId: number): Promise<{ approved: boolean; active: boolean }> => {
+export const checkUserStatus = async (userId: string | number): Promise<{ approved: boolean; active: boolean }> => {
     try {
         const token = getAuthToken();
         if (!token) return { approved: false, active: false };
@@ -126,15 +126,15 @@ export const getChatsMe = async (): Promise<Chat[]> => {
             let ticket: any = rawTicket;
             if (rawTicket) {
                 if (typeof rawTicket === 'string') {
-                    // bare IRI string e.g. "/api/tickets/123"
-                    const m = rawTicket.match(/\/(\d+)$/);
-                    ticket = m ? { id: parseInt(m[1]), '@id': rawTicket } : { '@id': rawTicket };
+                    // bare IRI string e.g. "/api/tickets/01a0781d-..." or "/api/tickets/123"
+                    const m = rawTicket.match(/\/([^/]+)$/);
+                    ticket = m ? { id: m[1], '@id': rawTicket } : { '@id': rawTicket };
                 } else if (typeof rawTicket === 'object' && !rawTicket.id) {
-                    // object with '@id' but no numeric id
+                    // object with '@id' but no id field
                     const iri = rawTicket['@id'];
                     if (iri) {
-                        const m = String(iri).match(/\/(\d+)$/);
-                        if (m) ticket = { ...rawTicket, id: parseInt(m[1]) };
+                        const m = String(iri).match(/\/([^/]+)$/);
+                        if (m) ticket = { ...rawTicket, id: m[1] };
                     }
                 }
             }
@@ -159,7 +159,7 @@ export const invalidateChatsCache = (): void => {
     _chatsMePromise = null;
 };
 
-const findExistingChat = async (replyAuthorId: number): Promise<Chat | null> => {
+const findExistingChat = async (replyAuthorId: string | number): Promise<Chat | null> => {
     try {
         const chatsArray = await getChatsMe();
         return chatsArray.find(chat =>

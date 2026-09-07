@@ -1,5 +1,5 @@
 export interface AppealReason {
-    id: number;
+    id: string | number;
     code: string;
     title: string;
 }
